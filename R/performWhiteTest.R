@@ -48,6 +48,8 @@ performWhiteTest <- function(model, data, cross_products = TRUE) {
     if (length(cross_terms) > 0) {
       aux_data <- cbind(aux_data, as.data.frame(cross_terms))
     }
+  } else if (cross_products && ncol(indep_vars) - 1 > 10) {
+    std_warning("cross_products_omitted")
   }
 
   aux_model <- tryCatch(

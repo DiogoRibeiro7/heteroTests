@@ -266,7 +266,7 @@ test_that("additional sigma functions work correctly", {
 # =============================================================================
 
 test_that("simulate_arch1 works correctly", {
-  result <- simulate_arch1(T = 100, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = 123)
+  result <- simulate_arch1(n = 100, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = 123)
   
   expect_s3_class(result, "data.frame")
   expect_equal(nrow(result), 100)
@@ -285,28 +285,28 @@ test_that("simulate_arch1 works correctly", {
 })
 
 test_that("simulate_arch1 input validation", {
-  # Invalid T
+  # Invalid n
   expect_error(
-    simulate_arch1(T = 1, mu = 0, alpha0 = 0.5, alpha1 = 0.3),
-    "T >= 2"
+    simulate_arch1(n = 1, mu = 0, alpha0 = 0.5, alpha1 = 0.3),
+    "n >= 2"
   )
   
   # Invalid alpha0
   expect_error(
-    simulate_arch1(T = 50, mu = 0, alpha0 = -0.1, alpha1 = 0.3),
+    simulate_arch1(n = 50, mu = 0, alpha0 = -0.1, alpha1 = 0.3),
     "alpha0 >= 0"
   )
   
   # Invalid alpha1 (should be < 1 for stationarity)
   expect_error(
-    simulate_arch1(T = 50, mu = 0, alpha0 = 0.5, alpha1 = 1.1),
+    simulate_arch1(n = 50, mu = 0, alpha0 = 0.5, alpha1 = 1.1),
     "alpha1 < 1"
   )
 })
 
 test_that("simulate_arch1 produces ARCH effects", {
   # Generate ARCH series
-  arch_data <- simulate_arch1(T = 200, alpha0 = 0.1, alpha1 = 0.8, seed = 42)
+  arch_data <- simulate_arch1(n = 200, alpha0 = 0.1, alpha1 = 0.8, seed = 42)
   
   # Fit simple model and test for ARCH effects
   arch_model <- lm(y ~ 1, data = arch_data)
@@ -357,7 +357,7 @@ test_that("simulated data works with diagnostic functions", {
 })
 
 test_that("ARCH simulation integrates with time series tests", {
-  arch_data <- simulate_arch1(T = 150, alpha0 = 0.2, alpha1 = 0.6, seed = 456)
+  arch_data <- simulate_arch1(n = 150, alpha0 = 0.2, alpha1 = 0.6, seed = 456)
   arch_model <- lm(y ~ 1, data = arch_data)
   
   # Run time series tests
@@ -435,10 +435,10 @@ test_that("simulations are reproducible across R sessions", {
   
   # Test ARCH simulation reproducibility
   set.seed(123)
-  arch1 <- simulate_arch1(T = 50, alpha0 = 0.1, alpha1 = 0.5)
-  
+  arch1 <- simulate_arch1(n = 50, alpha0 = 0.1, alpha1 = 0.5)
+
   set.seed(123)
-  arch2 <- simulate_arch1(T = 50, alpha0 = 0.1, alpha1 = 0.5)
+  arch2 <- simulate_arch1(n = 50, alpha0 = 0.1, alpha1 = 0.5)
   
   expect_equal(arch1, arch2)
 })

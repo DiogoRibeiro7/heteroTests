@@ -22,7 +22,7 @@
 \usage{
 simulate_hetero(n, beta0, beta1, sigma_func, seed = NULL)
 
-simulate_arch1(T, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL)
+simulate_arch1(n, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL)
 
 sigma_linear(x)
 
@@ -62,7 +62,7 @@ sigma_piecewise_linear(x, thr = 5, slope1 = 0.1, slope2 = 0.3)
 \item{beta1}{Slope of the regression.}
 \item{sigma_func}{Function returning the standard deviation for each \code{x}.}
 \item{seed}{Optional integer seed for reproducibility.}
-\item{T}{Length of the time series for \code{simulate_arch1}.}
+\item{n}{Length of the time series for \code{simulate_arch1}.}
 \item{mu}{Mean of the ARCH(1) process.}
 \item{alpha0}{Constant term in the ARCH variance equation.}
 \item{alpha1}{ARCH coefficient (must be in [0,1)).}

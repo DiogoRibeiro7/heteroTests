@@ -116,7 +116,7 @@ test_that("plotResidualsFittedEnhanced works correctly", {
   # Should have enhanced features
   expect_equal(p$labels$title, "Enhanced Residuals vs Fitted")
   expect_true(grepl("LOWESS", p$labels$subtitle))
-  expect_true(!is.null(p$labels$color))
+    expect_true(!is.null(p$labels$colour))
   expect_true(!is.null(p$labels$size))
   
   # Should have data with influential points marked

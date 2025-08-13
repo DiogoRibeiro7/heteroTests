@@ -22,7 +22,7 @@ test_that("diagnostic registry registration works", {
   expect_invisible(registerDiagnostic("custom_test", custom_test))
   
   # Test should now be in registry
-  registry <- as.list(.diagnostic_registry)
+  registry <- as.list(heteroTests:::.diagnostic_registry)
   expect_true("custom_test" %in% names(registry))
   expect_identical(registry$custom_test, custom_test)
 })
@@ -74,7 +74,7 @@ test_that("registered diagnostics can be executed", {
 })
 
 test_that("built-in diagnostics are pre-registered", {
-  registry <- as.list(.diagnostic_registry)
+  registry <- as.list(heteroTests:::.diagnostic_registry)
   
   # Should contain standard tests
   expected_tests <- c("white", "breusch_pagan", "koenker", "cook_weisberg", "ncv", "spread_level")
@@ -101,7 +101,7 @@ test_that("plot registry registration works", {
   expect_invisible(registerPlot("custom_plot", custom_plot))
   
   # Plot should now be in registry
-  registry <- as.list(.plot_registry)
+  registry <- as.list(heteroTests:::.plot_registry)
   expect_true("custom_plot" %in% names(registry))
   expect_identical(registry$custom_plot, custom_plot)
 })
@@ -143,7 +143,7 @@ test_that("registered plots can be executed", {
 })
 
 test_that("built-in plots are pre-registered", {
-  registry <- as.list(.plot_registry)
+  registry <- as.list(heteroTests:::.plot_registry)
   
   # Should contain standard plots
   expected_plots <- c("residuals_fitted", "spread_level", "density", "qq", "bubble_variance")
@@ -261,7 +261,7 @@ test_that("test factory handles errors gracefully", {
 
 test_that("both registry systems contain same core tests", {
   # Get tests from environment registry
-  env_tests <- names(as.list(.diagnostic_registry))
+  env_tests <- names(as.list(heteroTests:::.diagnostic_registry))
   
   if (requireNamespace("R6", quietly = TRUE)) {
     # Get tests from factory registry
@@ -303,7 +303,7 @@ test_that("registries don't interfere with each other", {
   registerDiagnostic("isolation_test", test_func)
   
   # Should not affect plot registry
-  plot_registry <- as.list(.plot_registry)
+  plot_registry <- as.list(heteroTests:::.plot_registry)
   expect_false("isolation_test" %in% names(plot_registry))
   
   # Register something in plot registry  
@@ -311,7 +311,7 @@ test_that("registries don't interfere with each other", {
   registerPlot("isolation_plot", plot_func)
   
   # Should not affect diagnostic registry
-  diag_registry <- as.list(.diagnostic_registry)
+  diag_registry <- as.list(heteroTests:::.diagnostic_registry)
   expect_false("isolation_plot" %in% names(diag_registry))
 })
 
@@ -327,14 +327,14 @@ test_that("registry modifications are persistent within session", {
   registerDiagnostic("persistent_test", persistent_test)
   
   # Should be available in subsequent calls
-  registry1 <- as.list(.diagnostic_registry)
+  registry1 <- as.list(heteroTests:::.diagnostic_registry)
   expect_true("persistent_test" %in% names(registry1))
   
   # Should still be there after other operations
   test_obj <- create_test_model()
   runHeteroTests(test_obj$model, test_obj$data, tests = "white")
   
-  registry2 <- as.list(.diagnostic_registry)
+  registry2 <- as.list(heteroTests:::.diagnostic_registry)
   expect_true("persistent_test" %in% names(registry2))
   
   # Should be functional

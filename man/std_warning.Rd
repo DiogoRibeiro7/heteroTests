@@ -17,4 +17,3 @@ Issues a warning with a formatted message.
 \description{
 Generate standardized warning message
 }
-\keyword{internal}

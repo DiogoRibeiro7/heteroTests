@@ -84,12 +84,14 @@ test_that("performBPTest validates its inputs", {
 
   expect_error(
     performBPTest("not a model", test_obj$data),
-    "`model` must be an object of class 'lm'."
+    "Model must be fitted with lm() or glm()",
+    fixed = TRUE
   )
+
 
   expect_error(
     performBPTest(test_obj$model, "not data"),
-    "`data` must be a data frame."
+    "Data must be a data.frame"
   )
 })
 

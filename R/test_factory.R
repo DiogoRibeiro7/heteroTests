@@ -59,7 +59,7 @@ TestFactory <- R6::R6Class(
       }
       if (!is.null(min_n)) {
         tests <- Filter(
-          function(n) min_n >= private$.metadata[[n]]$min_observations,
+          function(n) private$.metadata[[n]]$min_observations >= min_n,
           tests
         )
       }

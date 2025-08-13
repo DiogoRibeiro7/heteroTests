@@ -17,7 +17,7 @@ test_that("complete heteroscedasticity analysis workflow", {
 
   # Step 3: Run comprehensive tests
   test_results <- test(hd, tests = c("white", "breusch_pagan", "koenker", "cook_weisberg"))
-  expect_valid_diagnostic_result(test_results, c("white", "breusch_pagan", "koenker", "cook_weisberg"))
+  expect_valid_diagnostic_result(test_results, c("white", "breusch_pagan", "koenker", "cook_weisberg", "vif", "reset", "influence"))
 
   # Step 4: Generate diagnostic plots
   plots <- plot(hd)
@@ -25,7 +25,7 @@ test_that("complete heteroscedasticity analysis workflow", {
   expect_true(all(sapply(plots, inherits, "ggplot")))
 
   # Step 5: Get summary statistics
-  summary_stats <- summary(hd, tests = names(test_results))
+  summary_stats <- summary(hd, tests = c("white", "breusch_pagan", "koenker", "cook_weisberg"))
   expect_type(summary_stats, "double")
   expect_s3_class(summary_stats, "summary.HeteroDiagnostic")
 

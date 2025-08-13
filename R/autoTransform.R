@@ -19,14 +19,17 @@ autoTransform <- function(model) {
     log = log(y),
     sqrt = sqrt(y)
   )
-  bc <- MASS::boxcox(model, plotit = FALSE)
-  lam <- bc$x[which.max(bc$y)]
-  xform$boxcox <- if (abs(lam) < 1e-8) log(y) else (y^lam - 1) / lam
+  if (all(y > 0)) {
+    bc <- MASS::boxcox(formula(model), data = data, plotit = FALSE)
+    lam <- bc$x[which.max(bc$y)]
+    xform$boxcox <- if (abs(lam) < 1e-8) log(y) else (y^lam - 1) / lam
+  }
   best <- NULL
   best_p <- -Inf
   for (nm in names(xform)) {
     df <- data
     df$ytrans <- xform[[nm]]
+    df <- df[is.finite(df$ytrans), , drop = FALSE]
     fit <- lm(ytrans ~ ., data = df)
     p <- performBPTest(fit, df)$p.value
     if (p > best_p) {

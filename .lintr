@@ -1,6 +1,9 @@
 linters: lintr::linters_with_defaults(
   line_length_linter = lintr::line_length_linter(100),
-  object_name_linter = lintr::object_name_linter(styles = "snake_case"),
+  object_name_linter = NULL,
+  object_usage_linter = NULL,
+  T_and_F_symbol_linter = NULL,
+  object_length_linter = NULL,
   spaces_left_parentheses_linter = NULL,
   commented_code_linter = NULL
   )

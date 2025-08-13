@@ -47,7 +47,7 @@ res_mult <- sigma_multiplicative(x, mu_fun, p = 1)
 
 # Test simulate_arch1
  test_that("simulate_arch1 returns correct columns", {
-  df <- simulate_arch1(T = 10, seed = 2)
+  df <- simulate_arch1(n = 10, seed = 2)
   expect_true(is.data.frame(df))
   expect_equal(colnames(df), c("time", "y", "sigma"))
   expect_equal(nrow(df), 10)

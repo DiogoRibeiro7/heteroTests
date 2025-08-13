@@ -15,7 +15,7 @@
 #' @export
 launchDiagnosticDashboard <- function(model, data) {
   if (!requireNamespace("shiny", quietly = TRUE) ||
-    !requireNamespace("DT", quietly = TRUE)) {
+        !requireNamespace("DT", quietly = TRUE)) {
     stop("Install 'shiny' and 'DT' packages for interactive dashboard")
   }
 
@@ -50,7 +50,7 @@ launchDiagnosticDashboard <- function(model, data) {
     })
 
     output$test_table <- DT::renderDT({
-      req(test_results())
+      shiny::req(test_results())
       results_df <- data.frame(
         Test = names(test_results()),
         Statistic = sapply(test_results(), function(x) round(x$statistic, 4)),
@@ -66,7 +66,7 @@ launchDiagnosticDashboard <- function(model, data) {
     })
 
     output$suggestions <- shiny::renderText({
-      req(test_results())
+      shiny::req(test_results())
       suggestions <- suggestRemediation(test_results())
       paste(capture.output(str(suggestions)), collapse = "\n")
     })

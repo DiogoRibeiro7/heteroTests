@@ -22,4 +22,3 @@ errors for invalid inputs and common data issues, and emits
 warnings for potential problems such as outliers or large
 datasets.
 }
-\keyword{internal}

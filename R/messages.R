@@ -21,7 +21,7 @@ error_messages <- list(
 #' @param type Error message type.
 #' @param ... Named arguments to replace in the template.
 #' @return Stops execution with a formatted message.
-#' @keywords internal
+#' @export
 std_error <- function(type, ...) {
   template <- error_messages[[type]]
   if (is.null(template)) {
@@ -34,14 +34,16 @@ std_error <- function(type, ...) {
   stop(template, call. = FALSE)
 }
 
-warning_messages <- list()
+warning_messages <- list(
+  cross_products_omitted = "Cross-products omitted due to high dimensionality"
+)
 
 #' Generate standardized warning message
 #'
 #' @param type Warning message type.
 #' @param ... Named arguments for the template.
 #' @return Issues a warning with a formatted message.
-#' @keywords internal
+#' @export
 std_warning <- function(type, ...) {
   template <- warning_messages[[type]]
   if (is.null(template)) {

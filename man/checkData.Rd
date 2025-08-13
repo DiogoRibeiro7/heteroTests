@@ -16,4 +16,3 @@ Invisible \code{data} if valid, otherwise an error is thrown.
 Ensures that \code{data} is a data.frame. Used internally for input
 validation across the package.
 }
-\keyword{internal}
