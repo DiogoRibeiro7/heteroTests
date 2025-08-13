@@ -1,0 +1,145 @@
+\begin{thebibliography}{20}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bartlett(1937)]{bartlett1937properties}
+M.~S. Bartlett.
+\newblock Properties of sufficiency and statistical tests.
+\newblock \emph{Proceedings of the Royal Society of London. Series A},
+  160\penalty0 (901):\penalty0 268--282, 1937.
+\newblock \doi{10.1098/rspa.1937.0109}.
+
+\bibitem[Breusch and Pagan(1979)]{breusch1979simple}
+T.~S. Breusch and A.~R. Pagan.
+\newblock A simple test for heteroscedasticity and random coefficient
+  variation.
+\newblock \emph{Econometrica}, 47\penalty0 (5):\penalty0 1287--1294, 1979.
+\newblock \doi{10.2307/1911963}.
+
+\bibitem[Brown and Forsythe(1974)]{brownforsythe1974centre}
+M.~B. Brown and A.~B. Forsythe.
+\newblock Robust tests for the equality of variances.
+\newblock \emph{Journal of the American Statistical Association}, 69\penalty0
+  (346):\penalty0 364--367, 1974.
+\newblock \doi{10.1080/01621459.1974.10482955}.
+
+\bibitem[Cook and Weisberg(1983)]{cook1983detection}
+R.~D. Cook and S.~Weisberg.
+\newblock Diagnostics for heteroscedasticity in regression.
+\newblock \emph{Biometrika}, 70\penalty0 (1):\penalty0 1--10, 1983.
+\newblock \doi{10.1093/biomet/70.1.1}.
+
+\bibitem[Curry and Walsh(1976)]{curry1976homogeneity}
+R.~L. Curry and W.~J. Walsh.
+\newblock Homogeneity tests for equality of variances in one-way layouts.
+\newblock \emph{Technometrics}, 18\penalty0 (4):\penalty0 467--473, 1976.
+\newblock \doi{10.1080/00401706.1976.10489517}.
+
+\bibitem[Engle(1982)]{engle1982autoregressive}
+R.~F. Engle.
+\newblock Autoregressive conditional heteroscedasticity with estimates of the
+  variance of united kingdom inflation.
+\newblock \emph{Econometrica}, 50\penalty0 (4):\penalty0 987--1007, 1982.
+\newblock \doi{10.2307/1912773}.
+
+\bibitem[Fligner and Killeen(1976)]{fligner1976distribution}
+M.~A. Fligner and T.~J. Killeen.
+\newblock Distribution-free two-sample tests for scale.
+\newblock \emph{Journal of the American Statistical Association}, 71\penalty0
+  (353):\penalty0 210--213, 1976.
+\newblock \doi{10.1080/01621459.1976.10482491}.
+
+\bibitem[Glejser(1969)]{glejser1969identification}
+H.~Glejser.
+\newblock Identification of heteroscedasticity in regression models.
+\newblock \emph{Journal of the American Statistical Association}, 64\penalty0
+  (325):\penalty0 316--323, 1969.
+\newblock \doi{10.2307/2283906}.
+
+\bibitem[Goldfeld and Quandt(1965)]{goldfeld1965tests}
+S.~M. Goldfeld and R.~E. Quandt.
+\newblock Some tests for homoscedasticity.
+\newblock \emph{Journal of the American Statistical Association}, 60\penalty0
+  (310):\penalty0 539--547, 1965.
+\newblock \doi{10.2307/2283047}.
+
+\bibitem[Hartley(1950)]{hartley1950maximum}
+H.~O. Hartley.
+\newblock The maximum f‐ratio as a test of dispersion.
+\newblock \emph{Biometrika}, 37\penalty0 (3/4):\penalty0 308--312, 1950.
+\newblock \doi{10.1093/biomet/37.3-4.308}.
+
+\bibitem[Harvey(1976)]{harvey1976estimating}
+A.~C. Harvey.
+\newblock Estimating regression models with multiplicative heterosedasticity.
+\newblock \emph{Econometrica}, 44\penalty0 (3):\penalty0 461--465, 1976.
+\newblock \doi{10.2307/1913978}.
+
+\bibitem[Koenker(1981)]{koenker1981study}
+R.~Koenker.
+\newblock A note on studentizing a test for heteroscedasticity.
+\newblock \emph{Journal of Econometrics}, 17\penalty0 (1):\penalty0 107--112,
+  1981.
+\newblock \doi{10.1016/0304-4076(81)90059-1}.
+
+\bibitem[Levene(1960)]{levene1960robust}
+H.~Levene.
+\newblock Robust tests for equality of variances.
+\newblock In I.~Olkin and H.~Hotelling, editors, \emph{Contributions to
+  Probability and Statistics: Essays in Honor of Harold Hotelling}, pages
+  278--292. Stanford University Press, Stanford, CA, 1960.
+\newblock \doi{10.1080/01621459.1974.10482955}.
+
+\bibitem[McLeod and Li(1978)]{mcleod1978diagnosis}
+A.~I. McLeod and W.~K. Li.
+\newblock Diagnostic checking arma time series models using squared‐residual
+  autocorrelations.
+\newblock \emph{Journal of Time Series Analysis}, 4\penalty0 (4):\penalty0
+  269--273, 1978.
+\newblock \doi{10.1111/j.1467-9892.1978.tb00334.x}.
+
+\bibitem[Moses(1964)]{moses1964nonparametric}
+L.~E. Moses.
+\newblock Nonparametric tests of equality of variances.
+\newblock \emph{Journal of the American Statistical Association}, 59:\penalty0
+  213--226, 1964.
+\newblock \doi{10.1080/01621459.1964.10501066}.
+
+\bibitem[O'Brien(1979)]{obrien1979alternative}
+R.~G. O'Brien.
+\newblock A simple robust test for equality of means for paired and unpaired
+  samples.
+\newblock \emph{Biometrika}, 66\penalty0 (2):\penalty0 281--288, 1979.
+\newblock \doi{10.2307/2335941}.
+
+\bibitem[Park(1966)]{park1966estimation}
+R.~L. Park.
+\newblock Estimation with heteroscedastic error terms.
+\newblock \emph{Econometrica}, 34\penalty0 (4):\penalty0 888--892, 1966.
+\newblock \doi{10.2307/1910093}.
+
+\bibitem[Pesaran(1997)]{pesaran1997working}
+M.~H. Pesaran.
+\newblock A simple test of heteroskedasticity for cross‐section regressions.
+\newblock Technical Report 97/79, University of Cambridge, Faculty of
+  Economics, 1997.
+\newblock URL \url{https://www.econ.cam.ac.uk/researchpapers}.
+
+\bibitem[Rice(1980)]{rice1980construction}
+J.~A. Rice.
+\newblock Construction of variance test based on logarithmic transformations.
+\newblock \emph{Journal of the American Statistical Association}, 75\penalty0
+  (370):\penalty0 973--978, 1980.
+\newblock \doi{10.1080/01621459.1980.10477505}.
+
+\bibitem[White(1980)]{white1980heteroskedasticity}
+H.~White.
+\newblock A heteroskedasticity‐consistent covariance matrix estimator and a
+  direct test for heteroskedasticity.
+\newblock \emph{Econometrica}, 48\penalty0 (4):\penalty0 817--838, 1980.
+\newblock \doi{10.2307/1912934}.
+
+\end{thebibliography}

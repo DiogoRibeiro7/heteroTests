@@ -1,0 +1,9 @@
+template:
+  bootstrap: 5
+url: https://diogoribeiro7.github.io/heteroTests
+destination: docs
+navbar:
+  title: heteroTests
+  left:
+    - text: "Reference"
+      href: reference/index.html

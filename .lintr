@@ -1,0 +1,7 @@
+linters: lintr::linters_with_defaults(
+  line_length_linter = lintr::line_length_linter(100),
+  object_name_linter = lintr::object_name_linter(styles = "snake_case"),
+  spaces_left_parentheses_linter = NULL,
+  commented_code_linter = NULL
+  )
+exclusions: list("inst")

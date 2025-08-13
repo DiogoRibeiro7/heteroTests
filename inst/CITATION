@@ -1,0 +1,122 @@
+citHeader("To cite heteroTests in publications, please use:")
+citHeader("See algorithms_bibliography() for references on diagnostic tests.")
+
+citEntry(
+  entry = "Manual",
+  title = "heteroTests: Heteroscedasticity Diagnostic Tools",
+  author = person(
+    given = "Diogo",
+    family = "Ribeiro",
+    role = c("aut", "cre"),
+    email = "diogo.debastos.ribeiro@gmail.com",
+    comment = c(
+      ORCID = "0009-0001-2022-7072",
+      affiliation = "ESMAD - Instituto Politécnico do Porto"
+    )
+  ),
+  year = "2025",
+  url = "https://github.com/DiogoRibeiro7/heteroTests",
+  note = paste("R package version", utils::packageDescription("heteroTests")$Version)
+)
+
+citEntry(
+  entry = "Misc",
+  title = "heteroTests Vignette",
+  author = person(
+    given = "Diogo",
+    family = "Ribeiro",
+    role = c("aut"),
+    comment = c(
+      ORCID = "0009-0001-2022-7072",
+      affiliation = "ESMAD - Instituto Politécnico do Porto"
+    )
+  ),
+  year = "2025",
+  url = "https://diogoribeiro7.github.io/heteroTests/articles/heteroTests.html",
+  textVersion = "See the vignette for a detailed introduction to all diagnostics."
+)
+
+citEntry(
+  entry = "Article",
+  title = "A Heteroskedasticity-Consistent Covariance Matrix Estimator and a Direct Test for Heteroskedasticity",
+  author = c(person("Halbert", "White")),
+  year = "1980",
+  journal = "Econometrica",
+  doi = "10.2307/1912934"
+)
+
+citEntry(
+  entry = "Article",
+  title = "A Simple Test for Heteroscedasticity and Random Coefficient Variation",
+  author = c(
+    person("Trevor S.", "Breusch"),
+    person("Adrian R.", "Pagan")
+  ),
+  year = "1979",
+  journal = "Econometrica",
+  doi = "10.2307/1911963"
+)
+
+citEntry(
+  entry = "Article",
+  title = "A note on studentizing a test for heteroscedasticity",
+  author = c(person("Roger", "Koenker")),
+  year = "1981",
+  journal = "Journal of Econometrics",
+  doi = "10.1016/0304-4076(81)90059-1"
+)
+
+citEntry(
+  entry = "Article",
+  title = "Some tests for homoscedasticity",
+  author = c(
+    person("Stephen M.", "Goldfeld"),
+    person("Richard E.", "Quandt")
+  ),
+  year = "1965",
+  journal = "Journal of the American Statistical Association",
+  doi = "10.2307/2283047"
+)
+
+citEntry(
+  entry = "InCollection",
+  title = "Robust Tests for Equality of Variances",
+  author = c(person("Howard", "Levene")),
+  booktitle = "Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling",
+  publisher = "Stanford University Press",
+  address = "Stanford, CA",
+  year = "1960"
+)
+
+citEntry(
+  entry = "Article",
+  title = "Robust tests for the equality of variances",
+  author = c(
+    person("Morton B.", "Brown"),
+    person("Alan B.", "Forsythe")
+  ),
+  year = "1974",
+  journal = "Journal of the American Statistical Association",
+  doi = "10.1080/01621459.1974.10482955"
+)
+
+citEntry(
+  entry = "Article",
+  title = "The proof and measurement of association between two things",
+  author = c(person("Charles", "Spearman")),
+  year = "1904",
+  journal = "The American Journal of Psychology",
+  doi = "10.2307/1412159"
+)
+
+citEntry(
+  entry = "TechReport",
+  title = "Regression based tests of heteroskedasticity in models where the variance depends on the mean",
+  author = c(person("A. Colin", "Cameron")),
+  institution = "Department of Economics, University of California, Davis",
+  number = "WP-379",
+  year = "1991",
+  url = "https://cameron.econ.ucdavis.edu/research/regressionbasedtests_heteroskedasticity_ucdwp379.pdf"
+)
+
+citFooter("Retrieve citation information within R using citation('heteroTests')")

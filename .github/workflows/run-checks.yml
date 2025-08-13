@@ -1,0 +1,24 @@
+name: run-checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-renv@v2
+      - name: Run project checks
+        run: Rscript scripts/run_checks.R
+      - name: Upload coverage
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage

@@ -1,0 +1,115 @@
+cff-version: 1.2.0
+message: |
+  If you use this software, please cite it using the metadata below.
+  See algorithms_bibliography() for references on diagnostic tests.
+title: "heteroTests"
+version: "0.6.4"
+type: software
+authors:
+  - given-names: "Diogo"
+    family-names: "Ribeiro"
+    orcid: "https://orcid.org/0009-0001-2022-7072"
+    email: "dfr@esmad.ipp.pt"
+    affiliation: "ESMAD - Instituto Politécnico do Porto"
+contact:
+  - given-names: "Diogo"
+    family-names: "Ribeiro"
+    email: "diogo.debastos.ribeiro@gmail.com"
+    orcid: "https://orcid.org/0009-0001-2022-7072"
+    affiliation: "ESMAD - Instituto Politécnico do Porto"
+repository-code: "https://github.com/DiogoRibeiro7/heteroTests"
+license: "Apache-2.0"
+date-released: "2025-07-26"
+abstract: |
+  heteroTests provides a collection of heteroscedasticity diagnostics for
+  linear models in R. It includes classic tests such as White's and the
+  Breusch-Pagan test along with plotting helpers and advanced residual
+  analysis.
+keywords:
+  - statistics
+  - heteroscedasticity
+  - diagnostics
+  - R
+preferred-citation:
+  type: software
+  authors:
+    - given-names: "Diogo"
+      family-names: "Ribeiro"
+      orcid: "https://orcid.org/0009-0001-2022-7072"
+  title: "heteroTests: Heteroscedasticity Diagnostic Tools"
+  year: "2025"
+  url: "https://github.com/DiogoRibeiro7/heteroTests"
+  version: "0.6.4"
+references:
+  - type: article
+    authors:
+      - family-names: "White"
+        given-names: "Halbert"
+    title: "A Heteroskedasticity-Consistent Covariance Matrix Estimator and a Direct Test for Heteroskedasticity"
+    journal: "Econometrica"
+    year: 1980
+    doi: "10.2307/1912934"
+  - type: article
+    authors:
+      - family-names: "Breusch"
+        given-names: "Trevor S."
+      - family-names: "Pagan"
+        given-names: "Adrian R."
+    title: "A Simple Test for Heteroscedasticity and Random Coefficient Variation"
+    journal: "Econometrica"
+    year: 1979
+    doi: "10.2307/1911963"
+  - type: article
+    authors:
+      - family-names: "Koenker"
+        given-names: "Roger"
+    title: "A note on studentizing a test for heteroscedasticity"
+    journal: "Journal of Econometrics"
+    year: 1981
+    doi: "10.1016/0304-4076(81)90059-1"
+  - type: article
+    authors:
+      - family-names: "Goldfeld"
+        given-names: "Stephen M."
+      - family-names: "Quandt"
+        given-names: "Richard E."
+    title: "Some tests for homoscedasticity"
+    journal: "Journal of the American Statistical Association"
+    year: 1965
+    doi: "10.2307/2283047"
+  - type: incollection
+    authors:
+      - family-names: "Levene"
+        given-names: "Howard"
+    title: "Robust Tests for Equality of Variances"
+    booktitle: "Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling"
+    publisher: "Stanford University Press"
+    address: "Stanford, CA"
+    year: 1960
+  - type: article
+    authors:
+      - family-names: "Brown"
+        given-names: "Morton B."
+      - family-names: "Forsythe"
+        given-names: "Alan B."
+    title: "Robust tests for the equality of variances"
+    journal: "Journal of the American Statistical Association"
+    year: 1974
+    doi: "10.1080/01621459.1974.10482955"
+  - type: article
+    authors:
+      - family-names: "Spearman"
+        given-names: "Charles"
+    title: "The proof and measurement of association between two things"
+    journal: "The American Journal of Psychology"
+    year: 1904
+    doi: "10.2307/1412159"
+  - type: techreport
+    authors:
+      - family-names: "Cameron"
+        given-names: "A. Colin"
+    title: "Regression based tests of heteroskedasticity in models where the variance depends on the mean"
+    institution: "Department of Economics, University of California, Davis"
+    number: "WP-379"
+    year: 1991
+    url: "https://cameron.econ.ucdavis.edu/research/regressionbasedtests_heteroskedasticity_ucdwp379.pdf"

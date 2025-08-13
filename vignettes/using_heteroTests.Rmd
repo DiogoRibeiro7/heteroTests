@@ -1,0 +1,100 @@
+---
+title: "Using heteroTests"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using heteroTests}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#")
+```
+
+The **heteroTests** package provides several classical tests for detecting heteroscedasticity in linear models.
+
+```{r example}
+library(heteroTests)
+
+# Fit a simple linear model on real data
+data(boston_housing, package = "heteroTests")
+model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+# A second dataset demonstrates collinearity and mild nonlinearity
+data(diagnostic_data)
+diag_model <- lm(y ~ x1 + x2, data = diagnostic_data)
+
+# Run White's test and get an htest object
+performWhiteTest(model, boston_housing)
+performWhiteTest(diag_model, diagnostic_data)
+```
+
+## Other available tests
+
+Many additional diagnostics follow the same interface and also return an
+`htest` object.
+
+```{r more-tests}
+# Breusch-Pagan and its robust Koenker version
+performBPTest(model, mtcars)
+performKoenkerTest(model, mtcars)
+
+# Group-based tests
+mtcars$cyl <- factor(mtcars$cyl)
+performLeveneTest(model, mtcars, "cyl")
+
+# ARCH effects in time series
+performArchLMTest(model, lags = 2)
+```
+
+# Alternatively run multiple tests at once
+runHeteroTests(model, mtcars)
+# Choose a subset of diagnostics
+runHeteroTests(model, mtcars, tests = c("white", "koenker", "ncv"))
+runDiagnostics(model, mtcars)
+# remediation helpers
+fitWLS(model)
+fitRobust(model)
+autoTransform(model)
+```
+
+See the package README for a complete list of implemented tests.
+
+## Boston housing example
+
+The `boston_housing` dataset contains median housing prices in Boston suburbs along with socioeconomic predictors. We can run the diagnostics and attempt a remedial fit on this real-world data.
+
+```{r boston-example}
+data(boston_housing, package = "heteroTests")
+boston_model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+runDiagnostics(boston_model, boston_housing)
+fitWLS(boston_model)
+```
+
+## Theophylline dosing example
+
+The `Theoph` dataset from base R contains blood concentration measures after
+a single dose. Diagnostics reveal heteroscedasticity and let us visualise
+the residual spread.
+
+```{r theoph-example}
+data(Theoph, package = "datasets")
+dose_model <- lm(conc ~ Time, data = Theoph)
+performWhiteTest(dose_model, Theoph)
+plot(HeteroDiagnostic(dose_model, Theoph))
+```
+
+## Step-by-step workflow
+
+This short example shows how to detect heteroscedasticity, choose a remedy and re-test the model.
+
+```{r step-by-step}
+hd <- HeteroDiagnostic(medv ~ lstat + rm + crim, boston_housing)
+test(hd)
+
+wls_model <- fitWLS(hd$model)
+
+# Re-test after remedy
+test(HeteroDiagnostic(wls_model, boston_housing))
+```
+
+The drop in test statistics or diagnostic plots indicates whether the remedy helped.

@@ -1,0 +1,45 @@
+---
+title: "Troubleshooting Common Issues"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Troubleshooting Common Issues}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Common Error Messages and Solutions
+
+### "Auxiliary regression failed"
+**Cause:** Perfect multicollinearity in auxiliary regression
+**Solution:** Check for duplicated or linearly dependent predictors in the
+auxiliary regression. Removing or combining offending variables usually
+resolves the issue.
+
+### "Log of negative values"
+**Cause:** Negative values in variable used for log transformation
+**Solution:** Ensure the variable is strictly positive before applying a
+log transformation or add a small constant to shift the data.
+
+## Performance Issues
+
+### Large Datasets
+For very large data sets consider using `performWhiteTestStreaming()` or
+running diagnostics on a representative sample to reduce computation
+time.
+
+### Convergence Problems
+Numerical issues may arise with extreme multicollinearity or poorly
+scaled variables. Rescaling predictors or using robust optimisation
+methods can help.
+
+## Interpretation Guidelines
+
+### When Tests Disagree
+No single test is uniformly most powerful. Examine residual plots and
+consider the nature of your data when diagnostics give conflicting
+results.
+
+### Power Considerations
+Some tests have low power in small samples. Simulation via
+`simulate_power_analysis()` can help determine the best approach for a
+given situation.

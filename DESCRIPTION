@@ -1,0 +1,38 @@
+Package: heteroTests
+Title: Heteroscedasticity Tests Implementation
+Version: 0.6.4
+Authors@R: person("Diogo", "Ribeiro", email = "dfr@esmad.ipp.pt",
+    role = c("aut", "cre"),
+    comment = c(ORCID = "0009-0001-2022-7072"))
+Author: Diogo Ribeiro [aut, cre]
+Maintainer: Diogo Ribeiro <dfr@esmad.ipp.pt>
+Description: Simple implementations of White, Breusch-Pagan,
+    Goldfeld-Quandt, Koenker, Park, Spearman, Levene, Glejser,
+    Brown-Forsythe, Fligner-Killeen, Bartlett, Harvey, ARCH LM,
+    McLeod-Li, Hartley Fmax, Cameron-Trivedi, Ordered LM and several
+    additional procedures such as O'Brien, Cook-Weisberg, modified
+    Bartlett, NCV, Spread-Level, Pesaran and Curry-Walsh tests for
+    heteroscedasticity.
+License: Apache License (>= 2.0)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Depends: R (>= 3.5.0)
+Imports:
+    MASS,
+    stats,
+    ggplot2
+Suggests:
+    quickcheck,
+    testthat (>= 3.0.0),
+    styler,
+    lintr,
+    R6,
+    covr,
+    knitr,
+    rmarkdown,
+    gridExtra
+VignetteBuilder: knitr
+URL: https://github.com/DiogoRibeiro7/heteroTests
+BugReports: https://github.com/DiogoRibeiro7/heteroTests/issues

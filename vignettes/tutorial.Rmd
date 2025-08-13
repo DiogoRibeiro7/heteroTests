@@ -1,0 +1,52 @@
+---
+title: "heteroTests Walkthrough"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{heteroTests Walkthrough}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(heteroTests)
+```
+
+This vignette demonstrates the main workflow in greater depth. We use the
+`boston_housing` dataset bundled with the package.
+
+```{r}
+data(boston_housing, package = "heteroTests")
+head(boston_housing)
+```
+
+## 1. Fit an initial model
+
+```{r}
+base_model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+summary(base_model)
+```
+
+## 2. Diagnose heteroscedasticity
+
+```{r}
+hd <- HeteroDiagnostic(base_model, boston_housing)
+test(hd)
+plot(hd)
+```
+
+## 3. Apply a remedy
+
+```{r}
+wls_model <- fitWLS(base_model)
+summary(wls_model)
+```
+
+## 4. Compare models
+
+```{r}
+compareModelDiagnostics(list(base_model, wls_model))
+```
+
+The weighted least squares fit typically reduces the heteroscedasticity metrics.
+
+

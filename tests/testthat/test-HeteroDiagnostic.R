@@ -1,0 +1,15 @@
+library(testthat)
+library(heteroTests)
+
+test_that("HeteroDiagnostic methods work", {
+  data(mtcars)
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  d <- HeteroDiagnostic(m, mtcars)
+  expect_s3_class(d, "HeteroDiagnostic")
+  res <- test(d)
+  expect_type(res, "list")
+  plots <- plot(d)
+  expect_true(is.list(plots))
+  summ <- summary(d)
+  expect_true(is.numeric(summ))
+})
