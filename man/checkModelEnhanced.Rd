@@ -15,4 +15,3 @@ checkModelEnhanced(model, data = NULL)
 Extends \code{checkModel()} with additional warnings about
 degrees of freedom, perfect fits and multicollinearity.
 }
-\keyword{internal}

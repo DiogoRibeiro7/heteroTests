@@ -52,7 +52,12 @@ registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
 registerDiagnostic("student_bp", function(model, data) performStudentizedBPTest(model, data))
 registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))
-registerDiagnostic("szroeter", function(model, data) performSzroeterTest(model, data, order_by = names(data)[2]))
+registerDiagnostic(
+  "szroeter",
+  function(model, data) {
+    performSzroeterTest(model, data, order_by = names(data)[2])
+  }
+)
 
 # preset built-in plots
 registerPlot("residuals_fitted", function(model) plotResidualsFitted(model))

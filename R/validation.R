@@ -10,7 +10,7 @@
 #' @param data Data frame used to fit the model.
 #' @param test_name Name of the diagnostic test (for messages).
 #' @param min_obs Minimum number of observations required.
-#' @keywords internal
+#' @export
 validateTestInputs <- function(model, data, test_name, min_obs = 10) {
   errors <- character()
   warnings <- character()
@@ -20,8 +20,7 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
   }
   if (!is.data.frame(data)) {
     errors <- c(errors, "Data must be a data.frame")
-  }
-  if (nrow(data) < min_obs) {
+  } else if (nrow(data) < min_obs) {
     errors <- c(errors, sprintf(
       "Insufficient observations: %d (minimum: %d)",
       nrow(data), min_obs
@@ -31,7 +30,7 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
   if (length(errors) == 0) {
     resid <- residuals(model)
 
-    if (any(is.na(resid))) {
+    if (length(resid) < nrow(data) || any(is.na(resid))) {
       errors <- c(errors, "Model contains NA residuals")
     }
     if (safe_var(resid) <= .Machine$double.eps) {
@@ -65,11 +64,11 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
 #' degrees of freedom, perfect fits and multicollinearity.
 #'
 #' @inheritParams validateTestInputs
-#' @keywords internal
+#' @export
 checkModelEnhanced <- function(model, data = NULL) {
   checkModel(model)
 
-  if (model$df.residual < 5) {
+  if (model$df.residual <= 5) {
     warning("Very few residual degrees of freedom (", model$df.residual, ")",
       call. = FALSE
     )

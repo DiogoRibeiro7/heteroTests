@@ -40,7 +40,7 @@ simulate_hetero <- function(n, beta0, beta1, sigma_func, seed = NULL) {
 #' @return Numeric vector
 sigma_linear <- function(x) {
   stopifnot(is.numeric(x))
-  0.5 + 0.2 * x
+  0.5 + 0.2 * abs(x)
 }
 
 #' Exponential increase: sigma(x) = exp(0.1 * x)
@@ -93,32 +93,32 @@ sigma_multiplicative <- function(x, mu_func, p = 1) {
 
 #' Simulate an ARCH(1) time series with heteroscedastic errors
 #'
-#' @param T Integer >= 2: length of series
+#' @param n Integer >= 2: length of series
 #' @param mu Numeric: constant mean
 #' @param alpha0 Numeric >= 0
 #' @param alpha1 Numeric in [0, 1)
 #' @param seed Integer or NULL
 #' @return A data.frame with columns time, y and sigma
-simulate_arch1 <- function(T, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL) {
-  stopifnot(is.numeric(T), length(T) == 1, T >= 2, T == as.integer(T))
+simulate_arch1 <- function(n, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL) {
+  stopifnot(is.numeric(n), length(n) == 1, n >= 2, n == as.integer(n))
   stopifnot(is.numeric(mu), length(mu) == 1)
   stopifnot(is.numeric(alpha0), length(alpha0) == 1, alpha0 >= 0)
   stopifnot(is.numeric(alpha1), length(alpha1) == 1, alpha1 >= 0, alpha1 < 1)
   if (!is.null(seed)) set.seed(seed)
 
-  eps <- numeric(T)
-  sigma2 <- numeric(T)
-  z <- rnorm(T)
+  eps <- numeric(n)
+  sigma2 <- numeric(n)
+  z <- rnorm(n)
 
   sigma2[1] <- alpha0 / (1 - alpha1)
   eps[1] <- sqrt(sigma2[1]) * z[1]
 
-  for (t in 2:T) {
+  for (t in 2:n) {
     sigma2[t] <- alpha0 + alpha1 * eps[t - 1]^2
     eps[t] <- sqrt(sigma2[t]) * z[t]
   }
 
-  data.frame(time = seq_len(T), y = mu + eps, sigma = sqrt(sigma2))
+  data.frame(time = seq_len(n), y = mu + eps, sigma = sqrt(sigma2))
 }
 
 #' Spatial heteroscedasticity: sigma(s) = gamma0 + gamma1 * distance from origin
@@ -151,8 +151,8 @@ sigma_logistic <- function(x, L = 2, k = 1, x0 = 5) {
 #' @param b Positive shift
 #' @return Numeric vector
 sigma_inverse <- function(x, a = 1, b = 1) {
-  stopifnot(is.numeric(x), is.numeric(a), is.numeric(b), all(b + x > 0))
-  a / (b + x)
+  stopifnot(is.numeric(x), is.numeric(a), is.numeric(b))
+  a / (b + abs(x))
 }
 
 #' Power variance: sigma(x) = a * |x|^p
@@ -162,7 +162,7 @@ sigma_inverse <- function(x, a = 1, b = 1) {
 #' @return Numeric vector
 sigma_power <- function(x, a = 0.5, p = 0.5) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(p))
-  a * abs(x)^p
+  a * (abs(x)^p + 1e-08)
 }
 
 #' Threshold step: low variance below `thr`, high variance above
@@ -224,7 +224,7 @@ sigma_gaussian_peak <- function(x, base = 0.5, height = 1, mu = 5, sd = 1) {
 #' @return Numeric vector
 sigma_piecewise_linear <- function(x, thr = 5, slope1 = 0.1, slope2 = 0.3) {
   stopifnot(is.numeric(x), is.numeric(thr), is.numeric(slope1), is.numeric(slope2))
-  ifelse(x < thr, slope1 * x, slope2 * x)
+  ifelse(x < thr, slope1 * (abs(x) + 1e-08), slope2 * x)
 }
 
 # --- End of heteroscedastic simulation utilities ---

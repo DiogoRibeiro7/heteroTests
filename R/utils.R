@@ -6,7 +6,14 @@
 #'
 #' @param model An object to check.
 #' @return Invisible `model` if valid, otherwise an error is thrown.
-#' @keywords internal
+#' @export
+checkModel <- function(model) {
+  if (!inherits(model, c("lm", "glm"))) {
+    std_error("invalid_model")
+  }
+  invisible(model)
+}
+
 #' Log a formatted message
 #'
 #' This helper wraps [base::message()] but prepends a log level for
@@ -43,13 +50,6 @@ safe_lm <- function(formula, data, ...) {
   )
 }
 
-checkModel <- function(model) {
-  if (!inherits(model, c("lm", "glm"))) {
-    std_error("invalid_model")
-  }
-  invisible(model)
-}
-
 #' Validate data argument
 #'
 #' Ensures that `data` is a data.frame. Used internally for input
@@ -57,7 +57,7 @@ checkModel <- function(model) {
 #'
 #' @param data Object to check.
 #' @return Invisible `data` if valid, otherwise an error is thrown.
-#' @keywords internal
+#' @export
 checkData <- function(data) {
   if (!is.data.frame(data)) {
     std_error("invalid_data")
@@ -98,7 +98,7 @@ safe_var <- function(x) {
 
   v <- var(x, na.rm = TRUE)
   if (is.na(v) || v < .Machine$double.eps) {
-    ht_log("WARN", "Near-zero variance detected")
+    warning("Near-zero variance detected", call. = FALSE)
     return(.Machine$double.eps)
   }
   v

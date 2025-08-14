@@ -29,7 +29,7 @@ performGQTest <- function(model, data, order_by, fraction = 0.2) {
   ordered_data <- data[order(data[[order_by]]), ]
   omit_n <- floor(n * fraction)
   group_size <- floor((n - omit_n) / 2)
-  if (group_size <= 0) {
+  if (group_size < 2) {
     stop("`fraction` leaves no observations for testing.")
   }
 

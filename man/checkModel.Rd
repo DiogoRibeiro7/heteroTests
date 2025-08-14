@@ -15,4 +15,3 @@ Invisible \code{model} if valid, otherwise an error is thrown.
 \description{
 Checks that \code{model} is of class \code{lm} or \code{glm}.
 }
-\keyword{internal}

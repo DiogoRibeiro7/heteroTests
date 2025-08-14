@@ -4,10 +4,10 @@
 \alias{simulate_arch1}
 \title{Simulate an ARCH(1) time series with heteroscedastic errors}
 \usage{
-simulate_arch1(T, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL)
+simulate_arch1(n, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL)
 }
 \arguments{
-\item{T}{Integer >= 2: length of series}
+\item{n}{Integer >= 2: length of series}
 
 \item{mu}{Numeric: constant mean}
 

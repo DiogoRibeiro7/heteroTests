@@ -17,4 +17,3 @@ Stops execution with a formatted message.
 \description{
 Generate standardized error message
 }
-\keyword{internal}
