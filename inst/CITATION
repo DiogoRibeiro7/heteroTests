@@ -82,7 +82,8 @@ citEntry(
   entry = "InCollection",
   title = "Robust Tests for Equality of Variances",
   author = c(person("Howard", "Levene")),
-  booktitle = "Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling",
+  booktitle = "Contributions to Probability and Statistics",
+  pages = "278-292",
   publisher = "Stanford University Press",
   address = "Stanford, CA",
   year = "1960"
@@ -102,8 +103,59 @@ citEntry(
 
 citEntry(
   entry = "Article",
-  title = "The proof and measurement of association between two things",
-  author = c(person("Charles", "Spearman")),
+  title = "Distribution-free two-sample tests for scale",
+  author = c(
+    person("Michael A.", "Fligner"),
+    person("Thomas J.", "Killeen")
+  ),
+  year = "1976",
+  journal = "Journal of the American Statistical Association",
+  doi = "10.1080/01621459.1976.10481517"
+)
+
+citEntry(
+  entry = "Article",
+  title = "Properties of sufficiency and statistical tests",
+  author = c(person("Maurice S.", "Bartlett")),
+  year = "1937",
+  journal = "Proceedings of the Royal Society of London",
+  doi = "10.1098/rspa.1937.0109"
+)
+
+  citEntry(
+    entry = "Article",
+    title = "The maximum F-ratio as a short-cut test for heterogeneity of variance",
+    author = c(person("Harold O.", "Hartley")),
+    year = "1950",
+    journal = "Biometrika",
+    doi = "10.2307/2332383"
+  )
+
+  citEntry(
+    entry = "Article",
+    title = "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation",
+    author = c(person("Robert F.", "Engle")),
+    year = "1982",
+    journal = "Econometrica",
+    doi = "10.2307/1912773"
+  )
+
+  citEntry(
+    entry = "Article",
+    title = "Diagnostic checking ARMA time series models using squared-residual autocorrelations",
+    author = c(
+      person("A. Ian", "McLeod"),
+      person("Wai Keung", "Li")
+    ),
+    year = "1983",
+    journal = "Journal of Time Series Analysis",
+    doi = "10.1111/j.1467-9892.1983.tb00373.x"
+  )
+
+  citEntry(
+    entry = "Article",
+    title = "The proof and measurement of association between two things",
+    author = c(person("Charles", "Spearman")),
   year = "1904",
   journal = "The American Journal of Psychology",
   doi = "10.2307/1412159"

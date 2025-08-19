@@ -11,8 +11,13 @@ References for the statistical tests implemented in \pkg{heteroTests}.
 Breusch, T. S., \& Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. \emph{Econometrica}, 47(5), 1287--1294.
 Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. \emph{Journal of Econometrics}, 17(1), 107--112.
 Goldfeld, S. M., \& Quandt, R. E. (1965). Some tests for homoscedasticity. \emph{Journal of the American Statistical Association}, 60(310), 539--547.
-Levene, H. (1960). Robust Tests for Equality of Variances. In \emph{Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling}. Stanford University Press.
-Brown, M. B., \& Forsythe, A. B. (1974). Robust tests for the equality of variances. \emph{Journal of the American Statistical Association}, 69(346), 364--367.
+Levene, H. (1960). Robust tests for equality of variances. In \emph{Contributions to Probability and Statistics} (pp. 278--292). Stanford University Press.
+Brown, M. B., \& Forsythe, A. B. (1974). Robust tests for the equality of variances. \emph{Journal of the American Statistical Association}, 69(346), 364--367. doi:10.1080/01621459.1974.10482955.
+Fligner, M. A., \& Killeen, T. J. (1976). Distribution-free two-sample tests for scale. \emph{Journal of the American Statistical Association}, 71(353), 210--213. doi:10.1080/01621459.1976.10481517.
+Bartlett, M. S. (1937). Properties of sufficiency and statistical tests. \emph{Proceedings of the Royal Society of London}, 160(901), 268--282. doi:10.1098/rspa.1937.0109.
+Hartley, H. O. (1950). The maximum F-ratio as a short-cut test for heterogeneity of variance. \emph{Biometrika}, 37(3/4), 308--312. doi:10.2307/2332383.
+Engle, R. F. (1982). Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation. \emph{Econometrica}, 50(4), 987--1007. doi:10.2307/1912773.
+McLeod, A. I., \& Li, W. K. (1983). Diagnostic checking ARMA time series models using squared-residual autocorrelations. \emph{Journal of Time Series Analysis}, 4(4), 269--273. doi:10.1111/j.1467-9892.1983.tb00373.x.
 Spearman, C. (1904). The proof and measurement of association between two things. \emph{The American Journal of Psychology}, 15(1), 72--101.
 Cameron, A. C. (1991). Regression based tests of heteroskedasticity in models where the variance depends on the mean (Working Paper No. WP-379). University of California, Davis.
 }

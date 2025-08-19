@@ -82,7 +82,8 @@ references:
       - family-names: "Levene"
         given-names: "Howard"
     title: "Robust Tests for Equality of Variances"
-    booktitle: "Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling"
+    booktitle: "Contributions to Probability and Statistics"
+    pages: "278-292"
     publisher: "Stanford University Press"
     address: "Stanford, CA"
     year: 1960
@@ -98,8 +99,52 @@ references:
     doi: "10.1080/01621459.1974.10482955"
   - type: article
     authors:
-      - family-names: "Spearman"
-        given-names: "Charles"
+      - family-names: "Fligner"
+        given-names: "Michael A."
+      - family-names: "Killeen"
+        given-names: "Thomas J."
+    title: "Distribution-free two-sample tests for scale"
+    journal: "Journal of the American Statistical Association"
+    year: 1976
+    doi: "10.1080/01621459.1976.10481517"
+  - type: article
+    authors:
+      - family-names: "Bartlett"
+        given-names: "Maurice S."
+    title: "Properties of sufficiency and statistical tests"
+    journal: "Proceedings of the Royal Society of London"
+    year: 1937
+    doi: "10.1098/rspa.1937.0109"
+  - type: article
+    authors:
+      - family-names: "Hartley"
+        given-names: "Harold O."
+      title: "The maximum F-ratio as a short-cut test for heterogeneity of variance"
+      journal: "Biometrika"
+      year: 1950
+      doi: "10.2307/2332383"
+    - type: article
+      authors:
+        - family-names: "Engle"
+          given-names: "Robert F."
+      title: "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation"
+      journal: "Econometrica"
+      year: 1982
+      doi: "10.2307/1912773"
+    - type: article
+      authors:
+        - family-names: "McLeod"
+          given-names: "A. Ian"
+        - family-names: "Li"
+          given-names: "Wai Keung"
+      title: "Diagnostic checking ARMA time series models using squared-residual autocorrelations"
+      journal: "Journal of Time Series Analysis"
+      year: 1983
+      doi: "10.1111/j.1467-9892.1983.tb00373.x"
+    - type: article
+      authors:
+        - family-names: "Spearman"
+          given-names: "Charles"
     title: "The proof and measurement of association between two things"
     journal: "The American Journal of Psychology"
     year: 1904
