@@ -26,6 +26,13 @@ performWhiteTest <- function(model, data, cross_products = TRUE) {
   if (!is.logical(cross_products) || length(cross_products) != 1) {
     std_error("invalid_logical", arg = "cross_products")
   }
+  check_memory_usage(data, threshold_mb = 50)
+  if (nrow(data) > 10000) {
+    message(
+      "Large dataset (", nrow(data), " observations). ",
+      "This may take some time to compute."
+    )
+  }
 
   model_formula <- formula(model)
   indep_vars <- model.matrix(model_formula, data = data)

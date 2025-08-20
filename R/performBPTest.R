@@ -21,6 +21,13 @@
 performBPTest <- function(model, data) {
   checkModel(model)
   checkData(data)
+  check_memory_usage(data, threshold_mb = 50)
+  if (nrow(data) > 10000) {
+    message(
+      "Large dataset (", nrow(data), " observations). ",
+      "This may take some time to compute."
+    )
+  }
   ht_log("INFO", "Running Breusch-Pagan test")
 
   e <- residuals(model)
@@ -44,3 +51,7 @@ performBPTest <- function(model, data) {
     class = "htest"
   )
 }
+
+#' @rdname performBPTest
+#' @export
+performBreuschPaganTest <- performBPTest

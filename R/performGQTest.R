@@ -23,6 +23,13 @@
 performGQTest <- function(model, data, order_by, fraction = 0.2) {
   checkModel(model)
   checkData(data)
+  check_memory_usage(data, threshold_mb = 50)
+  if (nrow(data) > 10000) {
+    message(
+      "Large dataset (", nrow(data), " observations). ",
+      "This may take some time to compute."
+    )
+  }
   ht_log("INFO", "Running Goldfeld-Quandt test")
   if (!order_by %in% names(data)) {
     stop("`order_by` must be a column in `data`.")

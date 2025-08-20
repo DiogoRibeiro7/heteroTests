@@ -4,7 +4,7 @@
 \alias{downloadTeachingData}
 \title{Download example teaching dataset}
 \usage{
-downloadTeachingData(name = "tips", destfile = tempfile(fileext = ".csv"))
+downloadTeachingData(name = "tips", destfile = tempfile(fileext = ".csv"), quiet = FALSE)
 }
 \arguments{
 \item{name}{Name of the dataset to download. Only "tips" is currently
@@ -12,15 +12,32 @@ supported.}
 
 \item{destfile}{Optional path to save the downloaded dataset. Defaults to a
 temporary file.}
+
+\item{quiet}{Logical; if FALSE, informative messages are printed during the
+download process.}
 }
 \value{
-Path to the downloaded dataset.
+Path to the downloaded dataset on success, or \code{NULL} invisibly if the
+download fails or no internet connection is available.
 }
 \description{
 Provides convenient access to example datasets hosted online. Currently
 supports the 'tips' dataset used in various tutorials.
 }
 \examples{
-path <- downloadTeachingData("tips")
-read.csv(path)
+\donttest{
+# Online example (requires internet)
+if (curl::has_internet()) {
+  data_path <- downloadTeachingData(quiet = TRUE)
+  if (!is.null(data_path)) {
+    # Use downloaded data
+  }
+}
+}
+
+# Offline example using built-in data
+data(mtcars)
+model <- lm(mpg ~ wt + hp, data = mtcars)
+result <- performWhiteTest(model, mtcars)
+print(result)
 }

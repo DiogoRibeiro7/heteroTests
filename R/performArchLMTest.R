@@ -25,6 +25,17 @@ performArchLMTest <- function(model, lags = 1) {
     stop("`lags` must be a positive integer.")
   }
 
+  data <- tryCatch(model.frame(model), error = function(e) NULL)
+  if (!is.null(data)) {
+    check_memory_usage(data, threshold_mb = 50)
+    if (nrow(data) > 10000) {
+      message(
+        "Large dataset (", nrow(data), " observations). ",
+        "This may take some time to compute."
+      )
+    }
+  }
+
   res2 <- residuals(model)^2
   n <- length(res2)
   if (lags >= n) {

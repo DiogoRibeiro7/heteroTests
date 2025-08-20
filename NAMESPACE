@@ -1,6 +1,7 @@
 export(performWhiteTest)
 export(performWhiteTestStreaming)
 export(performBPTest)
+export(performBreuschPaganTest)
 export(performGQTest)
 export(performKoenkerTest)
 export(performParkTest)
