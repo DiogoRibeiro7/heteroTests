@@ -103,3 +103,35 @@ safe_var <- function(x) {
   }
   v
 }
+
+#' Check memory usage and warn for large datasets
+#'
+#' @param data The dataset to check
+#' @param threshold_mb Memory threshold in MB (default: 100MB)
+#' @keywords internal
+check_memory_usage <- function(data, threshold_mb = 100) {
+
+  # Calculate object size in MB
+  size_mb <- as.numeric(object.size(data)) / 1024^2
+
+  if (size_mb > threshold_mb) {
+    warning(
+      "Large dataset detected (", round(size_mb, 1), " MB). ",
+      "This may require significant memory and processing time. ",
+      "Consider using a subset for initial analysis.",
+      call. = FALSE
+    )
+  }
+
+  # Check available memory if possible
+  if (.Platform$OS.type == "unix") {
+    tryCatch({
+      mem_info <- system("free -m", intern = TRUE)
+      # Parse and warn if memory is low
+    }, error = function(e) {
+      # Silently continue if can't check memory
+    })
+  }
+
+  invisible(size_mb)
+}

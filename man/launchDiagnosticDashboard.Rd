@@ -14,6 +14,10 @@ launchDiagnosticDashboard(model, data)
 \value{
 A \code{shiny.appobj} that can be run with \code{shiny::runApp()}.
 }
+\details{
+Requires the optional \pkg{shiny}, \pkg{DT}, and \pkg{gridExtra} packages.
+If any are missing, the function aborts with an informative message.
+}
 \description{
 Launch a Shiny-based dashboard for running heteroscedasticity tests
 and viewing diagnostic plots and remediation suggestions.

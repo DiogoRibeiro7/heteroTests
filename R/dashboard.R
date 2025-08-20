@@ -6,6 +6,9 @@
 #' @param model Fitted \code{lm} model.
 #' @param data Data frame used to fit the model.
 #' @return A \code{shiny.appobj} that can be run with \code{shiny::runApp()}.
+#' @details Requires the optional \pkg{shiny}, \pkg{DT}, and
+#'   \pkg{gridExtra} packages. If any are not installed, the function aborts
+#'   with a helpful message rather than failing obscurely.
 #' @examples
 #' \dontrun{
 #' data(mtcars)
@@ -14,9 +17,20 @@
 #' }
 #' @export
 launchDiagnosticDashboard <- function(model, data) {
-  if (!requireNamespace("shiny", quietly = TRUE) ||
-        !requireNamespace("DT", quietly = TRUE)) {
-    stop("Install 'shiny' and 'DT' packages for interactive dashboard")
+  if (!requireNamespace("shiny", quietly = TRUE)) {
+    stop("The 'shiny' package is required for the interactive dashboard.",
+      call. = FALSE
+    )
+  }
+  if (!requireNamespace("DT", quietly = TRUE)) {
+    stop("The 'DT' package is required for the interactive dashboard.",
+      call. = FALSE
+    )
+  }
+  if (!requireNamespace("gridExtra", quietly = TRUE)) {
+    stop("The 'gridExtra' package is required for the interactive dashboard.",
+      call. = FALSE
+    )
   }
 
   ui <- shiny::fluidPage(

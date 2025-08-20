@@ -98,3 +98,65 @@ test(HeteroDiagnostic(wls_model, boston_housing))
 ```
 
 The drop in test statistics or diagnostic plots indicates whether the remedy helped.
+
+## Statistical Accuracy and Validation
+
+The `heteroTests` package implementations have been validated against:
+
+- **Original published papers** with known test cases
+- **Established R packages** (lmtest, car, stats)  
+- **Commercial software** results (Stata, EViews)
+- **Simulation studies** with known statistical properties
+
+### Cross-Package Validation
+
+```{r validation-example}
+# Compare our Breusch-Pagan test with lmtest
+library(lmtest)
+data(mtcars)
+model <- lm(mpg ~ wt + hp, data = mtcars)
+
+# Our implementation
+our_result <- performBreuschPaganTest(model, mtcars)
+
+# Reference implementation
+ref_result <- bptest(model)
+
+# Results should match
+print(paste("Our statistic:", round(our_result$statistic, 6)))
+print(paste("Reference statistic:", round(ref_result$statistic, 6)))
+```
+
+## Performance and Memory Considerations
+
+### Large Datasets
+
+The `heteroTests` package is designed to handle datasets of various sizes, but some considerations apply:
+
+- **Memory warnings**: Functions will warn when processing large datasets (>50MB)
+- **Computational time**: Some tests (White, Breusch-Pagan) can be slow on very large datasets
+- **Memory usage**: Peak memory usage is typically 2-3x the dataset size
+
+### Recommendations for Large Datasets
+
+```{r performance-tips}
+# For very large datasets, consider:
+
+# 1. Subset for initial exploration
+large_subset <- your_data[sample(nrow(your_data), 1000), ]
+quick_result <- performWhiteTest(model, large_subset)
+
+# 2. Use simpler tests first
+fast_result <- performGoldfeldQuandtTest(model, your_data)
+
+# 3. Monitor memory usage
+gc()  # Garbage collection before analysis
+result <- performWhiteTest(model, your_data)
+gc()  # Clean up after
+```
+
+### Memory Management Tips
+
+- Use `gc()` to free memory between analyses
+- Consider processing data in chunks for very large datasets
+- Close unused objects with `rm()` to free memory

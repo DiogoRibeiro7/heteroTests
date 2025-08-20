@@ -22,7 +22,8 @@ Depends: R (>= 4.0.0)
 Imports:
     MASS,
     stats,
-    ggplot2
+    ggplot2,
+    curl
 Suggests:
     quickcheck,
     testthat (>= 3.0.0),
