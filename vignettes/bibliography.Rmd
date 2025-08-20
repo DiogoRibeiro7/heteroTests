@@ -1,0 +1,18 @@
+---
+title: "Complete Bibliography and References"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Complete Bibliography and References}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(heteroTests)
+```
+
+The `algorithms_bibliography()` function lists all bibliographic references cited in this package.
+
+```{r}
+algorithms_bibliography()
+```

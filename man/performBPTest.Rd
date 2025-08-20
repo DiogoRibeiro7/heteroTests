@@ -14,4 +14,8 @@
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  performBPTest(m, mtcars)
 }
-\references{Breusch, T. S., & Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. \emph{Econometrica}, 47(5), 1287--1294.}
+\references{
+Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity and random coefficient variation. \emph{Econometrica}, 47(5), 1287--1294. \doi{10.2307/1911963}
+
+Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. \emph{Journal of Econometrics}, 17(1), 107--112. \doi{10.1016/0304-4076(81)90062-2}
+}

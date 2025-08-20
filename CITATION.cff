@@ -66,7 +66,7 @@ references:
     title: "A note on studentizing a test for heteroscedasticity"
     journal: "Journal of Econometrics"
     year: 1981
-    doi: "10.1016/0304-4076(81)90059-1"
+    doi: "10.1016/0304-4076(81)90062-2"
   - type: article
     authors:
       - family-names: "Goldfeld"
@@ -82,7 +82,8 @@ references:
       - family-names: "Levene"
         given-names: "Howard"
     title: "Robust Tests for Equality of Variances"
-    booktitle: "Contributions to Probability and Statistics: Essays in Honor of Harold Hotelling"
+    booktitle: "Contributions to Probability and Statistics"
+    pages: "278-292"
     publisher: "Stanford University Press"
     address: "Stanford, CA"
     year: 1960
@@ -96,6 +97,77 @@ references:
     journal: "Journal of the American Statistical Association"
     year: 1974
     doi: "10.1080/01621459.1974.10482955"
+  - type: article
+    authors:
+      - family-names: "Fligner"
+        given-names: "Michael A."
+      - family-names: "Killeen"
+        given-names: "Thomas J."
+    title: "Distribution-free two-sample tests for scale"
+    journal: "Journal of the American Statistical Association"
+    year: 1976
+    doi: "10.1080/01621459.1976.10481517"
+  - type: article
+    authors:
+      - family-names: "Bartlett"
+        given-names: "Maurice S."
+    title: "Properties of sufficiency and statistical tests"
+    journal: "Proceedings of the Royal Society of London"
+    year: 1937
+    doi: "10.1098/rspa.1937.0109"
+  - type: article
+    authors:
+      - family-names: "Hartley"
+        given-names: "Harold O."
+    title: "The maximum F-ratio as a short-cut test for heterogeneity of variance"
+    journal: "Biometrika"
+    year: 1950
+    doi: "10.2307/2332383"
+  - type: article
+    authors:
+      - family-names: "Engle"
+        given-names: "Robert F."
+    title: "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation"
+    journal: "Econometrica"
+    year: 1982
+    doi: "10.2307/1912773"
+  - type: article
+    authors:
+      - family-names: "McLeod"
+        given-names: "A. Ian"
+      - family-names: "Li"
+        given-names: "Wai Keung"
+    title: "Diagnostic checking ARMA time series models using squared-residual autocorrelations"
+    journal: "Journal of Time Series Analysis"
+    year: 1983
+    doi: "10.1111/j.1467-9892.1983.tb00373.x"
+  - type: techreport
+    authors:
+      - family-names: "Cameron"
+        given-names: "A. Colin"
+      - family-names: "Trivedi"
+        given-names: "Pravin K."
+    title: "The information matrix test and its applied alternative hypotheses"
+    institution: "University of California, Davis"
+    year: 1990
+  - type: article
+    authors:
+      - family-names: "Cook"
+        given-names: "R. Dennis"
+      - family-names: "Weisberg"
+        given-names: "Sanford"
+    title: "Diagnostics for heteroscedasticity in regression"
+    journal: "Biometrika"
+    year: 1983
+    doi: "10.1093/biomet/70.1.1"
+  - type: article
+    authors:
+      - family-names: "O'Brien"
+        given-names: "R. Gerald"
+    title: "A general ANOVA method for robust tests of additive models for variances"
+    journal: "Journal of the American Statistical Association"
+    year: 1979
+    doi: "10.1080/01621459.1979.10481047"
   - type: article
     authors:
       - family-names: "Spearman"
@@ -113,3 +185,63 @@ references:
     number: "WP-379"
     year: 1991
     url: "https://cameron.econ.ucdavis.edu/research/regressionbasedtests_heteroskedasticity_ucdwp379.pdf"
+  - type: book
+    authors:
+      - family-names: "Greene"
+        given-names: "William H."
+    title: "Econometric Analysis"
+    edition: "8"
+    publisher: "Pearson"
+    year: 2018
+  - type: book
+    authors:
+      - family-names: "Wooldridge"
+        given-names: "Jeffrey M."
+    title: "Introductory Econometrics: A Modern Approach"
+    edition: "7"
+    publisher: "Cengage Learning"
+    year: 2020
+  - type: book
+    authors:
+      - family-names: "Davidson"
+        given-names: "Russell"
+      - family-names: "MacKinnon"
+        given-names: "James G."
+    title: "Econometric Theory and Methods"
+    publisher: "Oxford University Press"
+    year: 2004
+  - type: book
+    authors:
+      - family-names: "Godfrey"
+        given-names: "Leslie G."
+    title: "Misspecification Tests in Econometrics"
+    publisher: "Cambridge University Press"
+    year: 1988
+  - type: book
+    authors:
+      - family-names: "Fox"
+        given-names: "John"
+      - family-names: "Weisberg"
+        given-names: "Sanford"
+    title: "An R Companion to Applied Regression"
+    edition: "3"
+    publisher: "Sage Publications"
+    year: 2019
+  - type: book
+    authors:
+      - family-names: "Kleiber"
+        given-names: "Christian"
+      - family-names: "Zeileis"
+        given-names: "Achim"
+    title: "Applied Econometrics with R"
+    publisher: "Springer-Verlag"
+    year: 2008
+  - type: book
+    authors:
+      - family-names: "Efron"
+        given-names: "Bradley"
+      - family-names: "Tibshirani"
+        given-names: "Robert J."
+    title: "An Introduction to the Bootstrap"
+    publisher: "Chapman & Hall"
+    year: 1993

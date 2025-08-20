@@ -7,8 +7,15 @@
 #' @param order_by Character. Name of the variable to order the data by.
 #' @param fraction Numeric. Fraction of observations to omit from the middle
 #'   when splitting the ordered data. Defaults to 0.2.
-#'
+#' 
 #' @return An object of class \code{htest} with the F statistic and p-value.
+#' 
+#' @references 
+#' Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity. 
+#' \emph{Journal of the American Statistical Association}, 60(310), 539-547. 
+#' \doi{10.1080/01621459.1965.10480811}
+#' 
+#' Greene, W. H. (2018). \emph{Econometric Analysis} (8th ed.). Pearson.
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)

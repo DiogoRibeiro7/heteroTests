@@ -16,4 +16,8 @@
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  performGQTest(m, mtcars, order_by = "wt")
 }
-\references{Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity. \emph{Journal of the American Statistical Association}, 60(310), 539--547.}
+\references{
+Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity. \emph{Journal of the American Statistical Association}, 60(310), 539--547. \doi{10.1080/01621459.1965.10480811}
+
+Greene, W. H. (2018). \emph{Econometric Analysis} (8th ed.). Pearson.
+}

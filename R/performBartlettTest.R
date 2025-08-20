@@ -8,6 +8,15 @@
 #' @param group Character. Name of the grouping variable.
 #'
 #' @return An object of class \code{htest} with the chi-squared statistic and p-value.
+#'
+#' @references
+#' Bartlett, M. S. (1937). Properties of sufficiency and statistical tests.
+#' \emph{Proceedings of the Royal Society of London}, 160(901), 268-282.
+#' \doi{10.1098/rspa.1937.0109}
+#'
+#' Hartley, H. O. (1950). The maximum F-ratio as a short-cut test for
+#' heterogeneity of variance. \emph{Biometrika}, 37(3/4), 308-312.
+#' \doi{10.2307/2332383}
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)

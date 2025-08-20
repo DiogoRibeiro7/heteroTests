@@ -15,4 +15,8 @@
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  performWhiteTest(m, mtcars)
 }
-\references{White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. \emph{Econometrica}, 48(4), 817--838.}
+\references{
+White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. \emph{Econometrica}, 48(4), 817--838. \doi{10.2307/1912934}
+
+Greene, W. H. (2018). \emph{Econometric Analysis} (8th ed.). Pearson.
+}
