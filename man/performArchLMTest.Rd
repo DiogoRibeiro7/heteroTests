@@ -14,4 +14,8 @@
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  performArchLMTest(m, lags = 2)
 }
-\references{Engle, R. F. (1982). Autoregressive Conditional Heteroskedasticity with Estimates of the Variance of United Kingdom Inflation. \emph{Econometrica}, 50, 987--1007.}
+\references{
+Engle, R. F. (1982). Autoregressive conditional heteroskedasticity with estimates of the variance of United Kingdom inflation. \emph{Econometrica}, 50(4), 987--1007. \doi{10.2307/1912773}
+
+Hamilton, J. D. (1994). \emph{Time Series Analysis}. Princeton University Press.
+}

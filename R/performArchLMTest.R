@@ -4,8 +4,15 @@
 #'
 #' @param model A fitted model of class `lm`.
 #' @param lags Number of lags to include in the auxiliary regression.
-#'
+#' 
 #' @return An object of class \code{htest} with the test statistic and p-value.
+#' 
+#' @references 
+#' Engle, R. F. (1982). Autoregressive conditional heteroscedasticity with 
+#' estimates of the variance of United Kingdom inflation. \emph{Econometrica}, 
+#' 50(4), 987-1007. \doi{10.2307/1912773}
+#' 
+#' Hamilton, J. D. (1994). \emph{Time Series Analysis}. Princeton University Press.
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)

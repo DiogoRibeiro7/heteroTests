@@ -6,8 +6,15 @@
 #' @param data The data frame used to fit `model`.
 #' @param cross_products Logical. Include cross-product terms in the
 #'   auxiliary regression?
-#'
+#' 
 #' @return An object of class \code{htest} with the test statistic and p-value.
+#' 
+#' @references 
+#' White, H. (1980). A heteroscedasticity-consistent covariance matrix 
+#' estimator and a direct test for heteroscedasticity. \emph{Econometrica}, 
+#' 48(4), 817-838. \doi{10.2307/1912934}
+#' 
+#' Greene, W. H. (2018). \emph{Econometric Analysis} (8th ed.). Pearson.
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)

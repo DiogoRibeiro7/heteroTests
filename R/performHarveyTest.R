@@ -6,6 +6,14 @@
 #' @param model A fitted model of class `lm`.
 #'
 #' @return An object of class \code{htest} with the F statistic and p-value.
+#'
+#' @references
+#' Harvey, A. C. (1976). Estimating regression models with multiplicative
+#' heteroscedasticity. \emph{Econometrica}, 44(3), 461-465.
+#' \doi{10.2307/1913974}
+#'
+#' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity
+#' in regression. \emph{Biometrika}, 70(1), 1-10. \doi{10.1093/biomet/70.1.1}
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)

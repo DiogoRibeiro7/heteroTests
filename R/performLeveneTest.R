@@ -9,6 +9,15 @@
 #' @param group Character. Name of the grouping variable.
 #'
 #' @return An object of class \code{htest} with the F statistic and p-value.
+#'
+#' @references
+#' Levene, H. (1960). Robust tests for equality of variances. In
+#' \emph{Contributions to Probability and Statistics} (pp. 278-292).
+#' Stanford University Press.
+#'
+#' Brown, M. B., & Forsythe, A. B. (1974). Robust tests for the equality
+#' of variances. \emph{Journal of the American Statistical Association},
+#' 69(346), 364-367. \doi{10.1080/01621459.1974.10482955}
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
