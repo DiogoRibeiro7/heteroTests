@@ -122,40 +122,40 @@ citEntry(
   doi = "10.1098/rspa.1937.0109"
 )
 
-  citEntry(
-    entry = "Article",
-    title = "The maximum F-ratio as a short-cut test for heterogeneity of variance",
-    author = c(person("Harold O.", "Hartley")),
-    year = "1950",
-    journal = "Biometrika",
-    doi = "10.2307/2332383"
-  )
+citEntry(
+  entry = "Article",
+  title = "The maximum F-ratio as a short-cut test for heterogeneity of variance",
+  author = c(person("Harold O.", "Hartley")),
+  year = "1950",
+  journal = "Biometrika",
+  doi = "10.2307/2332383"
+)
 
-  citEntry(
-    entry = "Article",
-    title = "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation",
-    author = c(person("Robert F.", "Engle")),
-    year = "1982",
-    journal = "Econometrica",
-    doi = "10.2307/1912773"
-  )
+citEntry(
+  entry = "Article",
+  title = "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation",
+  author = c(person("Robert F.", "Engle")),
+  year = "1982",
+  journal = "Econometrica",
+  doi = "10.2307/1912773"
+)
 
-  citEntry(
-    entry = "Article",
-    title = "Diagnostic checking ARMA time series models using squared-residual autocorrelations",
-    author = c(
-      person("A. Ian", "McLeod"),
-      person("Wai Keung", "Li")
-    ),
-    year = "1983",
-    journal = "Journal of Time Series Analysis",
-    doi = "10.1111/j.1467-9892.1983.tb00373.x"
-  )
+citEntry(
+  entry = "Article",
+  title = "Diagnostic checking ARMA time series models using squared-residual autocorrelations",
+  author = c(
+    person("A. Ian", "McLeod"),
+    person("Wai Keung", "Li")
+  ),
+  year = "1983",
+  journal = "Journal of Time Series Analysis",
+  doi = "10.1111/j.1467-9892.1983.tb00373.x"
+)
 
-  citEntry(
-    entry = "Article",
-    title = "The proof and measurement of association between two things",
-    author = c(person("Charles", "Spearman")),
+citEntry(
+  entry = "Article",
+  title = "The proof and measurement of association between two things",
+  author = c(person("Charles", "Spearman")),
   year = "1904",
   journal = "The American Journal of Psychology",
   doi = "10.2307/1412159"
