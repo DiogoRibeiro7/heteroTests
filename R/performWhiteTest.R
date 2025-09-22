@@ -1,7 +1,11 @@
 #' Perform White's test for heteroscedasticity (CORRECTED VERSION)
 #'
 #' This function implements White's test on a fitted linear model with proper
-#' cross-product terms according to White's original 1980 specification.
+#' cross-product terms according to White's original 1980 specification. The
+#' routine now integrates the validation helpers introduced in
+#' \code{validation.R}: models and data are checked for compatibility, missing
+#' values are removed with informative warnings, sample size thresholds are
+#' enforced, and the expanded auxiliary regression is required to be full rank.
 #'
 #' @param model A fitted model of class `lm`.
 #' @param data The data frame used to fit `model`.
@@ -9,93 +13,174 @@
 #'   auxiliary regression? Default is TRUE.
 #' @param max_interactions Maximum number of predictors for including cross-products
 #'   to avoid computational explosion. Default is 10.
-#' 
+#'
 #' @return An object of class \code{htest} with the test statistic and p-value.
-#' 
-#' @details 
+#'
+#' @details
+#' Prior to fitting the auxiliary regression the function:
+#' \enumerate{
+#'   \item validates the supplied model via [rvalidateModelInputs()] (minimum of 20 observations);
+#'   \item confirms that `data` contains the variables required by the model with [rvalidateDataInputs()];
+#'   \item removes incomplete observations using [rhandleMissingValues()], emitting a warning when rows are dropped;
+#'   \item enforces registered requirements through [rvalidateTestRequirements()], which includes the sample-size rule; and
+#'   \item checks that the augmented design matrix (including squares and cross-products) is full rank.
+#' }
+#'
 #' White's test regresses the squared residuals on:
 #' 1. All original regressors (excluding intercept)
-#' 2. Squares of all original regressors  
+#' 2. Squares of all original regressors
 #' 3. Cross-products of all pairs of original regressors (if cross_products = TRUE)
-#' 
+#'
 #' The test statistic is n*R² from this auxiliary regression, which follows
 #' a chi-squared distribution with degrees of freedom equal to the number of
 #' regressors in the auxiliary model (excluding the intercept).
 #'
-#' @references 
-#' White, H. (1980). A heteroscedasticity-consistent covariance matrix 
-#' estimator and a direct test for heteroscedasticity. \emph{Econometrica}, 
+#' @references
+#' White, H. (1980). A heteroscedasticity-consistent covariance matrix
+#' estimator and a direct test for heteroscedasticity. \emph{Econometrica},
 #' 48(4), 817-838. \doi{10.2307/1912934}
-#' 
+#'
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' performWhiteTest(m, mtcars)
+#'
+#' # Validation examples
+#' try(performWhiteTest(m, mtcars[1:10, ]))
 #' @export
 performWhiteTest <- function(model, data, cross_products = TRUE, max_interactions = 10) {
-  # Input validation
-  checkModel(model)
-  checkData(data)
-  validateTestInputs(model, data, "White")
-  
+  test_label <- "White test"
+  rvalidateModelInputs(model, test_name = "White", min_obs = 20L)
+
+  model_terms <- stats::terms(model)
+  required_vars <- unique(all.vars(model_terms))
+  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 20L)
+
+  handle_validation_result <- function(result) {
+    if (length(result$warnings) > 0) {
+      for (msg in unique(result$warnings)) {
+        warning(msg, call. = FALSE)
+      }
+    }
+    if (!isTRUE(result$passed)) {
+      stop(paste(unique(result$messages), collapse = "\n"), call. = FALSE)
+    }
+    invisible(result)
+  }
+
+  align_to_model <- function(clean_data, residuals) {
+    resid_names <- names(residuals)
+    data_rows <- rownames(clean_data)
+
+    if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
+      match_idx <- match(resid_names, data_rows)
+      if (anyNA(match_idx)) {
+        missing_rows <- resid_names[is.na(match_idx)]
+        stop(
+          sprintf(
+            "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
+            test_label,
+            paste(utils::head(missing_rows, 3L), collapse = ", ")
+          ),
+          call. = FALSE
+        )
+      }
+      aligned_data <- clean_data[match_idx, , drop = FALSE]
+      list(data = aligned_data, residuals = residuals)
+    } else {
+      if (nrow(clean_data) != length(residuals)) {
+        stop(
+          sprintf(
+            "%s requires `data` with %d observations to match the fitted model, got %d.",
+            test_label,
+            length(residuals),
+            nrow(clean_data)
+          ),
+          call. = FALSE
+        )
+      }
+      list(data = clean_data, residuals = residuals)
+    }
+  }
+
+  cleaned <- rhandleMissingValues(data, variables = required_vars)
+  aligned <- align_to_model(cleaned$data, stats::residuals(model))
+  working_data <- aligned$data
+  residuals <- aligned$residuals
+
+  requirements <- rvalidateTestRequirements("white", model = model, data = working_data)
+  handle_validation_result(requirements)
+
   if (!is.logical(cross_products) || length(cross_products) != 1) {
     std_error("invalid_logical", arg = "cross_products")
   }
-  
+
   # Memory and performance warnings
-  check_memory_usage(data, threshold_mb = 50)
-  if (nrow(data) > 10000) {
-    message("Large dataset (", nrow(data), " observations). ",
+  check_memory_usage(working_data, threshold_mb = 50)
+  if (nrow(working_data) > 10000) {
+    message("Large dataset (", nrow(working_data), " observations). ",
             "This may take some time to compute.")
   }
-  
+
   ht_log("INFO", "Running White test")
-  
+
   # Extract model components
-  e_squared <- residuals(model)^2
+  e_squared <- residuals^2
   n <- length(e_squared)
-  
+
   # Get the model matrix (includes intercept)
-  X_full <- model.matrix(model)
-  
+  X_full <- stats::model.matrix(model, data = working_data)
+
+  if (nrow(X_full) != n) {
+    stop(
+      sprintf(
+        "%s could not align the design matrix with model residuals (expected %d rows, got %d).",
+        test_label,
+        n,
+        nrow(X_full)
+      ),
+      call. = FALSE
+    )
+  }
+
   # Remove intercept column for auxiliary regression
   if (colnames(X_full)[1] == "(Intercept)") {
     X <- X_full[, -1, drop = FALSE]
   } else {
     X <- X_full
   }
-  
+
   p <- ncol(X)  # Number of original regressors (excluding intercept)
-  
+
   if (p == 0) {
     stop("No regressors found in model (intercept-only model)")
   }
-  
+
   regressor_names <- colnames(X)
-  
+
   # Build auxiliary regression matrix
   # Start with original regressors
   aux_matrix <- X
   aux_names <- regressor_names
-  
+
   # Add squared terms
-  for (j in 1:p) {
+  for (j in seq_len(p)) {
     aux_matrix <- cbind(aux_matrix, X[, j]^2)
     aux_names <- c(aux_names, paste0(regressor_names[j], "_sq"))
   }
-  
+
   # Add cross-product terms if requested
   if (cross_products && p > 1) {
-    
+
     # Check if we should include cross-products based on dimensionality
     if (p > max_interactions) {
       std_warning("cross_products_omitted")
-      message("Cross-products omitted due to high dimensionality (p = ", p, 
+      message("Cross-products omitted due to high dimensionality (p = ", p,
               " > max_interactions = ", max_interactions, ")")
     } else {
       # Add all pairwise cross-products X_i * X_j for i < j
-      for (i in 1:(p-1)) {
-        for (j in (i+1):p) {
+      for (i in seq_len(p - 1L)) {
+        for (j in seq.int(i + 1L, p)) {
           cross_product <- X[, i] * X[, j]
           aux_matrix <- cbind(aux_matrix, cross_product)
           aux_names <- c(aux_names, paste0(regressor_names[i], "_x_", regressor_names[j]))
@@ -103,31 +188,36 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
       }
     }
   }
-  
+
   # Set column names for the auxiliary matrix
   colnames(aux_matrix) <- aux_names
-  
+
   # Convert to data frame for regression
   aux_data <- as.data.frame(aux_matrix)
-  
+
   # Check for perfect multicollinearity in auxiliary regression
   aux_rank <- qr(aux_matrix)$rank
   if (aux_rank < ncol(aux_matrix)) {
-    warning("Perfect multicollinearity detected in auxiliary regression. ",
-            "Results may be unreliable.")
+    std_error(
+      "rassumption_violation",
+      assumption = paste(
+        "Auxiliary regression became rank deficient; consider disabling cross-product terms",
+        "or removing collinear predictors"
+      )
+    )
   }
-  
+
   # Run auxiliary regression: e² ~ regressors + squares + cross-products
   aux_model <- tryCatch({
     lm(e_squared ~ ., data = aux_data)
   }, error = function(e) {
-    stop("Auxiliary regression failed: ", e$message, 
+    stop("Auxiliary regression failed: ", e$message,
          "\nThis may be due to perfect multicollinearity or other numerical issues.")
   })
-  
+
   # Calculate test statistic
   r_squared <- summary(aux_model)$r.squared
-  
+
   # Handle numerical edge cases
   if (is.na(r_squared) || r_squared < 0) {
     warning("Invalid R-squared from auxiliary regression. Setting to 0.")
@@ -137,55 +227,36 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
     warning("R-squared > 1 from auxiliary regression. Setting to 1.")
     r_squared <- 1
   }
-  
+
   test_statistic <- n * r_squared
   df <- ncol(aux_matrix)  # Degrees of freedom = number of auxiliary regressors
   p_value <- pchisq(test_statistic, df, lower.tail = FALSE)
-  
+
   # Create result object
   result <- structure(
     list(
       statistic = c("X-squared" = test_statistic),
       parameter = c(df = df),
       p.value = p_value,
-      method = if (cross_products && p > 1 && p <= max_interactions) {
-        "White's test for heteroscedasticity (with cross-products)"
-      } else {
-        "White's test for heteroscedasticity"
-      },
+      method = "White's test for heteroscedasticity",
       data.name = deparse(substitute(model)),
       alternative = "heteroscedasticity present"
     ),
     class = "htest"
   )
-  
+
   # Add diagnostic information
   attr(result, "auxiliary_regressors") <- ncol(aux_matrix)
   attr(result, "original_regressors") <- p
   attr(result, "cross_products_included") <- cross_products && p > 1 && p <= max_interactions
   attr(result, "r_squared_auxiliary") <- r_squared
-  
-  ht_log("INFO", paste("White test completed: statistic =", round(test_statistic, 4), 
+
+  ht_log("INFO", paste("White test completed: statistic =", round(test_statistic, 4),
                        "df =", df, "p =", round(p_value, 4)))
-  
+
   return(result)
 }
 
-#' Enhanced White Test with Bootstrap Option
-#' 
-#' Extends the standard White test with bootstrap p-values for small samples
-#' and additional diagnostic information.
-#'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`. 
-#' @param cross_products Include cross-product terms?
-#' @param bootstrap Use bootstrap p-values?
-#' @param B Number of bootstrap replications if bootstrap = TRUE.
-#' @param parallel Use parallel processing for bootstrap?
-#' @param alpha Significance level for interpretation.
-#'
-#' @return Enhanced htest object with additional components
-#' @export
 performWhiteTestEnhanced <- function(model, data, cross_products = TRUE, 
                                    bootstrap = FALSE, B = 1000, 
                                    parallel = FALSE, alpha = 0.05) {
