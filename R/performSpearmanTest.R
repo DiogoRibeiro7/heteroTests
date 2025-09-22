@@ -7,21 +7,55 @@
 #' @param model A fitted model of class `lm`.
 #'
 #' @return An object of class \code{htest} with the test statistic and p-value.
+#'
+#' @details
+#' [rvalidateModelInputs()] ensures the supplied model is compatible and enforces
+#' the test-specific sample size via [rvalidateTestRequirements()].
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' performSpearmanTest(m)
 performSpearmanTest <- function(model) {
-  if (!inherits(model, "lm")) {
-    stop("`model` must be an object of class 'lm'.")
+  rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
+
+  model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  requirements <- rvalidateTestRequirements("spearman", model = model, data = model_data)
+  rprocessValidationResult(requirements)
+
+  ht_log("INFO", "Running Spearman rank correlation test")
+
+  abs_res <- abs(stats::residuals(model))
+  fit <- stats::fitted(model)
+
+  if (length(abs_res) != length(fit)) {
+    stop("Fitted values and residuals must have matching lengths.", call. = FALSE)
   }
 
-  abs_res <- abs(residuals(model))
-  fit <- fitted(model)
-  rho <- cor(abs_res, fit, method = "spearman")
+  if (stats::var(abs_res) <= .Machine$double.eps) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Spearman test requires variability in absolute residuals"
+    )
+  }
+
+  if (stats::var(fit) <= .Machine$double.eps) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Spearman test requires variability in fitted values"
+    )
+  }
+
+  rho <- stats::cor(abs_res, fit, method = "spearman")
+  if (is.na(rho) || abs(rho) >= 1) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Spearman correlation could not be computed due to degeneracy"
+    )
+  }
+
   n <- length(abs_res)
   t_statistic <- rho * sqrt((n - 2) / (1 - rho^2))
-  p_value <- 2 * pt(-abs(t_statistic), df = n - 2)
+  p_value <- 2 * stats::pt(-abs(t_statistic), df = n - 2)
 
   structure(
     list(
@@ -29,7 +63,7 @@ performSpearmanTest <- function(model) {
       parameter = n - 2,
       p.value = p_value,
       method = "Spearman rank correlation test for heteroscedasticity",
-      data.name = deparse(formula(model)),
+      data.name = deparse(stats::formula(model)),
       estimate = c(rho = rho)
     ),
     class = "htest"

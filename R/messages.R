@@ -13,7 +13,16 @@ error_messages <- list(
   invalid_data = "Data must be a data.frame",
   missing_variable = "Variable '{variable}' not found in data",
   negative_values = "Test requires positive values in variable '{variable}'",
-  invalid_logical = "'{arg}' must be a single logical value"
+  invalid_logical = "'{arg}' must be a single logical value",
+  rinsufficient_sample_size = "Test '{test_name}' requires at least {min_obs} observations, got {n_obs}",
+  missing_values_detected = "Missing values detected in {var_names}. {n_removed} observations removed.",
+  invalid_model_class = "Model must be fitted with lm() or glm(), got {model_class}",
+  perfect_fit_detected = "Model has perfect fit (R² = 1). Heteroscedasticity tests may be unreliable.",
+  rassumption_violation = "Test assumption violated: {assumption}. Results may be unreliable.",
+  insufficient_group_size = "Group '{group_name}' has only {n_obs} observations (minimum: {min_required})",
+  invalid_group_variable = "Grouping variable '{group_var}' must be factor/character with \u2265 {min_groups} levels",
+  positive_values_required = "Variable '{var_name}' must contain only positive values for {test_name}",
+  normality_assumption = "Severe non-normality detected in {variable}. Consider robust alternatives."
 )
 
 #' Generate standardized error message
@@ -35,7 +44,8 @@ std_error <- function(type, ...) {
 }
 
 warning_messages <- list(
-  cross_products_omitted = "Cross-products omitted due to high dimensionality"
+  cross_products_omitted = "Cross-products omitted due to high dimensionality",
+  missing_values_removed = "Removed {n_removed} observations due to missing values in {var_names}"
 )
 
 #' Generate standardized warning message

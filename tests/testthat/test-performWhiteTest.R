@@ -44,3 +44,66 @@ test_that("cross_products must be logical", {
                "cross_products")
 })
 
+test_that("performWhiteTest enforces sample size minimum", {
+  set.seed(42)
+  df <- data.frame(
+    y = rnorm(18),
+    x1 = rnorm(18),
+    x2 = rnorm(18)
+  )
+  model <- lm(y ~ x1 + x2, data = df)
+  expect_error(
+    performWhiteTest(model, df),
+    "requires at least 20"
+  )
+})
+
+test_that("performWhiteTest warns about missing values and succeeds", {
+  set.seed(123)
+  n <- 40
+  df <- data.frame(
+    y = 1 + rnorm(n),
+    x1 = rnorm(n),
+    x2 = rnorm(n)
+  )
+  df$x1[1] <- NA
+  df$x2[5] <- NA
+  model <- lm(y ~ x1 + x2, data = df)
+  expect_warning(
+    res <- performWhiteTest(model, df),
+    "Removed 2 observations due to missing values"
+  )
+  expect_s3_class(res, "htest")
+})
+
+test_that("performWhiteTest flags rank-deficient auxiliary regression", {
+  set.seed(321)
+  n <- 30
+  x1 <- rnorm(n)
+  x2 <- rnorm(n)
+  x3 <- x1 * x2
+  y <- 1 + 2 * x1 + 0.5 * x2 + 0.2 * x3 + rnorm(n)
+  df <- data.frame(y = y, x1 = x1, x2 = x2, x3 = x3)
+  model <- lm(y ~ x1 + x2 + x3, data = df)
+  expect_error(
+    performWhiteTest(model, df, cross_products = TRUE),
+    "Auxiliary regression became rank deficient"
+  )
+  expect_s3_class(
+    performWhiteTest(model, df, cross_products = FALSE),
+    "htest"
+  )
+})
+
+test_that("performWhiteTest aborts for perfect fits", {
+  df <- data.frame(
+    x = seq_len(25),
+    y = 3 + 2 * seq_len(25)
+  )
+  model <- lm(y ~ x, data = df)
+  expect_error(
+    performWhiteTest(model, df),
+    "Model has perfect fit"
+  )
+})
+

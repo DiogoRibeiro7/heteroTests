@@ -7,11 +7,56 @@
 #' @name additional_tests
 NULL
 
+# Internal helper --------------------------------------------------------------
+
+prepare_model_data_for_test <- function(model, data, required_vars, test_label,
+                                        min_obs_model = 10L, min_obs_data = 10L) {
+  rvalidateModelInputs(model, test_name = test_label, min_obs = min_obs_model)
+  rvalidateDataInputs(data, required_vars = required_vars, min_obs = min_obs_data)
+
+  cleaned <- rhandleMissingValues(data, variables = required_vars)
+  residuals <- stats::residuals(model)
+
+  resid_names <- names(residuals)
+  data_rows <- rownames(cleaned$data)
+
+  if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
+    match_idx <- match(resid_names, data_rows)
+    if (anyNA(match_idx)) {
+      missing_rows <- resid_names[is.na(match_idx)]
+      stop(
+        sprintf(
+          "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
+          test_label,
+          paste(utils::head(missing_rows, 3L), collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+    aligned_data <- cleaned$data[match_idx, , drop = FALSE]
+  } else {
+    if (nrow(cleaned$data) != length(residuals)) {
+      stop(
+        sprintf(
+          "%s requires `data` with %d observations to match the fitted model, got %d.",
+          test_label,
+          length(residuals),
+          nrow(cleaned$data)
+        ),
+        call. = FALSE
+      )
+    }
+    aligned_data <- cleaned$data
+  }
+
+  list(data = aligned_data, residuals = residuals)
+}
+
 #' Studentized Breusch-Pagan test
-#'
+#' 
 #' Performs the Breusch-Pagan test using studentized residuals,
 #' providing robustness to non-normality.
-#'
+#' 
 #' @param model A fitted model of class `lm`.
 #' @param data The data frame used to fit `model`.
 #' @return An object of class `htest` with the test statistic and p-value.
@@ -21,18 +66,63 @@ NULL
 #' performStudentizedBPTest(m, mtcars)
 #' @export
 performStudentizedBPTest <- function(model, data) {
-  checkModel(model)
-  checkData(data)
-  validateTestInputs(model, data, "Studentized BP")
+  test_label <- "Studentized BP"
 
-  resid_student <- rstudent(model)
+  model_terms <- stats::terms(model)
+  required_vars <- unique(all.vars(model_terms))
+  prepared <- prepare_model_data_for_test(
+    model,
+    data,
+    required_vars = required_vars,
+    test_label = test_label,
+    min_obs_model = 15L,
+    min_obs_data = 15L
+  )
+
+  working_data <- prepared$data
+
+  requirements <- rvalidateTestRequirements("studentized_bp", model = model, data = working_data)
+  rprocessValidationResult(requirements)
+
+  ht_log("INFO", "Running Studentized Breusch-Pagan test")
+
+  resid_student <- stats::rstudent(model)
+  if (length(resid_student) != nrow(working_data)) {
+    stop("Studentized residuals could not be aligned with the working data.", call. = FALSE)
+  }
+
+  if (stats::var(resid_student) <= .Machine$double.eps) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Studentized BP test requires variability in studentized residuals"
+    )
+  }
+
+  X_full <- stats::model.matrix(model, data = working_data)
+  if (colnames(X_full)[1] == "(Intercept)") {
+    predictors <- X_full[, -1, drop = FALSE]
+  } else {
+    predictors <- X_full
+  }
+
+  if (ncol(predictors) == 0) {
+    stop("Studentized BP test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+
   n <- length(resid_student)
-  X <- model.matrix(formula(model), data = data)[, -1, drop = FALSE]
-  aux_model <- lm(resid_student^2 ~ X)
+  if (n <= (ncol(predictors) + 1L)) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Studentized BP auxiliary regression requires observations to exceed predictors plus intercept"
+    )
+  }
+
+  aux_data <- as.data.frame(predictors)
+  aux_model <- safe_lm(resid_student^2 ~ ., data = aux_data)
   r2 <- summary(aux_model)$r.squared
   test_statistic <- n * r2
-  df <- ncol(X)
-  p_value <- pchisq(test_statistic, df, lower.tail = FALSE)
+  df <- ncol(aux_data)
+  p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   structure(
     list(
@@ -58,22 +148,50 @@ performStudentizedBPTest <- function(model, data) {
 #' @return An object of class `htest` with the bootstrap p-value.
 #' @export
 performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
-  checkModelEnhanced(model, data)
+  test_label <- "Bootstrap White"
 
-  original_stat <- performWhiteTest(model, data)$statistic
+  model_terms <- stats::terms(model)
+  required_vars <- unique(all.vars(model_terms))
+  prepared <- prepare_model_data_for_test(
+    model,
+    data,
+    required_vars = required_vars,
+    test_label = test_label,
+    min_obs_model = 20L,
+    min_obs_data = 20L
+  )
+
+  working_data <- prepared$data
+
+  requirements <- rvalidateTestRequirements("bootstrap_tests", model = model, data = working_data)
+  rprocessValidationResult(requirements)
+
+  if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
+    stop("`B` must be a positive integer.", call. = FALSE)
+  }
+  B <- as.integer(B)
+
+  if (!is.logical(parallel) || length(parallel) != 1L || is.na(parallel)) {
+    stop("`parallel` must be a single logical value.", call. = FALSE)
+  }
+
+  ht_log("INFO", "Running Bootstrap White test")
+
+  original_result <- performWhiteTest(model, working_data)
+  original_stat <- unname(original_result$statistic[1])
 
   bootstrap_stat <- function() {
-    fitted_vals <- fitted(model)
-    resid <- residuals(model)
+    fitted_vals <- stats::fitted(model)
+    resid <- stats::residuals(model)
     boot_resid <- sample(resid, replace = TRUE)
     boot_y <- fitted_vals + boot_resid
 
-    boot_data <- data
-    response_name <- as.character(formula(model))[2]
+    boot_data <- working_data
+    response_name <- as.character(stats::formula(model))[2]
     boot_data[[response_name]] <- boot_y
 
-    boot_model <- lm(formula(model), data = boot_data)
-    performWhiteTest(boot_model, boot_data)$statistic
+    boot_model <- safe_lm(stats::formula(model), data = boot_data)
+    unname(performWhiteTest(boot_model, boot_data)$statistic[1])
   }
 
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {
@@ -82,7 +200,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
       function(i) bootstrap_stat(),
       mc.cores = max(1, parallel::detectCores() - 1)
     )
-    boot_stats <- unlist(boot_stats)
+    boot_stats <- unlist(boot_stats, use.names = FALSE)
   } else {
     boot_stats <- replicate(B, bootstrap_stat())
   }
@@ -91,7 +209,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 
   structure(
     list(
-      statistic = original_stat,
+      statistic = original_result$statistic,
       parameter = c(B = B),
       p.value = p_value,
       method = "Bootstrap White test",
@@ -113,15 +231,54 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' @return An object of class `htest`.
 #' @export
 performSzroeterTest <- function(model, data, order_by) {
-  checkModelEnhanced(model, data)
+  test_label <- "Szroeter test"
 
-  if (!order_by %in% names(data)) {
+  if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
+    stop("`order_by` must be supplied as a single column name.", call. = FALSE)
+  }
+
+  model_terms <- stats::terms(model)
+  required_vars <- unique(c(all.vars(model_terms), order_by))
+  prepared <- prepare_model_data_for_test(
+    model,
+    data,
+    required_vars = required_vars,
+    test_label = test_label,
+    min_obs_model = 15L,
+    min_obs_data = 15L
+  )
+
+  working_data <- prepared$data
+  residuals <- prepared$residuals
+
+  requirements <- rvalidateTestRequirements("szroeter", model = model, data = working_data)
+  rprocessValidationResult(requirements)
+
+  if (!order_by %in% names(working_data)) {
     std_error("missing_variable", variable = order_by)
   }
 
-  ord <- order(data[[order_by]])
-  e_ordered <- residuals(model)[ord]
+  ht_log("INFO", "Running Szroeter test")
+
+  ord <- order(working_data[[order_by]])
+  e_ordered <- residuals[ord]
   n <- length(e_ordered)
+
+  if (n <= 1) {
+    std_error(
+      "rinsufficient_sample_size",
+      test_name = test_label,
+      min_obs = 2L,
+      n_obs = n
+    )
+  }
+
+  if (stats::var(e_ordered) <= .Machine$double.eps) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Szroeter test requires variability in ordered residuals"
+    )
+  }
 
   ranks <- seq_len(n)
   numerator <- sum(ranks * e_ordered^2)
@@ -131,7 +288,7 @@ performSzroeterTest <- function(model, data, order_by) {
 
   var_stat <- (n + 1) * (2 * n + 1) / (12 * n)
   z_stat <- (test_statistic - 1) / sqrt(var_stat / n)
-  p_value <- 2 * pnorm(-abs(z_stat))
+  p_value <- 2 * stats::pnorm(-abs(z_stat))
 
   structure(
     list(

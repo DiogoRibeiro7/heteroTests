@@ -84,7 +84,7 @@ test_that("performBPTest validates its inputs", {
 
   expect_error(
     performBPTest("not a model", test_obj$data),
-    "Model must be fitted with lm() or glm()",
+    "Model must be fitted with lm() or glm(), got character",
     fixed = TRUE
   )
 
@@ -189,7 +189,8 @@ test_that("performLeveneTest works correctly", {
   # Test error for missing group variable
   expect_error(
     performLeveneTest(model, data, "nonexistent"),
-    "group.*must be a column"
+    "Variable 'nonexistent' not found in data",
+    fixed = TRUE
   )
 })
 
