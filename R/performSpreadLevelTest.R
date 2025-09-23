@@ -1,15 +1,40 @@
-#' Perform Spread-Level test
+#' Perform spread–level test
 #'
-#' Fits a simple regression of log(|residuals|) on log(fitted) values.
-#' A slope significantly different from zero indicates heteroscedasticity.
+#' Evaluates Tukey's spread–level plot diagnostic by regressing the log of the
+#' absolute residuals on the log of the fitted values. A non-zero slope indicates
+#' that the residual spread changes systematically with the mean.
 #'
-#' @param model A fitted model of class `lm`.
+#' @param model A fitted [stats::lm] object whose residuals are to be assessed.
 #'
-#' @return An object of class \code{htest} with the t statistic for the slope.
+#' @return An object of class \link[stats:htest]{htest} containing the t statistic for the
+#'   slope parameter and its two-sided p-value.
+#'
+#' @details
+#' The spread–level transformation linearises power-of-the-mean variance models.
+#' After computing \eqn{\log |e_i|} and \eqn{\log |\hat{y}_i|}, the function fits a
+#' simple regression and tests whether the slope is zero. The helper
+#' [checkModel()] ensures that residuals and fitted values are available and
+#' finite. Because the test is essentially the score test from a power variance
+#' function, it complements the parametric Harvey and Park diagnostics.
+#'
+#' @references
+#' Tukey, J. W. (1977). *Exploratory Data Analysis*. Addison-Wesley. Chapter 8
+#' describes the spread–level approach.
+#'
+#' Fox, J., & Weisberg, S. (2019). *An R Companion to Applied Regression*
+#' (3rd ed.). Sage. Section 3.4 discusses spread–level diagnostics.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performSpreadLevelTest(m)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performSpreadLevelTest(mod)
+#'
+#' # Compare with the NCV test on the same model
+#' performNCVTest(mod)
+#'
+#' @seealso
+#' [performNCVTest()] and [performSpearmanTest()] target similar monotonic
+#' heteroscedasticity patterns.
 performSpreadLevelTest <- function(model) {
   checkModel(model)
 

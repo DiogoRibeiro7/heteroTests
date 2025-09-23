@@ -2,22 +2,34 @@
 % Please edit documentation in R/performance.R
 \name{runHeteroTestsParallel}
 \alias{runHeteroTestsParallel}
-\title{Parallel test execution for runHeteroTests}
+\title{Parallel test execution helper}
 \usage{
 runHeteroTestsParallel(model, data, tests, n_cores = NULL)
 }
 \arguments{
-\item{model}{Fitted model.}
+\item{model}{Fitted model object passed to each diagnostic. Must be compatible
+with the internal \code{.test_factory} registry.}
 
-\item{data}{Data used to fit the model.}
+\item{data}{Data frame used to fit \code{model} and supplied to each diagnostic.}
 
-\item{tests}{Character vector of test names.}
+\item{tests}{Character vector naming the diagnostics to execute.}
 
-\item{n_cores}{Number of cores to use. Defaults to available cores minus one.}
+\item{n_cores}{Optional positive integer giving the number of worker processes
+to spawn. Defaults to \code{parallel::detectCores() - 1}, with a lower bound of 1.}
 }
 \value{
-Named list of test results.
+Named list of test results in the order provided by \code{tests}.
 }
 \description{
-Executes diagnostic tests in parallel if multiple cores are available.
+Executes a set of registered diagnostics in parallel when multiple CPU cores
+are available, falling back to sequential execution otherwise.
+}
+\details{
+When \code{n_cores} exceeds one and the \code{parallel} package is available, the helper
+evaluates the diagnostics via \code{\link[parallel:clusterApply]{parallel::parLapply()}} after exporting the
+model and data to the worker environment. On systems without fork support the
+function gracefully reverts to sequential execution.
+}
+\seealso{
+\code{\link[=cachedTest]{cachedTest()}} for memoised execution of individual diagnostics.
 }

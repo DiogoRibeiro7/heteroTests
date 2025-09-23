@@ -27,8 +27,8 @@ test_that("performLeveneTest integrates validation helpers", {
   small_model <- lm(y ~ x1 + x2, data = small_df)
   expect_error(
     performLeveneTest(small_model, small_df, "g"),
-    "Group 'a' has only 4 observations",
-    fixed = FALSE
+    "increase to 5 for stable inference.",
+    fixed = TRUE
   )
 })
 
@@ -52,7 +52,7 @@ test_that("performBartlettTest warns on severe normality violations", {
   numeric_group$g <- as.numeric(numeric_group$g)
   expect_error(
     performBartlettTest(model, numeric_group, "g"),
-    "Grouping variable 'g' must be factor/character",
+    "Grouping variable 'g' must be a factor or character vector with at least 2 levels.",
     fixed = TRUE
   )
 })
@@ -74,15 +74,15 @@ test_that("performBrownForsytheTest enforces group requirements", {
   small_model <- lm(y ~ x1 + x2, data = small_df)
   expect_error(
     performBrownForsytheTest(small_model, small_df, "g"),
-    "Group 'a' has only 4 observations",
-    fixed = FALSE
+    "increase to 5 for stable inference.",
+    fixed = TRUE
   )
 
   numeric_group <- df
   numeric_group$g <- as.numeric(numeric_group$g)
   expect_error(
     performBrownForsytheTest(model, numeric_group, "g"),
-    "Grouping variable 'g' must be factor/character",
+    "Grouping variable 'g' must be a factor or character vector with at least 2 levels.",
     fixed = TRUE
   )
 })
@@ -95,7 +95,7 @@ test_that("performFlignerKilleenTest catches degenerate rankings", {
   constant_model <- lm(y ~ 1, data = constant_df)
   expect_error(
     performFlignerKilleenTest(constant_model, constant_df, "g"),
-    "requires variation in residuals for ranking",
+    "Residual variance is too small to evaluate Fligner-Killeen",
     fixed = FALSE
   )
 

@@ -205,12 +205,14 @@ test_that("plotting functions validate model inputs", {
   for (func in plot_functions) {
     expect_error(
       func("not a model"),
-      "Model must be fitted with lm\\(\\) or glm\\(\\)"
+      "Provide a model fitted with stats::lm() or stats::glm().",
+      fixed = TRUE
     )
-    
+
     expect_error(
       func(NULL),
-      "Model must be fitted with lm\\(\\) or glm\\(\\)"
+      "Provide a model fitted with stats::lm() or stats::glm().",
+      fixed = TRUE
     )
   }
 })
@@ -221,13 +223,15 @@ test_that("plotBeforeAfter validates both model inputs", {
   # Should error for invalid first model
   expect_error(
     plotBeforeAfter("not a model", test_obj$model),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
   
   # Should error for invalid second model  
   expect_error(
     plotBeforeAfter(test_obj$model, "not a model"),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
 })
 

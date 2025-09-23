@@ -1,17 +1,37 @@
 #' Perform O'Brien test for equality of variances
 #'
-#' This test modifies Levene's procedure to improve power when data are nearly normal.
+#' Implements O'Brien's (1979) modification of Levene's test designed to retain
+#' power under near-normal conditions by applying a variance-stabilising
+#' transformation to group variances before the ANOVA step.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @param model A fitted [stats::lm] object.
+#' @param data A [base::data.frame] used to fit `model`.
+#' @param group Character scalar specifying the grouping variable.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
+#'
+#' @details
+#' The procedure transforms each group's sample variance using O'Brien's
+#' correction \eqn{Z_i = \frac{(n_i - 1.5)}{(n_i - 1)(n_i - 1)} s_i^2}, then applies an
+#' ANOVA across the transformed values. This stabilises the variance of the test
+#' statistic when the underlying errors are approximately normal. Because the
+#' method assumes finite fourth moments, it is best suited to Gaussian or nearly
+#' Gaussian data.
+#'
+#' @references
+#' O'Brien, R. G. (1979). A general ANOVA method for robust tests of additive
+#' models for variances. *Journal of the American Statistical Association, 74*(368),
+#' 877–880. <https://doi.org/10.1080/01621459.1979.10481047>
+#'
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performOBrienTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performOBrienTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performLeveneTest()] and [performBrownForsytheTest()] provide complementary
+#' variance-equality diagnostics with different robustness properties.
 performOBrienTest <- function(model, data, group) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")

@@ -1,33 +1,51 @@
-#' Perform Goldfeld-Quandt test for heteroscedasticity
+#' Perform Goldfeld–Quandt test for heteroscedasticity
 #'
-#' This function performs the Goldfeld-Quandt test on a fitted linear model.
+#' Executes the Goldfeld and Quandt (1965) two-sample test for heteroscedasticity
+#' by ordering observations on a suspected variance-driving regressor and
+#' comparing residual variances between the lower and upper portions of the
+#' sample.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`.
-#' @param order_by Character. Name of the variable to order the data by.
-#' @param fraction Numeric. Fraction of observations to omit from the middle
-#'   when splitting the ordered data. Defaults to 0.2.
-#' 
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @param model A fitted [stats::lm] object representing the regression of
+#'   interest.
+#' @param data A [base::data.frame] containing the variables used to estimate
+#'   `model`. All rows used to fit the model must be present.
+#' @param order_by Character scalar giving the name of the variable that orders
+#'   the data prior to forming the two subsamples.
+#' @param fraction Numeric scalar in \((0, 1)\) specifying the fraction of central
+#'   observations to omit when splitting the ordered sample. Defaults to `0.2` as
+#'   recommended by Goldfeld and Quandt.
+#'
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value for
+#'   the null of constant variance.
 #'
 #' @details
-#' The implementation integrates the shared validation helpers so that the
-#' fitted model, supplied data, and Goldfeld-Quandt-specific requirements are
-#' assessed before splitting the sample. Missing values in either the model
-#' variables or `order_by` are removed via [rhandleMissingValues()] with an
-#' accompanying warning. Sample-size rules defined in
-#' [rTEST_REQUIREMENTS] are enforced through [rvalidateTestRequirements()].
-#' 
+#' Observations are sorted by `order_by`, the middle fraction `fraction` is
+#' discarded, and separate models are estimated on the lower and upper regimes.
+#' The ratio of residual sum of squares forms an F statistic with degrees of
+#' freedom equal to the residual degrees from each regime. The function employs
+#' the shared validation helpers: \link[=rvalidateModelInputs]{rvalidateModelInputs()} confirms the model is
+#' eligible, \link[=rvalidateDataInputs]{rvalidateDataInputs()} and \link[=rhandleMissingValues]{rhandleMissingValues()} align the data
+#' with the fitted values, and \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} enforces minimum
+#' sample sizes and ordering assumptions specific to the test.
+#'
 #' @references
 #' Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity.
-#' \emph{Journal of the American Statistical Association}, 60(310), 539-547.
-#' \doi{10.1080/01621459.1965.10480811}
-#' 
-#' Greene, W. H. (2018). \emph{Econometric Analysis} (8th ed.). Pearson.
+#' *Journal of the American Statistical Association, 60*(310), 539–547.
+#' <https://doi.org/10.1080/01621459.1965.10480811>
+#'
+#' Greene, W. H. (2018). *Econometric Analysis* (8th ed.). Pearson.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performGQTest(m, mtcars, order_by = "wt")
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performGQTest(mod, mtcars, order_by = "wt")
+#'
+#' # Sensitivity to the trimming fraction
+#' performGQTest(mod, mtcars, order_by = "wt", fraction = 0.1)
+#'
+#' @seealso
+#' [performHarveyTest()] and [performParkTest()] provide parametric
+#' alternatives when the functional form of heteroscedasticity is specified.
 performGQTest <- function(model, data, order_by, fraction = 0.2) {
   test_label <- "Goldfeld-Quandt test"
 

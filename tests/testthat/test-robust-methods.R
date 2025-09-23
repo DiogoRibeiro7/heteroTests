@@ -99,3 +99,32 @@ test_that("rvalidate_against_reference reports comparison status", {
   expect_true("status" %in% names(comparison))
   expect_true(comparison$status %in% c("ok", "mismatch", "skipped"))
 })
+
+test_that("bootstrap helper converges as replication count grows", {
+  set.seed(404)
+  df <- data.frame(y = rnorm(60), x = rnorm(60))
+  model <- lm(y ~ x, data = df)
+  stat_fun <- function(model, data) {
+    res <- residuals(model)
+    structure(list(statistic = c(mean_resid_sq = mean(res^2))), class = "htest")
+  }
+  set.seed(123)
+  boot_small <- rbootstrap_test_statistic(stat_fun, model, df, B = 40)
+  set.seed(123)
+  boot_large <- rbootstrap_test_statistic(stat_fun, model, df, B = 400)
+  err_small <- abs(mean(boot_small$replicates) - boot_small$original_statistic)
+  err_large <- abs(mean(boot_large$replicates) - boot_large$original_statistic)
+  expect_true(err_large <= err_small + 1e-6)
+  expect_equal(length(boot_large$replicates), 400L)
+  expect_equal(boot_large$effective_samples, 400L)
+})
+
+test_that("power estimator recommends at least the observed sample size", {
+  set.seed(505)
+  df <- data.frame(y = rnorm(50), x = rnorm(50))
+  model <- lm(y ~ x, data = df)
+  base <- performWhiteTest(model, df)
+  power <- restimate_test_power(base, model, df, target_power = 0.9)
+  expect_gte(power$recommended_n, nrow(df))
+  expect_true(power$power < 1)
+})

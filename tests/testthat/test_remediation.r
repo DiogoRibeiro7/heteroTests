@@ -54,12 +54,14 @@ test_that("fitWLS input validation", {
   # Should error for invalid model
   expect_error(
     fitWLS("not a model"),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
-  
+
   expect_error(
     fitWLS(NULL),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
 })
 
@@ -181,12 +183,14 @@ test_that("autoTransform input validation", {
   # Should error for invalid model
   expect_error(
     autoTransform("not a model"),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
-  
+
   expect_error(
     autoTransform(NULL),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
 })
 

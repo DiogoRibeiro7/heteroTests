@@ -21,7 +21,7 @@ test_that("plotDiagnosticSuite returns list of plots", {
   expect_true(is.list(res))
   expect_named(res, c("residuals_fitted", "spread_level",
                       "density", "qq", "bubble_variance"))
-  lapply(res, expect_s3_class, class = "ggplot")
+  lapply(res, expect_ggplot)
 })
 
 test_that("plotBeforeAfter overlays models", {
@@ -51,7 +51,7 @@ test_that("plotDiagnosticSuiteEnhanced returns list of plots", {
   expect_true(is.list(res))
   expect_named(res, c("residuals_fitted", "spread_level",
                       "density", "qq", "bubble_variance"))
-  lapply(res, expect_s3_class, class = "ggplot")
+  lapply(res, expect_ggplot)
 })
 
 test_that("cachedTest stores results", {

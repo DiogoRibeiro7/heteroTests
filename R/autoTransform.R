@@ -14,6 +14,9 @@ autoTransform <- function(model) {
   checkModel(model)
   data <- model.frame(model)
   y <- model.response(data)
+  terms_obj <- stats::terms(model)
+  predictor_terms <- attr(terms_obj, "term.labels")
+  has_intercept <- attr(terms_obj, "intercept") == 1L
   xform <- list(
     none = y,
     log = log(y),
@@ -30,7 +33,12 @@ autoTransform <- function(model) {
     df <- data
     df$ytrans <- xform[[nm]]
     df <- df[is.finite(df$ytrans), , drop = FALSE]
-    fit <- lm(ytrans ~ ., data = df)
+    formula_trans <- stats::reformulate(
+      predictor_terms,
+      response = "ytrans",
+      intercept = has_intercept
+    )
+    fit <- lm(formula_trans, data = df)
     p <- performBPTest(fit, df)$p.value
     if (p > best_p) {
       best_p <- p

@@ -1,20 +1,39 @@
-#' Perform Brown-Forsythe test for equality of variances
+#' Perform Brown–Forsythe test for equality of variances
 #'
-#' This test is similar to Levene's test but uses the median instead of the
-#' mean when computing absolute deviations within groups. The function now uses
-#' the shared validation helpers to enforce model, data, grouping, and sample
-#' size requirements before computing the auxiliary regression.
+#' Implements the Brown and Forsythe (1974) modification of Levene's test that
+#' replaces group means with medians when computing absolute deviations. Using
+#' medians improves robustness to non-normality and outliers within each group.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @param model A fitted [stats::lm] object.
+#' @param data A [base::data.frame] containing the variables used to fit `model`.
+#' @param group Character scalar naming the grouping variable in `data`.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
+#'
+#' @details
+#' After validating the model and grouping structure with the shared helpers, the
+#' function computes absolute deviations of residuals from the group medians and
+#' fits an auxiliary regression on the grouping factor. The resulting ANOVA
+#' statistic tests whether the medians of the absolute deviations differ across
+#' groups, which signals heteroscedasticity.
+#'
+#' @references
+#' Brown, M. B., & Forsythe, A. B. (1974). Robust tests for the equality of
+#' variances. *Journal of the American Statistical Association, 69*(346),
+#' 364–367. <https://doi.org/10.1080/01621459.1974.10482955>
+#'
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performBrownForsytheTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performBrownForsytheTest(mod, mtcars, "cyl")
+#'
+#' # Compare to Levene's mean-based variant
+#' performLeveneTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performLeveneTest()] and [performFlignerKilleenTest()] for related
+#' group-variance diagnostics.
 performBrownForsytheTest <- function(model, data, group) {
   test_label <- "Brown-Forsythe test"
 

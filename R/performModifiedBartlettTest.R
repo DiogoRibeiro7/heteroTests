@@ -1,17 +1,38 @@
 #' Perform modified Bartlett test for equality of variances
 #'
-#' Bartlett's test adjusted with a continuity correction for multiple groups.
+#' Computes Bartlett's test with the small-sample correction recommended by
+#' Snedecor and Cochran to improve performance when group sizes differ.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @param model A fitted [stats::lm] object.
+#' @param data A [base::data.frame] used to fit `model`.
+#' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \code{htest} with the chi-square statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic and
+#'   p-value.
+#'
+#' @details
+#' The modified statistic divides Bartlett's log-likelihood ratio by a correction
+#' factor \eqn{C} that accounts for unequal sample sizes. This reduces size
+#' distortions relative to the classical test. The procedure assumes normality and
+#' therefore should be paired with robust alternatives (e.g. Levene) when that
+#' assumption is questionable.
+#'
+#' @references
+#' Snedecor, G. W., & Cochran, W. G. (1989). *Statistical Methods* (8th ed.). Iowa
+#' State University Press. Section 4.8 describes the corrected Bartlett statistic.
+#'
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performModifiedBartlettTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performModifiedBartlettTest(mod, mtcars, "cyl")
+#'
+#' # Compare with the unmodified Bartlett test
+#' performBartlettTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performBartlettTest()] for the classical version and [performLeveneTest()] for
+#' a robust alternative.
 performModifiedBartlettTest <- function(model, data, group) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")

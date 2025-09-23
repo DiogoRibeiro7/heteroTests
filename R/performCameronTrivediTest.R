@@ -1,19 +1,51 @@
-#' Perform Cameron-Trivedi decomposition test
+#' Perform Cameron–Trivedi decomposition test
 #'
-#' Decomposes heteroscedasticity into linear and non-linear components using
-#' successive regressions of squared residuals.
+#' Implements the auxiliary regression proposed by Cameron and Trivedi (1990) to
+#' decompose heteroscedasticity into components that depend linearly and
+#' quadratically on the fitted values.
 #'
-#' @param model A fitted model of class `lm`.
+#' @param model A fitted [stats::lm] object whose residuals and fitted values will
+#'   be used in the auxiliary regression.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the overall F statistic, degrees
+#'   of freedom, and p-value for the joint null hypothesis of homoskedasticity.
 #'
 #' @details
-#' Validates the supplied model via [rvalidateModelInputs()] and enforces
-#' Cameron-Trivedi-specific requirements through [rvalidateTestRequirements()].
+#' The test regresses squared residuals on the fitted values and their square
+#' \deqn{\hat{e}_i^2 = \alpha + \beta_1 \hat{y}_i + \beta_2 \hat{y}_i^2 + u_i.}
+#' Testing \eqn{\beta_1 = \beta_2 = 0} yields an F statistic with two numerator
+#' degrees of freedom. Significance indicates heteroscedasticity driven either by
+#' a linear mean-variance relationship (\eqn{\beta_1 \ne 0}) or by curvature in the
+#' variance function (\eqn{\beta_2 \ne 0}). Inspecting the individual t-statistics
+#' from the auxiliary regression can help disentangle these effects.
+#'
+#' The implementation integrates the shared validation helpers to ensure the model
+#' provides sufficient observations, that fitted values vary across observations,
+#' and that squared residuals retain variability before computing the auxiliary
+#' regression.
+#'
+#' @references
+#' Cameron, A. C., & Trivedi, P. K. (1990). The information matrix test and its
+#' applied alternative hypotheses. *University of California, Davis Working Paper*.
+#'
+#' Cameron, A. C., & Trivedi, P. K. (2005). *Microeconometrics: Methods and
+#' Applications*. Cambridge University Press. Section 7.4 discusses the
+#' decomposition test.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performCameronTrivediTest(m)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performCameronTrivediTest(mod)
+#'
+#' # Simulated data with quadratic heteroscedasticity
+#' set.seed(135)
+#' x <- runif(180)
+#' y <- 1 + 2 * x + rnorm(180, sd = 0.5 + x^2)
+#' performCameronTrivediTest(lm(y ~ x))
+#'
+#' @seealso
+#' [performHarveyTest()] and [performParkTest()] for alternative parametric tests
+#' targeting specific functional forms.
 performCameronTrivediTest <- function(model) {
   rvalidateModelInputs(model, test_name = "Cameron-Trivedi", min_obs = 15L)
 

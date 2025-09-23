@@ -6,6 +6,14 @@
 #' normality diagnostics meet the documented requirements before computing the
 #' chi-squared statistic.
 #'
+#' @details
+#' Following Bartlett (1937), the test forms a log-likelihood ratio comparing the
+#' pooled variance against group-specific variances. Under normality the statistic
+#' follows a chi-squared distribution with \eqn{k - 1} degrees of freedom. Because
+#' the test is sensitive to deviations from normality, the package validates
+#' residual distribution assumptions and sample-size requirements through the
+#' shared helper functions before computing the statistic.
+#'
 #' @param model A fitted model of class `lm`.
 #' @param data Data frame used to fit `model`.
 #' @param group Character. Name of the grouping variable.
@@ -23,8 +31,15 @@
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performBartlettTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performBartlettTest(mod, mtcars, "cyl")
+#'
+#' # Compare with the robust Brown–Forsythe alternative
+#' performBrownForsytheTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performLeveneTest()] and [performFlignerKilleenTest()] for robust
+#' alternatives when normality is questionable.
 performBartlettTest <- function(model, data, group) {
   test_label <- "Bartlett's test"
 

@@ -8,12 +8,12 @@ test_that("memory warnings work correctly", {
   )
 
   expect_warning(
-    check_memory_usage(large_data, threshold_mb = 1),
+    heteroTests:::check_memory_usage(large_data, threshold_mb = 1),
     "Large dataset detected"
   )
 
   expect_silent(
-    check_memory_usage(mtcars, threshold_mb = 100)
+    heteroTests:::check_memory_usage(mtcars, threshold_mb = 100)
   )
 })
 

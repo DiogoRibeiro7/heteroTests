@@ -9,7 +9,7 @@ test_that("runDiagnosticPlots returns named list", {
   res <- runDiagnosticPlots(m, plots = c("density", "qq"))
   expect_true(is.list(res))
   expect_named(res, c("density", "qq"))
-  lapply(res, expect_s3_class, class = "ggplot")
+  lapply(res, expect_ggplot)
 })
 
 test_that("runDiagnosticPlots errors on unknown plot", {

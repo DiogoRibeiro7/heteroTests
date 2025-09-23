@@ -50,12 +50,19 @@ analyzeMLResiduals <- function(model, data = NULL) {
 #' Compare diagnostics across multiple models
 #'
 #' Runs `runDiagnostics` for each supplied model and returns a data frame of
-#' selected statistics for comparison.
+#' selected statistics for comparison. When a diagnostic cannot be computed
+#' (for example, because validation detects a perfect fit), the corresponding
+#' entry is filled with `NA_real_` and a warning summarises the failure. The
+#' underlying error messages are stored on the returned data frame via the
+#' `diagnostic_errors` attribute for further inspection.
 #'
 #' @param models A list of fitted models or formulas.
 #' @param data Optional data frame used when models are formulas.
 #' @param tests Heteroscedasticity tests to run.
 #' @return A data frame with one row per model and columns for each test statistic.
+#'   When diagnostics fail they are represented by `NA_real_`; the original error
+#'   messages are attached as a `diagnostic_errors` attribute on the returned
+#'   object.
 #' @examples
 #' data(mtcars)
 #' m1 <- lm(mpg ~ wt + qsec, mtcars)
@@ -64,7 +71,12 @@ analyzeMLResiduals <- function(model, data = NULL) {
 #' @export
 compareModelDiagnostics <- function(models, data = NULL,
                                     tests = c("white", "breusch_pagan")) {
-  res_list <- lapply(models, function(m) {
+  error_messages <- vector("list", length(models))
+  template <- stats::setNames(rep(NA_real_, length(tests)), tests)
+
+  res_list <- lapply(seq_along(models), function(idx) {
+    m <- models[[idx]]
+
     if (inherits(m, "formula")) {
       if (is.null(data)) stop("`data` must be supplied when models include formulas")
       checkData(data)
@@ -72,13 +84,35 @@ compareModelDiagnostics <- function(models, data = NULL,
     } else {
       checkModel(m)
     }
-    diags <- runDiagnostics(m, data, tests = tests)
-    stats <- sapply(diags[tests], function(d) d$statistic)
-    stats
+
+    tryCatch({
+      diags <- runDiagnostics(m, data, tests = tests)
+      vapply(tests, function(test_name) {
+        diag <- diags[[test_name]]
+        if (is.null(diag)) {
+          NA_real_
+        } else {
+          as.numeric(diag$statistic)
+        }
+      }, numeric(1))
+    }, error = function(e) {
+      warning(
+        sprintf("Diagnostics for model %d failed: %s", idx, e$message),
+        call. = FALSE
+      )
+      error_messages[[idx]] <<- e$message
+      template
+    })
   })
+
   df <- do.call(rbind, res_list)
   df <- as.data.frame(df)
   rownames(df) <- paste0("Model", seq_along(models))
+
+  if (any(lengths(error_messages) > 0)) {
+    attr(df, "diagnostic_errors") <- error_messages
+  }
+
   df
 }
 

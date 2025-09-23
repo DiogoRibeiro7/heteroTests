@@ -31,24 +31,28 @@ test_that("simulate_hetero input validation", {
   
   expect_error(
     simulate_hetero(n = 1.5, beta0 = 1, beta1 = 2, sigma_func = sigma_linear),
-    "n == as.integer\\(n\\)"
+    "n == as.integer(n)",
+    fixed = TRUE
   )
   
   # Invalid parameters
   expect_error(
     simulate_hetero(n = 50, beta0 = "invalid", beta1 = 2, sigma_func = sigma_linear),
-    "is.numeric\\(beta0\\)"
+    "is.numeric(beta0)",
+    fixed = TRUE
   )
   
   expect_error(
     simulate_hetero(n = 50, beta0 = 1, beta1 = "invalid", sigma_func = sigma_linear),
-    "is.numeric\\(beta1\\)"
+    "is.numeric(beta1)",
+    fixed = TRUE
   )
   
   # Invalid sigma function
   expect_error(
     simulate_hetero(n = 50, beta0 = 1, beta1 = 2, sigma_func = "not a function"),
-    "is.function\\(sigma_func\\)"
+    "is.function(sigma_func)",
+    fixed = TRUE
   )
 })
 

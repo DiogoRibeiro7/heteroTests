@@ -2,19 +2,33 @@ library(testthat)
 context("Input validation")
 
 test_that("checkModel errors on invalid input", {
-  expect_error(heteroTests:::checkModel(1), "Model must be fitted")
+  expect_error(
+    heteroTests:::checkModel(1),
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
+  )
 })
 
 test_that("checkData errors on invalid input", {
-  expect_error(heteroTests:::checkData(1), "data.frame")
+  expect_error(
+    heteroTests:::checkData(1),
+    "Input data must be a data.frame; call as.data.frame() before running the diagnostic.",
+    fixed = TRUE
+  )
 })
 
 test_that("validateTestInputs detects small datasets", {
   df <- data.frame(x = 1:5, y = 1:5)
   model <- lm(y ~ x, data = df)
-  expect_error(
+  err <- expect_error(
     heteroTests:::validateTestInputs(model, df, "white", min_obs = 10),
-    "Insufficient observations"
+    "Input validation for white failed",
+    fixed = FALSE
+  )
+  expect_match(
+    conditionMessage(err),
+    "Only 5 observations detected but white requires at least 10",
+    fixed = FALSE
   )
 })
 

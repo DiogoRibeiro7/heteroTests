@@ -37,3 +37,34 @@ test_that("Szroeter test works", {
   res <- performSzroeterTest(model, df, "z")
   expect_s3_class(res, "htest")
 })
+
+test_that("prepare_model_data_for_test aligns residuals and data", {
+  df <- mtcars
+  model <- lm(mpg ~ wt + cyl, data = df)
+  result <- heteroTests:::prepare_model_data_for_test(
+    model,
+    df,
+    required_vars = c("mpg", "wt", "cyl"),
+    test_label = "alignment",
+    min_obs_model = 5L,
+    min_obs_data = 5L
+  )
+  expect_equal(nrow(result$data), nrow(df))
+  expect_equal(length(result$residuals), nrow(df))
+})
+
+test_that("prepare_model_data_for_test detects missing model rows", {
+  df <- mtcars
+  model <- lm(mpg ~ wt + cyl, data = df)
+  trimmed <- df[-1, ]
+  expect_error(
+    heteroTests:::prepare_model_data_for_test(
+      model,
+      trimmed,
+      required_vars = c("mpg", "wt", "cyl"),
+      test_label = "alignment"
+    ),
+    "requires `data` to contain the rows used to fit the model",
+    fixed = TRUE
+  )
+})

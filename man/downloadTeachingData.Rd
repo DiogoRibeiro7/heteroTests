@@ -4,7 +4,11 @@
 \alias{downloadTeachingData}
 \title{Download example teaching dataset}
 \usage{
-downloadTeachingData(name = "tips", destfile = tempfile(fileext = ".csv"), quiet = FALSE)
+downloadTeachingData(
+  name = "tips",
+  destfile = tempfile(fileext = ".csv"),
+  quiet = FALSE
+)
 }
 \arguments{
 \item{name}{Name of the dataset to download. Only "tips" is currently

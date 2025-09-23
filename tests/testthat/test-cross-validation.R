@@ -9,8 +9,9 @@ test_that("Levene test matches car package", {
   data(mtcars)
   mtcars$cyl_factor <- factor(mtcars$cyl)
 
-  our_result <- performLeveneTest(mpg ~ cyl_factor, data = mtcars)
-  reference_result <- car::leveneTest(mpg ~ cyl_factor, data = mtcars)
+  model <- lm(mpg ~ cyl_factor, data = mtcars)
+  our_result <- performLeveneTest(model, mtcars, "cyl_factor")
+  reference_result <- car::leveneTest(residuals(model) ~ cyl_factor, data = mtcars, center = mean)
 
   expect_equal(as.numeric(our_result$statistic),
     as.numeric(reference_result$`F value`[1]),
@@ -20,10 +21,11 @@ test_that("Levene test matches car package", {
 
 test_that("Bartlett test matches stats package", {
   data(mtcars)
-  groups <- split(mtcars$mpg, mtcars$cyl)
+  mtcars$cyl_factor <- factor(mtcars$cyl)
+  model <- lm(mpg ~ cyl_factor, data = mtcars)
 
-  our_result <- performBartlettTest(groups)
-  reference_result <- bartlett.test(groups)
+  our_result <- performBartlettTest(model, mtcars, group = "cyl_factor")
+  reference_result <- bartlett.test(residuals(model), mtcars$cyl_factor)
 
   expect_equal(as.numeric(our_result$statistic),
     as.numeric(reference_result$statistic),

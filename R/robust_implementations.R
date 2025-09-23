@@ -32,8 +32,8 @@ NULL
 
 #' Robust White test with bootstrap and effect sizes
 #'
-#' Extends [performWhiteTest()] with optional bootstrap resampling,
-#' confidence intervals, effect size reporting, and power analysis.
+#' Extends [performWhiteTest()] with optional bootstrap resampling, confidence
+#' intervals, effect size reporting, and power analysis.
 #'
 #' @inheritParams performWhiteTest
 #' @param method Character string selecting the auxiliary specification.
@@ -46,9 +46,31 @@ NULL
 #' @param parallel Logical, allow parallel bootstrap evaluation when the
 #'   `parallel` package is available.
 #'
-#' @return An object of class [stats::htest] augmented with a
+#' @return An object of class \link[stats:htest]{htest} augmented with a
 #'   `robust_details` list containing bootstrap, effect size, and power
 #'   information.
+#'
+#' @details
+#' Provides enriched inference around the White test by combining bootstrap
+#' resampling (Efron & Tibshirani, 1993) with asymptotic approximations. The
+#' `robust_details` element summarises interval estimates, effect sizes, and power
+#' calculations to aid decision-making.
+#'
+#' @references
+#' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
+#' and a direct test for heteroscedasticity. *Econometrica, 48*(4), 817–838.
+#'
+#' Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*.
+#' Chapman & Hall.
+#'
+#' @examples
+#' data(mtcars)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performWhiteTestRobust(mod, mtcars, bootstrap = TRUE, B = 200)
+#'
+#' @seealso
+#' [performWhiteTest()] for the base statistic and
+#' [performWhiteTestBootstrap()] for a lighter-weight resampling option.
 #'
 #' @export
 performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"),
@@ -148,19 +170,40 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
   base_result
 }
 
-#' Robust Breusch-Pagan test with bootstrap and effect sizes
+#' Robust Breusch–Pagan test with bootstrap and effect sizes
 #'
-#' Enhances [performBPTest()] by optionally studentising residuals,
-#' resampling the test statistic via bootstrap, and reporting effect sizes
-#' together with power diagnostics.
+#' Enhances [performBPTest()] by optionally studentising residuals, resampling the
+#' test statistic via bootstrap, and reporting effect sizes together with power
+#' diagnostics.
 #'
 #' @inheritParams performBPTest
 #' @param studentized Logical, use studentized residuals for the auxiliary
 #'   regression (Koenker variant)? Defaults to `TRUE`.
 #' @inheritParams performWhiteTestRobust
 #'
-#' @return An augmented [stats::htest] object containing a
+#' @return An augmented \link[stats:htest]{htest} object containing a
 #'   `robust_details` element describing the additional diagnostics.
+#'
+#' @details
+#' Offers expanded reporting for the Breusch–Pagan family of tests including
+#' bootstrap p-values and asymptotic confidence intervals. The optional
+#' `studentized` argument toggles between the classic and Koenker versions.
+#'
+#' @references
+#' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
+#' and random coefficient variation. *Econometrica, 47*(5), 1287–1294.
+#'
+#' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
+#' *Journal of Econometrics, 17*(1), 107–112.
+#'
+#' @examples
+#' data(mtcars)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performBPTestRobust(mod, mtcars, bootstrap = TRUE, B = 200)
+#'
+#' @seealso
+#' [performBPTest()] for the baseline test and [performStudentizedBPTest()] for the
+#' standalone studentised variant.
 #'
 #' @export
 performBPTestRobust <- function(model, data, studentized = TRUE,

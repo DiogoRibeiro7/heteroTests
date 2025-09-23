@@ -1,28 +1,44 @@
 #' Perform Harvey test for heteroscedasticity
 #'
-#' The Harvey test regresses the log of squared residuals on the fitted values
-#' and their squares. A significant regression indicates heteroscedasticity.
+#' Applies Harvey's (1976) parametric test for multiplicative heteroscedasticity
+#' by regressing the log of squared residuals on the fitted values and their
+#' square. Departures from homoskedasticity manifest as a significant auxiliary
+#' regression.
 #'
-#' @param model A fitted model of class `lm`.
+#' @param model A fitted [stats::lm] object representing the mean equation under
+#'   study.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value for
+#'   the null hypothesis that the variance is constant.
 #'
 #' @details
-#' Validates the fitted model with [rvalidateModelInputs()] and enforces
-#' Harvey-specific requirements, including minimum sample size, via
-#' [rvalidateTestRequirements()].
+#' Harvey (1976) proposed modelling variance as \eqn{\sigma_i^2 = \sigma^2 
+#' \exp(\gamma_1 \hat{y}_i + \gamma_2 \hat{y}_i^2)}. Taking logarithms yields the
+#' auxiliary regression used here. The implementation validates the model via
+#' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, aligns the data using \link[=rhandleMissingValues]{rhandleMissingValues()}, and
+#' applies \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} to ensure sufficient sample size and
+#' variability in the fitted values. The resulting \eqn{n R^2} is converted into an
+#' F statistic with two and \eqn{n - p} degrees of freedom.
 #' 
 #' @references
 #' Harvey, A. C. (1976). Estimating regression models with multiplicative
-#' heteroscedasticity. \emph{Econometrica}, 44(3), 461-465.
-#' \doi{10.2307/1913974}
+#' heteroscedasticity. *Econometrica, 44*(3), 461–465.
+#' <https://doi.org/10.2307/1913974>
 #'
-#' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity
-#' in regression. \emph{Biometrika}, 70(1), 1-10. \doi{10.1093/biomet/70.1.1}
+#' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in
+#' regression. *Biometrika, 70*(1), 1–10. <https://doi.org/10.1093/biomet/70.1.1>
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performHarveyTest(m)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performHarveyTest(mod)
+#'
+#' # Compare with the Park test on the same model
+#' performParkTest(mod, mtcars, "wt")
+#'
+#' @seealso
+#' [performParkTest()] and [performGlejserTest()] implement related variance
+#' function diagnostics.
 performHarveyTest <- function(model) {
   rvalidateModelInputs(model, test_name = "Harvey", min_obs = 15L)
 

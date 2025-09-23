@@ -1,0 +1,192 @@
+---
+title: "Statistical Theory and Implementation Details"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Statistical Theory and Implementation Details}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(heteroTests)
+library(ggplot2)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Motivation
+
+The heteroTests package consolidates classical and modern diagnostics for
+heteroscedasticity into a consistent interface. This vignette summarises the
+statistical foundations of the flagship procedures and explains how the
+implementation orchestrates validation, auxiliary regressions, and reporting.
+Throughout we work with the `boston_housing` dataset included with the package.
+
+```{r}
+data(boston_housing, package = "heteroTests")
+model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+summary(model)
+```
+
+To visualise the heteroscedastic structure we inspect the squared residuals.
+
+```{r fig.width=6, fig.height=4}
+augmented <- data.frame(
+  fitted = fitted(model),
+  residuals = resid(model)
+)
+augmented$squared_residuals <- augmented$residuals^2
+
+ggplot(augmented, aes(x = fitted, y = squared_residuals)) +
+  geom_point(alpha = 0.6, colour = "#0072B2") +
+  geom_smooth(se = FALSE, colour = "#D55E00") +
+  labs(
+    x = "Fitted values",
+    y = expression(hat(e)^2),
+    title = "Residual dispersion across fitted values"
+  ) +
+  theme_minimal()
+```
+
+The upward trend in squared residuals suggests that variance increases with
+predicted price, motivating a formal test.
+
+## White's test
+
+White (1980) proposed a general test that regresses squared residuals on all
+original regressors, their squares, and cross-products.
+Let $\widehat{e}_i$ be residuals from the baseline model and $Z_i$ the
+vector formed by $1$, the regressors $x_{ij}$, their squares, and pairwise
+products. The auxiliary regression is
+\[
+\widehat{e}_i^2 = Z_i^\top\gamma + u_i.
+\]
+The test statistic is $nR^2$ from this regression, which converges to a
+$\chi^2_q$ distribution under homoskedasticity, with $q$ equal to the number of
+non-constant terms in $Z$.
+
+Implementation details:
+
+* `rvalidateModelInputs()` ensures the supplied model contains at least 20
+  usable observations with finite residuals.
+* `rvalidateDataInputs()` and `rhandleMissingValues()` align the auxiliary data
+  with the model frame.
+* `rvalidateTestRequirements()` checks that the design matrix has full rank and
+  warns when a large number of regressors may destabilise the statistic.
+
+```{r}
+white_result <- performWhiteTest(model, boston_housing)
+white_result
+```
+
+The small $p$-value rejects homoskedasticity, confirming the visual pattern. The
+`htest` object stores the LM statistic and degrees of freedom, making it easy to
+compare with bootstrap or robust variants.
+
+## Breusch–Pagan test
+
+Breusch and Pagan (1979) derived a Lagrange Multiplier (LM) test for variance
+patterns linear in the regressors. Denote by $X$ the regressor matrix without
+intercept. The statistic is
+\[
+\text{LM} = \frac{1}{2\sigma^2} \widehat{e}^\top X(X^\top X)^{-1}X^\top \widehat{e},
+\]
+which is equivalent to $nR^2$ from regressing $\widehat{e}^2$ on $X$.
+The test converges to a $\chi^2_{k}$ distribution, where $k$ is the number of
+non-intercept regressors.
+
+The package implementation supplements the LM computation with diagnostics that
+highlight influential residuals and stability warnings.
+
+```{r}
+bp_result <- performBPTest(model, boston_housing)
+bp_result
+```
+
+A significant Breusch–Pagan statistic reinforces the evidence of increasing
+variance. Because the test assumes normal errors, the vignette later contrasts
+it with Koenker's robust variant.
+
+## Koenker–Bassett studentised test
+
+Koenker (1981) proposed studentising the LM statistic to accommodate non-normal
+errors by scaling residuals with an estimate of their variance. The package
+implements this through `performKoenkerTest()`, which focuses on absolute
+residuals and yields a statistic with the same asymptotic $\chi^2$ reference
+but improved Type I error control under heavy tails.
+
+```{r}
+koenker_result <- performKoenkerTest(model, boston_housing)
+koenker_result
+```
+
+Comparing the three $p$-values offers insight into how sensitive each test is to
+model misspecification. When Koenker's statistic agrees with White's result, the
+variance pattern is likely structural rather than a normality artefact.
+
+## Park and Harvey logarithmic tests
+
+Variance functions that follow a power law in a regressor motivate tests based
+on log-linear relationships. Park's test fits
+\[
+\log(\widehat{e}_i^2) = \alpha + \beta \log x_i + u_i,
+\]
+while Harvey's version regresses the log squared residuals on the fitted values
+and their square,
+\[
+\log(\widehat{e}_i^2) = \alpha + \beta_1 \widehat{y}_i + \beta_2 \widehat{y}_i^2 + u_i.
+\]
+The corresponding statistics are $nR^2$ and $qF$ ratios respectively.
+
+```{r}
+park_result <- performParkTest(model, boston_housing, "lstat")
+harvey_result <- performHarveyTest(model)
+list(Park = park_result, Harvey = harvey_result)
+```
+
+Both functions rely on the shared validation helpers: Park requires an explicit
+variance driver and checks positivity for the logarithmic transform, whereas the
+Harvey helper automatically leverages the fitted values. Inspecting the
+estimated coefficients helps determine the functional form that best captures
+the heteroscedastic structure.
+
+## Visual interpretation
+
+The diagnostic plots included in heteroTests contextualise statistical
+conclusions. For instance, plotting scaled residuals against the key variance
+term clarifies departures.
+
+```{r fig.width=6, fig.height=4}
+augmented$scaled_residuals <- scale(augmented$residuals)[, 1]
+augmented$lstat <- boston_housing$lstat
+
+ggplot(augmented, aes(x = lstat, y = scaled_residuals)) +
+  geom_point(alpha = 0.6, colour = "#56B4E9") +
+  geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
+  labs(
+    x = "Lower status population (lstat)",
+    y = "Scaled residual",
+    title = "Relationship between residual spread and socio-economic status"
+  ) +
+  theme_minimal()
+```
+
+A pronounced curvature corroborates the Park and Harvey results, signalling that
+variance inflates as `lstat` increases. Together, theory, implementation checks,
+and visualisation guide practitioners towards remedies such as weighted least
+squares or variance stabilising transforms.
+
+## Further reading
+
+* Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
+  and random coefficient variation. *Econometrica, 47*(5), 1287–1294.
+* Harvey, A. C. (1976). Estimating regression models with multiplicative
+  heteroscedasticity. *Econometrica, 44*(3), 461–465.
+* Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
+  *Journal of Econometrics, 17*(1), 107–112.
+* Park, R. E. (1966). Estimation with heteroscedastic error terms.
+  *Econometrica, 34*(4), 888–908.
+* White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
+  and a direct test for heteroskedasticity. *Econometrica, 48*(4), 817–838.

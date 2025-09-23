@@ -130,8 +130,8 @@ expect_valid_diagnostic_result <- function(result, expected_tests) {
 #' @param object Plot object to test
 expect_ggplot <- function(object) {
   expect_s3_class(object, "ggplot")
-  expect_true("data" %in% names(object))
-  expect_true("layers" %in% names(object))
+  expect_false(is.null(object$data))
+  expect_true(is.list(object$layers))
 }
 
 #' Expect valid remediation suggestions

@@ -7,16 +7,62 @@
 performSzroeterTest(model, data, order_by)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm}.}
+\item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean equation under
+study.}
 
-\item{data}{The data frame used to fit \code{model}.}
+\item{data}{A \link[base:data.frame]{base::data.frame} (or compatible tibble) containing the
+variables used to fit \code{model} and the ordering variable supplied via
+\code{order_by}.}
 
-\item{order_by}{Variable name to order the observations by.}
+\item{order_by}{Character scalar naming the column that defines the ordering of
+observations prior to computing the statistic. The column must be numeric or
+coercible to an orderable vector.}
 }
 \value{
-An object of class \code{htest}.
+An object of class \link[stats:htest]{htest} reporting Szroeter's statistic,
+sample size, and the two-sided p-value based on the asymptotic normal
+reference distribution.
 }
 \description{
-Detects monotonic changes in variance when the observations can be
-ordered by a known variable.
+Detects monotonic changes in variance when observations can be meaningfully
+ordered—typically by time or another covariate—using the cumulative weighting
+scheme proposed by Szroeter (1978).
+}
+\details{
+After ordering the residuals \eqn{\hat{e}_{(i)}} by \code{order_by}, the test forms
+weighted sums of squared residuals
+\deqn{S = \frac{\sum_{i = 1}^n i \hat{e}_{(i)}^2}{(n + 1) \sum_{i = 1}^n \hat{e}_{(i)}^2 / 2}},
+which are then centred and scaled to obtain an approximately standard normal
+statistic. Large absolute values of the resulting \eqn{Z}-score provide evidence
+of variance that increases or decreases with the ordering variable. The
+implementation relies on the package validation helpers to align the supplied
+data with the model residuals, check that the ordering variable is present, and
+ensure sufficient sample size and variability in the squared residuals.
+}
+\examples{
+data(mtcars)
+mod <- lm(mpg ~ wt + qsec, data = mtcars)
+performSzroeterTest(mod, mtcars, order_by = "wt")
+
+# Detect ordered heteroscedasticity in simulated data with variance increasing
+# in an index variable
+set.seed(404)
+n <- 150
+x <- sort(runif(n))
+y <- 2 + 0.5 * x + rnorm(n, sd = 0.4 + 0.8 * x)
+df <- data.frame(y, x)
+performSzroeterTest(lm(y ~ x, data = df), df, order_by = "x")
+
+}
+\references{
+Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
+linear econometric models. \emph{Econometrica, 46}(6), 1311–1327.
+\url{https://doi.org/10.2307/1913833}
+
+Godfrey, L. G. (1988). \emph{Misspecification Tests in Econometrics}. Cambridge
+University Press. Section 5.4 outlines the Szroeter test.
+}
+\seealso{
+\code{\link[=performOrderedLMTest]{performOrderedLMTest()}} for a regression-based alternative and
+\code{\link[=performGQTest]{performGQTest()}} for split-sample diagnostics on ordered data.
 }

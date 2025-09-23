@@ -28,8 +28,8 @@ test_that("Breusch-Pagan test matches R's bptest", {
     as.numeric(reference_result$statistic),
     tolerance = 1e-6
   )
-  expect_equal(our_result$p.value,
-    reference_result$p.value,
+  expect_equal(unname(our_result$p.value),
+    unname(reference_result$p.value),
     tolerance = 1e-6
   )
 })
@@ -44,6 +44,7 @@ test_that("ARCH LM test matches known results", {
     y[i] <- e[i] * sqrt(0.1 + 0.5 * y[i - 1]^2)
   }
 
-  result <- performArchLmTest(y, lags = 1)
+  model <- lm(y ~ 1)
+  result <- performArchLMTest(model, lags = 1)
   expect_lt(result$p.value, 0.05)
 })

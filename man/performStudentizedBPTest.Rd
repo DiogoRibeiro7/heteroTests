@@ -2,24 +2,69 @@
 % Please edit documentation in R/additional_tests.R
 \name{performStudentizedBPTest}
 \alias{performStudentizedBPTest}
-\title{Studentized Breusch-Pagan test}
+\title{Studentized Breusch–Pagan test}
 \usage{
 performStudentizedBPTest(model, data)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm}.}
+\item{model}{A fitted \link[stats:lm]{stats::lm} object providing the residuals and design
+matrix for the auxiliary regression.}
 
-\item{data}{The data frame used to fit \code{model}.}
+\item{data}{A \link[base:data.frame]{base::data.frame} containing the variables used to fit
+\code{model}. It must include all observations referenced by the model object.}
 }
 \value{
-An object of class \code{htest} with the test statistic and p-value.
+An object of class \link[stats:htest]{htest} reporting the chi-squared statistic
+and p-value for the null hypothesis of constant error variance.
 }
 \description{
-Performs the Breusch-Pagan test using studentized residuals,
-providing robustness to non-normality.
+Computes the Koenker–Bassett studentized Lagrange Multiplier statistic for
+heteroscedasticity by regressing centred squared residuals on the regressors.
+Compared with the classical Breusch–Pagan test, the studentized version is
+less sensitive to violations of normality and small-sample bias.
+}
+\details{
+Following Koenker (1981) and the implementation in
+\link[lmtest:bptest]{lmtest::bptest()}, the procedure fits an auxiliary
+regression of \eqn{e_i^2 - \hat{\sigma}^2} on the regressors from the
+original model (including the intercept), where \eqn{e_i} denotes the weighted
+residuals and \eqn{\hat{\sigma}^2} their mean squared error. Under
+homoskedasticity the statistic
+\eqn{T = n \sum w_i \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
+asymptotically chi-squared with degrees of freedom equal to the number of
+regressors beyond the intercept. The implementation shares the validation
+helpers used across the package to ensure that: (i) the model and data satisfy
+minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()} and
+\link[=rvalidateDataInputs]{rvalidateDataInputs()}, (ii) missing values are handled by
+\link[=rhandleMissingValues]{rhandleMissingValues()}, and (iii) studentized-residual specific
+requirements registered in \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are
+met.
 }
 \examples{
 data(mtcars)
-m <- lm(mpg ~ wt + qsec, data = mtcars)
-performStudentizedBPTest(m, mtcars)
+mod <- lm(mpg ~ wt + qsec, data = mtcars)
+performStudentizedBPTest(mod, mtcars)
+
+# Detect heteroscedasticity driven by a single regressor
+set.seed(321)
+x <- runif(180)
+y <- 5 - 1.5 * x + rnorm(180, sd = 0.4 + 0.6 * x)
+df <- data.frame(y, x)
+performStudentizedBPTest(lm(y ~ x, data = df), df)
+
+}
+\references{
+Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
+\emph{Journal of Econometrics, 17}(1), 107–112.
+\url{https://doi.org/10.1016/0304-4076(81)90062-2}
+
+Davidson, R., & MacKinnon, J. G. (2004). \emph{Econometric Theory and Methods}.
+Oxford University Press. Section 16.7 discusses LM tests for heteroscedasticity
+including studentized variants.
+}
+\seealso{
+\code{\link[=performBPTest]{performBPTest()}} for the classical LM statistic and \code{\link[=performKoenkerTest]{performKoenkerTest()}} for
+the absolute-residual variant. The robust workflow in
+\link[=performBPTestRobust]{performBPTestRobust()} augments the studentized statistic with bootstrap
+diagnostics.
 }

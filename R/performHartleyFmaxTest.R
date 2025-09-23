@@ -1,22 +1,36 @@
 #' Perform Hartley's Fmax test
 #'
-#' Compares the maximum and minimum group variances.
+#' Computes Hartley's (1950) Fmax statistic, the ratio of the largest to the
+#' smallest group variance, to detect heterogeneity of variances under the
+#' assumption of normality and equal sample sizes.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @param model A fitted [stats::lm] object.
+#' @param data A [base::data.frame] used to fit `model`.
+#' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
 #'
 #' @details
-#' Utilises the validation framework to verify the model and grouping structure
-#' before computing the Fmax statistic. Missing values in the grouping variable
-#' or model terms are removed with an accompanying warning.
+#' The test compares \eqn{\max(s_i^2) / \min(s_i^2)} to critical values from the
+#' F distribution. It is sensitive to departures from normality and unequal group
+#' sizes, so the validation helpers confirm that each group has at least two
+#' observations and that the model residuals can support the normal approximation
+#' before the statistic is computed.
+#'
+#' @references
+#' Hartley, H. O. (1950). The maximum F-ratio as a short-cut test for
+#' heterogeneity of variance. *Biometrika, 37*(3/4), 308–312.
+#' <https://doi.org/10.2307/2332383>
+#'
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performHartleyFmaxTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performHartleyFmaxTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performBartlettTest()] and [performLeveneTest()] for alternative variance
+#' equality checks.
 performHartleyFmaxTest <- function(model, data, group) {
   test_label <- "Hartley's Fmax test"
 

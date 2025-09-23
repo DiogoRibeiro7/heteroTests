@@ -7,19 +7,34 @@
 cachedTest(test_name, model, data, ..., use_cache = TRUE)
 }
 \arguments{
-\item{test_name}{Name of the test registered in \code{test_factory}.}
+\item{test_name}{Character scalar naming the diagnostic registered in
+\code{.diagnostic_registry} or \code{.test_factory}.}
 
-\item{model}{Fitted model object.}
+\item{model}{Fitted model object supplied to the diagnostic.}
 
-\item{data}{Data used to fit the model.}
+\item{data}{Data frame used to fit the model.}
 
-\item{...}{Additional arguments passed to the test function.}
+\item{...}{Additional arguments forwarded to the diagnostic.}
 
-\item{use_cache}{Logical; if \code{FALSE}, forces re-computation.}
+\item{use_cache}{Logical scalar indicating whether cached results may be used
+(defaults to \code{TRUE}).}
 }
 \value{
-Test result object.
+The diagnostic result, either retrieved from cache or freshly
+computed.
 }
 \description{
-Uses a digest of the inputs to avoid re-running expensive diagnostics.
+Avoids recomputing expensive diagnostics by hashing their inputs and reusing
+stored results.
+}
+\details{
+The cache key is created by hashing the test name, model coefficients,
+residuals, data, and additional arguments. When the key already exists in the
+cache environment the stored result is returned immediately; otherwise the
+diagnostic is executed and its output stored for future calls. Set
+\code{use_cache = FALSE} to force recomputation when the underlying model has
+changed.
+}
+\seealso{
+\code{\link[=clearTestCache]{clearTestCache()}} resets the cache between analysis sessions.
 }

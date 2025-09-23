@@ -1,16 +1,26 @@
 #' Perform Levene's test for equality of variances
 #'
-#' Levene's test assesses whether the variances across groups defined by a
-#' categorical variable are equal. The routine integrates the shared validation
-#' helpers so that model compatibility, grouping structure, sample size
-#' thresholds, and missing values are checked before computing the auxiliary
-#' regression on absolute residual deviations.
+#' Implements Levene's (1960) robust test for equality of variances across
+#' groups defined by a categorical factor. The test operates on the absolute
+#' deviations of residuals from group means (or medians in Brown–Forsythe's
+#' refinement) and uses an ANOVA on those deviations to detect variance
+#' heterogeneity.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @details
+#' The function computes group-wise absolute deviations from the fitted values and
+#' fits an auxiliary linear model with the grouping factor. Under homoskedasticity
+#' the group effect has zero mean and the resulting F statistic follows the
+#' standard ANOVA reference distribution. Prior to the analysis, the shared
+#' validation helpers ensure that the model, data, and grouping variable satisfy
+#' the minimum sample-size and structure requirements.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @param model A fitted [stats::lm] object supplying residuals for the test.
+#' @param data A [base::data.frame] containing the variables used in `model` and
+#'   the grouping factor.
+#' @param group Character scalar specifying the column in `data` that defines the
+#'   groups whose variances are compared.
+#'
+#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
 #'
 #' @references
 #' Levene, H. (1960). Robust tests for equality of variances. In
@@ -23,8 +33,16 @@
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performLeveneTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performLeveneTest(mod, mtcars, "cyl")
+#'
+#' # Compare to the Brown–Forsythe median-based variant
+#' performBrownForsytheTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performBrownForsytheTest()] for the median-based adaptation,
+#' [performFlignerKilleenTest()] for a rank-based alternative, and
+#' [performBartlettTest()] when normality can be assumed.
 performLeveneTest <- function(model, data, group) {
   test_label <- "Levene's test"
 
