@@ -103,7 +103,8 @@ test_that("performWhiteTest aborts for perfect fits", {
   model <- lm(y ~ x, data = df)
   expect_error(
     performWhiteTest(model, df),
-    "Model has perfect fit"
+    "Residual variance is too small to evaluate White",
+    fixed = FALSE
   )
 })
 

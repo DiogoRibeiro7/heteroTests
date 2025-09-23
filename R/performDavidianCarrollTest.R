@@ -1,16 +1,57 @@
-#' Perform Davidian-Carroll test for heteroscedasticity
+#' Perform Davidian–Carroll test for heteroscedasticity
 #'
-#' Fits a polynomial regression of log(residual^2) on fitted values and tests
-#' whether the coefficients are all zero.
+#' Fits a polynomial regression of the log-squared residuals on the fitted values
+#' to detect parametric variance functions, as proposed by Davidian and Carroll
+#' (1987).
 #'
-#' @param model A fitted model of class `lm`.
-#' @param degree Polynomial degree. Default is 2.
+#' @param model A fitted [stats::lm] object providing residuals and fitted values
+#'   for the auxiliary regression.
+#' @param degree Positive integer specifying the polynomial degree used for the
+#'   fitted values (default `2`). Higher degrees allow more flexible variance
+#'   functions but require larger samples.
 #'
-#' @return An object of class \code{htest} with the F statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the F statistic, numerator and
+#'   denominator degrees of freedom, and p-value for the joint null of constant
+#'   variance.
+#'
+#' @details
+#' The auxiliary regression
+#' \deqn{\log \hat{e}_i^2 = \gamma_0 + \gamma_1 \hat{y}_i + \cdots + \gamma_p
+#'   \hat{y}_i^p + u_i}
+#' models the log-variance as a polynomial in the fitted values. The test evaluates
+#' \eqn{\gamma_1 = \cdots = \gamma_p = 0} using an F statistic with \eqn{p}
+#' numerator degrees of freedom. Significant results indicate that the variance can
+#' be described by a smooth function of the mean, which can guide variance-stabilising
+#' transformations or weighted least squares specifications.
+#'
+#' The function validates that `degree` is a positive integer, that the model
+#' supplies sufficient observations relative to `degree`, and that residuals display
+#' non-trivial variation before fitting the auxiliary regression.
+#'
+#' @references
+#' Davidian, M., & Carroll, R. J. (1987). Variance function estimation. *Journal of
+#' the American Statistical Association, 82*(400), 1079–1091.
+#'
+#' Carroll, R. J., & Ruppert, D. (1988). *Transformation and Weighting in Regression*.
+#' Chapman & Hall. Chapter 3 discusses variance-function diagnostics.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performDavidianCarrollTest(m)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performDavidianCarrollTest(mod)
+#'
+#' # Higher-order polynomial
+#' performDavidianCarrollTest(mod, degree = 3)
+#'
+#' # Simulated heteroscedastic data with exponential variance in the mean
+#' set.seed(246)
+#' x <- runif(160)
+#' y <- 1 + x + rnorm(160, sd = exp(0.5 * x))
+#' performDavidianCarrollTest(lm(y ~ x))
+#'
+#' @seealso
+#' [performCameronTrivediTest()] and [performHarveyTest()] for related
+#' variance-function diagnostics.
 performDavidianCarrollTest <- function(model, degree = 2) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")

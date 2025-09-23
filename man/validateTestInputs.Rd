@@ -2,23 +2,68 @@
 % Please edit documentation in R/validation.R
 \name{validateTestInputs}
 \alias{validateTestInputs}
-\title{Comprehensive input validation for diagnostic tests}
+\title{Validate model and data inputs before running diagnostics}
 \usage{
 validateTestInputs(model, data, test_name, min_obs = 10)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm} or \code{glm}.}
+\item{model}{A fitted model created by \code{\link[stats:lm]{stats::lm()}} or \code{\link[stats:glm]{stats::glm()}}.}
 
-\item{data}{Data frame used to fit the model.}
+\item{data}{A \code{data.frame} containing the variables used to fit \code{model}.}
 
-\item{test_name}{Name of the diagnostic test (for messages).}
+\item{test_name}{Character scalar naming the diagnostic that is about to run;
+included in error messages for clarity.}
 
-\item{min_obs}{Minimum number of observations required.}
+\item{min_obs}{Non-negative integer giving the minimum sample size accepted
+by the diagnostic. Defaults to \code{10}.}
+}
+\value{
+Invisibly returns \code{TRUE} when validation succeeds. Execution stops
+with an informative error when any check fails.
 }
 \description{
-Performs a series of checks on a fitted model and data
-before running heteroscedasticity diagnostics. It reports
-errors for invalid inputs and common data issues, and emits
-warnings for potential problems such as outliers or large
-datasets.
+Provides the compatibility wrapper used by the public testing interface to
+ensure that fitted-model objects and their associated data satisfy minimal
+quality requirements. The helper guards against the most common issues that
+invalidate heteroscedasticity tests and produces actionable error messages
+that reference the calling diagnostic.
+}
+\details{
+The routine performs four layers of validation:
+\enumerate{
+\item confirm that \code{model} inherits from \code{lm} or \code{glm} and that its
+coefficients and residuals are finite;
+\item verify that \code{data} is a \code{data.frame} with at least \code{min_obs} rows;
+\item ensure the residual vector is available, finite, and aligned with the
+supplied data;
+\item emit warnings when studentised residuals exceed five standard
+deviations in absolute value or when the dataset is very large (more
+than 10,000 observations).
+}
+Results are cached (when the \strong{digest} package is installed) so repeated
+calls with unchanged inputs return immediately.
+}
+\examples{
+data(mtcars)
+lm_fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
+validateTestInputs(lm_fit, mtcars, "white")
+
+\donttest{
+noisy <- mtcars
+noisy$mpg[1] <- 100
+outlier_fit <- stats::lm(mpg ~ wt + hp, data = noisy)
+validateTestInputs(outlier_fit, noisy, "white")
+}
+
+}
+\references{
+Fox, J. (2015). \emph{Applied Regression Analysis and Generalized Linear Models}
+(3rd ed.). SAGE.
+
+Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:
+Identifying Influential Data and Sources of Collinearity}. Wiley.
+}
+\seealso{
+\code{\link[=checkModel]{checkModel()}}, \code{\link[=checkModelEnhanced]{checkModelEnhanced()}}, \code{\link[=rvalidateModelInputs]{rvalidateModelInputs()}},
+\code{\link[=rvalidateTestRequirements]{rvalidateTestRequirements()}}
 }

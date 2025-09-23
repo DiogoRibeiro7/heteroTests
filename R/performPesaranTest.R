@@ -1,14 +1,44 @@
-#' Perform Pesaran test for cross-sectional dependence
+#' Perform Pesaran's CD test for cross-sectional dependence
 #'
-#' This implementation approximates Pesaran's CD test using residuals from a
-#' panel model.
+#' Implements the Pesaran (2004, 2015) cross-sectional dependence (CD) statistic
+#' by averaging pairwise residual correlations across individuals within each
+#' period of a panel dataset.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param id Character. Column name identifying individuals.
-#' @param time Character. Column name identifying time periods.
+#' @param model A fitted [stats::lm] object estimated on panel data. The residuals
+#'   must be ordered consistently with `data`.
+#' @param data A [base::data.frame] containing the variables used in `model` and
+#'   the panel identifiers supplied via `id` and `time`.
+#' @param id Character scalar naming the column that identifies individuals (the
+#'   cross-sectional dimension).
+#' @param time Character scalar naming the column that indexes time periods.
 #'
-#' @return An object of class \code{htest} with the Z statistic and p-value.
+#' @return A \link[stats:htest]{htest} object containing the standardised CD statistic and
+#'   its two-sided p-value under the asymptotic standard normal reference
+#'   distribution.
+#'
+#' @details
+#' Residuals are reshaped into an \eqn{T \times N} matrix, where \eqn{T} and
+#' \eqn{N} denote the number of time periods and individuals respectively. The CD
+#' statistic is computed as
+#' \deqn{\text{CD} = \sqrt{\frac{2T}{N (N - 1)}} \sum_{i = 1}^{N - 1}
+#'   \sum_{j = i + 1}^{N} \hat{\rho}_{ij},}
+#' where \eqn{\hat{\rho}_{ij}} is the sample correlation between residuals of
+#' individuals \eqn{i} and \eqn{j}. Under the null hypothesis of cross-sectional
+#' independence the statistic converges to the standard normal distribution as
+#' both dimensions grow. Substantial positive (negative) values indicate pervasive
+#' positive (negative) correlation across panels, motivating cluster-robust or
+#' spatial corrections to inference. For small samples users should interpret the
+#' statistic cautiously or consider small-sample adjustments available in the
+#' literature.
+#'
+#' @references
+#' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
+#' panels. *CESifo Working Paper Series No. 1229*.
+#'
+#' Pesaran, M. H. (2015). Testing weak cross-sectional dependence in large
+#' panels. *Econometric Reviews, 34*(6-10), 1089–1117.
+#' <https://doi.org/10.1080/07474938.2014.956623>
+#'
 #' @examples
 #' df <- data.frame(
 #'   id = rep(1:3, each = 5),
@@ -16,8 +46,19 @@
 #'   x = runif(15),
 #'   y = rnorm(15)
 #' )
-#' m <- lm(y ~ x, data = df)
-#' performPesaranTest(m, df, "id", "time")
+#' mod <- lm(y ~ x, data = df)
+#' performPesaranTest(mod, df, "id", "time")
+#'
+#' # Panels with strong cross-sectional correlation yield large statistics
+#' set.seed(789)
+#' common_shock <- rnorm(5, sd = 0.5)
+#' df$y <- rep(common_shock, each = 3) + rnorm(15, sd = 0.2)
+#' mod_cs <- lm(y ~ x, data = df)
+#' performPesaranTest(mod_cs, df, "id", "time")
+#'
+#' @seealso
+#' [performBPRandomEffectsTest()] for related random-effects diagnostics and
+#' [performCurryWalshTest()] when spatial dependence is suspected.
 performPesaranTest <- function(model, data, id, time) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")

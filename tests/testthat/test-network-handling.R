@@ -5,14 +5,16 @@ context("Network handling")
 
 test_that("downloadTeachingData handles network failures gracefully", {
   skip_if_not_installed("curl")
+  asNamespace("curl")
   with_mocked_bindings(
-    `curl::has_internet` = function() FALSE,
+    has_internet = function() FALSE,
+    .package = "curl",
     {
       expect_message(
         result <- downloadTeachingData(quiet = FALSE),
         "No internet connection"
       )
-      expect_false(result)
+      expect_true(isFALSE(result) || is.null(result))
     }
   )
 

@@ -366,15 +366,28 @@ test_that("functions recover from numerical issues", {
   # Test recovery from various numerical problems
   
   # Very small residuals
+  set.seed(456)
   near_perfect_data <- data.frame(
     x = 1:20,
-    y = 1:20 + rnorm(20, 0, 1e-10)  # Tiny noise
+    y = 1:20 + rnorm(20, 0, 1e-10)  # Tiny noise triggers perfect-fit guard
   )
   near_perfect_model <- lm(y ~ x, data = near_perfect_data)
-  
-  # Should handle gracefully
+
+  expect_error(
+    runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan"),
+    "Model appears perfectly explained (R² = 1.000). Heteroscedasticity diagnostics are unreliable for a perfect fit.",
+    fixed = TRUE
+  )
+
+  # Slightly larger noise should now pass the guard and complete successfully
+  set.seed(789)
+  almost_perfect_data <- data.frame(
+    x = 1:20,
+    y = 1:20 + rnorm(20, 0, 0.5)
+  )
+  almost_perfect_model <- lm(y ~ x, data = almost_perfect_data)
   expect_no_error(
-    result1 <- runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
+    result1 <- runHeteroTests(almost_perfect_model, almost_perfect_data, tests = "breusch_pagan")
   )
   expect_htest(result1$breusch_pagan)
   

@@ -1,20 +1,41 @@
-#' Perform Fligner-Killeen test for homogeneity of variances
+#' Perform Fligner–Killeen test for homogeneity of variances
 #'
-#' This non-parametric test compares group variances based on ranks. The
-#' function integrates the validation framework so that model inputs, grouping
-#' variables, and sample sizes are checked and missing values removed prior to
+#' Conducts the distribution-free Fligner–Killeen test that compares group
+#' variances using ranks of log-transformed absolute residuals. The procedure is
+#' robust to outliers and non-normal error distributions.
+#'
+#' @param model A fitted [stats::lm] object.
+#' @param data A [base::data.frame] supplying the variables used in `model` and
+#'   the grouping factor.
+#' @param group Character scalar naming the grouping variable.
+#'
+#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic and
+#'   p-value.
+#'
+#' @details
+#' Following Fligner and Killeen (1976), the test ranks the absolute residuals
+#' after applying a logarithmic transformation and performs a chi-squared test on
+#' the sum of ranks within each group. The shared validation helpers verify model
+#' compatibility, enforce minimum sample sizes, and remove missing values before
 #' computing the rank-based statistic.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param group Character. Name of the grouping variable.
+#' @references
+#' Fligner, M. A., & Killeen, T. J. (1976). Distribution-free two-sample tests for
+#' scale. *Journal of the American Statistical Association, 71*(353), 210–213.
+#' <https://doi.org/10.1080/01621459.1976.10481517>
 #'
-#' @return An object of class \code{htest} with the chi-squared statistic and p-value.
 #' @examples
 #' data(mtcars)
 #' mtcars$cyl <- factor(mtcars$cyl)
-#' m <- lm(mpg ~ wt, data = mtcars)
-#' performFlignerKilleenTest(m, mtcars, "cyl")
+#' mod <- lm(mpg ~ wt, data = mtcars)
+#' performFlignerKilleenTest(mod, mtcars, "cyl")
+#'
+#' # Rank-based alternative to Bartlett's classical test
+#' performBartlettTest(mod, mtcars, "cyl")
+#'
+#' @seealso
+#' [performLeveneTest()] and [performBrownForsytheTest()] for other robust
+#' variance-equality diagnostics.
 performFlignerKilleenTest <- function(model, data, group) {
   test_label <- "Fligner-Killeen test"
 

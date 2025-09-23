@@ -1,25 +1,59 @@
-#' Perform Koenker studentized Breusch-Pagan test
+#' Perform Koenker studentized Breusch–Pagan test
 #'
-#' This function performs the Koenker version of the Breusch-Pagan test,
-#' which is more robust to non-normal errors. It regresses the absolute
-#' residuals of a linear model on the regressors and uses the resulting
-#' R-squared as the test statistic.
+#' Evaluates Koenker's (1981) studentized variant of the Breusch–Pagan Lagrange
+#' Multiplier test. By replacing squared residuals with absolute residuals the
+#' procedure mitigates sensitivity to non-normal error distributions while still
+#' assessing whether the error variance depends on the regressors.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`.
+#' @param model A fitted [stats::lm] object supplying residuals and fitted values
+#'   for the diagnostic.
+#' @param data A [base::data.frame] containing the variables referenced in
+#'   `model`. The data must align with the observations used to fit `model`.
 #'
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic,
+#'   degrees of freedom, and p-value for the null hypothesis of homoskedasticity.
 #'
 #' @details
-#' The routine now relies on the shared validation utilities: model inputs are
-#' checked with [rvalidateModelInputs()], `data` is verified via
-#' [rvalidateDataInputs()], missing values are removed with
-#' [rhandleMissingValues()], and Koenker-specific requirements are enforced via
-#' [rvalidateTestRequirements()].
+#' Koenker's extension replaces the squared residuals in the Breusch–Pagan test
+#' with absolute (studentized) residuals. The auxiliary regression therefore
+#' targets changes in the scale of the errors and retains validity under general
+#' forms of non-normality. This implementation integrates the validation helpers
+#' to ensure: (i) sufficient sample size and finite residuals via
+#' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) complete data through \link[=rvalidateDataInputs]{rvalidateDataInputs()}
+#' and \link[=rhandleMissingValues]{rhandleMissingValues()}, (iii) satisfaction of Koenker-specific
+#' requirements using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, and (iv) a full-rank design
+#' matrix for the auxiliary regression.
+#'
+#' Rejecting the null indicates that the absolute residuals—and hence the error
+#' variance—vary systematically with the predictors. The statistic simplifies to
+#' \eqn{n R^2} from the auxiliary regression and is compared against a
+#' chi-squared distribution with degrees of freedom equal to the number of
+#' regressors.
+#'
+#' @references
+#' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
+#' *Journal of Econometrics, 17*(1), 107–112.
+#' <https://doi.org/10.1016/0304-4076(81)90062-2>
+#'
+#' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in
+#' regression. *Biometrika, 70*(1), 1–10. <https://doi.org/10.1093/biomet/70.1.1>
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performKoenkerTest(m, mtcars)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performKoenkerTest(mod, mtcars)
+#'
+#' # Simulated data with variance that scales with the regressor
+#' set.seed(99)
+#' x <- runif(120)
+#' y <- 1 + 2 * x + rnorm(120, sd = 0.2 + 0.8 * x)
+#' df <- data.frame(y, x)
+#' performKoenkerTest(lm(y ~ x, data = df), df)
+#'
+#' @seealso
+#' [performBPTest()] for the classical LM statistic using squared residuals,
+#' [performStudentizedBPTest()] for the alternative studentized implementation,
+#' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
 performKoenkerTest <- function(model, data) {
   test_label <- "Koenker studentized Breusch-Pagan test"
 
@@ -42,6 +76,28 @@ performKoenkerTest <- function(model, data) {
 
   requirements <- rvalidateTestRequirements("koenker", model = model, data = working_data)
   rprocessValidationResult(requirements)
+
+  size_mb <- tryCatch(
+    check_memory_usage(working_data, threshold_mb = 50),
+    error = function(e) NA_real_
+  )
+  if (!is.na(size_mb) && size_mb > 100) {
+    ht_log("INFO", sprintf("Switching to streaming Koenker test for dataset of %.1f MB", size_mb))
+    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
+    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
+    return(performKoenkerTestStreaming(
+      model,
+      working_data,
+      chunk_size = adaptive_chunk,
+      progress = FALSE
+    ))
+  }
+  if (nrow(working_data) > 10000) {
+    message(
+      "Large dataset (", nrow(working_data), " observations). ",
+      "Koenker test may take additional time."
+    )
+  }
 
   ht_log("INFO", "Running Koenker test")
 

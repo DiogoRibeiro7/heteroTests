@@ -7,11 +7,36 @@
 checkModelEnhanced(model, data = NULL)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm} or \code{glm}.}
+\item{model}{Fitted model supplied to subsequent diagnostics.}
 
-\item{data}{Data frame used to fit the model.}
+\item{data}{Optional \code{data.frame} used when fitting \code{model}. When provided it
+enables multicollinearity checks via \code{\link[=performVIFDiagnostic]{performVIFDiagnostic()}}.}
+}
+\value{
+Invisibly returns \code{model} after issuing any relevant warnings.
 }
 \description{
-Extends \code{checkModel()} with additional warnings about
-degrees of freedom, perfect fits and multicollinearity.
+Extends \code{\link[=checkModel]{checkModel()}} with additional soft checks that flag potential
+numerical issues before computationally expensive diagnostics are executed.
+The helper mirrors the warnings used throughout the package and retains the
+original return semantics for backward compatibility.
+}
+\details{
+The function warns when residual degrees of freedom fall below six, when a
+near-perfect fit is detected (R\eqn{^2 > 0.999}), or when variance inflation
+factors (VIFs) exceed 10. The latter threshold follows the regression
+diagnostics literature (Belsley et al., 1980).
+}
+\examples{
+data(mtcars)
+fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
+checkModelEnhanced(fit)
+
+}
+\references{
+Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:
+Identifying Influential Data and Sources of Collinearity}. Wiley.
+}
+\seealso{
+\code{\link[=checkModel]{checkModel()}}, \code{\link[=performVIFDiagnostic]{performVIFDiagnostic()}}, \code{\link[=validateTestInputs]{validateTestInputs()}}
 }

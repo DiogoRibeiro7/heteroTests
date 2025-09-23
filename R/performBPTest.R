@@ -1,45 +1,75 @@
-#' Perform Breusch-Pagan test for heteroscedasticity
+#' Perform Breusch–Pagan test for heteroscedasticity
 #'
-#' This function performs the Breusch-Pagan test on a fitted linear model. The
-#' implementation integrates the shared validation utilities so that model
-#' compatibility, data integrity, sample-size requirements, and missing values
-#' are handled consistently before the auxiliary regression is estimated.
+#' Implements the Breusch and Pagan (1979) Lagrange Multiplier test for detecting
+#' heteroscedasticity in linear regression models. The statistic is based on
+#' regressing the squared residuals on the original regressors and assessing
+#' whether the fitted values explain systematic variance in the errors.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`.
+#' @param model A fitted [stats::lm] object describing the mean structure whose
+#'   residual variance is to be assessed.
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
 #'
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the LM statistic, degrees of
+#'   freedom, and p-value for the null hypothesis of constant error variance.
 #'
 #' @details
-#' The routine validates inputs and test requirements in the following order:
+#' The routine follows the original Breusch–Pagan derivation in which the
+#' auxiliary regression uses the raw squared residuals. Specifically, if
+#' \eqn{\hat{e}} denotes the residual vector and \eqn{Z} the design matrix without
+#' the intercept, the test computes \eqn{n R^2} from the regression of
+#' \eqn{\hat{e}^2} on \eqn{Z}. Under the null of homoskedasticity and normal
+#' disturbances, this statistic converges to a chi-squared distribution with
+#' degrees of freedom equal to the number of regressors in \eqn{Z}. The
+#' implementation integrates the validation helpers to:
 #' \enumerate{
-#'   \item [rvalidateModelInputs()] ensures `model` has at least 15 observations,
-#'     finite residuals, and no perfect fit.
-#'   \item [rvalidateDataInputs()] checks that `data` contains the variables
-#'     referenced by the model formula.
-#'   \item [rhandleMissingValues()] removes incomplete observations with a
-#'     summary warning.
-#'   \item [rvalidateTestRequirements()] enforces the Breusch-Pagan-specific
-#'     sample-size threshold.
-#'   \item Additional checks guard against vanishing residual variance and
-#'     insufficient auxiliary degrees of freedom.
+#'   \item ensure the fitted model has at least 15 observations and finite
+#'     residuals via \link[=rvalidateModelInputs]{rvalidateModelInputs()};
+#'   \item confirm `data` supplies all required variables and handle missing
+#'     cases through \link[=rvalidateDataInputs]{rvalidateDataInputs()} and \link[=rhandleMissingValues]{rhandleMissingValues()};
+#'   \item verify auxiliary regression conditions (sample size, rank, residual
+#'     variation) with \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} and bespoke checks; and
+#'   \item guard against alignment issues between residuals and the supplied data
+#'     prior to fitting the auxiliary model.
 #' }
+#'
+#' A significant statistic indicates that the error variance varies with the
+#' regressors. For robustness to non-normality consider the studentized variant
+#' [performStudentizedBPTest()] or Koenker's absolute-residual version provided
+#' by [performKoenkerTest()].
 #'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
-#' and random coefficient variation. \emph{Econometrica}, 47(5), 1287-1294.
-#' \doi{10.2307/1911963}
+#' and random coefficient variation. *Econometrica, 47*(5), 1287–1294.
+#' <https://doi.org/10.2307/1911963>
 #'
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
-#' \emph{Journal of Econometrics}, 17(1), 107-112. \doi{10.1016/0304-4076(81)90062-2}
+#' *Journal of Econometrics, 17*(1), 107–112.
+#' <https://doi.org/10.1016/0304-4076(81)90062-2>
+#'
+#' Greene, W. H. (2018). *Econometric Analysis* (8th ed.). Pearson.
 #'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performBPTest(m, mtcars)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performBPTest(mod, mtcars)
 #'
-#' # Validation examples
-#' try(performBPTest(m, mtcars[1:10, ]))
+#' # Compare behaviour on simulated homoskedastic and heteroskedastic samples
+#' set.seed(42)
+#' n <- 150
+#' x <- runif(n)
+#' y_homo <- 2 + 3 * x + rnorm(n, sd = 0.3)
+#' y_hetero <- 2 + 3 * x + rnorm(n, sd = 0.3 + x)
+#' df_h <- data.frame(y = y_homo, x = x)
+#' df_het <- data.frame(y = y_hetero, x = x)
+#' performBPTest(lm(y ~ x, data = df_h), df_h)
+#' performBPTest(lm(y ~ x, data = df_het), df_het)
+#'
+#' @seealso
+#' [performStudentizedBPTest()] for the Koenker studentized LM statistic,
+#' [performKoenkerTest()] for the absolute-residual formulation, and
+#' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
 performBPTest <- function(model, data) {
   test_label <- "Breusch-Pagan test"
   rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L)
@@ -104,7 +134,21 @@ performBPTest <- function(model, data) {
   handle_validation_result(requirements)
 
   # Memory and performance warnings
-  check_memory_usage(working_data, threshold_mb = 50)
+  size_mb <- tryCatch(
+    check_memory_usage(working_data, threshold_mb = 50),
+    error = function(e) NA_real_
+  )
+  if (!is.na(size_mb) && size_mb > 100) {
+    ht_log("INFO", sprintf("Switching to streaming Breusch-Pagan test for dataset of %.1f MB", size_mb))
+    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
+    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
+    return(performBPTestStreaming(
+      model,
+      working_data,
+      chunk_size = adaptive_chunk,
+      progress = FALSE
+    ))
+  }
   if (nrow(working_data) > 10000) {
     message(
       "Large dataset (", nrow(working_data), " observations). ",

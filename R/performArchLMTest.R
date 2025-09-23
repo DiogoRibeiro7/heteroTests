@@ -1,27 +1,74 @@
-#' Perform Engle's ARCH LM test
+#' Perform Engle's ARCH Lagrange Multiplier test
 #'
-#' Regresses squared residuals on their lags to detect ARCH effects.
+#' Implements Engle's (1982) score-type test for autoregressive conditional
+#' heteroscedasticity (ARCH) by regressing squared residuals on their own lags and
+#' evaluating the resulting \eqn{n R^2} statistic against a chi-squared
+#' distribution.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param lags Number of lags to include in the auxiliary regression.
-#' 
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @param model A fitted [stats::lm] or [stats::arima] object providing the
+#'   residual series \eqn{\hat{e}_t}. Objects must implement [stats::residuals]
+#'   and optionally [stats::model.frame] so that validation checks can align the
+#'   data with the stored residuals.
+#' @param lags A single positive integer giving the number of lagged squared
+#'   residuals \eqn{\hat{e}_{t-1}^2, \ldots, \hat{e}_{t-q}^2} included in the
+#'   auxiliary regression. Typical choices range from 1 to 12 for monthly data.
+#'
+#' @return An object of class \link[stats:htest]{htest} containing the chi-squared statistic
+#'   with \eqn{q} degrees of freedom, the associated p-value, and descriptive
+#'   labels for the fitted model.
 #'
 #' @details
-#' Incorporates the shared validation framework to check the fitted model,
-#' enforce lag-dependent sample size requirements, and warn about large data
-#' sets before constructing the auxiliary regression.
-#' 
+#' Let \eqn{\hat{e}_t} denote the residuals from the conditional mean model. The
+#' ARCH LM test fits the auxiliary regression
+#' \deqn{\hat{e}_t^2 = \alpha_0 + \alpha_1 \hat{e}_{t-1}^2 + \cdots + \alpha_q \hat{e}_{t-q}^2 + u_t}
+#' and computes \eqn{\text{LM} = n R^2}, where \eqn{R^2} is the coefficient of
+#' determination from this regression. Under the null hypothesis that the error
+#' variance is conditionally homoskedastic (i.e. \eqn{\alpha_1 = \cdots =
+#' \alpha_q = 0}) the LM statistic converges to a chi-squared distribution with
+#' \eqn{q} degrees of freedom. Rejection indicates the presence of ARCH effects
+#' that motivate GARCH-type volatility models.
+#'
+#' The function integrates the package's validation helpers to ensure:
+#' \enumerate{
+#'   \item the fitted model supplies at least \eqn{q + 15} observations and finite
+#'     residuals via \link[=rvalidateModelInputs]{rvalidateModelInputs()};
+#'   \item the optional model frame can be inspected for missingness and
+#'     dimensionality using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, which also enforces
+#'     lag-specific minimum sample sizes; and
+#'   \item the squared residuals retain sufficient variation once the lagged
+#'     design matrix is constructed.
+#' }
+#'
 #' @references
 #' Engle, R. F. (1982). Autoregressive conditional heteroscedasticity with
-#' estimates of the variance of United Kingdom inflation. \emph{Econometrica},
-#' 50(4), 987-1007. \doi{10.2307/1912773}
-#' 
-#' Hamilton, J. D. (1994). \emph{Time Series Analysis}. Princeton University Press.
+#' estimates of the variance of United Kingdom inflation. *Econometrica, 50*(4),
+#' 987–1007. <https://doi.org/10.2307/1912773>
+#'
+#' Tsay, R. S. (2010). *Analysis of Financial Time Series* (3rd ed.). Wiley.
+#' Chapter 3 discusses LM diagnostics for conditional heteroskedasticity.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performArchLMTest(m, lags = 2)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performArchLMTest(mod, lags = 2)
+#'
+#' # Detect ARCH effects in simulated data generated from an ARCH(1) process
+#' set.seed(101)
+#' innov <- rnorm(300)
+#' eps <- numeric(300)
+#' for (t in 2:300) {
+#'   eps[t] <- sqrt(0.2 + 0.6 * eps[t - 1]^2) * innov[t]
+#' }
+#' arch_mod <- lm(eps ~ 1)
+#' performArchLMTest(arch_mod, lags = 3)
+#'
+#' # Higher-order diagnostics for GARCH-type behaviour
+#' performArchLMTest(arch_mod, lags = 6)
+#'
+#' @seealso
+#' [performMcLeodLiTest()] for the portmanteau alternative based on squared
+#' residual autocorrelations and [performPesaranTest()] when cross-sectional
+#' dependence is of interest.
 performArchLMTest <- function(model, lags = 1) {
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)

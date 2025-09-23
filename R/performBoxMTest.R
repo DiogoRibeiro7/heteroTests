@@ -1,14 +1,37 @@
-#' Box's M Test for Equality of Covariance Matrices
+#' Box's M test for equality of covariance matrices
 #'
-#' Perform Box's M test on multivariate data grouped by a factor.
+#' Applies Box's (1949) likelihood-ratio test to assess whether multiple groups
+#' share the same covariance matrix under multivariate normality.
 #'
-#' @param data A data.frame or matrix containing numeric variables.
-#' @param group A factor or grouping variable of the same length as rows of `data`.
+#' @param data A [base::data.frame] or matrix containing numeric variables.
+#' @param group A factor or grouping variable aligned with the rows of `data`.
 #'
-#' @return A list with class `htest` containing the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} containing the chi-squared statistic
+#'   and p-value.
+#'
+#' @details
+#' The test computes pooled and group-specific covariance matrices and forms the
+#' Box M statistic, which is approximately chi-squared with \eqn{(g - 1) k (k + 1)/2}
+#' degrees of freedom, where \eqn{g} is the number of groups and \eqn{k} the number
+#' of variables. A correction factor is applied for small samples as described by
+#' Box. The test is sensitive to non-normality, so results should be interpreted
+#' alongside robust diagnostics when heavy tails are suspected.
+#'
+#' @references
+#' Box, G. E. P. (1949). A general distribution theory for a class of likelihood
+#' criteria. *Biometrika, 36*(3/4), 317–346. <https://doi.org/10.1093/biomet/36.3-4.317>
+#'
 #' @examples
 #' data(iris)
 #' performBoxMTest(iris[, 1:4], iris$Species)
+#'
+#' # Compare only two species
+#' subset <- subset(iris, Species != "virginica")
+#' performBoxMTest(subset[, 1:4], subset$Species)
+#'
+#' @seealso
+#' [runMultivariateTests()] orchestrates a suite of multivariate diagnostics
+#' including Box's M test.
 #' @export
 performBoxMTest <- function(data, group) {
   if (!is.data.frame(data) && !is.matrix(data)) {

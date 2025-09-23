@@ -9,19 +9,19 @@
 NULL
 
 error_messages <- list(
-  invalid_model = "Model must be fitted with lm() or glm()",
-  invalid_data = "Data must be a data.frame",
-  missing_variable = "Variable '{variable}' not found in data",
-  negative_values = "Test requires positive values in variable '{variable}'",
-  invalid_logical = "'{arg}' must be a single logical value",
-  rinsufficient_sample_size = "Test '{test_name}' requires at least {min_obs} observations, got {n_obs}",
+  invalid_model = "Provide a model fitted with stats::lm() or stats::glm().",
+  invalid_data = "Input data must be a data.frame; call as.data.frame() before running the diagnostic.",
+  missing_variable = "Variable '{variable}' not found in the supplied data. Check names(data).",
+  negative_values = "Test requires positive values in variable '{variable}'.",
+  invalid_logical = "'{arg}' must be a single logical value.",
+  rinsufficient_sample_size = "Test '{test_name}' requires at least {min_obs} observations, but only {n_obs} were supplied.",
   missing_values_detected = "Missing values detected in {var_names}. {n_removed} observations removed.",
-  invalid_model_class = "Model must be fitted with lm() or glm(), got {model_class}",
-  perfect_fit_detected = "Model has perfect fit (R² = 1). Heteroscedasticity tests may be unreliable.",
+  invalid_model_class = "Expected an lm/glm object but received class {model_class}. Refit the model before proceeding.",
+  perfect_fit_detected = "Model has perfect fit (R² = 1); heteroscedasticity tests are unreliable. Consider revising the specification.",
   rassumption_violation = "Test assumption violated: {assumption}. Results may be unreliable.",
-  insufficient_group_size = "Group '{group_name}' has only {n_obs} observations (minimum: {min_required})",
-  invalid_group_variable = "Grouping variable '{group_var}' must be factor/character with \u2265 {min_groups} levels",
-  positive_values_required = "Variable '{var_name}' must contain only positive values for {test_name}",
+  insufficient_group_size = "Group '{group_name}' has {n_obs} observation(s); at least {min_required} are needed.",
+  invalid_group_variable = "Grouping variable '{group_var}' must be factor/character with \u2265 {min_groups} levels.",
+  positive_values_required = "Variable '{var_name}' must contain only positive values for {test_name}.",
   normality_assumption = "Severe non-normality detected in {variable}. Consider robust alternatives."
 )
 

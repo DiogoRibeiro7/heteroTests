@@ -1,52 +1,85 @@
-#' Perform White's test for heteroscedasticity (CORRECTED VERSION)
+#' Perform White's test for heteroscedasticity (corrected implementation)
 #'
-#' This function implements White's test on a fitted linear model with proper
-#' cross-product terms according to White's original 1980 specification. The
-#' routine now integrates the validation helpers introduced in
-#' \code{validation.R}: models and data are checked for compatibility, missing
-#' values are removed with informative warnings, sample size thresholds are
-#' enforced, and the expanded auxiliary regression is required to be full rank.
+#' Conducts the classic White (1980) Lagrange Multiplier test for unknown forms
+#' of heteroscedasticity in linear regression models. The implementation builds
+#' the full auxiliary regression with squares and cross-products of the
+#' regressors and integrates the package's validation helpers to guarantee that
+#' the expanded design matrix is well-posed before fitting the test equation.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data The data frame used to fit `model`.
-#' @param cross_products Logical. Include cross-product terms in the
-#'   auxiliary regression? Default is TRUE.
-#' @param max_interactions Maximum number of predictors for including cross-products
-#'   to avoid computational explosion. Default is 10.
+#' @param model A fitted [stats::lm] object representing the mean specification
+#'   to be diagnosed.
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
+#' @param cross_products Logical scalar indicating whether to include all
+#'   pairwise cross-products of the regressors in the auxiliary regression.
+#'   Defaults to `TRUE` and should remain enabled unless dimensionality makes
+#'   the regression unstable.
+#' @param max_interactions Single positive integer giving the maximum number of
+#'   original predictors for which cross-products are generated. When the number
+#'   of regressors exceeds this threshold, cross-products are dropped to avoid
+#'   explosive growth in columns. Defaults to `10`.
 #'
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} containing the chi-squared test
+#'   statistic, associated degrees of freedom, and p-value.
 #'
 #' @details
-#' Prior to fitting the auxiliary regression the function:
+#' Let \eqn{\hat{e}} be the residuals from the fitted model. White's test fits an
+#' auxiliary regression of \eqn{\hat{e}^2} on the original regressors, their
+#' squares, and (optionally) their cross-products. Under the null hypothesis of
+#' homoskedasticity and mild regularity conditions, the statistic
+#' \eqn{n \times R^2} from this auxiliary model converges to a chi-squared
+#' distribution with degrees of freedom equal to the number of regressors (minus
+#' the intercept). The function:
 #' \enumerate{
-#'   \item validates the supplied model via [rvalidateModelInputs()] (minimum of 20 observations);
-#'   \item confirms that `data` contains the variables required by the model with [rvalidateDataInputs()];
-#'   \item removes incomplete observations using [rhandleMissingValues()], emitting a warning when rows are dropped;
-#'   \item enforces registered requirements through [rvalidateTestRequirements()], which includes the sample-size rule; and
-#'   \item checks that the augmented design matrix (including squares and cross-products) is full rank.
+#'   \item validates the model object with \link[=rvalidateModelInputs]{rvalidateModelInputs()} to ensure at
+#'     least 20 observations and finite residuals;
+#'   \item verifies the supplied data via \link[=rvalidateDataInputs]{rvalidateDataInputs()} and removes
+#'     incomplete cases through \link[=rhandleMissingValues]{rhandleMissingValues()}, emitting a consolidated
+#'     warning when rows are dropped;
+#'   \item aligns the cleaned data with the stored residuals, enforcing that the
+#'     augmented design matrix is full rank; and
+#'   \item applies \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} so that sample-size and
+#'     conditioning rules specific to the White test are satisfied.
 #' }
 #'
-#' White's test regresses the squared residuals on:
-#' 1. All original regressors (excluding intercept)
-#' 2. Squares of all original regressors
-#' 3. Cross-products of all pairs of original regressors (if cross_products = TRUE)
-#'
-#' The test statistic is n*R² from this auxiliary regression, which follows
-#' a chi-squared distribution with degrees of freedom equal to the number of
-#' regressors in the auxiliary model (excluding the intercept).
+#' Rejecting the null indicates that the variance of the errors depends on one
+#' or more functions of the regressors. While the statistic is asymptotically
+#' valid under heteroskedasticity of unknown form, finite-sample performance can
+#' deteriorate when the number of regressors is large relative to the sample
+#' size. In such situations consider disabling `cross_products` or switching to
+#' the robust variants provided by the package.
 #'
 #' @references
-#' White, H. (1980). A heteroscedasticity-consistent covariance matrix
-#' estimator and a direct test for heteroscedasticity. \emph{Econometrica},
-#' 48(4), 817-838. \doi{10.2307/1912934}
+#' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
+#' and a direct test for heteroskedasticity. *Econometrica, 48*(4), 817–838.
+#' <https://doi.org/10.2307/1912934>
+#'
+#' Greene, W. H. (2018). *Econometric Analysis* (8th ed.). Pearson. Chapter 11
+#' provides an accessible overview of Lagrange Multiplier diagnostics such as
+#' the White test.
 #'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performWhiteTest(m, mtcars)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performWhiteTest(mod, mtcars)
 #'
-#' # Validation examples
-#' try(performWhiteTest(m, mtcars[1:10, ]))
+#' # Disable cross-products when dimensionality is modest but collinearity is a concern
+#' performWhiteTest(mod, mtcars, cross_products = FALSE)
+#'
+#' # Detect heteroscedasticity in simulated data with variance increasing in x
+#' set.seed(123)
+#' n <- 200
+#' x <- runif(n)
+#' y <- 1 + 2 * x + rnorm(n, sd = 0.5 + x)
+#' df <- data.frame(y, x)
+#' hetero_mod <- lm(y ~ x, data = df)
+#' performWhiteTest(hetero_mod, df)
+#'
+#' @seealso
+#' [performWhiteTestBootstrap()] for a resampled version suited to small samples,
+#' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched reporting, and [performBPTest()] for a
+#' lower-dimensional Lagrange Multiplier alternative.
 #' @export
 performWhiteTest <- function(model, data, cross_products = TRUE, max_interactions = 10) {
   test_label <- "White test"
@@ -116,7 +149,23 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
   }
 
   # Memory and performance warnings
-  check_memory_usage(working_data, threshold_mb = 50)
+  size_mb <- tryCatch(
+    check_memory_usage(working_data, threshold_mb = 50),
+    error = function(e) NA_real_
+  )
+  if (!is.na(size_mb) && size_mb > 100) {
+    ht_log("INFO", sprintf("Switching to streaming White test for dataset of %.1f MB", size_mb))
+    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
+    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
+    return(performWhiteTestStreaming(
+      model,
+      working_data,
+      chunk_size = adaptive_chunk,
+      cross_products = cross_products,
+      max_interactions = max_interactions,
+      progress = FALSE
+    ))
+  }
   if (nrow(working_data) > 10000) {
     message("Large dataset (", nrow(working_data), " observations). ",
             "This may take some time to compute.")

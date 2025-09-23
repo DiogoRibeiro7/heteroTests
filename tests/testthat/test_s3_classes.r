@@ -55,13 +55,15 @@ test_that("HeteroDiagnostic constructor handles errors correctly", {
   # Invalid model object
   expect_error(
     HeteroDiagnostic("not a model"),
-    "Model must be fitted with lm\\(\\) or glm\\(\\)"
+    "Provide a model fitted with stats::lm() or stats::glm().",
+    fixed = TRUE
   )
   
   # Invalid data
   expect_error(
     HeteroDiagnostic(test_obj$model, "not data"),
-    "Data must be a data.frame"
+    "Input data must be a data.frame; call as.data.frame() before running the diagnostic.",
+    fixed = TRUE
   )
 })
 

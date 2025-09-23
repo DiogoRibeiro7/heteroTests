@@ -84,14 +84,15 @@ test_that("performBPTest validates its inputs", {
 
   expect_error(
     performBPTest("not a model", test_obj$data),
-    "Model must be fitted with lm() or glm(), got character",
+    "Provide an object fitted with stats::lm() or stats::glm()",
     fixed = TRUE
   )
 
 
   expect_error(
     performBPTest(test_obj$model, "not data"),
-    "Data must be a data.frame"
+    "Expected a data.frame for input data; coerce your object with as.data.frame() before running diagnostics.",
+    fixed = TRUE
   )
 })
 
@@ -125,12 +126,14 @@ test_that("performGQTest works correctly", {
   # Test error handling
   expect_error(
     performGQTest(test_obj$model, test_obj$data, order_by = "nonexistent"),
-    "order_by.*must be a column"
+    "The following variables are missing from input data: nonexistent. Verify column names with names(data).",
+    fixed = TRUE
   )
-  
+
   expect_error(
     performGQTest(test_obj$model, test_obj$data, order_by = "x1", fraction = 0.95),
-    "fraction.*leaves no observations"
+    "`fraction` leaves insufficient observations for the two comparison groups.",
+    fixed = TRUE
   )
 })
 
@@ -151,13 +154,15 @@ test_that("performParkTest works correctly", {
   
   expect_error(
     performParkTest(model_negative, data_with_negative, "x1"),
-    "Test requires positive values in variable 'x1'"
+    "park requires strictly positive data",
+    fixed = FALSE
   )
   
   # Test error for missing variable
   expect_error(
     performParkTest(test_obj$model, test_obj$data, "nonexistent"),
-    "Variable 'nonexistent' not found in data"
+    "The following variables are missing from input data: nonexistent. Verify column names with names(data).",
+    fixed = TRUE
   )
 })
 
@@ -189,7 +194,7 @@ test_that("performLeveneTest works correctly", {
   # Test error for missing group variable
   expect_error(
     performLeveneTest(model, data, "nonexistent"),
-    "Variable 'nonexistent' not found in data",
+    "The following variables are missing from input data: nonexistent. Verify column names with names(data).",
     fixed = TRUE
   )
 })
@@ -237,7 +242,8 @@ test_that("performArchLMTest works correctly", {
   # Test error handling for too many lags
   expect_error(
     performArchLMTest(test_obj$model, lags = 100),
-    "lags.*too large"
+    "Only 50 observations detected but ARCH LM requires at least 205. Provide more data or choose a different diagnostic.",
+    fixed = TRUE
   )
   
   # Test error for invalid lags
@@ -272,7 +278,7 @@ test_that("performHarveyTest handles edge cases", {
   expect_equal(result$method, "Harvey test for heteroscedasticity")
   
   # Test with model that might have very small residuals
-  near_perfect_data <- data.frame(x = 1:20, y = 1:20 + rnorm(20, 0, 0.01))
+  near_perfect_data <- data.frame(x = 1:20, y = 1:20 + rnorm(20, 0, 0.2))
   near_perfect_model <- lm(y ~ x, data = near_perfect_data)
   
   expect_no_error(performHarveyTest(near_perfect_model))

@@ -19,7 +19,7 @@ NULL
 #'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
-#'   [stats::htest] result).
+#'   \link[stats:htest]{htest} result).
 #' @param model A fitted model of class `lm` or `glm`.
 #' @param data Data frame used when fitting `model`.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
@@ -27,6 +27,10 @@ NULL
 #' @param ci_level Confidence level for the percentile interval.
 #' @param resample Bootstrap strategy. Currently only "pairs" sampling is
 #'   supported where rows of `data` are sampled with replacement.
+#' @param n_cores Optional integer specifying the number of worker processes to
+#'   use when `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`.
+#' @param progress Logical flag controlling whether a textual progress bar is
+#'   displayed during bootstrap replication.
 #' @param ... Additional arguments forwarded to `test_function`.
 #'
 #' @return A list with components:
@@ -55,7 +59,8 @@ NULL
 #' @export
 rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
                                       parallel = FALSE, ci_level = 0.95,
-                                      resample = c("pairs"), ...) {
+                                      resample = c("pairs"), n_cores = NULL,
+                                      progress = interactive(), ...) {
   if (!is.function(test_function)) {
     stop("`test_function` must be a function.", call. = FALSE)
   }
@@ -79,6 +84,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     stop("`ci_level` must be between 0 and 1.", call. = FALSE)
   }
 
+  if (!is.null(n_cores)) {
+    if (!is.numeric(n_cores) || length(n_cores) != 1L || is.na(n_cores) || n_cores < 1) {
+      stop("`n_cores` must be NULL or a positive integer.", call. = FALSE)
+    }
+    n_cores <- as.integer(n_cores)
+  }
+
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic
   if (is.null(statistic) || length(statistic) == 0L) {
@@ -92,6 +104,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     stop("Bootstrap requires at least two observations.", call. = FALSE)
   }
 
+  extra_args <- list(...)
+
   compute_bootstrap <- function(index) {
     sampled_idx <- sample.int(n, replace = TRUE)
     boot_data <- data[sampled_idx, , drop = FALSE]
@@ -103,7 +117,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       return(NA_real_)
     }
     boot_result <- tryCatch(
-      test_function(boot_model, boot_data, ...),
+      do.call(test_function, c(list(model = boot_model, data = boot_data), extra_args)),
       error = function(e) NA_real_
     )
     if (is.list(boot_result) && !is.null(boot_result$statistic)) {
@@ -115,18 +129,50 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   replicate_indices <- seq_len(B)
   replicates <- rep(NA_real_, B)
 
+  progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Bootstrapping diagnostic")
+  on.exit(progress_bar$close(), add = TRUE)
+
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {
-    if (.Platform$OS.type == "unix") {
-      replicates <- unlist(parallel::mclapply(replicate_indices, compute_bootstrap,
-        mc.preschedule = FALSE
-      ), use.names = FALSE)
+    available_cores <- tryCatch(parallel::detectCores(), error = function(e) 1L)
+    worker_cores <- if (is.null(n_cores)) {
+      max(1L, available_cores - 1L)
     } else {
-      cl <- parallel::makeCluster(max(1L, parallel::detectCores() - 1L))
+      max(1L, min(n_cores, available_cores))
+    }
+
+    chunk_plan <- chunk_indices(B, max(10L, worker_cores * 5L))
+    processed <- 0L
+
+    if (.Platform$OS.type == "unix") {
+      for (chunk in chunk_plan) {
+        chunk_results <- parallel::mclapply(chunk, compute_bootstrap,
+          mc.cores = worker_cores,
+          mc.preschedule = FALSE
+        )
+        replicates[chunk] <- as.numeric(chunk_results)
+        processed <- processed + length(chunk)
+        progress_bar$update(processed)
+      }
+    } else {
+      cl <- parallel::makeCluster(worker_cores)
       on.exit(parallel::stopCluster(cl), add = TRUE)
-      replicates <- unlist(parallel::parLapply(cl, replicate_indices, compute_bootstrap), use.names = FALSE)
+      parallel::clusterEvalQ(cl, library(heteroTests))
+      parallel::clusterExport(cl,
+        varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function"),
+        envir = environment()
+      )
+      for (chunk in chunk_plan) {
+        chunk_results <- parallel::parLapply(cl, as.list(chunk), compute_bootstrap)
+        replicates[chunk] <- unlist(chunk_results, use.names = FALSE)
+        processed <- processed + length(chunk)
+        progress_bar$update(processed)
+      }
     }
   } else {
-    replicates <- vapply(replicate_indices, compute_bootstrap, numeric(1L))
+    for (i in replicate_indices) {
+      replicates[i] <- compute_bootstrap(i)
+      progress_bar$update(i)
+    }
   }
 
   effective <- sum(is.finite(replicates))

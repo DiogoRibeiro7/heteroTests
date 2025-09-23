@@ -7,18 +7,72 @@
 performWhiteTestBootstrap(model, data, B = 1000, parallel = FALSE)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm}.}
+\item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
+to be diagnosed.}
 
-\item{data}{The data frame used to fit \code{model}.}
+\item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
+variables referenced by \code{model}. It must include the observations used to
+fit \code{model} and will be checked for missing values.}
 
-\item{B}{Number of bootstrap replications.}
+\item{B}{Integer scalar giving the number of bootstrap replications. Larger
+values yield smoother p-value estimates at the cost of additional runtime.}
 
-\item{parallel}{Logical, run in parallel using the \code{parallel} package?}
+\item{parallel}{Logical scalar; if \code{TRUE} the bootstrap loop is executed with
+\code{\link[parallel:mclapply]{parallel::mclapply()}} when the \code{parallel} package and forked processing are
+available.}
 }
 \value{
-An object of class \code{htest} with the bootstrap p-value.
+A \link[stats:htest]{htest} object reporting both the asymptotic White statistic
+and its bootstrap p-value. The returned object also stores the simulated test
+statistics in \code{boot_statistics} for further inspection.
 }
 \description{
-Uses bootstrap resampling of residuals to estimate the distribution
-of White's test statistic. Useful for small samples.
+Approximates the finite-sample distribution of White's LM statistic by
+resampling the fitted residuals, refitting the model, and recalculating the
+test statistic across many bootstrap replications.
+}
+\details{
+For a fitted model \eqn{\hat{y} = X\hat{\beta}}, the algorithm proceeds as
+follows:
+\enumerate{
+\item Compute White's LM statistic \eqn{n R^2} from the auxiliary regression
+on squares and cross-products of the regressors.
+\item Generate \eqn{B} bootstrap samples by resampling the centred residuals
+with replacement, forming \eqn{y^{*(b)} = \hat{y} + \hat{e}^{*(b)}}.
+\item Refit the model to each bootstrap sample and recompute White's
+statistic \eqn{T^{*(b)}} using the same auxiliary specification.
+\item Estimate the bootstrap p-value as
+\eqn{\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}}.
+}
+
+The bootstrap distribution offers improved size control for moderate sample
+sizes or high-dimensional designs where the chi-squared approximation may be
+inaccurate. When \code{parallel = TRUE} the resampling step exploits available CPU
+cores to reduce computation time.
+}
+\examples{
+data(mtcars)
+mod <- lm(mpg ~ wt + qsec, data = mtcars)
+performWhiteTestBootstrap(mod, mtcars, B = 200)
+
+# Increase replications for a smoother p-value estimate
+performWhiteTestBootstrap(mod, mtcars, B = 500)
+
+# Enable parallel processing when supported by the operating system
+if (.Platform$OS.type != "windows") {
+  performWhiteTestBootstrap(mod, mtcars, B = 100, parallel = TRUE)
+}
+
+}
+\references{
+Efron, B., & Tibshirani, R. J. (1993). \emph{An Introduction to the Bootstrap}.
+Chapman & Hall/CRC.
+
+Davidson, R., & MacKinnon, J. G. (2006). The power of bootstrap and asymptotic
+tests. \emph{Journal of Econometrics, 133}(2), 421–441.
+\url{https://doi.org/10.1016/j.jeconom.2005.02.002}
+}
+\seealso{
+\code{\link[=performWhiteTest]{performWhiteTest()}} for the classical statistic and
+\link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 }

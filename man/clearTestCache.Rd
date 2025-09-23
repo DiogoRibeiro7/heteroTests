@@ -7,5 +7,9 @@
 clearTestCache()
 }
 \description{
-Removes all objects from the internal test cache.
+Removes all objects from the internal cache environment so that subsequent
+diagnostic calls recompute their statistics.
+}
+\seealso{
+\code{\link[=cachedTest]{cachedTest()}} for invoking diagnostics with memoisation.
 }

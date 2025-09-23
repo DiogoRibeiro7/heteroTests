@@ -1,27 +1,50 @@
 #' Perform Glejser test for heteroscedasticity
 #'
-#' This test regresses the absolute residuals of a fitted linear model on a
-#' transformation of a suspected explanatory variable. A significant slope
-#' indicates heteroscedasticity related to that variable.
+#' Estimates Glejser's (1969) parametric test by regressing the absolute residuals
+#' on transformations of a suspected regressor. Significant slopes indicate that
+#' the variance of the error term depends on that regressor.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param variable Character. Name of the suspected variable.
-#' @param transformation Transformation to apply to `variable`. One of
-#'   "abs", "sqrt", "inverse", "inverse_sqrt".
+#' @param model A fitted [stats::lm] object whose residuals are examined.
+#' @param data [base::data.frame] used to fit `model`.
+#' @param variable Character scalar giving the column suspected of driving the
+#'   heteroscedasticity.
+#' @param transformation Character scalar selecting the transformation applied to
+#'   `variable` in the auxiliary regression. One of `"abs"`, `"sqrt"`, `"inverse"`,
+#'   or `"inverse_sqrt"`.
 #'
-#' @return An object of class \code{htest} with the t statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} reporting the t statistic and
+#'   p-value for the slope coefficient in the auxiliary regression.
 #'
 #' @details
-#' Integrates the shared validation utilities so that model and data integrity
-#' are checked prior to fitting the auxiliary regression. Missing values in the
-#' model variables or suspected regressor are dropped with an informative
-#' warning. Transformation-specific requirements (e.g. positivity for the
-#' inverse-square-root case) are enforced via [rvalidateTestRequirements()].
+#' Glejser suggested modelling heteroscedastic variance by regressing the
+#' absolute residuals on transformations of the explanatory variable believed to
+#' govern the error scale. The test explores several functional forms (absolute,
+#' square root, inverse, inverse square root). This implementation validates the
+#' fitted model and data through \link[=rvalidateModelInputs]{rvalidateModelInputs()}, \link[=rvalidateDataInputs]{rvalidateDataInputs()},
+#' and \link[=rhandleMissingValues]{rhandleMissingValues()}, then enforces transformation-specific
+#' requirements via \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}. The resulting t statistic tests
+#' the null hypothesis of no relationship between the transformed regressor and
+#' the absolute residuals.
+#'
+#' @references
+#' Glejser, H. (1969). A new test for heteroscedasticity. *Journal of the American
+#' Statistical Association, 64*(325), 316–323.
+#' <https://doi.org/10.1080/01621459.1969.10500976>
+#'
+#' Gujarati, D. N., & Porter, D. C. (2009). *Basic Econometrics* (5th ed.).
+#' McGraw-Hill. Chapter 11 discusses the Glejser procedure.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performGlejserTest(m, mtcars, "wt")
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performGlejserTest(mod, mtcars, "wt")
+#'
+#' # Examine alternative transformations
+#' performGlejserTest(mod, mtcars, "wt", transformation = "inverse")
+#'
+#' @seealso
+#' [performParkTest()] and [performHarveyTest()] provide related parametric tests
+#' for specific forms of heteroscedasticity.
 performGlejserTest <- function(model, data, variable,
                                transformation = c("abs", "sqrt", "inverse", "inverse_sqrt")) {
   test_label <- "Glejser test"

@@ -44,7 +44,7 @@ test_that("performKoenkerTest integrates validation helpers", {
   small_model <- lm(y ~ x + z, data = small_df)
   expect_error(
     performKoenkerTest(small_model, small_df),
-    "requires at least 15 observations",
+    "Koenker requires at least 15",
     fixed = FALSE
   )
 })
@@ -63,8 +63,8 @@ test_that("performParkTest checks suspected variable positivity", {
   df_bad$x[1] <- 0
   expect_error(
     performParkTest(model, df_bad, "x"),
-    "must contain only positive values",
-    fixed = FALSE
+    "park requires strictly positive data",
+    fixed = TRUE
   )
 })
 
@@ -78,7 +78,7 @@ test_that("performSpearmanTest requires variability in inputs", {
   constant_model <- lm(y ~ 1, data = constant_df)
   expect_error(
     performSpearmanTest(constant_model),
-    "requires variability in absolute residuals",
+    "Residual variance is too small to evaluate Spearman rank",
     fixed = FALSE
   )
 })
@@ -120,7 +120,7 @@ test_that("performHarveyTest flags degenerate fitted values", {
   constant_model <- lm(y ~ 1, data = constant_df)
   expect_error(
     performHarveyTest(constant_model),
-    "requires variability in fitted values",
+    "Residual variance is too small to evaluate Harvey",
     fixed = FALSE
   )
 })
@@ -139,7 +139,7 @@ test_that("performArchLMTest enforces lag-dependent requirements", {
   tiny_model <- lm(y ~ x, data = tiny_df)
   expect_error(
     performArchLMTest(tiny_model, lags = 2),
-    "requires at least 9 observations",
+    "ARCH LM requires at least 9",
     fixed = FALSE
   )
 
@@ -160,7 +160,7 @@ test_that("performMcLeodLiTest validates lag choice", {
   perfect_model <- lm(y ~ 1, data = perfect_df)
   expect_error(
     performMcLeodLiTest(perfect_model, lags = 2),
-    "requires variability in squared residuals",
+    "Residual variance is too small to evaluate McLeod-Li",
     fixed = FALSE
   )
 
@@ -189,8 +189,8 @@ test_that("performHartleyFmaxTest enforces grouping rules", {
   small_group$g <- factor(small_group$g)
   expect_error(
     performHartleyFmaxTest(model, small_group, "g"),
-    "Group 'd' has only 1 observations",
-    fixed = FALSE
+    "increase to 2 for stable inference.",
+    fixed = TRUE
   )
 })
 
@@ -205,7 +205,7 @@ test_that("performCameronTrivediTest requires variability", {
   perfect_model <- lm(y ~ x, data = perfect_df)
   expect_error(
     performCameronTrivediTest(perfect_model),
-    "Model has perfect fit",
+    "perfectly explained",
     fixed = FALSE
   )
 })
@@ -220,7 +220,7 @@ test_that("performOrderedLMTest validates ordering variable", {
   tiny_model <- lm(y ~ x, data = tiny_df)
   expect_error(
     performOrderedLMTest(tiny_model, tiny_df, "x"),
-    "requires at least 3 observations",
+    "Ordered LM requires at least 3",
     fixed = FALSE
   )
 })
@@ -235,7 +235,7 @@ test_that("performStudentizedBPTest honours validation framework", {
   small_model <- lm(y ~ x, data = small_df)
   expect_error(
     performStudentizedBPTest(small_model, small_df),
-    "requires at least 15 observations",
+    "Studentized BP requires at least 15",
     fixed = FALSE
   )
 })
@@ -265,7 +265,7 @@ test_that("performSzroeterTest validates ordered residuals", {
   constant_model <- lm(y ~ x, data = constant_df)
   expect_error(
     performSzroeterTest(constant_model, constant_df, "x"),
-    "requires variability in ordered residuals",
+    "Residual variance is too small to evaluate Szroeter",
     fixed = FALSE
   )
 })

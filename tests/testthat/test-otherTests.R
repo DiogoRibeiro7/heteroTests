@@ -91,7 +91,11 @@ test_that("Park test errors on non-positive variable", {
   y <- 1 + 2 * x + rnorm(n)
   df <- data.frame(x = x, y = y)
   model <- lm(y ~ x, data = df)
-  expect_error(performParkTest(model, df, "x"), "positive values")
+  expect_error(
+    performParkTest(model, df, "x"),
+    "park requires strictly positive data",
+    fixed = TRUE
+  )
 })
 
 test_that("Spearman test detects monotonic heteroscedasticity", {
@@ -187,10 +191,13 @@ test_that("Harvey test detects heteroscedasticity", {
 })
 
 test_that("Harvey test handles zero residuals", {
-  df <- data.frame(x = 1:10, y = 1:10)
+  df <- data.frame(x = 1:20, y = 1:20)
   model <- lm(y ~ x, data = df)
-  res <- performHarveyTest(model)
-  expect_true(is.finite(res$statistic))
+  expect_error(
+    performHarveyTest(model),
+    "Model appears perfectly explained",
+    fixed = FALSE
+  )
 })
 
 test_that("ARCH LM test on iid data returns large p-value", {

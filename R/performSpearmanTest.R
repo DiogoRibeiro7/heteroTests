@@ -1,20 +1,45 @@
 #' Perform Spearman rank correlation test for heteroscedasticity
 #'
-#' This test computes Spearman's rho between the absolute residuals of a
-#' linear model and its fitted values. A significant correlation suggests
-#' monotonic heteroscedasticity.
+#' Assesses monotonic relationships between the magnitude of residuals and the
+#' fitted values by computing Spearman's rank correlation. Significant
+#' correlation indicates that the spread of the residuals increases or decreases
+#' systematically with the mean of the response.
 #'
-#' @param model A fitted model of class `lm`.
+#' @param model A fitted [stats::lm] object providing residuals and fitted values
+#'   for the diagnostic.
 #'
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} containing the t statistic for the
+#'   rank correlation and its associated p-value.
 #'
 #' @details
-#' [rvalidateModelInputs()] ensures the supplied model is compatible and enforces
-#' the test-specific sample size via [rvalidateTestRequirements()].
+#' Spearman's rho is computed between the absolute residuals and fitted values.
+#' Under homoskedasticity the correlation should be zero. The test uses the usual
+#' t approximation for the correlation coefficient. The helper functions
+#' \link[=rvalidateModelInputs]{rvalidateModelInputs()} and \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} ensure minimum
+#' sample sizes and guard against degenerate fitted values or residual magnitudes.
+#'
+#' @references
+#' Spearman, C. (1904). The proof and measurement of association between two
+#' things. *The American Journal of Psychology, 15*(1), 72–101.
+#'
+#' Gujarati, D. N., & Porter, D. C. (2009). *Basic Econometrics* (5th ed.).
+#' McGraw-Hill. Section 11.5 discusses Spearman tests for heteroscedasticity.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performSpearmanTest(m)
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performSpearmanTest(mod)
+#'
+#' # Detect monotonic variance inflation
+#' set.seed(717)
+#' x <- runif(140)
+#' y <- 1 + x + rnorm(140, sd = 0.3 + 0.4 * x)
+#' df <- data.frame(y, x)
+#' performSpearmanTest(lm(y ~ x, data = df))
+#'
+#' @seealso
+#' [performNCVTest()] and [performSpreadLevelTest()] provide related tests based
+#' on monotonic variance patterns.
 performSpearmanTest <- function(model) {
   rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
 

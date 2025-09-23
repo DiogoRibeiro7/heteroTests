@@ -43,7 +43,8 @@ test_that("performBPTest detects insufficient residual variation", {
   model <- lm(y ~ x1 + x2, data = df)
   expect_error(
     performBPTest(model, df),
-    "residual variation greater than numerical precision"
+    "Residual variance is too small to evaluate Breusch-Pagan",
+    fixed = FALSE
   )
 })
 
@@ -56,6 +57,7 @@ test_that("performBPTest aborts for perfect fits", {
   model <- lm(y ~ x + z, data = df)
   expect_error(
     performBPTest(model, df),
-    "Model has perfect fit"
+    "Model appears perfectly explained",
+    fixed = FALSE
   )
 })

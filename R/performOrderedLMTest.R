@@ -1,22 +1,45 @@
-#' Perform Ordered Lagrange Multiplier test
+#' Perform ordered Lagrange Multiplier test
 #'
-#' Sorts observations by the suspected variable and runs a Breusch-Pagan
-#' regression on the ordered data.
+#' Reorders observations by a covariate suspected to drive heteroscedasticity and
+#' applies the Breusch–Pagan auxiliary regression to the ordered sample so that
+#' one-sided variance changes become more pronounced.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
-#' @param order_by Character. Name of the variable to order the data by.
+#' @param model A fitted [stats::lm] object representing the conditional mean
+#'   specification under scrutiny.
+#' @param data A [base::data.frame] containing the variables used in `model` and
+#'   the ordering variable.
+#' @param order_by Character scalar naming the column in `data` that defines the
+#'   ordering of observations prior to running the auxiliary regression.
 #'
-#' @return An object of class \code{htest} with the test statistic and p-value.
+#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic,
+#'   degrees of freedom, and p-value for the null of homoskedasticity.
 #'
 #' @details
-#' Validates the inputs using the shared helpers before resorting the data and
-#' fitting the auxiliary regression. Missing observations in the ordering
-#' variable or model terms are removed with an explanatory warning.
+#' Ordering the data by a suspected driver of heteroscedasticity converts gradual
+#' variance changes into more pronounced shifts at the tail of the sample. The
+#' ordered LM test therefore applies the standard Breusch–Pagan regression to the
+#' sorted data, yielding the statistic \eqn{n R^2} with degrees of freedom equal to
+#' the number of regressors (excluding the intercept). It is particularly useful
+#' when the variance is believed to increase with income, firm size, or another
+#' monotonic covariate. The function validates the presence of the ordering
+#' variable, ensures the model and data meet minimum sample-size requirements, and
+#' checks that the auxiliary regression retains positive degrees of freedom.
+#'
+#' @references
+#' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
+#' University Press. Section 5.4 discusses ordered alternatives.
+#'
 #' @examples
 #' data(mtcars)
-#' m <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performOrderedLMTest(m, mtcars, order_by = "wt")
+#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' performOrderedLMTest(mod, mtcars, order_by = "wt")
+#'
+#' # Compare how the ordering variable influences the rejection decision
+#' performOrderedLMTest(mod, mtcars, order_by = "qsec")
+#'
+#' @seealso
+#' [performGQTest()] for split-sample alternatives and [performSzroeterTest()]
+#' for rank-based ordered diagnostics.
 performOrderedLMTest <- function(model, data, order_by) {
   test_label <- "Ordered LM test"
 

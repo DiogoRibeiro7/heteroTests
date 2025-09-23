@@ -4,20 +4,68 @@
 \alias{performWhiteTestStreaming}
 \title{Memory-efficient White test for large datasets}
 \usage{
-performWhiteTestStreaming(model, data, chunk_size = 10000)
+performWhiteTestStreaming(
+  model,
+  data,
+  chunk_size = 10000,
+  cross_products = TRUE,
+  max_interactions = 10,
+  progress = interactive()
+)
 }
 \arguments{
-\item{model}{A fitted model of class \code{lm}.}
+\item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
+to be diagnosed.}
 
-\item{data}{The data frame used to fit \code{model}.}
+\item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
+variables referenced by \code{model}. It must include the observations used to
+fit \code{model} and will be checked for missing values.}
 
-\item{chunk_size}{Number of observations per chunk.}
+\item{chunk_size}{Positive integer specifying the number of observations per
+chunk. Smaller values reduce memory usage at the expense of additional
+iteration overhead.}
+
+\item{cross_products}{Logical scalar indicating whether to include all
+pairwise cross-products of the regressors in the auxiliary regression.
+Defaults to \code{TRUE} and should remain enabled unless dimensionality makes
+the regression unstable.}
+
+\item{max_interactions}{Single positive integer giving the maximum number of
+original predictors for which cross-products are generated. When the number
+of regressors exceeds this threshold, cross-products are dropped to avoid
+explosive growth in columns. Defaults to \code{10}.}
+
+\item{progress}{Logical flag indicating whether a progress bar should be
+displayed while streaming the data. Defaults to \code{interactive()}.}
 }
 \value{
-An object of class \code{htest} summarizing the combined results.
+A \link[stats:htest]{htest} object containing the chi-squared statistic, p-value,
+and metadata about the chunked computation.
 }
 \description{
-Splits the input data into manageable chunks and runs White's
-test on each subset. The statistics are then averaged to produce
-an overall result.
+Computes White's statistic via chunked cross-products rather than fitting the
+full auxiliary regression in memory. This streaming approach allows the test
+to scale to datasets that would otherwise exhaust available RAM.
+}
+\details{
+The streaming implementation iteratively builds the cross-product matrices
+required for the auxiliary regression without materialising the full design
+matrix. Each chunk contributes to \eqn{X'X}, \eqn{X'y}, and summary statistics
+for the response. The final \eqn{n R^2} statistic is then computed exactly as
+in the standard White test, ensuring numerical equivalence while dramatically
+reducing peak memory usage. When \code{Matrix} is installed, sparse cross-products
+are leveraged automatically for large chunks.
+}
+\examples{
+data(mtcars)
+performWhiteTestStreaming(lm(mpg ~ wt + qsec, data = mtcars), mtcars, chunk_size = 16)
+
+}
+\references{
+White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
+and a direct test for heteroscedasticity. \emph{Econometrica, 48}(4), 817–838.
+}
+\seealso{
+\code{\link[=performWhiteTest]{performWhiteTest()}} for the exact computation and \link[=performWhiteTestRobust]{performWhiteTestRobust()} for
+enhanced reporting.
 }
