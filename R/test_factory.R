@@ -105,6 +105,21 @@ test_factory <- TestFactory$new()
   test_factory$register("student_bp", performStudentizedBPTest)
   test_factory$register("white_bootstrap", performWhiteTestBootstrap)
   test_factory$register("szroeter", performSzroeterTest)
+  test_factory$register("wild_bootstrap", performWildBootstrapTest)
+  test_factory$register("hc_covariance", performHCCovarianceTest)
+  test_factory$register("quantile_regression", performQuantileRegressionTest)
+  test_factory$register("rank_permutation", performRankPermutationTest)
+  test_factory$register("high_dimensional", performHighDimensionalTest)
+  test_factory$register(
+    "spatial_hetero",
+    function(model, data) {
+      listw <- attr(data, "listw")
+      if (is.null(listw)) {
+        stop("Spatial test requires `listw` attribute on data.", call. = FALSE)
+      }
+      performSpatialHeteroTest(model, data, listw = listw)
+    }
+  )
 }
 
 .test_factory_register_defaults()

@@ -45,6 +45,12 @@ rTEST_REQUIREMENTS <- list(
   studentized_bp = list(min_obs = 15L, reason = "Studentized auxiliary regression requires adequate sample"),
   szroeter = list(min_obs = 15L, reason = "Rank-based statistic requires enough ordered observations"),
   bootstrap_tests = list(min_obs = 50L, reason = "Bootstrap needs adequate base sample"),
+  wild_bootstrap = list(min_obs = 30L, reason = "Wild bootstrap multipliers require stable auxiliary regression"),
+  hc_covariance = list(min_obs = 20L, reason = "HC adjustments need residual degrees of freedom"),
+  quantile_regression = list(min_obs = 40L, reason = "Quantile comparisons require sufficient data per quantile"),
+  rank_permutation = list(min_obs = 25L, reason = "Permutation reference distribution needs adequate sample"),
+  high_dimensional = list(min_obs = 25L, reason = "Principal component projection requires ample observations"),
+  spatial_hetero = list(min_obs = 20L, reason = "Spatial statistics need enough observations to form neighbours"),
   arch_lm = function(lags) {
     if (missing(lags)) {
       stop("`lags` must be supplied to evaluate ARCH LM sample size requirements.", call. = FALSE)

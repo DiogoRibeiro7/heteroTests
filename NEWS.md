@@ -3,6 +3,7 @@
 ## 0.6.4
 - Added "Comprehensive Guide to Heteroscedasticity Testing" and "Troubleshooting Common Issues" vignettes.
 - Implemented `performWhiteTestStreaming` for large datasets.
+- Added wild bootstrap, HC covariance, quantile regression, permutation, high-dimensional, and spatial heteroscedasticity diagnostics.
 
 ## 0.6.3
 - Added automated report generation via `generateDiagnosticReport`.

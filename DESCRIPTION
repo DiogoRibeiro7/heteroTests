@@ -34,7 +34,13 @@ Suggests:
     knitr,
     rmarkdown,
     gridExtra,
-    Matrix
+    Matrix,
+    bench,
+    lmtest,
+    car,
+    quantreg,
+    sandwich,
+    spdep
 VignetteBuilder: knitr
 URL: https://github.com/DiogoRibeiro7/heteroTests, https://diogoribeiro7.github.io/heteroTests/
 BugReports: https://github.com/DiogoRibeiro7/heteroTests/issues
