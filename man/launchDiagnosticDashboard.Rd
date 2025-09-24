@@ -15,13 +15,18 @@ launchDiagnosticDashboard(model, data)
 A \code{shiny.appobj} that can be run with \code{shiny::runApp()}.
 }
 \description{
-Launch a Shiny-based dashboard for running heteroscedasticity tests
-and viewing diagnostic plots and remediation suggestions.
+Launch a production-ready Shiny dashboard for running heteroscedasticity
+diagnostics, exploring interactive plots, and experimenting with
+simulation studies.
 }
 \details{
-Requires the optional \pkg{shiny}, \pkg{DT}, and
-\pkg{gridExtra} packages. If any are not installed, the function aborts
-with a helpful message rather than failing obscurely.
+Requires optional \pkg{shiny}, \pkg{DT}, and \pkg{plotly} packages.
+Excel uploads additionally depend on \pkg{readxl} and exporting
+interactive graphics relies on \pkg{htmlwidgets}. The dashboard guides
+users through data preparation, model fitting, diagnostic testing,
+interactive Plotly visualisations, and a real-time simulation lab for
+exploring heteroscedastic data-generating processes. Download buttons are
+provided for both results tables and interactive plots.
 }
 \examples{
 \dontrun{
