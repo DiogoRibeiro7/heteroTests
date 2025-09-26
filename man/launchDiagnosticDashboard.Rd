@@ -20,7 +20,7 @@ diagnostics, exploring interactive plots, and experimenting with
 simulation studies.
 }
 \details{
-Requires optional \pkg{shiny}, \pkg{DT}, and \pkg{plotly} packages.
+Requires optional packages \pkg{shiny}, \pkg{DT}, and \pkg{plotly}.
 Excel uploads additionally depend on \pkg{readxl} and exporting
 interactive graphics relies on \pkg{htmlwidgets}. The dashboard guides
 users through data preparation, model fitting, diagnostic testing,

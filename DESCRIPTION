@@ -23,7 +23,9 @@ Imports:
     MASS,
     stats,
     ggplot2,
-    curl
+    curl,
+    generics,
+    scales
 Suggests:
     quickcheck,
     testthat (>= 3.0.0),
@@ -45,7 +47,15 @@ Suggests:
     car,
     quantreg,
     sandwich,
-    spdep
+    spdep,
+    broom,
+    workflows,
+    parsnip,
+    recipes,
+    survey,
+    data.table,
+    dtplyr,
+    dplyr
 VignetteBuilder: knitr
 URL: https://github.com/DiogoRibeiro7/heteroTests, https://diogoribeiro7.github.io/heteroTests/
 BugReports: https://github.com/DiogoRibeiro7/heteroTests/issues

@@ -3,8 +3,11 @@
 #' This convenience wrapper extends `runHeteroTests()` by including checks for
 #' multicollinearity, nonlinearity and influential observations.
 #'
-#' @param model A fitted model of class `lm` or a formula.
-#' @param data Optional data frame if `model` is a formula.
+#' @param model A fitted `lm`/`glm`, a formula, tidymodels workflow or parsnip
+#'   model fit compatible with [runHeteroTests()].
+#' @param data Optional data associated with `model`. Required when the model is
+#'   specified via a formula and used when additional preprocessing (e.g.
+#'   grouped data or data.table objects) is desired.
 #' @param tests Character vector of heteroscedasticity tests passed to
 #'   `runHeteroTests`.
 #' @param power Powers for `performRESETTest`.
@@ -28,18 +31,9 @@ runDiagnostics <- function(model, data = NULL,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,
                            progress = interactive()) {
-  if (inherits(model, "formula")) {
-    if (is.null(data)) stop("`data` must be supplied when `model` is a formula")
-    checkData(data)
-    model <- lm(model, data = data)
-  } else {
-    checkModel(model)
-    if (is.null(data)) {
-      data <- model.frame(model)
-    } else {
-      checkData(data)
-    }
-  }
+  prepared <- .ht_prepare_model(model, data = data, context = "runDiagnostics", allow_grouped = FALSE)
+  model <- prepared$model
+  data <- prepared$data %||% tryCatch(model.frame(model), error = function(e) NULL)
   hetero <- runHeteroTests(
     model,
     data,

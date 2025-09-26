@@ -592,12 +592,14 @@ cachedTest <- function(test_name, model, data, ..., use_cache = TRUE) {
 .run_registered_diagnostic <- function(test_name, model, data, ...) {
   if (exists(test_name, envir = .diagnostic_registry, inherits = FALSE)) {
     fun <- get(test_name, envir = .diagnostic_registry, inherits = FALSE)
-    return(fun(model, data, ...))
+    result <- fun(model, data, ...)
+    return(.ht_decorate_result(result, test_name, model, data))
   }
 
   available <- tryCatch(.test_factory$get_available(), error = function(e) character())
   if (test_name %in% available) {
-    return(.test_factory$run_test(test_name, model, data, ...))
+    result <- .test_factory$run_test(test_name, model, data, ...)
+    return(.ht_decorate_result(result, test_name, model, data))
   }
 
   stop("Unknown test: ", test_name)
