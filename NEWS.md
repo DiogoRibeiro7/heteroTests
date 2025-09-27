@@ -6,6 +6,8 @@
 - Added wild bootstrap, HC covariance, quantile regression, permutation, high-dimensional, and spatial heteroscedasticity diagnostics.
 - Integrated broom tidiers, ggplot2 theming/autoplot support, tidymodels workflows, survey designs, grouped data pipelines, and
   data.table/dtplyr compatibility for diagnostic workflows.
+- Introduced an intelligent recommendation engine that profiles datasets, interprets diagnostics with confidence levels, and
+  delivers remediation guidance plus decision-tree style reports for non-statisticians.
 
 ## 0.6.3
 - Added automated report generation via `generateDiagnosticReport`.
