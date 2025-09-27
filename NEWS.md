@@ -3,6 +3,13 @@
 ## 0.6.4
 - Added "Comprehensive Guide to Heteroscedasticity Testing" and "Troubleshooting Common Issues" vignettes.
 - Implemented `performWhiteTestStreaming` for large datasets.
+- Added wild bootstrap, HC covariance, quantile regression, permutation, high-dimensional, and spatial heteroscedasticity diagnostics.
+- Integrated broom tidiers, ggplot2 theming/autoplot support, tidymodels workflows, survey designs, grouped data pipelines, and
+  data.table/dtplyr compatibility for diagnostic workflows.
+- Introduced an intelligent recommendation engine that profiles datasets, interprets diagnostics with confidence levels, and
+  delivers remediation guidance plus decision-tree style reports for non-statisticians.
+- Implemented robust error handling with adaptive fallbacks, actionable cleaning suggestions, and configurable logging for
+  complex diagnostic workflows.
 
 ## 0.6.3
 - Added automated report generation via `generateDiagnosticReport`.

@@ -4,7 +4,7 @@
 \alias{safe_lm}
 \title{Safely fit a linear model}
 \usage{
-safe_lm(formula, data, ...)
+safe_lm(formula, data, ..., .recover = TRUE)
 }
 \arguments{
 \item{formula}{Model formula.}
@@ -12,13 +12,18 @@ safe_lm(formula, data, ...)
 \item{data}{Data frame to evaluate the formula in.}
 
 \item{...}{Additional arguments passed to \code{\link[stats:lm]{stats::lm()}}.}
+
+\item{.recover}{Logical flag controlling whether the helper should attempt
+automatic recovery strategies (e.g., removing problematic rows) before
+rethrowing the error.}
 }
 \value{
 A fitted model object.
 }
 \description{
 Wraps \code{\link[stats:lm]{stats::lm()}} in a \code{tryCatch} block that logs the error via
-\code{\link[=ht_log]{ht_log()}} before rethrowing. This helper is used internally by
+\code{\link[=ht_log]{ht_log()}} and optionally attempts recovery (e.g., dropping
+rows with missing values) before rethrowing. This helper is used internally by
 diagnostic tests so failures are easier to debug.
 }
 \keyword{internal}

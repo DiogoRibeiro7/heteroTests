@@ -5,9 +5,11 @@
 #' executes White's test and the Breusch-Pagan test, but additional tests or
 #' custom diagnostics registered via `registerDiagnostic()` can be requested.
 #'
-#' @param model A fitted model of class `lm`.
-#' @param data Optional data frame used to fit `model`. If not supplied,
-#'   `model.frame(model)` is used.
+#' @param model A fitted model of class `lm`/`glm`, a model formula, a
+#'   tidymodels [workflows::workflow] or a [parsnip::model_fit] object.
+#' @param data Optional data source used to fit `model`. Accepts base data
+#'   frames, tibbles, `data.table`s, `dtplyr_step`s and grouped data produced by
+#'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.
 #' @param use_cache Logical, reuse cached diagnostic results when available.
 #'   Requires the **digest** package for hashing inputs and defaults to `TRUE`.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
@@ -17,7 +19,9 @@
 #' @param progress Logical flag controlling whether textual progress bars are
 #'   displayed while running multiple diagnostics.
 #'
-#' @return A named list of `htest` objects.
+#' @return A [`hetero_test_suite`] list of diagnostic results. When grouped data
+#'   are supplied the return value is a [`hetero_grouped_suite`] containing a
+#'   per-group `hetero_test_suite`.
 #'
 #' @seealso \code{\link{runDiagnostics}} for a broader suite that includes
 #'   collinearity and influence measures, \code{\link{runPanelTests}} for panel
@@ -38,17 +42,59 @@ runHeteroTests <- function(model, data = NULL,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,
                            progress = interactive()) {
-  checkModel(model)
-  if (is.null(data)) {
-    data <- model.frame(model)
-  } else {
-    checkData(data)
-  }
+  prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests")
 
-  data_size <- tryCatch(
-    check_memory_usage(data, threshold_mb = chunk_threshold_mb / 2),
-    error = function(e) NA_real_
-  )
+  if (prepared$grouped && length(prepared$group_splits) > 0) {
+    if (is.null(prepared$fit_factory)) {
+      stop(
+        "Grouped diagnostics require a formula-based model specification so each group can be refitted.",
+        call. = FALSE
+      )
+    }
+    group_results <- vector("list", length(prepared$group_splits))
+    for (i in seq_along(prepared$group_splits)) {
+      group_data <- prepared$group_splits[[i]]
+      group_model <- prepared$fit_factory(group_data)
+      group_results[[i]] <- .run_hetero_core(
+        group_model,
+        group_data,
+        tests = tests,
+        use_cache = FALSE,
+        chunk_threshold_mb = chunk_threshold_mb,
+        chunk_size = chunk_size,
+        progress = progress,
+        recover_failures = TRUE
+      )
+    }
+    structure(
+      group_results,
+      class = c("hetero_grouped_suite", "list"),
+      group_keys = prepared$group_keys,
+      tests = tests
+    )
+  } else {
+    .run_hetero_core(
+      prepared$model,
+      prepared$data,
+      tests = tests,
+      use_cache = use_cache,
+      chunk_threshold_mb = chunk_threshold_mb,
+      chunk_size = chunk_size,
+      progress = progress,
+      recover_failures = FALSE
+    )
+  }
+}
+
+.run_hetero_core <- function(model, data, tests, use_cache, chunk_threshold_mb, chunk_size, progress, recover_failures = FALSE) {
+  data_size <- if (is.null(data)) {
+    NA_real_
+  } else {
+    tryCatch(
+      check_memory_usage(data, threshold_mb = chunk_threshold_mb / 2),
+      error = function(e) NA_real_
+    )
+  }
   use_streaming <- !is.na(data_size) && data_size > chunk_threshold_mb
 
   available <- as.list(.diagnostic_registry)
@@ -110,18 +156,79 @@ runHeteroTests <- function(model, data = NULL,
       runner <- streaming_map[[test_name]]
     }
 
-    if (identical(runner, available[[test_name]]) && isTRUE(use_cache)) {
-      res[[i]] <- cachedTest(test_name, model, data)
+    failure_context <- NULL
+    result <- tryCatch(
+      {
+        if (identical(runner, available[[test_name]]) && isTRUE(use_cache)) {
+          cachedTest(test_name, model, data)
+        } else {
+          runner(model, data)
+        }
+      },
+      error = function(e) {
+        failure_context <<- ht_analyse_failure(test_name, e, model, data)
+        ht_log("WARN", sprintf("%s failed: %s", test_name, failure_context$raw_message))
+        fallback <- ht_attempt_fallback(
+          test_name,
+          model,
+          data,
+          available = available,
+          context = failure_context,
+          streaming_map = streaming_map,
+          use_streaming = use_streaming,
+          chunk_size = chunk_size,
+          progress = progress
+        )
+        if (!is.null(fallback)) {
+          return(fallback)
+        }
+
+        failure <- .ht_failure_result(
+          test_name,
+          model,
+          data,
+          failure_context$user_message,
+          suggestions = failure_context$suggestions,
+          issue = failure_context$issue
+        )
+        if (isTRUE(recover_failures)) {
+          return(failure)
+        }
+        stop(failure_context$user_message, call. = FALSE)
+      }
+    )
+
+    if (inherits(result, "hetero_test")) {
+      res[[i]] <- result
     } else {
-      res[[i]] <- runner(model, data)
+      extras <- list(streaming = use_streaming && test_name %in% names(streaming_map))
+      if (!is.null(failure_context)) {
+        extras$suggestions <- failure_context$suggestions
+        extras$issue <- failure_context$issue
+      }
+      res[[i]] <- .ht_decorate_result(
+        result,
+        diagnostic_name = test_name,
+        model = model,
+        data = data,
+        extras = extras
+      )
     }
 
     progress_bar$update(i)
   }
 
+  output <- structure(
+    res,
+    class = c("hetero_test_suite", "list"),
+    tests = tests,
+    model = model,
+    data_source = if (is.null(data)) NA_character_ else class(data)[1]
+  )
+
   if (!is.null(cache_key)) {
     .analysis_cache_set(cache_key, list(
-      results = res,
+      results = output,
       timestamp = Sys.time(),
       parameters = list(
         streaming = use_streaming,
@@ -131,5 +238,5 @@ runHeteroTests <- function(model, data = NULL,
     ))
   }
 
-  res
+  output
 }

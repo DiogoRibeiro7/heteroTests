@@ -20,7 +20,8 @@ plotResidualsFitted <- function(model) {
     ggplot2::labs(
       x = "Fitted values", y = "Residuals",
       title = "Residuals vs Fitted"
-    )
+    ) +
+    theme_hetero()
 }
 
 #' Spread-Level plot for variance diagnostics
@@ -47,7 +48,8 @@ plotSpreadLevel <- function(model) {
     ggplot2::labs(
       x = "Fitted values", y = "sqrt(|Residual|)",
       title = "Spread-Level Plot"
-    )
+    ) +
+    theme_hetero()
 }
 
 #' Generate a suite of diagnostic plots
@@ -109,7 +111,9 @@ plotBeforeAfter <- function(original, remedied) {
       x = "Fitted values", y = "Residuals",
       title = "Before/After Residual Comparison",
       colour = "Model"
-    )
+    ) +
+    scale_colour_hetero_diagnostic() +
+    theme_hetero()
 }
 
 #' Density plot of residuals
@@ -131,7 +135,8 @@ plotResidualDensity <- function(model) {
     ggplot2::labs(
       x = "Residuals", y = "Density",
       title = "Residual Density"
-    )
+    ) +
+    theme_hetero()
 }
 
 #' QQ plot of residuals
@@ -154,7 +159,8 @@ plotResidualQQ <- function(model) {
     ggplot2::labs(
       x = "Theoretical Quantiles", y = "Sample Quantiles",
       title = "Residual QQ Plot"
-    )
+    ) +
+    theme_hetero()
 }
 
 #' Bubble plot of residual variance by covariate
@@ -190,7 +196,8 @@ plotBubbleVariance <- function(model, variable = NULL) {
     ggplot2::labs(
       x = variable, y = "Residuals", size = "|residual|",
       title = "Bubble Plot of Residual Variance"
-    )
+    ) +
+    theme_hetero()
 }
 
 #' Enhanced residuals vs fitted plot
@@ -223,7 +230,7 @@ plotResidualsFittedEnhanced <- function(model) {
       color = "Influential",
       size = "|Residual|"
     ) +
-    ggplot2::theme_minimal()
+    theme_hetero()
 }
 
 #' Enhanced diagnostic plot suite

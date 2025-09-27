@@ -58,6 +58,24 @@ registerDiagnostic(
     performSzroeterTest(model, data, order_by = names(data)[2])
   }
 )
+registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapTest(model, data))
+registerDiagnostic("hc_covariance", function(model, data) performHCCovarianceTest(model, data))
+registerDiagnostic("quantile_regression", function(model, data) performQuantileRegressionTest(model, data))
+registerDiagnostic("rank_permutation", function(model, data) performRankPermutationTest(model, data))
+registerDiagnostic("high_dimensional", function(model, data) performHighDimensionalTest(model, data))
+registerDiagnostic(
+  "spatial_hetero",
+  function(model, data) {
+    listw <- attr(data, "listw")
+    if (is.null(listw)) {
+      stop(
+        "Spatial heteroscedasticity diagnostic requires `listw` to be provided via `attr(data, 'listw')`.",
+        call. = FALSE
+      )
+    }
+    performSpatialHeteroTest(model, data, listw = listw)
+  }
+)
 
 # preset built-in plots
 registerPlot("residuals_fitted", function(model) plotResidualsFitted(model))

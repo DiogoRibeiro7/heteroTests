@@ -5,7 +5,7 @@
 \alias{.diagnostic_registry}
 \title{Diagnostics registry}
 \format{
-An object of class \code{environment} of length 10.
+An object of class \code{environment} of length 16.
 }
 \usage{
 .diagnostic_registry
