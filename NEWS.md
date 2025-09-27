@@ -8,6 +8,8 @@
   data.table/dtplyr compatibility for diagnostic workflows.
 - Introduced an intelligent recommendation engine that profiles datasets, interprets diagnostics with confidence levels, and
   delivers remediation guidance plus decision-tree style reports for non-statisticians.
+- Implemented robust error handling with adaptive fallbacks, actionable cleaning suggestions, and configurable logging for
+  complex diagnostic workflows.
 
 ## 0.6.3
 - Added automated report generation via `generateDiagnosticReport`.

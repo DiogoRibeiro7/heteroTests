@@ -156,6 +156,7 @@ runHeteroTests <- function(model, data = NULL,
       runner <- streaming_map[[test_name]]
     }
 
+    failure_context <- NULL
     result <- tryCatch(
       {
         if (identical(runner, available[[test_name]]) && isTRUE(use_cache)) {
@@ -165,22 +166,54 @@ runHeteroTests <- function(model, data = NULL,
         }
       },
       error = function(e) {
-        ht_log("WARN", sprintf("%s failed: %s", test_name, conditionMessage(e)))
-        failure <- .ht_failure_result(test_name, model, data, conditionMessage(e))
+        failure_context <<- ht_analyse_failure(test_name, e, model, data)
+        ht_log("WARN", sprintf("%s failed: %s", test_name, failure_context$raw_message))
+        fallback <- ht_attempt_fallback(
+          test_name,
+          model,
+          data,
+          available = available,
+          context = failure_context,
+          streaming_map = streaming_map,
+          use_streaming = use_streaming,
+          chunk_size = chunk_size,
+          progress = progress
+        )
+        if (!is.null(fallback)) {
+          return(fallback)
+        }
+
+        failure <- .ht_failure_result(
+          test_name,
+          model,
+          data,
+          failure_context$user_message,
+          suggestions = failure_context$suggestions,
+          issue = failure_context$issue
+        )
         if (isTRUE(recover_failures)) {
           return(failure)
         }
-        stop(conditionMessage(e), call. = FALSE)
+        stop(failure_context$user_message, call. = FALSE)
       }
     )
 
-    res[[i]] <- .ht_decorate_result(
-      result,
-      diagnostic_name = test_name,
-      model = model,
-      data = data,
-      extras = list(streaming = use_streaming && test_name %in% names(streaming_map))
-    )
+    if (inherits(result, "hetero_test")) {
+      res[[i]] <- result
+    } else {
+      extras <- list(streaming = use_streaming && test_name %in% names(streaming_map))
+      if (!is.null(failure_context)) {
+        extras$suggestions <- failure_context$suggestions
+        extras$issue <- failure_context$issue
+      }
+      res[[i]] <- .ht_decorate_result(
+        result,
+        diagnostic_name = test_name,
+        model = model,
+        data = data,
+        extras = extras
+      )
+    }
 
     progress_bar$update(i)
   }

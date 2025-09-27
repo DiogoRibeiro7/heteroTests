@@ -14,10 +14,31 @@ checkModel <- function(model) {
   invisible(model)
 }
 
+# logging -----------------------------------------------------------------
+
+.ht_log_levels <- c(INFO = 1L, WARN = 2L, ERROR = 3L)
+
+.ht_log_state <- local({
+  env <- new.env(parent = emptyenv())
+  env$level <- "INFO"
+  env$capture <- FALSE
+  env$max_entries <- 1000L
+  env$history <- data.frame(
+    timestamp = as.POSIXct(character()),
+    level = character(),
+    message = character(),
+    stringsAsFactors = FALSE
+  )
+  env$sink <- NULL
+  env
+})
+
 #' Log a formatted message
 #'
 #' This helper wraps [base::message()] but prepends a log level for
-#' clearer diagnostics when running algorithms. Intended for internal use.
+#' clearer diagnostics when running algorithms. Logs are filtered according
+#' to [ht_set_log_level()] and can optionally be captured with
+#' [ht_enable_log_capture()]. Intended for internal use.
 #'
 #' @param level One of "INFO", "WARN" or "ERROR".
 #' @param msg Character string with the message to log.
@@ -25,7 +46,111 @@ checkModel <- function(model) {
 #' @keywords internal
 ht_log <- function(level = c("INFO", "WARN", "ERROR"), msg) {
   level <- match.arg(level)
-  message(sprintf("[%s] %s", level, msg))
+  msg <- as.character(msg)
+  state <- .ht_log_state
+  severity <- .ht_log_levels[[level]]
+  threshold <- state$level
+  threshold_value <- if (identical(threshold, "SILENT")) {
+    Inf
+  } else {
+    .ht_log_levels[[threshold]]
+  }
+
+  timestamp <- Sys.time()
+  if (isTRUE(state$capture)) {
+    state$history <- rbind(
+      state$history,
+      data.frame(
+        timestamp = timestamp,
+        level = level,
+        message = msg,
+        stringsAsFactors = FALSE
+      )
+    )
+    n_rows <- nrow(state$history)
+    if (!is.null(state$max_entries) && state$max_entries > 0L && n_rows > state$max_entries) {
+      drop_n <- n_rows - state$max_entries
+      state$history <- state$history[seq.int(drop_n + 1L, n_rows), , drop = FALSE]
+    }
+  }
+
+  sink_target <- state$sink
+  if (!is.null(sink_target)) {
+    formatted <- sprintf("%s [%s] %s", format(timestamp, tz = "UTC"), level, msg)
+    if (inherits(sink_target, "connection")) {
+      tryCatch(writeLines(formatted, con = sink_target), error = function(e) invisible(NULL))
+    } else if (is.character(sink_target) && length(sink_target) == 1L) {
+      tryCatch(cat(formatted, "\n", file = sink_target, append = TRUE), error = function(e) invisible(NULL))
+    }
+  }
+
+  if (!is.infinite(threshold_value) && severity >= threshold_value) {
+    message(sprintf("[%s] %s", level, msg))
+  }
+
+  invisible(NULL)
+}
+
+#' Set log verbosity for heteroTests
+#'
+#' Controls which log messages emitted via [ht_log()] are printed. Messages are
+#' always captured when log capture is enabled, even if suppressed by the
+#' threshold.
+#'
+#' @param level Character string specifying the minimum level to emit. Accepted
+#'   values are "INFO", "WARN", "ERROR" and "SILENT".
+#' @return The previous log level (invisibly).
+#' @export
+ht_set_log_level <- function(level = c("INFO", "WARN", "ERROR", "SILENT")) {
+  level <- match.arg(level)
+  previous <- .ht_log_state$level
+  .ht_log_state$level <- level
+  invisible(previous)
+}
+
+#' Enable log capture for debugging complex diagnostics
+#'
+#' When enabled, log messages are recorded in memory (and optionally mirrored to
+#' a file or connection) for later inspection via [ht_log_history()].
+#'
+#' @param enabled Logical flag, `TRUE` to enable capture and `FALSE` to disable.
+#' @param max_entries Maximum number of entries to retain in memory. Older
+#'   entries are discarded first. Use `Inf` to keep all entries.
+#' @param sink Optional file path or connection to mirror log output.
+#' @return Invisibly returns `NULL`.
+#' @export
+ht_enable_log_capture <- function(enabled = TRUE, max_entries = 1000L, sink = NULL) {
+  .ht_log_state$capture <- isTRUE(enabled)
+  if (is.finite(max_entries) && max_entries <= 0L) {
+    max_entries <- 1000L
+  }
+  .ht_log_state$max_entries <- max_entries
+  if (!is.null(sink) && !inherits(sink, "connection") && !is.character(sink)) {
+    stop("`sink` must be NULL, a connection or a file path.", call. = FALSE)
+  }
+  .ht_log_state$sink <- sink
+  invisible(NULL)
+}
+
+#' Retrieve captured log messages
+#'
+#' Returns a data frame containing the timestamp, level and message for recent
+#' log entries captured via [ht_enable_log_capture()].
+#'
+#' @return A data frame with columns `timestamp`, `level` and `message`.
+#' @export
+ht_log_history <- function() {
+  .ht_log_state$history
+}
+
+#' Clear captured log history
+#'
+#' Removes all stored log entries accumulated via [ht_enable_log_capture()].
+#'
+#' @return Invisibly returns `NULL`.
+#' @export
+ht_clear_log_history <- function() {
+  .ht_log_state$history <- .ht_log_state$history[0, , drop = FALSE]
   invisible(NULL)
 }
 
@@ -40,12 +165,21 @@ ht_log <- function(level = c("INFO", "WARN", "ERROR"), msg) {
 #' @param ... Additional arguments passed to [stats::lm()].
 #' @return A fitted model object.
 #' @keywords internal
-safe_lm <- function(formula, data, ...) {
+safe_lm <- function(formula, data, ..., .recover = TRUE) {
   tryCatch(
     lm(formula, data = data, ...),
     error = function(e) {
-      ht_log("ERROR", paste("lm failed:", conditionMessage(e)))
-      stop(e)
+      ht_log("WARN", paste("Auxiliary regression failed:", conditionMessage(e)))
+      recovery <- list(suggestions = character())
+      if (.recover) {
+        recovery <- ht_recover_auxiliary_fit(formula, data, ..., error = e)
+        if (!is.null(recovery$fit)) {
+          ht_log("INFO", sprintf("Recovered auxiliary regression via %s", recovery$strategy))
+          attr(recovery$fit, "ht_recovery") <- recovery
+          return(recovery$fit)
+        }
+      }
+      stop(ht_format_failure_message("auxiliary_regression", conditionMessage(e), recovery$suggestions), call. = FALSE)
     }
   )
 }

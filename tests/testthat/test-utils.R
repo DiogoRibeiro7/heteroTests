@@ -65,5 +65,9 @@ test_that("safe_var errors on non-numeric input", {
 test_that("safe_lm logs and rethrows errors", {
   df <- data.frame(x = 1:3, y = 1:3)
   expect_s3_class(heteroTests:::safe_lm(y ~ x, df), "lm")
-  expect_error(heteroTests:::safe_lm(y ~ z, df), "z")
+  expect_error(
+    heteroTests:::safe_lm(y ~ z, df),
+    "Auxiliary regression failed",
+    fixed = FALSE
+  )
 })

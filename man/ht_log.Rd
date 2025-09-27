@@ -16,6 +16,8 @@ ht_log(level = c("INFO", "WARN", "ERROR"), msg)
 }
 \description{
 This helper wraps \code{\link[base:message]{base::message()}} but prepends a log level for
-clearer diagnostics when running algorithms. Intended for internal use.
+clearer diagnostics when running algorithms. Messages are filtered according to
+\code{\link[=ht_set_log_level]{ht_set_log_level()}} and can optionally be captured with
+\code{\link[=ht_enable_log_capture]{ht_enable_log_capture()}}. Intended for internal use.
 }
 \keyword{internal}

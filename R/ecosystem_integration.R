@@ -233,7 +233,8 @@
   result
 }
 
-.ht_failure_result <- function(diagnostic_name, model, data, message) {
+.ht_failure_result <- function(diagnostic_name, model, data, message,
+                              suggestions = character(), issue = NULL) {
   base <- structure(
     list(
       statistic = c(NA_real_),
@@ -252,7 +253,12 @@
     diagnostic_name = diagnostic_name,
     model = model,
     data = data,
-    extras = list(status = "error", message = message)
+    extras = list(
+      status = "error",
+      message = message,
+      suggestions = suggestions,
+      issue = issue
+    )
   )
 }
 
@@ -265,6 +271,7 @@ ht_tidy_single <- function(x) {
   extras <- attr(x, "extras") %||% list()
   status <- extras$status %||% "ok"
   failure_message <- extras$message %||% NA_character_
+  suggestion_text <- extras$suggestions %||% NA_character_
   data.frame(
     diagnostic = attr(x, "diagnostic") %||% names(statistic),
     statistic = unname(statistic),
@@ -276,6 +283,13 @@ ht_tidy_single <- function(x) {
     nobs = attr(x, "nobs") %||% NA_integer_,
     status = status,
     message = failure_message,
+    suggestions = if (length(suggestion_text) == 0L) {
+      NA_character_
+    } else if (length(suggestion_text) > 1L) {
+      paste(unique(suggestion_text), collapse = "\n")
+    } else {
+      suggestion_text
+    },
     stringsAsFactors = FALSE
   )
 }
