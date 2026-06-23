@@ -1,4 +1,3 @@
-context("Simulation helpers")
 library(heteroTests)
 
 # Test simulate_hetero basic behaviour

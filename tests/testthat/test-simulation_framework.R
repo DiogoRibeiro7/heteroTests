@@ -1,4 +1,3 @@
-context("Simulation framework")
 
 library(heteroTests)
 

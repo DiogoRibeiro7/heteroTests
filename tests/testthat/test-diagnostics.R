@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Additional diagnostics")
 
 test_that("VIF diagnostic returns numeric vector", {
   data(mtcars)
@@ -38,7 +37,6 @@ test_that("runDiagnostics returns list", {
   expect_true("influence" %in% names(res))
 })
 
-context("Custom diagnostic registry")
 
 test_that("registerDiagnostic adds new test", {
   data(mtcars)

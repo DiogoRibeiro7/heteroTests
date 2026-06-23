@@ -1,6 +1,5 @@
 library(testthat)
 
-context("Statistical properties via quickcheck")
 
 skip_if_not_installed("quickcheck")
 library(quickcheck)

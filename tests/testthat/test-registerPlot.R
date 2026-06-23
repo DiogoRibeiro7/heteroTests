@@ -1,4 +1,3 @@
-context("registerPlot")
 
 library(testthat)
 library(heteroTests)

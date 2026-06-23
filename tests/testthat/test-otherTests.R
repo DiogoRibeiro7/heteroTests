@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Additional heteroscedasticity tests")
 
 test_that("Breusch-Pagan test works on homoscedastic data", {
   set.seed(1)

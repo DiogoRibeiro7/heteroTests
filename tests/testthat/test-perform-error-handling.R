@@ -1,6 +1,5 @@
 library(testthat)
 
-context("perform*Test error handling")
 
 test_that("core perform*Test functions reject invalid model inputs", {
   set.seed(2024)

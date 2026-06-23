@@ -3,7 +3,6 @@ library(heteroTests)
 
 skip_if_not_installed("mgcv")
 
-context("Advanced methods")
 
 test_that("analyzeMLResiduals works", {
   data(mtcars)

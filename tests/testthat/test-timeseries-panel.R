@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Time-series and panel diagnostics")
 
 test_that("runTimeSeriesTests works", {
   data(mtcars)

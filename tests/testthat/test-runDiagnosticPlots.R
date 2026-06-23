@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("runDiagnosticPlots")
 
 test_that("runDiagnosticPlots returns named list", {
   data(mtcars)

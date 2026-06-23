@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Diagnostic plotting")
 
 test_that("plotResidualsFitted returns ggplot", {
   model <- lm(y ~ x1 + x2, data = data_heterosced)

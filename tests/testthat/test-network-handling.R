@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Network handling")
 
 test_that("downloadTeachingData handles network failures gracefully", {
   skip_if_not_installed("curl")

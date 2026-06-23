@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Wrapper function")
 
 test_that("runHeteroTests returns list with default tests", {
   data(mtcars)

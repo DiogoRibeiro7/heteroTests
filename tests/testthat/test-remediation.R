@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("suggestRemediation")
 
 m <- lm(y ~ x1 + x2, data = data_heterosced)
 results <- runHeteroTests(m, data_heterosced, tests = c("white", "breusch_pagan"))

@@ -5,7 +5,6 @@ if (!requireNamespace("quickcheck", quietly = TRUE)) {
   library(quickcheck)
 }
 
-context("Property-based checks")
 
 # Example property: Weighted least squares should reduce residual variance
 

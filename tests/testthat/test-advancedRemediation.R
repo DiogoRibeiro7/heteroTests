@@ -1,4 +1,3 @@
-context("Advanced remediation")
 
 library(heteroTests)
 

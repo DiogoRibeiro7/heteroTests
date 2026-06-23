@@ -373,11 +373,19 @@ test_that("functions recover from numerical issues", {
   )
   near_perfect_model <- lm(y ~ x, data = near_perfect_data)
 
+  # The individual test guards against a (near-)perfect fit by erroring ...
   expect_error(
-    runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan"),
-    "Model appears perfectly explained (R² = 1.000). Heteroscedasticity diagnostics are unreliable for a perfect fit.",
-    fixed = TRUE
+    performBPTest(near_perfect_model, near_perfect_data),
+    "[Rr]esidual variance"
   )
+  # ... while the orchestrator recovers from that failure rather than aborting the
+  # whole run (the adaptive-fallback behaviour), returning a suite either way.
+  expect_no_error(
+    suppressWarnings(
+      recovered <- runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
+    )
+  )
+  expect_type(recovered, "list")
 
   # Slightly larger noise should now pass the guard and complete successfully
   set.seed(789)

@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Invalid inputs")
 
 test_that("runDiagnostics requires data with formula", {
   expect_error(runDiagnostics(mpg ~ wt, data = NULL), "`data` must be supplied")

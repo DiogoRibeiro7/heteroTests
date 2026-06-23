@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Teaching data download")
 
 test_that("downloadTeachingData retrieves tips dataset", {
   skip_if_not_installed("curl")

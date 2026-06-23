@@ -1,5 +1,4 @@
 library(testthat)
-context("Input validation")
 
 test_that("checkModel errors on invalid input", {
   expect_error(

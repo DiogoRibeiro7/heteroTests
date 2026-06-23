@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("compareTestResults")
 
 test_that("compareTestResults summarises diagnostics", {
   model <- lm(y ~ x1 + x2, data = data_heterosced)

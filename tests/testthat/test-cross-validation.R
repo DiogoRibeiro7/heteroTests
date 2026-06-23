@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Cross-validation with other software")
 
 test_that("Levene test matches car package", {
   skip_if_not_installed("car")

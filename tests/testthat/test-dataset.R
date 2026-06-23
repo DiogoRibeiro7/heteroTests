@@ -1,5 +1,4 @@
 library(testthat)
-context("Package dataset")
 
 test_that("hetero_data is available and has correct structure", {
   data(hetero_data, package = "heteroTests")

@@ -85,8 +85,10 @@ test_that("rvalidateDataInputs warns about duplicate column names", {
 
 test_that("rhandleMissingValues removes rows with missing data", {
   df <- data.frame(y = c(1, 2, NA), x = c(3, NA, 5))
-  result <- expect_warning(
-    heteroTests:::rhandleMissingValues(df, c("y", "x")),
+  # Assign inside expect_warning() so `result` is the return value: under
+  # testthat edition 3 `expect_warning()` itself returns the condition object.
+  expect_warning(
+    result <- heteroTests:::rhandleMissingValues(df, c("y", "x")),
     "Removed 2 observations due to missing values in y, x"
   )
   expect_equal(nrow(result$data), 1)

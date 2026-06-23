@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Additional tests")
 
 test_that("Studentized BP detects heteroscedasticity", {
   set.seed(123)

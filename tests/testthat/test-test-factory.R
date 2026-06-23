@@ -1,4 +1,3 @@
-context("TestFactory")
 
 library(heteroTests)
 

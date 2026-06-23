@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Additional perform* tests")
 
 ## Curry-Walsh Test
 
