@@ -149,6 +149,8 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
     r_squared = r_squared,
     df = ncol(XtX) - 1L,
     n = total_n,
+    response_mean = mean_y,
+    response_tss = sst,
     chunks = length(chunks)
   )
 }
@@ -217,7 +219,9 @@ bp_response_builder <- function(residuals_chunk, data_chunk, model_matrix_chunk)
 }
 
 koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_chunk) {
-  abs(residuals_chunk)
+  # Koenker's studentized BP regresses the squared residuals on the regressors
+  # (n R^2); it is the squared-residual auxiliary regression, not the absolute one.
+  residuals_chunk^2
 }
 
 #' Memory-efficient White test for large datasets
@@ -327,7 +331,7 @@ performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
 
 #' Streaming Breusch–Pagan test for large datasets
 #'
-#' Computes the Breusch–Pagan \eqn{n R^2} statistic using chunked cross-products
+#' Computes the classical Breusch–Pagan statistic using chunked cross-products
 #' to avoid materialising the full auxiliary regression when working with large
 #' data frames. The streamed result is algebraically equivalent to the standard
 #' implementation while substantially reducing peak memory usage.
@@ -396,9 +400,15 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
     )
   }
 
-  test_statistic <- stats$n * stats$r_squared
+  # Classical BP = 0.5 * ESS_f, with f = e^2/sigma^2 - 1. Scaling the auxiliary
+  # response by a constant 1/sigma^2 scales the explained sum of squares by
+  # 1/sigma^4, so 0.5 * ESS_f = 0.5 * (R^2 * TSS_{e^2}) / sigma^4. This is
+  # algebraically identical to the exact performBPTest() computation.
+  sigma2 <- stats$response_mean
+  ess <- stats$r_squared * stats$response_tss
+  test_statistic <- 0.5 * ess / sigma2^2
   df <- stats$df
-  p_value <- 1 - stats::pchisq(test_statistic, df)
+  p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   structure(
     list(
@@ -417,8 +427,9 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
 
 #' Streaming Koenker studentized Breusch–Pagan test
 #'
-#' Evaluates Koenker's absolute-residual variant of the Breusch–Pagan test using
-#' streamed cross-products so that large datasets can be processed without
+#' Evaluates Koenker's studentized variant of the Breusch–Pagan test (the
+#' \eqn{n R^2} statistic from regressing the squared residuals on the regressors)
+#' using streamed cross-products so that large datasets can be processed without
 #' allocating the full auxiliary regression matrix.
 #'
 #' @inheritParams performKoenkerTest
@@ -472,7 +483,7 @@ performKoenkerTestStreaming <- function(model, data, chunk_size = 10000,
   if (isTRUE(stats$zero_variation)) {
     std_error(
       "rassumption_violation",
-      assumption = "Koenker test requires variation in absolute residuals"
+      assumption = "Koenker test requires variation in squared residuals"
     )
   }
 

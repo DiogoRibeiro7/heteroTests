@@ -97,7 +97,7 @@ performMcLeodLiTest <- function(model, lags = 10) {
   structure(
     list(
       statistic = c("X-squared" = unname(lb$statistic)),
-      parameter = unname(lb$parameter),
+      parameter = c(df = unname(lb$parameter)),
       p.value = lb$p.value,
       method = "McLeod-Li test for heteroscedasticity",
       data.name = deparse(stats::formula(model))

@@ -335,7 +335,13 @@ interpretHeteroTestResults <- function(test_results, alpha = 0.05) {
 }
 
 `%||%` <- function(x, y) {
-  if (is.null(x) || length(x) == 0 || is.na(x[1])) y else x
+  if (is.null(x) || length(x) == 0L) {
+    return(y)
+  }
+  if (is.atomic(x) && length(x) == 1L && is.na(x)) {
+    return(y)
+  }
+  x
 }
 
 #' Detect heteroscedasticity patterns from fitted model

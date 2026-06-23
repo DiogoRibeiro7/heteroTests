@@ -15,13 +15,15 @@
 #'   freedom, and p-value for the null hypothesis of constant error variance.
 #'
 #' @details
-#' The routine follows the original Breusch–Pagan derivation in which the
-#' auxiliary regression uses the raw squared residuals. Specifically, if
-#' \eqn{\hat{e}} denotes the residual vector and \eqn{Z} the design matrix without
-#' the intercept, the test computes \eqn{n R^2} from the regression of
-#' \eqn{\hat{e}^2} on \eqn{Z}. Under the null of homoskedasticity and normal
-#' disturbances, this statistic converges to a chi-squared distribution with
-#' degrees of freedom equal to the number of regressors in \eqn{Z}. The
+#' The routine follows the original Breusch–Pagan (1979) derivation. If
+#' \eqn{\hat{e}} denotes the residual vector, \eqn{\hat{\sigma}^2 = \sum
+#' \hat{e}_i^2 / n} the maximum-likelihood variance estimate, and \eqn{Z} the
+#' design matrix without the intercept, the test regresses the scaled squared
+#' residuals \eqn{\hat{e}_i^2 / \hat{\sigma}^2 - 1} on \eqn{Z} and forms half the
+#' explained sum of squares. Under the null of homoskedasticity *and normal
+#' disturbances*, this statistic converges to a chi-squared distribution with
+#' degrees of freedom equal to the number of regressors in \eqn{Z}. This matches
+#' `lmtest::bptest(..., studentize = FALSE)`. The
 #' implementation integrates the validation helpers to:
 #' \enumerate{
 #'   \item ensure the fitted model has at least 15 observations and finite
@@ -35,9 +37,9 @@
 #' }
 #'
 #' A significant statistic indicates that the error variance varies with the
-#' regressors. For robustness to non-normality consider the studentized variant
-#' [performStudentizedBPTest()] or Koenker's absolute-residual version provided
-#' by [performKoenkerTest()].
+#' regressors. Because the classical statistic assumes normal disturbances,
+#' consider the studentized \eqn{n R^2} variant [performStudentizedBPTest()] or
+#' the equivalent [performKoenkerTest()] when normality is in doubt.
 #'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
@@ -67,8 +69,8 @@
 #' performBPTest(lm(y ~ x, data = df_het), df_het)
 #'
 #' @seealso
-#' [performStudentizedBPTest()] for the Koenker studentized LM statistic,
-#' [performKoenkerTest()] for the absolute-residual formulation, and
+#' [performStudentizedBPTest()] and [performKoenkerTest()] for the studentized
+#' \eqn{n R^2} LM statistic that drops the normality assumption, and
 #' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
 performBPTest <- function(model, data) {
   test_label <- "Breusch-Pagan test"
@@ -199,17 +201,24 @@ performBPTest <- function(model, data) {
     )
   }
 
-  e_squared <- residuals^2
-  aux_model <- safe_lm(e_squared ~ ., data = aux_data)
-  r2 <- summary(aux_model)$r.squared
-  test_statistic <- n * r2
+  # Classical Breusch-Pagan (1979): regress the scaled squared residuals
+  # g_i = e_i^2 / sigma^2 - 1 (with sigma^2 the ML variance estimate) on the
+  # regressors and take half the explained sum of squares. The statistic is
+  # chi-squared(df) under homoskedasticity *and* normal disturbances. For the
+  # studentized form that drops the normality assumption use performKoenkerTest()
+  # or performStudentizedBPTest().
+  sigma2 <- sum(residuals^2) / n
+  scaled_sq <- residuals^2 / sigma2 - 1
+  aux_model <- safe_lm(scaled_sq ~ ., data = aux_data)
+  fitted_aux <- stats::fitted(aux_model)
+  test_statistic <- 0.5 * sum(fitted_aux^2)
   df <- ncol(aux_data)
-  p_value <- 1 - stats::pchisq(test_statistic, df)
+  p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   structure(
     list(
       statistic = c("X-squared" = test_statistic),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Breusch-Pagan test for heteroscedasticity",
       data.name = deparse(stats::formula(model))

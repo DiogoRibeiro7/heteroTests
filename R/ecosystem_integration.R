@@ -9,8 +9,16 @@
 #' @keywords internal
 ".ht_null" <- NULL
 
+# Single canonical definition shared with intelligent_recommendations.R; both
+# copies must stay identical so package collation order cannot change behaviour.
 `%||%` <- function(x, y) {
-  if (!is.null(x)) x else y
+  if (is.null(x) || length(x) == 0L) {
+    return(y)
+  }
+  if (is.atomic(x) && length(x) == 1L && is.na(x)) {
+    return(y)
+  }
+  x
 }
 
 # internal ---------------------------------------------------------------

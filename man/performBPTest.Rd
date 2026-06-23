@@ -1,9 +1,11 @@
 \name{performBPTest}
 \alias{performBPTest}
+\alias{performBreuschPaganTest}
 \title{Perform Breusch-Pagan test for heteroscedasticity}
-\description{Implements the Breusch-Pagan test on a fitted linear model, where squared residuals are regressed on the original regressors.}
-\details{The test statistic is computed as \eqn{n R^2}, with \eqn{R^2} coming from the auxiliary regression of \eqn{e^2} on the explanatory variables. Under the null hypothesis of homoscedasticity it follows a chi-square distribution with degrees of freedom equal to the number of regressors.}
-\usage{performBPTest(model, data)}
+\description{Implements the classical Breusch-Pagan (1979) test on a fitted linear model, in which the scaled squared residuals are regressed on the original regressors.}
+\details{The test statistic is half the explained sum of squares from regressing the scaled squared residuals \eqn{e_i^2/\hat{\sigma}^2 - 1} (with \eqn{\hat{\sigma}^2 = \sum e_i^2 / n}) on the explanatory variables. Under the null hypothesis of homoscedasticity \emph{and normal disturbances} it follows a chi-square distribution with degrees of freedom equal to the number of regressors, matching \code{lmtest::bptest(..., studentize = FALSE)}. For the studentized \eqn{n R^2} form that drops the normality assumption use \code{\link{performKoenkerTest}} or \code{\link{performStudentizedBPTest}}.}
+\usage{performBPTest(model, data)
+performBreuschPaganTest(model, data)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
   \item{data}{data frame used to fit \code{model}.}

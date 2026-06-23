@@ -25,9 +25,10 @@ chi-squared statistic, degrees of freedom, p-value, and metadata describing the
 chunked computation.
 }
 \description{
-Computes the Breusch\–Pagan \eqn{n R^2} statistic using chunked cross-products so
+Computes the classical Breusch\–Pagan statistic using chunked cross-products so
 that large datasets can be evaluated without materialising the full auxiliary
-regression in memory.
+regression in memory. The streamed result is algebraically identical to
+\code{\link{performBPTest}}.
 }
 \details{
 Each chunk contributes to the cross-product matrices \eqn{X'X} and \eqn{X'y} for the

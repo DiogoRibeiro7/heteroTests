@@ -23,13 +23,14 @@ A \link[stats:htest]{htest} object equivalent to \code{\link{performKoenkerTest}
 recording the streaming configuration.
 }
 \description{
-Evaluates Koenker's absolute-residual variant of the Breusch\–Pagan test using
-streamed cross-products so that large datasets can be processed without
+Evaluates Koenker's studentized variant of the Breusch\–Pagan test (the
+\eqn{n R^2} statistic from regressing the squared residuals on the regressors)
+using streamed cross-products so that large datasets can be processed without
 allocating the full auxiliary regression matrix.
 }
 \details{
 Chunks of the data contribute to the cross-product matrices for the regression
-of absolute residuals on the model regressors. Aggregating these matrices yields
+of squared residuals on the model regressors. Aggregating these matrices yields
 the exact Koenker statistic while bounding memory usage. Sparse cross-products
 from \pkg{Matrix} are used automatically when available for large chunks.
 }

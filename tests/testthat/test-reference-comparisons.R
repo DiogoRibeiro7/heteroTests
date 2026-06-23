@@ -1,6 +1,5 @@
 library(testthat)
 
-context("Reference implementation comparisons")
 
 test_that("performBPTest matches lmtest::bptest", {
   skip_if_not_installed("lmtest")
@@ -8,7 +7,18 @@ test_that("performBPTest matches lmtest::bptest", {
   df <- data.frame(y = rnorm(120), x1 = rnorm(120), x2 = rnorm(120))
   model <- lm(y ~ x1 + x2, data = df)
   ours <- performBPTest(model, df)
-  ref <- lmtest::bptest(model)
+  ref <- lmtest::bptest(model, studentize = FALSE)
+  expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 1e-6)
+  expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-6)
+})
+
+test_that("performKoenkerTest matches studentized lmtest::bptest", {
+  skip_if_not_installed("lmtest")
+  set.seed(101)
+  df <- data.frame(y = rnorm(120), x1 = rnorm(120), x2 = rnorm(120))
+  model <- lm(y ~ x1 + x2, data = df)
+  ours <- performKoenkerTest(model, df)
+  ref <- lmtest::bptest(model, studentize = TRUE)
   expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 1e-6)
   expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-6)
 })

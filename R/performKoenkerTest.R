@@ -1,9 +1,10 @@
 #' Perform Koenker studentized Breusch–Pagan test
 #'
 #' Evaluates Koenker's (1981) studentized variant of the Breusch–Pagan Lagrange
-#' Multiplier test. By replacing squared residuals with absolute residuals the
-#' procedure mitigates sensitivity to non-normal error distributions while still
-#' assessing whether the error variance depends on the regressors.
+#' Multiplier test. The auxiliary regression of the squared residuals on the
+#' regressors yields the \eqn{n R^2} statistic, which the studentization makes
+#' robust to non-normal error distributions while still assessing whether the
+#' error variance depends on the regressors.
 #'
 #' @param model A fitted [stats::lm] object supplying residuals and fitted values
 #'   for the diagnostic.
@@ -14,10 +15,12 @@
 #'   degrees of freedom, and p-value for the null hypothesis of homoskedasticity.
 #'
 #' @details
-#' Koenker's extension replaces the squared residuals in the Breusch–Pagan test
-#' with absolute (studentized) residuals. The auxiliary regression therefore
-#' targets changes in the scale of the errors and retains validity under general
-#' forms of non-normality. This implementation integrates the validation helpers
+#' Koenker's extension keeps the squared residuals of the Breusch–Pagan test but
+#' replaces the normality-based scaling factor \eqn{2\hat{\sigma}^4} with the
+#' empirical variance of the squared residuals. The resulting \eqn{n R^2}
+#' statistic therefore retains validity under general forms of non-normality
+#' (it is identical to [performStudentizedBPTest()]). This implementation
+#' integrates the validation helpers
 #' to ensure: (i) sufficient sample size and finite residuals via
 #' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) complete data through \link[=rvalidateDataInputs]{rvalidateDataInputs()}
 #' and \link[=rhandleMissingValues]{rhandleMissingValues()}, (iii) satisfaction of Koenker-specific
@@ -132,25 +135,25 @@ performKoenkerTest <- function(model, data) {
     )
   }
 
-  abs_res <- abs(residuals)
-  if (all(abs_res == abs_res[1])) {
+  e_squared <- residuals^2
+  if (all(e_squared == e_squared[1])) {
     std_error(
       "rassumption_violation",
-      assumption = "Koenker test requires variation in absolute residuals"
+      assumption = "Koenker test requires variation in squared residuals"
     )
   }
 
   aux_data <- as.data.frame(predictors)
-  aux_model <- safe_lm(abs_res ~ ., data = aux_data)
+  aux_model <- safe_lm(e_squared ~ ., data = aux_data)
   r2 <- summary(aux_model)$r.squared
   test_statistic <- n * r2
   df <- ncol(aux_data)
-  p_value <- 1 - stats::pchisq(test_statistic, df)
+  p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   structure(
     list(
       statistic = c("X-squared" = test_statistic),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Koenker studentized Breusch-Pagan test",
       data.name = deparse(stats::formula(model))

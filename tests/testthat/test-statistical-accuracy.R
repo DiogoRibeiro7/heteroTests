@@ -1,7 +1,6 @@
 library(testthat)
 library(heteroTests)
 
-context("Statistical accuracy validation")
 
 test_that("White test matches published results", {
   data(mtcars)
@@ -22,7 +21,7 @@ test_that("Breusch-Pagan test matches R's bptest", {
   model <- lm(mpg ~ wt + hp, data = mtcars)
 
   our_result <- performBreuschPaganTest(model, mtcars)
-  reference_result <- lmtest::bptest(model)
+  reference_result <- lmtest::bptest(model, studentize = FALSE)
 
   expect_equal(as.numeric(our_result$statistic),
     as.numeric(reference_result$statistic),

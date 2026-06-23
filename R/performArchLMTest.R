@@ -129,7 +129,7 @@ performArchLMTest <- function(model, lags = 1) {
   structure(
     list(
       statistic = c("X-squared" = test_statistic),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Engle's ARCH LM test",
       data.name = deparse(stats::formula(model))
