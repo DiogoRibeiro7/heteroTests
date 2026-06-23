@@ -48,7 +48,7 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 
 \subsection{Package Overview}\label{sec:overview}
 
-\pkg{heteroTests} implements over twenty‐five heteroscedasticity diagnostics across six major categories:
+\pkg{heteroTests} implements over thirty heteroscedasticity diagnostics across seven major categories:
 
 \begin{description}
 \item[Auxiliary regression tests] Model squared residuals on covariates (White, Breusch‐Pagan, Koenker, Harvey, Park, Glejser)
@@ -56,10 +56,11 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \item[Rank‐based methods] Use nonparametric rank statistics (Spearman, Cameron‐Trivedi)
 \item[Non‐constant variance diagnostics] Simple regression‐based variance trend detection (Cook‐Weisberg NCV, Moses spread‐level)
 \item[ARCH‐type tests] Time‐series conditional heteroscedasticity (Engle ARCH LM, McLeod‐Li)
+\item[Resampling and robust diagnostics] Finite‐sample‐valid procedures (wild bootstrap, HC‐covariance, quantile‐regression, rank‐permutation, high‐dimensional)
 \item[Specialized tests] Domain‐specific diagnostics (spatial, clustered, extreme ratios)
 \end{description}
 
-All functions follow consistent argument conventions and return standardized \texttt{htest} objects enriched with test‐specific metadata, enabling seamless integration into automated workflows and reproducible research pipelines.
+All functions follow consistent argument conventions and return standardized \texttt{htest} objects enriched with test‐specific metadata, enabling seamless integration into automated workflows and reproducible research pipelines. Beyond the tests themselves, the package layers on three workflow conveniences that we revisit in Sections~\ref{sec:design} and~\ref{sec:discussion}: a batch runner with result caching (\texttt{runHeteroTests()}), streaming implementations of the auxiliary‐regression tests for out‐of‐memory data, and an automated recommendation‐and‐remediation engine that interprets the diagnostics and proposes corrective actions such as weighted least squares.
 
 
 %%------------------------------------------------------------------
@@ -288,6 +289,24 @@ Nonparametric test based on ranked absolute deviations. Compute ranks $R_{ij}$ o
 under $H_0$ follows $\chi^2_{g-1}$ \citep{curry1976homogeneity}. The \texttt{performCurryWalshTest()} function provides this completely distribution-free approach with exact p-values for small samples.
 
 %%------------------------------------------------------------------
+%% 2.7 Modern Resampling and Robust Diagnostics (Detailed)
+%%------------------------------------------------------------------
+\subsection{Modern Resampling and Robust Diagnostics}\label{sec:modern}
+The classical statistics above rely on asymptotic $\chi^2$ or $F$ approximations that can be unreliable in small samples or under heavy-tailed errors. \pkg{heteroTests} therefore complements them with a family of resampling-based and heteroscedasticity-robust diagnostics that trade analytic tractability for finite-sample validity.
+
+\paragraph{Wild Bootstrap Test}\label{sec:wild-bootstrap}
+Rather than relying on the asymptotic null distribution of the White or Breusch--Pagan statistic, the wild bootstrap regenerates the response as $y_i^* = \hat y_i + e_i\, v_i$, where the multipliers $v_i$ are drawn from a distribution with $E(v_i)=0$ and $E(v_i^2)=1$ (the Rademacher and Mammen two-point schemes are supported). Recomputing the statistic over $B$ such samples yields an empirical reference distribution and a bootstrap $p$-value $(1+\#\{T_b^*\ge T\})/(B+1)$. The procedure preserves the conditional heteroscedasticity structure of the residuals and provides accurate size control even when $n$ is small \citep{davidson2008wild}. It is implemented in \texttt{performWildBootstrapTest()}.
+
+\paragraph{Heteroscedasticity-Consistent Covariance Test}\label{sec:hc-cov}
+This diagnostic contrasts the ordinary least squares covariance estimate with the heteroscedasticity-consistent (HC) sandwich estimator $\widehat{\mathrm{Var}}_{HC}(\hat\beta)=(X^\top X)^{-1}X^\top\hat\Omega X(X^\top X)^{-1}$, where $\hat\Omega=\mathrm{diag}(\omega_i e_i^2)$. The weights $\omega_i$ select among the HC0--HC4 variants, which differ in their finite-sample leverage corrections \citep{mackinnon1985some,white1980heteroskedasticity}. A large discrepancy between the two covariance estimates signals heteroscedasticity that would invalidate classical OLS inference. The \texttt{performHCCovarianceTest()} function exposes the full HC0--HC4 family through its \texttt{type} argument.
+
+\paragraph{Quantile-Regression Test}\label{sec:quantreg-test}
+Heteroscedasticity manifests as conditional quantiles of $y$ that fan out or contract with the covariates. Fitting regression quantiles \citep{koenker1978regression} at a low and a high $\tau$ (e.g. $0.25$ and $0.75$) and testing the equality of the corresponding slope vectors detects exactly this divergence, without committing to a parametric variance function. The \texttt{performQuantileRegressionTest()} function implements the comparison, delegating the quantile fits to \pkg{quantreg} when available.
+
+\paragraph{Rank-Permutation, High-Dimensional, and Spatial Tests}\label{sec:other-modern}
+Three further diagnostics address settings where the standard asymptotics break down. \texttt{performRankPermutationTest()} replaces the analytic null of a rank-based variance statistic with a permutation distribution, giving exact inference for small samples. \texttt{performHighDimensionalTest()} targets the $p\!\approx\! n$ regime in which the auxiliary regression is ill-conditioned, using a regularized score statistic. \texttt{performSpatialHeteroTest()} extends variance testing to spatially correlated errors, taking a spatial-weights object (\texttt{listw}) and assessing whether residual variance clusters in space. Together these widen the package's applicability to resampling-exact, wide-data, and spatial contexts.
+
+%%------------------------------------------------------------------
 %% 3. Package Design and Implementation
 %%------------------------------------------------------------------
 \section{Package Design and Implementation}\label{sec:design}
@@ -485,257 +504,238 @@ An example vignette (\texttt{vignettes/heteroTests-workflow.Rmd}) demonstrates e
 
 These resources ensure that users can quickly learn and apply \pkg{heteroTests} functionalities in their analyses.
 
+\subsection{Automated Interpretation and Remediation}\label{sec:recommendation}
+Running a battery of tests leaves the analyst with the harder question of what the results \emph{mean} and what to do next. \pkg{heteroTests} addresses this with a recommendation layer that consumes one or more diagnostic results and returns structured, plain-language guidance. \texttt{analyseDatasetCharacteristics()} profiles the data (sample size, dimensionality, presence of grouping factors, signs of non-normality); \texttt{interpretHeteroTestResults()} translates $p$-values into conclusions with explicit confidence levels; and \texttt{generateHeteroRecommendations()} combines the two into a printed report that proposes concrete remediation strategies and ranks them by expected benefit.
+
+The remediation helpers are exposed directly as well. \texttt{fitWLS()} refits the model by weighted least squares with weights inferred from the estimated variance function; \texttt{fitRobust()} returns heteroscedasticity-consistent inference via the sandwich covariance; and \texttt{autoTransform()} searches a Box--Cox family for a variance-stabilising response transformation. \texttt{compareModelDiagnostics()} then tabulates the diagnostics before and after remediation, so the effect of a correction can be reported quantitatively rather than asserted. This interpret-and-remediate path is designed for practitioners who need defensible variance corrections without first becoming specialists in the underlying tests.
+
 %%------------------------------------------------------------------
 %% 4. Usage Examples
 %%------------------------------------------------------------------
 \section{Usage Examples} \label{sec:usage}
 
 \subsection{Simple Linear Model}\label{sec:usage-lm}
-Load package, fit \texttt{lm()}, apply White and BP tests:
+Load package, fit \texttt{lm()}, apply White and Breusch--Pagan tests. Each
+\texttt{perform*Test()} takes the fitted model and the data frame used to fit it,
+and returns a standard \texttt{htest} object:
 \begin{Schunk}
 \begin{Sinput}
 > library(heteroTests)
 > data(mtcars)
-> mod1 <- lm(mpg ~ wt + hp, data = mtcars)
-> wt1 <- performWhiteTest(mod1)
-> bp1 <- performBPTest(mod1)
-> summary(wt1)
+> mod1 <- lm(mpg ~ wt + qsec, data = mtcars)
+> performWhiteTest(mod1, mtcars)
 \end{Sinput}
 \begin{Soutput}
-White's Test for Heteroscedasticity
+	White's test for heteroscedasticity
 
 data:  mod1
-White = 12.347, df = 5, p-value = 0.0301
+X-squared = 11.822, df = 5, p-value = 0.0373
 alternative hypothesis: heteroscedasticity present
-residual type: response
 \end{Soutput}
 \begin{Sinput}
-> summary(bp1)
+> performBPTest(mod1, mtcars)
 \end{Sinput}
 \begin{Soutput}
-Breusch-Pagan Test for Heteroscedasticity
+	Breusch-Pagan test for heteroscedasticity
 
-data:  mod1
-BP = 8.234, df = 2, p-value = 0.0164
-alternative hypothesis: heteroscedasticity present
-residual type: response
+data:  mpg ~ wt + qsec
+X-squared = 3.135, df = 2, p-value = 0.2086
 \end{Soutput}
 \end{Schunk}
 
-The White test detects heteroscedasticity at the 5\% level (\(p = 0.0301\)), while the Breusch-Pagan test provides stronger evidence (\(p = 0.0164\)). Both tests suggest that the assumption of constant variance is violated in this model.
+The two tests disagree, and instructively so. White's test rejects the
+constant-variance null at the 5\% level (\(p = 0.0373\)) because its auxiliary
+regression includes the squares and cross-products of the regressors and so picks
+up the nonlinear variance pattern in these data. The classical Breusch--Pagan
+test, which regresses the squared residuals only on the linear terms, finds no
+evidence (\(p = 0.2086\)). The contrast is a useful reminder that the auxiliary
+specification determines what a test can detect; reporting more than one
+diagnostic guards against a single test's blind spots.
 
 \subsection{Generalized Linear Model}\label{sec:usage-glm}
-Apply tests to \texttt{glm()} residuals:
+The group-comparison tests accept a fitted model, the data frame, and the name of
+a grouping factor; they compare the spread of the model's residuals across groups.
+Here we test the residuals of a logistic regression across cylinder counts:
 \begin{Schunk}
 \begin{Sinput}
+> mtcars$cyl <- factor(mtcars$cyl)
 > mod2 <- glm(vs ~ mpg + wt, family = binomial, data = mtcars)
-> lt2 <- performLeveneTest(residuals(mod2, "pearson") ~ factor(cyl), 
-+                         data = mtcars)
-> summary(lt2)
+> performLeveneTest(mod2, mtcars, "cyl")
 \end{Sinput}
 \begin{Soutput}
-Levene's Test for Homogeneity of Variance
+	Levene's test for equality of variances
 
-data:  residuals(mod2, "pearson") by factor(cyl)
-Levene = 2.145, df1 = 2, df2 = 29, p-value = 0.135
-alternative hypothesis: variances not equal
-trim: 0 (no trimming)
+data:  vs ~ mpg + wt
+F = 12.778, df1 = 2, df2 = 29, p-value = 0.0001048
 \end{Soutput}
 \end{Schunk}
 
-The Levene test fails to reject homoscedasticity (\(p = 0.135\)), suggesting that Pearson residuals from the logistic regression do not exhibit significant variance differences across cylinder groups.
+The Levene test rejects equality of variances (\(p < 0.001\)): the residual spread
+of the logistic regression differs markedly across cylinder groups, a signal that
+the working-variance assumption is violated for at least one group.
 
 \subsection{Time-Series Example}\label{sec:usage-ts}
-Residual diagnostics for AR model:
+The ARCH-type tests operate on the residuals of a fitted \texttt{lm}/\texttt{glm}
+model in time order. Here we simulate an ARCH(1) series, fit a constant-mean
+model, and test for conditional heteroscedasticity at five lags:
 \begin{Schunk}
 \begin{Sinput}
 > set.seed(2025)
-> library(stats)
-> ar_mod <- arima(AirPassengers, order = c(1,0,0))
-> arch1 <- performARCHLMTest(ar_mod, lag = 5)
-> ml1 <- performMcLeodLiTest(ar_mod, lag = 5)
-> print(arch1)
+> n <- 400; e <- rnorm(n); y <- numeric(n); y[1] <- e[1]
+> for (i in 2:n) y[i] <- e[i] * sqrt(0.2 + 0.6 * y[i - 1]^2)
+> ts_mod <- lm(y ~ 1)
+> performArchLMTest(ts_mod, lags = 5)
 \end{Sinput}
 \begin{Soutput}
-ARCH LM Test for Conditional Heteroscedasticity
+	Engle's ARCH LM test
 
-data:  ar_mod
-ARCH-LM = 15.623, df = 5, p-value = 0.008
-alternative hypothesis: ARCH effects present
-lag: 5
+data:  y ~ 1
+X-squared = 87.451, df = 5, p-value < 2.2e-16
 \end{Soutput}
 \begin{Sinput}
-> print(ml1)
+> performMcLeodLiTest(ts_mod, lags = 5)
 \end{Sinput}
 \begin{Soutput}
-McLeod-Li Test for ARCH Effects
+	McLeod-Li test for heteroscedasticity
 
-data:  ar_mod
-McLeod-Li = 18.456, df = 5, p-value = 0.002
-alternative hypothesis: ARCH effects present
-lag: 5
+data:  y ~ 1
+X-squared = 82.721, df = 5, p-value < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
-Both ARCH-type tests strongly reject the null hypothesis of no conditional heteroscedasticity, with the McLeod-Li test providing particularly strong evidence (\(p = 0.002\)). This suggests that a GARCH model might be more appropriate for modeling the AirPassengers data.
+Both ARCH-type tests decisively reject the null of no conditional
+heteroscedasticity, correctly recovering the ARCH structure built into the
+simulated series. On real data such a result would motivate an ARCH/GARCH model
+for the conditional variance.
 
 \subsection{Real-Data Case Study}\label{sec:usage-case}
-Analyze \texttt{airquality} for heteroscedasticity across months (Levene):
+Analyse \texttt{airquality} for heteroscedasticity across months. After
+regressing ozone on temperature, we test whether the residual spread still
+differs by month:
 \begin{Schunk}
 \begin{Sinput}
-> data(airquality)
-> lv4 <- performLeveneTest(Ozone ~ Month, data = na.omit(airquality))
-> plot(lv4)
-> print(lv4)
+> aq <- na.omit(airquality)
+> aq$Month <- factor(aq$Month)
+> mod_aq <- lm(Ozone ~ Temp, data = aq)
+> performLeveneTest(mod_aq, aq, "Month")
 \end{Sinput}
 \begin{Soutput}
-Levene's Test for Homogeneity of Variance
+	Levene's test for equality of variances
 
-data:  Ozone by Month
-Levene = 3.687, df1 = 4, df2 = 111, p-value = 0.008
-alternative hypothesis: variances not equal
-trim: 0 (no trimming)
+data:  Ozone ~ Temp
+F = 2.909, df1 = 4, df2 = 106, p-value = 0.0250
 \end{Soutput}
 \end{Schunk}
 
-The test reveals significant heteroscedasticity across months (\(p = 0.008\)), indicating that ozone variability differs seasonally. This finding suggests that month-specific variance modeling or robust standard errors may be necessary.
+The test rejects equality of variances across months (\(p = 0.0250\)), indicating
+that ozone variability differs seasonally even after adjusting for temperature.
+This finding suggests that month-specific variance modeling or robust standard
+errors may be warranted.
 
 \subsection{Batch Testing with runHeteroTests()}\label{sec:usage-batch}
-Execute multiple tests simultaneously:
+\texttt{runHeteroTests()} evaluates a vector of registered diagnostics in one call
+and returns a \texttt{hetero\_test\_suite} -- a named list of \texttt{htest}
+objects -- which is straightforward to fold into a summary table:
 \begin{Schunk}
 \begin{Sinput}
-> # Run comprehensive heteroscedasticity diagnostics
-> all_tests <- runHeteroTests(mod1, 
-+                            tests = c("white", "bp", "koenker", "gq", "ncv"),
-+                            resid.type = "pearson")
-> 
-> # View summary of all results
-> summary(all_tests)
-\end{Sinput}
-\begin{Soutput}
-Summary of Heteroscedasticity Tests
-
-Model: lm(formula = mpg ~ wt + hp, data = mtcars)
-Residual type: pearson
-Number of tests: 5
-
-Test Results:
-                    Statistic    p.value  Reject H0
-White                  10.234     0.0369       TRUE
-Breusch-Pagan           8.156     0.0171       TRUE
-Koenker                 7.891     0.0194       TRUE
-Goldfeld-Quandt         2.345     0.1256      FALSE
-NCV                     3.421     0.0644      FALSE
-
-Overall Assessment: Strong evidence of heteroscedasticity (3/5 tests significant)
-\end{Soutput}
-\begin{Sinput}
-> # Extract specific test results
-> white_result <- all_tests\$white
-> bp_result <- all_tests\$bp
-> 
-> # Create comparison table
-> results_df <- data.frame(
-+   Test = names(all_tests),
-+   Statistic = sapply(all_tests, function(x) round(x\$statistic, 3)),
-+   p.value = sapply(all_tests, function(x) round(x\$p.value, 4)),
-+   Significant = sapply(all_tests, function(x) x\$p.value < 0.05)
-+ )
-> print(results_df)
+> all_tests <- runHeteroTests(
++   mod1, mtcars,
++   tests = c("white", "breusch_pagan", "koenker", "ncv", "spread_level"),
++   progress = FALSE)
+> data.frame(
++   Test        = names(all_tests),
++   Statistic   = sapply(all_tests, function(x) round(unname(x$statistic), 3)),
++   p.value     = sapply(all_tests, function(x) round(x$p.value, 4)),
++   Significant = sapply(all_tests, function(x) x$p.value < 0.05),
++   row.names   = NULL)
 \end{Sinput}
 \begin{Soutput}
            Test Statistic p.value Significant
-1         white    10.234  0.0369        TRUE
-2            bp     8.156  0.0171        TRUE
-3       koenker     7.891  0.0194        TRUE
-4 goldfeld_quandt 2.345  0.1256       FALSE
-5           ncv     3.421  0.0644       FALSE
+         white    11.822  0.0373        TRUE
+ breusch_pagan     3.135  0.2086       FALSE
+       koenker     3.086  0.2138       FALSE
+           ncv     0.992  0.3293       FALSE
+  spread_level     0.438  0.6643       FALSE
 \end{Soutput}
 \end{Schunk}
 
-The batch analysis reveals consensus among auxiliary regression tests (White, Breusch-Pagan, Koenker) in detecting heteroscedasticity, while group-based and simple diagnostic tests yield mixed results. This pattern suggests that the heteroscedasticity may be related to the functional form rather than simple monotonic trends.
+The batch analysis sharpens the picture from Section~\ref{sec:usage-lm}: only
+White's test, with its squared and cross-product terms, flags the variance
+pattern in \texttt{mpg \textasciitilde\ wt + qsec}, while the linear-in-regressors
+tests (Breusch--Pagan, Koenker, NCV, spread--level) do not. The disagreement
+points to heteroscedasticity tied to the functional form rather than a simple
+monotonic trend, and illustrates why \texttt{runHeteroTests()} reports the full
+panel instead of a single verdict.
 
 \subsection{Advanced Usage with Custom Parameters}\label{sec:usage-advanced}
+Most tests expose the parameters that matter for their construction -- the
+ordering variable and split fraction for Goldfeld--Quandt, the grouping factor
+for Brown--Forsythe, the lag order for the ARCH tests:
 \begin{Schunk}
 \begin{Sinput}
-> # Goldfeld-Quandt test with custom ordering
-> gq_custom <- performGoldfeldQuandtTest(mod1, 
-+                                       order.by = ~ wt, 
-+                                       fraction = 0.3)
-> print(gq_custom)
+> mtcars$cyl <- factor(mtcars$cyl)
+> mod1 <- lm(mpg ~ wt + qsec, data = mtcars)
+> performGQTest(mod1, mtcars, order_by = "wt", fraction = 0.3)
 \end{Sinput}
 \begin{Soutput}
-Goldfeld-Quandt Test for Heteroscedasticity
+	Goldfeld-Quandt test for heteroscedasticity
 
-data:  mod1 ordered by wt
-GQ = 2.847, df1 = 9, df2 = 9, p-value = 0.089
-alternative hypothesis: variance increases with wt
-fraction omitted: 0.3
+data:  mpg ~ wt + qsec
+F = 1.831, df1 = 8, df2 = 8, p-value = 0.2052
 \end{Soutput}
 \begin{Sinput}
-> # Brown-Forsythe test with trimming
-> bf_trim <- performBrownForsytheTest(mpg ~ factor(cyl), 
-+                                    data = mtcars, 
-+                                    trim = 0.1)
-> print(bf_trim)
+> performBrownForsytheTest(lm(mpg ~ wt, mtcars), mtcars, "cyl")
 \end{Sinput}
 \begin{Soutput}
-Brown-Forsythe Test for Homogeneity of Variance
+	Brown-Forsythe test for equality of variances
 
-data:  mpg by factor(cyl)
-Brown-Forsythe = 1.234, df1 = 2, df2 = 29, p-value = 0.305
-alternative hypothesis: variances not equal
-trim: 0.1 (10% trimmed means)
+data:  mpg ~ wt
+F = 2.474, df1 = 2, df2 = 29, p-value = 0.1019
 \end{Soutput}
 \begin{Sinput}
-> # ARCH test with different lag specifications
-> arch_lag3 <- performARCHLMTest(ar_mod, lag = 3)
-> arch_lag10 <- performARCHLMTest(ar_mod, lag = 10)
-> 
-> cat("ARCH LM with 3 lags: p =", round(arch_lag3$p.value, 4), "\n")
-> cat("ARCH LM with 10 lags: p =", round(arch_lag10$p.value, 4), "\n")
+> # ARCH test under different lag specifications (ts_mod from above)
+> c(lag3  = performArchLMTest(ts_mod, lags = 3)$p.value,
++   lag10 = performArchLMTest(ts_mod, lags = 10)$p.value)
 \end{Sinput}
 \begin{Soutput}
-ARCH LM with 3 lags: p = 0.0234
-ARCH LM with 10 lags: p = 0.0156
+        lag3        lag10
+1.114e-15    2.653e-14
 \end{Soutput}
 \end{Schunk}
 
-These examples demonstrate the flexibility of \pkg{heteroTests} in customizing test parameters. The Goldfeld-Quandt test with custom ordering by weight provides marginal evidence of heteroscedasticity (\(p = 0.089\)), while trimming in the Brown-Forsythe test eliminates significance, suggesting sensitivity to outliers. Different lag specifications in ARCH testing both detect conditional heteroscedasticity, with the longer lag window providing stronger evidence.
+Splitting \texttt{mpg \textasciitilde\ wt + qsec} by weight (Goldfeld--Quandt) and
+comparing variances across cylinder groups (Brown--Forsythe) both fail to reject
+constant variance on these 32 observations, consistent with the linear-term tests
+in Section~\ref{sec:usage-batch}; the signal White detected is specific to the
+squared and cross-product terms. The ARCH tests, by contrast, reject decisively at
+both lag windows on the simulated ARCH(1) series.
 
 \subsection{Integration with Tidyverse Workflows}\label{sec:usage-tidy}
+Because every test returns an \texttt{htest} object and whole suites carry a
+\texttt{hetero\_test\_suite} class, results flow directly into \pkg{broom} tidiers
+for downstream tabulation:
 \begin{Schunk}
 \begin{Sinput}
-> library(dplyr)
 > library(broom)
-> 
-> # Group analysis with multiple models
-> results_by_cyl <- mtcars %>%
-+   group_by(cyl) %>%
-+   do(model = lm(mpg ~ wt + hp, data = .)) %>%
-+   mutate(
-+     white_test = map(model, ~ performWhiteTest(.x)),
-+     bp_test = map(model, ~ performBPTest(.x))
-+   ) %>%
-+   mutate(
-+     white_pval = map_dbl(white_test, ~ .x\$p.value),
-+     bp_pval = map_dbl(bp_test, ~ .x\$p.value)
-+   )
-> 
-> select(results_by_cyl, cyl, white_pval, bp_pval)
+> mod1  <- lm(mpg ~ wt + qsec, data = mtcars)
+> suite <- runHeteroTests(mod1, mtcars,
++   tests = c("white", "breusch_pagan", "koenker"), progress = FALSE)
+> tidy(suite)[, c("diagnostic", "statistic", "p.value", "status")]
 \end{Sinput}
 \begin{Soutput}
-# A tibble: 3 × 3
-# Groups:   cyl [3]
-    cyl white_pval bp_pval
-  <dbl>      <dbl>   <dbl>
-1     4      0.234   0.156
-2     6      0.789   0.445
-3     8      0.067   0.089
+# A tibble: 3 × 4
+  diagnostic    statistic p.value status
+  <chr>             <dbl>   <dbl> <chr>
+1 white             11.8   0.0373 ok
+2 breusch_pagan      3.13  0.209  ok
+3 koenker            3.09  0.214  ok
 \end{Soutput}
 \end{Schunk}
 
-This workflow demonstrates seamless integration with \pkg{dplyr} and \pkg{purrr} for grouped analyses. The results suggest that heteroscedasticity is most pronounced in 8-cylinder vehicles, where both tests approach significance thresholds.
+The \texttt{tidy()}, \texttt{glance()}, and \texttt{augment()} methods (with
+\texttt{autoplot()} for the suite) let diagnostic output integrate with
+\pkg{dplyr} pipelines, \pkg{ggplot2} graphics, and reproducible reporting without
+manual extraction of statistics and p-values.
 
 
 %%------------------------------------------------------------------
@@ -815,40 +815,38 @@ Figure~\ref{fig:power} displays power curves for detecting linear heteroscedasti
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.8\textwidth]{power_curves.pdf}
-\caption{Power curves for detecting linear heteroscedasticity. Lines represent different tests: White (solid), Breusch-Pagan (dashed), Koenker (dotted), and Goldfeld-Quandt (dash-dot). Sample size increases from light to dark shading ($n = 50, 100, 200, 500$).}
+\caption{Power curves for detecting linear heteroscedasticity ($\sigma_i^2 = \sigma^2(1+\gamma x_i)$, $x_i\sim U(0,1)$, 400 Monte-Carlo replications). Line type distinguishes the tests (White, Breusch--Pagan, Koenker, Goldfeld--Quandt); sample size increases from light to dark shading ($n = 50, 100, 200, 500$).}
 \label{fig:power}
 \end{figure}
 
 Key findings from the power analysis include:
 
 \begin{itemize}
-\item \textbf{Auxiliary regression tests}: All achieve power > 80\% for moderate effect sizes ($\gamma \ge 0.5$) when $n \ge 100$. White's test demonstrates superior power against nonlinear heteroscedasticity patterns due to its inclusion of cross-terms.
+\item \textbf{Power grows steeply with $n$ and $\gamma$}: at the moderate effect size $\gamma = 2.0$ every test exceeds 73\% power by $n = 200$ and reaches roughly 99\% by $n = 500$ (Table~\ref{tab:power-summary}).
 
-\item \textbf{Breusch-Pagan optimality}: Shows optimal performance for linear variance functions, achieving 95\% power with $\gamma = 1.0$ and $n = 200$.
+\item \textbf{Breusch--Pagan and Koenker lead among the auxiliary tests}: for a variance function that is linear in $x$, regressing the squared residuals on $x$ alone is the most efficient auxiliary specification. White's test is somewhat less powerful at small $n$ because its squared and cross-product terms spend degrees of freedom that a purely linear variance function does not require---the price of its generality against unspecified alternatives.
 
-\item \textbf{Koenker robustness}: The studentized version maintains competitive power while offering better size control under non-normality.
+\item \textbf{Koenker robustness}: The studentized version tracks Breusch--Pagan closely while offering better size control under non-normality.
 
-\item \textbf{Goldfeld-Quandt efficiency}: Requires larger effect sizes but remains competitive for ordered heteroscedasticity, achieving 80\% power with $\gamma = 1.5$ and $n = 100$.
+\item \textbf{Goldfeld--Quandt efficiency}: When the ordering variable coincides with the variance driver, Goldfeld--Quandt is the most powerful test at small $n$; its margin narrows as the auxiliary-regression tests catch up for $n \ge 200$.
 \end{itemize}
 
-Table~\ref{tab:power-summary} summarizes power at specific effect sizes across different sample sizes.
+Table~\ref{tab:power-summary} summarizes power at $\gamma = 2.0$ across different sample sizes.
 
 \begin{table}[ht]
 \centering
-\caption{Power (\%) for Linear Heteroscedasticity Detection}
+\caption{Power (\%) for Linear Heteroscedasticity Detection ($\gamma = 2.0$, 400 replications)}
 \label{tab:power-summary}
 \begin{tabular}{lcccc}
 \toprule
-\multirow{2}{*}{Test} & \multicolumn{4}{c}{Effect Size $\gamma = 1.0$} \\
+\multirow{2}{*}{Test} & \multicolumn{4}{c}{Effect Size $\gamma = 2.0$} \\
 \cmidrule{2-5}
  & $n=50$ & $n=100$ & $n=200$ & $n=500$ \\
 \midrule
-White & 45.2 & 73.8 & 92.4 & 99.1 \\
-Breusch-Pagan & 48.1 & 78.3 & 95.2 & 99.6 \\
-Koenker & 46.7 & 76.9 & 94.1 & 99.4 \\
-Goldfeld-Quandt & 32.8 & 58.4 & 81.7 & 96.8 \\
-Levene & 28.5 & 51.2 & 74.6 & 93.1 \\
-Harvey & 41.3 & 69.7 & 89.2 & 98.7 \\
+White & 17.0 & 36.2 & 73.0 & 99.8 \\
+Breusch-Pagan & 24.8 & 49.0 & 83.2 & 99.5 \\
+Koenker & 24.2 & 50.0 & 82.5 & 99.5 \\
+Goldfeld-Quandt & 36.2 & 60.5 & 85.8 & 99.2 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -898,11 +896,13 @@ Figure~\ref{fig:scaling} illustrates the linear scaling property of computationa
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.8\textwidth]{scaling_plot.pdf}
-\caption{Computational time scaling with sample size. Log-log plot shows linear relationships (slope ≈ 1) for all tests, confirming O(n) complexity.}
+\caption{Computational time scaling with sample size. Log-log plot shows approximately linear relationships (slope $\approx 1$) for all tests, confirming $O(n)$ complexity.}
 \label{fig:scaling}
 \end{figure}
 
 The analysis confirms that all implemented tests achieve O(n) computational complexity, making them suitable for large-scale applications. Memory usage scales similarly, with peak memory consumption remaining below 100MB even for $n = 100{,}000$.
+
+For data sets that exceed available memory, the auxiliary-regression tests provide streaming counterparts (\texttt{performWhiteTestStreaming()}, \texttt{performBPTestStreaming()}, and \texttt{performKoenkerTestStreaming()}). Rather than materialising the full auxiliary design matrix, these routines accumulate the cross-products $X^\top X$ and $X^\top y$ chunk by chunk, optionally using sparse arithmetic via \pkg{Matrix}, and assemble the final statistic from the running sums. The streamed statistic is algebraically identical to its in-memory counterpart---in our tests the two agree to machine precision---so accuracy is preserved while peak memory becomes independent of $n$. \texttt{runHeteroTests()} switches to the streaming path automatically once the working data exceed a configurable threshold (\texttt{chunk\_threshold\_mb}).
 
 \subsection{Comparative Power Across Patterns}\label{sec:pattern-power}
 Different heteroscedastic patterns favor different tests. Table~\ref{tab:pattern-comparison} summarizes power across various data-generating processes.
@@ -1136,7 +1136,7 @@ Goldfeld-Quandt & \pkg{lmtest} & $< 10^{-12}$ & $< 10^{-12}$ & Perfect \\
 \end{tabular}
 \end{table}
 
-For all implemented tests, \pkg{heteroTests} produces numerically identical results with established packages when using equivalent specifications. Differences are within machine precision, confirming statistical correctness of our implementations.
+For all implemented tests, \pkg{heteroTests} produces numerically identical results with established packages when using equivalent specifications. In particular, \texttt{performBPTest()} reproduces the classical \texttt{lmtest::bptest(\dots, studentize = FALSE)} statistic, while \texttt{performKoenkerTest()} and \texttt{performStudentizedBPTest()} reproduce the studentized \texttt{studentize = TRUE} form; matching the correct option in each case is essential, since the two statistics differ by the normality-dependent scaling discussed in Section~\ref{sec:aux-regression}. Differences are within machine precision, confirming statistical correctness of our implementations.
 
 \subsection{Memory Usage Analysis}\label{sec:memory}
 Memory consumption patterns differ across packages due to varying implementation strategies and metadata storage. Table~\ref{tab:memory-usage} reports peak memory usage during test execution.

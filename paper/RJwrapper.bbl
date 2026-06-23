@@ -1,4 +1,4 @@
-\begin{thebibliography}{20}
+\begin{thebibliography}{27}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -26,6 +26,13 @@ M.~B. Brown and A.~B. Forsythe.
   (346):\penalty0 364--367, 1974.
 \newblock \doi{10.1080/01621459.1974.10482955}.
 
+\bibitem[Cameron and Trivedi(1990)]{cameron1990regression}
+A.~C. Cameron and P.~K. Trivedi.
+\newblock Regression-based tests for overdispersion in the {Poisson} model.
+\newblock \emph{Journal of Econometrics}, 46\penalty0 (3):\penalty0 347--364,
+  1990.
+\newblock \doi{10.1016/0304-4076(90)90014-K}.
+
 \bibitem[Cook and Weisberg(1983)]{cook1983detection}
 R.~D. Cook and S.~Weisberg.
 \newblock Diagnostics for heteroscedasticity in regression.
@@ -37,6 +44,13 @@ R.~L. Curry and W.~J. Walsh.
 \newblock Homogeneity tests for equality of variances in one-way layouts.
 \newblock \emph{Technometrics}, 18\penalty0 (4):\penalty0 467--473, 1976.
 \newblock \doi{10.1080/00401706.1976.10489517}.
+
+\bibitem[Davidson and Flachaire(2008)]{davidson2008wild}
+R.~Davidson and E.~Flachaire.
+\newblock The wild bootstrap, tamed at last.
+\newblock \emph{Journal of Econometrics}, 146\penalty0 (1):\penalty0 162--169,
+  2008.
+\newblock \doi{10.1016/j.jeconom.2008.08.003}.
 
 \bibitem[Engle(1982)]{engle1982autoregressive}
 R.~F. Engle.
@@ -51,6 +65,11 @@ M.~A. Fligner and T.~J. Killeen.
 \newblock \emph{Journal of the American Statistical Association}, 71\penalty0
   (353):\penalty0 210--213, 1976.
 \newblock \doi{10.1080/01621459.1976.10482491}.
+
+\bibitem[Fox and Weisberg(2019)]{fox2019car}
+J.~Fox and S.~Weisberg.
+\newblock \emph{An {R} Companion to Applied Regression}.
+\newblock Sage, Thousand Oaks, CA, 3rd edition, 2019.
 
 \bibitem[Glejser(1969)]{glejser1969identification}
 H.~Glejser.
@@ -85,6 +104,12 @@ R.~Koenker.
   1981.
 \newblock \doi{10.1016/0304-4076(81)90059-1}.
 
+\bibitem[Koenker and Bassett(1978)]{koenker1978regression}
+R.~Koenker and G.~Bassett.
+\newblock Regression quantiles.
+\newblock \emph{Econometrica}, 46\penalty0 (1):\penalty0 33--50, 1978.
+\newblock \doi{10.2307/1913643}.
+
 \bibitem[Levene(1960)]{levene1960robust}
 H.~Levene.
 \newblock Robust tests for equality of variances.
@@ -92,6 +117,14 @@ H.~Levene.
   Probability and Statistics: Essays in Honor of Harold Hotelling}, pages
   278--292. Stanford University Press, Stanford, CA, 1960.
 \newblock \doi{10.1080/01621459.1974.10482955}.
+
+\bibitem[MacKinnon and White(1985)]{mackinnon1985some}
+J.~G. MacKinnon and H.~White.
+\newblock Some heteroskedasticity-consistent covariance matrix estimators with
+  improved finite sample properties.
+\newblock \emph{Journal of Econometrics}, 29\penalty0 (3):\penalty0 305--325,
+  1985.
+\newblock \doi{10.1016/0304-4076(85)90158-7}.
 
 \bibitem[McLeod and Li(1978)]{mcleod1978diagnosis}
 A.~I. McLeod and W.~K. Li.
@@ -141,5 +174,18 @@ H.~White.
   direct test for heteroskedasticity.
 \newblock \emph{Econometrica}, 48\penalty0 (4):\penalty0 817--838, 1980.
 \newblock \doi{10.2307/1912934}.
+
+\bibitem[Zeileis(2006)]{lumley2015sandwich}
+A.~Zeileis.
+\newblock Object-oriented computation of sandwich estimators.
+\newblock \emph{Journal of Statistical Software}, 16\penalty0 (9):\penalty0
+  1--16, 2006.
+\newblock \doi{10.18637/jss.v016.i09}.
+
+\bibitem[Zeileis and Hothorn(2002)]{zeileis2002lmtest}
+A.~Zeileis and T.~Hothorn.
+\newblock Diagnostic checking in regression relationships.
+\newblock \emph{R News}, 2\penalty0 (3):\penalty0 7--10, 2002.
+\newblock URL \url{https://CRAN.R-project.org/doc/Rnews/}.
 
 \end{thebibliography}
