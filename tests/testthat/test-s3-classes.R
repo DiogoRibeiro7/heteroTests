@@ -3,7 +3,6 @@
 # tests/testthat/test-s3-classes.R
 # =============================================================================
 
-skip("S3 class tests skipped in this environment")
 
 # HeteroDiagnostic Constructor
 # =============================================================================
@@ -174,9 +173,11 @@ test_that("HeteroDiagnostic summary method works", {
   expect_type(summ, "double")
   expect_s3_class(summ, "summary.HeteroDiagnostic")
   
-  # Should have names corresponding to tests
-  expect_named(summ, c("white", "breusch_pagan"), ignore.order = TRUE)
-  
+  # Should contain an entry for each requested test; names may be suffixed with
+  # the statistic (e.g. "white.X-squared") and structural diagnostics are added
+  expect_true(any(grepl("^white", names(summ))))
+  expect_true(any(grepl("^breusch_pagan", names(summ))))
+
   # All values should be numeric
   expect_true(all(is.numeric(summ)))
 })
@@ -188,7 +189,9 @@ test_that("HeteroDiagnostic summary method works with custom tests", {
   # Test with custom tests
   summ <- summary(hd, tests = c("white", "koenker", "ncv"))
   expect_type(summ, "double")
-  expect_named(summ, c("white", "koenker", "ncv"), ignore.order = TRUE)
+  expect_true(any(grepl("^white", names(summ))))
+  expect_true(any(grepl("^koenker", names(summ))))
+  expect_true(any(grepl("^ncv", names(summ))))
 })
 
 test_that("HeteroDiagnostic summary handles missing statistics gracefully", {
@@ -208,10 +211,10 @@ test_that("test generic function works correctly", {
   test_obj <- create_test_model()
   hd <- HeteroDiagnostic(test_obj$model, test_obj$data)
   
-  # Should dispatch to test.HeteroDiagnostic
+  # Should dispatch to the registered S3 method (not exported, so look it up)
   result1 <- test(hd)
-  result2 <- test.HeteroDiagnostic(hd)
-  
+  result2 <- getS3method("test", "HeteroDiagnostic")(hd)
+
   expect_equal(result1, result2)
 })
 

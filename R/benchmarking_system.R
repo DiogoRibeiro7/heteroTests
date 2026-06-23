@@ -138,7 +138,7 @@ run_benchmark_suite <- function(sample_sizes = c(100L, 500L, 1000L, 10000L, 1000
   pb <- NULL
   if (progress && total_tasks > 0L) {
     pb <- utils::txtProgressBar(min = 0, max = total_tasks, style = 3)
-    on.exit(utils::close(pb), add = TRUE)
+    on.exit(close(pb), add = TRUE)
   }
 
   performance_records <- list()

@@ -55,7 +55,7 @@ launchDiagnosticDashboard <- function(model, data) {
     default_tests <- head(available_tests, 3L)
   }
 
-  formula_vars <- tryCatch(stats::all.vars(stats::formula(model)), error = function(e) NULL)
+  formula_vars <- tryCatch(all.vars(stats::formula(model)), error = function(e) NULL)
   default_response <- if (!is.null(formula_vars)) formula_vars[1] else names(data)[1]
   default_predictors <- if (!is.null(formula_vars)) formula_vars[-1] else names(data)[-1]
   default_predictors <- default_predictors[default_predictors %in% names(data)]
@@ -388,7 +388,7 @@ launchDiagnosticDashboard <- function(model, data) {
 
     output$guided_model_summary <- shiny::renderPrint({
       shiny::req(model_store())
-      stats::summary(model_store())$coefficients
+      summary(model_store())$coefficients
     })
 
     shiny::observeEvent(input$go_to_data, {
@@ -453,7 +453,7 @@ launchDiagnosticDashboard <- function(model, data) {
 
     output$model_summary <- shiny::renderPrint({
       shiny::req(model_store())
-      stats::summary(model_store())
+      summary(model_store())
     })
 
     shiny::observeEvent(input$fit_model, {

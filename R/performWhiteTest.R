@@ -241,20 +241,32 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
   # Set column names for the auxiliary matrix
   colnames(aux_matrix) <- aux_names
 
-  # Convert to data frame for regression
-  aux_data <- as.data.frame(aux_matrix)
-
-  # Check for perfect multicollinearity in auxiliary regression
-  aux_rank <- qr(aux_matrix)$rank
+  # Drop linearly dependent auxiliary columns rather than aborting. Factor dummies
+  # are a common cause: a 0/1 indicator squared equals itself, so its "_sq" column
+  # is perfectly collinear with the original. We keep a maximal set of independent
+  # columns via QR pivoting and base the degrees of freedom on the realised rank,
+  # matching the behaviour of established implementations (e.g. lmtest::bptest).
+  qr_aux <- qr(aux_matrix)
+  aux_rank <- qr_aux$rank
   if (aux_rank < ncol(aux_matrix)) {
+    keep <- sort(qr_aux$pivot[seq_len(aux_rank)])
+    dropped <- ncol(aux_matrix) - aux_rank
+    aux_matrix <- aux_matrix[, keep, drop = FALSE]
+    aux_names <- aux_names[keep]
+    ht_log("INFO", sprintf(
+      "White test: dropped %d collinear auxiliary term(s); using df = %d.",
+      dropped, aux_rank
+    ))
+  }
+  if (ncol(aux_matrix) == 0L) {
     std_error(
       "rassumption_violation",
-      assumption = paste(
-        "Auxiliary regression became rank deficient; consider disabling cross-product terms",
-        "or removing collinear predictors"
-      )
+      assumption = "Auxiliary regression has no independent regressors after removing collinear terms"
     )
   }
+
+  # Convert to data frame for regression
+  aux_data <- as.data.frame(aux_matrix)
 
   # Run auxiliary regression: e² ~ regressors + squares + cross-products
   aux_model <- tryCatch({

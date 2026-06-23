@@ -48,7 +48,7 @@ generateDiagnosticReport <- function(model, data = NULL,
   plots <- plotDiagnosticSuiteEnhanced(model)
 
   if (include_remediation) {
-    remediation <- suggestRemediation(test_results, model, data)
+    remediation <- suggestRemediation(test_results)
   } else {
     remediation <- NULL
   }

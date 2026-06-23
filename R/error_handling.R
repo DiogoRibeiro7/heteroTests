@@ -57,6 +57,18 @@ ht_data_cleaning_suggestions <- function(message = NULL, data = NULL) {
       )
     }
 
+    has_infinite <- any(vapply(
+      data,
+      function(col) is.numeric(col) && any(is.infinite(col)),
+      logical(1)
+    ))
+    if (has_infinite) {
+      suggestions <- c(
+        suggestions,
+        "Replace or remove infinite values in the data before fitting."
+      )
+    }
+
     zero_var_cols <- names(Filter(
       function(col) is.numeric(col) && stats::sd(col, na.rm = TRUE) < .Machine$double.eps,
       data

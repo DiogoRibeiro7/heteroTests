@@ -113,11 +113,23 @@ expect_htest <- function(object) {
 }
 
 #' Expect valid diagnostic results
+#'
+#' Checks that every requested test is present in `result` and (when it is an
+#' `htest`) well-formed. Membership is asserted rather than exact equality of the
+#' name set, because the full-diagnostic entry points (`runDiagnostics()` /
+#' `test.HeteroDiagnostic()`) always append the structural diagnostics
+#' (`vif`, `reset`, `influence`) on top of the requested heteroscedasticity tests.
+#'
 #' @param result List of diagnostic results
 #' @param expected_tests Vector of expected test names
 expect_valid_diagnostic_result <- function(result, expected_tests) {
   expect_type(result, "list")
-  expect_named(result, expected_tests, ignore.order = TRUE)
+  expect_true(all(expected_tests %in% names(result)),
+    info = paste(
+      "missing diagnostics:",
+      paste(setdiff(expected_tests, names(result)), collapse = ", ")
+    )
+  )
 
   for (test_name in expected_tests) {
     if (inherits(result[[test_name]], "htest")) {

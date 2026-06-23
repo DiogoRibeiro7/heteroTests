@@ -76,23 +76,22 @@ test_that("performWhiteTest warns about missing values and succeeds", {
   expect_s3_class(res, "htest")
 })
 
-test_that("performWhiteTest flags rank-deficient auxiliary regression", {
+test_that("performWhiteTest drops collinear auxiliary terms instead of aborting", {
+  # A 0/1 indicator squared equals itself, so its "_sq" auxiliary column is
+  # perfectly collinear. The test should drop the redundant columns and report a
+  # degrees-of-freedom value equal to the realised rank, rather than erroring.
   set.seed(321)
-  n <- 30
+  n <- 40
   x1 <- rnorm(n)
-  x2 <- rnorm(n)
-  x3 <- x1 * x2
-  y <- 1 + 2 * x1 + 0.5 * x2 + 0.2 * x3 + rnorm(n)
-  df <- data.frame(y = y, x1 = x1, x2 = x2, x3 = x3)
-  model <- lm(y ~ x1 + x2 + x3, data = df)
-  expect_error(
-    performWhiteTest(model, df, cross_products = TRUE),
-    "Auxiliary regression became rank deficient"
-  )
-  expect_s3_class(
-    performWhiteTest(model, df, cross_products = FALSE),
-    "htest"
-  )
+  d <- factor(sample(c("a", "b", "c"), n, replace = TRUE))
+  df <- data.frame(y = rnorm(n), x1 = x1, d = d)
+  model <- lm(y ~ x1 + d, data = df)
+
+  result <- performWhiteTest(model, df, cross_products = TRUE)
+  expect_s3_class(result, "htest")
+  # df must be the number of independent auxiliary regressors actually used
+  expect_lt(result$parameter[["df"]], attr(result, "original_regressors")^2)
+  expect_gt(result$parameter[["df"]], 0)
 })
 
 test_that("performWhiteTest aborts for perfect fits", {
