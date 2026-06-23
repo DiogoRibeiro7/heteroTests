@@ -13,6 +13,29 @@ test_that("performWildBootstrapTest returns htest", {
   expect_length(result$bootstrap$replicates, 49)
 })
 
+test_that("performWildBootstrapTest has power against heteroscedasticity", {
+  # Regression guard: the bootstrap must impose the homoscedastic null, otherwise
+  # the reference distribution inherits the heteroscedasticity and the test has no
+  # power (it previously returned p ~ 0.5 on strongly heteroscedastic data).
+  set.seed(2)
+  n <- 200
+  x <- runif(n)
+  y <- 1 + 2 * x + rnorm(n, sd = 0.3 + x) # variance grows with x
+  d <- data.frame(y, x)
+  result <- performWildBootstrapTest(lm(y ~ x, data = d), d, B = 399, progress = FALSE)
+  expect_lt(result$p.value, 0.05)
+})
+
+test_that("performWildBootstrapTest does not reject under homoscedasticity", {
+  set.seed(5)
+  n <- 200
+  x <- runif(n)
+  y <- 1 + 2 * x + rnorm(n) # constant variance
+  d <- data.frame(y, x)
+  result <- performWildBootstrapTest(lm(y ~ x, data = d), d, B = 399, progress = FALSE)
+  expect_gt(result$p.value, 0.05)
+})
+
 test_that("performHCCovarianceTest adjusts statistic", {
   data <- mtcars
   model <- lm(mpg ~ wt + hp, data = data)

@@ -76,15 +76,28 @@
 
 #' Wild bootstrap heteroscedasticity test
 #'
-#' Implements a wild bootstrap version of the Breusch-Pagan Lagrange multiplier
-#' statistic using Rademacher or Mammen multipliers. The diagnostic provides a
-#' small-sample robust p-value while retaining the familiar \eqn{n R^2}
-#' statistic from the auxiliary regression of squared residuals on the
-#' regressors.
+#' Calibrates the Breusch-Pagan Lagrange multiplier statistic with a
+#' *null-imposed* wild bootstrap, providing a p-value that is accurate in small
+#' samples and under non-normal errors without relying on the asymptotic
+#' \eqn{\chi^2} approximation.
+#'
+#' @details
+#' The observed statistic is the usual \eqn{n R^2} from the auxiliary regression
+#' of the squared residuals on the regressors. The bootstrap reference
+#' distribution, however, must be generated **under the homoscedastic null** ---
+#' otherwise it inherits the heteroscedasticity the test is looking for and the
+#' procedure loses all power. Each bootstrap sample is therefore built from
+#' leverage-standardised, mean-centred residuals \eqn{r_i = e_i/\sqrt{1-h_{ii}}}
+#' (which have a common variance under \eqn{H_0}) resampled i.i.d. and perturbed
+#' by a wild multiplier \eqn{v_i}, so that \eqn{y_i^* = \hat y_i + r^*_i v_i}. The
+#' statistic is recomputed on each refit and the p-value is
+#' \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under \eqn{H_0} this controls size even
+#' for heavy-tailed errors; under the alternative the observed statistic is
+#' extreme relative to the homoscedastic reference, giving power.
 #'
 #' @inheritParams performBPTest
 #' @param B Integer number of bootstrap replications. Defaults to `499`.
-#' @param distribution Multiplier distribution used by the wild bootstrap.
+#' @param distribution Multiplier distribution used for the wild perturbation.
 #'   Supported options are "rademacher" and "mammen".
 #' @param progress Logical flag controlling whether progress should be reported
 #'   when running the bootstrap loop.
@@ -96,6 +109,9 @@
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
 #' *Journal of Econometrics, 146*(1), 162–169.
+#'
+#' Godfrey, L. G. (2006). Tests for regression models with heteroskedasticity of
+#' unknown form. *Computational Statistics & Data Analysis, 50*(10), 2715–2733.
 #'
 #' Wu, C. F. J. (1986). Jackknife, bootstrap and other resampling methods in
 #' regression analysis. *The Annals of Statistics, 14*(4), 1261–1295.
@@ -170,6 +186,17 @@ performWildBootstrapTest <- function(model, data, B = 499,
     }
   )
 
+  # The bootstrap must impose the homoscedastic null, otherwise the reference
+  # distribution inherits the very heteroscedasticity the test is looking for and
+  # the procedure has no power. We therefore resample *leverage-standardised,
+  # mean-centred* residuals i.i.d. (these have constant variance under H0), giving
+  # each bootstrap sample a common error variance, and apply the wild multiplier
+  # only as a symmetric sign/scale perturbation. See Davidson & Flachaire (2008)
+  # and Godfrey (2006) on null-imposed bootstraps for heteroscedasticity tests.
+  leverage <- stats::hatvalues(model)
+  null_residuals <- residuals / sqrt(pmax(1 - leverage, .Machine$double.eps))
+  null_residuals <- null_residuals - mean(null_residuals)
+
   response_col <- names(model_frame)[1]
   base_frame <- model_frame
   progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Wild bootstrap replications")
@@ -178,7 +205,8 @@ performWildBootstrapTest <- function(model, data, B = 499,
   replicates <- rep(NA_real_, B)
   for (b in seq_len(B)) {
     boot_multiplier <- multiplier_draw(length(residuals))
-    boot_response <- fitted_vals + residuals * boot_multiplier
+    boot_errors <- sample(null_residuals, length(residuals), replace = TRUE) * boot_multiplier
+    boot_response <- fitted_vals + boot_errors
     boot_frame <- base_frame
     boot_frame[[response_col]] <- boot_response
     boot_stat <- tryCatch(
