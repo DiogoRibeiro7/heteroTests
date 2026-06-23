@@ -5,6 +5,36 @@
 
 Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072](https://orcid.org/0009-0001-2022-7072)) at **ESMAD - Instituto Politécnico do Porto**.
 
+## What it provides
+
+Every test returns a base-R `htest` object and follows the same
+`perform*Test(model, data, ...)` convention, so results print, subset and compose
+like `stats::bptest()` and slot directly into automated pipelines.
+
+- **Auxiliary-regression tests** — White, classical Breusch--Pagan, Koenker
+  (studentized), Harvey, Park, Glejser. The classical and studentized
+  Breusch--Pagan statistics are validated against `lmtest::bptest()` to machine
+  precision.
+- **Group-wise variance tests** — Levene, Brown--Forsythe, Bartlett,
+  Fligner--Killeen, Hartley's F-max (validated against `car`).
+- **Rank-based and non-constant-variance diagnostics** — Spearman,
+  Cameron--Trivedi, Cook--Weisberg NCV, spread--level.
+- **ARCH-type tests** for time series — Engle's ARCH LM and McLeod--Li.
+- **Modern resampling and robust diagnostics** — a null-imposed wild bootstrap,
+  HC0–HC4 covariance test, quantile-regression test, rank-permutation test, and
+  high-dimensional and spatial variants for settings where the classical
+  asymptotics are unreliable.
+- **Scalability** — streaming implementations (`performWhiteTestStreaming()`,
+  `performBPTestStreaming()`, `performKoenkerTestStreaming()`) accumulate the
+  auxiliary cross-products in chunks; results are exact and memory-bounded, and
+  `runHeteroTests()` adopts them automatically for large inputs.
+- **Remediation and guidance** — weighted least squares (`fitWLS()`), robust
+  fits (`fitRobust()`), variance-stabilising transforms (`autoTransform()`), a
+  model-comparison helper, and a recommendation engine
+  (`generateHeteroRecommendations()`) that interprets a diagnostic run.
+- **Ecosystem integration** — `broom` tidiers, `ggplot2` theming/`autoplot`, and
+  helpers for tidymodels, survey designs and grouped pipelines.
+
 ## Installation
 
 The package uses [`renv`](https://rstudio.github.io/renv/) to lock its dependencies. On Debian-based systems a single command sets up the environment. The helper verifies apt-get installs succeed and falls back to CRAN only when network access is available:
@@ -50,6 +80,51 @@ compareModelDiagnostics(list(model, wls))
 ```
 
 See `vignettes/tutorial.Rmd` and `browseVignettes("heteroTests")` for a full walkthrough.
+
+## Tutorials
+
+A six-part executable course lives in [`inst/tutorials/`](inst/tutorials) (Jupyter
+notebooks with an R kernel; see its [README](inst/tutorials/README.md)):
+
+1. **Detecting heteroscedasticity** — the cost of ignoring it, visual diagnosis, and the core tests.
+2. **Remediation** — robust standard errors, weighted least squares, transforms.
+3. **Modern & scalable diagnostics** — size control under heavy tails, resampling tests, streaming.
+4. **Group-wise variance tests** — and the normality trap that breaks Bartlett.
+5. **Time series & ARCH effects** — conditional heteroscedasticity and volatility clustering.
+6. **Choosing a test** — a power study distilled into a decision guide.
+
+## Testing
+
+The suite uses [`testthat`](https://testthat.r-lib.org/). Run it directly with
+
+```r
+devtools::test()        # or testthat::test_dir("tests/testthat")
+```
+
+or run the full formatting/linting/testing/coverage pipeline via
+`Rscript scripts/run_checks.R`. Statistical tests assert *behaviour* (size, power,
+and agreement with reference implementations such as `lmtest` and `car`), not just
+object structure.
+
+## Project structure
+
+```text
+R/                 test implementations, remediation, streaming, recommendation engine
+man/               roxygen-generated documentation
+tests/testthat/    unit, property-based, and reference-comparison tests
+inst/tutorials/    six-part Jupyter notebook course
+vignettes/         long-form guides
+paper/             R Journal manuscript and reproducible figures
+scripts/           setup, checks, benchmarks, and notebook/figure builders
+```
+
+## Roadmap and limitations
+
+The development direction, completed work and known technical debt are tracked in
+[ROADMAP.md](ROADMAP.md). Current known limitations include: input validation is
+not yet uniform across every test, the `renv.lock` is not fully in sync with the
+declared dependencies, and `boston_housing` is shipped as a verbatim copy of
+`MASS::Boston` (documented in `?boston_housing`).
 
 ## Contributing
 

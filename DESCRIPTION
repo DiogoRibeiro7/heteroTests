@@ -1,6 +1,6 @@
 Package: heteroTests
 Title: Heteroscedasticity Tests Implementation
-Version: 0.6.4
+Version: 0.6.5
 Authors@R: person("Diogo", "Ribeiro", email = "dfr@esmad.ipp.pt",
     role = c("aut", "cre"),
     comment = c(ORCID = "0009-0001-2022-7072"))
@@ -25,13 +25,15 @@ Imports:
     ggplot2,
     curl,
     generics,
-    scales
+    scales,
+    R6,
+    parallel
 Suggests:
     quickcheck,
     testthat (>= 3.0.0),
     styler,
     lintr,
-    R6,
+    digest,
     covr,
     knitr,
     rmarkdown,
@@ -45,6 +47,7 @@ Suggests:
     bench,
     lmtest,
     car,
+    mgcv,
     quantreg,
     sandwich,
     spdep,
@@ -57,5 +60,6 @@ Suggests:
     dtplyr,
     dplyr
 VignetteBuilder: knitr
+Config/testthat/edition: 3
 URL: https://github.com/DiogoRibeiro7/heteroTests, https://diogoribeiro7.github.io/heteroTests/
 BugReports: https://github.com/DiogoRibeiro7/heteroTests/issues
