@@ -34,6 +34,34 @@ test_that("studentized BP matches lmtest::bptest with studentize", {
   expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-6)
 })
 
+test_that("performGQTest matches lmtest::gqtest across alternatives", {
+  skip_if_not_installed("lmtest")
+  data(mtcars)
+  model <- lm(mpg ~ wt + qsec, data = mtcars)
+
+  for (alternative in c("greater", "two.sided", "less")) {
+    ours <- performGQTest(
+      model,
+      mtcars,
+      order_by = "wt",
+      fraction = 0.2,
+      alternative = alternative
+    )
+    ref <- lmtest::gqtest(
+      model,
+      point = 0.5,
+      fraction = 0.2,
+      alternative = alternative,
+      order.by = mtcars$wt
+    )
+
+    expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 1e-10)
+    expect_equal(unname(ours$parameter), unname(ref$parameter), tolerance = 0)
+    expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-10)
+    expect_equal(ours$alternative, ref$alternative)
+  }
+})
+
 test_that("Levene test aligns with car::leveneTest", {
   skip_if_not_installed("car")
   set.seed(303)
