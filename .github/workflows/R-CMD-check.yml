@@ -41,7 +41,7 @@ jobs:
         uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
-          args: --no-manual
+          args: 'c("--no-manual")'
 
   cran-check:
     name: CRAN submission checks
@@ -66,7 +66,7 @@ jobs:
         uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
-          args: --as-cran --run-dontrun
+          args: 'c("--as-cran", "--run-dontrun")'
 
   revdep:
     name: Reverse dependency checks
