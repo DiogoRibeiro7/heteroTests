@@ -212,10 +212,17 @@ test_that("functions scale reasonably with sample size", {
   
   # Execution time should not grow too rapidly
   # (allowing for some variability in timing)
+  # A wall-clock ratio is meaningless when the denominator is at the clock's
+  # resolution: a smaller run measured at a few milliseconds makes the ratio
+  # enormous however well the code scales. Compare only once the baseline is
+  # long enough to measure, and keep an absolute ceiling below as the real
+  # guard against runaway growth.
+  timer_floor <- 0.05
   for (i in 2:length(execution_times)) {
-    time_ratio <- execution_times[i] / execution_times[i-1]
-    size_ratio <- sample_sizes[i] / sample_sizes[i-1]
-    
+    if (execution_times[i - 1] < timer_floor) next
+    time_ratio <- execution_times[i] / execution_times[i - 1]
+    size_ratio <- sample_sizes[i] / sample_sizes[i - 1]
+
     # Time should grow less than quadratically with size
     expect_true(time_ratio < size_ratio^2 + 1,  # Allow overhead
                 info = paste("Time ratio", time_ratio, "vs size ratio", size_ratio))

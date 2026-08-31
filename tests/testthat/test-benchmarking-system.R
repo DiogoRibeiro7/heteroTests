@@ -33,7 +33,13 @@ test_that("benchmark suite produces structured output", {
     small_time <- time_by_size$time[time_by_size$sample_size == smallest]
     large_time <- time_by_size$time[time_by_size$sample_size == largest]
     if (length(small_time) > 0 && length(large_time) > 0) {
-      expect_true(all(large_time <= small_time * 50))
+      # At the smallest sample size the median runtime is often measured as
+      # zero, and `small_time * 50` is then zero too, so the comparison could
+      # never hold however fast the code was. Add an absolute slack above the
+      # clock's resolution; a genuine scaling blow-up is orders of magnitude
+      # larger than this and is still caught.
+      timer_slack <- 0.05
+      expect_true(all(large_time <= small_time * 50 + timer_slack))
     }
   }
 
