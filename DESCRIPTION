@@ -1,18 +1,17 @@
 Package: heteroTests
-Title: Heteroscedasticity Tests Implementation
+Title: Heteroscedasticity Diagnostics for Linear Models
 Version: 0.6.5
 Authors@R: person("Diogo", "Ribeiro", email = "dfr@esmad.ipp.pt",
     role = c("aut", "cre"),
     comment = c(ORCID = "0009-0001-2022-7072"))
 Author: Diogo Ribeiro [aut, cre]
 Maintainer: Diogo Ribeiro <dfr@esmad.ipp.pt>
-Description: Simple implementations of White, Breusch-Pagan,
-    Goldfeld-Quandt, Koenker, Park, Spearman, Levene, Glejser,
-    Brown-Forsythe, Fligner-Killeen, Bartlett, Harvey, ARCH LM,
-    McLeod-Li, Hartley Fmax, Cameron-Trivedi, Ordered LM and several
-    additional procedures such as O'Brien, Cook-Weisberg, modified
-    Bartlett, NCV, Spread-Level, Pesaran and Curry-Walsh tests for
-    heteroscedasticity.
+Description: Provides a unified set of heteroscedasticity diagnostics for
+    linear-model workflows in R. The package includes classical auxiliary-
+    regression and group-wise tests, resampling and scalable variants,
+    simulation utilities, diagnostic visualisation, and remediation helpers.
+    Functions follow a consistent interface designed for reproducible
+    statistical workflows and integration with common R modelling tools.
 License: Apache License (>= 2.0)
 Encoding: UTF-8
 LazyData: true
