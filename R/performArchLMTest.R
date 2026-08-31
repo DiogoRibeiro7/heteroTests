@@ -13,7 +13,7 @@
 #'   residuals \eqn{\hat{e}_{t-1}^2, \ldots, \hat{e}_{t-q}^2} included in the
 #'   auxiliary regression. Typical choices range from 1 to 12 for monthly data.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the chi-squared statistic
+#' @return An object of class \code{htest} containing the chi-squared statistic
 #'   with \eqn{q} degrees of freedom, the associated p-value, and descriptive
 #'   labels for the fitted model.
 #'

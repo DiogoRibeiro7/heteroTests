@@ -6,6 +6,11 @@
 \usage{
 \method{print}{htest_enhanced}(x, ...)
 }
+\arguments{
+  \item{x}{An object of class \code{htest_enhanced}, as returned by
+    \code{performWhiteTestEnhanced()}.}
+  \item{...}{Further arguments passed to \code{print.htest()}.}
+}
 \description{
 Print method for enhanced White test results
 }

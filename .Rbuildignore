@@ -16,3 +16,8 @@
 ^Dockerfile$
 ^\.benchmarks$
 ^\.lintr$
+^\.zenodo\.json$
+^CITATION\.cff$
+^CONTRIBUTING\.md$
+^_pkgdown\.yml$
+^LICENSE$

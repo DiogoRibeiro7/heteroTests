@@ -24,3 +24,21 @@
     function(...) .register_autoplot_methods(pkgname)
   )
 }
+
+# Column names referenced inside ggplot2 aes() and data.frame subsetting are
+# resolved at evaluation time, so R CMD check reports them as undefined
+# globals. Declaring them here keeps the check output focused on real problems.
+utils::globalVariables(c(
+  ".data",
+  ".highlight",
+  "abs_resid",
+  "diagnostic",
+  "effect_size",
+  "influential",
+  "model",
+  "p.value",
+  "power",
+  "res_sqrt",
+  "resid",
+  "sigma_func_name"
+))

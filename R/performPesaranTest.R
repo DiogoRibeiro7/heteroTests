@@ -12,7 +12,7 @@
 #'   cross-sectional dimension).
 #' @param time Character scalar naming the column that indexes time periods.
 #'
-#' @return A \link[stats:htest]{htest} object containing the standardised CD statistic and
+#' @return A \code{htest} object containing the standardised CD statistic and
 #'   its two-sided p-value under the asymptotic standard normal reference
 #'   distribution.
 #'

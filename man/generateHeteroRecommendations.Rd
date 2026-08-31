@@ -45,6 +45,8 @@ generateHeteroRecommendations(model, data = NULL, test_results = NULL,
   \item{alpha}{Significance level applied when interpreting p-values.}
   \item{model}{Fitted \code{lm}/\code{glm} object or model formula.}
   \item{interpretations}{Output from \code{interpretHeteroTestResults()}.}
+  \item{recommendations}{Output from \code{suggestDiagnosticsForProfile()},
+    used to build the decision tree.}
   \item{remediation}{Output from \code{recommendRemediationStrategies()}.}
   \item{assumption_warnings}{Character vector of generated warnings.}
   \item{decision_tree}{Data frame returned by

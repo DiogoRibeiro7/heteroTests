@@ -277,6 +277,7 @@ run_benchmark_suite <- function(sample_sizes = c(100L, 500L, 1000L, 10000L, 1000
 #'   `recommendations`, `scalability`, and `metadata` (augmented with the chosen
 #'   tolerance).
 #' @export
+#' @noRd
 generate_benchmark_report <- function(benchmark_results, accuracy_tolerance = 1e-4) {
   if (!is.list(benchmark_results) || !all(c("performance", "accuracy") %in% names(benchmark_results))) {
     stop("`benchmark_results` must be the output of run_benchmark_suite().", call. = FALSE)
@@ -523,6 +524,18 @@ ht_extract_metrics <- function(result) {
       df = NA_real_,
       method = method
     )
+  } else if (inherits(result, "chisqTest")) {
+    # car::ncvTest() returns ChiSquare/Df/p rather than the htest field names,
+    # so without this branch the car baseline never produced a comparable
+    # p-value and every accuracy row against it was NA. The statistic is named
+    # to match ours so the difference is actually computed.
+    list(
+      statistic = as.numeric(result$ChiSquare)[1],
+      statistic_name = "X-squared",
+      p_value = as.numeric(result$p)[1],
+      df = as.numeric(result$Df)[1],
+      method = "car::ncvTest"
+    )
   } else if (is.list(result) && !is.null(result$p.value)) {
     list(
       statistic = if (!is.null(result$statistic)) as.numeric(result$statistic)[1] else NA_real_,
@@ -625,7 +638,7 @@ ht_safe_median <- function(x) {
 }
 
 ht_group_median <- function(performance_df, value_col) {
-  data <- performance_df[performance_df$status == "success" & !is.na(performance_df[[value_col]]), , drop = FALSE]
+  data <- performance_df[performance_df$status == "success" & is.finite(performance_df[[value_col]]), , drop = FALSE]
   if (nrow(data) == 0L) {
     return(data.frame())
   }
@@ -639,12 +652,36 @@ ht_group_median <- function(performance_df, value_col) {
 
 ht_group_median_accuracy <- function(accuracy_df) {
   data <- accuracy_df[accuracy_df$status == "success", , drop = FALSE]
+  # aggregate() drops rows whose response is NA, so a frame with rows but no
+  # finite differences would otherwise reach aggregate() empty and error.
+  data <- data[is.finite(data$p_value_diff) | is.finite(data$statistic_diff), , drop = FALSE]
   if (nrow(data) == 0L) {
     return(data.frame())
   }
   labels <- unique(data[, c("test", "label")])
-  p_val <- stats::aggregate(p_value_diff ~ test + baseline_package + sample_size, data = data, FUN = ht_safe_median)
-  stat <- stats::aggregate(statistic_diff ~ test + baseline_package + sample_size, data = data, FUN = ht_safe_median)
+  p_data <- data[is.finite(data$p_value_diff), , drop = FALSE]
+  s_data <- data[is.finite(data$statistic_diff), , drop = FALSE]
+  agg <- function(d, col) {
+    if (nrow(d) == 0L) {
+      return(NULL)
+    }
+    stats::aggregate(
+      stats::as.formula(paste(col, "~ test + baseline_package + sample_size")),
+      data = d, FUN = ht_safe_median
+    )
+  }
+  p_val <- agg(p_data, "p_value_diff")
+  stat <- agg(s_data, "statistic_diff")
+  if (is.null(p_val) && is.null(stat)) {
+    return(data.frame())
+  }
+  keys <- c("test", "baseline_package", "sample_size")
+  if (is.null(p_val)) {
+    p_val <- cbind(unique(stat[, keys, drop = FALSE]), p_value_diff = NA_real_)
+  }
+  if (is.null(stat)) {
+    stat <- cbind(unique(p_val[, keys, drop = FALSE]), statistic_diff = NA_real_)
+  }
   names(p_val)[names(p_val) == "p_value_diff"] <- "median_p_value_diff"
   names(stat)[names(stat) == "statistic_diff"] <- "median_statistic_diff"
   merged <- merge(p_val, stat, by = c("test", "baseline_package", "sample_size"), all = TRUE)
@@ -661,10 +698,24 @@ ht_build_recommendations <- function(speed, memory, accuracy_summary, tolerance)
     df <- speed[idx, , drop = FALSE]
     df <- df[order(df$median_time), , drop = FALSE]
     fastest <- df[1, ]
-    mem_subset <- memory[memory$test == fastest$test & memory$sample_size == fastest$sample_size, , drop = FALSE]
-    mem_subset <- mem_subset[order(mem_subset$median_memory_mb), , drop = FALSE]
-    memory_leader <- if (nrow(mem_subset) > 0L) mem_subset[1, ] else data.frame(package = NA_character_, median_memory_mb = NA_real_, label = NA_character_)
-    acc_subset <- accuracy_summary[accuracy_summary$test == fastest$test & accuracy_summary$sample_size == fastest$sample_size, , drop = FALSE]
+    # With profile_memory = FALSE the memory table is an empty data.frame, so
+    # memory$test is NULL and order() would be handed NULL rather than a vector.
+    mem_subset <- if (nrow(memory) > 0L && all(c("test", "sample_size", "median_memory_mb") %in% names(memory))) {
+      hits <- memory[memory$test == fastest$test & memory$sample_size == fastest$sample_size, , drop = FALSE]
+      hits[order(hits$median_memory_mb), , drop = FALSE]
+    } else {
+      data.frame()
+    }
+    memory_leader <- if (nrow(mem_subset) > 0L) {
+      mem_subset[1, ]
+    } else {
+      data.frame(package = NA_character_, median_memory_mb = NA_real_, label = NA_character_)
+    }
+    acc_subset <- if (nrow(accuracy_summary) > 0L && all(c("test", "sample_size") %in% names(accuracy_summary))) {
+      accuracy_summary[accuracy_summary$test == fastest$test & accuracy_summary$sample_size == fastest$sample_size, , drop = FALSE]
+    } else {
+      data.frame()
+    }
     accuracy_note <- ht_interpret_accuracy(acc_subset, tolerance)
     data.frame(
       test = fastest$test,

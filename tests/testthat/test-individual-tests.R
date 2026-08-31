@@ -275,7 +275,7 @@ test_that("performHarveyTest handles edge cases", {
   
   result <- performHarveyTest(test_obj$model)
   expect_htest(result)
-  expect_equal(result$method, "Harvey test for heteroscedasticity")
+  expect_equal(result$method, "Harvey test for multiplicative heteroscedasticity")
   
   # Test with model that might have very small residuals
   near_perfect_data <- data.frame(x = 1:20, y = 1:20 + rnorm(20, 0, 0.2))
@@ -300,7 +300,7 @@ test_that("performNCVTest works correctly", {
   
   result <- performNCVTest(test_obj$model)
   expect_htest(result)
-  expect_equal(result$method, "NCV test via absolute residual regression")
+  expect_equal(result$method, "Cook-Weisberg score test for non-constant variance")
 })
 
 test_that("performCookWeisbergTest works correctly", {

@@ -1,7 +1,10 @@
 ## Test environments
 
 - Local: Windows 11, R 4.5.1
-- GitHub Actions: Ubuntu, macOS and Windows across R 4.0–4.4 (release and oldrel)
+- GitHub Actions: Ubuntu (R-devel, R-release, R-oldrel-1), macOS (R-release)
+  and Windows (R-release)
+- GitHub Actions: a separate Ubuntu 22.04 job on R 4.0 checks the minimum
+  version declared in `Depends:`
 
 ## R CMD check results
 

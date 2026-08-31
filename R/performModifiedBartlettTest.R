@@ -7,7 +7,7 @@
 #' @param data A [base::data.frame] used to fit `model`.
 #' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic and
+#' @return An object of class \code{htest} with the chi-squared statistic and
 #'   p-value.
 #'
 #' @details

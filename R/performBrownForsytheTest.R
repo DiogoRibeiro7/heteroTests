@@ -8,7 +8,7 @@
 #' @param data A [base::data.frame] containing the variables used to fit `model`.
 #' @param group Character scalar naming the grouping variable in `data`.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
+#' @return An object of class \code{htest} with the F statistic and p-value.
 #'
 #' @details
 #' After validating the model and grouping structure with the shared helpers, the

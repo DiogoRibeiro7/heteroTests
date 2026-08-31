@@ -46,7 +46,7 @@ NULL
 #' @param parallel Logical, allow parallel bootstrap evaluation when the
 #'   `parallel` package is available.
 #'
-#' @return An object of class \link[stats:htest]{htest} augmented with a
+#' @return An object of class \code{htest} augmented with a
 #'   `robust_details` list containing bootstrap, effect size, and power
 #'   information.
 #'
@@ -181,7 +181,7 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #'   regression (Koenker variant)? Defaults to `TRUE`.
 #' @inheritParams performWhiteTestRobust
 #'
-#' @return An augmented \link[stats:htest]{htest} object containing a
+#' @return An augmented \code{htest} object containing a
 #'   `robust_details` element describing the additional diagnostics.
 #'
 #' @details

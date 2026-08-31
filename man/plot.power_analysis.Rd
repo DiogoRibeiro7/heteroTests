@@ -8,6 +8,7 @@
 }
 \arguments{
 \item{x}{Object returned by \code{simulate_power_analysis()}.}
+\item{...}{Further arguments passed to the underlying plotting routines.}
 }
 \description{
 Plot method for power analysis results

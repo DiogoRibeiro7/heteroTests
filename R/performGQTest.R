@@ -18,7 +18,7 @@
 #'   segment, `"less"` tests whether it decreases, and `"two.sided"` tests for
 #'   either direction. Defaults to `"greater"`, matching [lmtest::gqtest()].
 #'
-#' @return An object of class \link[stats:htest]{htest} with the directional F
+#' @return An object of class \code{htest} with the directional F
 #'   statistic, degrees of freedom, p-value, and alternative hypothesis.
 #'
 #' @details

@@ -20,7 +20,7 @@
 #'   of regressors exceeds this threshold, cross-products are dropped to avoid
 #'   explosive growth in columns. Defaults to `10`.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the chi-squared test
+#' @return An object of class \code{htest} containing the chi-squared test
 #'   statistic, associated degrees of freedom, and p-value.
 #'
 #' @details
@@ -332,7 +332,14 @@ performWhiteTestEnhanced <- function(model, data, cross_products = TRUE,
     bootstrap_stats <- bootstrap_white_test(model, data, B, parallel, cross_products)
     
     # Bootstrap p-value
-    boot_p_value <- mean(bootstrap_stats >= result$statistic)
+    # Finite-simulation convention: (1 + #) / (B_eff + 1).
+    finite_stats <- bootstrap_stats[is.finite(bootstrap_stats)]
+    boot_effective <- length(finite_stats)
+    boot_p_value <- if (boot_effective == 0L) {
+      NA_real_
+    } else {
+      (1 + sum(finite_stats >= unname(result$statistic[1]))) / (boot_effective + 1)
+    }
     
     result$p.value.bootstrap <- boot_p_value
     result$method <- paste(result$method, "(with bootstrap)")

@@ -6,7 +6,7 @@
 #'
 #' @param model A fitted [stats::lm] object whose residuals are to be assessed.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the t statistic for the
+#' @return An object of class \code{htest} containing the t statistic for the
 #'   slope parameter and its two-sided p-value.
 #'
 #' @details

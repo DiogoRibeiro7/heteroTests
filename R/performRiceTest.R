@@ -7,7 +7,7 @@
 #'   providing residuals whose ordering carries meaning, such as time-series or
 #'   spatially ordered data.
 #'
-#' @return A \link[stats:htest]{htest} object containing the F statistic, degrees of freedom,
+#' @return A \code{htest} object containing the F statistic, degrees of freedom,
 #'   and p-value for the null hypothesis of constant variance.
 #'
 #' @details

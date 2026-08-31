@@ -39,7 +39,7 @@ explosive growth in columns. Defaults to \code{10}.}
 displayed while streaming the data. Defaults to \code{interactive()}.}
 }
 \value{
-A \link[stats:htest]{htest} object containing the chi-squared statistic, p-value,
+A \code{htest} object containing the chi-squared statistic, p-value,
 and metadata about the chunked computation.
 }
 \description{

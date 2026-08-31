@@ -32,9 +32,9 @@ Dynamic entries are functions that receive additional arguments supplied to
 containing \code{min_obs} and, optionally, \code{reason}.
 }
 \examples{
-rTEST_REQUIREMENTS$white$min_obs
+heteroTests:::rTEST_REQUIREMENTS$white$min_obs
 
 # Dynamic entry: ARCH LM depends on the lag order
-rTEST_REQUIREMENTS$arch_lm(lags = 3)
+heteroTests:::rTEST_REQUIREMENTS$arch_lm(lags = 3)
 }
 \keyword{internal}

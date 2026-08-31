@@ -10,7 +10,7 @@
 #' @param lags A single positive integer giving the maximum lag order used in the
 #'   portmanteau statistic. Values between 5 and 20 are common in practice.
 #'
-#' @return An object of class \link[stats:htest]{htest} reporting the chi-squared statistic,
+#' @return An object of class \code{htest} reporting the chi-squared statistic,
 #'   degrees of freedom, and p-value for the null hypothesis of no ARCH effects
 #'   up to the requested lag.
 #'

@@ -21,10 +21,10 @@
 #'
 #' @format A named list keyed by lowercase test identifiers.
 #' @examples
-#' rTEST_REQUIREMENTS$white$min_obs
+#' heteroTests:::rTEST_REQUIREMENTS$white$min_obs
 #'
 #' # Dynamic entry: ARCH LM depends on the lag order
-#' rTEST_REQUIREMENTS$arch_lm(lags = 3)
+#' heteroTests:::rTEST_REQUIREMENTS$arch_lm(lags = 3)
 #' @keywords internal
 rTEST_REQUIREMENTS <- list(
   white = list(min_obs = 20L, reason = "Auxiliary regression needs sufficient df"),

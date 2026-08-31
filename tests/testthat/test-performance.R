@@ -378,14 +378,17 @@ test_that("functions recover from numerical issues", {
     performBPTest(near_perfect_model, near_perfect_data),
     "[Rr]esidual variance"
   )
-  # ... while the orchestrator recovers from that failure rather than aborting the
-  # whole run (the adaptive-fallback behaviour), returning a suite either way.
-  expect_no_error(
+  # ... and the orchestrator surfaces that failure rather than substituting a
+  # diagnostic that cannot validly run on a perfect fit either. Before 0.7.0 the
+  # adaptive-fallback chain reached the then-unvalidated NCV test, which
+  # succeeded on this degenerate model and was reported as the Breusch-Pagan
+  # result.
+  expect_error(
     suppressWarnings(
-      recovered <- runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
-    )
+      runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
+    ),
+    "[Rr]esidual variance|perfectly explained"
   )
-  expect_type(recovered, "list")
 
   # Slightly larger noise should now pass the guard and complete successfully
   set.seed(789)

@@ -27,6 +27,6 @@ residuals, and minimum sample size requirements.
 }
 \examples{
 mod <- stats::lm(mpg ~ wt, data = mtcars)
-rvalidateModelInputs(mod, test_name = "Demo Test")
+heteroTests:::rvalidateModelInputs(mod, test_name = "Demo Test")
 }
 \keyword{internal}

@@ -11,7 +11,7 @@
 #' @param data A [base::data.frame] containing the variables referenced in
 #'   `model`. The data must align with the observations used to fit `model`.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic,
+#' @return An object of class \code{htest} with the chi-squared statistic,
 #'   degrees of freedom, and p-value for the null hypothesis of homoskedasticity.
 #'
 #' @details

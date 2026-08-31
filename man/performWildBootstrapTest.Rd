@@ -29,7 +29,7 @@ Supported options are "rademacher" and "mammen".}
 when running the bootstrap loop.}
 }
 \value{
-An object of class \link[stats:htest]{htest} containing the observed
+An object of class \code{htest} containing the observed
 Breusch-Pagan statistic, bootstrap p-value, and additional details under the
 \code{bootstrap} element.
 }

@@ -133,12 +133,18 @@ on log-linear relationships. Park's test fits
 \[
 \log(\widehat{e}_i^2) = \alpha + \beta \log x_i + u_i,
 \]
-while Harvey's version regresses the log squared residuals on the fitted values
-and their square,
+while Harvey's version models a multiplicative variance and regresses the log
+squared residuals on the variance regressors $z_i$, which default to the
+model's own explanatory variables,
 \[
-\log(\widehat{e}_i^2) = \alpha + \beta_1 \widehat{y}_i + \beta_2 \widehat{y}_i^2 + u_i.
+\log(\widehat{e}_i^2) = \alpha + z_i^{\top} \gamma + u_i.
 \]
-The corresponding statistics are $nR^2$ and $qF$ ratios respectively.
+Park's statistic is the $t$ ratio on $\beta$. Harvey's is
+$\mathrm{ESS} / (\pi^2/2)$, referred to a $\chi^2_q$ distribution, because
+$\pi^2/2$ is the null variance of $\log \chi^2_1$. Passing
+`studentize = TRUE` estimates that variance from the data instead of assuming
+it, and `auxiliary = "fitted"` recovers the pre-0.7.0 variance model based on
+$\widehat{y}_i$ and $\widehat{y}_i^2$.
 
 ```{r}
 park_result <- performParkTest(model, boston_housing, "lstat")
@@ -148,7 +154,7 @@ list(Park = park_result, Harvey = harvey_result)
 
 Both functions rely on the shared validation helpers: Park requires an explicit
 variance driver and checks positivity for the logarithmic transform, whereas the
-Harvey helper automatically leverages the fitted values. Inspecting the
+Harvey helper defaults to the model's own regressors as the variance model. Inspecting the
 estimated coefficients helps determine the functional form that best captures
 the heteroscedastic structure.
 

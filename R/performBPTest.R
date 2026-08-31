@@ -11,7 +11,7 @@
 #'   variables referenced in `model`. The data must include all observations used
 #'   to fit `model` and should not contain unresolved missing values.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the LM statistic, degrees of
+#' @return An object of class \code{htest} with the LM statistic, degrees of
 #'   freedom, and p-value for the null hypothesis of constant error variance.
 #'
 #' @details

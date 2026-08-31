@@ -19,7 +19,7 @@ streaming chunk.}
 while processing the chunks. Defaults to \code{interactive()}.}
 }
 \value{
-A \link[stats:htest]{htest} object equivalent to \code{\link{performKoenkerTest}} with metadata
+A \code{htest} object equivalent to \code{\link{performKoenkerTest}} with metadata
 recording the streaming configuration.
 }
 \description{

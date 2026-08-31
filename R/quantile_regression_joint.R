@@ -31,9 +31,10 @@
 #'
 #' @examples
 #' if (requireNamespace("quantreg", quietly = TRUE)) {
-#'   data(mtcars)
-#'   model <- lm(mpg ~ wt + hp, data = mtcars)
-#'   performQuantileRegressionTest(model, mtcars)
+#'   # The test needs at least 40 observations, so mtcars (32) is too small.
+#'   data(boston_housing, package = "heteroTests")
+#'   model <- lm(medv ~ lstat + rm, data = boston_housing)
+#'   performQuantileRegressionTest(model, boston_housing)
 #' }
 #'
 #' @export

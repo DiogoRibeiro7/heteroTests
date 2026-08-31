@@ -6,7 +6,7 @@
 #' @param data A [base::data.frame] or matrix containing numeric variables.
 #' @param group A factor or grouping variable aligned with the rows of `data`.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the chi-squared statistic
+#' @return An object of class \code{htest} containing the chi-squared statistic
 #'   and p-value.
 #'
 #' @details

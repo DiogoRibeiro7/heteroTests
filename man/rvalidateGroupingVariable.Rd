@@ -27,7 +27,7 @@ Ensures that grouping variables supplied to heteroscedasticity tests satisfy
 minimum size and level requirements.
 }
 \examples{
-grp <- rvalidateGroupingVariable(mtcars, group_var = "cyl")
+grp <- heteroTests:::rvalidateGroupingVariable(mtcars, group_var = "cyl")
 grp$details$n_groups
 }
 \keyword{internal}

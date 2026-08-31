@@ -11,8 +11,16 @@ vignette: >
 library(heteroTests)
 ```
 
-The `algorithms_bibliography()` function lists all bibliographic references cited in this package.
+The full reference list for the diagnostics implemented in this package is
+maintained as the help topic `?algorithms_bibliography`, which collects the
+primary source for every test. The package citation is below.
 
 ```{r}
-algorithms_bibliography()
+citation("heteroTests")
+```
+
+To read the complete bibliography from an R session:
+
+```{r eval=FALSE}
+?algorithms_bibliography
 ```

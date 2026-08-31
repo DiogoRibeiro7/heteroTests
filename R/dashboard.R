@@ -514,12 +514,15 @@ launchDiagnosticDashboard <- function(model, data) {
     output$test_table <- DT::renderDT({
       shiny::req(results_store())
       df <- make_results_df(results_store(), input$alpha)
-      DT::datatable(
-        df,
-        options = list(pageLength = min(10, nrow(df))),
-        rownames = FALSE
-      ) %>%
-        DT::formatRound(columns = c("Statistic", "P_Value"), digits = 4)
+      DT::formatRound(
+        DT::datatable(
+          df,
+          options = list(pageLength = min(10, nrow(df))),
+          rownames = FALSE
+        ),
+        columns = c("Statistic", "P_Value"),
+        digits = 4
+      )
     })
 
     output$suggestions <- shiny::renderPrint({
@@ -609,23 +612,23 @@ launchDiagnosticDashboard <- function(model, data) {
     output$simulation_plot <- plotly::renderPlotly({
       shiny::req(simulation_data())
       df <- simulation_data()
-      plotly::plot_ly(
-        df,
-        x = ~x,
-        y = ~y,
-        text = ~sprintf("x: %.2f<br>y: %.2f<br>sigma: %.2f", x, y, sigma),
-        type = "scatter",
-        mode = "markers",
-        color = ~sigma,
-        colors = "Viridis",
-        hoverinfo = "text",
-        marker = list(colorbar = list(title = "Sigma"))
-      ) %>%
-        plotly::layout(
-          title = "Simulated response with heteroscedastic variance",
-          xaxis = list(title = "Predictor"),
-          yaxis = list(title = "Response")
-        )
+      plotly::layout(
+        plotly::plot_ly(
+          df,
+          x = ~x,
+          y = ~y,
+          text = ~sprintf("x: %.2f<br>y: %.2f<br>sigma: %.2f", x, y, sigma),
+          type = "scatter",
+          mode = "markers",
+          color = ~sigma,
+          colors = "Viridis",
+          hoverinfo = "text",
+          marker = list(colorbar = list(title = "Sigma"))
+        ),
+        title = "Simulated response with heteroscedastic variance",
+        xaxis = list(title = "Predictor"),
+        yaxis = list(title = "Response")
+      )
     })
 
     output$simulation_results <- DT::renderDT({
@@ -633,12 +636,15 @@ launchDiagnosticDashboard <- function(model, data) {
       df <- make_results_df(simulation_store(), input$alpha)
       df$Dataset <- "Simulated"
       df <- df[, c("Dataset", "Test", "Statistic", "P_Value", "Significant")]
-      DT::datatable(
-        df,
-        options = list(pageLength = min(10, nrow(df))),
-        rownames = FALSE
-      ) %>%
-        DT::formatRound(columns = c("Statistic", "P_Value"), digits = 4)
+      DT::formatRound(
+        DT::datatable(
+          df,
+          options = list(pageLength = min(10, nrow(df))),
+          rownames = FALSE
+        ),
+        columns = c("Statistic", "P_Value"),
+        digits = 4
+      )
     })
 
     comparison_data <- shiny::reactive({
@@ -665,12 +671,15 @@ launchDiagnosticDashboard <- function(model, data) {
 
     output$comparison_table <- DT::renderDT({
       shiny::req(comparison_data())
-      DT::datatable(
-        comparison_data(),
-        options = list(pageLength = min(10, nrow(comparison_data()))),
-        rownames = FALSE
-      ) %>%
-        DT::formatRound(columns = c("Statistic", "P_Value"), digits = 4)
+      DT::formatRound(
+        DT::datatable(
+          comparison_data(),
+          options = list(pageLength = min(10, nrow(comparison_data()))),
+          rownames = FALSE
+        ),
+        columns = c("Statistic", "P_Value"),
+        digits = 4
+      )
     })
 
     output$download_comparison <- shiny::downloadHandler(

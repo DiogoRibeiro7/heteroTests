@@ -1,0 +1,62 @@
+"block","scenario","n","test","rejection_rate","n_mc","alpha","mc_se"
+"cross-sectional","size_gaussian_n100",100,"Breusch-Pagan",0.041,5000,0.05,0.00280424677944007
+"cross-sectional","size_gaussian_n100",100,"Koenker",0.0458,5000,0.05,0.00295642892693195
+"cross-sectional","size_gaussian_n100",100,"White",0.047,5000,0.05,0.00299302522541993
+"cross-sectional","size_gaussian_n100",100,"Goldfeld-Quandt",0.0502,5000,0.05,0.00308804015517933
+"cross-sectional","size_gaussian_n100",100,"Harvey",0.0516,5000,0.05,0.00312849612433834
+"cross-sectional","size_gaussian_n100",100,"Harvey (studentized)",0.0506,5000,0.05,0.00309966578843591
+"cross-sectional","size_gaussian_n100",100,"Park",0.0412,5000,0.05,0.00281078494374792
+"cross-sectional","size_gaussian_n100",100,"Glejser",0.0462,5000,0.05,0.00296868859936505
+"cross-sectional","size_gaussian_n100",100,"Szroeter",0.0448,5000,0.05,0.00292550713552369
+"cross-sectional","size_gaussian_n100",100,"Cook-Weisberg",0.0444,5000,0.05,0.00291302729132427
+"cross-sectional","size_gaussian_n100",100,"NCV",0.0444,5000,0.05,0.00291302729132427
+"cross-sectional","size_gaussian_n40",40,"Breusch-Pagan",0.0454,5000,0.05,0.00294410733499986
+"cross-sectional","size_gaussian_n40",40,"Koenker",0.0486,5000,0.05,0.0030409879973456
+"cross-sectional","size_gaussian_n40",40,"White",0.0494,5000,0.05,0.0030646252625729
+"cross-sectional","size_gaussian_n40",40,"Goldfeld-Quandt",0.048,5000,0.05,0.00302311098043059
+"cross-sectional","size_gaussian_n40",40,"Harvey",0.0574,5000,0.05,0.0032895361375124
+"cross-sectional","size_gaussian_n40",40,"Harvey (studentized)",0.057,5000,0.05,0.00327874976172321
+"cross-sectional","size_gaussian_n40",40,"Park",0.0602,5000,0.05,0.00336380617753164
+"cross-sectional","size_gaussian_n40",40,"Glejser",0.0556,5000,0.05,0.00324063697442339
+"cross-sectional","size_gaussian_n40",40,"Szroeter",0.0478,5000,0.05,0.00301712313305241
+"cross-sectional","size_gaussian_n40",40,"Cook-Weisberg",0.0474,5000,0.05,0.00300510365877785
+"cross-sectional","size_gaussian_n40",40,"NCV",0.0474,5000,0.05,0.00300510365877785
+"cross-sectional","size_t5_n100",100,"Breusch-Pagan",0.2186,5000,0.05,0.00584489589299929
+"cross-sectional","size_t5_n100",100,"Koenker",0.0424,5000,0.05,0.00284963997726029
+"cross-sectional","size_t5_n100",100,"White",0.059,5000,0.05,0.00333223648620562
+"cross-sectional","size_t5_n100",100,"Goldfeld-Quandt",0.1314,5000,0.05,0.00477774088874648
+"cross-sectional","size_t5_n100",100,"Harvey",0.0698,5000,0.05,0.00360355269144216
+"cross-sectional","size_t5_n100",100,"Harvey (studentized)",0.0516,5000,0.05,0.00312849612433834
+"cross-sectional","size_t5_n100",100,"Park",0.055,5000,0.05,0.0032241277890307
+"cross-sectional","size_t5_n100",100,"Glejser",0.0532,5000,0.05,0.00317394895989208
+"cross-sectional","size_t5_n100",100,"Szroeter",0.126,5000,0.05,0.00469305870408628
+"cross-sectional","size_t5_n100",100,"Cook-Weisberg",0.1734,5000,0.05,0.00535410944975913
+"cross-sectional","size_t5_n100",100,"NCV",0.1734,5000,0.05,0.00535410944975913
+"cross-sectional","power_exp_g0.4_n100",100,"Breusch-Pagan",0.7744,5000,0.05,0.00591108517955883
+"cross-sectional","power_exp_g0.4_n100",100,"Koenker",0.727,5000,0.05,0.00630033332451546
+"cross-sectional","power_exp_g0.4_n100",100,"White",0.5184,5000,0.05,0.00706627822831793
+"cross-sectional","power_exp_g0.4_n100",100,"Goldfeld-Quandt",0.8858,5000,0.05,0.00449796309455736
+"cross-sectional","power_exp_g0.4_n100",100,"Harvey",0.424,5000,0.05,0.0069889054937093
+"cross-sectional","power_exp_g0.4_n100",100,"Harvey (studentized)",0.4226,5000,0.05,0.00698583194759221
+"cross-sectional","power_exp_g0.4_n100",100,"Park",0.5136,5000,0.05,0.00706845159847615
+"cross-sectional","power_exp_g0.4_n100",100,"Glejser",0.8142,5000,0.05,0.00550051561219491
+"cross-sectional","power_exp_g0.4_n100",100,"Szroeter",0.9148,5000,0.05,0.0039481884453506
+"cross-sectional","power_exp_g0.4_n100",100,"Cook-Weisberg",0.8296,5000,0.05,0.0053172143082633
+"cross-sectional","power_exp_g0.4_n100",100,"NCV",0.8296,5000,0.05,0.0053172143082633
+"cross-sectional","power_quad_g0.15_n100",100,"Breusch-Pagan",0.7032,5000,0.05,0.00646080118870717
+"cross-sectional","power_quad_g0.15_n100",100,"Koenker",0.6492,5000,0.05,0.00674891635746066
+"cross-sectional","power_quad_g0.15_n100",100,"White",0.436,5000,0.05,0.0070129023948719
+"cross-sectional","power_quad_g0.15_n100",100,"Goldfeld-Quandt",0.8352,5000,0.05,0.00524673155402485
+"cross-sectional","power_quad_g0.15_n100",100,"Harvey",0.354,5000,0.05,0.00676289878676297
+"cross-sectional","power_quad_g0.15_n100",100,"Harvey (studentized)",0.3558,5000,0.05,0.00677061828786707
+"cross-sectional","power_quad_g0.15_n100",100,"Park",0.4374,5000,0.05,0.00701542928123433
+"cross-sectional","power_quad_g0.15_n100",100,"Glejser",0.7432,5000,0.05,0.00617824829543132
+"cross-sectional","power_quad_g0.15_n100",100,"Szroeter",0.8696,5000,0.05,0.00476226500732582
+"cross-sectional","power_quad_g0.15_n100",100,"Cook-Weisberg",0.772,5000,0.05,0.0059332284634927
+"cross-sectional","power_quad_g0.15_n100",100,"NCV",0.772,5000,0.05,0.0059332284634927
+"time-series","size_gaussian_n300",300,"ARCH LM (q = 3)",0.0454,5000,0.05,0.00294410733499986
+"time-series","size_gaussian_n300",300,"McLeod-Li (m = 10)",0.0542,5000,0.05,0.00320194815698193
+"time-series","size_t5_n300",300,"ARCH LM (q = 3)",0.0506,5000,0.05,0.00309966578843591
+"time-series","size_t5_n300",300,"McLeod-Li (m = 10)",0.0684,5000,0.05,0.00356991428468528
+"time-series","power_arch1_a0.6_n300",300,"ARCH LM (q = 3)",0.9928,5000,0.05,0.00119567219587979
+"time-series","power_arch1_a0.6_n300",300,"McLeod-Li (m = 10)",0.9694,5000,0.05,0.00243571919563812

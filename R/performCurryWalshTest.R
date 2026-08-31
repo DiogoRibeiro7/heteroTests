@@ -10,7 +10,7 @@
 #'   planar coordinates associated with each residual. Rows must align with the
 #'   observations used to fit `model`.
 #'
-#' @return An object of class \link[stats:htest]{htest} reporting Moran's I statistic for the
+#' @return An object of class \code{htest} reporting Moran's I statistic for the
 #'   squared residuals and a two-sided p-value based on the normal approximation.
 #'
 #' @details

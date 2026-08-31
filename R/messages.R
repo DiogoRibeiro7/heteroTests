@@ -17,7 +17,7 @@ error_messages <- list(
   rinsufficient_sample_size = "Test '{test_name}' requires at least {min_obs} observations, but only {n_obs} were supplied.",
   missing_values_detected = "Missing values detected in {var_names}. {n_removed} observations removed.",
   invalid_model_class = "Expected an lm/glm object but received class {model_class}. Refit the model before proceeding.",
-  perfect_fit_detected = "Model has perfect fit (R² = 1); heteroscedasticity tests are unreliable. Consider revising the specification.",
+  perfect_fit_detected = "Model has perfect fit (R\u00b2 = 1); heteroscedasticity tests are unreliable. Consider revising the specification.",
   rassumption_violation = "Test assumption violated: {assumption}. Results may be unreliable.",
   insufficient_group_size = "Group '{group_name}' has {n_obs} observation(s); at least {min_required} are needed.",
   invalid_group_variable = "Grouping variable '{group_var}' must be factor/character with \u2265 {min_groups} levels.",

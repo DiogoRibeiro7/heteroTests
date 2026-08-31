@@ -28,6 +28,29 @@ Dates are omitted in favour of milestone ordering.
   counterparts (covered by `test-streaming.R`).
 - [x] Resolved a duplicate `%||%` operator collision that could abort
   `runHeteroTests()` on multi-column data.
+- [x] **Pass A of the statistical validation matrix** (classical regression
+  diagnostics). Each test was checked definition -> reference -> implementation ->
+  numerical equivalence -> size/power. Reference equivalence is asserted in
+  `tests/testthat/test-pass-a-reference.R`; size and power are measured by
+  `inst/validation/pass-a-size-power.R` and recorded in
+  `inst/validation/pass-a-size-power.csv`. Corrections: `performSzroeterTest()`
+  (wrong standardisation, zero power), `performNCVTest()` (was a Glejser-type
+  t-test, not the score test it documented), `performCookWeisbergTest()` (returned
+  the Koenker statistic), `performHarveyTest()` (non-standard auxiliary design and
+  statistic). `performArchLMTest()` and `performMcLeodLiTest()` passed unchanged.
+- [x] Unified input validation across the Pass A tests; `performNCVTest()` and
+  `performCookWeisbergTest()` no longer bypass the shared framework. This also
+  removed a masking effect in which the unvalidated NCV test succeeded on
+  degenerate models and acted as a universal fallback for other failing tests.
+- [x] `compareModelDiagnostics()` no longer reports a substituted fallback
+  diagnostic under the requested test's name.
+- [x] Removed two shadowed duplicate definitions: the obsolete
+  `performHCCovarianceTest()` and `performQuantileRegressionTest()` in
+  `modern_diagnostics.R` were being overwritten at load time by the corrected
+  versions. Correct behaviour depended on collation order.
+- [x] Standardised bootstrap and permutation p-values on the finite-simulation
+  convention `(1 + #) / (B_eff + 1)`, with a regression test covering every
+  resampling entry point.
 
 ### Packaging / correctness hygiene
 - [x] Declared dependencies correctly: `R6` and `parallel` in `Imports`, `digest`
@@ -58,19 +81,37 @@ Dates are omitted in favour of milestone ordering.
   should remain a verbatim `MASS::Boston` copy or be replaced with a derived
   example. (Data are now `.rda`; `cran-comments.md` reflects the real state.)
 - [ ] Restore `renv.lock` to match the declared `Imports`/`Suggests`.
-- [ ] Clear the remaining `R CMD check` warnings: reconcile the hand-written `.Rd`
-  files with the function signatures (`\usage`/code mismatches), replace non-ASCII
-  characters in source with escapes, and fix the vignette build metadata. These are
-  pre-existing and best done as a dedicated documentation-reconciliation pass.
+- [ ] Clear the remaining `R CMD check` notes: reconcile the hand-written `.Rd`
+  files with the function signatures (`\usage`/code mismatches) and replace
+  non-ASCII characters in source with escapes. The `.Rd` files for the tests
+  corrected in 0.7.0 are already reconciled; the rest are pre-existing and best
+  done as a dedicated documentation-reconciliation pass.
 
 ## Short-term improvements
 
-- [ ] Unify input validation across the `perform*Test` family; `performNCVTest()`
-  and `performCookWeisbergTest()` currently bypass the shared framework.
-- [ ] Standardise bootstrap p-value conventions (always `(1 + #)/(B + 1)`) and stop
-  labelling percentile intervals of a test statistic as confidence intervals.
+- [ ] Pass B of the validation matrix: the group-variance tests (Levene,
+  Brown-Forsythe, Bartlett, Fligner-Killeen, Hartley F-max, O'Brien, modified
+  Bartlett), several of which have closed-form definitions or reference
+  implementations to reproduce.
+- [ ] Pass C of the validation matrix: the methods with the least reference
+  coverage (Cameron-Trivedi, ordered LM, Davidian-Carroll, Rice, Curry-Walsh,
+  rank permutation, high-dimensional, spatial and panel diagnostics). These
+  need either an established implementation to reproduce or the original
+  paper's statistic reconstructed independently.
+- [ ] Extend the validation matrix to the remaining `perform*Test` exports and
+  publish the combined size/power table.
+- [ ] Stop labelling percentile intervals of a test statistic as confidence
+  intervals. (The p-value convention itself was standardised in 0.7.0.)
 - [ ] Factor out repeated boilerplate (scalar validators, the model/data preparation
   block, intercept-stripping) into shared helpers.
+
+## Sequencing
+
+Statistical correctness comes before API reduction. Shrinking the public
+surface is still wanted, but mixing API-breaking cleanup into the same release
+as method-definition corrections makes both harder to review and harder to
+explain in `NEWS.md`. The order is: finish the validation passes, green CI,
+release, and only then reduce the exported surface.
 
 ## Medium-term
 

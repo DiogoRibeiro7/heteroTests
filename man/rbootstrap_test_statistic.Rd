@@ -20,7 +20,7 @@ rbootstrap_test_statistic(
 \arguments{
 \item{test_function}{A function that accepts \verb{(model, data, ...)} and
 returns an object with a numeric \code{statistic} element (typically an
-\link[stats:htest]{htest} result).}
+\code{htest} result).}
 
 \item{model}{A fitted model of class \code{lm} or \code{glm}.}
 
