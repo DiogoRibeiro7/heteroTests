@@ -1,8 +1,10 @@
-citHeader("To cite heteroTests in publications, please use:")
-citHeader("See algorithms_bibliography() for references on diagnostic tests.")
+citHeader(paste(
+  "To cite heteroTests in publications, please use the entry below.",
+  "See ?algorithms_bibliography for the primary reference behind each test."
+))
 
-citEntry(
-  entry = "Manual",
+bibentry(
+  bibtype = "Manual",
   title = "heteroTests: Heteroscedasticity Diagnostic Tools",
   author = person(
     given = "Diogo",
@@ -16,11 +18,11 @@ citEntry(
   ),
   year = "2025",
   url = "https://github.com/DiogoRibeiro7/heteroTests",
-  note = paste("R package version", utils::packageDescription("heteroTests")$Version)
+  note = paste("R package version", meta$Version)
 )
 
-citEntry(
-  entry = "Misc",
+bibentry(
+  bibtype = "Misc",
   title = "heteroTests Vignette",
   author = person(
     given = "Diogo",
@@ -32,12 +34,12 @@ citEntry(
     )
   ),
   year = "2025",
-  url = "https://diogoribeiro7.github.io/heteroTests/articles/heteroTests.html",
+  url = "https://diogoribeiro7.github.io/heteroTests/articles/using_heteroTests.html",
   textVersion = "See the vignette for a detailed introduction to all diagnostics."
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "A Heteroskedasticity-Consistent Covariance Matrix Estimator and a Direct Test for Heteroskedasticity",
   author = c(person("Halbert", "White")),
   year = "1980",
@@ -45,8 +47,8 @@ citEntry(
   doi = "10.2307/1912934"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "A Simple Test for Heteroscedasticity and Random Coefficient Variation",
   author = c(
     person("Trevor S.", "Breusch"),
@@ -57,8 +59,8 @@ citEntry(
   doi = "10.2307/1911963"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "A note on studentizing a test for heteroscedasticity",
   author = c(person("Roger", "Koenker")),
   year = "1981",
@@ -66,8 +68,8 @@ citEntry(
   doi = "10.1016/0304-4076(81)90062-2"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Some tests for homoscedasticity",
   author = c(
     person("Stephen M.", "Goldfeld"),
@@ -78,8 +80,8 @@ citEntry(
   doi = "10.2307/2283047"
 )
 
-citEntry(
-  entry = "InCollection",
+bibentry(
+  bibtype = "InCollection",
   title = "Robust Tests for Equality of Variances",
   author = c(person("Howard", "Levene")),
   booktitle = "Contributions to Probability and Statistics",
@@ -89,8 +91,8 @@ citEntry(
   year = "1960"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Robust tests for the equality of variances",
   author = c(
     person("Morton B.", "Brown"),
@@ -101,8 +103,8 @@ citEntry(
   doi = "10.1080/01621459.1974.10482955"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Distribution-free two-sample tests for scale",
   author = c(
     person("Michael A.", "Fligner"),
@@ -113,8 +115,8 @@ citEntry(
   doi = "10.1080/01621459.1976.10481517"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Properties of sufficiency and statistical tests",
   author = c(person("Maurice S.", "Bartlett")),
   year = "1937",
@@ -122,8 +124,8 @@ citEntry(
   doi = "10.1098/rspa.1937.0109"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "The maximum F-ratio as a short-cut test for heterogeneity of variance",
   author = c(person("Harold O.", "Hartley")),
   year = "1950",
@@ -131,8 +133,8 @@ citEntry(
   doi = "10.2307/2332383"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation",
   author = c(person("Robert F.", "Engle")),
   year = "1982",
@@ -140,8 +142,8 @@ citEntry(
   doi = "10.2307/1912773"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Diagnostic checking ARMA time series models using squared-residual autocorrelations",
   author = c(
     person("A. Ian", "McLeod"),
@@ -152,8 +154,8 @@ citEntry(
   doi = "10.1111/j.1467-9892.1983.tb00373.x"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "Diagnostics for heteroscedasticity in regression",
   author = c(
     person("R. Dennis", "Cook"),
@@ -164,8 +166,8 @@ citEntry(
   doi = "10.1093/biomet/70.1.1"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "A general ANOVA method for robust tests of additive models for variances",
   author = c(person("R. Gerald", "O'Brien")),
   year = "1979",
@@ -173,8 +175,8 @@ citEntry(
   doi = "10.1080/01621459.1979.10481047"
 )
 
-citEntry(
-  entry = "TechReport",
+bibentry(
+  bibtype = "TechReport",
   title = "The information matrix test and its applied alternative hypotheses",
   author = c(
     person("A. Colin", "Cameron"),
@@ -184,8 +186,8 @@ citEntry(
   year = "1990"
 )
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "Article",
   title = "The proof and measurement of association between two things",
   author = c(person("Charles", "Spearman")),
   year = "1904",
@@ -193,8 +195,8 @@ citEntry(
   doi = "10.2307/1412159"
 )
 
-citEntry(
-  entry = "TechReport",
+bibentry(
+  bibtype = "TechReport",
   title = "Regression based tests of heteroskedasticity in models where the variance depends on the mean",
   author = c(person("A. Colin", "Cameron")),
   institution = "Department of Economics, University of California, Davis",
@@ -203,8 +205,8 @@ citEntry(
   url = "https://cameron.econ.ucdavis.edu/research/regressionbasedtests_heteroskedasticity_ucdwp379.pdf"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "Econometric Analysis",
   author = c(person("William H.", "Greene")),
   year = "2018",
@@ -212,8 +214,8 @@ citEntry(
   publisher = "Pearson"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "Introductory Econometrics: A Modern Approach",
   author = c(person("Jeffrey M.", "Wooldridge")),
   year = "2020",
@@ -221,8 +223,8 @@ citEntry(
   publisher = "Cengage Learning"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "Econometric Theory and Methods",
   author = c(
     person("Russell", "Davidson"),
@@ -232,16 +234,16 @@ citEntry(
   publisher = "Oxford University Press"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "Misspecification Tests in Econometrics",
   author = c(person("Leslie G.", "Godfrey")),
   year = "1988",
   publisher = "Cambridge University Press"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "An R Companion to Applied Regression",
   author = c(
     person("John", "Fox"),
@@ -252,8 +254,8 @@ citEntry(
   publisher = "Sage Publications"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "Applied Econometrics with R",
   author = c(
     person("Christian", "Kleiber"),
@@ -263,8 +265,8 @@ citEntry(
   publisher = "Springer-Verlag"
 )
 
-citEntry(
-  entry = "Book",
+bibentry(
+  bibtype = "Book",
   title = "An Introduction to the Bootstrap",
   author = c(
     person("Bradley", "Efron"),

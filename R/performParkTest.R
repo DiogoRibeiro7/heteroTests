@@ -12,7 +12,7 @@
 #'   heteroscedasticity. The column must be numeric and strictly positive when
 #'   using the log transformation.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the t statistic for the slope
+#' @return An object of class \code{htest} with the t statistic for the slope
 #'   coefficient and its two-sided p-value.
 #'
 #' @details
@@ -25,6 +25,17 @@
 #' the necessary variables, and \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} enforces the
 #' positivity constraints required for the logarithmic transformation.
 #'
+#'
+#' @section Interpretation and caveats:
+#' Under the null the auxiliary error \eqn{u_i} behaves like a centred
+#' \eqn{\log \chi^2_1} variate, which is strongly left-skewed. The reported t
+#' statistic is therefore valid only asymptotically; in small samples the
+#' reference distribution is approximate. The test also conditions on a single
+#' user-chosen variable `variable`, so a non-significant result is evidence
+#' against variance scaling with that variable, not against heteroscedasticity in
+#' general. See [performBPTest()] or [performWhiteTest()] for omnibus
+#' alternatives. Simulated size and power are recorded in
+#' `inst/validation/pass-a-size-power.csv`.
 #' @references
 #' Park, R. E. (1966). Estimation with heteroscedastic error terms. *Econometrica,
 #' 34*(4), 888–898. <https://doi.org/10.2307/1909774>
@@ -85,8 +96,7 @@ performParkTest <- function(model, data, variable) {
     )
   }
 
-  e2 <- pmax(residuals^2, .Machine$double.eps)
-  dep <- log(e2)
+  dep <- rlog_squared_residuals(residuals, "Park test")
   indep <- log(var_vals)
 
   if (any(!is.finite(indep))) {
@@ -106,7 +116,7 @@ performParkTest <- function(model, data, variable) {
   structure(
     list(
       statistic = c(t = t_statistic),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Park test for heteroscedasticity",
       data.name = deparse(stats::formula(model))

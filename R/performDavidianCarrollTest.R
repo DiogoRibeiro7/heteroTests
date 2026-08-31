@@ -10,7 +10,7 @@
 #'   fitted values (default `2`). Higher degrees allow more flexible variance
 #'   functions but require larger samples.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the F statistic, numerator and
+#' @return An object of class \code{htest} with the F statistic, numerator and
 #'   denominator degrees of freedom, and p-value for the joint null of constant
 #'   variance.
 #'

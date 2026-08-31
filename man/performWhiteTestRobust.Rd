@@ -37,7 +37,7 @@ statistic and p-value?}
 \code{parallel} package is available.}
 }
 \value{
-An object of class \link[stats:htest]{htest} augmented with a
+An object of class \code{htest} augmented with a
 \code{robust_details} list containing bootstrap, effect size, and power
 information.
 }

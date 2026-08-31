@@ -23,6 +23,6 @@ heteroscedasticity diagnostics. The routine verifies that required
 variables are available and that the sample size meets minimum criteria.
 }
 \examples{
-rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
+heteroTests:::rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
 }
 \keyword{internal}

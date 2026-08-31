@@ -90,10 +90,27 @@ compareModelDiagnostics <- function(models, data = NULL,
       vapply(tests, function(test_name) {
         diag <- diags[[test_name]]
         if (is.null(diag)) {
-          NA_real_
-        } else {
-          as.numeric(diag$statistic)
+          return(NA_real_)
         }
+        # runHeteroTests() may substitute a different diagnostic when the
+        # requested one fails. The substitute is a different statistic on a
+        # different scale, so reporting it in this column would silently
+        # mislabel it, and a numeric comparison table has nowhere to carry
+        # the caveat. Report NA instead.
+        actual <- attr(diag, "diagnostic")
+        if (!is.null(actual) && !identical(actual, test_name)) {
+          warning(
+            sprintf(
+              paste0("Model %d: '%s' was unavailable and the orchestrator ",
+                     "substituted '%s'; reporting NA rather than a ",
+                     "mislabelled statistic."),
+              idx, test_name, actual
+            ),
+            call. = FALSE
+          )
+          return(NA_real_)
+        }
+        as.numeric(diag$statistic)
       }, numeric(1))
     }, error = function(e) {
       warning(

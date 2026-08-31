@@ -14,7 +14,7 @@ matrix for the auxiliary regression.}
 \code{model}. It must include all observations referenced by the model object.}
 }
 \value{
-An object of class \link[stats:htest]{htest} reporting the chi-squared statistic
+An object of class \code{htest} reporting the chi-squared statistic
 and p-value for the null hypothesis of constant error variance.
 }
 \description{

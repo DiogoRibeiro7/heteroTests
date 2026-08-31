@@ -7,7 +7,7 @@
 #' @param model A fitted [stats::lm] object whose residuals and fitted values will
 #'   be used in the auxiliary regression.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the overall F statistic, degrees
+#' @return An object of class \code{htest} with the overall F statistic, degrees
 #'   of freedom, and p-value for the joint null hypothesis of homoskedasticity.
 #'
 #' @details

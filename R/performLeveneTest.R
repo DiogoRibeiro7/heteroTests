@@ -20,7 +20,7 @@
 #' @param group Character scalar specifying the column in `data` that defines the
 #'   groups whose variances are compared.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
+#' @return An object of class \code{htest} with the F statistic and p-value.
 #'
 #' @references
 #' Levene, H. (1960). Robust tests for equality of variances. In

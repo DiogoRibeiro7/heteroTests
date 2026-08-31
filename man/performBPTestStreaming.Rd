@@ -20,7 +20,7 @@ additional iteration overhead.}
 while chunks are processed. Defaults to \code{interactive()}.}
 }
 \value{
-A \link[stats:htest]{htest} object mirroring \code{\link{performBPTest}} and reporting the
+A \code{htest} object mirroring \code{\link{performBPTest}} and reporting the
 chi-squared statistic, degrees of freedom, p-value, and metadata describing the
 chunked computation.
 }

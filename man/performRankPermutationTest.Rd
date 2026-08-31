@@ -29,7 +29,7 @@ distribution.}
 \item{progress}{Logical toggle for progress reporting during permutations.}
 }
 \value{
-An \link[stats:htest]{htest} object containing the observed Spearman
+An \code{htest} object containing the observed Spearman
 correlation and a permutation-based p-value.
 }
 \description{

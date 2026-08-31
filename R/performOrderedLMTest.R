@@ -11,7 +11,7 @@
 #' @param order_by Character scalar naming the column in `data` that defines the
 #'   ordering of observations prior to running the auxiliary regression.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic,
+#' @return An object of class \code{htest} with the chi-squared statistic,
 #'   degrees of freedom, and p-value for the null of homoskedasticity.
 #'
 #' @details

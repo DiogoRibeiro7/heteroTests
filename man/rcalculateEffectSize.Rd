@@ -13,7 +13,7 @@ rcalculateEffectSize(
 }
 \arguments{
 \item{test_result}{Result object from a heteroscedasticity test (typically
-of class \link[stats:htest]{htest}).}
+of class \code{htest}).}
 
 \item{model}{Fitted model supplied to the diagnostic.}
 

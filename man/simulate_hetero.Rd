@@ -57,20 +57,21 @@ sigma_gaussian_peak(x, base = 0.5, height = 1, mu = 5, sd = 1)
 sigma_piecewise_linear(x, thr = 5, slope1 = 0.1, slope2 = 0.3)
 }
 \arguments{
-\item{n}{Number of observations for \code{simulate_hetero}.}
+\item{n}{Number of observations for \code{simulate_hetero}, or the length of
+the series for \code{simulate_arch1}.}
 \item{beta0}{Intercept of the regression.}
 \item{beta1}{Slope of the regression.}
 \item{sigma_func}{Function returning the standard deviation for each \code{x}.}
 \item{seed}{Optional integer seed for reproducibility.}
-\item{n}{Length of the time series for \code{simulate_arch1}.}
-\item{mu}{Mean of the ARCH(1) process.}
+\item{mu}{Mean of the ARCH(1) process for \code{simulate_arch1}, and the
+peak location for \code{sigma_gaussian_peak}.}
 \item{alpha0}{Constant term in the ARCH variance equation.}
 \item{alpha1}{ARCH coefficient (must be in [0,1)).}
 \item{x}{Numeric vector used by the \code{sigma_*} functions.}
 \item{coords}{Matrix or data frame with columns \code{x} and \code{y} for \code{sigma_spatial}.}
 \item{mu_func}{Function returning mean values for \code{sigma_multiplicative}.}
 \item{p}{Exponent for \code{sigma_multiplicative} or \code{sigma_power}.}
-\item{a,b,L,k,x0,thr,low,high,center,base,height,mu,sd,slope1,slope2,gamma0,gamma1}{Additional numeric parameters controlling the shape of the variance patterns.}
+\item{a,b,c,A,B,omega,phi,L,k,x0,thr,low,high,center,base,height,sd,slope1,slope2,gamma0,gamma1}{Additional numeric parameters controlling the shape of the variance patterns.}
 }
 \value{For \code{simulate_hetero} a data frame with columns \code{x} and \code{y}. For \code{simulate_arch1} a data frame with columns \code{time}, \code{y} and \code{sigma}. The \code{sigma_*} helpers return numeric vectors of standard deviations.}
 \examples{

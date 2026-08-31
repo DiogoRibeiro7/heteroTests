@@ -40,29 +40,6 @@
   )
 }
 
-.hc_adjustment <- function(type, residuals, design_matrix) {
-  n <- length(residuals)
-  p <- ncol(design_matrix)
-  if (n == 0L || p == 0L) {
-    stop("Design matrix must contain observations and predictors.", call. = FALSE)
-  }
-  xtx_inv <- MASS::ginv(crossprod(design_matrix))
-  hat_values <- rowSums((design_matrix %*% xtx_inv) * design_matrix)
-  guard <- pmax(1 - hat_values, sqrt(.Machine$double.eps))
-  type <- toupper(type)
-  switch(type,
-    HC0 = rep(1, n),
-    HC1 = if (n > p) rep(n / (n - p), n) else rep(1, n),
-    HC2 = 1 / guard,
-    HC3 = 1 / guard^2,
-    HC4 = {
-      delta <- pmin(4, hat_values * n / p)
-      1 / guard^delta
-    },
-    stop(sprintf("Unsupported HC type '%s'.", type), call. = FALSE)
-  )
-}
-
 .pick_predictor <- function(model_matrix) {
   cols <- colnames(model_matrix)
   if (length(cols) <= 1L) {
@@ -102,7 +79,7 @@
 #' @param progress Logical flag controlling whether progress should be reported
 #'   when running the bootstrap loop.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the observed
+#' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the
 #'   `bootstrap` element.
 #'
@@ -247,206 +224,6 @@ performWildBootstrapTest <- function(model, data, B = 499,
   )
 }
 
-#' HC-type covariance heteroscedasticity test
-#'
-#' Uses heteroscedasticity-consistent covariance matrix adjustments (HC0–HC4) to
-#' stabilise the auxiliary regression employed by the Breusch-Pagan statistic.
-#' Large departures between robust and homoskedastic variance estimates manifest
-#' as a significant chi-squared statistic signalling heteroscedastic errors.
-#'
-#' @inheritParams performBPTest
-#' @param type Character string selecting the covariance adjustment. Supported
-#'   values are "HC0", "HC1", "HC2", "HC3", and "HC4".
-#'
-#' @return An \link[stats:htest]{htest} object with the adjusted Lagrange multiplier statistic.
-#'
-#' @references
-#' MacKinnon, J. G., & White, H. (1985). Some heteroskedasticity-consistent
-#' covariance matrix estimators with improved finite sample properties. *Journal
-#' of Econometrics, 29*(3), 305–325.
-#'
-#' Long, J. S., & Ervin, L. H. (2000). Using heteroscedasticity consistent
-#' standard errors in the linear regression model. *The American Statistician,
-#' 54*(3), 217–224.
-#'
-#' @examples
-#' data(mtcars)
-#' model <- lm(mpg ~ wt + hp, data = mtcars)
-#' performHCCovarianceTest(model, mtcars, type = "HC3")
-#'
-#' @export
-performHCCovarianceTest <- function(model, data, type = c("HC0", "HC1", "HC2", "HC3", "HC4")) {
-  type <- match.arg(type)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = sprintf("HC variance (%s)", type),
-    min_obs_model = 15L,
-    min_obs_data = 15L
-  )
-  working_data <- prepared$data
-  residuals <- prepared$residuals
-
-  requirements <- rvalidateTestRequirements("hc_covariance", model = model, data = working_data)
-  rprocessValidationResult(requirements)
-
-  design_matrix <- stats::model.matrix(model, data = working_data)
-  if (nrow(design_matrix) != length(residuals)) {
-    stop("Design matrix rows must match residual length for HC test.", call. = FALSE)
-  }
-  predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
-    design_matrix[, -1, drop = FALSE]
-  } else {
-    design_matrix
-  }
-  if (ncol(predictors) == 0L) {
-    stop("HC covariance test requires at least one predictor beyond the intercept.", call. = FALSE)
-  }
-
-  adjustment <- .hc_adjustment(type, residuals, design_matrix)
-  adjusted_residuals <- residuals^2 * adjustment
-  centered <- adjusted_residuals - mean(adjusted_residuals)
-
-  aux_df <- data.frame(hc_response = centered, predictors)
-  aux_model <- safe_lm(hc_response ~ ., data = aux_df)
-  r2 <- summary(aux_model)$r.squared
-  n <- length(residuals)
-  df <- ncol(predictors)
-  statistic <- n * r2
-  p_value <- stats::pchisq(statistic, df = df, lower.tail = FALSE)
-
-  structure(
-    list(
-      statistic = c("X-squared" = statistic),
-      parameter = c(df = df),
-      p.value = p_value,
-      method = sprintf("Heteroscedasticity-consistent covariance test (%s)", type),
-      data.name = deparse(stats::formula(model)),
-      estimate = c(mean_adjusted_residual = mean(adjusted_residuals)),
-      hc_type = type
-    ),
-    class = "htest"
-  )
-}
-
-#' Quantile regression heteroscedasticity test
-#'
-#' Detects heteroscedasticity by comparing slope coefficients from two quantile
-#' regressions. Under homoskedasticity the conditional slope should be stable
-#' across quantiles; differences indicate variance that varies with regressors.
-#'
-#' @inheritParams performBPTest
-#' @param taus Numeric vector of quantiles to compare. The first and last values
-#'   are used to form the Wald statistic and default to 0.25 and 0.75.
-#' @param se_type Standard error estimator passed to
-#'   \code{quantreg::summary.rq()}. Defaults to the "nid" approximation.
-#'
-#' @return An \link[stats:htest]{htest} object summarising the Wald test comparing
-#'   quantile-specific slopes.
-#'
-#' @references
-#' Koenker, R., & Bassett, G. (1978). Regression quantiles. *Econometrica,
-#' 46*(1), 33–50.
-#'
-#' Hao, L., & Naiman, D. Q. (2007). *Quantile Regression*. SAGE.
-#'
-#' @examples
-#' if (requireNamespace("quantreg", quietly = TRUE)) {
-#'   data(mtcars)
-#'   model <- lm(mpg ~ wt + hp, data = mtcars)
-#'   performQuantileRegressionTest(model, mtcars)
-#' }
-#'
-#' @export
-performQuantileRegressionTest <- function(model, data, taus = c(0.25, 0.75), se_type = c("nid", "rank")) {
-  if (!requireNamespace("quantreg", quietly = TRUE)) {
-    stop("Package 'quantreg' is required for the quantile regression test.", call. = FALSE)
-  }
-  if (!is.numeric(taus) || length(taus) < 2L) {
-    stop("`taus` must contain at least two quantiles.", call. = FALSE)
-  }
-  taus <- sort(unique(taus))
-  se_type <- match.arg(se_type)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "Quantile regression",
-    min_obs_model = 30L,
-    min_obs_data = 30L
-  )
-  working_data <- prepared$data
-
-  requirements <- rvalidateTestRequirements("quantile_regression", model = model, data = working_data)
-  rprocessValidationResult(requirements)
-
-  formula <- stats::formula(model)
-  tau_low <- taus[1]
-  tau_high <- taus[length(taus)]
-
-  rq_low <- quantreg::rq(formula, tau = tau_low, data = working_data)
-  rq_high <- quantreg::rq(formula, tau = tau_high, data = working_data)
-
-  coef_low <- stats::coef(rq_low)
-  coef_high <- stats::coef(rq_high)
-  common_names <- intersect(names(coef_low), names(coef_high))
-  if (length(common_names) == 0L) {
-    stop("Unable to align quantile regression coefficients.", call. = FALSE)
-  }
-  slope_names <- setdiff(common_names, "(Intercept)")
-  if (length(slope_names) == 0L) {
-    stop("Quantile regression test requires at least one slope coefficient.", call. = FALSE)
-  }
-  diff_beta <- coef_high[slope_names] - coef_low[slope_names]
-  diff_beta <- as.matrix(diff_beta)
-  rownames(diff_beta) <- slope_names
-
-  summary_low <- quantreg::summary.rq(rq_low, se = se_type, covariance = TRUE)
-  summary_high <- quantreg::summary.rq(rq_high, se = se_type, covariance = TRUE)
-  cov_low <- summary_low$cov
-  cov_high <- summary_high$cov
-  if (is.null(cov_low) || is.null(cov_high)) {
-    stop("Quantile regression summary did not return covariance matrices.", call. = FALSE)
-  }
-  if (is.null(dimnames(cov_low))) {
-    dimnames(cov_low) <- list(names(coef_low), names(coef_low))
-  }
-  if (is.null(dimnames(cov_high))) {
-    dimnames(cov_high) <- list(names(coef_high), names(coef_high))
-  }
-  cov_low <- cov_low[slope_names, slope_names, drop = FALSE]
-  cov_high <- cov_high[slope_names, slope_names, drop = FALSE]
-  cov_diff <- cov_low + cov_high
-  cov_diff <- cov_diff + diag(1e-8, nrow(cov_diff))
-  inv_cov <- tryCatch(MASS::ginv(cov_diff), error = function(e) NULL)
-  if (is.null(inv_cov)) {
-    stop("Unable to invert covariance matrix for quantile test.", call. = FALSE)
-  }
-  wald_stat <- as.numeric(t(diff_beta) %*% inv_cov %*% diff_beta)
-  df <- nrow(diff_beta)
-  p_value <- stats::pchisq(wald_stat, df = df, lower.tail = FALSE)
-
-  structure(
-    list(
-      statistic = c("X-squared" = wald_stat),
-      parameter = c(df = df),
-      p.value = p_value,
-      method = sprintf("Quantile regression heteroscedasticity test (taus %.2f vs %.2f)", tau_low, tau_high),
-      data.name = deparse(formula),
-      estimate = stats::setNames(as.numeric(diff_beta), rownames(diff_beta)),
-      quantiles = taus
-    ),
-    class = "htest"
-  )
-}
-
 #' Rank-based permutation heteroscedasticity test
 #'
 #' Performs a non-parametric permutation test based on the rank correlation
@@ -460,7 +237,7 @@ performQuantileRegressionTest <- function(model, data, taus = c(0.25, 0.75), se_
 #'   distribution.
 #' @param progress Logical toggle for progress reporting during permutations.
 #'
-#' @return An \link[stats:htest]{htest} object containing the observed Spearman
+#' @return An \code{htest} object containing the observed Spearman
 #'   correlation and a permutation-based p-value.
 #'
 #' @references
@@ -572,7 +349,7 @@ performRankPermutationTest <- function(model, data, order_by = NULL, B = 999, pr
 #' @param max_components Optional upper bound on the number of principal
 #'   components to retain. Defaults to `min(10, n - 5)`.
 #'
-#' @return An \link[stats:htest]{htest} object summarising the chi-squared statistic
+#' @return An \code{htest} object summarising the chi-squared statistic
 #'   of the auxiliary regression on principal component scores.
 #'
 #' @references
@@ -671,7 +448,7 @@ performHighDimensionalTest <- function(model, data, variance_threshold = 0.9, ma
 #' @param zero.policy Logical flag forwarded to the spatial diagnostic to permit
 #'   islands with no neighbours.
 #'
-#' @return An \link[stats:htest]{htest} result with Moran's I statistic applied to
+#' @return An \code{htest} result with Moran's I statistic applied to
 #'   squared residuals.
 #'
 #' @references

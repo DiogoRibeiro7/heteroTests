@@ -47,13 +47,22 @@ test_that("all tests produce valid htest", {
 test_that("Type I error rates near nominal", {
   skip_on_cran()
   key_tests <- c("white", "breusch_pagan", "koenker")
+  alpha <- 0.05
+  n_sims <- 400L
+  # Judge against the Monte Carlo error of the estimate rather than a fixed
+  # margin. At n_sims = 400 the standard error at alpha = 0.05 is about
+  # 0.011, so a three-sigma band is roughly 0.033. The previous fixed 0.03
+  # with n_sims = 200 was under two standard errors, and with three tests
+  # checked it failed by chance in about one run in seven.
+  tolerance <- 3 * sqrt(alpha * (1 - alpha) / n_sims)
   for (test_name in key_tests) {
     fn <- function(model, data) {
       suppressMessages(factory$run_test(test_name, model, data))
     }
-    typeI <- simulate_type_I_errors(fn, n_sims = 200, n_obs = 50, alpha = 0.05)
-    expect_true(abs(typeI$type_I_rate - 0.05) < 0.03,
+    typeI <- simulate_type_I_errors(fn, n_sims = n_sims, n_obs = 50, alpha = alpha)
+    expect_true(abs(typeI$type_I_rate - alpha) < tolerance,
                 info = paste("Type I error rate for", test_name,
-                               "is", typeI$type_I_rate))
+                               "is", typeI$type_I_rate,
+                               "(tolerance", round(tolerance, 4), ")"))
   }
 })

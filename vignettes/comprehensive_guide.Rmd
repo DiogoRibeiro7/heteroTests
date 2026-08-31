@@ -90,7 +90,7 @@ performBPTest(fit, mtcars)
 ### Example 3: Panel Data
 
 ```{r example-panel, echo=TRUE}
-dat <- simulate_hetero(n = 50)
+dat <- simulate_hetero(n = 250, beta0 = 1, beta1 = 2, sigma_func = sigma_linear)
 fit <- lm(y ~ x, data = dat)
 performSzroeterTest(fit, dat, order_by = "x")
 ```

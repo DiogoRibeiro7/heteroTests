@@ -269,3 +269,39 @@ check_memory_usage <- function(data, threshold_mb = 100) {
 
   invisible(size_mb)
 }
+
+#' Log squared residuals with a guard against numerically zero residuals
+#'
+#' Variance-function tests that regress \eqn{\log(\hat{e}_i^2)} on a design matrix
+#' (Harvey, Park) are undefined when a residual is exactly zero. Flooring the
+#' squared residual at the machine epsilon keeps the computation finite, but
+#' \eqn{\log(\varepsilon) \approx -36} sits roughly sixteen standard deviations
+#' below the mean of the null \eqn{\log \chi^2_1} distribution, so a single
+#' floored observation can dominate the auxiliary regression. This helper applies
+#' the floor and warns when it bites.
+#'
+#' @param e Numeric vector of residuals.
+#' @param test_name Character scalar naming the calling test, used in the warning.
+#'
+#' @return Numeric vector of logged squared residuals.
+#' @keywords internal
+#' @noRd
+rlog_squared_residuals <- function(e, test_name) {
+  e2 <- e^2
+  floor_value <- .Machine$double.eps
+  floored <- e2 < floor_value
+  if (any(floored)) {
+    warning(
+      sprintf(
+        paste0(
+          "%s: %d residual(s) are numerically zero and were floored before ",
+          "taking logarithms. The auxiliary regression may be dominated by ",
+          "these observations; treat the p-value with caution."
+        ),
+        test_name, sum(floored)
+      ),
+      call. = FALSE
+    )
+  }
+  log(pmax(e2, floor_value))
+}

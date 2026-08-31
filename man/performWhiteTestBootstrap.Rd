@@ -22,7 +22,7 @@ values yield smoother p-value estimates at the cost of additional runtime.}
 available.}
 }
 \value{
-A \link[stats:htest]{htest} object reporting both the asymptotic White statistic
+A \code{htest} object reporting both the asymptotic White statistic
 and its bootstrap p-value. The returned object also stores the simulated test
 statistics in \code{boot_statistics} for further inspection.
 }
@@ -51,16 +51,22 @@ inaccurate. When \code{parallel = TRUE} the resampling step exploits available C
 cores to reduce computation time.
 }
 \examples{
-data(mtcars)
-mod <- lm(mpg ~ wt + qsec, data = mtcars)
-performWhiteTestBootstrap(mod, mtcars, B = 200)
+# The bootstrap needs at least 50 observations, so mtcars (32) is too small.
+set.seed(42)
+n <- 120
+sim <- data.frame(x = runif(n, 1, 5))
+sim$y <- 1 + 2 * sim$x + rnorm(n, sd = 0.3 + 0.6 * sim$x)
+mod <- lm(y ~ x, data = sim)
+performWhiteTestBootstrap(mod, sim, B = 199)
 
-# Increase replications for a smoother p-value estimate
-performWhiteTestBootstrap(mod, mtcars, B = 500)
+\donttest{
+# More replications give a smoother p-value estimate
+performWhiteTestBootstrap(mod, sim, B = 999)
 
 # Enable parallel processing when supported by the operating system
 if (.Platform$OS.type != "windows") {
-  performWhiteTestBootstrap(mod, mtcars, B = 100, parallel = TRUE)
+  performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
+}
 }
 
 }

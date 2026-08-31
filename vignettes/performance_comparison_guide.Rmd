@@ -125,7 +125,8 @@ ggplot(type1_df, aes(x = reorder(test, rate), y = rate)) +
 
 *Interpretation.* Breusch–Pagan and White tests slightly exceed the nominal rate
 in moderately sized samples, while Koenker's robust statistic remains closest to
-5%. Harvey's log-linear formulation is conservative under homoskedasticity.
+5%. Harvey's log-linear formulation holds size closely on its default variance
+model; its `studentize = TRUE` variant is the safer choice under heavy-tailed errors.
 
 ## Power against structured alternatives
 
@@ -159,14 +160,15 @@ ggplot(power_df, aes(x = test, y = rate, fill = scenario)) +
 *Interpretation.* White's omnibus test excels when heteroskedasticity follows a
 nonlinear pattern with multiple interaction terms (clustered scenario), whereas
 Breusch–Pagan is most powerful for smooth linear variance inflation. Koenker's
-studentised variant sacrifices some power for robustness. Harvey's log-linear
-regression on the fitted values performs strongly when the variance tracks the
-conditional mean, which occurs here because `x1` dominates the signal.
+studentised variant sacrifices some power for robustness. Harvey's
+log-linear regression on the model regressors performs strongly when the
+variance tracks those regressors, which occurs here because `x1` dominates the signal.
 
 ## Practical guidance
 
 * Prefer Breusch–Pagan or Park when theory suggests variance scales with known
-  regressors; Harvey is helpful when variance is tied to the fitted mean.
+  regressors; Harvey targets the same regressors under a multiplicative rather
+  than an additive variance model.
 * Use Koenker's statistic or Glejser-type tests when heavy-tailed errors are
   plausible.
 * Combine diagnostics with residual plots and domain knowledge; simulation

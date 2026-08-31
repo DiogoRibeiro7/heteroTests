@@ -34,24 +34,33 @@ Many additional diagnostics follow the same interface and also return an
 `htest` object.
 
 ```{r more-tests}
-# Breusch-Pagan and its robust Koenker version
-performBPTest(model, mtcars)
-performKoenkerTest(model, mtcars)
+# Breusch-Pagan and its robust Koenker version. The data argument must be
+# the data the model was fitted on.
+performBPTest(model, boston_housing)
+performKoenkerTest(model, boston_housing)
 
-# Group-based tests
-mtcars$cyl <- factor(mtcars$cyl)
-performLeveneTest(model, mtcars, "cyl")
+# Group-based tests need a grouping factor in that same data
+boston_grouped <- boston_housing
+boston_grouped$chas <- factor(boston_grouped$chas)
+performLeveneTest(model, boston_grouped, "chas")
 
 # ARCH effects in time series
 performArchLMTest(model, lags = 2)
 ```
 
+Several diagnostics can also be run together.
+
+```{r run-many}
 # Alternatively run multiple tests at once
-runHeteroTests(model, mtcars)
+runHeteroTests(model, boston_housing)
 # Choose a subset of diagnostics
-runHeteroTests(model, mtcars, tests = c("white", "koenker", "ncv"))
-runDiagnostics(model, mtcars)
-# remediation helpers
+runHeteroTests(model, boston_housing, tests = c("white", "koenker", "ncv"))
+runDiagnostics(model, boston_housing)
+```
+
+Remediation helpers operate on the fitted model directly.
+
+```{r remediation}
 fitWLS(model)
 fitRobust(model)
 autoTransform(model)
@@ -139,15 +148,16 @@ The `heteroTests` package is designed to handle datasets of various sizes, but s
 
 ### Recommendations for Large Datasets
 
-```{r performance-tips}
-# For very large datasets, consider:
+```{r performance-tips, eval=FALSE}
+# Illustrative only: `your_data` stands for your own data frame, so this
+# chunk is not evaluated when the vignette is built.
 
 # 1. Subset for initial exploration
 large_subset <- your_data[sample(nrow(your_data), 1000), ]
 quick_result <- performWhiteTest(model, large_subset)
 
 # 2. Use simpler tests first
-fast_result <- performGoldfeldQuandtTest(model, your_data)
+fast_result <- performGQTest(model, your_data, order_by = "x1")
 
 # 3. Monitor memory usage
 gc()  # Garbage collection before analysis

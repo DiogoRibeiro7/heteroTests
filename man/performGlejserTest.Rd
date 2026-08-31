@@ -3,7 +3,8 @@
 \title{Perform Glejser test for heteroscedasticity}
 \description{Regresses absolute residuals on a transformation of a suspected variable.}
 \details{A variety of transformations of the explanatory variable (e.g. absolute value, square root) can reveal a relationship between scale and the covariate. Significance of the slope parameter is assessed with a t test.}
-\usage{performGlejserTest(model, data, variable, transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"))}
+\usage{performGlejserTest(model, data, variable,
+                   transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"))}
 \arguments{
   \item{model}{an object of class \code{lm}.}
   \item{data}{data frame used to fit \code{model}.}

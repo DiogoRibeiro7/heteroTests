@@ -209,7 +209,7 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
 
   if (!combined$passed) {
     messages <- unique(combined$messages)
-    bullet_list <- paste(sprintf(" • %s", messages), collapse = "\n")
+    bullet_list <- paste(sprintf(" \u2022 %s", messages), collapse = "\n")
     stop(sprintf("Input validation for %s failed:\n%s", test_name, bullet_list), call. = FALSE)
   }
 
@@ -526,7 +526,7 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
 #' @return Invisibly returns `model` when validation passes.
 #' @examples
 #' mod <- stats::lm(mpg ~ wt, data = mtcars)
-#' rvalidateModelInputs(mod, test_name = "Demo Test")
+#' heteroTests:::rvalidateModelInputs(mod, test_name = "Demo Test")
 #' @keywords internal
 rvalidateModelInputs <- function(model, test_name, min_obs = 10) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"white\"")
@@ -549,7 +549,7 @@ rvalidateModelInputs <- function(model, test_name, min_obs = 10) {
 #' @param min_obs Minimum number of observations required. Defaults to `10`.
 #' @return Invisibly returns the validated `data` object.
 #' @examples
-#' rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
+#' heteroTests:::rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
 #' @keywords internal
 rvalidateDataInputs <- function(data, required_vars = NULL, min_obs = 10) {
   min_obs <- enforce_integer_scalar(min_obs, "min_obs", lower = 0L)
@@ -569,19 +569,19 @@ rvalidateDataInputs <- function(data, required_vars = NULL, min_obs = 10) {
 #'   values.
 #' @param strategy Strategy describing how missing values should be handled.
 #'   The options are:
-#'   * `"complete_cases"` – remove incomplete rows and emit a warning that
+#'   * `"complete_cases"` - remove incomplete rows and emit a warning that
 #'     summarizes the data loss.
-#'   * `"warn"` – behaves identically to `"complete_cases"` but is provided as a
+#'   * `"warn"` - behaves identically to `"complete_cases"` but is provided as a
 #'     semantic alias when a calling test wants to emphasize the warning
 #'     behaviour explicitly.
-#'   * `"fail"` – abort when any missing values are detected.
+#'   * `"fail"` - abort when any missing values are detected.
 #' @return A list with components `data` (the processed data frame),
 #'   `removed_cases` (row indices removed), `removed_count` (number of removed
 #'   observations), `removed_fraction` (proportion removed relative to the
 #'   original data), `removed_variables` (variables with observed missingness),
 #'   and `loss_message` (the formatted warning text).
 #' @examples
-#' cleaned <- rhandleMissingValues(mtcars, c("mpg", "wt"))
+#' cleaned <- heteroTests:::rhandleMissingValues(mtcars, c("mpg", "wt"))
 #' cleaned$removed_count
 #' @keywords internal
 rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
@@ -885,17 +885,17 @@ check_outlier_assumption <- function(data, config, numeric_columns) {
 #' @param assumptions A named list describing the desired checks. Recognised
 #'   entries are:
 #'   \itemize{
-#'     \item `normality` – character vector or list with element `variables`
+#'     \item `normality` - character vector or list with element `variables`
 #'       specifying which columns should satisfy approximate normality. Optional
 #'       list elements `alpha` (significance level) and `sample_limit` (maximum
-#'       sample size for the Shapiro–Wilk test) can be supplied.
-#'     \item `positive` – character vector or list identifying variables that
+#'       sample size for the Shapiro-Wilk test) can be supplied.
+#'     \item `positive` - character vector or list identifying variables that
 #'       must contain positive values. When provided as a list, `test_name`
 #'       overrides the label used in error messages.
-#'     \item `variation` – character vector or list (with `variables` and
+#'     \item `variation` - character vector or list (with `variables` and
 #'       optional `tolerance`) describing variables that must exhibit
 #'       non-negligible variance.
-#'     \item `outliers` – character vector or list of variables to screen for
+#'     \item `outliers` - character vector or list of variables to screen for
 #'       extreme observations. Lists may include a numeric `threshold`
 #'       specifying the acceptable number of robust standard deviations.
 #'   }
@@ -903,7 +903,7 @@ check_outlier_assumption <- function(data, config, numeric_columns) {
 #'   vector of violations), `warnings` (character vector of recoverable issues),
 #'   and `details` (named list with diagnostic information for each assumption).
 #' @examples
-#' res <- rvalidateDistributionalAssumptions(
+#' res <- heteroTests:::rvalidateDistributionalAssumptions(
 #'   mtcars,
 #'   assumptions = list(
 #'     normality = list(variables = "mpg"),
@@ -978,7 +978,7 @@ rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
 #'   [rvalidateDistributionalAssumptions()] with information about the evaluated
 #'   grouping variable.
 #' @examples
-#' grp <- rvalidateGroupingVariable(mtcars, group_var = "cyl")
+#' grp <- heteroTests:::rvalidateGroupingVariable(mtcars, group_var = "cyl")
 #' grp$details$n_groups
 #' @keywords internal
 rvalidateGroupingVariable <- function(data, group_var, min_group_size = 3, min_groups = 2) {

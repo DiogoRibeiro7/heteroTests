@@ -9,7 +9,7 @@
 #'   the grouping factor.
 #' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the chi-squared statistic and
+#' @return An object of class \code{htest} with the chi-squared statistic and
 #'   p-value.
 #'
 #' @details

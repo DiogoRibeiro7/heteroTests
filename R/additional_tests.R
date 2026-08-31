@@ -64,7 +64,7 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' @param data A [base::data.frame] containing the variables used to fit
 #'   `model`. It must include all observations referenced by the model object.
 #'
-#' @return An object of class \link[stats:htest]{htest} reporting the chi-squared statistic
+#' @return An object of class \code{htest} reporting the chi-squared statistic
 #'   and p-value for the null hypothesis of constant error variance.
 #'
 #' @details
@@ -238,7 +238,7 @@ performStudentizedBPTest <- function(model, data) {
 #'   [parallel::mclapply()] when the `parallel` package and forked processing are
 #'   available.
 #'
-#' @return A \link[stats:htest]{htest} object reporting both the asymptotic White statistic
+#' @return A \code{htest} object reporting both the asymptotic White statistic
 #'   and its bootstrap p-value. The returned object also stores the simulated test
 #'   statistics in `boot_statistics` for further inspection.
 #'
@@ -270,16 +270,22 @@ performStudentizedBPTest <- function(model, data) {
 #' <https://doi.org/10.1016/j.jeconom.2005.02.002>
 #'
 #' @examples
-#' data(mtcars)
-#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performWhiteTestBootstrap(mod, mtcars, B = 200)
+#' # The bootstrap needs at least 50 observations, so mtcars (32) is too small.
+#' set.seed(42)
+#' n <- 120
+#' sim <- data.frame(x = runif(n, 1, 5))
+#' sim$y <- 1 + 2 * sim$x + rnorm(n, sd = 0.3 + 0.6 * sim$x)
+#' mod <- lm(y ~ x, data = sim)
+#' performWhiteTestBootstrap(mod, sim, B = 199)
 #'
-#' # Increase replications for a smoother p-value estimate
-#' performWhiteTestBootstrap(mod, mtcars, B = 500)
+#' \donttest{
+#' # More replications give a smoother p-value estimate
+#' performWhiteTestBootstrap(mod, sim, B = 999)
 #'
 #' # Enable parallel processing when supported by the operating system
 #' if (.Platform$OS.type != "windows") {
-#'   performWhiteTestBootstrap(mod, mtcars, B = 100, parallel = TRUE)
+#'   performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
+#' }
 #' }
 #'
 #' @seealso
@@ -344,7 +350,19 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
     boot_stats <- replicate(B, bootstrap_stat())
   }
 
-  p_value <- mean(boot_stats >= original_stat)
+  # Finite-simulation convention (Davison & Hinkley 1997, sec. 4.2):
+  # p = (1 + #{T_b >= T_obs}) / (B_eff + 1). The raw proportion can return
+  # exactly zero, which is not an attainable p-value from a finite number of
+  # replicates, and it is anti-conservative in the tail.
+  finite_stats <- boot_stats[is.finite(boot_stats)]
+  effective <- length(finite_stats)
+  if (effective == 0L) {
+    std_error(
+      "rassumption_violation",
+      assumption = "Bootstrap White test produced no usable replicates"
+    )
+  }
+  p_value <- (1 + sum(finite_stats >= original_stat)) / (effective + 1)
 
   structure(
     list(
@@ -372,21 +390,40 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' @param order_by Character scalar naming the column that defines the ordering of
 #'   observations prior to computing the statistic. The column must be numeric or
 #'   coercible to an orderable vector.
+#' @param alternative Character scalar specifying the alternative hypothesis:
+#'   `"greater"` (the default) tests for variance increasing with `order_by`,
+#'   `"less"` for variance decreasing, and `"two.sided"` for a change in either
+#'   direction. Szroeter's test targets monotone alternatives, so the one-sided
+#'   form is the usual choice.
 #'
-#' @return An object of class \link[stats:htest]{htest} reporting Szroeter's statistic,
-#'   sample size, and the two-sided p-value based on the asymptotic normal
+#' @return An object of class \code{htest} reporting Szroeter's
+#'   standardised statistic `Q`, the sample size, the underlying rank-weighted
+#'   statistic `h` in `estimate`, and the p-value from the asymptotic normal
 #'   reference distribution.
 #'
 #' @details
 #' After ordering the residuals \eqn{\hat{e}_{(i)}} by `order_by`, the test forms
-#' weighted sums of squared residuals
-#' \deqn{S = \frac{\sum_{i = 1}^n i \hat{e}_{(i)}^2}{(n + 1) \sum_{i = 1}^n \hat{e}_{(i)}^2 / 2}},
-#' which are then centred and scaled to obtain an approximately standard normal
-#' statistic. Large absolute values of the resulting \eqn{Z}-score provide evidence
-#' of variance that increases or decreases with the ordering variable. The
-#' implementation relies on the package validation helpers to align the supplied
-#' data with the model residuals, check that the ordering variable is present, and
-#' ensure sufficient sample size and variability in the squared residuals.
+#' the rank-weighted average of the squared residuals
+#' \deqn{h = \frac{\sum_{i = 1}^n i \, \hat{e}_{(i)}^2}{\sum_{i = 1}^n \hat{e}_{(i)}^2},}
+#' which is Szroeter's (1978) class of statistics evaluated at the canonical
+#' weights \eqn{h_i = i}. Under homoskedasticity \eqn{h} is centred on the mean
+#' rank \eqn{(n + 1) / 2} with variance \eqn{(n^2 - 1) / (6n)}, so
+#' \deqn{Q = \frac{h - (n + 1) / 2}{\sqrt{(n^2 - 1) / (6n)}}}
+#' is asymptotically standard normal. Variance that grows with `order_by` shifts
+#' weight onto the high ranks and drives \eqn{Q} upwards.
+#'
+#' The implementation relies on the package validation helpers to align the
+#' supplied data with the model residuals, check that the ordering variable is
+#' present, and ensure sufficient sample size and variability in the squared
+#' residuals.
+#'
+#' @section Validation:
+#' The statistic and its null variance are checked against an independent
+#' reconstruction of Szroeter (1978) in
+#' `tests/testthat/test-pass-a-reference.R`. Releases before 0.7.0 divided
+#' the centred statistic by a further \eqn{\sqrt{n}}, shrinking \eqn{Q} by a
+#' factor of roughly \eqn{2 / \sqrt{n}} and leaving the test with essentially no
+#' power against any alternative; see `NEWS.md`.
 #'
 #' @references
 #' Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
@@ -410,16 +447,22 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' df <- data.frame(y, x)
 #' performSzroeterTest(lm(y ~ x, data = df), df, order_by = "x")
 #'
+#' # Two-sided version when the direction of the change is not known in advance
+#' performSzroeterTest(mod, mtcars, order_by = "wt", alternative = "two.sided")
+#'
 #' @seealso
 #' [performOrderedLMTest()] for a regression-based alternative and
 #' [performGQTest()] for split-sample diagnostics on ordered data.
 #' @export
-performSzroeterTest <- function(model, data, order_by) {
+performSzroeterTest <- function(model, data, order_by,
+                                alternative = c("greater", "two.sided", "less")) {
   test_label <- "Szroeter test"
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
     stop("`order_by` must be supplied as a single column name.", call. = FALSE)
   }
+
+  alternative <- match.arg(alternative)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), order_by))
@@ -464,23 +507,41 @@ performSzroeterTest <- function(model, data, order_by) {
     )
   }
 
+  # Szroeter's (1978) h statistic with the canonical weights h_i = i: a
+  # rank-weighted average of the squared residuals in the supplied ordering.
   ranks <- seq_len(n)
-  numerator <- sum(ranks * e_ordered^2)
-  denominator <- sum(e_ordered^2) * (n + 1) / 2
+  h_stat <- sum(ranks * e_ordered^2) / sum(e_ordered^2)
 
-  test_statistic <- numerator / denominator
+  # Under homoskedasticity h has mean (n + 1) / 2 (the mean rank) and variance
+  # (n^2 - 1) / (6 n), giving an asymptotically standard normal Q. Note the
+  # sqrt(n) in the scale factor: h is a weighted mean of the ranks, so its
+  # dispersion grows with n and the centred statistic must NOT be divided by a
+  # further sqrt(n).
+  q_stat <- (h_stat - (n + 1) / 2) / sqrt((n^2 - 1) / (6 * n))
 
-  var_stat <- (n + 1) * (2 * n + 1) / (12 * n)
-  z_stat <- (test_statistic - 1) / sqrt(var_stat / n)
-  p_value <- 2 * stats::pnorm(-abs(z_stat))
+  p_value <- switch(
+    alternative,
+    "greater" = stats::pnorm(q_stat, lower.tail = FALSE),
+    "less" = stats::pnorm(q_stat),
+    "two.sided" = 2 * stats::pnorm(-abs(q_stat))
+  )
+
+  alternative_label <- switch(
+    alternative,
+    "greater" = sprintf("variance increases with '%s'", order_by),
+    "less" = sprintf("variance decreases with '%s'", order_by),
+    "two.sided" = sprintf("variance changes monotonically with '%s'", order_by)
+  )
 
   structure(
     list(
-      statistic = c(S = test_statistic),
+      statistic = c(Q = q_stat),
       parameter = c(n = n),
+      estimate = c(h = h_stat),
       p.value = p_value,
       method = "Szroeter test for ordered heteroscedasticity",
-      data.name = deparse(substitute(model))
+      data.name = deparse(substitute(model)),
+      alternative = alternative_label
     ),
     class = "htest"
   )

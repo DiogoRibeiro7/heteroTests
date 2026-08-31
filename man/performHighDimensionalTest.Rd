@@ -26,7 +26,7 @@ principal components should explain. Defaults to 0.9.}
 components to retain. Defaults to \code{min(10, n - 5)}.}
 }
 \value{
-An \link[stats:htest]{htest} object summarising the chi-squared statistic
+An \code{htest} object summarising the chi-squared statistic
 of the auxiliary regression on principal component scores.
 }
 \description{

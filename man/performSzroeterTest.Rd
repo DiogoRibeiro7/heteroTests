@@ -4,7 +4,8 @@
 \alias{performSzroeterTest}
 \title{Szroeter test for ordered alternatives}
 \usage{
-performSzroeterTest(model, data, order_by)
+performSzroeterTest(model, data, order_by,
+  alternative = c("greater", "two.sided", "less"))
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean equation under
@@ -17,10 +18,17 @@ variables used to fit \code{model} and the ordering variable supplied via
 \item{order_by}{Character scalar naming the column that defines the ordering of
 observations prior to computing the statistic. The column must be numeric or
 coercible to an orderable vector.}
+
+\item{alternative}{Character scalar specifying the alternative hypothesis:
+\code{"greater"} (the default) tests for variance increasing with \code{order_by},
+\code{"less"} for variance decreasing, and \code{"two.sided"} for a change in either
+direction. Szroeter's test targets monotone alternatives, so the one-sided
+form is the usual choice.}
 }
 \value{
-An object of class \link[stats:htest]{htest} reporting Szroeter's statistic,
-sample size, and the two-sided p-value based on the asymptotic normal
+An object of class \code{htest} reporting Szroeter's
+standardised statistic \code{Q}, the sample size, the underlying rank-weighted
+statistic \code{h} in \code{estimate}, and the p-value from the asymptotic normal
 reference distribution.
 }
 \description{
@@ -30,15 +38,30 @@ scheme proposed by Szroeter (1978).
 }
 \details{
 After ordering the residuals \eqn{\hat{e}_{(i)}} by \code{order_by}, the test forms
-weighted sums of squared residuals
-\deqn{S = \frac{\sum_{i = 1}^n i \hat{e}_{(i)}^2}{(n + 1) \sum_{i = 1}^n \hat{e}_{(i)}^2 / 2}},
-which are then centred and scaled to obtain an approximately standard normal
-statistic. Large absolute values of the resulting \eqn{Z}-score provide evidence
-of variance that increases or decreases with the ordering variable. The
-implementation relies on the package validation helpers to align the supplied
-data with the model residuals, check that the ordering variable is present, and
-ensure sufficient sample size and variability in the squared residuals.
+the rank-weighted average of the squared residuals
+\deqn{h = \frac{\sum_{i = 1}^n i \, \hat{e}_{(i)}^2}{\sum_{i = 1}^n \hat{e}_{(i)}^2},}
+which is Szroeter's (1978) class of statistics evaluated at the canonical
+weights \eqn{h_i = i}. Under homoskedasticity \eqn{h} is centred on the mean
+rank \eqn{(n + 1) / 2} with variance \eqn{(n^2 - 1) / (6n)}, so
+\deqn{Q = \frac{h - (n + 1) / 2}{\sqrt{(n^2 - 1) / (6n)}}}
+is asymptotically standard normal. Variance that grows with \code{order_by} shifts
+weight onto the high ranks and drives \eqn{Q} upwards.
+
+The implementation relies on the package validation helpers to align the
+supplied data with the model residuals, check that the ordering variable is
+present, and ensure sufficient sample size and variability in the squared
+residuals.
 }
+\section{Validation}{
+
+The statistic and its null variance are checked against an independent
+reconstruction of Szroeter (1978) in
+\file{tests/testthat/test-pass-a-reference.R}. Releases before 0.7.0 divided
+the centred statistic by a further \eqn{\sqrt{n}}, shrinking \eqn{Q} by a
+factor of roughly \eqn{2 / \sqrt{n}} and leaving the test with essentially no
+power against any alternative; see \file{NEWS.md}.
+}
+
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -52,6 +75,9 @@ x <- sort(runif(n))
 y <- 2 + 0.5 * x + rnorm(n, sd = 0.4 + 0.8 * x)
 df <- data.frame(y, x)
 performSzroeterTest(lm(y ~ x, data = df), df, order_by = "x")
+
+# Two-sided version when the direction of the change is not known in advance
+performSzroeterTest(mod, mtcars, order_by = "wt", alternative = "two.sided")
 
 }
 \references{

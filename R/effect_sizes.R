@@ -6,7 +6,7 @@
 #' descriptors and a brief interpretation string that can be surfaced to users.
 #'
 #' @param test_result Result object from a heteroscedasticity test (typically
-#'   of class \link[stats:htest]{htest}).
+#'   of class \code{htest}).
 #' @param model Fitted model supplied to the diagnostic.
 #' @param data Data frame containing the variables referenced in `model`.
 #' @param type Effect size metric to compute. Supported options are

@@ -12,7 +12,7 @@
 #' @param id Character scalar naming the column in `data` that indexes individuals
 #'   (or panels). The column must align with the row ordering used to fit `model`.
 #'
-#' @return A \link[stats:htest]{htest} object with the LM statistic, the one-degree-of-freedom
+#' @return A \code{htest} object with the LM statistic, the one-degree-of-freedom
 #'   chi-squared reference distribution, and supporting metadata about the fitted
 #'   model.
 #'

@@ -19,7 +19,7 @@ NULL
 #'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
-#'   \link[stats:htest]{htest} result).
+#'   \code{htest} result).
 #' @param model A fitted model of class `lm` or `glm`.
 #' @param data Data frame used when fitting `model`.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
@@ -184,7 +184,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     probs <- c((1 - ci_level) / 2, 1 - (1 - ci_level) / 2)
     ci_vals <- stats::quantile(replicates, probs = probs, na.rm = TRUE, names = FALSE)
     ci <- stats::setNames(ci_vals, c("lower", "upper"))
-    p_value <- mean(replicates >= original_stat, na.rm = TRUE)
+    # Finite-simulation convention: (1 + #) / (B_eff + 1), where B_eff counts
+    # the replicates that actually converged.
+    p_value <- (1 + sum(replicates >= original_stat, na.rm = TRUE)) / (effective + 1)
   }
 
   list(

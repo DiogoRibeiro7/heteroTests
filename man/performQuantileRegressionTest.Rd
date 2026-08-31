@@ -24,7 +24,7 @@ performQuantileRegressionTest(
 \item{iid}{Logical indicating whether identical conditional densities are assumed when computing the joint test.}
 }
 \value{
-An \link[stats:htest]{htest} object containing the F-like joint statistic, numerator and denominator degrees of freedom, p-value, fitted quantiles, and quantile-specific slope estimates.
+An \code{htest} object containing the F-like joint statistic, numerator and denominator degrees of freedom, p-value, fitted quantiles, and quantile-specific slope estimates.
 }
 \description{
 Tests equality of regression slopes across two or more conditional quantiles using the joint Wald-type test implemented by \code{quantreg::anova.rqs()}. The procedure accounts for dependence among quantile-specific estimates from the same sample rather than treating their covariance matrices as independent.
@@ -34,9 +34,10 @@ Under a pure location-shift model with homoskedastic errors, regression slopes a
 }
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {
-  data(mtcars)
-  model <- lm(mpg ~ wt + hp, data = mtcars)
-  performQuantileRegressionTest(model, mtcars)
+  # The test needs at least 40 observations, so mtcars (32) is too small.
+  data(boston_housing, package = "heteroTests")
+  model <- lm(medv ~ lstat + rm, data = boston_housing)
+  performQuantileRegressionTest(model, boston_housing)
 }
 }
 \references{

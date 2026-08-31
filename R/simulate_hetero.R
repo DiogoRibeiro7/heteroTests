@@ -12,6 +12,7 @@
 #'   n = 200, beta0 = 1, beta1 = 2,
 #'   sigma_func = sigma_linear, seed = 42
 #' )
+#' @noRd
 simulate_hetero <- function(n, beta0, beta1, sigma_func, seed = NULL) {
   stopifnot(is.numeric(n), length(n) == 1, n >= 1, n == as.integer(n))
   stopifnot(is.numeric(beta0), length(beta0) == 1)
@@ -38,24 +39,28 @@ simulate_hetero <- function(n, beta0, beta1, sigma_func, seed = NULL) {
 #' Linear increase: sigma(x) = 0.5 + 0.2 * x
 #' @param x Numeric vector
 #' @return Numeric vector
+#' @noRd
 sigma_linear <- function(x) {
   stopifnot(is.numeric(x))
   0.5 + 0.2 * abs(x)
 }
 
 #' Exponential increase: sigma(x) = exp(0.1 * x)
+#' @noRd
 sigma_exponential <- function(x) {
   stopifnot(is.numeric(x))
   exp(0.1 * x)
 }
 
 #' Group-wise: low variance when x < 5, high when x >= 5
+#' @noRd
 sigma_group <- function(x) {
   stopifnot(is.numeric(x))
   ifelse(x < 5, 1.0, 3.0)
 }
 
 #' Piecewise: sigma(x) = 0.5 for x < 7, else 2.0
+#' @noRd
 sigma_piecewise <- function(x) {
   stopifnot(is.numeric(x))
   ifelse(x < 7, 0.5, 2.0)
@@ -64,6 +69,7 @@ sigma_piecewise <- function(x) {
 #' Polynomial variance: sigma(x) = a + b * x + c * x^2
 #' @param x Numeric vector
 #' @return Numeric vector
+#' @noRd
 sigma_poly <- function(x, a = 0.5, b = 0.1, c = 0.02) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(b), is.numeric(c))
   a + b * x + c * x^2
@@ -72,6 +78,7 @@ sigma_poly <- function(x, a = 0.5, b = 0.1, c = 0.02) {
 #' Sinusoidal variance: sigma(x) = A + B * sin(omega * x + phi)
 #' @param x Numeric vector
 #' @return Numeric vector
+#' @noRd
 sigma_sin <- function(x, A = 1, B = 0.5, omega = 2 * pi / 10, phi = 0) {
   stopifnot(
     is.numeric(x), is.numeric(A), is.numeric(B),
@@ -85,6 +92,7 @@ sigma_sin <- function(x, A = 1, B = 0.5, omega = 2 * pi / 10, phi = 0) {
 #' @param mu_func Function returning mean mu for given x
 #' @param p Exponent controlling relationship
 #' @return Numeric vector
+#' @noRd
 sigma_multiplicative <- function(x, mu_func, p = 1) {
   stopifnot(is.numeric(x), is.function(mu_func), is.numeric(p))
   mu <- mu_func(x)
@@ -99,6 +107,7 @@ sigma_multiplicative <- function(x, mu_func, p = 1) {
 #' @param alpha1 Numeric in [0, 1)
 #' @param seed Integer or NULL
 #' @return A data.frame with columns time, y and sigma
+#' @noRd
 simulate_arch1 <- function(n, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL) {
   stopifnot(is.numeric(n), length(n) == 1, n >= 2, n == as.integer(n))
   stopifnot(is.numeric(mu), length(mu) == 1)
@@ -126,6 +135,7 @@ simulate_arch1 <- function(n, mu = 0, alpha0 = 0.5, alpha1 = 0.3, seed = NULL) {
 #' @param gamma0 Numeric intercept
 #' @param gamma1 Numeric slope
 #' @return Numeric vector of sigma values
+#' @noRd
 sigma_spatial <- function(coords, gamma0 = 0.5, gamma1 = 0.1) {
   if (!all(c("x", "y") %in% colnames(coords))) {
     stop("coords must have columns 'x' and 'y'.")
@@ -140,6 +150,7 @@ sigma_spatial <- function(coords, gamma0 = 0.5, gamma1 = 0.1) {
 #' @param k Growth rate
 #' @param x0 Midpoint
 #' @return Numeric vector
+#' @noRd
 sigma_logistic <- function(x, L = 2, k = 1, x0 = 5) {
   stopifnot(is.numeric(x), is.numeric(L), is.numeric(k), is.numeric(x0))
   L / (1 + exp(-k * (x - x0)))
@@ -150,6 +161,7 @@ sigma_logistic <- function(x, L = 2, k = 1, x0 = 5) {
 #' @param a Scale parameter
 #' @param b Positive shift
 #' @return Numeric vector
+#' @noRd
 sigma_inverse <- function(x, a = 1, b = 1) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(b))
   a / (b + abs(x))
@@ -160,6 +172,7 @@ sigma_inverse <- function(x, a = 1, b = 1) {
 #' @param a Scale factor
 #' @param p Power exponent
 #' @return Numeric vector
+#' @noRd
 sigma_power <- function(x, a = 0.5, p = 0.5) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(p))
   a * (abs(x)^p + 1e-08)
@@ -171,6 +184,7 @@ sigma_power <- function(x, a = 0.5, p = 0.5) {
 #' @param low Numeric variance below `thr`
 #' @param high Numeric variance above `thr`
 #' @return Numeric vector
+#' @noRd
 sigma_step <- function(x, thr = 5, low = 0.5, high = 2) {
   stopifnot(is.numeric(x), is.numeric(thr), is.numeric(low), is.numeric(high))
   ifelse(x < thr, low, high)
@@ -183,6 +197,7 @@ sigma_step <- function(x, thr = 5, low = 0.5, high = 2) {
 #' @param b Curvature
 #' @param center Location of minimum variance
 #' @return Numeric vector
+#' @noRd
 sigma_u_shape <- function(x, a = 0.1, b = 0.05, center = 5) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(b), is.numeric(center))
   a + b * (x - center)^2
@@ -194,6 +209,7 @@ sigma_u_shape <- function(x, a = 0.1, b = 0.05, center = 5) {
 #' @param a Scale factor
 #' @param b Rate of decay
 #' @return Numeric vector
+#' @noRd
 sigma_exp_decay <- function(x, a = 2, b = 0.2) {
   stopifnot(is.numeric(x), is.numeric(a), is.numeric(b))
   a * exp(-b * x)
@@ -207,6 +223,7 @@ sigma_exp_decay <- function(x, a = 2, b = 0.2) {
 #' @param mu Peak location
 #' @param sd Peak spread
 #' @return Numeric vector
+#' @noRd
 sigma_gaussian_peak <- function(x, base = 0.5, height = 1, mu = 5, sd = 1) {
   stopifnot(
     is.numeric(x), is.numeric(base), is.numeric(height),
@@ -222,6 +239,7 @@ sigma_gaussian_peak <- function(x, base = 0.5, height = 1, mu = 5, sd = 1) {
 #' @param slope1 Slope below the break
 #' @param slope2 Slope above the break
 #' @return Numeric vector
+#' @noRd
 sigma_piecewise_linear <- function(x, thr = 5, slope1 = 0.1, slope2 = 0.3) {
   stopifnot(is.numeric(x), is.numeric(thr), is.numeric(slope1), is.numeric(slope2))
   ifelse(x < thr, slope1 * (abs(x) + 1e-08), slope2 * x)

@@ -30,7 +30,7 @@ reference distribution.}
 islands with no neighbours.}
 }
 \value{
-An \link[stats:htest]{htest} result with Moran's I statistic applied to
+An \code{htest} result with Moran's I statistic applied to
 squared residuals.
 }
 \description{

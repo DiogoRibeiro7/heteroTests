@@ -12,7 +12,7 @@
 #'   `variable` in the auxiliary regression. One of `"abs"`, `"sqrt"`, `"inverse"`,
 #'   or `"inverse_sqrt"`.
 #'
-#' @return An object of class \link[stats:htest]{htest} reporting the t statistic and
+#' @return An object of class \code{htest} reporting the t statistic and
 #'   p-value for the slope coefficient in the auxiliary regression.
 #'
 #' @details
@@ -26,6 +26,17 @@
 #' the null hypothesis of no relationship between the transformed regressor and
 #' the absolute residuals.
 #'
+#'
+#' @section Interpretation and caveats:
+#' The t statistic is valid under symmetric errors. Godfrey (1996) and Im (2000)
+#' show that the Glejser test is not asymptotically valid when the errors are
+#' asymmetric, because the mean of \eqn{|\hat{e}_i|} then depends on the
+#' estimation error in the mean equation, and the test can over-reject. Under
+#' skewed errors prefer [performKoenkerTest()] or [performWhiteTest()]. The test
+#' also conditions on a single user-chosen variable and a single transformation,
+#' so scanning several transformations and reporting only the smallest p-value
+#' invalidates the nominal level. Simulated size and power are recorded in
+#' `inst/validation/pass-a-size-power.csv`.
 #' @references
 #' Glejser, H. (1969). A new test for heteroscedasticity. *Journal of the American
 #' Statistical Association, 64*(325), 316–323.
@@ -33,6 +44,14 @@
 #'
 #' Gujarati, D. N., & Porter, D. C. (2009). *Basic Econometrics* (5th ed.).
 #' McGraw-Hill. Chapter 11 discusses the Glejser procedure.
+#'
+#' Godfrey, L. G. (1996). Some results on the Glejser and Koenker tests for
+#' heteroskedasticity. *Journal of Econometrics, 72*(1-2), 275-299.
+#' <https://doi.org/10.1016/0304-4076(94)01722-0>
+#'
+#' Im, K. S. (2000). Robustifying Glejser test of heteroskedasticity.
+#' *Journal of Econometrics, 97*(1), 179-188.
+#' <https://doi.org/10.1016/S0304-4076(99)00061-5>
 #'
 #' @examples
 #' data(mtcars)
@@ -141,7 +160,7 @@ performGlejserTest <- function(model, data, variable,
   structure(
     list(
       statistic = c(t = t_stat),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Glejser test for heteroscedasticity",
       data.name = deparse(stats::formula(model))

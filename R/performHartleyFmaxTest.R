@@ -8,7 +8,7 @@
 #' @param data A [base::data.frame] used to fit `model`.
 #' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \link[stats:htest]{htest} with the F statistic and p-value.
+#' @return An object of class \code{htest} with the F statistic and p-value.
 #'
 #' @details
 #' The test compares \eqn{\max(s_i^2) / \min(s_i^2)} to critical values from the

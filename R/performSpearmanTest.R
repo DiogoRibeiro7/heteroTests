@@ -8,7 +8,7 @@
 #' @param model A fitted [stats::lm] object providing residuals and fitted values
 #'   for the diagnostic.
 #'
-#' @return An object of class \link[stats:htest]{htest} containing the t statistic for the
+#' @return An object of class \code{htest} containing the t statistic for the
 #'   rank correlation and its associated p-value.
 #'
 #' @details

@@ -36,7 +36,7 @@ statistic and p-value?}
 \code{parallel} package is available.}
 }
 \value{
-An augmented \link[stats:htest]{htest} object containing a
+An augmented \code{htest} object containing a
 \code{robust_details} element describing the additional diagnostics.
 }
 \description{

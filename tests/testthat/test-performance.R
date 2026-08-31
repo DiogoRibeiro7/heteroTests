@@ -212,10 +212,17 @@ test_that("functions scale reasonably with sample size", {
   
   # Execution time should not grow too rapidly
   # (allowing for some variability in timing)
+  # A wall-clock ratio is meaningless when the denominator is at the clock's
+  # resolution: a smaller run measured at a few milliseconds makes the ratio
+  # enormous however well the code scales. Compare only once the baseline is
+  # long enough to measure, and keep an absolute ceiling below as the real
+  # guard against runaway growth.
+  timer_floor <- 0.05
   for (i in 2:length(execution_times)) {
-    time_ratio <- execution_times[i] / execution_times[i-1]
-    size_ratio <- sample_sizes[i] / sample_sizes[i-1]
-    
+    if (execution_times[i - 1] < timer_floor) next
+    time_ratio <- execution_times[i] / execution_times[i - 1]
+    size_ratio <- sample_sizes[i] / sample_sizes[i - 1]
+
     # Time should grow less than quadratically with size
     expect_true(time_ratio < size_ratio^2 + 1,  # Allow overhead
                 info = paste("Time ratio", time_ratio, "vs size ratio", size_ratio))
@@ -378,14 +385,17 @@ test_that("functions recover from numerical issues", {
     performBPTest(near_perfect_model, near_perfect_data),
     "[Rr]esidual variance"
   )
-  # ... while the orchestrator recovers from that failure rather than aborting the
-  # whole run (the adaptive-fallback behaviour), returning a suite either way.
-  expect_no_error(
+  # ... and the orchestrator surfaces that failure rather than substituting a
+  # diagnostic that cannot validly run on a perfect fit either. Before 0.7.0 the
+  # adaptive-fallback chain reached the then-unvalidated NCV test, which
+  # succeeded on this degenerate model and was reported as the Breusch-Pagan
+  # result.
+  expect_error(
     suppressWarnings(
-      recovered <- runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
-    )
+      runHeteroTests(near_perfect_model, near_perfect_data, tests = "breusch_pagan")
+    ),
+    "[Rr]esidual variance|perfectly explained"
   )
-  expect_type(recovered, "list")
 
   # Slightly larger noise should now pass the guard and complete successfully
   set.seed(789)
@@ -744,9 +754,24 @@ test_that("performance degrades gracefully with problematic data", {
     # Should complete within reasonable time even for problematic data
     start_time <- Sys.time()
     
-    # May warn but should not error or hang
-    expect_no_error(
-      results <- runHeteroTests(model, data, tests = c("white", "breusch_pagan"))
+    # May warn, and may refuse outright: the `outliers` scenario is dominated
+    # by five extreme points and fits to R^2 = 1.000, which no heteroscedasticity
+    # diagnostic can validly run on. What must not happen is a hang or an
+    # uninformative crash. Before 0.7.0 this returned a value because the
+    # then-unvalidated NCV test acted as a fallback that accepted any model.
+    outcome <- tryCatch(
+      {
+        results <- suppressWarnings(
+          runHeteroTests(model, data, tests = c("white", "breusch_pagan"))
+        )
+        "completed"
+      },
+      error = function(e) conditionMessage(e)
+    )
+    expect_true(
+      identical(outcome, "completed") ||
+        grepl("perfectly explained|[Rr]esidual variance|singular|rank", outcome),
+      info = paste("Scenario", scenario_name, "produced:", outcome)
     )
     
     end_time <- Sys.time()

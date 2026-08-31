@@ -39,7 +39,7 @@ positivity for log-transformed quantities, sufficient variation, and the
 presence of extreme outliers.
 }
 \examples{
-res <- rvalidateDistributionalAssumptions(
+res <- heteroTests:::rvalidateDistributionalAssumptions(
   mtcars,
   assumptions = list(
     normality = list(variables = "mpg"),

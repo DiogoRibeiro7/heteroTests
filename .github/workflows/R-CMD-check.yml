@@ -17,12 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: ubuntu-latest, r: '4.0'}
-          - {os: ubuntu-latest, r: '4.1'}
-          - {os: ubuntu-latest, r: '4.2'}
-          - {os: ubuntu-latest, r: '4.3'}
-          - {os: macos-latest, r: '4.3'}
-          - {os: windows-latest, r: '4.3'}
+          - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-latest, r: 'release'}
+          - {os: ubuntu-latest, r: 'oldrel-1'}
+          - {os: macos-latest, r: 'release'}
+          - {os: windows-latest, r: 'release'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -32,6 +31,7 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
+          http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -42,6 +42,35 @@ jobs:
         with:
           upload-snapshots: true
           args: 'c("--no-manual")'
+
+  min-r-version:
+    # Checks the DESCRIPTION contract, currently R (>= 4.1). That floor is set
+    # by the hard dependencies -- ggplot2 and scales both require R >= 4.1, so
+    # the package cannot install below it. Keep this job in step with Depends:.
+    name: Minimum supported R (4.1)
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.1'
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # Hard dependencies only: several Suggests require newer R than the
+          # declared floor, and would break resolution rather than reveal
+          # anything about the package's own compatibility with its minimum.
+          dependencies: '"hard"'
+          extra-packages: any::rcmdcheck, any::testthat
+      - name: Check package (no vignettes; knitr is a Suggest)
+        uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: false
+          build_args: 'c("--no-build-vignettes")'
+          args: 'c("--no-manual", "--no-vignettes", "--ignore-vignettes")'
 
   cran-check:
     name: CRAN submission checks
@@ -56,7 +85,7 @@ jobs:
       - uses: r-lib/actions/setup-pandoc@v2
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.3'
+          r-version: 'release'
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -81,7 +110,7 @@ jobs:
       - uses: r-lib/actions/setup-pandoc@v2
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.3'
+          r-version: 'release'
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:

@@ -237,7 +237,7 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' @param progress Logical flag indicating whether a progress bar should be
 #'   displayed while streaming the data. Defaults to `interactive()`.
 #'
-#' @return A \link[stats:htest]{htest} object containing the chi-squared statistic, p-value,
+#' @return A \code{htest} object containing the chi-squared statistic, p-value,
 #'   and metadata about the chunked computation.
 #'
 #' @details
@@ -342,7 +342,7 @@ performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
 #' @param progress Logical flag indicating whether a textual progress bar should
 #'   be displayed while processing the chunks. Defaults to `interactive()`.
 #'
-#' @return A \link[stats:htest]{htest} object mirroring [performBPTest()] with additional
+#' @return A \code{htest} object mirroring [performBPTest()] with additional
 #'   metadata describing the chunking configuration.
 #'
 #' @export
@@ -437,7 +437,7 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
 #'   per streaming chunk.
 #' @param progress Logical indicating whether to display a textual progress bar.
 #'
-#' @return A \link[stats:htest]{htest} result equivalent to [performKoenkerTest()] with
+#' @return A \code{htest} result equivalent to [performKoenkerTest()] with
 #'   additional metadata describing the streaming configuration.
 #'
 #' @export
