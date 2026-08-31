@@ -1,0 +1,46 @@
+{
+  "title": "heteroTests: Heteroscedasticity Diagnostics for Linear Models in R",
+  "version": "0.6.5",
+  "publication_date": "2026-06-23",
+  "description": "heteroTests is an R package for heteroscedasticity diagnostics in linear-model workflows. It provides a consistent interface for classical variance diagnostics including White, Breusch-Pagan, Koenker, Goldfeld-Quandt, group-wise variance tests and ARCH-related checks, together with streaming implementations, simulation utilities, diagnostic visualisation and workflow helpers. The project emphasizes reproducible statistical software, reference comparisons, behavioural testing and explicit assumptions; advanced and experimental diagnostics remain subject to ongoing validation.",
+  "creators": [
+    {
+      "name": "Ribeiro, Diogo",
+      "affiliation": "Faculty of Media Arts and Design, Technical University of Porto",
+      "orcid": "0009-0001-2022-7072"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Ribeiro, Diogo",
+      "affiliation": "Faculty of Media Arts and Design, Technical University of Porto",
+      "orcid": "0009-0001-2022-7072",
+      "type": "ContactPerson"
+    }
+  ],
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "apache-2.0",
+  "language": "eng",
+  "keywords": [
+    "R",
+    "statistics",
+    "heteroscedasticity",
+    "heteroskedasticity",
+    "regression diagnostics",
+    "econometrics",
+    "statistical testing",
+    "Breusch-Pagan test",
+    "White test",
+    "robust statistics",
+    "research software",
+    "reproducible research"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/DiogoRibeiro7/heteroTests",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
