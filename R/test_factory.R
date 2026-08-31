@@ -97,7 +97,7 @@ NULL
 
 test_factory <- TestFactory$new()
 
-# Register a few core tests
+# Register core and validated tests
 .test_factory_register_defaults <- function() {
   test_factory$register("white", performWhiteTest)
   test_factory$register("breusch_pagan", performBPTest)
@@ -106,7 +106,6 @@ test_factory <- TestFactory$new()
   test_factory$register("white_bootstrap", performWhiteTestBootstrap)
   test_factory$register("szroeter", performSzroeterTest)
   test_factory$register("wild_bootstrap", performWildBootstrapTest)
-  test_factory$register("hc_covariance", performHCCovarianceTest)
   test_factory$register("quantile_regression", performQuantileRegressionTest)
   test_factory$register("rank_permutation", performRankPermutationTest)
   test_factory$register("high_dimensional", performHighDimensionalTest)

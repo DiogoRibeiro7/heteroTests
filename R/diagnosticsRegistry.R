@@ -59,7 +59,6 @@ registerDiagnostic(
   }
 )
 registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapTest(model, data))
-registerDiagnostic("hc_covariance", function(model, data) performHCCovarianceTest(model, data))
 registerDiagnostic("quantile_regression", function(model, data) performQuantileRegressionTest(model, data))
 registerDiagnostic("rank_permutation", function(model, data) performRankPermutationTest(model, data))
 registerDiagnostic("high_dimensional", function(model, data) performHighDimensionalTest(model, data))
