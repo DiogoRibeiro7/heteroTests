@@ -3,7 +3,6 @@
 \name{algorithms_bibliography}
 \alias{algorithms_bibliography}
 \title{Bibliography of Diagnostic Algorithms}
-\usage{NULL}
 \description{
 References for the statistical tests implemented in \pkg{heteroTests}.
 }
