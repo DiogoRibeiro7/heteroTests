@@ -337,8 +337,11 @@ ht_default_benchmark_tests <- function() {
       baselines = list(
         lmtest = list(
           package = "lmtest",
-          method = "lmtest::bptest",
-          fun = function(model, data) lmtest::bptest(model)
+          # performBPTest() is the classical statistic, so the baseline must
+          # disable studentizing; bptest() defaults to studentize = TRUE, which
+          # is the Koenker form compared under the `koenker` entry below.
+          method = "lmtest::bptest (classical)",
+          fun = function(model, data) lmtest::bptest(model, studentize = FALSE)
         )
       )
     ),

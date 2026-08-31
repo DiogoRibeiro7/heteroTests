@@ -747,9 +747,24 @@ test_that("performance degrades gracefully with problematic data", {
     # Should complete within reasonable time even for problematic data
     start_time <- Sys.time()
     
-    # May warn but should not error or hang
-    expect_no_error(
-      results <- runHeteroTests(model, data, tests = c("white", "breusch_pagan"))
+    # May warn, and may refuse outright: the `outliers` scenario is dominated
+    # by five extreme points and fits to R^2 = 1.000, which no heteroscedasticity
+    # diagnostic can validly run on. What must not happen is a hang or an
+    # uninformative crash. Before 0.7.0 this returned a value because the
+    # then-unvalidated NCV test acted as a fallback that accepted any model.
+    outcome <- tryCatch(
+      {
+        results <- suppressWarnings(
+          runHeteroTests(model, data, tests = c("white", "breusch_pagan"))
+        )
+        "completed"
+      },
+      error = function(e) conditionMessage(e)
+    )
+    expect_true(
+      identical(outcome, "completed") ||
+        grepl("perfectly explained|[Rr]esidual variance|singular|rank", outcome),
+      info = paste("Scenario", scenario_name, "produced:", outcome)
     )
     
     end_time <- Sys.time()

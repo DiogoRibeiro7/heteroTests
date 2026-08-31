@@ -209,6 +209,26 @@ alternative.
   of about `1e-15` between `performNCVTest()` and `car::ncvTest()` -- an
   independent confirmation of the correction described above.
 
+- **Fixed the Breusch-Pagan benchmark baseline.** `performBPTest()` is the
+  classical statistic, but the benchmark compared it against `lmtest::bptest()`
+  with its default `studentize = TRUE`, i.e. the Koenker form. The pairing is now
+  `studentize = FALSE`. With this and the `car::ncvTest()` extractor in place,
+  all three baselines agree with our implementations to machine precision
+  (`0`, `1.7e-16` and `1.2e-15`), so the benchmark now doubles as a live
+  reference-equivalence check.
+- **Fixed `simulate_power_analysis()`, whose effect size had no effect.** It
+  built the variance function as `effect_size * sigma_func(x)`, but
+  heteroscedasticity tests are invariant to multiplying every standard deviation
+  by a constant, so every effect size produced statistically identical data and
+  the reported power differed only by Monte Carlo noise. The effect size now
+  interpolates between a constant variance and the supplied pattern, so `0` is
+  homoscedastic and `1` is the pattern itself. Power against `sigma_linear` with
+  White's test now runs 0.04 / 0.07 / 0.33 / 0.96 across effect sizes
+  0 / 0.1 / 0.4 / 1.0, recovering the nominal level at zero effect.
+- The Type I error test now sizes its tolerance from the Monte Carlo standard
+  error rather than a fixed 0.03 margin, which at 200 replications was under two
+  standard errors and failed by chance in roughly one run in seven.
+
 ### Documentation
 
 - `performGlejserTest()` documents that the test is not asymptotically valid

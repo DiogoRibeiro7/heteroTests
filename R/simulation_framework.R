@@ -70,12 +70,29 @@ simulate_power_analysis <- function(test_function,
     sigma_func <- sigma_functions[[results$sigma_func[i]]]
     effect_size <- results$effect_size[i]
 
+    # `effect_size` has to change the *shape* of the variance function, not
+    # its scale. Heteroscedasticity tests are invariant to multiplying every
+    # standard deviation by a constant, so the previous
+    # `effect_size * sigma_func(x)` produced statistically identical data at
+    # every effect size and the reported power differed only by Monte Carlo
+    # noise. Interpolate between a constant variance and the supplied pattern
+    # instead: 0 is homoscedastic, 1 is the pattern itself (rescaled to unit
+    # mean so the error scale stays comparable across effect sizes).
+    scaled_sigma <- function(x) {
+      s <- sigma_func(x)
+      s_mean <- mean(s)
+      if (!is.finite(s_mean) || s_mean <= 0) {
+        return(rep(1, length(x)))
+      }
+      pmax(1 - effect_size + effect_size * (s / s_mean), sqrt(.Machine$double.eps))
+    }
+
     p_values <- replicate(n_sims, {
       sim_data <- simulate_hetero(
         n = n_obs,
         beta0 = 1,
         beta1 = 2,
-        sigma_func = function(x) effect_size * sigma_func(x)
+        sigma_func = scaled_sigma
       )
 
       model <- lm(y ~ x, data = sim_data)
