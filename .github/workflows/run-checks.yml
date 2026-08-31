@@ -81,6 +81,17 @@ jobs:
           issues <- urlchecker::url_check()
           if (nrow(issues) > 0) {
             print(issues)
+          }
+          # The package's own pkgdown site is reported separately: it is only
+          # published from main, so on a branch that has not merged yet the
+          # links are legitimately absent and blocking on them is circular.
+          own_site <- grepl('diogoribeiro7.github.io/heteroTests', issues$URL, fixed = TRUE)
+          if (any(own_site)) {
+            message('Pending pkgdown deployment (not treated as a failure):')
+            print(issues[own_site, ])
+          }
+          external <- issues[!own_site, , drop = FALSE]
+          if (nrow(external) > 0) {
             stop('Invalid or unreachable URLs detected')
           }
           RSCRIPT
