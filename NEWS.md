@@ -229,6 +229,19 @@ alternative.
   error rather than a fixed 0.03 margin, which at 200 replications was under two
   standard errors and failed by chance in roughly one run in seven.
 
+- **Raised the declared minimum R version to 4.1.** `Depends: R (>= 4.0.0)` was
+  unsatisfiable: `ggplot2` and `scales` are hard `Imports` and both now require
+  R >= 4.1, so the package could not be installed on R 4.0 whatever its own code
+  did. The minimum-version CI job checks 4.1 accordingly.
+- Fixed two CI jobs that had never run successfully. The spell check called
+  `spelling::spell_check_package(ignore = )`, an argument that does not exist,
+  so the step errored every time; `inst/WORDLIST` is read via `use_wordlist`
+  instead. The benchmark job gated on heteroTests being no more than 50% slower
+  than bare `lmtest`/`car` calls, which it cannot satisfy -- it runs a validation
+  layer those do not, and at n = 100 the baseline time rounds to zero, making the
+  ratio infinite. The timing table is now reported as an artefact and the job
+  gates on accuracy, which is the property that must not regress.
+
 ### Documentation
 
 - `performGlejserTest()` documents that the test is not asymptotically valid
