@@ -57,6 +57,8 @@ performOBrienTest <- function(model, data, group) {
     stop("`group` must be supplied as a single column name.", call. = FALSE)
   }
 
+  rvalidateModelInputs(model, test_name = "O'Brien", min_obs = 6L)
+
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), group))
   prepared <- prepare_model_data_for_test(
@@ -137,7 +139,8 @@ performOBrienTest <- function(model, data, group) {
     ) / ((ni - 1) * (ni - 2))
   }
 
-  aux <- safe_lm(transformed ~ grp)
+  aux_data <- data.frame(transformed = transformed, grp = grp)
+  aux <- safe_lm(transformed ~ grp, data = aux_data)
   tab <- stats::anova(aux)
   statistic <- unname(tab$`F value`[1L])
   df_num <- unname(tab$Df[1L])
