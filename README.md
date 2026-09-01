@@ -66,11 +66,10 @@ The script prints the overall coverage percentage and writes a detailed HTML rep
 ```r
 library(heteroTests)
 
-data(boston_housing, package = "heteroTests")
-model <- lm(medv ~ lstat + rm + crim, boston_housing)
+model <- lm(stations ~ mag + depth, quakes)
 
 # Inspect heteroscedasticity
-hd <- HeteroDiagnostic(model, boston_housing)
+hd <- HeteroDiagnostic(model, quakes)
 test(hd)
 plot(hd)
 
@@ -122,9 +121,7 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders
 
 The development direction, completed work and known technical debt are tracked in
 [ROADMAP.md](ROADMAP.md). Current known limitations include: input validation is
-not yet uniform across every test, the `renv.lock` is not fully in sync with the
-declared dependencies, and `boston_housing` is shipped as a verbatim copy of
-`MASS::Boston` (documented in `?boston_housing`).
+not yet uniform across every test.
 
 ## Contributing
 

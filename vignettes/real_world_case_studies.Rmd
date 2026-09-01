@@ -20,56 +20,56 @@ This vignette illustrates how to incorporate heteroTests into real analyses.
 Each case study follows a workflow of model specification, diagnostic testing,
 visualisation, and interpretation.
 
-## Case study 1: Housing affordability
+## Case study 1: Seismic station counts
 
-The `boston_housing` dataset captures median house values (`medv`) and socio-
-economic predictors for Boston census tracts. We regress prices on socio-
-economic indicators and inspect residual dispersion.
+R's built-in `quakes` dataset records 1,000 seismic events near Fiji. We
+regress the number of reporting stations on event magnitude and depth, and
+inspect the residual dispersion. The response is a count, so its variance is
+expected to rise with its mean.
 
 ```{r}
-data(boston_housing, package = "heteroTests")
-housing_model <- lm(medv ~ lstat + rm + crim + dis, data = boston_housing)
-summary(housing_model)
+quakes_model <- lm(stations ~ mag + depth, data = quakes)
+summary(quakes_model)
 ```
 
 Formal diagnostics flag heteroscedasticity consistent with the classical
 literature on this dataset.
 
 ```{r}
-white_housing <- performWhiteTest(housing_model, boston_housing)
-bp_housing <- performBPTest(housing_model, boston_housing)
-koenker_housing <- performKoenkerTest(housing_model, boston_housing)
-list(White = white_housing, Breusch_Pagan = bp_housing, Koenker = koenker_housing)
+white_q <- performWhiteTest(quakes_model, quakes)
+bp_q <- performBPTest(quakes_model, quakes)
+koenker_q <- performKoenkerTest(quakes_model, quakes)
+list(White = white_q, Breusch_Pagan = bp_q, Koenker = koenker_q)
 ```
 
 ```{r fig.width=6, fig.height=4}
 plot_data <- data.frame(
-  fitted = fitted(housing_model),
-  residual = resid(housing_model),
-  lstat = boston_housing$lstat
+  fitted = fitted(quakes_model),
+  residual = resid(quakes_model),
+  mag = quakes$mag
 )
 
-ggplot(plot_data, aes(x = fitted, y = residual, colour = lstat)) +
+ggplot(plot_data, aes(x = fitted, y = residual, colour = mag)) +
   geom_point(alpha = 0.7) +
   scale_colour_viridis_c(option = "C") +
   geom_smooth(se = FALSE, colour = "black") +
   labs(
     x = "Fitted values",
     y = "Residuals",
-    colour = "lstat",
-    title = "Heteroscedasticity in Boston housing prices"
+    colour = "mag",
+    title = "Heteroscedasticity in reported station counts"
   ) +
   theme_minimal()
 ```
 
 *Interpretation.* All three tests reject homoskedasticity. The residual plot
-reveals wider dispersion at higher predicted prices and for neighbourhoods with
-larger `lstat` (lower socio-economic status). Weighted least squares is a common
+reveals wider dispersion at higher predicted counts and for events of larger
+`mag`. Weighted least squares is a common
 remedy.
 
 ```{r}
-wls_housing <- fitWLS(housing_model)
-scale_comparison <- c(OLS = sigma(housing_model), WLS = sigma(wls_housing))
+wls_q <- fitWLS(quakes_model)
+scale_comparison <- c(OLS = sigma(quakes_model), WLS = sigma(wls_q))
 scale_comparison
 ```
 

@@ -1,5 +1,51 @@
 # heteroTests News
 
+## 0.8.1
+
+CRAN preparation. No change to any statistic or to the public API.
+
+### The bundled Boston dataset is gone
+
+`boston_housing` was a byte-identical copy of `MASS::Boston` -- all 506 rows and
+all 14 columns. Shipping it under this package's `Apache License (>= 2.0)` put a
+verbatim copy of GPL-2 | GPL-3 material under Apache terms, which is at best a
+question a CRAN reviewer would ask, and `cran-comments.md` volunteered it.
+
+The justification recorded there -- that the copy let examples run "without
+attaching MASS" -- did not hold either: MASS is a hard `Imports` dependency, so
+it is installed regardless.
+
+Examples, vignettes and the tutorial notebooks now use R's built-in `quakes`
+data, which lives in `datasets` and is attached by default. Nothing is
+redistributed, so the licensing question disappears rather than being argued.
+The two datasets the package still ships, `diagnostic_data` and `hetero_data`,
+are simulated.
+
+The replacement was chosen on evidence, not convenience. Against
+`stations ~ mag + depth` (n = 1000, R-squared 0.74) White gives p = 2e-25,
+Breusch-Pagan p = 2e-42 and Koenker p = 7e-25, and the HC3 standard error for
+`mag` is 1.34 times the OLS one -- enough for the notebooks' robust-versus-
+classical comparison to keep its point. The response is a count, so its variance
+rises with its mean: the textbook mechanism, which makes it a better teaching
+example than the original. Candidates with stronger p-values (ChickWeight,
+Theoph, DNase, Loblolly, Orange) were rejected because they are repeated-measures
+data, where residuals are correlated within subject and these tests' independence
+assumption does not hold.
+
+Dropping the dataset also drops the `black` column, the transformed
+racial-composition variable that led scikit-learn to remove this data in 1.2.
+
+### Packaging
+
+- Three references used `\url{https://doi.org/...}` where CRAN asks for
+  `\doi{}`, the form the rest of the package already used. Fixed in
+  `performStudentizedBPTest`, `performSzroeterTest` and
+  `performWhiteTestBootstrap`, and in the roxygen sources so a regeneration
+  produces the same form.
+- README no longer lists two limitations that were fixed in 0.8.0: the
+  `renv.lock` drift and the bundled dataset.
+
+
 ## 0.8.0
 
 The API review that the validation effort was sequenced towards. Six exports
