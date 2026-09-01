@@ -242,6 +242,17 @@ alternative.
   ratio infinite. The timing table is now reported as an artefact and the job
   gates on accuracy, which is the property that must not regress.
 
+- Fixed the pkgdown deploy, which had been failing on main since before this
+  release. `man/algorithms_bibliography.Rd` carried `\usage{NULL}`, which is
+  what roxygen emits for a documentation-only topic and which pkgdown cannot
+  parse. A topic that documents no function needs no usage section. This is
+  why the package site was never published, and so why the URLs in
+  `DESCRIPTION` and `inst/CITATION` returned 404.
+- The automated release workflow now installs dependencies before
+  `R CMD build`, which renders the vignettes and therefore needs the vignette
+  builder. That step is gated on the version changing, so the omission had
+  never fired until the 0.7.0 bump.
+
 ### Documentation
 
 - `performGlejserTest()` documents that the test is not asymptotically valid
