@@ -123,6 +123,7 @@ oldrel
 optimisation
 ORCID
 orderable
+pdflatex
 Pebesma
 ped
 Pesaran
@@ -144,8 +145,10 @@ reproducibility
 Rescaling
 rethrowing
 rhandleMissingValues
+rmarkdown
 Roadmap
 roxygen
+rsconnect
 rspa
 Rubio
 runDiagnostics
@@ -181,6 +184,8 @@ tibble
 Tibshirani
 tidiers
 tidymodels
+TinyTeX
+toolchain
 Trivedi
 Unescaped
 unsatisfiable
