@@ -39,7 +39,7 @@
 #' \doi{10.1016/0304-4076(81)90062-2}
 #'
 #' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in
-#' regression. *Biometrika, 70*(1), 1–10. <https://doi.org/10.1093/biomet/70.1.1>
+#' regression. *Biometrika, 70*(1), 1–10. \doi{10.1093/biomet/70.1.1}
 #'
 #' @examples
 #' data(mtcars)

@@ -35,7 +35,7 @@ Under a pure location-shift model with homoskedastic errors, regression slopes a
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {
   # The test needs at least 40 observations, so mtcars (32) is too small.
-    model <- lm(stations ~ mag + depth, data = quakes)
+  model <- lm(stations ~ mag + depth, data = quakes)
   performQuantileRegressionTest(model, quakes)
 }
 }

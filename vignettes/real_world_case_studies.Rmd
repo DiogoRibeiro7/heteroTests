@@ -69,11 +69,29 @@ remedy.
 
 ```{r}
 wls_q <- fitWLS(quakes_model)
-scale_comparison <- c(OLS = sigma(quakes_model), WLS = sigma(wls_q))
-scale_comparison
+
+# Compare like with like: the residual variance across thirds of the fitted
+# range, unweighted for OLS and weighted for WLS. Comparing sigma() of the two
+# fits would not work -- fitWLS() weights by 1 / e_i^2, so the weighted sum of
+# squares collapses to n and sigma(wls) is approximately sqrt(n / (n - p)) for
+# any data at all.
+third <- cut(fitted(quakes_model), 3, labels = c("low", "mid", "high"))
+rbind(
+  OLS_resid_var = round(tapply(residuals(quakes_model)^2, third, mean), 1),
+  WLS_weighted_resid_var = round(
+    tapply((residuals(wls_q) * sqrt(weights(wls_q)))^2, third, mean), 3))
 ```
 
-The WLS fit reduces the residual scale, validating the remedy.
+The unweighted variance climbs steeply across the fitted range, which is the
+heteroscedasticity the tests detected.
+
+The flat weighted row is **not** evidence that the remedy worked. `fitWLS()`
+sets `w_i = 1 / e_i^2`, so each weighted squared residual is 1 by construction
+and the row would be flat for any data whatsoever. Read it as a check that the
+weighting was applied, not as validation. Weights that mean something have to
+come from a variance model estimated in its own right -- the feasible-WLS recipe
+in tutorial 2 regresses `log(e^2)` on the fitted values, and for a count response
+like this one a quasi-Poisson GLM is the more defensible remedy.
 
 ## Case study 2: Income volatility in simulated survey data
 
