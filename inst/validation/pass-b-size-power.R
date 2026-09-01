@@ -8,9 +8,9 @@
 
 is_source_checkout <- file.exists("DESCRIPTION") &&
   any(grepl(
-    "Package: heteroTests",
+    "^Package:[[:space:]]*heteroTests[[:space:]]*$",
     readLines("DESCRIPTION", warn = FALSE),
-    fixed = TRUE
+    fixed = FALSE
   ))
 
 if (requireNamespace("pkgload", quietly = TRUE) && is_source_checkout) {
