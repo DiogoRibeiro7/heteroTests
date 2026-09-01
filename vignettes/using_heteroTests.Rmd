@@ -40,8 +40,9 @@ performKoenkerTest(model, quakes)
 
 # Group-based tests need a grouping factor in that same data
 quakes_grouped <- quakes
-quakes_grouped$chas <- factor(quakes_grouped$chas)
-performLeveneTest(model, quakes_grouped, "chas")
+quakes_grouped$depth_band <- cut(quakes_grouped$depth, 3,
+                                 labels = c("shallow", "mid", "deep"))
+performLeveneTest(model, quakes_grouped, "depth_band")
 
 # ARCH effects in time series
 performArchLMTest(model, lags = 2)
