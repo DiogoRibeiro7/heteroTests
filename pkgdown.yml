@@ -1,0 +1,16 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  bibliography: bibliography.html
+  comprehensive_guide: comprehensive_guide.html
+  performance_comparison_guide: performance_comparison_guide.html
+  real_world_case_studies: real_world_case_studies.html
+  statistical_theory_and_implementation: statistical_theory_and_implementation.html
+  troubleshooting: troubleshooting.html
+  tutorial: tutorial.html
+  using_heteroTests: using_heteroTests.html
+last_built: 2026-09-01T11:25Z
+urls:
+  reference: https://diogoribeiro7.github.io/heteroTests/reference
+  article: https://diogoribeiro7.github.io/heteroTests/articles

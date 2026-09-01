@@ -1,0 +1,606 @@
+# heteroTests
+
+[![R-CMD-check](https://github.com/DiogoRibeiro7/heteroTests/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/DiogoRibeiro7/heteroTests/actions/workflows/R-CMD-check.yml)
+
+`heteroTests` implements a broad collection of heteroscedasticity
+diagnostics for linear models in R. It includes classic tests such as
+White, Breusch–Pagan and Goldfeld–Quandt along with helper functions to
+visualise and mitigate heteroscedasticity.
+
+Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID
+0009-0001-2022-7072](https://orcid.org/0009-0001-2022-7072)) at
+**ESMAD - Instituto Politécnico do Porto**.
+
+## What it provides
+
+Every test returns a base-R `htest` object and follows the same
+`perform*Test(model, data, ...)` convention, so results print, subset
+and compose like `stats::bptest()` and slot directly into automated
+pipelines.
+
+- **Auxiliary-regression tests** — White, classical Breusch–Pagan,
+  Koenker (studentized), Harvey, Park, Glejser. The classical and
+  studentized Breusch–Pagan statistics are validated against
+  [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) to
+  machine precision.
+- **Group-wise variance tests** — Levene, Brown–Forsythe, Bartlett,
+  Fligner–Killeen, Hartley’s F-max (validated against `car`).
+- **Rank-based and non-constant-variance diagnostics** — Spearman,
+  Cameron–Trivedi, Cook–Weisberg NCV, spread–level.
+- **ARCH-type tests** for time series — Engle’s ARCH LM and McLeod–Li.
+- **Modern resampling and robust diagnostics** — a null-imposed wild
+  bootstrap, HC0–HC4 covariance test, quantile-regression test,
+  rank-permutation test, and high-dimensional and spatial variants for
+  settings where the classical asymptotics are unreliable.
+- **Scalability** — streaming implementations
+  ([`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md),
+  [`performBPTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestStreaming.md),
+  [`performKoenkerTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTestStreaming.md))
+  accumulate the auxiliary cross-products in chunks; results are exact
+  and memory-bounded, and
+  [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+  adopts them automatically for large inputs.
+- **Remediation and guidance** — weighted least squares
+  ([`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)),
+  robust fits
+  ([`fitRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/fitRobust.md)),
+  variance-stabilising transforms
+  ([`autoTransform()`](https://diogoribeiro7.github.io/heteroTests/reference/autoTransform.md)),
+  a model-comparison helper, and a recommendation engine
+  ([`generateHeteroRecommendations()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md))
+  that interprets a diagnostic run.
+- **Ecosystem integration** — `broom` tidiers, `ggplot2`
+  theming/`autoplot`, and helpers for tidymodels, survey designs and
+  grouped pipelines.
+
+## Installation
+
+The package uses [`renv`](https://rstudio.github.io/renv/) to lock its
+dependencies. On Debian-based systems a single command sets up the
+environment. The helper verifies apt-get installs succeed and falls back
+to CRAN only when network access is available:
+
+``` bash
+./setup.sh
+```
+
+This script installs R if it is missing, restores the locked package
+library and fetches the development dependencies used by the test suite.
+If you prefer a manual setup, install `renv` and run
+[`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
+instead.
+
+On Windows and macOS you can run a portable setup helper written in R:
+
+``` bash
+Rscript scripts/setup_helper.R
+```
+
+## Running the checks
+
+After the environment is restored you can run all formatting, linting,
+testing and coverage steps with:
+
+``` bash
+Rscript scripts/run_checks.R
+```
+
+The script prints the overall coverage percentage and writes a detailed
+HTML report to `coverage/index.html`.
+
+## Basic usage
+
+``` r
+
+library(heteroTests)
+
+data(boston_housing, package = "heteroTests")
+model <- lm(medv ~ lstat + rm + crim, boston_housing)
+
+# Inspect heteroscedasticity
+hd <- HeteroDiagnostic(model, boston_housing)
+test(hd)
+plot(hd)
+
+# Fit a weighted least squares model
+wls <- fitWLS(model)
+compareModelDiagnostics(list(model, wls))
+```
+
+See `vignettes/tutorial.Rmd` and `browseVignettes("heteroTests")` for a
+full walkthrough.
+
+## Tutorials
+
+A six-part executable course lives in
+[`inst/tutorials/`](https://diogoribeiro7.github.io/heteroTests/inst/tutorials)
+(Jupyter notebooks with an R kernel; see its
+[README](https://diogoribeiro7.github.io/heteroTests/inst/tutorials/README.md)):
+
+1.  **Detecting heteroscedasticity** — the cost of ignoring it, visual
+    diagnosis, and the core tests.
+2.  **Remediation** — robust standard errors, weighted least squares,
+    transforms.
+3.  **Modern & scalable diagnostics** — size control under heavy tails,
+    resampling tests, streaming.
+4.  **Group-wise variance tests** — and the normality trap that breaks
+    Bartlett.
+5.  **Time series & ARCH effects** — conditional heteroscedasticity and
+    volatility clustering.
+6.  **Choosing a test** — a power study distilled into a decision guide.
+
+## Testing
+
+The suite uses [`testthat`](https://testthat.r-lib.org/). Run it
+directly with
+
+``` r
+
+devtools::test()        # or testthat::test_dir("tests/testthat")
+```
+
+or run the full formatting/linting/testing/coverage pipeline via
+`Rscript scripts/run_checks.R`. Statistical tests assert *behaviour*
+(size, power, and agreement with reference implementations such as
+`lmtest` and `car`), not just object structure.
+
+## Project structure
+
+``` text
+R/                 test implementations, remediation, streaming, recommendation engine
+man/               roxygen-generated documentation
+tests/testthat/    unit, property-based, and reference-comparison tests
+inst/tutorials/    six-part Jupyter notebook course
+vignettes/         long-form guides
+paper/             R Journal manuscript and reproducible figures
+scripts/           setup, checks, benchmarks, and notebook/figure builders
+```
+
+## Roadmap and limitations
+
+The development direction, completed work and known technical debt are
+tracked in
+[ROADMAP.md](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md).
+Current known limitations include: input validation is not yet uniform
+across every test, the `renv.lock` is not fully in sync with the
+declared dependencies, and `boston_housing` is shipped as a verbatim
+copy of [`MASS::Boston`](https://rdrr.io/pkg/MASS/man/Boston.html)
+(documented in
+[`?boston_housing`](https://diogoribeiro7.github.io/heteroTests/reference/boston_housing.md)).
+
+## Contributing
+
+Contributions are welcome! Please read
+[CONTRIBUTING.md](https://diogoribeiro7.github.io/heteroTests/CONTRIBUTING.md)
+for coding guidelines. Pull requests run the full check suite via GitHub
+Actions, so ensure `Rscript scripts/run_checks.R` completes successfully
+before submitting.
+
+## Citation
+
+If you use this package in your research, please cite it as described in
+[CITATION.cff](https://diogoribeiro7.github.io/heteroTests/CITATION.cff).
+
+## License
+
+`heteroTests` is released under the [Apache
+2.0](https://diogoribeiro7.github.io/heteroTests/LICENSE) license.
+
+## Docker
+
+For a fully reproducible setup you can build the included `Dockerfile`:
+
+``` bash
+docker build -t hetero-tests .
+docker run -it hetero-tests R
+```
+
+Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
+
+# Package index
+
+## All functions
+
+- [`HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/HeteroDiagnostic.md)
+  : Create a diagnostic object
+
+- [`TestFactory`](https://diogoribeiro7.github.io/heteroTests/reference/TestFactory.md)
+  : Heteroscedasticity Test Factory
+
+- [`additional_tests`](https://diogoribeiro7.github.io/heteroTests/reference/additional_tests.md)
+  : Additional heteroscedasticity tests
+
+- [`analyzeMLResiduals()`](https://diogoribeiro7.github.io/heteroTests/reference/analyzeMLResiduals.md)
+  : Machine-learning residual analysis
+
+- [`autoCompareRemediations()`](https://diogoribeiro7.github.io/heteroTests/reference/autoCompareRemediations.md)
+  : Automatically compare remedial models
+
+- [`autoTransform()`](https://diogoribeiro7.github.io/heteroTests/reference/autoTransform.md)
+  : Automatic transformation helper
+
+- [`autoplot(`*`<hetero_test_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/autoplot.hetero_test_suite.md)
+  : Autoplot heteroscedasticity diagnostics
+
+- [`bootstrap_methods`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_methods.md)
+  : Bootstrap utilities for heteroscedasticity diagnostics
+
+- [`boston_housing`](https://diogoribeiro7.github.io/heteroTests/reference/boston_housing.md)
+  : Boston housing prices dataset
+
+- [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
+  : Cache results of a heteroscedasticity test
+
+- [`checkData()`](https://diogoribeiro7.github.io/heteroTests/reference/checkData.md)
+  : Validate data argument
+
+- [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)
+  : Validate model argument
+
+- [`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md)
+  : Enhanced model diagnostics
+
+- [`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md)
+  : Clear cached diagnostic run results
+
+- [`clearTestCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearTestCache.md)
+  : Clear cached test results
+
+- [`compareModelDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/compareModelDiagnostics.md)
+  : Compare diagnostics across models
+
+- [`compareTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/compareTestResults.md)
+  : Summarise heteroscedasticity test results
+
+- [`diagnostic_data`](https://diogoribeiro7.github.io/heteroTests/reference/diagnostic_data.md)
+  : Simulated dataset with collinearity and mild nonlinearity
+
+- [`.diagnostic_registry`](https://diogoribeiro7.github.io/heteroTests/reference/dot-diagnostic_registry.md)
+  : Diagnostics registry
+
+- [`downloadTeachingData()`](https://diogoribeiro7.github.io/heteroTests/reference/downloadTeachingData.md)
+  : Download example teaching dataset
+
+- [`fitRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/fitRobust.md)
+  : Robust regression wrapper
+
+- [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  : Weighted Least Squares wrapper
+
+- [`generateDiagnosticReport()`](https://diogoribeiro7.github.io/heteroTests/reference/generateDiagnosticReport.md)
+  : Automated diagnostic report generation
+
+- [`analyseDatasetCharacteristics()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`suggestDiagnosticsForProfile()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`interpretHeteroTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`recommendRemediationStrategies()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`warnDiagnosticAssumptions()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`buildDiagnosticDecisionTree()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`composeDiagnosticNarrative()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  [`generateHeteroRecommendations()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  : Intelligent recommendations for heteroscedasticity diagnostics
+
+- [`hetero_data`](https://diogoribeiro7.github.io/heteroTests/reference/hetero_data.md)
+  : Simulated dataset with heteroscedastic errors
+
+- [`hetero_test_suite`](https://diogoribeiro7.github.io/heteroTests/reference/hetero_test_suite.md)
+  [`hetero_grouped_suite`](https://diogoribeiro7.github.io/heteroTests/reference/hetero_test_suite.md)
+  : S3 containers for heteroscedasticity diagnostics
+
+- [`ht_set_log_level()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md)
+  [`ht_enable_log_capture()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md)
+  [`ht_log_history()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md)
+  [`ht_clear_log_history()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md)
+  : Control logging for heteroTests diagnostics
+
+- [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md)
+  : Interactive diagnostic dashboard
+
+- [`modern_diagnostics`](https://diogoribeiro7.github.io/heteroTests/reference/modern_diagnostics.md)
+  : Modern heteroscedasticity diagnostics
+
+- [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md)
+  : Perform Engle's ARCH LM test
+
+- [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
+  : Breusch-Pagan test for random effects
+
+- [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
+  [`performBreuschPaganTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
+  : Perform Breusch-Pagan test for heteroscedasticity
+
+- [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
+  : Robust Breusch–Pagan test with bootstrap and effect sizes
+
+- [`performBPTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestStreaming.md)
+  : Streaming Breusch\\Pagan test for large datasets
+
+- [`performBartlettTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBartlettTest.md)
+  : Perform Bartlett's test for equality of variances
+
+- [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)
+  : Box's M Test for Equality of Covariance Matrices
+
+- [`performBrownForsytheTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBrownForsytheTest.md)
+  : Perform Brown-Forsythe test for equality of variances
+
+- [`performCameronTrivediTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCameronTrivediTest.md)
+  : Perform Cameron-Trivedi decomposition test
+
+- [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+  : Perform Cook-Weisberg test for heteroscedasticity
+
+- [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md)
+  : Perform Davidian-Carroll test
+
+- [`performFlignerKilleenTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performFlignerKilleenTest.md)
+  : Perform Fligner-Killeen test for homogeneity of variances
+
+- [`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)
+  : Perform Goldfeld-Quandt test for heteroscedasticity
+
+- [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md)
+  : Perform Glejser test for heteroscedasticity
+
+- [`performHCCovarianceTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHCCovarianceTest.md)
+  : Deprecated HC covariance pseudo-test
+
+- [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md)
+  : Perform Hartley's Fmax test
+
+- [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md)
+  : Perform Harvey test for multiplicative heteroscedasticity
+
+- [`performHighDimensionalTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHighDimensionalTest.md)
+  : High-dimensional projection heteroscedasticity test
+
+- [`performInfluenceDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/performInfluenceDiagnostics.md)
+  : Identify influential observations
+
+- [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+  : Perform Koenker studentized Breusch-Pagan test
+
+- [`performKoenkerTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTestStreaming.md)
+  : Streaming Koenker studentized Breusch\\Pagan test
+
+- [`performLeveneTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performLeveneTest.md)
+  : Perform Levene's test for equality of variances
+
+- [`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md)
+  : Perform McLeod-Li test
+
+- [`performModifiedBartlettTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performModifiedBartlettTest.md)
+  : Bartlett compatibility alias
+
+- [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
+  : Perform the non-constant variance (NCV) score test
+
+- [`performOBrienTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOBrienTest.md)
+  : Perform O'Brien test for equality of variances
+
+- [`performOrderedLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOrderedLMTest.md)
+  : Perform Ordered Lagrange Multiplier test
+
+- [`performParkTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performParkTest.md)
+  : Perform Park test for heteroscedasticity
+
+- [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md)
+  : Perform Pesaran CD test
+
+- [`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)
+  : Quantile regression heteroscedasticity test
+
+- [`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md)
+  : Ramsey's RESET test for nonlinearity
+
+- [`performRankPermutationTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRankPermutationTest.md)
+  : Rank-based permutation heteroscedasticity test
+
+- [`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md)
+  : Scatter-plot diagnostics for heteroscedasticity
+
+- [`performSpatialHeteroTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpatialHeteroTest.md)
+  : Spatial heteroscedasticity test
+
+- [`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md)
+  : Perform Spearman rank correlation test
+
+- [`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md)
+  : Perform Spread-Level test
+
+- [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+  : Studentized Breusch–Pagan test
+
+- [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md)
+  : Szroeter test for ordered alternatives
+
+- [`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md)
+  : Variance inflation factors
+
+- [`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md)
+  : Perform White's test for heteroscedasticity
+
+- [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+  : Bootstrap White test
+
+- [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md)
+  : Robust White test with bootstrap and effect sizes
+
+- [`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md)
+  : Memory-efficient White test for large datasets
+
+- [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
+  : Wild bootstrap heteroscedasticity test
+
+- [`plot(`*`<HeteroDiagnostic>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/plot.HeteroDiagnostic.md)
+  : Plot diagnostics
+
+- [`plot(`*`<power_analysis>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/plot.power_analysis.md)
+  : Plot method for power analysis results
+
+- [`plotBeforeAfter()`](https://diogoribeiro7.github.io/heteroTests/reference/plotBeforeAfter.md)
+  : Compare residuals before and after remediation
+
+- [`plotBubbleVariance()`](https://diogoribeiro7.github.io/heteroTests/reference/plotBubbleVariance.md)
+  : Bubble plot of residual variance by covariate
+
+- [`plotDiagnosticSuite()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuite.md)
+  : Generate a suite of diagnostic plots
+
+- [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md)
+  : Enhanced diagnostic plot suite
+
+- [`plotResidualDensity()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualDensity.md)
+  : Density plot of residuals
+
+- [`plotResidualQQ()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualQQ.md)
+  : QQ plot of residuals
+
+- [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md)
+  : Plot residuals vs fitted values
+
+- [`plotResidualsFittedEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFittedEnhanced.md)
+  : Enhanced residuals vs fitted plot
+
+- [`plotSpreadLevel()`](https://diogoribeiro7.github.io/heteroTests/reference/plotSpreadLevel.md)
+  : Spread-Level plot for variance diagnostics
+
+- [`print(`*`<htest_enhanced>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/print.htest_enhanced.md)
+  : Print method for enhanced White test results
+
+- [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  : Bootstrap a test statistic
+
+- [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md)
+  : Effect size calculations for heteroscedasticity diagnostics
+
+- [`registerDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/registerDiagnostic.md)
+  : Register a custom diagnostic
+
+- [`registerPlot()`](https://diogoribeiro7.github.io/heteroTests/reference/registerPlot.md)
+  : Register a diagnostic plot
+
+- [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md)
+  : Estimate test power from observed effect size
+
+- [`robust_implementations`](https://diogoribeiro7.github.io/heteroTests/reference/robust_implementations.md)
+  : Robust heteroscedasticity diagnostics
+
+- [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+  : Run enhanced heteroscedasticity diagnostics
+
+- [`runDiagnosticPlots()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnosticPlots.md)
+  : Run registered diagnostic plots
+
+- [`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md)
+  : Run a suite of model diagnostics
+
+- [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+  : Run multiple heteroscedasticity diagnostics
+
+- [`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md)
+  : Parallel test execution helper
+
+- [`runMultivariateTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runMultivariateTests.md)
+  : Run multivariate heteroscedasticity tests
+
+- [`runPanelTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runPanelTests.md)
+  : Run panel-data heteroscedasticity tests
+
+- [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)
+  : Run heteroscedasticity diagnostics on survey designs
+
+- [`runTimeSeriesTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runTimeSeriesTests.md)
+  : Run time-series heteroscedasticity tests
+
+- [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md)
+  [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md)
+  :
+
+  Benchmark heteroTests against reference implementations
+
+- [`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md)
+  : Validate diagnostics against reference implementations
+
+- [`scale_colour_hetero_diagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/scale_colour_hetero_diagnostic.md)
+  [`scale_fill_hetero_diagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/scale_colour_hetero_diagnostic.md)
+  : Colour scale for heteroscedasticity diagnostics
+
+- [`simulate_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`simulate_arch1()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_linear()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_exponential()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_group()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_piecewise()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_poly()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_sin()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_multiplicative()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_spatial()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_logistic()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_inverse()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_step()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_u_shape()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_exp_decay()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_gaussian_peak()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  [`sigma_piecewise_linear()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md)
+  : Simulate heteroscedastic data
+
+- [`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
+  [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
+  : Advanced simulation framework for test validation
+
+- [`std_error()`](https://diogoribeiro7.github.io/heteroTests/reference/std_error.md)
+  : Generate standardized error message
+
+- [`std_warning()`](https://diogoribeiro7.github.io/heteroTests/reference/std_warning.md)
+  : Generate standardized warning message
+
+- [`suggestRemediation()`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md)
+  [`print(`*`<remediation_suggestions>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md)
+  : Suggest remediation actions for heteroscedasticity
+
+- [`summary(`*`<HeteroDiagnostic>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md)
+  : Summarize diagnostics
+
+- [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
+  : Run diagnostic tests
+
+- [`test_factory`](https://diogoribeiro7.github.io/heteroTests/reference/test_factory.md)
+  : Shared instance of the test factory
+
+- [`theme_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/theme_hetero.md)
+  : Heteroscedasticity diagnostic theme
+
+- [`tidy(`*`<hetero_test>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`glance(`*`<hetero_test>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`augment(`*`<hetero_test>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`tidy(`*`<hetero_test_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`glance(`*`<hetero_test_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`augment(`*`<hetero_test_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  [`tidy(`*`<hetero_grouped_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/tidy.hetero_test.md)
+  : broom methods for heteroscedasticity diagnostics
+
+- [`validateTestInputs()`](https://diogoribeiro7.github.io/heteroTests/reference/validateTestInputs.md)
+  : Validate model and data inputs before running diagnostics
+
+# Articles
+
+### All vignettes
+
+- [Complete Bibliography and
+  References](https://diogoribeiro7.github.io/heteroTests/articles/bibliography.md):
+- [Comprehensive Guide to Heteroscedasticity
+  Testing](https://diogoribeiro7.github.io/heteroTests/articles/comprehensive_guide.md):
+- [Performance Comparison
+  Guide](https://diogoribeiro7.github.io/heteroTests/articles/performance_comparison_guide.md):
+- [Real-world Case
+  Studies](https://diogoribeiro7.github.io/heteroTests/articles/real_world_case_studies.md):
+- [Statistical Theory and Implementation
+  Details](https://diogoribeiro7.github.io/heteroTests/articles/statistical_theory_and_implementation.md):
+- [Troubleshooting Common
+  Issues](https://diogoribeiro7.github.io/heteroTests/articles/troubleshooting.md):
+- [heteroTests
+  Walkthrough](https://diogoribeiro7.github.io/heteroTests/articles/tutorial.md):
+- [Using
+  heteroTests](https://diogoribeiro7.github.io/heteroTests/articles/using_heteroTests.md):
