@@ -12,7 +12,8 @@
 #' follows a chi-squared distribution with \eqn{k - 1} degrees of freedom. Because
 #' the test is sensitive to deviations from normality, the package validates
 #' residual distribution assumptions and sample-size requirements through the
-#' shared helper functions before computing the statistic.
+#' shared helper functions before computing the statistic. A sample variance is
+#' defined with two observations, so the test permits groups of size two.
 #'
 #' @param model A fitted model of class `lm`.
 #' @param data Data frame used to fit `model`.
@@ -43,7 +44,7 @@
 performBartlettTest <- function(model, data, group) {
   test_label <- "Bartlett's test"
 
-  rvalidateModelInputs(model, test_name = "Bartlett", min_obs = 6L)
+  rvalidateModelInputs(model, test_name = "Bartlett", min_obs = 4L)
 
   if (missing(group) || length(group) != 1L) {
     stop("`group` must be a single column name.", call. = FALSE)
@@ -53,7 +54,7 @@ performBartlettTest <- function(model, data, group) {
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), group))
-  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 6L)
+  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 4L)
 
   handle_validation_result <- function(result, warn_patterns = character()) {
     if (length(result$warnings) > 0) {
@@ -157,7 +158,7 @@ performBartlettTest <- function(model, data, group) {
     model = model,
     data = validation_frame,
     group_var = group,
-    min_group_size = 3L,
+    min_group_size = 2L,
     variables = residual_col,
     normality_vars = residual_col
   )
