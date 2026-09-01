@@ -13,20 +13,7 @@ library(testthat)
 # stops covering the package's hard dependencies, so the drift is visible at
 # PR time rather than at image-build time.
 
-source_root <- function() {
-  desc <- testthat::test_path("..", "..", "DESCRIPTION")
-  if (!file.exists(desc)) return(NULL)
-  if (!any(grepl("Package: heteroTests", readLines(desc, warn = FALSE), fixed = TRUE))) {
-    return(NULL)
-  }
-  root <- normalizePath(dirname(desc))
-  # An installed package also has a matching DESCRIPTION; a source checkout
-  # is the one whose R/ contains sources rather than a compiled .rdb.
-  if (length(list.files(file.path(root, "R"), pattern = "[.][Rr]$")) == 0L) {
-    return(NULL)
-  }
-  root
-}
+# hetero_source_root() comes from helper-source-tree.R.
 
 # renv.lock is JSON, but parsing it with an external JSON package would make
 # these checks conditional on a package that is neither declared in DESCRIPTION
@@ -57,7 +44,7 @@ declared_field <- function(desc, field) {
 }
 
 test_that("renv.lock covers every hard dependency", {
-  root <- source_root()
+  root <- hetero_source_root()
   skip_if(is.null(root), "renv.lock checks only run from the source tree")
   lock_path <- file.path(root, "renv.lock")
   skip_if_not(file.exists(lock_path), "no renv.lock in this layout")
@@ -81,7 +68,7 @@ test_that("renv.lock covers every hard dependency", {
 })
 
 test_that("renv.lock records an R version consistent with DESCRIPTION", {
-  root <- source_root()
+  root <- hetero_source_root()
   skip_if(is.null(root), "renv.lock checks only run from the source tree")
   lock_path <- file.path(root, "renv.lock")
   skip_if_not(file.exists(lock_path), "no renv.lock in this layout")

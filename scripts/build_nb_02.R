@@ -63,12 +63,12 @@ code("X <- model.matrix(model); e <- residuals(model); h <- hatvalues(model)",
      "  width_ratio = round(se_hc3 / se_ols, 2), row.names = NULL)",
      "ci"),
 
-md("The HC3 intervals are substantially wider for `lstat` and `rm`. The package",
-   "wraps this comparison as a formal test --- a significant result means the OLS",
-   "and robust covariance estimates disagree, i.e. heteroscedasticity is materially",
-   "affecting inference:"),
+md("The HC3 intervals are substantially wider for `lstat` and `rm`. Widening is",
+   "a symptom, not a test. To decide whether the variance really is non-constant,",
+   "use a score test. Koenker's studentised version is the one to reach for here,",
+   "because it does not lean on normal errors:"),
 
-code("performHCCovarianceTest(model, boston_housing, type = \"HC3\")"),
+code("performKoenkerTest(model, boston_housing)"),
 
 md("## Strategy B --- Weighted least squares",
    "",

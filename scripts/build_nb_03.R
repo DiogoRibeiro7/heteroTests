@@ -95,12 +95,11 @@ code("set.seed(3)",
      "y <- 1 + 2 * x + rnorm(n, sd = 0.3 + 1.5 * x)   # variance grows with x",
      "d <- data.frame(y, x); m <- lm(y ~ x, data = d)",
      "data.frame(",
-     "  test = c(\"Koenker\", \"Rank permutation\", \"Quantile regression\", \"HC covariance\"),",
+     "  test = c(\"Koenker\", \"Rank permutation\", \"Quantile regression\"),",
      "  p.value = signif(c(",
      "    performKoenkerTest(m, d)$p.value,",
      "    performRankPermutationTest(m, d, B = 499)$p.value,",
-     "    performQuantileRegressionTest(m, d)$p.value,",
-     "    performHCCovarianceTest(m, d)$p.value), 3))"),
+     "    performQuantileRegressionTest(m, d)$p.value), 3))"),
 
 md("## 2. A tour of the modern diagnostics",
    "",
@@ -119,13 +118,6 @@ md("**Quantile-regression test.** Heteroscedasticity makes the conditional quant
    "variance model."),
 
 code("performQuantileRegressionTest(m, d, taus = c(0.25, 0.75))"),
-
-md("**HC-covariance test.** Contrasts the OLS covariance estimate with the",
-   "heteroscedasticity-consistent sandwich estimate; a large gap means",
-   "heteroscedasticity is materially affecting inference. The `type` argument",
-   "selects among the HC0--HC4 finite-sample variants."),
-
-code("performHCCovarianceTest(m, d, type = \"HC3\")"),
 
 md("## 3. Scaling to large data",
    "",

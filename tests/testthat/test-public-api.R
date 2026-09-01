@@ -56,16 +56,25 @@ test_that("the replacement for each removed diagnostic is exported", {
   }
 })
 
-test_that("no help page or registry still points at a removed diagnostic", {
-  desc <- testthat::test_path("..", "..", "DESCRIPTION")
-  root <- if (file.exists(desc)) normalizePath(dirname(desc)) else ""
-  is_source <- nzchar(root) &&
-    length(list.files(file.path(root, "R"), pattern = "[.][Rr]$")) > 0L
-  skip_if_not(is_source, "source-tree check only")
+test_that("nothing shipped still points at a removed diagnostic", {
+  # inst/ is scanned as well as R/ and man/: the tutorial notebooks and the
+  # validation scripts are shipped and executable, so a call left behind there
+  # fails in a user's hands just as surely as one in the package code.
+  #
+  # Markdown under inst/ is exempt. inst/validation/README.md has to name
+  # performModifiedBartlettTest() in order to record why it was withdrawn, and
+  # prose that documents a removal is not a caller. Nothing in .md executes.
+  # skip_if_not_source_tree() comes from helper-source-tree.R.
+  root <- skip_if_not_source_tree()
+
+  inst_files <- list.files(file.path(root, "inst"), recursive = TRUE,
+                           full.names = TRUE)
+  inst_files <- inst_files[!grepl("[.]md$", inst_files, ignore.case = TRUE)]
 
   files <- c(
     list.files(file.path(root, "R"), pattern = "[.][Rr]$", full.names = TRUE),
-    list.files(file.path(root, "man"), pattern = "[.]Rd$", full.names = TRUE)
+    list.files(file.path(root, "man"), pattern = "[.]Rd$", full.names = TRUE),
+    inst_files
   )
   pattern <- paste(removed_exports, collapse = "|")
   offenders <- Filter(function(f) {
@@ -75,6 +84,6 @@ test_that("no help page or registry still points at a removed diagnostic", {
   expect_equal(
     length(offenders), 0L,
     info = paste("still reference a removed diagnostic:",
-                 paste(basename(offenders), collapse = ", "))
+                 paste(sub(root, "", offenders, fixed = TRUE), collapse = ", "))
   )
 })

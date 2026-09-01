@@ -9,17 +9,7 @@ library(testthat)
 # package: roxygen2 generated 78 of the 130 pages and the other 52 were written
 # directly, so nothing regenerates them when a signature changes.
 
-skip_if_not_source_tree <- function() {
-  desc <- testthat::test_path("..", "..", "DESCRIPTION")
-  root <- if (file.exists(desc)) normalizePath(dirname(desc)) else ""
-  # An installed package also carries a DESCRIPTION naming heteroTests, so
-  # require R/ to hold actual sources: an installed copy has R/*.rdb instead.
-  is_source <- nzchar(root) &&
-    any(grepl("Package: heteroTests", readLines(desc, warn = FALSE), fixed = TRUE)) &&
-    length(list.files(file.path(root, "R"), pattern = "[.][Rr]$")) > 0L
-  skip_if_not(is_source, "documentation checks only run from a source checkout")
-  root
-}
+# skip_if_not_source_tree() comes from helper-source-tree.R.
 
 test_that("no code/documentation mismatches", {
   root <- skip_if_not_source_tree()

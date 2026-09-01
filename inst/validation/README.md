@@ -130,9 +130,15 @@ Breusch-Pagan family.
 | Fligner-Killeen | 0.045 | 0.024 | 0.038 | 0.633 | 0.894 |
 | Hartley Fmax | 0.052 | 0.045 | 0.236 | 0.788 | 0.974 |
 | O'Brien | 0.048 | 0.035 | 0.032 | 0.693 | 0.926 |
-| Modified Bartlett alias | 0.050 | 0.047 | 0.242 | 0.792 | 0.974 |
 
 Replications: 5000. Nominal level: 0.05.
+
+The table used to carry a seventh row, `Modified Bartlett alias`, whose five
+figures were identical to Bartlett's in every digit: 0.050, 0.047, 0.242,
+0.792, 0.974. That is what established `performModifiedBartlettTest()` as an
+exact duplicate rather than a distinct correction, and it was removed in 0.8.0.
+The row is gone from the table and the CSV because the function it called no
+longer exists, so re-running the script could not reproduce it.
 
 Every Pass B test holds its nominal level under the Gaussian null, at both
 group sizes. Brown-Forsythe (0.027) and Fligner-Killeen (0.024) are
