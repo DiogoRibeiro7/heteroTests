@@ -87,6 +87,10 @@ jobs:
         with:
           r-version: 'release'
           use-public-rspm: true
+      # --as-cran builds the PDF manual, which needs a LaTeX toolchain. Without
+      # this the job fails with 'pdflatex is not available', which reads as an Rd
+      # problem but is purely a missing dependency.
+      - uses: r-lib/actions/setup-tinytex@v2
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::rcmdcheck

@@ -89,7 +89,7 @@ create_report_template <- function(include_remediation = TRUE,
   template <- c(
     "---",
     "title: 'Heteroscedasticity Diagnostic Report'",
-    "output: html_document:\n  toc: true\n  toc_float: true\n  theme: flatly",
+    "output:\n  html_document:\n    toc: true\n    toc_float: true\n    theme: flatly",
     "params:\n  model: NULL\n  tests: NULL\n  plots: NULL\n  remediation: NULL\n  timestamp: NULL",
     "---",
     "",

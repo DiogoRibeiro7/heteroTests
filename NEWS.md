@@ -253,6 +253,18 @@ alternative.
   builder. That step is gated on the version changing, so the omission had
   never fired until the 0.7.0 bump.
 
+- **Fixed `generateDiagnosticReport()`, which could not generate a report.** The
+  YAML front matter it writes put two mappings on one line
+  (`output: html_document:`), so rmarkdown aborted with "mapping values are not
+  allowed in this context". `html_document` is now nested under `output`. The
+  example is wrapped in `donttest`, so only a CRAN-style check with
+  `--run-dontrun` executed it, which is why it went unnoticed.
+- The CRAN submission job now installs a LaTeX toolchain, and the pkgdown job
+  installs `rsconnect`. Both were failing on missing dependencies rather than on
+  anything in the package: the former reported `pdflatex is not available`, which
+  R CMD check surfaces as a probable Rd problem, and the latter needs rsconnect
+  to inspect `inst/tutorials`.
+
 ### Documentation
 
 - `performGlejserTest()` documents that the test is not asymptotically valid
