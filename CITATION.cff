@@ -3,7 +3,7 @@ message: |
   If you use this software, please cite it using the metadata below.
   See algorithms_bibliography() for references on diagnostic tests.
 title: "heteroTests"
-version: "0.7.0"
+version: "0.7.1"
 type: software
 authors:
   - given-names: "Diogo"
@@ -19,7 +19,7 @@ contact:
     affiliation: "ESMAD - Instituto Politécnico do Porto"
 repository-code: "https://github.com/DiogoRibeiro7/heteroTests"
 license: "Apache-2.0"
-date-released: "2025-07-26"
+date-released: "2026-09-01"
 abstract: |
   heteroTests provides a collection of heteroscedasticity diagnostics for
   linear models in R. It includes classic tests such as White's and the
@@ -39,7 +39,7 @@ preferred-citation:
   title: "heteroTests: Heteroscedasticity Diagnostic Tools"
   year: "2025"
   url: "https://github.com/DiogoRibeiro7/heteroTests"
-  version: "0.7.0"
+  version: "0.7.1"
 references:
   - type: article
     authors:
