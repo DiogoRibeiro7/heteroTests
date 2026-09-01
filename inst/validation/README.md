@@ -140,10 +140,11 @@ exact duplicate rather than a distinct correction, and it was removed in 0.8.0.
 The row is gone from the table and the CSV because the function it called no
 longer exists, so re-running the script could not reproduce it.
 
-Every Pass B test holds its nominal level under the Gaussian null, at both
-group sizes. Brown-Forsythe (0.027) and Fligner-Killeen (0.024) are
-noticeably conservative with only 15 observations per group, which is the
-expected small-sample behaviour of median-centred and rank-based statistics.
+Every Pass B test holds its nominal level under the Gaussian null at n=30.
+At n=15 that is no longer true of all of them: Brown-Forsythe (0.027) and
+Fligner-Killeen (0.024) reject at about half the nominal rate, which is the
+expected small-sample conservatism of median-centred and rank-based
+statistics rather than a defect, but it is conservatism, not calibration.
 
 The `t5` column separates the normal-theory tests from the robust ones, and
 does so sharply: Bartlett, its alias and Hartley reject about 24% of the time

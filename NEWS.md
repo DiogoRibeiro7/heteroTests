@@ -48,9 +48,9 @@ ever raised an error.
 ## 0.7.2
 
 Pass C of the statistical validation matrix: the methods with the least
-reference coverage. Six were sound. Two are withdrawn because their statistics
-cannot detect heteroscedasticity at all, and two more are valid statistics under
-names that promise something else.
+reference coverage. Six were sound and one needed a fix. Two are withdrawn
+because their statistics cannot detect heteroscedasticity at all, and two more
+are valid statistics under names that promise something else.
 
 ### Withdrawn
 
@@ -397,7 +397,7 @@ alternative.
   YAML front matter it writes put two mappings on one line
   (`output: html_document:`), so rmarkdown aborted with "mapping values are not
   allowed in this context". `html_document` is now nested under `output`. The
-  example is wrapped in `donttest`, so only a CRAN-style check with
+  example is wrapped in `\dontrun{}`, so only a check passing
   `--run-dontrun` executed it, which is why it went unnoticed.
 - The CRAN submission job now installs a LaTeX toolchain, and the pkgdown job
   installs `rsconnect`. Both were failing on missing dependencies rather than on

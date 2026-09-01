@@ -58,9 +58,19 @@ test_that("release dates are well formed and not in the future", {
   zen_date <- trimws(gsub('[",]', "", sub('.*"publication_date"\\s*:\\s*', "",
                                           grep('"publication_date"', zen, value = TRUE)[1])))
 
-  for (d in c(cff_date, zen_date)) {
-    parsed <- as.Date(d, format = "%Y-%m-%d")
-    expect_false(is.na(parsed), info = paste("unparseable release date:", d))
-    expect_lte(parsed, Sys.Date() + 1)
+  # Named so a failure says which file carries the bad date, and compared
+  # against today with no slack: the previous `Sys.Date() + 1` let a date one
+  # day in the future through, which is exactly what this test exists to catch.
+  dates <- c(CITATION.cff = cff_date, .zenodo.json = zen_date)
+  for (nm in names(dates)) {
+    parsed <- as.Date(dates[[nm]], format = "%Y-%m-%d")
+    expect_false(
+      is.na(parsed),
+      info = paste0(nm, " has an unparseable release date: ", dates[[nm]])
+    )
+    expect_lte(
+      parsed, Sys.Date(),
+      label = paste0(nm, " release date (", dates[[nm]], ")")
+    )
   }
 })

@@ -17,27 +17,30 @@ names(wide) <- sub("^rejection_rate\\.", "", names(wide))
 
 fmt <- function(x) ifelse(is.na(x), "--", sprintf("%.3f", x))
 
-emit <- function(block, cols, headers) {
-  rows <- wide[wide$block == block, , drop = FALSE]
-  cols <- intersect(cols, names(rows))
+emit <- function(rows, cols, headers, label = "test") {
+  # Drop headers alongside any column the CSV does not carry, so the two stay
+  # aligned; previously only `cols` was filtered.
+  present <- cols %in% names(rows)
+  cols <- cols[present]
+  headers <- headers[present]
   cat("| Test | ", paste(headers, collapse = " | "), " |\n", sep = "")
   cat("| --- | ", paste(rep("---:", length(cols)), collapse = " | "), " |\n", sep = "")
   for (i in seq_len(nrow(rows))) {
-    cat("| ", rows$test[i], " | ",
+    cat("| ", rows[[label]][i], " | ",
         paste(fmt(unlist(rows[i, cols])), collapse = " | "), " |\n", sep = "")
   }
   cat("\n")
 }
 
 cat("### Cross-sectional block\n\n")
-emit("cross-sectional",
+emit(wide[wide$block == "cross-sectional", , drop = FALSE],
      c("size_gaussian_n100", "size_gaussian_n40", "size_t5_n100",
        "power_exp_g0.4_n100", "power_quad_g0.15_n100"),
      c("Size, Gaussian n=100", "Size, Gaussian n=40", "Size, t5 n=100",
        "Power, exp n=100", "Power, quad n=100"))
 
 cat("### Time-series block\n\n")
-emit("time-series",
+emit(wide[wide$block == "time-series", , drop = FALSE],
      c("size_gaussian_n300", "size_t5_n300", "power_arch1_a0.6_n300"),
      c("Size, Gaussian n=300", "Size, t5 n=300", "Power, ARCH(1) n=300"))
 
@@ -57,17 +60,14 @@ if (file.exists(csv_b)) {
   names(wide_b) <- sub("^rejection_rate\\.", "", names(wide_b))
 
   cat("\n### Group-variance block (Pass B)\n\n")
-  cols <- setdiff(names(wide_b), "method")
-  cat("| Test | ", paste(cols, collapse = " | "), " |\n", sep = "")
-  cat("| --- | ", paste(rep("---:", length(cols)), collapse = " | "), " |\n", sep = "")
-  for (i in seq_len(nrow(wide_b))) {
-    vals <- unlist(wide_b[i, cols])
-    cat("| ", wide_b$method[i], " | ",
-        paste(ifelse(is.na(vals), "--", sprintf("%.3f", vals)), collapse = " | "),
-        " |\n", sep = "")
-  }
+  # Named explicitly rather than taken from reshape's first-appearance order,
+  # which made the column order depend on how the CSV rows happened to be
+  # written.
+  scenarios <- c("gaussian_null_n30", "gaussian_null_n15", "t5_null_n30",
+                 "moderate_hetero", "strong_hetero")
+  emit(wide_b, scenarios, scenarios, label = "method")
   cat(sprintf(
-    "\nReplications: %d. Nominal level: %.2f.\n",
+    "Replications: %d. Nominal level: %.2f.\n",
     b$replications[1], 0.05
   ))
 }
