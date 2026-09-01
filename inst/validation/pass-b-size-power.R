@@ -1,12 +1,16 @@
 # Pass B statistical validation: group-variance diagnostics ------------------
 #
-# Run from the package root after installing the package and all Suggests:
+# Run from the package root:
 #   Rscript inst/validation/pass-b-size-power.R
 #
 # N_MC can be overridden for exploratory runs, e.g. N_MC=200 Rscript ... .
 # Release evidence uses N_MC=5000.
 
-suppressPackageStartupMessages(library(heteroTests))
+if (requireNamespace("pkgload", quietly = TRUE) && file.exists("DESCRIPTION")) {
+  suppressPackageStartupMessages(pkgload::load_all(".", quiet = TRUE))
+} else {
+  suppressPackageStartupMessages(library(heteroTests))
+}
 
 n_mc <- as.integer(Sys.getenv("N_MC", unset = "5000"))
 if (!is.finite(n_mc) || n_mc < 100L) {
@@ -28,14 +32,20 @@ methods <- c(
 
 run_tests <- function(data) {
   model <- lm(y ~ x, data = data)
-  c(
-    "Levene" = performLeveneTest(model, data, "g")$p.value,
-    "Brown-Forsythe" = performBrownForsytheTest(model, data, "g")$p.value,
-    "Bartlett" = suppressWarnings(performBartlettTest(model, data, "g")$p.value),
-    "Fligner-Killeen" = performFlignerKilleenTest(model, data, "g")$p.value,
-    "Hartley Fmax" = suppressWarnings(performHartleyFmaxTest(model, data, "g")$p.value),
-    "O'Brien" = performOBrienTest(model, data, "g")$p.value,
-    "Modified Bartlett alias" = suppressWarnings(performModifiedBartlettTest(model, data, "g")$p.value)
+  calls <- list(
+    "Levene" = function() performLeveneTest(model, data, "g")$p.value,
+    "Brown-Forsythe" = function() performBrownForsytheTest(model, data, "g")$p.value,
+    "Bartlett" = function() suppressWarnings(performBartlettTest(model, data, "g")$p.value),
+    "Fligner-Killeen" = function() performFlignerKilleenTest(model, data, "g")$p.value,
+    "Hartley Fmax" = function() suppressWarnings(performHartleyFmaxTest(model, data, "g")$p.value),
+    "O'Brien" = function() performOBrienTest(model, data, "g")$p.value,
+    "Modified Bartlett alias" = function() suppressWarnings(performModifiedBartlettTest(model, data, "g")$p.value)
+  )
+
+  vapply(
+    calls,
+    function(run_one) tryCatch(as.numeric(run_one()), error = function(e) NA_real_),
+    numeric(1)
   )
 }
 
@@ -74,13 +84,23 @@ for (scenario_name in names(scenarios)) {
       scales = cfg$scales,
       error = cfg$error
     )
-    p <- tryCatch(run_tests(d), error = function(e) rep(NA_real_, length(methods)))
-    names(p) <- methods
+    p <- run_tests(d)
     failures <- failures + as.integer(!is.finite(p))
     rejected <- rejected + as.integer(is.finite(p) & p < alpha)
   }
 
   effective <- n_mc - failures
+  if (any(effective <= 0L)) {
+    failed_methods <- names(effective)[effective <= 0L]
+    stop(
+      sprintf(
+        "Pass B produced no usable replications for: %s",
+        paste(failed_methods, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+
   rate <- rejected / effective
   mc_se <- sqrt(rate * (1 - rate) / effective)
 
