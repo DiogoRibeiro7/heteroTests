@@ -21,7 +21,7 @@ The work is split into three passes:
   high-dimensional, spatial and panel diagnostics. Complete as of 0.7.2.
 
 These lists name what each pass examined, not what the package still exports.
-Six of the diagnostics above were removed in 0.8.0, either because their
+Six of the package's diagnostics were removed in 0.8.0, either because their
 statistics could not detect heteroscedasticity or because they duplicated a
 test that remains.
 
