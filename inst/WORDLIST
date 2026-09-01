@@ -23,6 +23,8 @@ breusch
 catalogue
 Cengage
 centred
+centring
+changelog
 cloneable
 CMD
 coercible
@@ -45,6 +47,7 @@ ESMAD
 et
 EViews
 fallbacks
+fiftyfold
 fitRobust
 fitWLS
 Flachaire
@@ -109,6 +112,7 @@ Misspecification
 misspecification
 modelling
 modernised
+Moran
 mtcars
 multicollinearity
 Naiman
@@ -126,6 +130,7 @@ orderable
 pdflatex
 Pebesma
 ped
+permutational
 Pesaran
 pkgdown
 Plotly
@@ -187,8 +192,10 @@ tidymodels
 TinyTeX
 toolchain
 Trivedi
+twentyfold
 Unescaped
 unsatisfiable
+unstandardised
 unvalidated
 varepsilon
 Verlag
