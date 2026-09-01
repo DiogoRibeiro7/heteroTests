@@ -58,7 +58,7 @@
 #'
 #' @seealso
 #' [performArchLMTest()] for the related Lagrange Multiplier version and
-#' [performRiceTest()] for a difference-based alternative on ordered data.
+#' [performSzroeterTest()] for an ordered alternative on cross-sectional data.
 performMcLeodLiTest <- function(model, lags = 10) {
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)

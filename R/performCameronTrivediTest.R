@@ -1,8 +1,23 @@
-#' Perform Cameron–Trivedi decomposition test
+#' Regression-based variance decomposition test
 #'
-#' Implements the auxiliary regression proposed by Cameron and Trivedi (1990) to
-#' decompose heteroscedasticity into components that depend linearly and
-#' quadratically on the fitted values.
+#' Regresses the squared residuals on the fitted values and their square, and
+#' reports the F statistic for the joint significance of those two terms.
+#'
+#' @section What this computes:
+#' This is the auxiliary regression
+#' \deqn{\hat{e}_i^2 = \alpha_0 + \alpha_1 \hat{y}_i + \alpha_2 \hat{y}_i^2 + u_i,}
+#' tested with the overall F statistic. It is the fitted-value form of the
+#' White/Breusch-Pagan family and is closely related to
+#' [performHarveyTest()] with `auxiliary = "fitted"`, which uses
+#' \eqn{\log \hat{e}_i^2} in place of \eqn{\hat{e}_i^2}.
+#'
+#' It is *not* the information-matrix test of Cameron and Trivedi (1990),
+#' which is a specification test for overdispersion in count models and does
+#' not apply to a Gaussian linear model. The name is retained for backward
+#' compatibility; the statistic is a valid heteroscedasticity diagnostic, but
+#' it duplicates coverage already provided by [performWhiteTest()],
+#' [performNCVTest()] and [performHarveyTest()]. Removal is deferred to the
+#' API review.
 #'
 #' @param model A fitted [stats::lm] object whose residuals and fitted values will
 #'   be used in the auxiliary regression.

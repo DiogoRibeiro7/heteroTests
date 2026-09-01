@@ -1,5 +1,100 @@
 # heteroTests News
 
+## 0.7.2
+
+Pass C of the statistical validation matrix: the methods with the least
+reference coverage. Six were sound. Two are withdrawn because their statistics
+cannot detect heteroscedasticity at all, and two more are valid statistics under
+names that promise something else.
+
+### Withdrawn
+
+- **`performRiceTest()`** compared Rice's (1984) difference-based variance
+  estimator with the mean squared residual and referred the ratio to an F
+  distribution. For independent residuals `E[(e_i - e_{i-1})^2]` is
+  `s2_i + s2_{i-1}`, so the numerator estimates the *mean* of the variances and
+  so does the denominator: the ratio sits at one under any variance pattern.
+  Simulated means were 1.00 under homoscedasticity, under `sigma = 0.2 + 1.2x`,
+  under `sigma = exp(x)` (a fiftyfold spread) and under a twentyfold step
+  change, and empirical size was 0.000. Adding an ordering argument does not
+  repair it. Use `performSzroeterTest()` or `performGQTest()` instead.
+
+- **`performCurryWalshTest()`** passed an unstandardised Moran's I to
+  `2 * (1 - pnorm(abs(I)))`. Moran's I has null expectation `-1/(n-1)` and a
+  weights-dependent variance, and is bounded near one, so it essentially never
+  reached 1.96: it rejected in 0.0% of samples under strong heteroscedasticity
+  and returned `p = 0.875` on clustered variance. `performSpatialHeteroTest()`
+  already does this correctly via `spdep::moran.mc()`.
+
+Both retain their exports and signal a migration error, following the
+withdrawn HC covariance precedent.
+
+### Corrected
+
+- `performDavidianCarrollTest()` failed with `NA/NaN/Inf in 'y'` when a residual
+  was exactly zero. It now uses the shared log-residual floor, as Harvey and
+  Park do.
+
+### Documented rather than removed
+
+- `performOrderedLMTest()` sorts the rows and refits, which returns the same
+  residuals permuted, so `order_by` cannot change the statistic and the result
+  is identical to `performKoenkerTest()`. It now warns that the argument has no
+  effect.
+- `performCameronTrivediTest()` is exactly the `e^2 ~ yhat + yhat^2` F test, not
+  the information-matrix test of Cameron and Trivedi (1990), which concerns
+  overdispersion in count models. The help page now says what it computes.
+
+Removing either redundant export is left to the API review.
+
+### Validated without change
+
+`performRankPermutationTest()`, `performHighDimensionalTest()`,
+`performWildBootstrapTest()`, `performQuantileRegressionTest()`,
+`performSpatialHeteroTest()` and `performPesaranTest()` hold their nominal level
+and have power.
+
+## 0.7.1
+
+Pass B of the statistical validation matrix: the group-variance tests. This
+section was missing from the changelog when 0.7.1 shipped and is recorded here.
+
+### Statistical corrections
+
+- **Bug fix (critical): `performOBrienTest()` rejected on every input.**
+  O'Brien's transformation produces one score per *observation*, whose group
+  mean is that group's variance. The implementation computed a single value per
+  *group* and repeated it across that group's observations, so the scores had no
+  within-group variability: the one-way ANOVA had a residual sum of squares of
+  zero, giving `F` on the order of `1e30` and `p = 0` for any data,
+  homoscedastic or not. Empirical size is now 4.8%.
+
+- **Bug fix (critical): `performHartleyFmaxTest()` used the wrong null
+  distribution.** The statistic is the largest of `k` group variances over the
+  smallest, but the p-value came from `pf(F, df, df)`, the distribution of a
+  single variance ratio; the number of groups was computed and never used.
+  Empirical size at a nominal 5%, groups of 30, was 0.0998 at two groups,
+  0.2238 at three, 0.3497 at four and 0.5626 at six. It now uses the
+  maximum-F-ratio distribution and holds 0.05 throughout.
+
+- `performOBrienTest()` also called `safe_lm()` without a data argument, so
+  every call errored once the transformation was corrected.
+
+### Validated without change
+
+`performLeveneTest()`, `performBrownForsytheTest()`, `performBartlettTest()` and
+`performFlignerKilleenTest()` reproduce `car::leveneTest()` with mean and median
+centring, `stats::bartlett.test()` and `stats::fligner.test()` to within `1e-8`.
+
+### Documentation
+
+- `performModifiedBartlettTest()` is Bartlett's test under another name: the
+  correction factor its documentation described as a modification is part of the
+  standard definition. It is now documented as a compatibility alias.
+- Bartlett's per-group minimum was relaxed from three observations to two, which
+  is what a sample variance requires.
+
+
 ## 0.7.0
 
 This release is the first pass of a package-wide statistical validation effort.

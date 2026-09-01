@@ -16,9 +16,12 @@ test_that("Curry-Walsh detects spatial heteroscedasticity", {
   y <- 1 + 2 * x + rnorm(n, sd = sd_vec)
   df <- data.frame(x = x, y = y)
   model <- lm(y ~ x, data = df)
-  res <- performCurryWalshTest(model, coords)
-  expect_s3_class(res, "htest")
-  expect_true(is.numeric(res$p.value))
+  # Withdrawn in 0.7.2: it referred an unstandardised Moran's I to a normal
+  # distribution and never rejected.
+  expect_error(
+    suppressWarnings(performCurryWalshTest(model, coords)),
+    "performSpatialHeteroTest"
+  )
 })
 
 ## Davidian-Carroll Test
@@ -59,9 +62,11 @@ test_that("Rice test detects increasing variance", {
   y <- 1 + 0.1 * x + rnorm(n, sd = x / 20)
   df <- data.frame(x = x, y = y)
   model <- lm(y ~ x, data = df)
-  res <- performRiceTest(model)
-  expect_s3_class(res, "htest")
-  expect_true(is.numeric(res$p.value))
+  # Withdrawn in 0.7.2: the statistic cannot detect heteroscedasticity.
+  expect_error(
+    suppressWarnings(performRiceTest(model)),
+    "no power against heteroscedasticity"
+  )
 })
 
 ## Spread-Level Test

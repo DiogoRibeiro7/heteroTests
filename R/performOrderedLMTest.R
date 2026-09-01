@@ -74,6 +74,20 @@ performOrderedLMTest <- function(model, data, order_by) {
 
   ht_log("INFO", "Running Ordered LM test")
 
+  # Sorting the rows and refitting by OLS returns the same residuals in a
+  # different order, so e^2 ~ X has the same R^2 and `order_by` cannot change
+  # the statistic. The result equals performKoenkerTest() exactly. Say so
+  # rather than letting the argument imply an effect it does not have.
+  warning(
+    paste0(
+      "performOrderedLMTest() ignores `order_by`: reordering the rows and ",
+      "refitting leaves the statistic unchanged, and the result is identical ",
+      "to performKoenkerTest(). Use performSzroeterTest() or performGQTest() ",
+      "for a genuinely ordered alternative."
+    ),
+    call. = FALSE
+  )
+
   ordered_data <- working_data[order(working_data[[order_by]]), , drop = FALSE]
   ordered_model <- safe_lm(stats::formula(model), data = ordered_data)
   e <- stats::residuals(ordered_model)
