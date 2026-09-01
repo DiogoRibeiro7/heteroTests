@@ -120,6 +120,38 @@ on. Harvey is the least powerful of the group here; its multiplicative variance
 model is a poorer match for the additive `quad` alternative than the
 Breusch-Pagan family.
 
+### Group-variance block (Pass B)
+
+| Test | gaussian_null_n30 | gaussian_null_n15 | t5_null_n30 | moderate_hetero | strong_hetero |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Levene | 0.057 | 0.055 | 0.054 | 0.723 | 0.941 |
+| Brown-Forsythe | 0.043 | 0.027 | 0.038 | 0.677 | 0.922 |
+| Bartlett | 0.050 | 0.047 | 0.242 | 0.792 | 0.974 |
+| Fligner-Killeen | 0.045 | 0.024 | 0.038 | 0.633 | 0.894 |
+| Hartley Fmax | 0.052 | 0.045 | 0.236 | 0.788 | 0.974 |
+| O'Brien | 0.048 | 0.035 | 0.032 | 0.693 | 0.926 |
+| Modified Bartlett alias | 0.050 | 0.047 | 0.242 | 0.792 | 0.974 |
+
+Replications: 5000. Nominal level: 0.05.
+
+Every Pass B test holds its nominal level under the Gaussian null, at both
+group sizes. Brown-Forsythe (0.027) and Fligner-Killeen (0.024) are
+noticeably conservative with only 15 observations per group, which is the
+expected small-sample behaviour of median-centred and rank-based statistics.
+
+The `t5` column separates the normal-theory tests from the robust ones, and
+does so sharply: Bartlett, its alias and Hartley reject about 24% of the time
+against a nominal 5% when the errors are heavy-tailed, while Levene,
+Brown-Forsythe, Fligner-Killeen and O'Brien stay near 0.05. That is the basis
+for the cross-references in their help pages.
+
+On power, Bartlett and Hartley lead, which is what normal-theory tests buy
+when their assumption holds; Fligner-Killeen pays the most for its robustness.
+
+Before 0.7.1, `performOBrienTest()` rejected 100% of the time in every column,
+including the null ones, and `performHartleyFmaxTest()` rejected about 35% of
+the time under the null at four groups. See `NEWS.md`.
+
 ## History
 
 Before 0.7.0, `Szroeter` rejected in 0.0% of samples in every one of these

@@ -43,3 +43,31 @@ emit("time-series",
 
 cat(sprintf("Replications: %d. Nominal level: %.2f. Monte Carlo standard error at the nominal level: %.4f.\n",
             res$n_mc[1], res$alpha[1], sqrt(0.05 * 0.95 / res$n_mc[1])))
+
+# --- Pass B ----------------------------------------------------------------
+
+csv_b <- file.path("inst", "validation", "pass-b-size-power.csv")
+if (!file.exists(csv_b)) csv_b <- "pass-b-size-power.csv"
+if (file.exists(csv_b)) {
+  b <- utils::read.csv(csv_b, stringsAsFactors = FALSE)
+  wide_b <- stats::reshape(
+    b[, c("method", "scenario", "rejection_rate")],
+    idvar = "method", timevar = "scenario", direction = "wide"
+  )
+  names(wide_b) <- sub("^rejection_rate\\.", "", names(wide_b))
+
+  cat("\n### Group-variance block (Pass B)\n\n")
+  cols <- setdiff(names(wide_b), "method")
+  cat("| Test | ", paste(cols, collapse = " | "), " |\n", sep = "")
+  cat("| --- | ", paste(rep("---:", length(cols)), collapse = " | "), " |\n", sep = "")
+  for (i in seq_len(nrow(wide_b))) {
+    vals <- unlist(wide_b[i, cols])
+    cat("| ", wide_b$method[i], " | ",
+        paste(ifelse(is.na(vals), "--", sprintf("%.3f", vals)), collapse = " | "),
+        " |\n", sep = "")
+  }
+  cat(sprintf(
+    "\nReplications: %d. Nominal level: %.2f.\n",
+    b$replications[1], 0.05
+  ))
+}
