@@ -6,15 +6,25 @@
 # N_MC can be overridden for exploratory runs, e.g. N_MC=200 Rscript ... .
 # Release evidence uses N_MC=5000.
 
-if (requireNamespace("pkgload", quietly = TRUE) && file.exists("DESCRIPTION")) {
+is_source_checkout <- file.exists("DESCRIPTION") &&
+  any(grepl(
+    "Package: heteroTests",
+    readLines("DESCRIPTION", warn = FALSE),
+    fixed = TRUE
+  ))
+
+if (requireNamespace("pkgload", quietly = TRUE) && is_source_checkout) {
   suppressPackageStartupMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
   suppressPackageStartupMessages(library(heteroTests))
 }
 
-n_mc <- as.integer(Sys.getenv("N_MC", unset = "5000"))
-if (!is.finite(n_mc) || n_mc < 100L) {
-  stop("N_MC must be an integer >= 100.")
+get_n_mc <- function() {
+  n_mc <- as.integer(Sys.getenv("N_MC", unset = "5000"))
+  if (!is.finite(n_mc) || n_mc < 100L) {
+    stop("N_MC must be an integer >= 100.")
+  }
+  n_mc
 }
 
 alpha <- 0.05
@@ -44,7 +54,10 @@ run_tests <- function(data) {
 
   vapply(
     calls,
-    function(run_one) tryCatch(as.numeric(run_one()), error = function(e) NA_real_),
+    function(run_one) tryCatch(
+      as.numeric(run_one()),
+      error = function(e) NA_real_
+    ),
     numeric(1)
   )
 }
@@ -61,34 +74,7 @@ simulate_design <- function(seed, n_per_group, scales, error = c("normal", "t5")
   data.frame(y = y, x = x, g = g)
 }
 
-scenarios <- list(
-  gaussian_null_n30 = list(n = 30L, scales = c(1, 1, 1), error = "normal"),
-  gaussian_null_n15 = list(n = 15L, scales = c(1, 1, 1), error = "normal"),
-  t5_null_n30 = list(n = 30L, scales = c(1, 1, 1), error = "t5"),
-  moderate_hetero = list(n = 30L, scales = c(1, 1.35, 1.8), error = "normal"),
-  strong_hetero = list(n = 30L, scales = c(1, 1.5, 2.25), error = "normal")
-)
-
-rows <- list()
-row_id <- 1L
-
-for (scenario_name in names(scenarios)) {
-  cfg <- scenarios[[scenario_name]]
-  rejected <- setNames(integer(length(methods)), methods)
-  failures <- setNames(integer(length(methods)), methods)
-
-  for (b in seq_len(n_mc)) {
-    d <- simulate_design(
-      seed = base_seed + row_id * 100000L + b,
-      n_per_group = cfg$n,
-      scales = cfg$scales,
-      error = cfg$error
-    )
-    p <- run_tests(d)
-    failures <- failures + as.integer(!is.finite(p))
-    rejected <- rejected + as.integer(is.finite(p) & p < alpha)
-  }
-
+summarise_pass_b_counts <- function(rejected, failures, n_mc) {
   effective <- n_mc - failures
   if (any(effective <= 0L)) {
     failed_methods <- names(effective)[effective <= 0L]
@@ -103,25 +89,64 @@ for (scenario_name in names(scenarios)) {
 
   rate <- rejected / effective
   mc_se <- sqrt(rate * (1 - rate) / effective)
-
-  rows[[row_id]] <- data.frame(
-    scenario = scenario_name,
-    method = methods,
-    n_per_group = cfg$n,
-    error = cfg$error,
-    scale_pattern = paste(cfg$scales, collapse = ":"),
-    replications = n_mc,
-    effective_replications = effective,
-    rejection_rate = rate,
-    mc_se = mc_se,
-    failures = failures,
-    stringsAsFactors = FALSE
-  )
-  row_id <- row_id + 1L
+  list(effective = effective, rate = rate, mc_se = mc_se)
 }
 
-results <- do.call(rbind, rows)
-out <- file.path("inst", "validation", "pass-b-size-power.csv")
-utils::write.csv(results, out, row.names = FALSE)
-print(results, row.names = FALSE)
-cat("\nWrote ", out, "\n", sep = "")
+run_pass_b_validation <- function(n_mc = get_n_mc()) {
+  scenarios <- list(
+    gaussian_null_n30 = list(n = 30L, scales = c(1, 1, 1), error = "normal"),
+    gaussian_null_n15 = list(n = 15L, scales = c(1, 1, 1), error = "normal"),
+    t5_null_n30 = list(n = 30L, scales = c(1, 1, 1), error = "t5"),
+    moderate_hetero = list(n = 30L, scales = c(1, 1.35, 1.8), error = "normal"),
+    strong_hetero = list(n = 30L, scales = c(1, 1.5, 2.25), error = "normal")
+  )
+
+  rows <- list()
+  row_id <- 1L
+
+  for (scenario_name in names(scenarios)) {
+    cfg <- scenarios[[scenario_name]]
+    rejected <- setNames(integer(length(methods)), methods)
+    failures <- setNames(integer(length(methods)), methods)
+
+    for (b in seq_len(n_mc)) {
+      d <- simulate_design(
+        seed = base_seed + row_id * 100000L + b,
+        n_per_group = cfg$n,
+        scales = cfg$scales,
+        error = cfg$error
+      )
+      p <- run_tests(d)
+      failures <- failures + as.integer(!is.finite(p))
+      rejected <- rejected + as.integer(is.finite(p) & p < alpha)
+    }
+
+    summary <- summarise_pass_b_counts(rejected, failures, n_mc)
+
+    rows[[row_id]] <- data.frame(
+      scenario = scenario_name,
+      method = methods,
+      n_per_group = cfg$n,
+      error = cfg$error,
+      scale_pattern = paste(cfg$scales, collapse = ":"),
+      replications = n_mc,
+      effective_replications = summary$effective,
+      rejection_rate = summary$rate,
+      mc_se = summary$mc_se,
+      failures = failures,
+      stringsAsFactors = FALSE
+    )
+    row_id <- row_id + 1L
+  }
+
+  results <- do.call(rbind, rows)
+  out <- file.path("inst", "validation", "pass-b-size-power.csv")
+  utils::write.csv(results, out, row.names = FALSE)
+  print(results, row.names = FALSE)
+  cat("\nWrote ", out, "\n", sep = "")
+  invisible(results)
+}
+
+if (sys.nframe() == 0L) {
+  run_pass_b_validation()
+}
