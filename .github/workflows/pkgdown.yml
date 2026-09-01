@@ -26,6 +26,9 @@ jobs:
         with:
           extra-packages: |
             any::pkgdown
+            # inst/tutorials makes pkgdown call find_tutorials(), which needs
+            # rsconnect to look up published tutorials.
+            any::rsconnect
             local::.
           needs: website
       - name: Build and deploy site
