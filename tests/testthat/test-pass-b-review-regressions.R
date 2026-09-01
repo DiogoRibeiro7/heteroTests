@@ -16,14 +16,36 @@ test_that("O'Brien drops missing auxiliary groups together with residuals", {
 
   observed <- suppressWarnings(performOBrienTest(obj$model, d, "g"))
 
+  # The diagnostic analyses the residuals of the model it was given. A
+  # missing grouping value removes that observation from the comparison; it
+  # does not refit the model, which would change every residual rather than
+  # drop one. Reconstruct the expected result on that basis.
   keep <- !is.na(d$g)
-  reference_data <- d[keep, , drop = FALSE]
-  reference_model <- lm(y ~ x, data = reference_data)
-  reference <- suppressWarnings(performOBrienTest(reference_model, reference_data, "g"))
+  r <- residuals(obj$model)[keep]
+  g_kept <- droplevels(d$g[keep])
 
-  expect_equal(observed$statistic, reference$statistic, tolerance = 1e-12)
-  expect_equal(observed$parameter, reference$parameter, tolerance = 0)
-  expect_equal(observed$p.value, reference$p.value, tolerance = 1e-12)
+  scores <- numeric(length(r))
+  for (lv in levels(g_kept)) {
+    i <- which(g_kept == lv)
+    ni <- length(i)
+    scores[i] <- ((ni - 1.5) * ni * (r[i] - mean(r[i]))^2 -
+      0.5 * (ni - 1) * var(r[i])) / ((ni - 1) * (ni - 2))
+  }
+  expected <- anova(lm(scores ~ g_kept))
+
+  expect_equal(unname(observed$statistic), expected$`F value`[1], tolerance = 1e-12)
+  expect_equal(unname(observed$parameter),
+               c(expected$Df[1], expected$Df[2]), tolerance = 0)
+  expect_equal(observed$p.value, expected$`Pr(>F)`[1], tolerance = 1e-12)
+
+  # Refitting on the complete cases is a different question and gives a
+  # different answer; pinning that distinction stops the two being conflated.
+  refit_data <- d[keep, , drop = FALSE]
+  refit <- suppressWarnings(
+    performOBrienTest(lm(y ~ x, data = refit_data), refit_data, "g")
+  )
+  expect_false(isTRUE(all.equal(unname(observed$statistic),
+                                unname(refit$statistic))))
 })
 
 test_that("O'Brien allows a zero-variance group when transformation is defined", {
