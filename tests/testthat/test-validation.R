@@ -317,11 +317,17 @@ test_that("rvalidateSampleSize enforces per-group minimums", {
   expect_true(any(grepl("Group 'a' has 4 observation", levene_res$messages)))
   expect_true(any(grepl("Group ANOVA needs sufficient observations", levene_res$messages)))
 
-  bartlett_df <- data.frame(y = rnorm(6), g = factor(rep(letters[1:3], each = 2)))
-  bartlett_res <- heteroTests:::rvalidateSampleSize("bartlett", data = bartlett_df, groups = bartlett_df$g)
-  expect_false(bartlett_res$passed)
-  expect_equal(bartlett_res$details$min_obs_per_group, 3L)
-  expect_true(any(grepl("Variance estimation minimum", bartlett_res$messages)))
+  # Bartlett needs two observations per group to form a sample variance, so
+  # groups of two are acceptable and groups of one are not.
+  bartlett_ok <- data.frame(y = rnorm(6), g = factor(rep(letters[1:3], each = 2)))
+  bartlett_res <- heteroTests:::rvalidateSampleSize("bartlett", data = bartlett_ok, groups = bartlett_ok$g)
+  expect_true(bartlett_res$passed)
+  expect_equal(bartlett_res$details$min_obs_per_group, 2L)
+
+  bartlett_small <- data.frame(y = rnorm(4), g = factor(c("a", "a", "b", "c")))
+  small_res <- heteroTests:::rvalidateSampleSize("bartlett", data = bartlett_small, groups = bartlett_small$g)
+  expect_false(small_res$passed)
+  expect_true(any(grepl("at least two observations per group", small_res$messages)))
 })
 
 test_that("rvalidateSampleSize supports dynamic ARCH LM thresholds", {

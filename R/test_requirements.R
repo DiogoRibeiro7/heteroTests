@@ -37,7 +37,7 @@ rTEST_REQUIREMENTS <- list(
   spearman = list(min_obs = 10L, reason = "Correlation test requires adequate sample size"),
   levene = list(min_obs_per_group = 5L, reason = "Group ANOVA needs sufficient observations"),
   brown_forsythe = list(min_obs_per_group = 5L, reason = "Median-based variance test needs adequate group sizes"),
-  bartlett = list(min_obs_per_group = 3L, reason = "Variance estimation minimum"),
+  bartlett = list(min_obs_per_group = 2L, reason = "Sample variance requires at least two observations per group"),
   fligner_killeen = list(min_obs_per_group = 3L, reason = "Rank-based variance test requires multiple observations per group"),
   hartley_fmax = list(min_obs_per_group = 2L, reason = "Variance ratios require at least two observations per group"),
   obrien = list(min_obs_per_group = 3L, reason = "O'Brien transformation contains n_i - 2 in the denominator"),

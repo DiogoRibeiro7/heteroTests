@@ -61,24 +61,64 @@ performOBrienTest <- function(model, data, group) {
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), group))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 6L,
-    min_obs_data = 6L
-  )
+  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 6L)
 
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  residuals <- stats::residuals(model)
+  resid_names <- names(residuals)
+  data_rows <- rownames(data)
+
+  if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
+    match_idx <- match(resid_names, data_rows)
+    if (anyNA(match_idx)) {
+      missing_rows <- resid_names[is.na(match_idx)]
+      stop(
+        sprintf(
+          "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
+          test_label,
+          paste(utils::head(missing_rows, 3L), collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+    working_data <- data[match_idx, , drop = FALSE]
+  } else {
+    if (nrow(data) != length(residuals)) {
+      stop(
+        sprintf(
+          "%s requires `data` with %d observations to match the fitted model, got %d.",
+          test_label,
+          length(residuals),
+          nrow(data)
+        ),
+        call. = FALSE
+      )
+    }
+    working_data <- data
+  }
+
+  cleaned <- rhandleMissingValues(working_data, variables = required_vars)
+  if (cleaned$removed_count > 0) {
+    residuals <- residuals[-cleaned$removed_cases]
+  }
+  working_data <- cleaned$data
+
+  if (length(residuals) != nrow(working_data)) {
+    stop(
+      sprintf(
+        "%s could not align residuals with the cleaned data (residuals = %d, rows = %d).",
+        test_label,
+        length(residuals),
+        nrow(working_data)
+      ),
+      call. = FALSE
+    )
+  }
 
   requirements <- rvalidateTestRequirements(
     "obrien",
     model = model,
     data = working_data,
-    group_var = group,
-    min_group_size = 3L
+    group_var = group
   )
   rprocessValidationResult(requirements)
 
@@ -120,10 +160,10 @@ performOBrienTest <- function(model, data, group) {
       assumption = "O'Brien test requires at least three observations per group"
     )
   }
-  if (any(!is.finite(vars_i)) || any(vars_i <= .Machine$double.eps)) {
+  if (any(!is.finite(vars_i))) {
     std_error(
       "rassumption_violation",
-      assumption = "O'Brien test requires positive finite variance within each group"
+      assumption = "O'Brien test requires finite variance within each group"
     )
   }
 
