@@ -24,7 +24,8 @@ Imports:
     generics,
     scales,
     R6,
-    parallel
+    parallel,
+    SuppDists
 Suggests:
     quickcheck,
     testthat (>= 3.0.0),
@@ -44,6 +45,7 @@ Suggests:
     bench,
     lmtest,
     car,
+    vartest,
     mgcv,
     quantreg,
     sandwich,
