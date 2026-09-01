@@ -22,10 +22,10 @@
 #' [SuppDists::pmaxFratio()].
 #'
 #' The classical test assumes equal group sizes. When the supplied groups are
-#' imbalanced, the function warns and uses the mean group size minus one as an
-#' approximate common degree of freedom, matching the default approximation used
-#' by established R implementations. Prefer Levene or Brown-Forsythe when the
-#' design is materially unbalanced or normality is doubtful.
+#' imbalanced, the function warns and rounds the mean group size to obtain an
+#' approximate common integer degrees of freedom. Prefer Levene or
+#' Brown-Forsythe when the design is materially unbalanced or normality is
+#' doubtful.
 #'
 #' @references
 #' Hartley, H. O. (1950). The maximum F-ratio as a short-cut test for
@@ -140,16 +140,18 @@ performHartleyFmaxTest <- function(model, data, group) {
     warning(
       paste0(
         "Hartley's Fmax test is exact only for equal group sizes; ",
-        "using the mean group size to approximate the common degrees of freedom."
+        "using the rounded mean group size to approximate the common degrees of freedom."
       ),
       call. = FALSE
     )
   }
 
-  # The maximum-F-ratio distribution assumes k independent mean squares with a
-  # common number of degrees of freedom. For an unbalanced design this is an
-  # explicit approximation rather than silently treating Fmax as an ordinary F.
-  df <- if (balanced) as.numeric(n_i[[1L]] - 1L) else mean(as.numeric(n_i)) - 1
+  df <- if (balanced) {
+    as.integer(n_i[[1L]] - 1L)
+  } else {
+    max(1L, as.integer(round(mean(as.numeric(n_i)))) - 1L)
+  }
+
   if (!is.finite(df) || df <= 0) {
     std_error(
       "rassumption_violation",
@@ -169,10 +171,10 @@ performHartleyFmaxTest <- function(model, data, group) {
 
   structure(
     list(
-      statistic = c("F-max" = F_stat),
+      statistic = c(F = F_stat),
       parameter = c(groups = k, df = df),
       p.value = p_value,
-      method = "Hartley's maximum F-ratio test",
+      method = "Hartley's Fmax test",
       data.name = deparse(stats::formula(model)),
       alternative = "at least one group variance differs"
     ),
