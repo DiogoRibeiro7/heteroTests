@@ -1,74 +1,70 @@
-#' Perform Rice test for heteroscedasticity
+#' Withdrawn Rice difference-based pseudo-test
 #'
-#' Implements the Rice (1980) test based on successive differences of residuals to
-#' detect gradual changes in variance across an ordered sample.
+#' `performRiceTest()` previously compared Rice's (1984) difference-based
+#' variance estimator with the mean squared residual and referred the ratio to
+#' an F distribution. That construction cannot detect heteroscedasticity.
 #'
-#' @param model A fitted [stats::lm] object (or compatible regression object)
-#'   providing residuals whose ordering carries meaning, such as time-series or
-#'   spatially ordered data.
+#' The function is retained so existing callers receive an explicit migration
+#' error rather than silently obtaining a test with no power.
 #'
-#' @return A \code{htest} object containing the F statistic, degrees of freedom,
-#'   and p-value for the null hypothesis of constant variance.
+#' @param model A fitted [stats::lm] object. Retained only for backward-compatible
+#'   argument matching.
+#' @param ... Further arguments, ignored.
+#'
+#' @return This function does not return a test result. It signals an error with
+#'   migration guidance.
 #'
 #' @details
-#' Let \eqn{\hat{e}_t} denote the residuals in their natural order. The Rice test
-#' compares the variance of successive differences \eqn{\Delta \hat{e}_t = \hat{e}_t
-#' - \hat{e}_{t-1}} to twice the residual variance. The statistic
-#' \deqn{F = \frac{\sum_{t = 2}^n (\hat{e}_t - \hat{e}_{t-1})^2 / (n - 1)}{2\,
-#'   \sum_{t = 1}^n \hat{e}_t^2 / n}}
-#' follows, under homoskedasticity, an F distribution with \eqn{n - 1} and \eqn{n}
-#' degrees of freedom. Large values suggest that neighbouring observations exhibit
-#' different residual variances, a pattern typical of slowly evolving volatility.
+#' For independent residuals with variances \eqn{\sigma_i^2}, the successive
+#' difference satisfies
+#' \deqn{E[(e_i - e_{i-1})^2] = \sigma_i^2 + \sigma_{i-1}^2,}
+#' so Rice's numerator estimates the *mean* of \eqn{\sigma_i^2} -- and so does the
+#' mean squared residual in the denominator. The ratio therefore sits at one
+#' under any variance pattern, not just under homoscedasticity. In simulation its
+#' mean is 1.00 under homoscedasticity, under \eqn{\sigma_i = 0.2 + 1.2 x_i},
+#' under \eqn{\sigma_i = \exp(x_i)} (a fifty-fold spread), and under a twenty-fold
+#' step change. The former implementation rejected in 0.0% of homoscedastic
+#' samples, and adding an ordering argument does not repair it: the statistic is
+#' insensitive to heteroscedasticity by construction.
 #'
-#' The diagnostic is particularly useful for ordered data where variance changes
-#' smoothly rather than abruptly; practitioners often pair it with portmanteau
-#' tests such as [performMcLeodLiTest()].
+#' Rice's estimator is a tool for estimating the error variance in the presence
+#' of a smooth mean function, not a variance-heterogeneity diagnostic.
+#'
+#' For variance that trends with an ordering variable, use
+#' [performSzroeterTest()] or [performGQTest()], both of which are validated
+#' against their references and carry documented power. For variance related to
+#' the regressors, use [performBPTest()], [performKoenkerTest()] or
+#' [performWhiteTest()].
 #'
 #' @references
-#' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
-#' University Press. Section 5.5 discusses the Rice test.
-#'
-#' Harvey, A. C. (1990). *The Econometric Analysis of Time Series* (2nd ed.).
-#' MIT Press. Chapter 4 reviews difference-based variance diagnostics.
+#' Rice, J. (1984). Bandwidth choice for nonparametric regression.
+#' *The Annals of Statistics, 12*(4), 1215--1230.
+#' <https://doi.org/10.1214/aos/1176346788>
 #'
 #' @examples
-#' data(mtcars)
-#' mod <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performRiceTest(mod)
-#'
-#' # Simulated data with a variance break around the midpoint
-#' set.seed(512)
-#' x <- runif(160)
-#' eps <- c(rnorm(80, sd = 0.4), rnorm(80, sd = 0.9))
-#' y <- 1 + 0.5 * x + eps
-#' performRiceTest(lm(y ~ x))
+#' \dontrun{
+#' # Withdrawn: this signals an error with migration guidance.
+#' performRiceTest(lm(mpg ~ wt, data = mtcars))
+#' }
 #'
 #' @seealso
-#' [performMcLeodLiTest()] for an alternative based on residual autocorrelations
-#' and [performArchLMTest()] for LM diagnostics of conditional heteroscedasticity.
-performRiceTest <- function(model) {
-  if (!inherits(model, "lm")) {
-    stop("`model` must be an object of class 'lm'.")
-  }
-
-  res <- residuals(model)
-  n <- length(res)
-  diff_res <- diff(res)
-  num <- sum(diff_res^2) / (n - 1)
-  den <- 2 * mean(res^2)
-  F_stat <- num / den
-  df1 <- n - 1
-  df2 <- n
-  p_value <- 1 - pf(F_stat, df1, df2)
-
-  structure(
-    list(
-      statistic = c(F = F_stat),
-      parameter = c(df1 = df1, df2 = df2),
-      p.value = p_value,
-      method = "Rice test for heteroscedasticity",
-      data.name = deparse(formula(model))
+#' [performSzroeterTest()] and [performGQTest()] for ordered alternatives.
+#'
+#' @export
+performRiceTest <- function(model, ...) {
+  .Deprecated(msg = paste(
+    "performRiceTest() has been withdrawn: the ratio of Rice's difference-based",
+    "variance estimator to the mean squared residual estimates the same quantity",
+    "in both numerator and denominator, so it cannot detect heteroscedasticity."
+  ))
+  stop(
+    paste0(
+      "No inferential result is returned. The statistic has no power against ",
+      "heteroscedasticity: its expectation is 1 under any variance pattern. ",
+      "For variance trending with an ordering variable use performSzroeterTest() ",
+      "or performGQTest(); for variance related to the regressors use ",
+      "performBPTest(), performKoenkerTest() or performWhiteTest()."
     ),
-    class = "htest"
+    call. = FALSE
   )
 }

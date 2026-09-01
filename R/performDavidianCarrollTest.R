@@ -62,9 +62,16 @@ performDavidianCarrollTest <- function(model, degree = 2) {
 
   res <- residuals(model)
   fit <- fitted(model)
-  formula_str <- paste0("log(res^2) ~ poly(fit, ", degree, ")")
-  df <- data.frame(res = res, fit = fit)
-  aux_model <- lm(as.formula(formula_str), data = df)
+  if (stats::var(fit) <= .Machine$double.eps) {
+    stop("Davidian-Carroll test requires variability in fitted values.", call. = FALSE)
+  }
+  # A residual of exactly zero sends log(e^2) to -Inf and the auxiliary fit
+  # fails with 'NA/NaN/Inf in y'. Floor it and warn, as the other
+  # log-variance diagnostics do.
+  log_e2 <- rlog_squared_residuals(res, "Davidian-Carroll test")
+  df <- data.frame(log_e2 = log_e2, fit = fit)
+  formula_str <- paste0("log_e2 ~ poly(fit, ", degree, ")")
+  aux_model <- lm(stats::as.formula(formula_str), data = df)
   aov_table <- anova(aux_model)
   F_stat <- aov_table$`F value`[1]
   df_num <- aov_table$Df[1]

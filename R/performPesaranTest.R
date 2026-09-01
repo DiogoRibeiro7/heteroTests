@@ -58,7 +58,7 @@
 #'
 #' @seealso
 #' [performBPRandomEffectsTest()] for related random-effects diagnostics and
-#' [performCurryWalshTest()] when spatial dependence is suspected.
+#' [performSpatialHeteroTest()] when spatial dependence is suspected.
 performPesaranTest <- function(model, data, id, time) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
