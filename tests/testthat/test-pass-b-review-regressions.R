@@ -66,11 +66,14 @@ test_that("Bartlett and its compatibility alias support two observations per gro
 })
 
 test_that("Pass B simulation catches method failures independently", {
-  script <- readLines(
-    testthat::test_path("..", "..", "inst", "validation", "pass-b-size-power.R"),
-    warn = FALSE
-  )
-  text <- paste(script, collapse = "\n")
+  # Installed packages expose inst/ at the package root, so the source-tree
+  # relative path only works when running from a checkout.
+  path <- system.file("validation", "pass-b-size-power.R", package = "heteroTests")
+  if (!nzchar(path) || !file.exists(path)) {
+    path <- testthat::test_path("..", "..", "inst", "validation", "pass-b-size-power.R")
+  }
+  skip_if_not(file.exists(path), "Pass B simulation script is not available")
+  text <- paste(readLines(path, warn = FALSE), collapse = "\n")
 
   expect_match(text, "pkgload::load_all", fixed = TRUE)
   expect_match(text, "tryCatch(as.numeric(run_one())", fixed = TRUE)
