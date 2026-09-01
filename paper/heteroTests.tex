@@ -102,13 +102,13 @@ Heteroscedasticity tests differ in methodology and scope; we classify them into 
 
 \paragraph{Group-wise Comparison Tests} Partition data by ordered covariates or factor levels, then compare sample variances with F- or Chi-square statistics. These methods divide observations into groups based on covariate values or factor levels and test whether group variances are equal. Examples include Goldfeld--Quandt test, Levene's test, Brown--Forsythe test, Bartlett's test, Fligner--Killeen test, and Hartley's F$_{\max}$ test.
 
-\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. These approaches use rank transformations to achieve robustness against non-normal errors while maintaining power to detect variance patterns. Examples include Spearman's rank correlation test and Cameron--Trivedi's information matrix test.
+\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. These approaches use rank transformations to achieve robustness against non-normal errors while maintaining power to detect variance patterns. Examples include Spearman's rank correlation test and the rank-permutation test.
 
 \paragraph{Non-Constant Variance Diagnostics} Use graphical and simple regression diagnostics to assess monotonic variance patterns without full auxiliary regressions. These methods focus on detecting simple monotonic relationships between variance and fitted values or single covariates. Examples include Cook--Weisberg NCV test and Moses spread--level plot.
 
 \paragraph{ARCH-Type Tests} For time-series data, test for serial dependence in squared residuals using autoregression or portmanteau statistics. These tests specifically target autoregressive conditional heteroscedasticity patterns common in financial and economic time series. Examples include Engle's ARCH LM test and McLeod--Li portmanteau test.
 
-\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. These tests target specialized contexts or assumptions not well-addressed by general-purpose methods. Examples include Pesaran's spatial heteroscedasticity test, O'Brien's scaled-deviation test, Rice's log-deviation test, and Curry--Walsh nonparametric test.
+\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. These tests target specialized contexts or assumptions not well-addressed by general-purpose methods. Examples include Pesaran's spatial heteroscedasticity test and O'Brien's scaled-deviation test.
 
 Detailed descriptions of each category and their implementations appear in Sections~\ref{sec:aux-regression} through~\ref{sec:specialized-tests}.
 

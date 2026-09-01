@@ -44,7 +44,7 @@ jobs:
       # stays published forever. The action is pinned by commit rather than by
       # the floating v4 tag because this job holds contents: write.
       - name: Deploy to gh-pages
-        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.7.3
+        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
         with:
           clean: true
           branch: gh-pages

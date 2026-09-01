@@ -14,10 +14,16 @@ The work is split into three passes:
 
 - **Pass A — classical regression diagnostics.** Complete as of 0.7.0.
 - **Pass B — group-variance tests.** Levene, Brown-Forsythe, Bartlett,
-  Fligner-Killeen, Hartley F-max, O'Brien, modified Bartlett. Not yet started.
+  Fligner-Killeen, Hartley F-max, O'Brien, modified Bartlett. Complete as of
+  0.7.1.
 - **Pass C — the remainder.** Cameron-Trivedi, ordered LM, Davidian-Carroll,
   Rice, Curry-Walsh, wild bootstrap, rank permutation, quantile regression,
-  high-dimensional, spatial and panel diagnostics. Not yet started.
+  high-dimensional, spatial and panel diagnostics. Complete as of 0.7.2.
+
+These lists name what each pass examined, not what the package still exports.
+Six of the diagnostics above were removed in 0.8.0, either because their
+statistics could not detect heteroscedasticity or because they duplicated a
+test that remains.
 
 ## Files
 
@@ -147,7 +153,7 @@ expected small-sample conservatism of median-centred and rank-based
 statistics rather than a defect, but it is conservatism, not calibration.
 
 The `t5` column separates the normal-theory tests from the robust ones, and
-does so sharply: Bartlett, its alias and Hartley reject about 24% of the time
+does so sharply: Bartlett and Hartley reject about 24% of the time
 against a nominal 5% when the errors are heavy-tailed, while Levene,
 Brown-Forsythe, Fligner-Killeen and O'Brien stay near 0.05. That is the basis
 for the cross-references in their help pages.
