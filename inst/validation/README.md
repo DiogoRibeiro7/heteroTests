@@ -14,10 +14,16 @@ The work is split into three passes:
 
 - **Pass A — classical regression diagnostics.** Complete as of 0.7.0.
 - **Pass B — group-variance tests.** Levene, Brown-Forsythe, Bartlett,
-  Fligner-Killeen, Hartley F-max, O'Brien, modified Bartlett. Not yet started.
+  Fligner-Killeen, Hartley F-max, O'Brien, modified Bartlett. Complete as of
+  0.7.1.
 - **Pass C — the remainder.** Cameron-Trivedi, ordered LM, Davidian-Carroll,
   Rice, Curry-Walsh, wild bootstrap, rank permutation, quantile regression,
-  high-dimensional, spatial and panel diagnostics. Not yet started.
+  high-dimensional, spatial and panel diagnostics. Complete as of 0.7.2.
+
+These lists name what each pass examined, not what the package still exports.
+Six of the package's diagnostics were removed in 0.8.0, either because their
+statistics could not detect heteroscedasticity or because they duplicated a
+test that remains.
 
 ## Files
 
@@ -130,17 +136,24 @@ Breusch-Pagan family.
 | Fligner-Killeen | 0.045 | 0.024 | 0.038 | 0.633 | 0.894 |
 | Hartley Fmax | 0.052 | 0.045 | 0.236 | 0.788 | 0.974 |
 | O'Brien | 0.048 | 0.035 | 0.032 | 0.693 | 0.926 |
-| Modified Bartlett alias | 0.050 | 0.047 | 0.242 | 0.792 | 0.974 |
 
 Replications: 5000. Nominal level: 0.05.
 
-Every Pass B test holds its nominal level under the Gaussian null, at both
-group sizes. Brown-Forsythe (0.027) and Fligner-Killeen (0.024) are
-noticeably conservative with only 15 observations per group, which is the
-expected small-sample behaviour of median-centred and rank-based statistics.
+The table used to carry a seventh row, `Modified Bartlett alias`, whose five
+figures were identical to Bartlett's in every digit: 0.050, 0.047, 0.242,
+0.792, 0.974. That is what established `performModifiedBartlettTest()` as an
+exact duplicate rather than a distinct correction, and it was removed in 0.8.0.
+The row is gone from the table and the CSV because the function it called no
+longer exists, so re-running the script could not reproduce it.
+
+Every Pass B test holds its nominal level under the Gaussian null at n=30.
+At n=15 that is no longer true of all of them: Brown-Forsythe (0.027) and
+Fligner-Killeen (0.024) reject at about half the nominal rate, which is the
+expected small-sample conservatism of median-centred and rank-based
+statistics rather than a defect, but it is conservatism, not calibration.
 
 The `t5` column separates the normal-theory tests from the robust ones, and
-does so sharply: Bartlett, its alias and Hartley reject about 24% of the time
+does so sharply: Bartlett and Hartley reject about 24% of the time
 against a nominal 5% when the errors are heavy-tailed, while Levene,
 Brown-Forsythe, Fligner-Killeen and O'Brien stay near 0.05. That is the basis
 for the cross-references in their help pages.

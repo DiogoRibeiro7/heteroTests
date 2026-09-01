@@ -50,7 +50,7 @@
 #' performDavidianCarrollTest(lm(y ~ x))
 #'
 #' @seealso
-#' [performCameronTrivediTest()] and [performHarveyTest()] for related
+#' [performHarveyTest()] and [performNCVTest()] for related
 #' variance-function diagnostics.
 performDavidianCarrollTest <- function(model, degree = 2) {
   if (!inherits(model, "lm")) {
@@ -62,6 +62,13 @@ performDavidianCarrollTest <- function(model, degree = 2) {
 
   res <- residuals(model)
   fit <- fitted(model)
+  # Under na.action = na.exclude both vectors are padded back to the original
+  # row count with NA placeholders, which made var(fit) NA and turned the
+  # guard below into "missing value where TRUE/FALSE needed". Test the rows
+  # the model actually fitted.
+  complete <- !is.na(res) & !is.na(fit)
+  res <- res[complete]
+  fit <- fit[complete]
   if (stats::var(fit) <= .Machine$double.eps) {
     stop("Davidian-Carroll test requires variability in fitted values.", call. = FALSE)
   }

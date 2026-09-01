@@ -13,19 +13,27 @@ library(testthat)
 # stops covering the package's hard dependencies, so the drift is visible at
 # PR time rather than at image-build time.
 
-source_root <- function() {
-  desc <- testthat::test_path("..", "..", "DESCRIPTION")
-  if (!file.exists(desc)) return(NULL)
-  if (!any(grepl("Package: heteroTests", readLines(desc, warn = FALSE), fixed = TRUE))) {
-    return(NULL)
-  }
-  root <- normalizePath(dirname(desc))
-  # An installed package also has a matching DESCRIPTION; a source checkout
-  # is the one whose R/ contains sources rather than a compiled .rdb.
-  if (length(list.files(file.path(root, "R"), pattern = "[.][Rr]$")) == 0L) {
-    return(NULL)
-  }
-  root
+# hetero_source_root() comes from helper-source-tree.R.
+
+# renv.lock is JSON, but parsing it with an external JSON package would make
+# these checks conditional on a package that is neither declared in DESCRIPTION
+# nor pinned in the lockfile: skip_if_not_installed() would then silently
+# disable the very drift check this file exists to run. renv writes one
+# "Package" field per record and puts the R version ahead of the "Packages"
+# object, so both values can be read with base R and the checks always execute.
+lock_packages <- function(lock_path) {
+  ln <- readLines(lock_path, warn = FALSE)
+  hits <- grep('"Package"[[:space:]]*:', ln, value = TRUE)
+  sub('^[[:space:]]*"Package"[[:space:]]*:[[:space:]]*"([^"]+)".*$', "\\1", hits)
+}
+
+lock_r_version <- function(lock_path) {
+  ln <- readLines(lock_path, warn = FALSE)
+  start <- grep('^[[:space:]]*"Packages"[[:space:]]*:', ln)
+  head_ln <- if (length(start)) ln[seq_len(start[1] - 1L)] else ln
+  hit <- grep('"Version"[[:space:]]*:', head_ln, value = TRUE)
+  if (!length(hit)) return(NULL)
+  sub('^[[:space:]]*"Version"[[:space:]]*:[[:space:]]*"([^"]+)".*$', "\\1", hit[1])
 }
 
 declared_field <- function(desc, field) {
@@ -36,18 +44,17 @@ declared_field <- function(desc, field) {
 }
 
 test_that("renv.lock covers every hard dependency", {
-  root <- source_root()
+  root <- hetero_source_root()
   skip_if(is.null(root), "renv.lock checks only run from the source tree")
   lock_path <- file.path(root, "renv.lock")
   skip_if_not(file.exists(lock_path), "no renv.lock in this layout")
-  skip_if_not_installed("jsonlite")
 
   desc <- read.dcf(file.path(root, "DESCRIPTION"))
   imports <- declared_field(desc, "Imports")
   base_pkgs <- rownames(installed.packages(priority = "base"))
   hard <- setdiff(imports, base_pkgs)
 
-  locked <- names(jsonlite::fromJSON(lock_path)$Packages)
+  locked <- lock_packages(lock_path)
   missing <- setdiff(hard, locked)
 
   expect_equal(
@@ -61,18 +68,17 @@ test_that("renv.lock covers every hard dependency", {
 })
 
 test_that("renv.lock records an R version consistent with DESCRIPTION", {
-  root <- source_root()
+  root <- hetero_source_root()
   skip_if(is.null(root), "renv.lock checks only run from the source tree")
   lock_path <- file.path(root, "renv.lock")
   skip_if_not(file.exists(lock_path), "no renv.lock in this layout")
-  skip_if_not_installed("jsonlite")
 
   desc <- read.dcf(file.path(root, "DESCRIPTION"))
   depends <- if ("Depends" %in% colnames(desc)) desc[1, "Depends"] else ""
   floor_txt <- sub(".*R \\(>=\\s*([0-9.]+)\\).*", "\\1", depends)
   skip_if(identical(floor_txt, depends), "DESCRIPTION declares no R floor")
 
-  lock_r <- jsonlite::fromJSON(lock_path)$R$Version
+  lock_r <- lock_r_version(lock_path)
   skip_if(is.null(lock_r), "renv.lock records no R version")
 
   # expect_gte() subtracts, which numeric_version does not support.

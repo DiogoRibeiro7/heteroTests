@@ -265,14 +265,31 @@ test_that("functions scale reasonably with number of predictors", {
   
   # Time should not grow too rapidly with number of predictors
   # White test is O(p^2) due to cross-products, so allow for this
+  #
+  # Guarded the same way as the sample-size test above, and for the same
+  # reason: a ratio of two wall-clock measurements is noise once the
+  # baseline sits at the clock's resolution. These runs are far below it --
+  # a batch of ten calls on a 100-row fit completes inside a single clock
+  # tick -- and the first timed call also pays for JIT compilation and lazy
+  # loading, so timed cold the sequence runs *downwards*: p = 2 measured
+  # 0.22s against 0.013s for p = 15. The macOS runner failed here on the
+  # p = 15 / p = 10 pair, whose baseline is the fastest, warmest run.
+  timer_floor <- 0.05
   for (i in 2:length(execution_times)) {
+    if (execution_times[i - 1] < timer_floor) next
     time_ratio <- execution_times[i] / execution_times[i-1]
     predictor_ratio <- n_predictors[i] / n_predictors[i-1]
-    
+
     # Allow for quadratic growth in predictors (due to White test cross-products)
     expect_true(time_ratio < predictor_ratio^3,  # Cubic is too much
                 info = paste("Time ratio", time_ratio, "vs predictor ratio^3", predictor_ratio^3))
   }
+
+  # The absolute ceiling is the real guard against runaway growth, and
+  # unlike the ratio it does not depend on resolving differences the clock
+  # cannot see.
+  expect_true(max(execution_times) < 10,
+              info = paste("Max execution time:", max(execution_times), "seconds"))
 })
 
 test_that("memory usage is reasonable", {

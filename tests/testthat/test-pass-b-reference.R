@@ -120,13 +120,3 @@ test_that("O'Brien matches an independent observation-level reconstruction", {
   expect_equal(unname(ours$statistic), unname(ref_tab$`F value`[1]), tolerance = 1e-12)
   expect_equal(ours$p.value, unname(ref_tab$`Pr(>F)`[1]), tolerance = 1e-12)
 })
-
-test_that("modified Bartlett is exactly the Bartlett compatibility alias", {
-  obj <- make_group_model()
-  canonical <- performBartlettTest(obj$model, obj$data, "grp")
-  alias <- performModifiedBartlettTest(obj$model, obj$data, "grp")
-
-  expect_equal(alias$statistic, canonical$statistic, tolerance = 0)
-  expect_equal(alias$parameter, canonical$parameter, tolerance = 0)
-  expect_equal(alias$p.value, canonical$p.value, tolerance = 0)
-})

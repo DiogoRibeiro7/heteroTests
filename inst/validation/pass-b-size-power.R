@@ -36,8 +36,7 @@ methods <- c(
   "Bartlett",
   "Fligner-Killeen",
   "Hartley Fmax",
-  "O'Brien",
-  "Modified Bartlett alias"
+  "O'Brien"
 )
 
 run_tests <- function(data) {
@@ -48,8 +47,7 @@ run_tests <- function(data) {
     "Bartlett" = function() suppressWarnings(performBartlettTest(model, data, "g")$p.value),
     "Fligner-Killeen" = function() performFlignerKilleenTest(model, data, "g")$p.value,
     "Hartley Fmax" = function() suppressWarnings(performHartleyFmaxTest(model, data, "g")$p.value),
-    "O'Brien" = function() performOBrienTest(model, data, "g")$p.value,
-    "Modified Bartlett alias" = function() suppressWarnings(performModifiedBartlettTest(model, data, "g")$p.value)
+    "O'Brien" = function() performOBrienTest(model, data, "g")$p.value
   )
 
   vapply(

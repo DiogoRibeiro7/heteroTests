@@ -53,7 +53,7 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \begin{description}
 \item[Auxiliary regression tests] Model squared residuals on covariates (White, Breusch‐Pagan, Koenker, Harvey, Park, Glejser)
 \item[Group‐wise comparison tests] Compare variances across data partitions (Goldfeld‐Quandt, Levene, Brown‐Forsythe, Bartlett)
-\item[Rank‐based methods] Use nonparametric rank statistics (Spearman, Cameron‐Trivedi)
+\item[Rank‐based methods] Use nonparametric rank statistics (Spearman rank correlation, rank permutation)
 \item[Non‐constant variance diagnostics] Simple regression‐based variance trend detection (Cook‐Weisberg NCV, Moses spread‐level)
 \item[ARCH‐type tests] Time‐series conditional heteroscedasticity (Engle ARCH LM, McLeod‐Li)
 \item[Resampling and robust diagnostics] Finite‐sample‐valid procedures (wild bootstrap, HC‐covariance, quantile‐regression, rank‐permutation, high‐dimensional)
@@ -87,7 +87,7 @@ Category & Wrapper pattern & Example \\
 \midrule
 Auxiliary-regression    & \texttt{perform<White|BP|Koenker>Test()}    & \texttt{performWhiteTest} \\
 Group-comparison        & \texttt{perform<Levene|BrownForsythe>Test()} & \texttt{performLeveneTest} \\
-Rank-based              & \texttt{perform<Spearman|CameronTrivedi>Test()} & \texttt{performSpearmanTest} \\
+Rank-based              & \texttt{perform<Spearman|RankPermutation>Test()} & \texttt{performSpearmanTest} \\
 Non-constant variance   & \texttt{performNCVTest()}                    & \texttt{performNCVTest} \\
 ARCH-type               & \texttt{perform<ARCHLM|McLeodLi>Test()}      & \texttt{performARCHLMTest} \\
 Specialized             & \texttt{perform<Pesaran|OBrien>Test()}       & \texttt{performPesaranTest} \\
@@ -102,13 +102,13 @@ Heteroscedasticity tests differ in methodology and scope; we classify them into 
 
 \paragraph{Group-wise Comparison Tests} Partition data by ordered covariates or factor levels, then compare sample variances with F- or Chi-square statistics. These methods divide observations into groups based on covariate values or factor levels and test whether group variances are equal. Examples include Goldfeld--Quandt test, Levene's test, Brown--Forsythe test, Bartlett's test, Fligner--Killeen test, and Hartley's F$_{\max}$ test.
 
-\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. These approaches use rank transformations to achieve robustness against non-normal errors while maintaining power to detect variance patterns. Examples include Spearman's rank correlation test and Cameron--Trivedi's information matrix test.
+\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. These approaches use rank transformations to achieve robustness against non-normal errors while maintaining power to detect variance patterns. Examples include Spearman's rank correlation test and the rank-permutation test.
 
 \paragraph{Non-Constant Variance Diagnostics} Use graphical and simple regression diagnostics to assess monotonic variance patterns without full auxiliary regressions. These methods focus on detecting simple monotonic relationships between variance and fitted values or single covariates. Examples include Cook--Weisberg NCV test and Moses spread--level plot.
 
 \paragraph{ARCH-Type Tests} For time-series data, test for serial dependence in squared residuals using autoregression or portmanteau statistics. These tests specifically target autoregressive conditional heteroscedasticity patterns common in financial and economic time series. Examples include Engle's ARCH LM test and McLeod--Li portmanteau test.
 
-\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. These tests target specialized contexts or assumptions not well-addressed by general-purpose methods. Examples include Pesaran's spatial heteroscedasticity test, O'Brien's scaled-deviation test, Rice's log-deviation test, and Curry--Walsh nonparametric test.
+\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. These tests target specialized contexts or assumptions not well-addressed by general-purpose methods. Examples include Pesaran's spatial heteroscedasticity test and O'Brien's scaled-deviation test.
 
 Detailed descriptions of each category and their implementations appear in Sections~\ref{sec:aux-regression} through~\ref{sec:specialized-tests}.
 
@@ -211,9 +211,6 @@ Compute the Spearman rank correlation $\rho_S$ between $|e_i|$ and a covariate $
 \[ t = \rho_S \sqrt{\frac{n-2}{1-\rho_S^2}} \sim t_{n-2} \]
 under $H_0$ of no monotonic variance trend. The \texttt{performSpearmanTest()} function computes this correlation for each regressor and provides omnibus testing across all covariates.
 
-\paragraph{Cameron–Trivedi Information Matrix Test}\label{sec:cameron-trivedi}
-Based on the information matrix equality, this test compares the Hessian and outer-product-of-gradients estimators of the information matrix. Under homoscedasticity, these should be equal. The test statistic follows a $\chi^2$ distribution with degrees of freedom equal to the number of unique elements in the information matrix \citep{cameron1990regression}. The \texttt{performCameronTrivediTest()} function implements this via numerical derivatives.
-
 %%------------------------------------------------------------------
 %% 2.4 Non-Constant Variance Diagnostics (Detailed)
 %%------------------------------------------------------------------
@@ -276,18 +273,6 @@ Transforms observations to account for group‐level variance heterogeneity. Def
 \[ t_{ij} = \frac{(N-1)(y_{ij} - \bar y_j)^2 - S_j^2(n_j-1)}{(n_j-1)S_j^2} \]
 where $S_j^2$ is group $j$ variance. Perform ANOVA on $t_{ij}$; the resulting $F$ statistic tests equality of variances across groups robustly in non‐normal settings \citep{obrien1979alternative}. The \texttt{performOBrienTest()} function implements this transformation with optional trimming.
 
-\paragraph{Rice's Log-Deviation Test}\label{sec:rice}
-Applies a log transformation to absolute deviations:
-\[ L_{ij} = \log\bigl|y_{ij} - \bar y_j\bigr|, \]
-and fits the model
-\[ L_{ij} = \mu + \tau_j + \eta_{ij}. \]
-Test $H_0: \tau_1 = \dots = \tau_g$ via ANOVA $F_{g-1,N-g}$; works well when variance differences are multiplicative \citep{rice1980construction}. The \texttt{performRiceTest()} function handles zero deviations via small-constant addition or omission.
-
-\paragraph{Curry–Walsh Test}\label{sec:curry-walsh}
-Nonparametric test based on ranked absolute deviations. Compute ranks $R_{ij}$ of $|y_{ij} - \tilde y_j|$ and sum ranks within each group. The test statistic
-\[ H = \frac{12}{N(N+1)} \sum_j n_j(\bar R_j - \tfrac{N+1}{2})^2, \]
-under $H_0$ follows $\chi^2_{g-1}$ \citep{curry1976homogeneity}. The \texttt{performCurryWalshTest()} function provides this completely distribution-free approach with exact p-values for small samples.
-
 %%------------------------------------------------------------------
 %% 2.7 Modern Resampling and Robust Diagnostics (Detailed)
 %%------------------------------------------------------------------
@@ -296,9 +281,6 @@ The classical statistics above rely on asymptotic $\chi^2$ or $F$ approximations
 
 \paragraph{Wild Bootstrap Test}\label{sec:wild-bootstrap}
 Rather than relying on the asymptotic null distribution of the White or Breusch--Pagan statistic, the wild bootstrap regenerates the response as $y_i^* = \hat y_i + e_i\, v_i$, where the multipliers $v_i$ are drawn from a distribution with $E(v_i)=0$ and $E(v_i^2)=1$ (the Rademacher and Mammen two-point schemes are supported). Recomputing the statistic over $B$ such samples yields an empirical reference distribution and a bootstrap $p$-value $(1+\#\{T_b^*\ge T\})/(B+1)$. The procedure preserves the conditional heteroscedasticity structure of the residuals and provides accurate size control even when $n$ is small \citep{davidson2008wild}. It is implemented in \texttt{performWildBootstrapTest()}.
-
-\paragraph{Heteroscedasticity-Consistent Covariance Test}\label{sec:hc-cov}
-This diagnostic contrasts the ordinary least squares covariance estimate with the heteroscedasticity-consistent (HC) sandwich estimator $\widehat{\mathrm{Var}}_{HC}(\hat\beta)=(X^\top X)^{-1}X^\top\hat\Omega X(X^\top X)^{-1}$, where $\hat\Omega=\mathrm{diag}(\omega_i e_i^2)$. The weights $\omega_i$ select among the HC0--HC4 variants, which differ in their finite-sample leverage corrections \citep{mackinnon1985some,white1980heteroskedasticity}. A large discrepancy between the two covariance estimates signals heteroscedasticity that would invalidate classical OLS inference. The \texttt{performHCCovarianceTest()} function exposes the full HC0--HC4 family through its \texttt{type} argument.
 
 \paragraph{Quantile-Regression Test}\label{sec:quantreg-test}
 Heteroscedasticity manifests as conditional quantiles of $y$ that fan out or contract with the covariates. Fitting regression quantiles \citep{koenker1978regression} at a low and a high $\tau$ (e.g. $0.25$ and $0.75$) and testing the equality of the corresponding slope vectors detects exactly this divergence, without committing to a parametric variance function. The \texttt{performQuantileRegressionTest()} function implements the comparison, delegating the quantile fits to \pkg{quantreg} when available.
