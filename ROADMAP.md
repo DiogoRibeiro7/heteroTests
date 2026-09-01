@@ -71,8 +71,7 @@ no longer reports a substituted fallback diagnostic under the requested
 test’s name.
 
 Removed two shadowed duplicate definitions: the obsolete
-[`performHCCovarianceTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHCCovarianceTest.md)
-and
+`performHCCovarianceTest()` and
 [`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)
 in `modern_diagnostics.R` were being overwritten at load time by the
 corrected versions. Correct behaviour depended on collation order.

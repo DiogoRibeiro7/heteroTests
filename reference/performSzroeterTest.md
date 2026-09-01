@@ -82,8 +82,8 @@ Cambridge University Press. Section 5.4 outlines the Szroeter test.
 
 ## See also
 
-[`performOrderedLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOrderedLMTest.md)
-for a regression-based alternative and
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+for the regressor-based alternative and
 [`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)
 for split-sample diagnostics on ordered data.
 

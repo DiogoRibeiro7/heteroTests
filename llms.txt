@@ -324,9 +324,6 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 - [`performBrownForsytheTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBrownForsytheTest.md)
   : Perform Brown-Forsythe test for equality of variances
 
-- [`performCameronTrivediTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCameronTrivediTest.md)
-  : Perform Cameron-Trivedi decomposition test
-
 - [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
   : Perform Cook-Weisberg test for heteroscedasticity
 
@@ -341,9 +338,6 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 
 - [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md)
   : Perform Glejser test for heteroscedasticity
-
-- [`performHCCovarianceTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHCCovarianceTest.md)
-  : Deprecated HC covariance pseudo-test
 
 - [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md)
   : Perform Hartley's Fmax test
@@ -369,17 +363,11 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 - [`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md)
   : Perform McLeod-Li test
 
-- [`performModifiedBartlettTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performModifiedBartlettTest.md)
-  : Bartlett compatibility alias
-
 - [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
   : Perform the non-constant variance (NCV) score test
 
 - [`performOBrienTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOBrienTest.md)
   : Perform O'Brien test for equality of variances
-
-- [`performOrderedLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOrderedLMTest.md)
-  : Perform Ordered Lagrange Multiplier test
 
 - [`performParkTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performParkTest.md)
   : Perform Park test for heteroscedasticity
