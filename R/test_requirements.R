@@ -40,6 +40,7 @@ rTEST_REQUIREMENTS <- list(
   bartlett = list(min_obs_per_group = 3L, reason = "Variance estimation minimum"),
   fligner_killeen = list(min_obs_per_group = 3L, reason = "Rank-based variance test requires multiple observations per group"),
   hartley_fmax = list(min_obs_per_group = 2L, reason = "Variance ratios require at least two observations per group"),
+  obrien = list(min_obs_per_group = 3L, reason = "O'Brien transformation contains n_i - 2 in the denominator"),
   cameron_trivedi = list(min_obs = 15L, reason = "Variance decomposition regression requires residual degrees of freedom"),
   ordered_lm = list(min_obs = 3L, reason = "Ordered LM test requires at least three ordered observations"),
   studentized_bp = list(min_obs = 15L, reason = "Studentized auxiliary regression requires adequate sample"),

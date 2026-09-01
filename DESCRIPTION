@@ -1,6 +1,6 @@
 Package: heteroTests
 Title: Heteroscedasticity Diagnostics for Linear Models
-Version: 0.7.0
+Version: 0.7.1
 Authors@R: person("Diogo", "Ribeiro", email = "dfr@esmad.ipp.pt",
     role = c("aut", "cre"),
     comment = c(ORCID = "0009-0001-2022-7072"))
@@ -24,7 +24,8 @@ Imports:
     generics,
     scales,
     R6,
-    parallel
+    parallel,
+    SuppDists
 Suggests:
     quickcheck,
     testthat (>= 3.0.0),
@@ -44,6 +45,7 @@ Suggests:
     bench,
     lmtest,
     car,
+    vartest,
     mgcv,
     quantreg,
     sandwich,
