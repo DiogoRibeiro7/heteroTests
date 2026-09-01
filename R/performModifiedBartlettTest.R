@@ -9,18 +9,18 @@
 #' @param data A [base::data.frame] used to fit `model` and containing `group`.
 #' @param group Character scalar naming the grouping variable.
 #'
-#' @return An object of class \code{htest}. Its statistic, degrees of freedom and
-#'   p-value are exactly those returned by [performBartlettTest()].
+#' @return An object of class \code{htest} exactly as returned by
+#'   [performBartlettTest()].
 #'
 #' @details
 #' The pre-0.7.1 implementation manually evaluated the standard corrected
 #' Bartlett statistic. That correction is already part of Bartlett's classical
 #' chi-squared test; it does not define a second inferential procedure.
 #'
-#' This function therefore delegates to [performBartlettTest()] so the two names
-#' cannot drift statistically while preserving compatibility for existing code.
-#' API consolidation is intentionally deferred until after the package-wide
-#' validation passes.
+#' This function therefore delegates directly to [performBartlettTest()] so the
+#' two names cannot drift statistically while preserving compatibility for
+#' existing code. API consolidation is intentionally deferred until after the
+#' package-wide validation passes.
 #'
 #' @references
 #' Bartlett, M. S. (1937). Properties of sufficiency and statistical tests.
@@ -42,7 +42,5 @@
 #' [performLeveneTest()] or [performBrownForsytheTest()] when normality is
 #' questionable.
 performModifiedBartlettTest <- function(model, data, group) {
-  result <- performBartlettTest(model, data, group)
-  result$method <- "Bartlett's test for equality of variances (compatibility alias)"
-  result
+  performBartlettTest(model, data, group)
 }
