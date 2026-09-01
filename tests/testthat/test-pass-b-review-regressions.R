@@ -14,7 +14,38 @@ test_that("O'Brien drops missing auxiliary groups together with residuals", {
   d <- obj$data
   d$g[3] <- NA
 
-  expect_s3_class(performOBrienTest(obj$model, d, "g"), "htest")
+  observed <- suppressWarnings(performOBrienTest(obj$model, d, "g"))
+
+  # The diagnostic analyses the residuals of the model it was given. A
+  # missing grouping value removes that observation from the comparison; it
+  # does not refit the model, which would change every residual rather than
+  # drop one. Reconstruct the expected result on that basis.
+  keep <- !is.na(d$g)
+  r <- residuals(obj$model)[keep]
+  g_kept <- droplevels(d$g[keep])
+
+  scores <- numeric(length(r))
+  for (lv in levels(g_kept)) {
+    i <- which(g_kept == lv)
+    ni <- length(i)
+    scores[i] <- ((ni - 1.5) * ni * (r[i] - mean(r[i]))^2 -
+      0.5 * (ni - 1) * var(r[i])) / ((ni - 1) * (ni - 2))
+  }
+  expected <- anova(lm(scores ~ g_kept))
+
+  expect_equal(unname(observed$statistic), expected$`F value`[1], tolerance = 1e-12)
+  expect_equal(unname(observed$parameter),
+               c(expected$Df[1], expected$Df[2]), tolerance = 0)
+  expect_equal(observed$p.value, expected$`Pr(>F)`[1], tolerance = 1e-12)
+
+  # Refitting on the complete cases is a different question and gives a
+  # different answer; pinning that distinction stops the two being conflated.
+  refit_data <- d[keep, , drop = FALSE]
+  refit <- suppressWarnings(
+    performOBrienTest(lm(y ~ x, data = refit_data), refit_data, "g")
+  )
+  expect_false(isTRUE(all.equal(unname(observed$statistic),
+                                unname(refit$statistic))))
 })
 
 test_that("O'Brien allows a zero-variance group when transformation is defined", {
@@ -65,17 +96,39 @@ test_that("Bartlett and its compatibility alias support two observations per gro
   expect_identical(alias, canonical)
 })
 
-test_that("Pass B simulation catches method failures independently", {
-  # Installed packages expose inst/ at the package root, so the source-tree
-  # relative path only works when running from a checkout.
+test_that("Pass B summary rejects methods with no usable replications", {
   path <- system.file("validation", "pass-b-size-power.R", package = "heteroTests")
   if (!nzchar(path) || !file.exists(path)) {
     path <- testthat::test_path("..", "..", "inst", "validation", "pass-b-size-power.R")
   }
   skip_if_not(file.exists(path), "Pass B simulation script is not available")
-  text <- paste(readLines(path, warn = FALSE), collapse = "\n")
 
-  expect_match(text, "pkgload::load_all", fixed = TRUE)
-  expect_match(text, "tryCatch(as.numeric(run_one())", fixed = TRUE)
-  expect_match(text, "if (any(effective <= 0L))", fixed = TRUE)
+  env <- new.env(parent = globalenv())
+  sys.source(path, envir = env)
+
+  rejected <- c(A = 0L, B = 1L)
+  failures <- c(A = 100L, B = 0L)
+  expect_error(
+    env$summarise_pass_b_counts(rejected, failures, 100L),
+    "Pass B produced no usable replications for: A",
+    fixed = TRUE
+  )
+})
+
+test_that("Pass B summary uses effective replications", {
+  path <- system.file("validation", "pass-b-size-power.R", package = "heteroTests")
+  if (!nzchar(path) || !file.exists(path)) {
+    path <- testthat::test_path("..", "..", "inst", "validation", "pass-b-size-power.R")
+  }
+  skip_if_not(file.exists(path), "Pass B simulation script is not available")
+
+  env <- new.env(parent = globalenv())
+  sys.source(path, envir = env)
+
+  rejected <- c(A = 10L, B = 25L)
+  failures <- c(A = 0L, B = 50L)
+  summary <- env$summarise_pass_b_counts(rejected, failures, 100L)
+
+  expect_equal(summary$effective, c(A = 100L, B = 50L))
+  expect_equal(summary$rate, c(A = 0.10, B = 0.50))
 })
