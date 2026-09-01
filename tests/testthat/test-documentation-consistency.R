@@ -11,12 +11,14 @@ library(testthat)
 
 skip_if_not_source_tree <- function() {
   desc <- testthat::test_path("..", "..", "DESCRIPTION")
-  skip_if_not(
-    file.exists(desc) &&
-      any(grepl("Package: heteroTests", readLines(desc, warn = FALSE), fixed = TRUE)),
-    "documentation checks only run from the source tree"
-  )
-  normalizePath(dirname(desc))
+  root <- if (file.exists(desc)) normalizePath(dirname(desc)) else ""
+  # An installed package also carries a DESCRIPTION naming heteroTests, so
+  # require R/ to hold actual sources: an installed copy has R/*.rdb instead.
+  is_source <- nzchar(root) &&
+    any(grepl("Package: heteroTests", readLines(desc, warn = FALSE), fixed = TRUE)) &&
+    length(list.files(file.path(root, "R"), pattern = "[.][Rr]$")) > 0L
+  skip_if_not(is_source, "documentation checks only run from a source checkout")
+  root
 }
 
 test_that("no code/documentation mismatches", {
