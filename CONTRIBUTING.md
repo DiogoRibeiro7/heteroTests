@@ -23,9 +23,21 @@ configuration before submitting.
 Code should follow the tidyverse style guide and respect CRAN policies
 (no unchecked warnings or notes from `R CMD check`).
 
-The R code is organised into modules under `R/core`, `R/tests`, `R/utils`
-and `R/data`. Please place new functions in the appropriate folder
-and document them with roxygen2 comments.
+All R source lives directly in `R/`, one file per diagnostic, named after the
+function it defines (for example `R/performBPTest.R`). There are no
+subdirectories.
+
+### Documentation, and a warning about roxygen2
+
+`man/` is **mixed**: roxygen2 generated some pages and the rest were written
+by hand. Running `roxygen2::roxygenise()` would overwrite the hand-written
+pages with stubs built from the roxygen comments and silently lose their
+content, so do not run it across the package.
+
+When you change a function signature, update its `.Rd` file in the same commit.
+Nothing regenerates it for you. `tests/testthat/test-documentation-consistency.R`
+runs `tools::codoc()`, `tools::checkDocFiles()` and `tools::undoc()` so the
+local test suite catches the mismatch before CI does.
 
 If ``R CMD check`` fails with ``command not found`` you need to
 install R and ensure the ``R`` executable is available. Consult your
