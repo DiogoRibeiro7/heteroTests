@@ -79,23 +79,6 @@ test_that("Hartley preserves public names and uses integer approximate df", {
   expect_true(result$parameter[["df"]] == as.integer(result$parameter[["df"]]))
 })
 
-test_that("Bartlett and its compatibility alias support two observations per group", {
-  set.seed(1804)
-  g <- factor(rep(c("a", "b", "c"), each = 2L))
-  x <- seq_along(g)
-  y <- c(1, 2, 1, 4, 2, 7)
-  d <- data.frame(y = y, x = x, g = g)
-  model <- lm(y ~ 1, data = d)
-
-  canonical <- suppressWarnings(performBartlettTest(model, d, "g"))
-  alias <- suppressWarnings(performModifiedBartlettTest(model, d, "g"))
-  ref <- stats::bartlett.test(residuals(model), g)
-
-  expect_equal(unname(canonical$statistic), unname(ref$statistic), tolerance = 0)
-  expect_equal(canonical$p.value, ref$p.value, tolerance = 0)
-  expect_identical(alias, canonical)
-})
-
 test_that("Pass B summary rejects methods with no usable replications", {
   path <- system.file("validation", "pass-b-size-power.R", package = "heteroTests")
   if (!nzchar(path) || !file.exists(path)) {

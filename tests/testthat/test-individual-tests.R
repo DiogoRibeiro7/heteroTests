@@ -311,14 +311,6 @@ test_that("performCookWeisbergTest works correctly", {
   expect_equal(result$method, "Cook-Weisberg test for heteroscedasticity")
 })
 
-test_that("performCameronTrivediTest works correctly", {
-  test_obj <- create_test_model()
-  
-  result <- performCameronTrivediTest(test_obj$model)
-  expect_htest(result)
-  expect_equal(result$method, "Cameron-Trivedi decomposition test")
-})
-
 # Panel Data Tests
 # =============================================================================
 

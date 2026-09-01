@@ -33,16 +33,6 @@ test_that("performWildBootstrapTest does not reject under homoscedasticity", {
   expect_gt(result$p.value, 0.05)
 })
 
-test_that("performHCCovarianceTest is withdrawn with migration guidance", {
-  data <- mtcars
-  model <- lm(mpg ~ wt + hp, data = data)
-  expect_error(
-    suppressWarnings(performHCCovarianceTest(model, data, type = "HC3")),
-    "No inferential result is returned",
-    fixed = TRUE
-  )
-})
-
 test_that("HC covariance pseudo-test is absent from built-in registries", {
   expect_false("hc_covariance" %in% names(as.list(heteroTests:::.diagnostic_registry)))
   expect_false("hc_covariance" %in% test_factory$get_available())

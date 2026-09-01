@@ -451,7 +451,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' performSzroeterTest(mod, mtcars, order_by = "wt", alternative = "two.sided")
 #'
 #' @seealso
-#' [performOrderedLMTest()] for a regression-based alternative and
+#' [performKoenkerTest()] for the regressor-based alternative and
 #' [performGQTest()] for split-sample diagnostics on ordered data.
 #' @export
 performSzroeterTest <- function(model, data, order_by,

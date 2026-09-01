@@ -157,10 +157,9 @@ ht_recover_auxiliary_fit <- function(formula, data, ..., error) {
   student_bp = c("breusch_pagan", "koenker", "ncv"),
   koenker = c("ncv"),
   wild_bootstrap = c("white", "breusch_pagan"),
-  hc_covariance = c("hc_covariance_hc0", "breusch_pagan", "koenker"),
-  quantile_regression = c("rank_permutation", "hc_covariance", "ncv"),
+  quantile_regression = c("rank_permutation", "ncv"),
   rank_permutation = c("ncv"),
-  high_dimensional = c("hc_covariance", "breusch_pagan", "koenker"),
+  high_dimensional = c("breusch_pagan", "koenker"),
   spatial_hetero = c("breusch_pagan", "white"),
   wild_bootstrap_quantile = c("quantile_regression", "rank_permutation")
 )
@@ -168,9 +167,6 @@ ht_recover_auxiliary_fit <- function(formula, data, ..., error) {
 .ht_custom_fallbacks <- list(
   white_simplified = function(model, data) {
     performWhiteTest(model, data, cross_products = FALSE)
-  },
-  hc_covariance_hc0 = function(model, data) {
-    performHCCovarianceTest(model, data, type = "HC0")
   }
 )
 

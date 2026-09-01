@@ -1,5 +1,50 @@
 # heteroTests News
 
+## 0.8.0
+
+The API review that the validation effort was sequenced towards. Six exports
+are removed. This is a breaking change, hence the minor version.
+
+Three returned nothing but a migration error, having been withdrawn once their
+statistics were shown not to work:
+
+| removed | use instead |
+| --- | --- |
+| `performRiceTest()` | `performSzroeterTest()`, `performGQTest()` |
+| `performCurryWalshTest()` | `performSpatialHeteroTest()` |
+| `performHCCovarianceTest()` | `performBPTest()`, `performKoenkerTest()`, `performWhiteTest()`; `sandwich::vcovHC()` for robust covariance |
+
+Three computed a valid statistic under a name that promised a different method,
+duplicating a test that remains:
+
+| removed | identical to |
+| --- | --- |
+| `performOrderedLMTest()` | `performKoenkerTest()` -- sorting the rows and refitting returns the same residuals permuted, so its `order_by` argument could not affect the result |
+| `performCameronTrivediTest()` | the `e^2 ~ yhat + yhat^2` auxiliary F test, covered by `performWhiteTest()` and `performNCVTest()`; it was never Cameron and Trivedi's information-matrix test |
+| `performModifiedBartlettTest()` | `performBartlettTest()` -- the correction factor its documentation called a modification is part of the standard definition |
+
+The package has not been released on CRAN, so no published contract is broken.
+`tests/testthat/test-public-api.R` records the removals and checks that every
+replacement named above is still exported.
+
+Two dead fallback routes went with them: `hc_covariance` was registered as a
+recovery path for `quantile_regression` and `high_dimensional`, and
+`hc_covariance_hc0` as a custom fallback, both calling a function that only
+ever raised an error.
+
+### Packaging
+
+- The pkgdown workflow now deploys. It called `build_site_github_pages()`,
+  which writes `docs/`, and then stopped: there was no deploy step and no
+  `gh-pages` branch, so the job reported success while nothing was published.
+  That is why the URLs in `DESCRIPTION` and `inst/CITATION` returned 404.
+- `renv.lock` now records all 38 declared non-base dependencies, up from 14.
+  `renv::restore()` previously pinned about a third of them, and the Docker
+  build only worked because `remotes::install_local()` resolves the remainder
+  from CRAN at whatever version is current. The R version moves to 4.5.1, which
+  is where the recorded versions come from.
+
+
 ## 0.7.2
 
 Pass C of the statistical validation matrix: the methods with the least

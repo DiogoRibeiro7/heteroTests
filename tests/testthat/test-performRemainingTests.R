@@ -194,37 +194,6 @@ test_that("performHartleyFmaxTest enforces grouping rules", {
   )
 })
 
-test_that("performCameronTrivediTest requires variability", {
-  set.seed(642)
-  df <- data.frame(y = rnorm(100), x = runif(100))
-  model <- lm(y ~ x, data = df)
-  expect_htest(performCameronTrivediTest(model))
-
-  perfect_df <- data.frame(x = rnorm(20))
-  perfect_df$y <- 1 + 2 * perfect_df$x
-  perfect_model <- lm(y ~ x, data = perfect_df)
-  expect_error(
-    performCameronTrivediTest(perfect_model),
-    "perfectly explained",
-    fixed = FALSE
-  )
-})
-
-test_that("performOrderedLMTest validates ordering variable", {
-  set.seed(531)
-  df <- data.frame(y = rnorm(90), x = rnorm(90))
-  model <- lm(y ~ x, data = df)
-  expect_htest(performOrderedLMTest(model, df, "x"))
-
-  tiny_df <- df[seq_len(2), ]
-  tiny_model <- lm(y ~ x, data = tiny_df)
-  expect_error(
-    performOrderedLMTest(tiny_model, tiny_df, "x"),
-    "Ordered LM requires at least 3",
-    fixed = FALSE
-  )
-})
-
 test_that("performStudentizedBPTest honours validation framework", {
   set.seed(420)
   df <- data.frame(y = rnorm(120), x = runif(120))

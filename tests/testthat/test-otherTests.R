@@ -231,28 +231,6 @@ test_that("Hartley Fmax detects variance differences", {
   expect_lt(res$p.value, 0.05)
 })
 
-test_that("Cameron-Trivedi test detects heteroscedasticity", {
-  set.seed(11)
-  n <- 200
-  x <- runif(n)
-  y <- 1 + 2 * x + rnorm(n, sd = x)
-  df <- data.frame(x = x, y = y)
-  model <- lm(y ~ x, data = df)
-  res <- performCameronTrivediTest(model)
-  expect_lt(res$p.value, 0.05)
-})
-
-test_that("Ordered LM test detects heteroscedasticity", {
-  set.seed(12)
-  n <- 200
-  x <- runif(n)
-  y <- 1 + 2 * x + rnorm(n, sd = x)
-  df <- data.frame(x = x, y = y)
-  model <- lm(y ~ x, data = df)
-  res <- performOrderedLMTest(model, df, "x")
-  expect_lt(res$p.value, 0.05)
-})
-
 # New functions from the roadmap
 test_that("O'Brien test works", {
   set.seed(13)

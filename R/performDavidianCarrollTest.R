@@ -50,7 +50,7 @@
 #' performDavidianCarrollTest(lm(y ~ x))
 #'
 #' @seealso
-#' [performCameronTrivediTest()] and [performHarveyTest()] for related
+#' [performHarveyTest()] and [performNCVTest()] for related
 #' variance-function diagnostics.
 performDavidianCarrollTest <- function(model, degree = 2) {
   if (!inherits(model, "lm")) {

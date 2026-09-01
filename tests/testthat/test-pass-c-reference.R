@@ -17,18 +17,6 @@ make_pass_c_model <- function(seed = 31, n = 120) {
 
 # --- withdrawn -------------------------------------------------------------
 
-test_that("performRiceTest is withdrawn with migration guidance", {
-  obj <- make_pass_c_model()
-  expect_error(
-    suppressWarnings(performRiceTest(obj$model)),
-    "no power against heteroscedasticity"
-  )
-  expect_warning(
-    try(performRiceTest(obj$model), silent = TRUE),
-    "withdrawn"
-  )
-})
-
 test_that("the Rice ratio is insensitive to heteroscedasticity", {
   # Why it was withdrawn: E[(e_i - e_{i-1})^2] = s2_i + s2_{i-1}, so Rice's
   # numerator and the mean squared residual both estimate the mean variance and
@@ -48,53 +36,7 @@ test_that("the Rice ratio is insensitive to heteroscedasticity", {
   }
 })
 
-test_that("performCurryWalshTest is withdrawn with migration guidance", {
-  obj <- make_pass_c_model()
-  coords <- cbind(runif(nrow(obj$data)), runif(nrow(obj$data)))
-  expect_error(
-    suppressWarnings(performCurryWalshTest(obj$model, coords)),
-    "performSpatialHeteroTest"
-  )
-  expect_warning(
-    try(performCurryWalshTest(obj$model, coords), silent = TRUE),
-    "withdrawn"
-  )
-})
-
 # --- valid statistics under misleading names -------------------------------
-
-test_that("performOrderedLMTest equals Koenker and warns that order_by is inert", {
-  obj <- make_pass_c_model()
-
-  expect_warning(
-    performOrderedLMTest(obj$model, obj$data, "x1"),
-    "ignores `order_by`"
-  )
-
-  a <- suppressWarnings(performOrderedLMTest(obj$model, obj$data, "x1"))
-  b <- suppressWarnings(performOrderedLMTest(obj$model, obj$data, "x2"))
-  koenker <- performKoenkerTest(obj$model, obj$data)
-
-  # Sorting the rows and refitting returns the same residuals permuted, so the
-  # ordering cannot change the statistic.
-  # Mathematically identical; refitting on permuted rows only perturbs the
-  # last floating-point bits, so this is a tolerance comparison, not bit-identity.
-  expect_equal(unname(a$statistic), unname(b$statistic), tolerance = 1e-10)
-  expect_equal(unname(a$statistic), unname(koenker$statistic), tolerance = 1e-10)
-  expect_equal(a$p.value, koenker$p.value, tolerance = 1e-10)
-})
-
-test_that("performCameronTrivediTest is the fitted-value auxiliary F test", {
-  obj <- make_pass_c_model()
-  ours <- performCameronTrivediTest(obj$model)
-
-  yhat <- fitted(obj$model)
-  e2 <- residuals(obj$model)^2
-  ref <- summary(lm(e2 ~ yhat + I(yhat^2)))$fstatistic
-
-  expect_equal(unname(ours$statistic), unname(ref[1]), tolerance = 1e-10)
-  expect_equal(unname(ours$parameter), unname(ref[2:3]), tolerance = 0)
-})
 
 # --- Davidian-Carroll ------------------------------------------------------
 

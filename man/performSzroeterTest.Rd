@@ -89,6 +89,6 @@ Godfrey, L. G. (1988). \emph{Misspecification Tests in Econometrics}. Cambridge
 University Press. Section 5.4 outlines the Szroeter test.
 }
 \seealso{
-\code{\link[=performOrderedLMTest]{performOrderedLMTest()}} for a regression-based alternative and
+\code{\link[=performKoenkerTest]{performKoenkerTest()}} for the regressor-based alternative and
 \code{\link[=performGQTest]{performGQTest()}} for split-sample diagnostics on ordered data.
 }
