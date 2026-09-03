@@ -149,8 +149,33 @@ test_that("null resampling refuses models it cannot regenerate", {
     "Gaussian `lm` models only"
   )
 
-  # Pairs resampling is scale-agnostic, so it remains available for both.
+
+  # Pairs resampling is scale-agnostic, so it remains available for the
+  # transformed response. `replicates` is preallocated to B and filled with NA
+  # when a replicate fails, so its length alone would pass even if every
+  # replicate had failed; assert the values instead.
   out <- suppressWarnings(rbootstrap_test_statistic(
     performKoenkerTest, m_log, d, B = 10, resample = "pairs", progress = FALSE))
   expect_length(out$replicates, 10L)
+  expect_true(all(is.finite(out$replicates)))
+})
+
+test_that("a glm is refused by both resampling strategies", {
+  # Each replicate is refitted with safe_lm(), which drops a glm's family and
+  # link: on a Poisson fit of counts the coefficients move from (0.457, 0.406)
+  # on the log link to (-0.931, 2.281) on the identity scale, so the replicates
+  # would describe a different model from the one supplied.
+  set.seed(3)
+  n <- 80
+  d <- data.frame(x = runif(n, 1, 5))
+  d$cnt <- rpois(n, lambda = exp(0.5 + 0.4 * d$x))
+  g <- glm(cnt ~ x, data = d, family = poisson)
+
+  for (strategy in c("null", "pairs")) {
+    expect_error(
+      rbootstrap_test_statistic(performKoenkerTest, g, d, B = 5,
+                                resample = strategy, progress = FALSE),
+      "Gaussian `lm` models only"
+    )
+  }
 })

@@ -37,12 +37,15 @@ observed statistic, so comparing the two returns roughly 0.5 whatever the
 data. Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%.
 \code{p_value} is therefore \code{NA} for pairs resampling.
 
-Null-imposed resampling requires a Gaussian \code{lm} whose response is a
-plain variable. A \code{glm} needs family-aware simulation, and a transformed
-response such as \code{log(y) ~ x} has fitted values on a different scale from
-the data column, so both raise an error rather than regenerate data that do not
-mean what they appear to. \code{resample = "pairs"} resamples rows and is
-unaffected.
+Neither strategy accepts a \code{glm}: each replicate is refitted with least
+squares, so the family and link would be discarded and the replicates would
+describe a different model from the one supplied.
+
+Null-imposed resampling additionally requires the response to be a plain
+variable. For \code{log(y) ~ x} the fitted values are on the log scale while
+the data column holds \code{y}, so regenerating one from the other and
+refitting would take the logarithm twice. That case raises an error;
+\code{resample = "pairs"} resamples rows and is unaffected by it.
 }
 
 \arguments{
@@ -50,7 +53,9 @@ unaffected.
 returns an object with a numeric \code{statistic} element (typically an
 \code{htest} result).}
 
-\item{model}{A fitted model of class \code{lm} or \code{glm}.}
+\item{model}{A fitted model of class \code{lm}. A \code{glm} is rejected:
+each replicate is refitted with least squares, which would discard its family
+and link.}
 
 \item{data}{Data frame used when fitting \code{model}.}
 

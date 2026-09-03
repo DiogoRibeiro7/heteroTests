@@ -37,16 +37,18 @@ NULL
 #' therefore `NA` for pairs resampling, and was removed rather than kept as a
 #' number that cannot be interpreted.
 #'
-#' Null-imposed resampling requires a Gaussian `lm` whose response is a plain
-#' variable. A `glm` needs family-aware simulation, and a transformed response
-#' such as `log(y) ~ x` has fitted values on a different scale from the data
-#' column, so both raise an error rather than regenerate data that do not mean
-#' what they appear to. `resample = "pairs"` resamples rows and is unaffected.
+#' Null-imposed resampling additionally requires the response to be a plain
+#' variable: for `log(y) ~ x` the fitted values are on the log scale while the
+#' data column holds `y`, so regenerating one from the other and refitting
+#' would take the logarithm twice. That case raises an error;
+#' `resample = "pairs"` resamples rows and is unaffected by it.
 #'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
-#' @param model A fitted model of class `lm` or `glm`.
+#' @param model A fitted model of class `lm`. A `glm` is rejected: each
+#'   replicate is refitted with least squares, which would discard its
+#'   family and link.
 #' @param data Data frame used when fitting `model`.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
 #' @param parallel Logical, compute replicates in parallel when possible?
@@ -124,6 +126,21 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     n_cores <- as.integer(n_cores)
   }
 
+  # Both strategies refit each replicate with safe_lm(), which builds an lm and
+  # drops a glm's family and link: on a Poisson fit of counts the coefficients
+  # move from (0.457, 0.406) on the log link to (-0.931, 2.281) on the identity
+  # scale, so the replicates describe a different model from the one supplied.
+  # Neither strategy is usable for a glm, so both refuse rather than return
+  # replicates of something the caller did not ask about.
+  if (inherits(model, "glm")) {
+    stop(
+      "`rbootstrap_test_statistic()` supports Gaussian `lm` models only. Each ",
+      "replicate is refitted with least squares, which would discard the ",
+      "family and link of a `glm` and bootstrap a different model.",
+      call. = FALSE
+    )
+  }
+
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic
   if (is.null(statistic) || length(statistic) == 0L) {
@@ -162,14 +179,6 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     # refit below uses safe_lm(), which would silently drop the family and
     # link. Both cases previously ran and returned a plausible p-value from
     # meaningless replicates.
-    if (inherits(model, "glm")) {
-      stop(
-        "Null-imposed resampling is implemented for Gaussian `lm` models only; ",
-        "regenerating a `glm` response needs family-aware simulation. Use ",
-        "resample = \"pairs\", which resamples rows and is scale-agnostic.",
-        call. = FALSE
-      )
-    }
     if (!is.name(formula[[2L]])) {
       stop(
         "Null-imposed resampling needs a plain response variable, but the ",

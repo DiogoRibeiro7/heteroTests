@@ -52,8 +52,15 @@ plausible p-value from replicates that meant nothing: a transformed response
 such as `log(y) ~ x`, where `fitted()` is on the log scale and the data column
 holds `y`, so refitting took the logarithm twice and returned p = 1; and a
 `glm`, where the refit used `safe_lm()` and dropped the family and link,
-returning p = 0.952 for a Poisson model. `resample = "pairs"` resamples rows,
-is unaffected by either, and remains available for both.
+returning p = 0.952 for a Poisson model. `resample = "pairs"` resamples rows
+and is unaffected by the transformed-response case, so it remains available
+there.
+
+A `glm` is now refused by *both* strategies. Each replicate is refitted with
+least squares whichever strategy is used, so on a Poisson fit of counts the
+coefficients move from (0.457, 0.406) on the log link to (-0.931, 2.281) on the
+identity scale: the replicates describe a different model from the one passed.
+The helper documented `glm` support it never had.
 
 ### Percentile intervals are not confidence intervals
 
