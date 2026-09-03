@@ -107,11 +107,12 @@ rfgls_weights <- function(res, design) {
   # representable range, the centred fitted values reach 1365 and exp()
   # underflows to a zero weight.
   #
-  # No input to *this* function reaches it, because rlog_squared_residuals()
-  # floors residuals below double.eps first, which caps the range of log_e2
-  # before it can get large enough; the closest reachable value is about 705.
-  # The guard is kept because that ceiling is a property of the flooring
-  # rather than of this function, and would move if the flooring changed.
+  # rlog_squared_residuals() floors residuals below double.eps before taking
+  # logarithms, which bounds log_e2 -- but not these fitted values, since the
+  # auxiliary fit can extrapolate past the range of its own response. The
+  # inputs tried here reached a centred value of 705, just under the limit;
+  # that shows the guard is hard to reach through this caller, not that it
+  # cannot be reached.
   w <- 1 / exp(g_hat - mean(g_hat))
   if (!all(is.finite(w)) || any(w <= 0)) {
     return(equal)

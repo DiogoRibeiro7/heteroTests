@@ -6,7 +6,7 @@
 \maketitle
 
 \abstract{
-Heteroscedasticity diagnostics in R are spread across a dozen packages whose function names, argument orders and return objects do not agree, so combining several tests in one analysis requires bridging code. \pkg{heteroTests} implements 41 diagnostics—auxiliary‐regression, group‐comparison, rank‐based, nonconstant‐variance, ARCH‐type, and resampling‐based—behind one interface. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object carrying the choices that determine the statistic (residual type, trimming, lag order, grouping), which is what makes batch execution through \texttt{runHeteroTests()} and automated reporting possible. The package imports only base R and \pkg{MASS}, using \pkg{car} and \pkg{sandwich} when installed. Timings scale linearly to $n = 50\,000$, where twelve of the thirteen benchmarked tests run in under 500\,ms and White's takes 634\,ms, and simulated power exceeds $80\%$ against continuous, step‐function and autoregressive variance patterns. Where an established implementation exists we reproduce its statistic to machine precision; where one does not, the implementation is checked against its published definition. The package is distributed on GitHub under Apache‐2.0.
+Heteroscedasticity diagnostics in R are spread across a dozen packages whose function names, argument orders and return objects do not agree, so combining several tests in one analysis requires bridging code. \pkg{heteroTests} implements 41 diagnostics—auxiliary‐regression, group‐comparison, rank‐based, nonconstant‐variance, ARCH‐type, and resampling‐based—behind one interface. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object carrying the choices that determine the statistic (residual type, trimming, lag order, grouping), which is what makes batch execution through \texttt{runHeteroTests()} and automated reporting possible. It imports nine packages---\pkg{MASS}, \pkg{stats}, \pkg{parallel}, \pkg{ggplot2}, \pkg{scales}, \pkg{R6}, \pkg{generics}, \pkg{curl} and \pkg{SuppDists}---and uses \pkg{car} and \pkg{sandwich} when installed. Timings scale linearly to $n = 50\,000$, where twelve of the thirteen benchmarked tests run in under 500\,ms and White's takes 634\,ms, and simulated power exceeds $80\%$ against continuous, step‐function and autoregressive variance patterns. Where an established implementation exists we reproduce its statistic to machine precision; where one does not, the implementation is checked against its published definition. The package is distributed on GitHub under Apache‐2.0.
 }
 
 
@@ -19,7 +19,7 @@ Heteroscedasticity tests in R reside in \pkg{lmtest}, \pkg{car}, and base \pkg{s
 
 \pkg{heteroTests} places 41 diagnostics behind one API. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object recording the residual type, trimming, lag selection and grouping used, so a result can be reproduced from the object alone; \texttt{runHeteroTests()} executes a configured set in one call.
 
-The package imports base R and \pkg{MASS}, and uses \pkg{car} and \pkg{sandwich} when they are installed. Timings scale linearly to \(n=50\,000\), where all but one benchmarked test run in under 500\,ms, and simulated power exceeds 80\% against linear, step‐function and autoregressive variance patterns.
+The package imports nine packages, of which \pkg{stats} and \pkg{parallel} ship with R; the statistical core needs only \pkg{MASS} and \pkg{SuppDists}, the rest supporting plotting, logging and the ecosystem methods. \pkg{car} and \pkg{sandwich} are used when installed. Timings scale linearly to \(n=50\,000\), where all but one benchmarked test run in under 500\,ms, and simulated power exceeds 80\% against linear, step‐function and autoregressive variance patterns.
 
 Section~\ref{sec:background} reviews statistical tests; Section~\ref{sec:design} describes package architecture and API; Section~\ref{sec:usage} presents usage examples and case studies; Section~\ref{sec:simulation} provides simulation results and benchmarks; Section~\ref{sec:comparison} compares with existing packages; Section~\ref{sec:discussion} discusses best practices; and Section~\ref{sec:future} outlines future developments.
 
@@ -42,7 +42,7 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \item Standardizes all test functions under the \texttt{perform*Test()} naming convention
 \item Returns consistent S3 \texttt{htest} objects with enhanced metadata
 \item Enables batch execution through \texttt{runHeteroTests()}
-\item Maintains minimal dependencies while supporting optional enhancements
+\item Keeps the statistical core to two non-base imports, with plotting and integration dependencies separable from it
 \item Scales efficiently to large datasets with linear time complexity
 \end{itemize}
 
@@ -60,7 +60,7 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \item[Specialized tests] Domain‐specific diagnostics (spatial, clustered, extreme ratios)
 \end{description}
 
-The argument conventions and the \texttt{htest} return structure are common to all of them, which is what allows the batch runner to treat them interchangeably. Three further components are described in Sections~\ref{sec:design} and~\ref{sec:discussion}: a batch runner with result caching (\texttt{runHeteroTests()}), streaming implementations of the auxiliary‐regression tests for data that do not fit in memory, and a recommendation layer that interprets the diagnostics and proposes corrections such as weighted least squares.
+Thirty-one of the thirty-two take the fitted model first and the data second; \texttt{performBoxMTest()} takes data and a grouping factor, having no single model to test. Arguments beyond those two are method-specific---a grouping factor, a lag order, a choice of regressor---so it is the return structure rather than the signature that lets \texttt{runHeteroTests()} treat the subset it registers interchangeably. Three further components are described in Sections~\ref{sec:design} and~\ref{sec:discussion}: a batch runner with result caching (\texttt{runHeteroTests()}), streaming implementations of the auxiliary‐regression tests for data that do not fit in memory, and a recommendation layer that interprets the diagnostics and proposes corrections such as weighted least squares.
 
 
 %%------------------------------------------------------------------
@@ -946,12 +946,12 @@ Package & White & BP & Levene & ARCH & GQ & Unified API & Base Deps \\
 \end{tabular}
 \end{table}
 
-\pkg{heteroTests} covers more of these tests than any single alternative in Table~\ref{tab:comparison}, with one hard dependency outside base R. That is a statement about breadth, not about the quality of any individual implementation:
+\pkg{heteroTests} covers more of these tests than any single alternative in Table~\ref{tab:comparison}. That is a statement about breadth, not about the quality of any individual implementation:
 
 \begin{itemize}
 \item \textbf{Completeness}: Only package offering all major test categories in a single installation
 \item \textbf{Consistency}: Standardized function names, arguments, and return objects across all tests
-\item \textbf{Minimal dependencies}: Core functionality requires only base R packages
+\item \textbf{Contained dependencies}: the statistical core requires \pkg{MASS} and \pkg{SuppDists} beyond base R
 \item \textbf{Batch processing}: \texttt{runHeteroTests()} enables simultaneous execution of multiple diagnostics
 \item \textbf{Enhanced metadata}: Test objects include diagnostic-specific information for reproducibility
 \item \textbf{Unified documentation}: Comprehensive help system with cross-referenced examples
@@ -1097,7 +1097,7 @@ Overall Assessment: No evidence of heteroscedasticity
 \end{Soutput}
 \end{Schunk}
 
-The two blocks above run the same four diagnostics: 28 input lines against 10, a reduction of roughly 60\%. Most of the difference is the bridging code that aligns four return formats, which the shared \texttt{htest} structure removes. The saving grows with the number of tests and vanishes for one.
+The two blocks above run the same three diagnostics: 28 input lines against 10, a reduction of roughly 60\%. Most of the difference is the bridging code that aligns three return formats, which the shared \texttt{htest} structure removes. The saving grows with the number of tests and vanishes for one.
 
 \subsection{Accuracy Validation}\label{sec:accuracy}
 We validate \pkg{heteroTests} results against published test statistics and established R implementations. Table~\ref{tab:accuracy-validation} shows agreement across different packages for identical test scenarios.
@@ -1149,7 +1149,7 @@ Levene & \pkg{heteroTests} & 15.2 & 1.15 \\
 Peak memory is 15--24\% above the comparison package in these three cases, which is the cost of retaining the metadata and the standardized object. The absolute figures matter more than the ratio: at $n=10\,000$ the largest is 28.7\,MB, so the overhead is a constraint only when many models are held simultaneously.
 
 \subsection{Ecosystem Integration}\label{sec:ecosystem}
-Because every test returns the same object, \pkg{heteroTests} supplies \texttt{tidy()}, \texttt{glance()} and \texttt{augment()} methods that apply to all of them, and the returned object records the residual type, trimming, lag order and grouping that produced the statistic. Reproducing a reported result therefore requires the object rather than the call that made it. \pkg{lmtest} and \pkg{car} return \texttt{htest} objects that \pkg{broom} can tidy, but the fields differ between functions, so a caller combining several must map them individually.
+\texttt{runHeteroTests()} decorates its results with the \texttt{hetero\_test} class, and \pkg{heteroTests} supplies \texttt{tidy()}, \texttt{glance()} and \texttt{augment()} methods for that class and for the suite that contains it. A direct \texttt{perform*Test()} call returns a plain \texttt{htest}, so those methods apply to the batch output rather than to every test result. The decorated object records the residual type, trimming, lag order and grouping used, which fixes the arguments that produced the statistic but not the model it was computed from; reproducing a reported result still needs the fitted model. \pkg{lmtest} and \pkg{car} return \texttt{htest} objects that \pkg{broom} can tidy, but the fields differ between functions, so a caller combining several must map them individually.
 
 We do not attempt to rank the packages on documentation quality or suitability for teaching. Those judgements depend on the reader, and we have no measurement that would support them.
 
@@ -1351,11 +1351,7 @@ A rejected homoscedasticity null is usually followed by a change of covariance e
 \end{Sinput}
 \end{Schunk}
 
-Note that the branch above conditions the covariance estimator on a preliminary test, which makes the reported standard errors those of a two-stage procedure. The coverage of the resulting intervals is not the nominal coverage of either branch taken alone.
-% TODO[CITATION]: verify or add source for the post-model-selection inference
-% claim above (the pre-testing literature, e.g. Leeb and Poetscher on model
-% selection and inference). No key was added because none exists in
-% RJreferences.bib and the source was not checked.
+Note that the branch above chooses the covariance estimator using the data, so the reported standard errors are those of a two-stage procedure rather than of either branch alone. We do not characterise the coverage of the resulting intervals here.
 
 \subsection{Reporting Guidelines}\label{sec:reporting}
 Transparent reporting of heteroscedasticity testing enhances reproducibility:

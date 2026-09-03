@@ -140,13 +140,15 @@ test_that("rfgls_weights falls back when the auxiliary fit is not usable", {
                rep(1, 40))
 })
 
-test_that("rfgls_weights survives fitted log-variances that overflow exp()", {
-  # Fitted values are not bounded by the range of the response: at a
-  # high-leverage point the hat matrix carries negative weights and the fit
-  # extrapolates. With an ill-conditioned design and logged squared residuals
-  # spanning the representable range, the centred fitted values reach about
-  # 1365, and exp() of that underflows to a zero weight. The estimator must
-  # decline rather than hand a zero weight to lm.wfit().
+test_that("a high-leverage auxiliary fit can overflow exp(), motivating the guard", {
+  # This documents the arithmetic that rfgls_weights() guards against; it does
+  # not exercise the guard, because no input we have found reaches it through
+  # that function -- rlog_squared_residuals() floors small residuals first,
+  # which bounds log_e2. Deleting the guard would therefore not fail this test.
+  # It is kept because the hazard is real: fitted values are not bounded by the
+  # range of the response, so at a high-leverage point the fit extrapolates,
+  # and with logged squared residuals spanning the representable range the
+  # centred fitted values reach about 1365, which exp() cannot represent.
   n <- 40
   design <- cbind(`(Intercept)` = 1,
                   x = c(seq(0, 1, length.out = n - 1), 1e10))
