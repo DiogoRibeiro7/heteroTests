@@ -37,6 +37,12 @@ NULL
 #' therefore `NA` for pairs resampling, and was removed rather than kept as a
 #' number that cannot be interpreted.
 #'
+#' Null-imposed resampling requires a Gaussian `lm` whose response is a plain
+#' variable. A `glm` needs family-aware simulation, and a transformed response
+#' such as `log(y) ~ x` has fitted values on a different scale from the data
+#' column, so both raise an error rather than regenerate data that do not mean
+#' what they appear to. `resample = "pairs"` resamples rows and is unaffected.
+#'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
@@ -146,6 +152,33 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   fitted_vals <- stats::fitted(model)
   null_residuals <- NULL
   if (identical(resample, "null")) {
+    # Regenerating the response only makes sense where the fitted values and
+    # the residuals live on the same scale as the column being overwritten.
+    #
+    # For a transformed response such as log(y) ~ x, fitted() is on the log
+    # scale while the data column holds y, so writing one into the other and
+    # refitting would take the logarithm a second time. For a glm, fitted() is
+    # on the response scale, the residuals are deviance residuals, and the
+    # refit below uses safe_lm(), which would silently drop the family and
+    # link. Both cases previously ran and returned a plausible p-value from
+    # meaningless replicates.
+    if (inherits(model, "glm")) {
+      stop(
+        "Null-imposed resampling is implemented for Gaussian `lm` models only; ",
+        "regenerating a `glm` response needs family-aware simulation. Use ",
+        "resample = \"pairs\", which resamples rows and is scale-agnostic.",
+        call. = FALSE
+      )
+    }
+    if (!is.name(formula[[2L]])) {
+      stop(
+        "Null-imposed resampling needs a plain response variable, but the ",
+        "model's response is `", deparse(formula[[2L]]), "`, which is on a ",
+        "different scale from the data column. Fit the model on a ",
+        "pre-transformed column, or use resample = \"pairs\".",
+        call. = FALSE
+      )
+    }
     leverage <- stats::hatvalues(model)
     null_residuals <- stats::residuals(model) /
       sqrt(pmax(1 - leverage, .Machine$double.eps))

@@ -120,3 +120,37 @@ test_that("null residuals are leverage-corrected before resampling", {
   expect_gt(var(corrected), var(e))
   expect_gt(abs(corrected[n]) / abs(e[n]), 1)
 })
+
+test_that("null resampling refuses models it cannot regenerate", {
+  set.seed(3)
+  n <- 60
+  d <- data.frame(x = runif(n, 1, 5))
+  d$y <- exp(1 + 0.5 * d$x + rnorm(n, sd = 0.3))
+
+  # A transformed response: fitted() is on the log scale while the data column
+  # holds y, so writing one into the other and refitting would take the
+  # logarithm twice. This used to run and return p = 1.
+  m_log <- lm(log(y) ~ x, data = d)
+  expect_error(
+    rbootstrap_test_statistic(performKoenkerTest, m_log, d, B = 5,
+                              progress = FALSE),
+    "plain response variable"
+  )
+
+  # A glm: fitted() is on the response scale, the residuals are deviance
+  # residuals, and the refit would drop the family and link. This used to run
+  # and return p = 0.952.
+  d2 <- data.frame(x = runif(n, 1, 5))
+  d2$cnt <- rpois(n, lambda = exp(0.5 + 0.4 * d2$x))
+  g <- glm(cnt ~ x, data = d2, family = poisson)
+  expect_error(
+    rbootstrap_test_statistic(performKoenkerTest, g, d2, B = 5,
+                              progress = FALSE),
+    "Gaussian `lm` models only"
+  )
+
+  # Pairs resampling is scale-agnostic, so it remains available for both.
+  out <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m_log, d, B = 10, resample = "pairs", progress = FALSE))
+  expect_length(out$replicates, 10L)
+})

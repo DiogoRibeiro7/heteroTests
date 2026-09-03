@@ -36,6 +36,13 @@ variability but is not a null distribution: the replicates are centred on the
 observed statistic, so comparing the two returns roughly 0.5 whatever the
 data. Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%.
 \code{p_value} is therefore \code{NA} for pairs resampling.
+
+Null-imposed resampling requires a Gaussian \code{lm} whose response is a
+plain variable. A \code{glm} needs family-aware simulation, and a transformed
+response such as \code{log(y) ~ x} has fitted values on a different scale from
+the data column, so both raise an error rather than regenerate data that do not
+mean what they appear to. \code{resample = "pairs"} resamples rows and is
+unaffected.
 }
 
 \arguments{

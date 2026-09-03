@@ -32,7 +32,7 @@ regenerated as `fitted + e*`, with `e*` drawn with replacement from the
 residuals after dividing by `sqrt(1 - h_i)` and centring, so the regenerated
 data satisfy homoscedasticity by construction. Size is 5.0% (Monte Carlo
 standard error 1.1%) and power is 99.2% against `sd = 0.5x` and 100% against
-`sd = x^2`. Size holds at 5.0% under homoscedastic \(t_5\) errors as well, so
+`sd = x^2`. Size holds at 5.0% under homoscedastic `t_5` errors as well, so
 the calibration does not depend on Gaussian tails -- which matters here,
 because Bartlett's and Hartley's tests reject about 24% of the time against
 the same heavy-tailed null (see `inst/validation/README.md`).
@@ -45,6 +45,15 @@ the null. This is the construction `performWildBootstrapTest()` already used.
 `resample = "pairs"` is still available and still returns the replicates and
 the interval, which describe the statistic's variability perfectly well. It now
 returns `NA` for `p_value` rather than a number that cannot be interpreted.
+
+Null-imposed resampling is restricted to a Gaussian `lm` whose response is a
+plain variable, and errors otherwise. Two cases previously ran and returned a
+plausible p-value from replicates that meant nothing: a transformed response
+such as `log(y) ~ x`, where `fitted()` is on the log scale and the data column
+holds `y`, so refitting took the logarithm twice and returned p = 1; and a
+`glm`, where the refit used `safe_lm()` and dropped the family and link,
+returning p = 0.952 for a Poisson model. `resample = "pairs"` resamples rows,
+is unaffected by either, and remains available for both.
 
 ### Percentile intervals are not confidence intervals
 
