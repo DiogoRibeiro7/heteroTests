@@ -48,7 +48,7 @@
 #'
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 #' *Journal of Econometrics, 17*(1), 107–112.
-#' <https://doi.org/10.1016/0304-4076(81)90062-2>
+#' \doi{10.1016/0304-4076(81)90062-2}
 #'
 #' Greene, W. H. (2018). *Econometric Analysis* (8th ed.). Pearson.
 #'

@@ -56,7 +56,7 @@ performStudentizedBPTest(lm(y ~ x, data = df), df)
 \references{
 Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 \emph{Journal of Econometrics, 17}(1), 107–112.
-\url{https://doi.org/10.1016/0304-4076(81)90062-2}
+\doi{10.1016/0304-4076(81)90062-2}
 
 Davidson, R., & MacKinnon, J. G. (2004). \emph{Econometric Theory and Methods}.
 Oxford University Press. Section 16.7 discusses LM tests for heteroscedasticity

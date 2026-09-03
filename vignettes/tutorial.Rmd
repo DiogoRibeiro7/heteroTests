@@ -11,25 +11,24 @@ vignette: >
 library(heteroTests)
 ```
 
-This vignette demonstrates the main workflow in greater depth. We use the
-`boston_housing` dataset bundled with the package.
+This vignette demonstrates the main workflow in greater depth. We use R's
+built-in `quakes` dataset.
 
 ```{r}
-data(boston_housing, package = "heteroTests")
-head(boston_housing)
+head(quakes)
 ```
 
 ## 1. Fit an initial model
 
 ```{r}
-base_model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+base_model <- lm(stations ~ mag + depth, data = quakes)
 summary(base_model)
 ```
 
 ## 2. Diagnose heteroscedasticity
 
 ```{r}
-hd <- HeteroDiagnostic(base_model, boston_housing)
+hd <- HeteroDiagnostic(base_model, quakes)
 test(hd)
 plot(hd)
 ```

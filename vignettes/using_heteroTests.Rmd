@@ -17,14 +17,13 @@ The **heteroTests** package provides several classical tests for detecting heter
 library(heteroTests)
 
 # Fit a simple linear model on real data
-data(boston_housing, package = "heteroTests")
-model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+model <- lm(stations ~ mag + depth, data = quakes)
 # A second dataset demonstrates collinearity and mild nonlinearity
 data(diagnostic_data)
 diag_model <- lm(y ~ x1 + x2, data = diagnostic_data)
 
 # Run White's test and get an htest object
-performWhiteTest(model, boston_housing)
+performWhiteTest(model, quakes)
 performWhiteTest(diag_model, diagnostic_data)
 ```
 
@@ -36,13 +35,14 @@ Many additional diagnostics follow the same interface and also return an
 ```{r more-tests}
 # Breusch-Pagan and its robust Koenker version. The data argument must be
 # the data the model was fitted on.
-performBPTest(model, boston_housing)
-performKoenkerTest(model, boston_housing)
+performBPTest(model, quakes)
+performKoenkerTest(model, quakes)
 
 # Group-based tests need a grouping factor in that same data
-boston_grouped <- boston_housing
-boston_grouped$chas <- factor(boston_grouped$chas)
-performLeveneTest(model, boston_grouped, "chas")
+quakes_grouped <- quakes
+quakes_grouped$depth_band <- cut(quakes_grouped$depth, 3,
+                                 labels = c("shallow", "mid", "deep"))
+performLeveneTest(model, quakes_grouped, "depth_band")
 
 # ARCH effects in time series
 performArchLMTest(model, lags = 2)
@@ -52,10 +52,10 @@ Several diagnostics can also be run together.
 
 ```{r run-many}
 # Alternatively run multiple tests at once
-runHeteroTests(model, boston_housing)
+runHeteroTests(model, quakes)
 # Choose a subset of diagnostics
-runHeteroTests(model, boston_housing, tests = c("white", "koenker", "ncv"))
-runDiagnostics(model, boston_housing)
+runHeteroTests(model, quakes, tests = c("white", "koenker", "ncv"))
+runDiagnostics(model, quakes)
 ```
 
 Remediation helpers operate on the fitted model directly.
@@ -68,15 +68,14 @@ autoTransform(model)
 
 See the package README for a complete list of implemented tests.
 
-## Boston housing example
+## Earthquake station-count example
 
-The `boston_housing` dataset contains median housing prices in Boston suburbs along with socioeconomic predictors. We can run the diagnostics and attempt a remedial fit on this real-world data.
+R's built-in `quakes` dataset records 1,000 seismic events near Fiji. We can run the diagnostics and attempt a remedial fit on this real-world data.
 
-```{r boston-example}
-data(boston_housing, package = "heteroTests")
-boston_model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
-runDiagnostics(boston_model, boston_housing)
-fitWLS(boston_model)
+```{r quakes-example}
+quakes_model <- lm(stations ~ mag + depth, data = quakes)
+runDiagnostics(quakes_model, quakes)
+fitWLS(quakes_model)
 ```
 
 ## Theophylline dosing example
@@ -97,13 +96,13 @@ plot(HeteroDiagnostic(dose_model, Theoph))
 This short example shows how to detect heteroscedasticity, choose a remedy and re-test the model.
 
 ```{r step-by-step}
-hd <- HeteroDiagnostic(medv ~ lstat + rm + crim, boston_housing)
+hd <- HeteroDiagnostic(stations ~ mag + depth, quakes)
 test(hd)
 
 wls_model <- fitWLS(hd$model)
 
 # Re-test after remedy
-test(HeteroDiagnostic(wls_model, boston_housing))
+test(HeteroDiagnostic(wls_model, quakes))
 ```
 
 The drop in test statistics or diagnostic plots indicates whether the remedy helped.

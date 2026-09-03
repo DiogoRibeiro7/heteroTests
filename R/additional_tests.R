@@ -87,7 +87,7 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' @references
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 #' *Journal of Econometrics, 17*(1), 107–112.
-#' <https://doi.org/10.1016/0304-4076(81)90062-2>
+#' \doi{10.1016/0304-4076(81)90062-2}
 #'
 #' Davidson, R., & MacKinnon, J. G. (2004). *Econometric Theory and Methods*.
 #' Oxford University Press. Section 16.7 discusses LM tests for heteroscedasticity
@@ -267,7 +267,7 @@ performStudentizedBPTest <- function(model, data) {
 #'
 #' Davidson, R., & MacKinnon, J. G. (2006). The power of bootstrap and asymptotic
 #' tests. *Journal of Econometrics, 133*(2), 421–441.
-#' <https://doi.org/10.1016/j.jeconom.2005.02.002>
+#' \doi{10.1016/j.jeconom.2005.02.002}
 #'
 #' @examples
 #' # The bootstrap needs at least 50 observations, so mtcars (32) is too small.
@@ -428,7 +428,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' @references
 #' Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
 #' linear econometric models. *Econometrica, 46*(6), 1311–1327.
-#' <https://doi.org/10.2307/1913833>
+#' \doi{10.2307/1913833}
 #'
 #' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
 #' University Press. Section 5.4 outlines the Szroeter test.

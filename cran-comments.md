@@ -18,11 +18,10 @@ where some optional Suggests are unavailable locally, the check is run with
 
 Known notes we are aware of and addressing:
 
-- The bundled example dataset `boston_housing` is a verbatim copy of
-  `MASS::Boston`, shipped so the examples, tests and tutorials run without
-  attaching MASS. Its provenance is documented in `?boston_housing`. The datasets
-  are stored as `.rda` files under `data/` (generation scripts live in
-  `data-raw/`).
+- Examples, vignettes and tutorials use R's built-in `quakes` dataset, so the
+  package redistributes no third-party data. The two datasets it does ship,
+  `diagnostic_data` and `hetero_data`, are simulated; their generating scripts
+  are under `data-raw/`.
 - The package intentionally ships a large optional surface (visualisation,
   reporting and ecosystem-integration helpers) behind `Suggests`; each is exercised
   only when the corresponding package is installed.

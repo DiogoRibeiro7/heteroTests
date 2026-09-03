@@ -83,7 +83,7 @@ performSzroeterTest(mod, mtcars, order_by = "wt", alternative = "two.sided")
 \references{
 Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
 linear econometric models. \emph{Econometrica, 46}(6), 1311–1327.
-\url{https://doi.org/10.2307/1913833}
+\doi{10.2307/1913833}
 
 Godfrey, L. G. (1988). \emph{Misspecification Tests in Econometrics}. Cambridge
 University Press. Section 5.4 outlines the Szroeter test.

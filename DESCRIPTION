@@ -1,6 +1,6 @@
 Package: heteroTests
 Title: Heteroscedasticity Diagnostics for Linear Models
-Version: 0.8.0
+Version: 0.8.1
 Authors@R: person("Diogo", "Ribeiro", email = "dfr@esmad.ipp.pt",
     role = c("aut", "cre"),
     comment = c(ORCID = "0009-0001-2022-7072"))

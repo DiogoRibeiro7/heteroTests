@@ -20,60 +20,82 @@ This vignette illustrates how to incorporate heteroTests into real analyses.
 Each case study follows a workflow of model specification, diagnostic testing,
 visualisation, and interpretation.
 
-## Case study 1: Housing affordability
+## Case study 1: Seismic station counts
 
-The `boston_housing` dataset captures median house values (`medv`) and socio-
-economic predictors for Boston census tracts. We regress prices on socio-
-economic indicators and inspect residual dispersion.
+R's built-in `quakes` dataset records 1,000 seismic events near Fiji. We
+regress the number of reporting stations on event magnitude and depth, and
+inspect the residual dispersion. The response is a count, so its variance is
+expected to rise with its mean.
 
 ```{r}
-data(boston_housing, package = "heteroTests")
-housing_model <- lm(medv ~ lstat + rm + crim + dis, data = boston_housing)
-summary(housing_model)
+quakes_model <- lm(stations ~ mag + depth, data = quakes)
+summary(quakes_model)
 ```
 
 Formal diagnostics flag heteroscedasticity consistent with the classical
 literature on this dataset.
 
 ```{r}
-white_housing <- performWhiteTest(housing_model, boston_housing)
-bp_housing <- performBPTest(housing_model, boston_housing)
-koenker_housing <- performKoenkerTest(housing_model, boston_housing)
-list(White = white_housing, Breusch_Pagan = bp_housing, Koenker = koenker_housing)
+white_q <- performWhiteTest(quakes_model, quakes)
+bp_q <- performBPTest(quakes_model, quakes)
+koenker_q <- performKoenkerTest(quakes_model, quakes)
+list(White = white_q, Breusch_Pagan = bp_q, Koenker = koenker_q)
 ```
 
 ```{r fig.width=6, fig.height=4}
 plot_data <- data.frame(
-  fitted = fitted(housing_model),
-  residual = resid(housing_model),
-  lstat = boston_housing$lstat
+  fitted = fitted(quakes_model),
+  residual = resid(quakes_model),
+  mag = quakes$mag
 )
 
-ggplot(plot_data, aes(x = fitted, y = residual, colour = lstat)) +
+ggplot(plot_data, aes(x = fitted, y = residual, colour = mag)) +
   geom_point(alpha = 0.7) +
   scale_colour_viridis_c(option = "C") +
   geom_smooth(se = FALSE, colour = "black") +
   labs(
     x = "Fitted values",
     y = "Residuals",
-    colour = "lstat",
-    title = "Heteroscedasticity in Boston housing prices"
+    colour = "mag",
+    title = "Heteroscedasticity in reported station counts"
   ) +
   theme_minimal()
 ```
 
 *Interpretation.* All three tests reject homoskedasticity. The residual plot
-reveals wider dispersion at higher predicted prices and for neighbourhoods with
-larger `lstat` (lower socio-economic status). Weighted least squares is a common
+reveals wider dispersion at higher predicted counts and for events of larger
+`mag`. Weighted least squares is a common
 remedy.
 
 ```{r}
-wls_housing <- fitWLS(housing_model)
-scale_comparison <- c(OLS = sigma(housing_model), WLS = sigma(wls_housing))
-scale_comparison
+wls_q <- fitWLS(quakes_model)
+
+# Compare like with like: the residual variance across thirds of the fitted
+# range, unweighted for OLS and weighted for WLS. Comparing sigma() of the two
+# fits would not work -- fitWLS() weights by 1 / e_i^2, so the weighted sum of
+# squares collapses to n and sigma(wls) is approximately sqrt(n / (n - p)) for
+# any data at all.
+third <- cut(fitted(quakes_model), 3, labels = c("low", "mid", "high"))
+rbind(
+  OLS_resid_var = round(tapply(residuals(quakes_model)^2, third, mean), 1),
+  WLS_weighted_resid_var = round(
+    tapply((residuals(wls_q) * sqrt(weights(wls_q)))^2, third, mean), 3))
 ```
 
-The WLS fit reduces the residual scale, validating the remedy.
+The unweighted variance climbs steeply across the fitted range -- a 6.6-fold
+spread -- which is the heteroscedasticity the tests detected.
+
+Read the near-flat weighted row with care. `fitWLS()` takes
+`w_i = 1 / e_i^2` from the *OLS* residuals and then refits, so each weighted
+squared residual comes out close to 1 whenever refitting moves the coefficients
+little, which is usually. The row is therefore near-flat for most data rather
+than because the variance model is right: run the same comparison on `cars` or
+`trees` and it still lands within a factor of 1.1 to 1.3 of flat. Treat it as a
+check that the weighting was applied, not as evidence that it was the right
+weighting. Weights that mean something come from a variance model estimated in
+its own right -- the feasible-WLS recipe in tutorial 2 regresses `log(e^2)` on
+the fitted values, and for a count response like this one a quasi-Poisson GLM is
+the more defensible remedy.
 
 ## Case study 2: Income volatility in simulated survey data
 

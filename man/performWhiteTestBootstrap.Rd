@@ -76,7 +76,7 @@ Chapman & Hall/CRC.
 
 Davidson, R., & MacKinnon, J. G. (2006). The power of bootstrap and asymptotic
 tests. \emph{Journal of Econometrics, 133}(2), 421–441.
-\url{https://doi.org/10.1016/j.jeconom.2005.02.002}
+\doi{10.1016/j.jeconom.2005.02.002}
 }
 \seealso{
 \code{\link[=performWhiteTest]{performWhiteTest()}} for the classical statistic and
