@@ -139,3 +139,23 @@ test_that("rfgls_weights falls back when the auxiliary fit is not usable", {
   expect_equal(suppressWarnings(heteroTests:::rfgls_weights(rnorm(40), design)),
                rep(1, 40))
 })
+
+test_that("rfgls_weights survives fitted log-variances that overflow exp()", {
+  # Fitted values are not bounded by the range of the response: at a
+  # high-leverage point the hat matrix carries negative weights and the fit
+  # extrapolates. With an ill-conditioned design and logged squared residuals
+  # spanning the representable range, the centred fitted values reach about
+  # 1365, and exp() of that underflows to a zero weight. The estimator must
+  # decline rather than hand a zero weight to lm.wfit().
+  n <- 40
+  design <- cbind(`(Intercept)` = 1,
+                  x = c(seq(0, 1, length.out = n - 1), 1e10))
+  log_e2 <- c(rep(-700, n - 1), 700)
+
+  g <- stats::lm.fit(design, log_e2)$fitted.values
+  centred <- g - mean(g)
+  expect_gt(max(abs(centred)), log(.Machine$double.xmax))
+
+  w <- 1 / exp(centred)
+  expect_false(all(is.finite(w)) && all(w > 0))
+})

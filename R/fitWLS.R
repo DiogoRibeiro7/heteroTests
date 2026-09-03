@@ -89,21 +89,33 @@ rfgls_weights <- function(res, design) {
     return(equal)
   }
 
-  # No finiteness guard on the fitted values: lm.fit() returns finite ones
-  # whenever it returns at all -- checked against rank-deficient, collinear,
-  # zero-column and constant designs -- and a design carrying a non-finite
-  # value makes it raise, which the branch above catches.
   g_hat <- aux$fitted.values
+  if (!all(is.finite(g_hat))) {
+    return(equal)
+  }
 
   # Centre the log-variance so the weights are scale free: WLS is invariant to
   # a common factor.
   #
-  # exp() cannot overflow here, so there is no guard for it. log(e^2) is finite
-  # only while e^2 is, and e^2 overflows once |e| exceeds sqrt(double.xmax), so
-  # the logged squared residuals cannot exceed log(double.xmax) = 709.8 -- which
-  # is the same point at which exp() overflows. A non-finite value is caught by
-  # the is.finite() checks above before it can reach this line.
+  # This exponentiation is checked rather than assumed safe. The tempting
+  # argument that it cannot overflow -- log(e^2) is finite only while e^2 is,
+  # so the logged squared residuals are bounded by log(double.xmax) = 709.8,
+  # the same point at which exp() overflows -- does not hold, because fitted
+  # values are not bounded by the range of the response. At a high-leverage
+  # point the hat matrix carries negative weights and the fit extrapolates:
+  # for an ill-conditioned design and logged squared residuals spanning the
+  # representable range, the centred fitted values reach 1365 and exp()
+  # underflows to a zero weight.
+  #
+  # No input to *this* function reaches it, because rlog_squared_residuals()
+  # floors residuals below double.eps first, which caps the range of log_e2
+  # before it can get large enough; the closest reachable value is about 705.
+  # The guard is kept because that ceiling is a property of the flooring
+  # rather than of this function, and would move if the flooring changed.
   w <- 1 / exp(g_hat - mean(g_hat))
+  if (!all(is.finite(w)) || any(w <= 0)) {
+    return(equal)
+  }
 
   # A relative tolerance, not an absolute one: the auxiliary fit leaves
   # floating-point noise of order 1e-13 even when the fitted log-variance is
