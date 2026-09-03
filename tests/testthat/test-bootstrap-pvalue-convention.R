@@ -63,3 +63,60 @@ test_that("wild bootstrap and rank permutation already use the convention", {
   rp <- performRankPermutationTest(model, df, B = 60, progress = FALSE)
   expect_gt(rp$p.value, 0)
 })
+
+test_that("null-imposed resampling gives the bootstrap p-value power", {
+  skip_on_cran()
+  # Before 0.10.0 this p-value came from pairs resampling, so the replicates
+  # were centred on the observed statistic and the p-value sat near 0.5
+  # whatever the data: measured rejection under sd = x^2 was 0%. A single
+  # strongly heteroscedastic sample is enough to catch a regression to that.
+  set.seed(4)
+  n <- 120
+  x <- runif(n, 1, 5)
+  d <- data.frame(x = x, y = 1 + 2 * x + rnorm(n, sd = x^2))
+  m <- lm(y ~ x, data = d)
+
+  out <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, d, B = 199, progress = FALSE))
+
+  expect_true(is.finite(out$p_value))
+  expect_lt(out$p_value, 0.05)
+})
+
+test_that("pairs resampling returns replicates but no p-value", {
+  skip_on_cran()
+  # Pairs replicates describe the statistic's variability under the data as
+  # they are, which is not a null distribution, so no p-value is reported.
+  set.seed(4)
+  n <- 60
+  x <- runif(n, 1, 5)
+  d <- data.frame(x = x, y = 1 + 2 * x + rnorm(n, sd = x))
+  m <- lm(y ~ x, data = d)
+
+  out <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, d, B = 50, resample = "pairs", progress = FALSE))
+
+  expect_true(is.na(out$p_value))
+  expect_length(out$replicates, 50L)
+  expect_true(all(is.finite(out$ci)))
+})
+
+test_that("null residuals are leverage-corrected before resampling", {
+  skip_on_cran()
+  # Resampling raw residuals under-disperses the regenerated errors, because
+  # OLS residuals have variance sigma^2 (1 - h_i). An early version without the
+  # correction rejected about 13% of the time under the null instead of 5%.
+  set.seed(7)
+  n <- 80
+  x <- c(runif(n - 1, 1, 5), 40)          # one high-leverage point
+  d <- data.frame(x = x, y = 1 + 2 * x + rnorm(n))
+  m <- lm(y ~ x, data = d)
+
+  e <- residuals(m)
+  h <- hatvalues(m)
+  corrected <- e / sqrt(pmax(1 - h, .Machine$double.eps))
+
+  # The correction inflates the residual at the high-leverage point.
+  expect_gt(var(corrected), var(e))
+  expect_gt(abs(corrected[n]) / abs(e[n]), 1)
+})

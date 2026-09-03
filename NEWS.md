@@ -1,5 +1,57 @@
 # heteroTests News
 
+## 0.10.0
+
+`rbootstrap_test_statistic()` now resamples under the null. Its p-value
+changes, and so does the `p.value_bootstrap` field of the two robust tests,
+hence the minor version.
+
+### The bootstrap p-value could not detect anything
+
+The helper resampled rows of the data with replacement, refitted, and
+recomputed the statistic. Those replicates follow the statistic's distribution
+under whatever variance structure the data actually have, not under the null:
+they are centred on the observed statistic, so comparing the two returns
+roughly one half however strong the heteroscedasticity is.
+
+Measured over 400 samples at n = 120, B = 199, testing Koenker's statistic:
+
+| procedure | size, homoscedastic | power, sd = x^2 |
+| --- | ---: | ---: |
+| pairs resampling (before) | 0.0% | **0.0%** |
+| null-imposed (now) | 5.0% | 100% |
+| `performWildBootstrapTest()` | 2.5% | 100% |
+| Koenker, asymptotic | 5.0% | 100% |
+
+Zero rejections under a strong alternative. The p-value was exported directly
+and also reached users as `p.value_bootstrap` from `performWhiteTestRobust()`
+and `performBPTestRobust()` when called with `bootstrap = TRUE`.
+
+`resample` now takes `"null"`, which is the default. The response is
+regenerated as `fitted + e*`, with `e*` drawn with replacement from the
+residuals after dividing by `sqrt(1 - h_i)` and centring, so the regenerated
+data satisfy homoscedasticity by construction. Size is 5.0% (Monte Carlo
+standard error 1.1%) and power is 99.2% against `sd = 0.5x` and 100% against
+`sd = x^2`.
+
+The leverage correction is not decorative. OLS residuals have variance
+`sigma^2 (1 - h_i)`, so resampling them unscaled under-disperses the
+regenerated errors; a version without it rejected about 13% of the time under
+the null. This is the construction `performWildBootstrapTest()` already used.
+
+`resample = "pairs"` is still available and still returns the replicates and
+the interval, which describe the statistic's variability perfectly well. It now
+returns `NA` for `p_value` rather than a number that cannot be interpreted.
+
+### Percentile intervals are not confidence intervals
+
+The `ci` component was documented as a "percentile confidence interval for the
+statistic". It is a percentile interval of the bootstrap distribution: it
+summarises where the resampled statistic falls, is not an interval for a
+parameter, and carries no coverage guarantee. The documentation says so. This
+closes the corresponding roadmap item.
+
+
 ## 0.9.0
 
 `fitWLS()` now estimates its weights from a variance model. The numbers it
