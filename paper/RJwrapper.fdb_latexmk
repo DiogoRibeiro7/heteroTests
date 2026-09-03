@@ -1,16 +1,17 @@
 # Fdb version 4
-["bibtex RJwrapper"] 1788267059.22139 "RJwrapper.aux" "RJwrapper.bbl" "RJwrapper" 1788453491.60651 0
-  "./RJreferences.bib" 1782246848 9461 d4e2127f51dc617fae4c302241dcb7d1 ""
+["bibtex RJwrapper"] 1788456888.48479 "RJwrapper.aux" "RJwrapper.bbl" "RJwrapper" 1788457064.24805 0
+  "./RJreferences.bib" 1782246848.98286 9461 bb1aec74ace9ca9710e75ed4e0811d13 ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/bibtex/bst/natbib/abbrvnat.bst" 1284455456 26532 66bed5cc59495faaa3f9ae9af9fa5e42 ""
-  "RJwrapper.aux" 1788453490 34152 d5cec9c53025ba82f4c517f66b2a612f "pdflatex"
+  "RJwrapper.aux" 1788457063.03748 33812 71d8ab366f8f420f22b6c07a5492aa68 "pdflatex"
   (generated)
   "RJwrapper.bbl"
   "RJwrapper.blg"
   (rewritten before read)
-["pdflatex"] 1788453486.18744 "c:/Users/diogo/work_code/heteroTests/paper/RJwrapper.tex" "RJwrapper.pdf" "RJwrapper" 1788453491.60713 0
-  "C:/Users/diogo/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1787604428 153992 31d713de247d99b9fd2b527da7763d9f ""
-  "C:/Users/diogo/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/tctt0900.pk" 1752339966 8332 9b0654315f3d9c1a7f4947a00a318b51 ""
-  "C:/Users/diogo/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1783686964 13321867 f49d6c746e42821ad6fd8f15daccfc90 ""
+["pdflatex"] 1788457061.5589 "RJwrapper.tex" "RJwrapper.pdf" "RJwrapper" 1788457064.24895 0
+  "C:/Users/diogo/AppData/Lo" 1788102910.93326 42 d18f149624133dd6ccd13df1bca29e74 ""
+  "C:/Users/diogo/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1787604428.04482 153992 31d713de247d99b9fd2b527da7763d9f ""
+  "C:/Users/diogo/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/tctt0900.pk" 1752339966.05623 8332 9b0654315f3d9c1a7f4947a00a318b51 ""
+  "C:/Users/diogo/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1783686964.10697 13321867 64667cffc8d432af1b8eac1541074562 ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc" 1458473887 4993 80dc9bab7f31fb78a000ccfed0e27cab ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/inconsolata/i4-t1-0.enc" 1557959318 7631 5169ff1acd97ff1c4ab83563c99f96f4 ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/inconsolata/i4-ts1.enc" 1455678473 9446 fe5580ca6042a44427f18d450942e7d0 ""
@@ -215,16 +216,15 @@
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/tex/latex/url/url.sty" 1388490452 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/tex/latex/xcolor/xcolor.sty" 1729265222 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "C:/Users/diogo/AppData/Local/Programs/MiKTeX/tex/latex/xkeyval/xkeyval.sty" 1656236919 4937 4ce600ce9bd4ec84d0250eb6892fcf4f ""
-  "RJournal.sty" 1752055913 12088 fa789f99473f87939824c765faaa5f90 ""
-  "RJwrapper.aux" 1788453490 34152 d5cec9c53025ba82f4c517f66b2a612f "pdflatex"
-  "RJwrapper.bbl" 1788267059 6603 2e1936a2bd3c0de80206361b51de90ff "bibtex RJwrapper"
-  "RJwrapper.brf" 1788453490 1396 08464e3f6081e34fbb54913dd7ab60ce "pdflatex"
-  "RJwrapper.out" 1788453490 11554 3b7cf87fa2db872806dc32abe7440c9a "pdflatex"
-  "RJwrapper.tex" 1782246849 549 21ceb0552f16a76703eed34db99dcf37 ""
-  "c:/Users/diogo/work_code/heteroTests/paper/RJwrapper.tex" 1782246849 549 21ceb0552f16a76703eed34db99dcf37 ""
-  "heteroTests.tex" 1788453403 94946 f788132b974b08396aece3ada96e2067 ""
-  "power_curves.pdf" 1782246849 8845 ac395e2b1bd3458eec02a40c5260d30a ""
-  "scaling_plot.pdf" 1782246849 5160 68423c9f449688db1409556a8a4336ea ""
+  "RJournal.sty" 1752055913.19627 12088 c1fa8c349c4b70abbb7a1730fefb128f ""
+  "RJwrapper.aux" 1788457063.03748 33812 71d8ab366f8f420f22b6c07a5492aa68 "pdflatex"
+  "RJwrapper.bbl" 1788456888.91056 6603 26b1413eae68a975d2c5d520cdd6b880 "bibtex RJwrapper"
+  "RJwrapper.brf" 1788457063.06926 1396 8bcd7bf4754a61a554abe6d27ad73f14 "pdflatex"
+  "RJwrapper.out" 1788457063.05758 11554 3b7cf87fa2db872806dc32abe7440c9a "pdflatex"
+  "RJwrapper.tex" 1782246849.01489 549 dbd695c0738a6a34d94668c8e46de57f ""
+  "heteroTests.tex" 1788457060.91796 93617 e95074d55769523dab92334f31e5798e ""
+  "power_curves.pdf" 1782246849.01727 8845 ac395e2b1bd3458eec02a40c5260d30a ""
+  "scaling_plot.pdf" 1782246849.01927 5160 68423c9f449688db1409556a8a4336ea ""
   (generated)
   "RJwrapper.aux"
   "RJwrapper.brf"

@@ -1,6 +1,6 @@
-PWD c:\Users\diogo\work_code\heteroTests\paper
+PWD C:\Users\diogo\work_code\heteroTests\paper
 INPUT C:\Users\diogo\AppData\Local\MiKTeX\miktex\data\le\pdftex\pdflatex.fmt
-INPUT c:\Users\diogo\work_code\heteroTests\paper\RJwrapper.tex
+INPUT RJwrapper.tex
 OUTPUT RJwrapper.log
 INPUT C:\Users\diogo\AppData\Local\Programs\MiKTeX\tex\latex\base\report.cls
 INPUT C:\Users\diogo\AppData\Local\Programs\MiKTeX\tex\latex\base\report.cls
