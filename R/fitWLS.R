@@ -89,25 +89,21 @@ rfgls_weights <- function(res, design) {
     return(equal)
   }
 
+  # No finiteness guard on the fitted values: lm.fit() returns finite ones
+  # whenever it returns at all -- checked against rank-deficient, collinear,
+  # zero-column and constant designs -- and a design carrying a non-finite
+  # value makes it raise, which the branch above catches.
   g_hat <- aux$fitted.values
-  if (!all(is.finite(g_hat))) {
-    return(equal)
-  }
 
-  # exp() of a large fitted value overflows to Inf and of a large negative one
-  # underflows to 0; either would reintroduce the degenerate weighting this
-  # function exists to avoid. Centre the log-variance so the weights are scale
-  # free -- WLS is invariant to a common factor -- and then guard the range.
-  g_hat <- g_hat - mean(g_hat)
-  sigma2 <- exp(g_hat)
-  if (!all(is.finite(sigma2)) || any(sigma2 <= 0)) {
-    return(equal)
-  }
-
-  w <- 1 / sigma2
-  if (!all(is.finite(w)) || any(w <= 0)) {
-    return(equal)
-  }
+  # Centre the log-variance so the weights are scale free: WLS is invariant to
+  # a common factor.
+  #
+  # exp() cannot overflow here, so there is no guard for it. log(e^2) is finite
+  # only while e^2 is, and e^2 overflows once |e| exceeds sqrt(double.xmax), so
+  # the logged squared residuals cannot exceed log(double.xmax) = 709.8 -- which
+  # is the same point at which exp() overflows. A non-finite value is caught by
+  # the is.finite() checks above before it can reach this line.
+  w <- 1 / exp(g_hat - mean(g_hat))
 
   # A relative tolerance, not an absolute one: the auxiliary fit leaves
   # floating-point noise of order 1e-13 even when the fitted log-variance is

@@ -87,3 +87,55 @@ test_that("fitWLS handles na.exclude models", {
   # Dropping the row either way must give the same fit.
   expect_equal(unname(coef(fit_ex)), unname(coef(fit_om)))
 })
+
+# The fallback branches inside the weight estimator are defensive, so they are
+# exercised directly: reaching them through fitWLS() would need contrived
+# models, and leaving them untested means the guards are never checked.
+
+test_that("rfgls_weights bounds the weight spread", {
+  x <- seq(0, 3, length.out = 50)
+  design <- cbind(`(Intercept)` = 1, x = x)
+
+  # log(e^2) = 10x here, a span of e^30 in the weights. Weighting on that would
+  # put the fit on a handful of points, which is the failure the estimator was
+  # rewritten to remove, so it must decline and say so.
+  expect_warning(
+    w <- heteroTests:::rfgls_weights(exp(5 * x), design),
+    "orders of magnitude"
+  )
+  expect_equal(w, rep(1, 50))
+
+  # It must not over-trigger: a spread of a few hundred is ordinary
+  # heteroscedasticity and has to be weighted, not discarded.
+  w2 <- heteroTests:::rfgls_weights(exp(1 * x), design)
+  expect_false(isTRUE(all.equal(w2, rep(1, 50))))
+  expect_lt(max(w2) / min(w2), 1e6)
+})
+
+test_that("rfgls_weights falls back when the variance model cannot be built", {
+  x <- seq(1, 5, length.out = 30)
+  design <- cbind(`(Intercept)` = 1, x = x)
+
+  # Non-finite residuals leave the logged squared residuals non-finite.
+  res_na <- rnorm(30)
+  res_na[4] <- NA_real_
+  expect_equal(suppressWarnings(heteroTests:::rfgls_weights(res_na, design)),
+               rep(1, 30))
+
+  res_inf <- rnorm(30)
+  res_inf[9] <- Inf
+  expect_equal(suppressWarnings(heteroTests:::rfgls_weights(res_inf, design)),
+               rep(1, 30))
+})
+
+test_that("rfgls_weights falls back when the auxiliary fit is not usable", {
+  # A design carrying a non-finite value makes the auxiliary regression's
+  # fitted log-variance unusable. The estimator must return equal weights
+  # rather than propagate NaN into lm.wfit().
+  x <- seq(0, 3, length.out = 40)
+  design <- cbind(`(Intercept)` = 1, x = x)
+  design[3, 2] <- Inf
+
+  expect_equal(suppressWarnings(heteroTests:::rfgls_weights(rnorm(40), design)),
+               rep(1, 40))
+})
