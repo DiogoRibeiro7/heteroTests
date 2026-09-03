@@ -1,4 +1,4 @@
-\begin{thebibliography}{27}
+\begin{thebibliography}{23}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -26,24 +26,11 @@ M.~B. Brown and A.~B. Forsythe.
   (346):\penalty0 364--367, 1974.
 \newblock \doi{10.1080/01621459.1974.10482955}.
 
-\bibitem[Cameron and Trivedi(1990)]{cameron1990regression}
-A.~C. Cameron and P.~K. Trivedi.
-\newblock Regression-based tests for overdispersion in the {Poisson} model.
-\newblock \emph{Journal of Econometrics}, 46\penalty0 (3):\penalty0 347--364,
-  1990.
-\newblock \doi{10.1016/0304-4076(90)90014-K}.
-
 \bibitem[Cook and Weisberg(1983)]{cook1983detection}
 R.~D. Cook and S.~Weisberg.
 \newblock Diagnostics for heteroscedasticity in regression.
 \newblock \emph{Biometrika}, 70\penalty0 (1):\penalty0 1--10, 1983.
 \newblock \doi{10.1093/biomet/70.1.1}.
-
-\bibitem[Curry and Walsh(1976)]{curry1976homogeneity}
-R.~L. Curry and W.~J. Walsh.
-\newblock Homogeneity tests for equality of variances in one-way layouts.
-\newblock \emph{Technometrics}, 18\penalty0 (4):\penalty0 467--473, 1976.
-\newblock \doi{10.1080/00401706.1976.10489517}.
 
 \bibitem[Davidson and Flachaire(2008)]{davidson2008wild}
 R.~Davidson and E.~Flachaire.
@@ -118,14 +105,6 @@ H.~Levene.
   278--292. Stanford University Press, Stanford, CA, 1960.
 \newblock \doi{10.1080/01621459.1974.10482955}.
 
-\bibitem[MacKinnon and White(1985)]{mackinnon1985some}
-J.~G. MacKinnon and H.~White.
-\newblock Some heteroskedasticity-consistent covariance matrix estimators with
-  improved finite sample properties.
-\newblock \emph{Journal of Econometrics}, 29\penalty0 (3):\penalty0 305--325,
-  1985.
-\newblock \doi{10.1016/0304-4076(85)90158-7}.
-
 \bibitem[McLeod and Li(1978)]{mcleod1978diagnosis}
 A.~I. McLeod and W.~K. Li.
 \newblock Diagnostic checking arma time series models using squared‐residual
@@ -160,13 +139,6 @@ M.~H. Pesaran.
 \newblock Technical Report 97/79, University of Cambridge, Faculty of
   Economics, 1997.
 \newblock URL \url{https://www.econ.cam.ac.uk/researchpapers}.
-
-\bibitem[Rice(1980)]{rice1980construction}
-J.~A. Rice.
-\newblock Construction of variance test based on logarithmic transformations.
-\newblock \emph{Journal of the American Statistical Association}, 75\penalty0
-  (370):\penalty0 973--978, 1980.
-\newblock \doi{10.1080/01621459.1980.10477505}.
 
 \bibitem[White(1980)]{white1980heteroskedasticity}
 H.~White.

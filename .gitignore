@@ -51,3 +51,6 @@ __pycache__/
 renv/
 .Rprofile
 tests/testthat/testthat-problems.rds
+
+# SyncTeX navigation data, regenerated on every LaTeX build
+paper/*.synctex.gz
