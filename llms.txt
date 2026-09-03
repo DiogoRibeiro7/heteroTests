@@ -94,11 +94,10 @@ HTML report to `coverage/index.html`.
 
 library(heteroTests)
 
-data(boston_housing, package = "heteroTests")
-model <- lm(medv ~ lstat + rm + crim, boston_housing)
+model <- lm(stations ~ mag + depth, quakes)
 
 # Inspect heteroscedasticity
-hd <- HeteroDiagnostic(model, boston_housing)
+hd <- HeteroDiagnostic(model, quakes)
 test(hd)
 plot(hd)
 
@@ -162,11 +161,7 @@ The development direction, completed work and known technical debt are
 tracked in
 [ROADMAP.md](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md).
 Current known limitations include: input validation is not yet uniform
-across every test, the `renv.lock` is not fully in sync with the
-declared dependencies, and `boston_housing` is shipped as a verbatim
-copy of [`MASS::Boston`](https://rdrr.io/pkg/MASS/man/Boston.html)
-(documented in
-[`?boston_housing`](https://diogoribeiro7.github.io/heteroTests/reference/boston_housing.md)).
+across every test.
 
 ## Contributing
 
@@ -224,9 +219,6 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 
 - [`bootstrap_methods`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_methods.md)
   : Bootstrap utilities for heteroscedasticity diagnostics
-
-- [`boston_housing`](https://diogoribeiro7.github.io/heteroTests/reference/boston_housing.md)
-  : Boston housing prices dataset
 
 - [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
   : Cache results of a heteroscedasticity test

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -96,11 +96,10 @@
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/DiogoRibeiro7/heteroTests" class="external-link">heteroTests</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">boston_housing</span>, package <span class="op">=</span> <span class="st">"heteroTests"</span><span class="op">)</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">medv</span> <span class="op">~</span> <span class="va">lstat</span> <span class="op">+</span> <span class="va">rm</span> <span class="op">+</span> <span class="va">crim</span>, <span class="va">boston_housing</span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">stations</span> <span class="op">~</span> <span class="va">mag</span> <span class="op">+</span> <span class="va">depth</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Inspect heteroscedasticity</span></span>
-<span><span class="va">hd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">boston_housing</span><span class="op">)</span></span>
+<span><span class="va">hd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span>
 <span></span>
@@ -150,7 +149,7 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders</code
 <div class="section level2">
 <h2 id="roadmap-and-limitations">Roadmap and limitations<a class="anchor" aria-label="anchor" href="#roadmap-and-limitations"></a>
 </h2>
-<p>The development direction, completed work and known technical debt are tracked in <a href="ROADMAP.html">ROADMAP.md</a>. Current known limitations include: input validation is not yet uniform across every test, the <code>renv.lock</code> is not fully in sync with the declared dependencies, and <code>boston_housing</code> is shipped as a verbatim copy of <code><a href="https://rdrr.io/pkg/MASS/man/Boston.html" class="external-link">MASS::Boston</a></code> (documented in <code><a href="reference/boston_housing.html">?boston_housing</a></code>).</p>
+<p>The development direction, completed work and known technical debt are tracked in <a href="ROADMAP.html">ROADMAP.md</a>. Current known limitations include: input validation is not yet uniform across every test.</p>
 </div>
 <div class="section level2">
 <h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>

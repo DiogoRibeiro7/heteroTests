@@ -26,9 +26,6 @@
 - [`bootstrap_methods`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_methods.md)
   : Bootstrap utilities for heteroscedasticity diagnostics
 
-- [`boston_housing`](https://diogoribeiro7.github.io/heteroTests/reference/boston_housing.md)
-  : Boston housing prices dataset
-
 - [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
   : Cache results of a heteroscedasticity test
 

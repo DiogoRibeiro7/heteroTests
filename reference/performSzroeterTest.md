@@ -75,7 +75,7 @@ no power against any alternative; see `NEWS.md`.
 
 Szroeter, J. (1978). A class of parametric tests for heteroscedasticity
 in linear econometric models. *Econometrica, 46*(6), 1311–1327.
-<https://doi.org/10.2307/1913833>
+[doi:10.2307/1913833](https://doi.org/10.2307/1913833)
 
 Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*.
 Cambridge University Press. Section 5.4 outlines the Szroeter test.

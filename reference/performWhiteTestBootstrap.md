@@ -71,7 +71,7 @@ Bootstrap*. Chapman & Hall/CRC.
 
 Davidson, R., & MacKinnon, J. G. (2006). The power of bootstrap and
 asymptotic tests. *Journal of Econometrics, 133*(2), 421–441.
-<https://doi.org/10.1016/j.jeconom.2005.02.002>
+[doi:10.1016/j.jeconom.2005.02.002](https://doi.org/10.1016/j.jeconom.2005.02.002)
 
 ## See also
 

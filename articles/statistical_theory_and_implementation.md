@@ -6,34 +6,32 @@ The heteroTests package consolidates classical and modern diagnostics
 for heteroscedasticity into a consistent interface. This vignette
 summarises the statistical foundations of the flagship procedures and
 explains how the implementation orchestrates validation, auxiliary
-regressions, and reporting. Throughout we work with the `boston_housing`
-dataset included with the package.
+regressions, and reporting. Throughout we work with R’s built-in
+`quakes` dataset.
 
 ``` r
 
-data(boston_housing, package = "heteroTests")
-model <- lm(medv ~ lstat + rm + crim, data = boston_housing)
+model <- lm(stations ~ mag + depth, data = quakes)
 summary(model)
 #> 
 #> Call:
-#> lm(formula = medv ~ lstat + rm + crim, data = boston_housing)
+#> lm(formula = stations ~ mag + depth, data = quakes)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -17.925  -3.567  -1.157   1.906  29.024 
+#> -46.506  -6.996  -0.453   6.643  47.259 
 #> 
 #> Coefficients:
-#>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept) -2.56225    3.16602  -0.809  0.41873    
-#> lstat       -0.57849    0.04767 -12.135  < 2e-16 ***
-#> rm           5.21695    0.44203  11.802  < 2e-16 ***
-#> crim        -0.10294    0.03202  -3.215  0.00139 ** 
+#>               Estimate Std. Error t value Pr(>|t|)    
+#> (Intercept) -1.920e+02  4.332e+00 -44.335  < 2e-16 ***
+#> mag          4.791e+01  9.016e-01  53.135  < 2e-16 ***
+#> depth        1.318e-02  1.685e-03   7.822 1.32e-14 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 5.49 on 502 degrees of freedom
-#> Multiple R-squared:  0.6459, Adjusted R-squared:  0.6437 
-#> F-statistic: 305.2 on 3 and 502 DF,  p-value: < 2.2e-16
+#> Residual standard error: 11.17 on 997 degrees of freedom
+#> Multiple R-squared:  0.7404, Adjusted R-squared:  0.7399 
+#> F-statistic:  1422 on 2 and 997 DF,  p-value: < 2.2e-16
 ```
 
 To visualise the heteroscedastic structure we inspect the squared
@@ -56,13 +54,13 @@ ggplot(augmented, aes(x = fitted, y = squared_residuals)) +
     title = "Residual dispersion across fitted values"
   ) +
   theme_minimal()
-#> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+#> `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
 ```
 
 ![](statistical_theory_and_implementation_files/figure-html/unnamed-chunk-2-1.png)
 
 The upward trend in squared residuals suggests that variance increases
-with predicted price, motivating a formal test.
+with predicted count, motivating a formal test.
 
 ## White’s test
 
@@ -93,17 +91,15 @@ Implementation details:
 
 ``` r
 
-white_result <- performWhiteTest(model, boston_housing)
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running White.
+white_result <- performWhiteTest(model, quakes)
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 135.1481 df = 9 p = 0
+#> [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 white_result
 #> 
 #>  White's test for heteroscedasticity
 #> 
 #> data:  model
-#> X-squared = 135.15, df = 9, p-value < 2.2e-16
+#> X-squared = 125.56, df = 5, p-value < 2.2e-16
 #> alternative hypothesis: heteroscedasticity present
 ```
 
@@ -128,16 +124,14 @@ diagnostics that highlight influential residuals and stability warnings.
 
 ``` r
 
-bp_result <- performBPTest(model, boston_housing)
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Breusch-Pagan.
+bp_result <- performBPTest(model, quakes)
 #> [INFO] Running Breusch-Pagan test
 bp_result
 #> 
 #>  Breusch-Pagan test for heteroscedasticity
 #> 
-#> data:  medv ~ lstat + rm + crim
-#> X-squared = 24.344, df = 3, p-value = 2.117e-05
+#> data:  stations ~ mag + depth
+#> X-squared = 191.93, df = 2, p-value < 2.2e-16
 ```
 
 A significant Breusch–Pagan statistic reinforces the evidence of
@@ -156,18 +150,14 @@ heavy tails.
 
 ``` r
 
-koenker_result <- performKoenkerTest(model, boston_housing)
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Koenker.
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Koenker studentized Breusch-Pagan test.
+koenker_result <- performKoenkerTest(model, quakes)
 #> [INFO] Running Koenker test
 koenker_result
 #> 
 #>  Koenker studentized Breusch-Pagan test
 #> 
-#> data:  medv ~ lstat + rm + crim
-#> X-squared = 7.4741, df = 3, p-value = 0.05823
+#> data:  stations ~ mag + depth
+#> X-squared = 111.31, df = 2, p-value < 2.2e-16
 ```
 
 Comparing the three $`p`$-values offers insight into how sensitive each
@@ -197,31 +187,25 @@ model based on $`\widehat{y}_i`$ and $`\widehat{y}_i^2`$.
 
 ``` r
 
-park_result <- performParkTest(model, boston_housing, "lstat")
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Park.
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Park test.
+park_result <- performParkTest(model, quakes, "mag")
 #> [INFO] Running Park test
 harvey_result <- performHarveyTest(model)
-#> Warning: Residual outliers detected at rows 369, 373 (|z| > 5). Inspect
-#> leverage before running Harvey.
 #> [INFO] Running Harvey test
 list(Park = park_result, Harvey = harvey_result)
 #> $Park
 #> 
 #>  Park test for heteroscedasticity
 #> 
-#> data:  medv ~ lstat + rm + crim
-#> t = -0.54024, df = 504, p-value = 0.5893
+#> data:  stations ~ mag + depth
+#> t = 7.1152, df = 998, p-value = 2.131e-12
 #> 
 #> 
 #> $Harvey
 #> 
 #>  Harvey test for multiplicative heteroscedasticity
 #> 
-#> data:  medv ~ lstat + rm + crim; variance regressors: model regressors
-#> X-squared = 19.392, df = 3, p-value = 0.0002269
+#> data:  stations ~ mag + depth; variance regressors: model regressors
+#> X-squared = 52.43, df = 2, p-value = 4.121e-12
 #> alternative hypothesis: error variance is a multiplicative function of the variance regressors
 ```
 
@@ -241,15 +225,15 @@ variance term clarifies departures.
 ``` r
 
 augmented$scaled_residuals <- scale(augmented$residuals)[, 1]
-augmented$lstat <- boston_housing$lstat
+augmented$mag <- quakes$mag
 
-ggplot(augmented, aes(x = lstat, y = scaled_residuals)) +
+ggplot(augmented, aes(x = mag, y = scaled_residuals)) +
   geom_point(alpha = 0.6, colour = "#56B4E9") +
   geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
   labs(
-    x = "Lower status population (lstat)",
+    x = "Event magnitude (mag)",
     y = "Scaled residual",
-    title = "Relationship between residual spread and socio-economic status"
+    title = "Relationship between residual spread and event magnitude"
   ) +
   theme_minimal()
 #> `geom_smooth()` using formula = 'y ~ x'
@@ -258,9 +242,9 @@ ggplot(augmented, aes(x = lstat, y = scaled_residuals)) +
 ![](statistical_theory_and_implementation_files/figure-html/unnamed-chunk-7-1.png)
 
 A pronounced curvature corroborates the Park and Harvey results,
-signalling that variance inflates as `lstat` increases. Together,
-theory, implementation checks, and visualisation guide practitioners
-towards remedies such as weighted least squares or variance stabilising
+signalling that variance inflates as `mag` increases. Together, theory,
+implementation checks, and visualisation guide practitioners towards
+remedies such as weighted least squares or variance stabilising
 transforms.
 
 ## Further reading

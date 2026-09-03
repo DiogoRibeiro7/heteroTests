@@ -15,7 +15,7 @@ citation("heteroTests")
     ## ?algorithms_bibliography for the primary reference behind each test.
     ## 
     ##   Ribeiro D (2025). _heteroTests: Heteroscedasticity Diagnostic Tools_.
-    ##   R package version 0.8.0,
+    ##   R package version 0.8.1,
     ##   <https://github.com/DiogoRibeiro7/heteroTests>.
     ## 
     ##   See the vignette for a detailed introduction to all diagnostics.

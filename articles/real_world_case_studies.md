@@ -4,38 +4,36 @@ This vignette illustrates how to incorporate heteroTests into real
 analyses. Each case study follows a workflow of model specification,
 diagnostic testing, visualisation, and interpretation.
 
-## Case study 1: Housing affordability
+## Case study 1: Seismic station counts
 
-The `boston_housing` dataset captures median house values (`medv`) and
-socio- economic predictors for Boston census tracts. We regress prices
-on socio- economic indicators and inspect residual dispersion.
+R’s built-in `quakes` dataset records 1,000 seismic events near Fiji. We
+regress the number of reporting stations on event magnitude and depth,
+and inspect the residual dispersion. The response is a count, so its
+variance is expected to rise with its mean.
 
 ``` r
 
-data(boston_housing, package = "heteroTests")
-housing_model <- lm(medv ~ lstat + rm + crim + dis, data = boston_housing)
-summary(housing_model)
+quakes_model <- lm(stations ~ mag + depth, data = quakes)
+summary(quakes_model)
 #> 
 #> Call:
-#> lm(formula = medv ~ lstat + rm + crim + dis, data = boston_housing)
+#> lm(formula = stations ~ mag + depth, data = quakes)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -19.006  -3.099  -1.047   1.885  26.571 
+#> -46.506  -6.996  -0.453   6.643  47.259 
 #> 
 #> Coefficients:
-#>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  2.23065    3.32214   0.671    0.502    
-#> lstat       -0.66174    0.05101 -12.974  < 2e-16 ***
-#> rm           4.97649    0.43885  11.340  < 2e-16 ***
-#> crim        -0.12810    0.03209  -3.992 7.53e-05 ***
-#> dis         -0.56321    0.13542  -4.159 3.76e-05 ***
+#>               Estimate Std. Error t value Pr(>|t|)    
+#> (Intercept) -1.920e+02  4.332e+00 -44.335  < 2e-16 ***
+#> mag          4.791e+01  9.016e-01  53.135  < 2e-16 ***
+#> depth        1.318e-02  1.685e-03   7.822 1.32e-14 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 5.403 on 501 degrees of freedom
-#> Multiple R-squared:  0.6577, Adjusted R-squared:  0.6549 
-#> F-statistic: 240.6 on 4 and 501 DF,  p-value: < 2.2e-16
+#> Residual standard error: 11.17 on 997 degrees of freedom
+#> Multiple R-squared:  0.7404, Adjusted R-squared:  0.7399 
+#> F-statistic:  1422 on 2 and 997 DF,  p-value: < 2.2e-16
 ```
 
 Formal diagnostics flag heteroscedasticity consistent with the classical
@@ -43,20 +41,20 @@ literature on this dataset.
 
 ``` r
 
-white_housing <- performWhiteTest(housing_model, boston_housing)
+white_q <- performWhiteTest(quakes_model, quakes)
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 193.7739 df = 14 p = 0
-bp_housing <- performBPTest(housing_model, boston_housing)
+#> [INFO] White test completed: statistic = 125.558 df = 5 p = 0
+bp_q <- performBPTest(quakes_model, quakes)
 #> [INFO] Running Breusch-Pagan test
-koenker_housing <- performKoenkerTest(housing_model, boston_housing)
+koenker_q <- performKoenkerTest(quakes_model, quakes)
 #> [INFO] Running Koenker test
-list(White = white_housing, Breusch_Pagan = bp_housing, Koenker = koenker_housing)
+list(White = white_q, Breusch_Pagan = bp_q, Koenker = koenker_q)
 #> $White
 #> 
 #>  White's test for heteroscedasticity
 #> 
-#> data:  housing_model
-#> X-squared = 193.77, df = 14, p-value < 2.2e-16
+#> data:  quakes_model
+#> X-squared = 125.56, df = 5, p-value < 2.2e-16
 #> alternative hypothesis: heteroscedasticity present
 #> 
 #> 
@@ -64,57 +62,81 @@ list(White = white_housing, Breusch_Pagan = bp_housing, Koenker = koenker_housin
 #> 
 #>  Breusch-Pagan test for heteroscedasticity
 #> 
-#> data:  medv ~ lstat + rm + crim + dis
-#> X-squared = 88.532, df = 4, p-value < 2.2e-16
+#> data:  stations ~ mag + depth
+#> X-squared = 191.93, df = 2, p-value < 2.2e-16
 #> 
 #> 
 #> $Koenker
 #> 
 #>  Koenker studentized Breusch-Pagan test
 #> 
-#> data:  medv ~ lstat + rm + crim + dis
-#> X-squared = 31.028, df = 4, p-value = 3.022e-06
+#> data:  stations ~ mag + depth
+#> X-squared = 111.31, df = 2, p-value < 2.2e-16
 ```
 
 ``` r
 
 plot_data <- data.frame(
-  fitted = fitted(housing_model),
-  residual = resid(housing_model),
-  lstat = boston_housing$lstat
+  fitted = fitted(quakes_model),
+  residual = resid(quakes_model),
+  mag = quakes$mag
 )
 
-ggplot(plot_data, aes(x = fitted, y = residual, colour = lstat)) +
+ggplot(plot_data, aes(x = fitted, y = residual, colour = mag)) +
   geom_point(alpha = 0.7) +
   scale_colour_viridis_c(option = "C") +
   geom_smooth(se = FALSE, colour = "black") +
   labs(
     x = "Fitted values",
     y = "Residuals",
-    colour = "lstat",
-    title = "Heteroscedasticity in Boston housing prices"
+    colour = "mag",
+    title = "Heteroscedasticity in reported station counts"
   ) +
   theme_minimal()
-#> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+#> `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
 ```
 
 ![](real_world_case_studies_files/figure-html/unnamed-chunk-3-1.png)
 
 *Interpretation.* All three tests reject homoskedasticity. The residual
-plot reveals wider dispersion at higher predicted prices and for
-neighbourhoods with larger `lstat` (lower socio-economic status).
-Weighted least squares is a common remedy.
+plot reveals wider dispersion at higher predicted counts and for events
+of larger `mag`. Weighted least squares is a common remedy.
 
 ``` r
 
-wls_housing <- fitWLS(housing_model)
-scale_comparison <- c(OLS = sigma(housing_model), WLS = sigma(wls_housing))
-scale_comparison
-#>       OLS       WLS 
-#> 5.4025613 0.9987815
+wls_q <- fitWLS(quakes_model)
+
+# Compare like with like: the residual variance across thirds of the fitted
+# range, unweighted for OLS and weighted for WLS. Comparing sigma() of the two
+# fits would not work -- fitWLS() weights by 1 / e_i^2, so the weighted sum of
+# squares collapses to n and sigma(wls) is approximately sqrt(n / (n - p)) for
+# any data at all.
+third <- cut(fitted(quakes_model), 3, labels = c("low", "mid", "high"))
+rbind(
+  OLS_resid_var = round(tapply(residuals(quakes_model)^2, third, mean), 1),
+  WLS_weighted_resid_var = round(
+    tapply((residuals(wls_q) * sqrt(weights(wls_q)))^2, third, mean), 3))
+#>                           low     mid    high
+#> OLS_resid_var          80.300 196.900 526.400
+#> WLS_weighted_resid_var  0.991   1.005   1.003
 ```
 
-The WLS fit reduces the residual scale, validating the remedy.
+The unweighted variance climbs steeply across the fitted range – a
+6.6-fold spread – which is the heteroscedasticity the tests detected.
+
+Read the near-flat weighted row with care.
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+takes `w_i = 1 / e_i^2` from the *OLS* residuals and then refits, so
+each weighted squared residual comes out close to 1 whenever refitting
+moves the coefficients little, which is usually. The row is therefore
+near-flat for most data rather than because the variance model is right:
+run the same comparison on `cars` or `trees` and it still lands within a
+factor of 1.1 to 1.3 of flat. Treat it as a check that the weighting was
+applied, not as evidence that it was the right weighting. Weights that
+mean something come from a variance model estimated in its own right –
+the feasible-WLS recipe in tutorial 2 regresses `log(e^2)` on the fitted
+values, and for a count response like this one a quasi-Poisson GLM is
+the more defensible remedy.
 
 ## Case study 2: Income volatility in simulated survey data
 

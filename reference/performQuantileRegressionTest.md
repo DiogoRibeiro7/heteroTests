@@ -74,22 +74,18 @@ Koenker, R. (2005). *Quantile Regression*. Cambridge University Press.
 ``` r
 if (requireNamespace("quantreg", quietly = TRUE)) {
   # The test needs at least 40 observations, so mtcars (32) is too small.
-  data(boston_housing, package = "heteroTests")
-  model <- lm(medv ~ lstat + rm, data = boston_housing)
-  performQuantileRegressionTest(model, boston_housing)
+  model <- lm(stations ~ mag + depth, data = quakes)
+  performQuantileRegressionTest(model, quakes)
 }
-#> Warning: Residual outliers detected at rows 369 (|z| > 5). Inspect leverage before running Quantile regression.
-#> Warning: 3 non-positive fis
-#> Warning: 3 non-positive fis
 #> 
 #>  Quantile regression joint test of equality of slopes
 #> 
-#> data:  medv ~ lstat + rm
-#> F = 35.595, df1 = 2, df2 = 1010, p-value = 1.11e-15
+#> data:  stations ~ mag + depth
+#> F = 26.909, df1 = 2, df2 = 1998, p-value = 2.938e-12
 #> alternative hypothesis: at least one slope differs across quantiles
 #> sample estimates:
-#>         tau_0.25   tau_0.75
-#> lstat -0.7240311 -0.3129101
-#> rm     3.0542943  8.3192288
+#>          tau_0.25    tau_0.75
+#> mag   38.60737066 49.11654471
+#> depth  0.01311127  0.01088702
 #> 
 ```

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,54 +62,51 @@
 analyses. Each case study follows a workflow of model specification,
 diagnostic testing, visualisation, and interpretation.</p>
 <div class="section level2">
-<h2 id="case-study-1-housing-affordability">Case study 1: Housing affordability<a class="anchor" aria-label="anchor" href="#case-study-1-housing-affordability"></a>
+<h2 id="case-study-1-seismic-station-counts">Case study 1: Seismic station counts<a class="anchor" aria-label="anchor" href="#case-study-1-seismic-station-counts"></a>
 </h2>
-<p>The <code>boston_housing</code> dataset captures median house values
-(<code>medv</code>) and socio- economic predictors for Boston census
-tracts. We regress prices on socio- economic indicators and inspect
-residual dispersion.</p>
+<p>R’s built-in <code>quakes</code> dataset records 1,000 seismic events
+near Fiji. We regress the number of reporting stations on event
+magnitude and depth, and inspect the residual dispersion. The response
+is a count, so its variance is expected to rise with its mean.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">boston_housing</span>, package <span class="op">=</span> <span class="st">"heteroTests"</span><span class="op">)</span></span>
-<span><span class="va">housing_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">medv</span> <span class="op">~</span> <span class="va">lstat</span> <span class="op">+</span> <span class="va">rm</span> <span class="op">+</span> <span class="va">crim</span> <span class="op">+</span> <span class="va">dis</span>, data <span class="op">=</span> <span class="va">boston_housing</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">housing_model</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">quakes_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">stations</span> <span class="op">~</span> <span class="va">mag</span> <span class="op">+</span> <span class="va">depth</span>, data <span class="op">=</span> <span class="va">quakes</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; lm(formula = medv ~ lstat + rm + crim + dis, data = boston_housing)</span></span>
+<span><span class="co">#&gt; lm(formula = stations ~ mag + depth, data = quakes)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Residuals:</span></span>
 <span><span class="co">#&gt;     Min      1Q  Median      3Q     Max </span></span>
-<span><span class="co">#&gt; -19.006  -3.099  -1.047   1.885  26.571 </span></span>
+<span><span class="co">#&gt; -46.506  -6.996  -0.453   6.643  47.259 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients:</span></span>
-<span><span class="co">#&gt;             Estimate Std. Error t value Pr(&gt;|t|)    </span></span>
-<span><span class="co">#&gt; (Intercept)  2.23065    3.32214   0.671    0.502    </span></span>
-<span><span class="co">#&gt; lstat       -0.66174    0.05101 -12.974  &lt; 2e-16 ***</span></span>
-<span><span class="co">#&gt; rm           4.97649    0.43885  11.340  &lt; 2e-16 ***</span></span>
-<span><span class="co">#&gt; crim        -0.12810    0.03209  -3.992 7.53e-05 ***</span></span>
-<span><span class="co">#&gt; dis         -0.56321    0.13542  -4.159 3.76e-05 ***</span></span>
+<span><span class="co">#&gt;               Estimate Std. Error t value Pr(&gt;|t|)    </span></span>
+<span><span class="co">#&gt; (Intercept) -1.920e+02  4.332e+00 -44.335  &lt; 2e-16 ***</span></span>
+<span><span class="co">#&gt; mag          4.791e+01  9.016e-01  53.135  &lt; 2e-16 ***</span></span>
+<span><span class="co">#&gt; depth        1.318e-02  1.685e-03   7.822 1.32e-14 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Residual standard error: 5.403 on 501 degrees of freedom</span></span>
-<span><span class="co">#&gt; Multiple R-squared:  0.6577, Adjusted R-squared:  0.6549 </span></span>
-<span><span class="co">#&gt; F-statistic: 240.6 on 4 and 501 DF,  p-value: &lt; 2.2e-16</span></span></code></pre></div>
+<span><span class="co">#&gt; Residual standard error: 11.17 on 997 degrees of freedom</span></span>
+<span><span class="co">#&gt; Multiple R-squared:  0.7404, Adjusted R-squared:  0.7399 </span></span>
+<span><span class="co">#&gt; F-statistic:  1422 on 2 and 997 DF,  p-value: &lt; 2.2e-16</span></span></code></pre></div>
 <p>Formal diagnostics flag heteroscedasticity consistent with the
 classical literature on this dataset.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">white_housing</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performWhiteTest.html">performWhiteTest</a></span><span class="op">(</span><span class="va">housing_model</span>, <span class="va">boston_housing</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">white_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performWhiteTest.html">performWhiteTest</a></span><span class="op">(</span><span class="va">quakes_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [INFO] Running White test</span></span>
-<span><span class="co">#&gt; [INFO] White test completed: statistic = 193.7739 df = 14 p = 0</span></span>
-<span><span class="va">bp_housing</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performBPTest.html">performBPTest</a></span><span class="op">(</span><span class="va">housing_model</span>, <span class="va">boston_housing</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span>
+<span><span class="va">bp_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performBPTest.html">performBPTest</a></span><span class="op">(</span><span class="va">quakes_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [INFO] Running Breusch-Pagan test</span></span>
-<span><span class="va">koenker_housing</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performKoenkerTest.html">performKoenkerTest</a></span><span class="op">(</span><span class="va">housing_model</span>, <span class="va">boston_housing</span><span class="op">)</span></span>
+<span><span class="va">koenker_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performKoenkerTest.html">performKoenkerTest</a></span><span class="op">(</span><span class="va">quakes_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [INFO] Running Koenker test</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>White <span class="op">=</span> <span class="va">white_housing</span>, Breusch_Pagan <span class="op">=</span> <span class="va">bp_housing</span>, Koenker <span class="op">=</span> <span class="va">koenker_housing</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>White <span class="op">=</span> <span class="va">white_q</span>, Breusch_Pagan <span class="op">=</span> <span class="va">bp_q</span>, Koenker <span class="op">=</span> <span class="va">koenker_q</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $White</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  White's test for heteroscedasticity</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; data:  housing_model</span></span>
-<span><span class="co">#&gt; X-squared = 193.77, df = 14, p-value &lt; 2.2e-16</span></span>
+<span><span class="co">#&gt; data:  quakes_model</span></span>
+<span><span class="co">#&gt; X-squared = 125.56, df = 5, p-value &lt; 2.2e-16</span></span>
 <span><span class="co">#&gt; alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
@@ -117,47 +114,72 @@ classical literature on this dataset.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Breusch-Pagan test for heteroscedasticity</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; data:  medv ~ lstat + rm + crim + dis</span></span>
-<span><span class="co">#&gt; X-squared = 88.532, df = 4, p-value &lt; 2.2e-16</span></span>
+<span><span class="co">#&gt; data:  stations ~ mag + depth</span></span>
+<span><span class="co">#&gt; X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $Koenker</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; data:  medv ~ lstat + rm + crim + dis</span></span>
-<span><span class="co">#&gt; X-squared = 31.028, df = 4, p-value = 3.022e-06</span></span></code></pre></div>
+<span><span class="co">#&gt; data:  stations ~ mag + depth</span></span>
+<span><span class="co">#&gt; X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plot_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  fitted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">housing_model</span><span class="op">)</span>,</span>
-<span>  residual <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">resid</a></span><span class="op">(</span><span class="va">housing_model</span><span class="op">)</span>,</span>
-<span>  lstat <span class="op">=</span> <span class="va">boston_housing</span><span class="op">$</span><span class="va">lstat</span></span>
+<span>  fitted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span>,</span>
+<span>  residual <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">resid</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span>,</span>
+<span>  mag <span class="op">=</span> <span class="va">quakes</span><span class="op">$</span><span class="va">mag</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ggplot</span><span class="op">(</span><span class="va">plot_data</span>, <span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">fitted</span>, y <span class="op">=</span> <span class="va">residual</span>, colour <span class="op">=</span> <span class="va">lstat</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu">ggplot</span><span class="op">(</span><span class="va">plot_data</span>, <span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">fitted</span>, y <span class="op">=</span> <span class="va">residual</span>, colour <span class="op">=</span> <span class="va">mag</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">geom_point</span><span class="op">(</span>alpha <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_colour_viridis_c</span><span class="op">(</span>option <span class="op">=</span> <span class="st">"C"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">geom_smooth</span><span class="op">(</span>se <span class="op">=</span> <span class="cn">FALSE</span>, colour <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">labs</span><span class="op">(</span></span>
 <span>    x <span class="op">=</span> <span class="st">"Fitted values"</span>,</span>
 <span>    y <span class="op">=</span> <span class="st">"Residuals"</span>,</span>
-<span>    colour <span class="op">=</span> <span class="st">"lstat"</span>,</span>
-<span>    title <span class="op">=</span> <span class="st">"Heteroscedasticity in Boston housing prices"</span></span>
+<span>    colour <span class="op">=</span> <span class="st">"mag"</span>,</span>
+<span>    title <span class="op">=</span> <span class="st">"Heteroscedasticity in reported station counts"</span></span>
 <span>  <span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_minimal</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using method = 'loess' and formula = 'y ~ x'</span></span></code></pre></div>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span></code></pre></div>
 <p><img src="real_world_case_studies_files/figure-html/unnamed-chunk-3-1.png" class="r-plt" alt="" width="576"></p>
 <p><em>Interpretation.</em> All three tests reject homoskedasticity. The
-residual plot reveals wider dispersion at higher predicted prices and
-for neighbourhoods with larger <code>lstat</code> (lower socio-economic
-status). Weighted least squares is a common remedy.</p>
+residual plot reveals wider dispersion at higher predicted counts and
+for events of larger <code>mag</code>. Weighted least squares is a
+common remedy.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">wls_housing</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fitWLS.html">fitWLS</a></span><span class="op">(</span><span class="va">housing_model</span><span class="op">)</span></span>
-<span><span class="va">scale_comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>OLS <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma</a></span><span class="op">(</span><span class="va">housing_model</span><span class="op">)</span>, WLS <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma</a></span><span class="op">(</span><span class="va">wls_housing</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">scale_comparison</span></span>
-<span><span class="co">#&gt;       OLS       WLS </span></span>
-<span><span class="co">#&gt; 5.4025613 0.9987815</span></span></code></pre></div>
-<p>The WLS fit reduces the residual scale, validating the remedy.</p>
+<code class="sourceCode R"><span><span class="va">wls_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fitWLS.html">fitWLS</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Compare like with like: the residual variance across thirds of the fitted</span></span>
+<span><span class="co"># range, unweighted for OLS and weighted for WLS. Comparing sigma() of the two</span></span>
+<span><span class="co"># fits would not work -- fitWLS() weights by 1 / e_i^2, so the weighted sum of</span></span>
+<span><span class="co"># squares collapses to n and sigma(wls) is approximately sqrt(n / (n - p)) for</span></span>
+<span><span class="co"># any data at all.</span></span>
+<span><span class="va">third</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span>, <span class="fl">3</span>, labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"low"</span>, <span class="st">"mid"</span>, <span class="st">"high"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span></span>
+<span>  OLS_resid_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span>, <span class="va">third</span>, <span class="va">mean</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  WLS_weighted_resid_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">wls_q</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/weights.html" class="external-link">weights</a></span><span class="op">(</span><span class="va">wls_q</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span>, <span class="va">third</span>, <span class="va">mean</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                           low     mid    high</span></span>
+<span><span class="co">#&gt; OLS_resid_var          80.300 196.900 526.400</span></span>
+<span><span class="co">#&gt; WLS_weighted_resid_var  0.991   1.005   1.003</span></span></code></pre></div>
+<p>The unweighted variance climbs steeply across the fitted range – a
+6.6-fold spread – which is the heteroscedasticity the tests
+detected.</p>
+<p>Read the near-flat weighted row with care. <code><a href="../reference/fitWLS.html">fitWLS()</a></code>
+takes <code>w_i = 1 / e_i^2</code> from the <em>OLS</em> residuals and
+then refits, so each weighted squared residual comes out close to 1
+whenever refitting moves the coefficients little, which is usually. The
+row is therefore near-flat for most data rather than because the
+variance model is right: run the same comparison on <code>cars</code> or
+<code>trees</code> and it still lands within a factor of 1.1 to 1.3 of
+flat. Treat it as a check that the weighting was applied, not as
+evidence that it was the right weighting. Weights that mean something
+come from a variance model estimated in its own right – the feasible-WLS
+recipe in tutorial 2 regresses <code>log(e^2)</code> on the fitted
+values, and for a count response like this one a quasi-Poisson GLM is
+the more defensible remedy.</p>
 </div>
 <div class="section level2">
 <h2 id="case-study-2-income-volatility-in-simulated-survey-data">Case study 2: Income volatility in simulated survey data<a class="anchor" aria-label="anchor" href="#case-study-2-income-volatility-in-simulated-survey-data"></a>

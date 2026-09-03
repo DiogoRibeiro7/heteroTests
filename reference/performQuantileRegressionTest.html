@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,23 +89,19 @@
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"quantreg"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="co"># The test needs at least 40 observations, so mtcars (32) is too small.</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">boston_housing</span>, package <span class="op">=</span> <span class="st">"heteroTests"</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">medv</span> <span class="op">~</span> <span class="va">lstat</span> <span class="op">+</span> <span class="va">rm</span>, data <span class="op">=</span> <span class="va">boston_housing</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="fu">performQuantileRegressionTest</span><span class="op">(</span><span class="va">model</span>, <span class="va">boston_housing</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">stations</span> <span class="op">~</span> <span class="va">mag</span> <span class="op">+</span> <span class="va">depth</span>, data <span class="op">=</span> <span class="va">quakes</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu">performQuantileRegressionTest</span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Residual outliers detected at rows 369 (|z| &gt; 5). Inspect leverage before running Quantile regression.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>3 non-positive fis</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>3 non-positive fis</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 	Quantile regression joint test of equality of slopes</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> data:  medv ~ lstat + rm</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> F = 35.595, df1 = 2, df2 = 1010, p-value = 1.11e-15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> data:  stations ~ mag + depth</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> F = 26.909, df1 = 2, df2 = 1998, p-value = 2.938e-12</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: at least one slope differs across quantiles</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> sample estimates:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         tau_0.25   tau_0.75</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lstat -0.7240311 -0.3129101</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rm     3.0542943  8.3192288</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          tau_0.25    tau_0.75</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> mag   38.60737066 49.11654471</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> depth  0.01311127  0.01088702</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 </code></pre></div>
     </div>
