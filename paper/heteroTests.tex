@@ -6,7 +6,7 @@
 \maketitle
 
 \abstract{
-Heteroscedasticity tests are fragmented across over a dozen R packages, forcing users to juggle differing function names, arguments, and outputs. \pkg{heteroTests} resolves this by wrapping 25+ popular diagnostics—spanning auxiliary‐regression, group‐comparison, rank‐based, nonconstant‐variance, and ARCH‐type methods—into a single, consistent API. Each \texttt{perform*Test()} returns a standardized S3 \texttt{htest} object enriched with metadata (residual type, trimming, lags, grouping), enabling batch execution and automated reporting via \texttt{runHeteroTests()}. With only base-R dependencies (and optional \pkg{car}/\pkg{sandwich} support), benchmarks up to $n = 100\,000$ confirm runtimes under 500 ms per test (linear scaling), and power simulations achieve $>80\%$ detection for continuous, step‐function, and autoregressive heteroscedastic patterns. Available on CRAN and GitHub under Apache‐2.0, \pkg{heteroTests} empowers reproducible, end‐to‐end variance diagnostics in both cross‐sectional and time‐series regression workflows.
+Heteroscedasticity diagnostics in R are spread across a dozen packages whose function names, argument orders and return objects do not agree, so combining several tests in one analysis requires bridging code. \pkg{heteroTests} implements 41 diagnostics—auxiliary‐regression, group‐comparison, rank‐based, nonconstant‐variance, ARCH‐type, and resampling‐based—behind one interface. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object carrying the choices that determine the statistic (residual type, trimming, lag order, grouping), which is what makes batch execution through \texttt{runHeteroTests()} and automated reporting possible. It imports nine packages---\pkg{MASS}, \pkg{stats}, \pkg{parallel}, \pkg{ggplot2}, \pkg{scales}, \pkg{R6}, \pkg{generics}, \pkg{curl} and \pkg{SuppDists}---and uses \pkg{car} and \pkg{sandwich} when installed. Timings scale linearly to $n = 50\,000$, where twelve of the thirteen benchmarked tests run in under 500\,ms and White's takes 634\,ms, and simulated power exceeds $80\%$ against continuous, step‐function and autoregressive variance patterns. Where an established implementation exists we reproduce its statistic to machine precision; where one does not, the implementation is checked against its published definition. The package is distributed on GitHub under Apache‐2.0.
 }
 
 
@@ -17,11 +17,11 @@ Heteroscedasticity tests are fragmented across over a dozen R packages, forcing 
 
 Heteroscedasticity tests in R reside in \pkg{lmtest}, \pkg{car}, and base \pkg{stats} yet use distinct function names, argument orders, and output formats. Users call \texttt{bptest()}, \texttt{ncvTest()}, and \texttt{spreadLevelPlot()}, then write custom code to align outputs and metadata. This process increases boilerplate code and complicates reproducible workflows.
 
-\pkg{heteroTests} consolidates twenty‐five diagnostics into a single API. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object with metadata fields for residual type, trimming, lag selection, and grouping. The umbrella function \texttt{runHeteroTests()} executes all configured diagnostics in one call.
+\pkg{heteroTests} places 41 diagnostics behind one API. Each \texttt{perform*Test()} returns an S3 \texttt{htest} object recording the residual type, trimming, lag selection and grouping used, so a result can be reproduced from the object alone; \texttt{runHeteroTests()} executes a configured set in one call.
 
-The package uses base R only, with support for \pkg{car} and \pkg{sandwich} when available. Benchmarks up to \(n=100\,000\) show linear runtime scaling below 500\,ms per test. Power simulations detect variance patterns under linear, step‐function, and autoregressive models with success rates above 80\%.
+The package imports nine packages, of which \pkg{stats} and \pkg{parallel} ship with R; the statistical core needs only \pkg{MASS} and \pkg{SuppDists}, the rest supporting plotting, logging and the ecosystem methods. \pkg{car} and \pkg{sandwich} are used when installed. Timings scale linearly to \(n=50\,000\), where all but one benchmarked test run in under 500\,ms, and simulated power exceeds 80\% against linear, step‐function and autoregressive variance patterns.
 
-\pkg{heteroTests} integrates variance diagnostics into regression workflows. Section~\ref{sec:background} reviews statistical tests; Section~\ref{sec:design} describes package architecture and API; Section~\ref{sec:usage} presents usage examples and case studies; Section~\ref{sec:simulation} provides simulation results and benchmarks; Section~\ref{sec:comparison} compares with existing packages; Section~\ref{sec:discussion} discusses best practices; and Section~\ref{sec:future} outlines future developments.
+Section~\ref{sec:background} reviews statistical tests; Section~\ref{sec:design} describes package architecture and API; Section~\ref{sec:usage} presents usage examples and case studies; Section~\ref{sec:simulation} provides simulation results and benchmarks; Section~\ref{sec:comparison} compares with existing packages; Section~\ref{sec:discussion} discusses best practices; and Section~\ref{sec:future} outlines future developments.
 
 \subsection{Motivation and Problem Statement}\label{sec:motivation}
 
@@ -42,13 +42,13 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \item Standardizes all test functions under the \texttt{perform*Test()} naming convention
 \item Returns consistent S3 \texttt{htest} objects with enhanced metadata
 \item Enables batch execution through \texttt{runHeteroTests()}
-\item Maintains minimal dependencies while supporting optional enhancements
+\item Keeps the statistical core to two non-base imports, with plotting and integration dependencies separable from it
 \item Scales efficiently to large datasets with linear time complexity
 \end{itemize}
 
 \subsection{Package Overview}\label{sec:overview}
 
-\pkg{heteroTests} implements over thirty heteroscedasticity diagnostics across seven major categories:
+\pkg{heteroTests} exports 41 \texttt{perform*Test()} diagnostics in seven groups:
 
 \begin{description}
 \item[Auxiliary regression tests] Model squared residuals on covariates (White, Breusch‐Pagan, Koenker, Harvey, Park, Glejser)
@@ -56,11 +56,11 @@ The \pkg{heteroTests} package addresses these issues by providing a unified inte
 \item[Rank‐based methods] Use nonparametric rank statistics (Spearman rank correlation, rank permutation)
 \item[Non‐constant variance diagnostics] Simple regression‐based variance trend detection (Cook‐Weisberg NCV, Moses spread‐level)
 \item[ARCH‐type tests] Time‐series conditional heteroscedasticity (Engle ARCH LM, McLeod‐Li)
-\item[Resampling and robust diagnostics] Finite‐sample‐valid procedures (wild bootstrap, HC‐covariance, quantile‐regression, rank‐permutation, high‐dimensional)
+\item[Resampling and robust diagnostics] Procedures that avoid the asymptotic null (wild bootstrap, quantile‐regression, rank‐permutation, high‐dimensional)
 \item[Specialized tests] Domain‐specific diagnostics (spatial, clustered, extreme ratios)
 \end{description}
 
-All functions follow consistent argument conventions and return standardized \texttt{htest} objects enriched with test‐specific metadata, enabling seamless integration into automated workflows and reproducible research pipelines. Beyond the tests themselves, the package layers on three workflow conveniences that we revisit in Sections~\ref{sec:design} and~\ref{sec:discussion}: a batch runner with result caching (\texttt{runHeteroTests()}), streaming implementations of the auxiliary‐regression tests for out‐of‐memory data, and an automated recommendation‐and‐remediation engine that interprets the diagnostics and proposes corrective actions such as weighted least squares.
+Thirty-one of the thirty-two take the fitted model first and the data second; \texttt{performBoxMTest()} takes data and a grouping factor, having no single model to test. Arguments beyond those two are method-specific---a grouping factor, a lag order, a choice of regressor---so it is the return structure rather than the signature that lets \texttt{runHeteroTests()} treat the subset it registers interchangeably. Three further components are described in Sections~\ref{sec:design} and~\ref{sec:discussion}: a batch runner with result caching (\texttt{runHeteroTests()}), streaming implementations of the auxiliary‐regression tests for data that do not fit in memory, and a recommendation layer that interprets the diagnostics and proposes corrections such as weighted least squares.
 
 
 %%------------------------------------------------------------------
@@ -74,7 +74,7 @@ We consider the linear regression model
 \]
 where $\hat\beta=(X^\top X)^{-1}X^\top y$, $\hat y = X\hat\beta$, and residuals are $e = y - \hat y$. Under homoscedasticity, $\sigma_i^2=\sigma^2$; under heteroscedasticity, the $\sigma_i^2$ vary across observations. All diagnostics in \pkg{heteroTests} operate on $e$ or transformations of $e$, with the user selecting \texttt{resid.type} (response, Pearson, or studentized).
 
-Tests are grouped into six categories and exposed via \texttt{perform*Test()} functions (Table~\ref{tab:test-categories}). The wrapper \texttt{runHeteroTests()} accepts arguments
+Table~\ref{tab:test-categories} lists six of the seven groups with a representative wrapper; the resampling diagnostics of Section~\ref{sec:modern} are omitted from the table because they share the auxiliary‐regression statistics and differ only in how the null is computed. The wrapper \texttt{runHeteroTests()} accepts arguments
 \texttt{model}, \texttt{data}, \texttt{resid.type}, \texttt{trim}, \texttt{lag}, \texttt{group}, and \texttt{order.by}, dispatching to the selected diagnostics and returning a named list of S3 \texttt{htest} objects.
 
 \begin{table}[ht]
@@ -96,19 +96,19 @@ Specialized             & \texttt{perform<Pesaran|OBrien>Test()}       & \texttt
 \end{table}
 
 \subsection{Classification of Heteroscedasticity Tests}\label{sec:classification}
-Heteroscedasticity tests differ in methodology and scope; we classify them into six categories based on mechanics and assumptions:
+The categories below group tests by the statistic they compute and the assumptions it requires.
 
-\paragraph{Auxiliary Regression Tests} Fit an auxiliary regression of squared residuals (or functions thereof) on covariates, detecting general variance patterns. These tests regress some transformation of the squared residuals on the original regressors or their functions, testing whether the auxiliary regression has significant explanatory power. Examples include White's test, Breusch--Pagan test, Koenker's studentized version, Harvey's multiplicative test, Park's logarithmic test, and Glejser's absolute residual test.
+\paragraph{Auxiliary Regression Tests} Fit an auxiliary regression of squared residuals (or functions thereof) on covariates, detecting general variance patterns. Examples include White's test, Breusch--Pagan test, Koenker's studentized version, Harvey's multiplicative test, Park's logarithmic test, and Glejser's absolute residual test.
 
-\paragraph{Group-wise Comparison Tests} Partition data by ordered covariates or factor levels, then compare sample variances with F- or Chi-square statistics. These methods divide observations into groups based on covariate values or factor levels and test whether group variances are equal. Examples include Goldfeld--Quandt test, Levene's test, Brown--Forsythe test, Bartlett's test, Fligner--Killeen test, and Hartley's F$_{\max}$ test.
+\paragraph{Group-wise Comparison Tests} Partition data by ordered covariates or factor levels, then compare sample variances with F- or Chi-square statistics. Examples include Goldfeld--Quandt test, Levene's test, Brown--Forsythe test, Bartlett's test, Fligner--Killeen test, and Hartley's F$_{\max}$ test.
 
-\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. These approaches use rank transformations to achieve robustness against non-normal errors while maintaining power to detect variance patterns. Examples include Spearman's rank correlation test and the rank-permutation test.
+\paragraph{Rank-Based Methods} Transform absolute residuals via ranks and apply nonparametric tests (correlation or rank-sum) to detect variance trends. Examples include Spearman's rank correlation test and the rank-permutation test.
 
-\paragraph{Non-Constant Variance Diagnostics} Use graphical and simple regression diagnostics to assess monotonic variance patterns without full auxiliary regressions. These methods focus on detecting simple monotonic relationships between variance and fitted values or single covariates. Examples include Cook--Weisberg NCV test and Moses spread--level plot.
+\paragraph{Non-Constant Variance Diagnostics} Use graphical and simple regression diagnostics to assess monotonic variance patterns without full auxiliary regressions. Examples include Cook--Weisberg NCV test and Moses spread--level plot.
 
-\paragraph{ARCH-Type Tests} For time-series data, test for serial dependence in squared residuals using autoregression or portmanteau statistics. These tests specifically target autoregressive conditional heteroscedasticity patterns common in financial and economic time series. Examples include Engle's ARCH LM test and McLeod--Li portmanteau test.
+\paragraph{ARCH-Type Tests} For time-series data, test for serial dependence in squared residuals using autoregression or portmanteau statistics. Examples include Engle's ARCH LM test and McLeod--Li portmanteau test.
 
-\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. These tests target specialized contexts or assumptions not well-addressed by general-purpose methods. Examples include Pesaran's spatial heteroscedasticity test and O'Brien's scaled-deviation test.
+\paragraph{Specialized Tests} Address specific variance structures such as spatial clustering, extreme variance ratios, or group-specific heteroscedasticity patterns. Examples include Pesaran's spatial heteroscedasticity test and O'Brien's scaled-deviation test.
 
 Detailed descriptions of each category and their implementations appear in Sections~\ref{sec:aux-regression} through~\ref{sec:specialized-tests}.
 
@@ -286,7 +286,7 @@ Rather than relying on the asymptotic null distribution of the White or Breusch-
 Heteroscedasticity manifests as conditional quantiles of $y$ that fan out or contract with the covariates. Fitting regression quantiles \citep{koenker1978regression} at a low and a high $\tau$ (e.g. $0.25$ and $0.75$) and testing the equality of the corresponding slope vectors detects exactly this divergence, without committing to a parametric variance function. The \texttt{performQuantileRegressionTest()} function implements the comparison, delegating the quantile fits to \pkg{quantreg} when available.
 
 \paragraph{Rank-Permutation, High-Dimensional, and Spatial Tests}\label{sec:other-modern}
-Three further diagnostics address settings where the standard asymptotics break down. \texttt{performRankPermutationTest()} replaces the analytic null of a rank-based variance statistic with a permutation distribution, giving exact inference for small samples. \texttt{performHighDimensionalTest()} targets the $p\!\approx\! n$ regime in which the auxiliary regression is ill-conditioned, using a regularized score statistic. \texttt{performSpatialHeteroTest()} extends variance testing to spatially correlated errors, taking a spatial-weights object (\texttt{listw}) and assessing whether residual variance clusters in space. Together these widen the package's applicability to resampling-exact, wide-data, and spatial contexts.
+Three further diagnostics address settings where the standard asymptotics break down. \texttt{performRankPermutationTest()} replaces the analytic null of a rank-based variance statistic with a permutation distribution, giving exact inference for small samples. \texttt{performHighDimensionalTest()} targets the $p\!\approx\! n$ regime in which the auxiliary regression is ill-conditioned, using a regularized score statistic. \texttt{performSpatialHeteroTest()} extends variance testing to spatially correlated errors, taking a spatial-weights object (\texttt{listw}) and assessing whether residual variance clusters in space.
 
 %%------------------------------------------------------------------
 %% 3. Package Design and Implementation
@@ -312,7 +312,7 @@ The \pkg{heteroTests} package follows a modular, maintainable structure, organiz
       \item \texttt{hetero\_data.rda}: Simulated data exhibiting heteroscedasticity.
     \end{itemize}
   \item \textbf{man/}: Roxygen2‐generated documentation files (\texttt{.Rd}) for each exported function and dataset.
-  \item \textbf{vignettes/}: Workflow tutorials and examples in R Markdown (e.g., \texttt{heteroTests-workflow.Rmd}).
+  \item \textbf{vignettes/}: Workflow tutorials and examples in R Markdown (e.g., \texttt{tutorial.Rmd}, \texttt{using\_heteroTests.Rmd}).
   \item \textbf{inst/}: Includes package assets such as logos and CSS for pkgdown site.
 \end{itemize}
 
@@ -432,10 +432,10 @@ functionality when auxiliary packages are available.
 %% 3.4 Quality Assurance
 %%------------------------------------------------------------------
 \subsection{Quality Assurance}\label{sec:qa}
-Robustness and reliability of \pkg{heteroTests} are ensured through:
+Three mechanisms guard the implementations against regression:
 
 \paragraph{Unit Testing}
-All functions have comprehensive tests implemented via \pkg{testthat}. Key aspects covered include:
+Every exported function has \pkg{testthat} tests covering:
 \begin{itemize}
   \item Correctness of test statistics and p-values under known scenarios.
   \item Boundary conditions for control parameters (e.g., \texttt{trim} values).
@@ -445,13 +445,13 @@ All functions have comprehensive tests implemented via \pkg{testthat}. Key aspec
 \paragraph{Continuous Integration}
 GitHub Actions workflows are configured to automatically:
 \begin{itemize}
-  \item Run \texttt{R CMD check} on Linux and macOS across R versions.
+  \item Run \texttt{R CMD check} on Linux, macOS and Windows, against R-devel, release and oldrel, and against the minimum R version declared in \texttt{Depends}.
   \item Execute \pkg{testthat} test suites.
   \item Build and deploy the \pkg{pkgdown} website on push to the \texttt{main} branch.
 \end{itemize}
 
 \paragraph{Code Coverage}
-Code coverage metrics are measured with \pkg{covr} and reported via badges in the README. Coverage thresholds are enforced to ensure all critical paths are tested.
+Coverage is measured with \pkg{covr} and reported through Codecov, which fails a pull request whose changed lines fall below the project's coverage. Coverage is a check on which lines execute, not on whether the statistic they compute is correct; the reference comparisons of Section~\ref{sec:accuracy} serve that purpose.
 
 %%------------------------------------------------------------------
 %% 3.5 Documentation and Vignettes
@@ -476,7 +476,7 @@ A \pkg{pkgdown} site provides:
 \end{itemize}
 
 \paragraph{Vignettes}
-An example vignette (\texttt{vignettes/heteroTests-workflow.Rmd}) demonstrates end-to-end workflows:
+Eight vignettes ship with the package. \texttt{tutorial.Rmd} and \texttt{using\_heteroTests.Rmd} cover the basic workflow, \texttt{statistical\_theory\_and\_implementation.Rmd} derives the statistics, \texttt{real\_world\_case\_studies.Rmd} works through applied examples, and \texttt{troubleshooting.Rmd} and \texttt{performance\_comparison\_guide.Rmd} address failure modes and timing. Between them they cover:
 \begin{itemize}
   \item Loading data and fitting models.
   \item Running multiple diagnostics via \texttt{runHeteroTests()}.  
@@ -484,12 +484,11 @@ An example vignette (\texttt{vignettes/heteroTests-workflow.Rmd}) demonstrates e
   \item Incorporating diagnostic steps into reproducible reports.
 \end{itemize}
 
-These resources ensure that users can quickly learn and apply \pkg{heteroTests} functionalities in their analyses.
 
 \subsection{Automated Interpretation and Remediation}\label{sec:recommendation}
 Running a battery of tests leaves the analyst with the harder question of what the results \emph{mean} and what to do next. \pkg{heteroTests} addresses this with a recommendation layer that consumes one or more diagnostic results and returns structured, plain-language guidance. \texttt{analyseDatasetCharacteristics()} profiles the data (sample size, dimensionality, presence of grouping factors, signs of non-normality); \texttt{interpretHeteroTestResults()} translates $p$-values into conclusions with explicit confidence levels; and \texttt{generateHeteroRecommendations()} combines the two into a printed report that proposes concrete remediation strategies and ranks them by expected benefit.
 
-The remediation helpers are exposed directly as well. \texttt{fitWLS()} refits the model by weighted least squares with weights inferred from the estimated variance function; \texttt{fitRobust()} returns heteroscedasticity-consistent inference via the sandwich covariance; and \texttt{autoTransform()} searches a Box--Cox family for a variance-stabilising response transformation. \texttt{compareModelDiagnostics()} then tabulates the diagnostics before and after remediation, so the effect of a correction can be reported quantitatively rather than asserted. This interpret-and-remediate path is designed for practitioners who need defensible variance corrections without first becoming specialists in the underlying tests.
+The remediation helpers are exposed directly as well. \texttt{fitWLS()} refits by feasible generalised least squares, regressing $\log e_i^2$ on the design matrix and weighting by $1/\exp(\hat g_i)$; \texttt{fitRobust()} returns heteroscedasticity-consistent inference via the sandwich covariance; and \texttt{autoTransform()} searches a Box--Cox family for a variance-stabilising response transformation. \texttt{compareModelDiagnostics()} then tabulates the diagnostics before and after remediation, so the effect of a correction can be reported quantitatively rather than asserted. The layer is advisory: it reports which corrections the diagnostics point towards, and \texttt{compareModelDiagnostics()} lets the analyst check whether the correction worked rather than assume it.
 
 %%------------------------------------------------------------------
 %% 4. Usage Examples
@@ -726,7 +725,7 @@ manual extraction of statistics and p-values.
 \section{Simulation Study and Benchmarks}
 \label{sec:simulation}
 
-We evaluate \pkg{heteroTests} performance through comprehensive Monte Carlo simulations covering three key aspects: computational efficiency, statistical power, and size control. The simulation design encompasses multiple heteroscedastic patterns, sample sizes, and data-generating processes to ensure robust evaluation across realistic scenarios.
+We evaluate \pkg{heteroTests} through Monte Carlo simulation on three axes: computational cost, power, and size under the null. The simulation design encompasses multiple heteroscedastic patterns, sample sizes, and data-generating processes to ensure robust evaluation across realistic scenarios.
 
 \subsection{Simulation Design}\label{sec:sim-design}
 The simulation study considers the following data-generating processes to capture diverse heteroscedastic patterns encountered in practice:
@@ -789,7 +788,11 @@ Spearman & 1.3 & 5.9 & 26.4 & 55.1 & 267.8 \\
 \end{tabular}
 \end{table}
 
-The results demonstrate linear scaling with sample size for all tests, with execution times remaining well below 1 second even for $n = 50{,}000$. White's test shows the highest computational cost due to cross-product term construction, while simple tests like NCV and Park exhibit the best performance. ARCH-type tests show moderate computational requirements that scale with the number of lags specified.
+% TODO[CONSISTENCY]: the abstract and introduction previously claimed benchmarks to
+% n = 100,000 with every test under 500 ms. This table stops at n = 50,000 and
+% White's test takes 634.2 ms there. The prose has been matched to the table;
+% either extend the benchmark or keep the claim at n = 50,000.
+Timings grow roughly in proportion to $n$ over the range tested. At $n = 50{,}000$ all thirteen tests finish inside 700\,ms, and all but White's inside 500\,ms. White's test shows the highest computational cost due to cross-product term construction, while simple tests like NCV and Park exhibit the best performance. ARCH-type tests show moderate computational requirements that scale with the number of lags specified.
 
 \subsection{Power Analysis}\label{sec:power}
 Figure~\ref{fig:power} displays power curves for detecting linear heteroscedasticity ($\sigma_i^2 = \sigma^2(1 + \gamma x_i)$) across different effect sizes $\gamma$ and sample sizes. Power is computed as the proportion of Monte Carlo replications where the test rejects the null hypothesis at the 5\% significance level.
@@ -882,7 +885,7 @@ Figure~\ref{fig:scaling} illustrates the linear scaling property of computationa
 \label{fig:scaling}
 \end{figure}
 
-The analysis confirms that all implemented tests achieve O(n) computational complexity, making them suitable for large-scale applications. Memory usage scales similarly, with peak memory consumption remaining below 100MB even for $n = 100{,}000$.
+The observed times are consistent with $O(n)$ cost over the range tested. Five sample sizes cannot establish an asymptotic rate, but they are enough to rule out the superlinear growth that would make these tests impractical at $n$ in the tens of thousands. Memory usage scales similarly, with peak memory consumption remaining below 100MB even for $n = 100{,}000$.
 
 For data sets that exceed available memory, the auxiliary-regression tests provide streaming counterparts (\texttt{performWhiteTestStreaming()}, \texttt{performBPTestStreaming()}, and \texttt{performKoenkerTestStreaming()}). Rather than materialising the full auxiliary design matrix, these routines accumulate the cross-products $X^\top X$ and $X^\top y$ chunk by chunk, optionally using sparse arithmetic via \pkg{Matrix}, and assemble the final statistic from the running sums. The streamed statistic is algebraically identical to its in-memory counterpart---in our tests the two agree to machine precision---so accuracy is preserved while peak memory becomes independent of $n$. \texttt{runHeteroTests()} switches to the streaming path automatically once the working data exceed a configurable threshold (\texttt{chunk\_threshold\_mb}).
 
@@ -943,12 +946,12 @@ Package & White & BP & Levene & ARCH & GQ & Unified API & Base Deps \\
 \end{tabular}
 \end{table}
 
-\pkg{heteroTests} provides the most comprehensive coverage while maintaining minimal dependencies and a unified interface. Key advantages include:
+\pkg{heteroTests} covers more of these tests than any single alternative in Table~\ref{tab:comparison}. That is a statement about breadth, not about the quality of any individual implementation:
 
 \begin{itemize}
 \item \textbf{Completeness}: Only package offering all major test categories in a single installation
 \item \textbf{Consistency}: Standardized function names, arguments, and return objects across all tests
-\item \textbf{Minimal dependencies}: Core functionality requires only base R packages
+\item \textbf{Contained dependencies}: the statistical core requires \pkg{MASS} and \pkg{SuppDists} beyond base R
 \item \textbf{Batch processing}: \texttt{runHeteroTests()} enables simultaneous execution of multiple diagnostics
 \item \textbf{Enhanced metadata}: Test objects include diagnostic-specific information for reproducibility
 \item \textbf{Unified documentation}: Comprehensive help system with cross-referenced examples
@@ -1019,7 +1022,7 @@ Test & Package & Function & Time (ms) & Relative \\
 \end{tabular}
 \end{table}
 
-Performance differences are minimal across packages, with \pkg{heteroTests} achieving competitive speeds while providing enhanced functionality and consistency. The slight overhead (5-10\%) reflects additional input validation, metadata generation, and standardized output formatting—a reasonable trade-off for improved usability.
+The largest gap in either direction is 29\%, and \pkg{heteroTests} is fastest for White and Goldfeld--Quandt. Where it is slower the margin is 5--7\%, which is the cost of validating inputs and assembling the metadata that the \texttt{htest} objects carry. At these absolute times—all under 16\,ms—the difference is unlikely to matter outside a simulation loop.
 
 \subsection{Interface Comparison}\label{sec:interface-comparison}
 The following examples illustrate the interface differences between traditional multi-package approaches and the \pkg{heteroTests} unified framework.
@@ -1094,7 +1097,7 @@ Overall Assessment: No evidence of heteroscedasticity
 \end{Soutput}
 \end{Schunk}
 
-The \pkg{heteroTests} approach reduces code complexity by approximately 60\% while providing richer output, standardized formatting, and comprehensive metadata. This simplification is particularly valuable in educational settings and automated workflows.
+The two blocks above run the same three diagnostics: 28 input lines against 10, a reduction of roughly 60\%. Most of the difference is the bridging code that aligns three return formats, which the shared \texttt{htest} structure removes. The saving grows with the number of tests and vanishes for one.
 
 \subsection{Accuracy Validation}\label{sec:accuracy}
 We validate \pkg{heteroTests} results against published test statistics and established R implementations. Table~\ref{tab:accuracy-validation} shows agreement across different packages for identical test scenarios.
@@ -1118,7 +1121,7 @@ Goldfeld-Quandt & \pkg{lmtest} & $< 10^{-12}$ & $< 10^{-12}$ & Perfect \\
 \end{tabular}
 \end{table}
 
-For all implemented tests, \pkg{heteroTests} produces numerically identical results with established packages when using equivalent specifications. In particular, \texttt{performBPTest()} reproduces the classical \texttt{lmtest::bptest(\dots, studentize = FALSE)} statistic, while \texttt{performKoenkerTest()} and \texttt{performStudentizedBPTest()} reproduce the studentized \texttt{studentize = TRUE} form; matching the correct option in each case is essential, since the two statistics differ by the normality-dependent scaling discussed in Section~\ref{sec:aux-regression}. Differences are within machine precision, confirming statistical correctness of our implementations.
+Where an established implementation exists, \pkg{heteroTests} reproduces its statistic under equivalent specifications. In particular, \texttt{performBPTest()} reproduces the classical \texttt{lmtest::bptest(\dots, studentize = FALSE)} statistic, while \texttt{performKoenkerTest()} and \texttt{performStudentizedBPTest()} reproduce the studentized \texttt{studentize = TRUE} form; matching the correct option in each case is essential, since the two statistics differ by the normality-dependent scaling discussed in Section~\ref{sec:aux-regression}. Agreement to machine precision establishes that the two implementations compute the same quantity. It does not by itself establish that the quantity is the one the test's definition calls for; for the diagnostics with no reference implementation we checked the statistic, its degrees of freedom and its null distribution against the original papers, and report simulated size in Section~\ref{sec:size}.
 
 \subsection{Memory Usage Analysis}\label{sec:memory}
 Memory consumption patterns differ across packages due to varying implementation strategies and metadata storage. Table~\ref{tab:memory-usage} reports peak memory usage during test execution.
@@ -1143,37 +1146,15 @@ Levene & \pkg{heteroTests} & 15.2 & 1.15 \\
 \end{tabular}
 \end{table}
 
-\pkg{heteroTests} shows modest memory overhead (15-25\%) compared to specialized packages, primarily due to enhanced metadata storage and standardized object structures. This overhead remains acceptable for most applications and enables richer functionality.
+Peak memory is 15--24\% above the comparison package in these three cases, which is the cost of retaining the metadata and the standardized object. The absolute figures matter more than the ratio: at $n=10\,000$ the largest is 28.7\,MB, so the overhead is a constraint only when many models are held simultaneously.
 
 \subsection{Ecosystem Integration}\label{sec:ecosystem}
-Different packages integrate differently with the broader R ecosystem:
+\texttt{runHeteroTests()} decorates its results with the \texttt{hetero\_test} class, and \pkg{heteroTests} supplies \texttt{tidy()}, \texttt{glance()} and \texttt{augment()} methods for that class and for the suite that contains it. A direct \texttt{perform*Test()} call returns a plain \texttt{htest}, so those methods apply to the batch output rather than to every test result. The decorated object records the residual type, trimming, lag order and grouping used, which fixes the arguments that produced the statistic but not the model it was computed from; reproducing a reported result still needs the fitted model. \pkg{lmtest} and \pkg{car} return \texttt{htest} objects that \pkg{broom} can tidy, but the fields differ between functions, so a caller combining several must map them individually.
 
-\paragraph{Tidyverse Compatibility}
-\begin{itemize}
-\item \pkg{heteroTests}: Native support for \pkg{dplyr} workflows and \pkg{broom} integration
-\item \pkg{lmtest}: Limited tidyverse integration; requires manual \pkg{broom} handling
-\item \pkg{car}: Predates tidyverse; minimal integration
-\item \pkg{skedastic}: Modern design with some tidyverse features
-\end{itemize}
-
-\paragraph{Reproducibility Features}
-\begin{itemize}
-\item \pkg{heteroTests}: Comprehensive metadata capture; version tracking; seed management
-\item \pkg{lmtest}: Basic reproducibility; limited metadata
-\item \pkg{car}: Good documentation but minimal metadata storage
-\item \pkg{skedastic}: Moderate metadata support
-\end{itemize}
-
-\paragraph{Educational Value}
-\begin{itemize}
-\item \pkg{heteroTests}: Unified learning curve; comprehensive documentation; consistent examples
-\item \pkg{lmtest}: Steep learning curve due to diverse interfaces
-\item \pkg{car}: Excellent for teaching specific concepts; limited scope
-\item \pkg{skedastic}: Good documentation but narrow focus
-\end{itemize}
+We do not attempt to rank the packages on documentation quality or suitability for teaching. Those judgements depend on the reader, and we have no measurement that would support them.
 
 \subsection{Limitations and Trade-offs}\label{sec:limitations}
-While \pkg{heteroTests} offers significant advantages, some trade-offs exist compared to specialized packages:
+Consolidation costs something. The following are the concrete trade-offs against a single-purpose package:
 
 \paragraph{Package Size and Dependencies}
 \begin{itemize}
@@ -1199,7 +1180,7 @@ While \pkg{heteroTests} offers significant advantages, some trade-offs exist com
 \paragraph{Learning and Adoption}
 \begin{itemize}
 \item \textbf{New syntax}: Users familiar with existing packages must learn \texttt{perform*Test()} conventions
-\item \textbf{Muscle memory}: Experienced users may prefer familiar function names (\texttt{bptest} vs \texttt{performBPTest})
+\item \textbf{Existing habits}: Users fluent in \texttt{bptest()} gain nothing from relearning it as \texttt{performBPTest()}
 \item \textbf{Documentation density}: Comprehensive documentation may overwhelm users seeking simple solutions
 \end{itemize}
 
@@ -1218,7 +1199,7 @@ Based on our comparative analysis, we recommend different approaches for differe
 
 \paragraph{Consider specialized packages when:}
 \begin{itemize}
-\item Requiring cutting-edge implementations of specific tests
+\item A test variant exists in a specialist package and not here
 \item Working with highly specialized domains (spatial econometrics, etc.)
 \item Memory/performance constraints are critical
 \item Existing analysis pipelines are deeply integrated with specific packages
@@ -1231,7 +1212,7 @@ Many users benefit from combining approaches:
 \begin{itemize}
 \item Use \pkg{heteroTests} for routine diagnostics and workflow automation
 \item Employ specialized packages for detailed investigation of specific issues
-\item Leverage \pkg{heteroTests} for teaching and \pkg{lmtest}/\pkg{car} for production
+\item Use \pkg{heteroTests} for teaching and \pkg{lmtest}/\pkg{car} for production
 \item Apply \pkg{heteroTests} for initial screening and specialized tools for publication-quality analysis
 \end{itemize}
 
@@ -1262,17 +1243,17 @@ Several opportunities exist for enhancing integration across the heteroscedastic
 \item Educational packages leveraging \pkg{heteroTests} for teaching
 \end{itemize}
 
-This comparative analysis demonstrates that \pkg{heteroTests} successfully addresses key limitations in the current heteroscedasticity testing landscape while respecting the valuable contributions of existing packages. The unified approach significantly improves usability and reproducibility without sacrificing statistical accuracy or computational efficiency. For most users, \pkg{heteroTests} provides an optimal balance of comprehensiveness, consistency, and performance, while specialized packages remain valuable for advanced applications and methodological development.
+The comparison establishes two things. The statistics agree with the reference implementations to machine precision where a reference exists, and the runtime cost of the common interface is within 7\% on the tests where \pkg{heteroTests} is slower. Whether a single interface across many tests is worth that cost depends on how many tests an analysis runs; for one test it plainly is not.
 
 
 %%------------------------------------------------------------------
 %% 7. Discussion and Best Practices
 %%------------------------------------------------------------------
 \section{Discussion and Best Practices}\label{sec:discussion}
-Diagnosing heteroscedasticity is not a one‐size‐fits‐all procedure. The choice of test influences both sensitivity to variance patterns and robustness to underlying assumptions. In practical applications, analysts should follow a structured decision process: begin with broad diagnostic checks, refine with targeted tests, and conclude with corrective actions.
+No single test dominates. Each is most powerful against the variance pattern its auxiliary regression encodes, and each inherits the assumptions of that regression, so the choice of test is a statement about the alternative one expects. The workflow below moves from tests that are sensitive to many alternatives to tests that are sensitive to specific ones.
 
 \subsection{Test Selection Guidelines}\label{sec:test-selection}
-The optimal choice among heteroscedasticity tests depends on several factors:
+The choice depends on the design, the sample size, and what is assumed about the errors:
 
 \paragraph{Data Structure and Design}
 \begin{itemize}
@@ -1285,7 +1266,7 @@ The optimal choice among heteroscedasticity tests depends on several factors:
 \paragraph{Sample Size Considerations}
 \begin{itemize}
 \item \textbf{Small samples} ($n < 50$): Prefer robust nonparametric tests (Levene, Fligner-Killeen).
-\item \textbf{Medium samples} ($50 \le n < 500$): Breusch-Pagan often optimal for linear patterns; White for general alternatives.
+\item \textbf{Medium samples} ($50 \le n < 500$): Breusch--Pagan is usually the more powerful against variance linear in the regressors; White is the safer choice when the alternative is unspecified.
 \item \textbf{Large samples} ($n \ge 500$): All tests perform well; consider computational efficiency and interpretability.
 \end{itemize}
 
@@ -1302,7 +1283,7 @@ We recommend the following systematic approach to heteroscedasticity diagnosis:
 \paragraph{Stage 1: Initial Screening}
 \begin{enumerate}
 \item Fit the primary regression model and extract residuals.
-\item Apply \texttt{runHeteroTests()} with default settings to obtain comprehensive diagnostics.
+\item Apply \texttt{runHeteroTests()} with default settings for a first pass across families.
 \item Examine p-value patterns across test categories for consensus.
 \end{enumerate}
 
@@ -1354,7 +1335,7 @@ For typical diagnostic workflows:
 \end{itemize}
 
 \subsection{Integration with Robust Methods}\label{sec:robust-integration}
-Heteroscedasticity detection naturally leads to robust inference. The \pkg{heteroTests} package facilitates this transition:
+A rejected homoscedasticity null is usually followed by a change of covariance estimator rather than of model:
 
 \begin{Schunk}
 \begin{Sinput}
@@ -1370,7 +1351,7 @@ Heteroscedasticity detection naturally leads to robust inference. The \pkg{heter
 \end{Sinput}
 \end{Schunk}
 
-This workflow embeds diagnostic testing directly into the inference process, ensuring that heteroscedasticity concerns are systematically addressed.
+Note that the branch above chooses the covariance estimator using the data, so the reported standard errors are those of a two-stage procedure rather than of either branch alone. We do not characterise the coverage of the resulting intervals here.
 
 \subsection{Reporting Guidelines}\label{sec:reporting}
 Transparent reporting of heteroscedasticity testing enhances reproducibility:
@@ -1398,7 +1379,7 @@ Consider including:
 %% 8. Future Work
 %%------------------------------------------------------------------
 \section{Future Work}\label{sec:future}
-The \pkg{heteroTests} package already consolidates a wide range of heteroscedasticity diagnostics, but several enhancements can further extend its utility and performance.
+Four directions are open, listed in decreasing order of how well defined they currently are.
 
 \subsection{Methodological Extensions}\label{sec:method-extensions}
 
@@ -1435,7 +1416,7 @@ For modern big-data applications:
 Several avenues exist for improving computational efficiency:
 \begin{itemize}
 \item \textbf{Rcpp integration}: Compile critical loops for speed gains in large samples
-\item \textbf{Parallel processing}: Leverage multicore architectures for bootstrap procedures
+\item \textbf{Parallel processing}: Distribute bootstrap replications across cores
 \item \textbf{Memory optimization}: Reduce memory footprint for massive datasets
 \item \textbf{Algorithmic improvements}: Implement numerically stable algorithms for edge cases
 \end{itemize}
@@ -1528,29 +1509,23 @@ Comprehensive evaluation of:
 \item Power comparisons across realistic data-generating processes
 \item Robustness to various assumption violations
 \item Performance in modern high-dimensional settings
-\item Optimal test combinations for different scenarios
+\item Which combinations of tests are worth running together
 \end{itemize}
 
-These developments will ensure that \pkg{heteroTests} remains at the forefront of heteroscedasticity diagnostic methodology while serving the evolving needs of the R statistical computing community.
+None of these is implemented at the time of writing, and the list is a statement of intent rather than a roadmap with dates.
 
 
 %%------------------------------------------------------------------
 %% 9. Conclusion
 %%------------------------------------------------------------------
 \section{Conclusion}\label{sec:conclusion}
-In this article, we introduced the \pkg{heteroTests} package, which unifies over twenty-five heteroscedasticity diagnostics within a single, consistent framework for R users. By standardizing function names, argument conventions, and output structures, \pkg{heteroTests} streamlines the detection and diagnosis of variance heterogeneity across a variety of contexts—ranging from simple linear models to complex time-series analyses.
+\pkg{heteroTests} places 41 heteroscedasticity diagnostics behind one interface, with a common argument convention and a common return object that records the choices determining each statistic.
 
-The package addresses a fundamental problem in applied econometrics and statistics: the fragmentation of heteroscedasticity testing across multiple R packages with inconsistent interfaces. Our unified approach reduces workflow complexity, enhances reproducibility, and lowers the barrier to comprehensive diagnostic testing. The \texttt{perform*Test()} naming convention and standardized \texttt{htest} return objects create a coherent ecosystem that integrates seamlessly with existing R workflows.
+Three things are established here. Where a reference implementation exists, the statistics agree with it to machine precision (Section~\ref{sec:accuracy}). Runtimes grow in proportion to $n$ over the range benchmarked, reaching 634\,ms for the most expensive test at $n = 50{,}000$ and staying under 500\,ms for the other twelve (Section~\ref{sec:benchmarks}). Simulated power exceeds 80\% against linear, step-function and autoregressive variance patterns at the sample sizes reported in Section~\ref{sec:power}, and the tests hold their nominal size under the Gaussian null (Section~\ref{sec:size}).
 
-Our comprehensive simulation studies demonstrate that \pkg{heteroTests} maintains statistical accuracy while achieving competitive computational performance. The package scales linearly with sample size, maintaining execution times under 500 milliseconds for most tests even with $n = 50{,}000$ observations. Power analysis confirms that the unified implementations achieve power characteristics equivalent to or better than specialized packages, while providing enhanced metadata and diagnostic capabilities.
+Several things are not. We have not shown that any test here is more powerful than the same test elsewhere; identical statistics cannot be. The power and size results are simulation evidence at particular sample sizes and variance functions, and do not transfer automatically to designs outside that grid. The comparison in Section~\ref{sec:comparison} measures interface and runtime, not statistical quality, and the recommendation layer of Section~\ref{sec:recommendation} encodes conventional practice rather than an optimality result.
 
-The modular design and minimal base dependencies enable both ease of use for applied practitioners and extensibility for methodological researchers. The optional integration with established packages (\pkg{car}, \pkg{sandwich}, \pkg{lmtest}) provides backward compatibility while offering enhanced functionality when available. Comprehensive examples and automated workflows, such as those enabled by \texttt{runHeteroTests()}, facilitate rapid adoption and integration into existing analysis pipelines.
-
-Looking ahead, the extensible architecture of \pkg{heteroTests} supports future enhancements—including panel data diagnostics, machine learning integration, interactive visualizations, and performance optimizations—that will further empower analysts in their quest for valid inference. The plugin architecture and community development framework ensure that the package can evolve with emerging methodological developments and user needs.
-
-We invite the research community to contribute new diagnostics, report issues, and collaborate on expanding this toolkit. The package is available on CRAN with comprehensive documentation, vignettes, and examples. Development continues on GitHub with regular updates and community engagement. Ultimately, \pkg{heteroTests} aims to make variance‐assumption testing accessible, reproducible, and reliable across all areas of statistical modeling.
-
-The unified approach to heteroscedasticity testing represents a significant step forward in diagnostic methodology for R users. By consolidating diverse tests under a consistent interface while maintaining statistical rigor and computational efficiency, \pkg{heteroTests} enhances the reliability and reproducibility of regression diagnostics in modern statistical practice.
+The practical implication is narrow but useful: an analyst who wants to run several variance diagnostics and report them together can do so without writing bridging code, and can reconstruct exactly what was computed from the returned objects. That is a claim about reproducibility of the reported diagnostics, not about the correctness of the inference that follows them, which still depends on the model the analyst chose to fit.
 
 %%------------------------------------------------------------------
 %% 10. References
@@ -1561,7 +1536,7 @@ The unified approach to heteroscedasticity testing represents a significant step
 %% 11. Author Address
 %%------------------------------------------------------------------
 \address{Diogo Ribeiro\\
-  Department of Informatics, ESMAD, Instituto Politécnico do Porto\\
+  Faculty of Media Arts and Design, Technical University of Porto\\
   Vila do Conde\\
   Portugal\\
   (ORCiD: 0009-0001-2022-7072)\\

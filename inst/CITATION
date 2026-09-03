@@ -13,7 +13,7 @@ bibentry(
     email = "diogo.debastos.ribeiro@gmail.com",
     comment = c(
       ORCID = "0009-0001-2022-7072",
-      affiliation = "ESMAD - Instituto Politécnico do Porto"
+      affiliation = "Faculty of Media Arts and Design, Technical University of Porto"
     )
   ),
   year = "2025",
@@ -30,7 +30,7 @@ bibentry(
     role = c("aut"),
     comment = c(
       ORCID = "0009-0001-2022-7072",
-      affiliation = "ESMAD - Instituto Politécnico do Porto"
+      affiliation = "Faculty of Media Arts and Design, Technical University of Porto"
     )
   ),
   year = "2025",

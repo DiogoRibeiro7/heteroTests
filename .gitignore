@@ -51,3 +51,15 @@ __pycache__/
 renv/
 .Rprofile
 tests/testthat/testthat-problems.rds
+
+# SyncTeX navigation data, regenerated on every LaTeX build
+paper/*.synctex.gz
+
+# latexmk's dependency database, file list and compiler log record
+# absolute paths from the machine that built them, so they churn per
+# machine and leak local filesystem layout. The PDF, .aux, .bbl, .brf
+# and .out stay tracked: they carry no absolute paths and the .bbl is
+# needed for journal submission.
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log

@@ -3,7 +3,7 @@
 
 `heteroTests` implements a broad collection of heteroscedasticity diagnostics for linear models in R. It includes classic tests such as White, Breusch--Pagan and Goldfeld--Quandt along with helper functions to visualise and mitigate heteroscedasticity.
 
-Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072](https://orcid.org/0009-0001-2022-7072)) at **ESMAD - Instituto Politécnico do Porto**.
+Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072](https://orcid.org/0009-0001-2022-7072)) at **Faculty of Media Arts and Design, Technical University of Porto**.
 
 ## What it provides
 

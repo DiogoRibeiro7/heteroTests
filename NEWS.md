@@ -1,5 +1,65 @@
 # heteroTests News
 
+## 0.9.0
+
+`fitWLS()` now estimates its weights from a variance model. The numbers it
+returns change, hence the minor version.
+
+### fitWLS() produced unusable standard errors
+
+The weights were the inverse squared residuals of the initial fit,
+`w_i = 1 / e_i^2`. A squared residual is a one-degree-of-freedom estimate of
+`sigma_i^2`, far too noisy to invert, and inverting it hands the weight to
+whichever observations the first fit happened to reproduce most closely. On
+`quakes` that meant five of a thousand points carrying 99.5% of the total
+weight, with a largest-to-median weight ratio of about 1e+07.
+
+Two consequences, measured over 2000 replications of
+`y = 1 + 2x + e`, `sd(e) = 0.5x`, at n = 200:
+
+| estimator | SD(beta1) | coverage of nominal 95% |
+| --- | ---: | ---: |
+| OLS | 0.1027 | 93.7% |
+| `fitWLS()` before | 0.1022 | **10.4%** |
+| `fitWLS()` now | 0.0837 | 96.1% |
+| oracle weights | 0.0827 | 95.1% |
+
+The point estimate was unbiased but no more efficient than OLS, so the function
+delivered none of the efficiency that is the purpose of weighting; and its
+intervals covered the truth about a tenth of the time, because the weighted
+residual sum of squares collapses towards `n` and the reported sigma is
+approximately `sqrt(n / (n - p))` whatever the data.
+
+`fitWLS()` now regresses `log(e^2)` on the model's own design matrix and weights
+by `1 / exp(fitted)`, the standard feasible-GLS recipe. That recovers the
+efficiency (SD 19% below OLS, close to the oracle) and calibrates the
+intervals. Zero residuals are floored before the logarithm by the same helper
+the log-variance tests use, and an unusable variance model falls back to equal
+weights, which degrades to the original OLS fit rather than failing.
+
+The estimated variances are attached to the result as the `"variance_model"`
+attribute.
+
+### Knock-on corrections
+
+- `compareModelDiagnostics()` can now run White's test on a WLS fit. It
+  previously reported `NA` there, correctly, because the degenerate weighting
+  made the weighted fit perfectly explained; that cell has now held three
+  different things across three releases and the test records all three.
+- `autoCompareRemediations()` compares AIC and RMSE across OLS, WLS and robust
+  fits. The WLS row was computed from the degenerate fit and is now meaningful.
+- The WLS section of `real_world_case_studies.Rmd` no longer needs its warning
+  that the weighted variance profile was flat by arithmetic rather than by
+  fit. On `quakes` the profile now falls from a 6.6-fold spread across thirds
+  of the fitted range to 2.95-fold, which reflects the data.
+
+### Metadata
+
+- The maintainer affiliation is now recorded identically in `CITATION.cff`,
+  `inst/CITATION`, `.zenodo.json`, `README.md` and the paper. Only
+  `.zenodo.json` carried the current name; the rest still had the former one.
+
+
 ## 0.8.1
 
 CRAN preparation. No change to any statistic or to the public API.
