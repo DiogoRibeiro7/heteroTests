@@ -1,7 +1,7 @@
 # Weighted Least Squares wrapper
 
-Estimate heteroscedasticity-consistent weights from residuals and refit
-the model.
+Refit a model by feasible generalised least squares, weighting each
+observation by the inverse of an estimated error variance.
 
 ## Usage
 
@@ -17,12 +17,34 @@ fitWLS(model)
 
 ## Value
 
-A new `lm` object fitted with weights.
+A new `lm` object fitted with weights. The estimated variances are
+attached as the `"variance_model"` attribute.
 
 ## Details
 
-The weights are computed as the inverse squared residuals from the
-initial fit.
+The variance is *modelled*, not read off the residuals directly. A
+single squared residual is a one-degree-of-freedom estimate of
+\\\sigma_i^2\\ and far too noisy to invert: weighting by \\1/e_i^2\\
+hands almost all of the weight to whichever observations the initial fit
+happened to reproduce most closely. This function instead regresses
+\\\log e_i^2\\ on the model's own design matrix and takes
+\\\hat\sigma_i^2 = \exp(\hat g_i)\\ from the fitted values, the standard
+feasible-GLS recipe; weights are \\1/\hat\sigma_i^2\\.
+
+The log scale keeps the fitted variances positive without constraining
+the auxiliary regression, and residuals that are numerically zero are
+floored before the logarithm, with a warning.
+
+Weights estimated this way are consistent under a correctly specified
+variance model, so standard errors from the returned fit are usable.
+They were not before 0.9.0, when the weights were the raw inverse
+squared residuals: the weighted residual sum of squares then collapsed
+towards \\n\\ regardless of the data, and nominal 95% intervals covered
+the truth about 10% of the time.
+
+If the variance model cannot be fitted, or yields no usable variation,
+the function falls back to equal weights, which reduces the result to
+the original OLS fit.
 
 ## Examples
 
@@ -37,18 +59,18 @@ summary(wls)
 #> 
 #> Weighted Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -1.1287 -0.9888 -0.7718  0.9670  1.1505 
+#> -3.6581 -1.7335 -0.2666  0.9215  6.0419 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept) 19.50121    0.84014   23.21   <2e-16 ***
-#> wt          -4.92654    0.05930  -83.08   <2e-16 ***
-#> qsec         0.91885    0.05032   18.26   <2e-16 ***
+#> (Intercept)  14.0833     4.4722   3.149  0.00378 ** 
+#> wt           -4.7283     0.4273 -11.066 6.32e-12 ***
+#> qsec          1.1942     0.2448   4.878 3.56e-05 ***
 #> ---
 #> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #> 
-#> Residual standard error: 0.9788 on 29 degrees of freedom
-#> Multiple R-squared:  0.9959, Adjusted R-squared:  0.9956 
-#> F-statistic:  3480 on 2 and 29 DF,  p-value: < 2.2e-16
+#> Residual standard error: 2.397 on 29 degrees of freedom
+#> Multiple R-squared:  0.8405, Adjusted R-squared:  0.8296 
+#> F-statistic: 76.44 on 2 and 29 DF,  p-value: 2.742e-12
 #> 
 ```

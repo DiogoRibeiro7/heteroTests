@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -152,34 +152,29 @@ common remedy.</p>
 <code class="sourceCode R"><span><span class="va">wls_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fitWLS.html">fitWLS</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Compare like with like: the residual variance across thirds of the fitted</span></span>
-<span><span class="co"># range, unweighted for OLS and weighted for WLS. Comparing sigma() of the two</span></span>
-<span><span class="co"># fits would not work -- fitWLS() weights by 1 / e_i^2, so the weighted sum of</span></span>
-<span><span class="co"># squares collapses to n and sigma(wls) is approximately sqrt(n / (n - p)) for</span></span>
-<span><span class="co"># any data at all.</span></span>
+<span><span class="co"># range, unweighted for OLS and weighted for WLS.</span></span>
 <span><span class="va">third</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span>, <span class="fl">3</span>, labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"low"</span>, <span class="st">"mid"</span>, <span class="st">"high"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span></span>
 <span>  OLS_resid_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">quakes_model</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span>, <span class="va">third</span>, <span class="va">mean</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  WLS_weighted_resid_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">wls_q</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/weights.html" class="external-link">weights</a></span><span class="op">(</span><span class="va">wls_q</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span>, <span class="va">third</span>, <span class="va">mean</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                           low     mid    high</span></span>
-<span><span class="co">#&gt; OLS_resid_var          80.300 196.900 526.400</span></span>
-<span><span class="co">#&gt; WLS_weighted_resid_var  0.991   1.005   1.003</span></span></code></pre></div>
+<span><span class="co">#&gt;                          low     mid    high</span></span>
+<span><span class="co">#&gt; OLS_resid_var          80.30 196.900 526.400</span></span>
+<span><span class="co">#&gt; WLS_weighted_resid_var 84.39 123.118 248.911</span></span></code></pre></div>
 <p>The unweighted variance climbs steeply across the fitted range – a
-6.6-fold spread – which is the heteroscedasticity the tests
-detected.</p>
-<p>Read the near-flat weighted row with care. <code><a href="../reference/fitWLS.html">fitWLS()</a></code>
-takes <code>w_i = 1 / e_i^2</code> from the <em>OLS</em> residuals and
-then refits, so each weighted squared residual comes out close to 1
-whenever refitting moves the coefficients little, which is usually. The
-row is therefore near-flat for most data rather than because the
-variance model is right: run the same comparison on <code>cars</code> or
-<code>trees</code> and it still lands within a factor of 1.1 to 1.3 of
-flat. Treat it as a check that the weighting was applied, not as
-evidence that it was the right weighting. Weights that mean something
-come from a variance model estimated in its own right – the feasible-WLS
-recipe in tutorial 2 regresses <code>log(e^2)</code> on the fitted
-values, and for a count response like this one a quasi-Poisson GLM is
-the more defensible remedy.</p>
+6.6-fold spread – which is the heteroscedasticity the tests detected.
+Weighting cuts that to roughly 3-fold: a real improvement, and not a
+complete one, because the variance model is an approximation rather than
+the truth.</p>
+<p><code><a href="../reference/fitWLS.html">fitWLS()</a></code> estimates the weights by regressing
+<code>log(e^2)</code> on the model’s design matrix and inverting the
+fitted variance, so the flattening above reflects the data rather than
+the arithmetic. That has been true only since 0.9.0; before then the
+weights were the raw inverse squared residuals, which put almost all the
+weight on a handful of well-fitted points and made standard errors from
+the fit unusable. For a count response like this one, a quasi-Poisson
+GLM models the mean-variance link directly and is worth comparing
+against.</p>
 </div>
 <div class="section level2">
 <h2 id="case-study-2-income-volatility-in-simulated-survey-data">Case study 2: Income volatility in simulated survey data<a class="anchor" aria-label="anchor" href="#case-study-2-income-volatility-in-simulated-survey-data"></a>

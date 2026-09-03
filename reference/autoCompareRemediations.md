@@ -49,7 +49,7 @@ autoCompareRemediations(m)
 #> 
 #> Coefficients:
 #> (Intercept)           wt         qsec  
-#>     19.5012      -4.9265       0.9189  
+#>      14.083       -4.728        1.194  
 #> 
 #> 
 #> $models$Robust
@@ -68,7 +68,7 @@ autoCompareRemediations(m)
 #> $metrics
 #>        Method      AIC     RMSE Recommended
 #> OLS       OLS 156.7205 2.471485       FALSE
-#> WLS       WLS 102.0546 2.474774        TRUE
+#> WLS       WLS 151.6246 2.525729        TRUE
 #> Robust Robust 156.9512 2.480412       FALSE
 #> 
 #> $best

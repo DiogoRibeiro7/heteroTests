@@ -484,19 +484,19 @@ summary(wls_model)
     ## 
     ## Weighted Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -1.1365 -0.9988 -0.9546  0.9989  1.2946 
+    ## -26.519  -6.685  -0.537   6.539  40.074 
     ## 
     ## Coefficients:
     ##               Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) -1.916e+02  3.146e-01  -609.0   <2e-16 ***
-    ## mag          4.781e+01  6.661e-02   717.9   <2e-16 ***
-    ## depth        1.309e-02  4.246e-05   308.4   <2e-16 ***
+    ## (Intercept) -1.540e+02  4.278e+00 -35.992  < 2e-16 ***
+    ## mag          3.980e+01  9.260e-01  42.975  < 2e-16 ***
+    ## depth        9.189e-03  1.454e-03   6.321 3.91e-10 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.9991 on 997 degrees of freedom
-    ## Multiple R-squared:  0.9981, Adjusted R-squared:  0.9981 
-    ## F-statistic: 2.649e+05 on 2 and 997 DF,  p-value: < 2.2e-16
+    ## Residual standard error: 9.985 on 997 degrees of freedom
+    ## Multiple R-squared:  0.6514, Adjusted R-squared:  0.6507 
+    ## F-statistic: 931.6 on 2 and 997 DF,  p-value: < 2.2e-16
 
 ## 4. Compare models
 
@@ -513,13 +513,13 @@ compareModelDiagnostics(list(base_model, wls_model))
 
     ## [INFO] Running White test
 
-    ## [INFO] White test completed: statistic = 126.7671 df = 5 p = 0
+    ## [INFO] White test completed: statistic = 249.2441 df = 5 p = 0
 
     ## [INFO] Running Breusch-Pagan test
 
     ##           white breusch_pagan
     ## Model1 125.5580      191.9257
-    ## Model2 126.7671      194.2812
+    ## Model2 249.2441      463.6599
 
 The weighted least squares fit typically reduces the heteroscedasticity
 metrics.

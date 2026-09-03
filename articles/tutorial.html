@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -513,19 +513,19 @@ R’s built-in <code>quakes</code> dataset.</p>
 <span><span class="co">## </span></span>
 <span><span class="co">## Weighted Residuals:</span></span>
 <span><span class="co">##     Min      1Q  Median      3Q     Max </span></span>
-<span><span class="co">## -1.1365 -0.9988 -0.9546  0.9989  1.2946 </span></span>
+<span><span class="co">## -26.519  -6.685  -0.537   6.539  40.074 </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Coefficients:</span></span>
 <span><span class="co">##               Estimate Std. Error t value Pr(&gt;|t|)    </span></span>
-<span><span class="co">## (Intercept) -1.916e+02  3.146e-01  -609.0   &lt;2e-16 ***</span></span>
-<span><span class="co">## mag          4.781e+01  6.661e-02   717.9   &lt;2e-16 ***</span></span>
-<span><span class="co">## depth        1.309e-02  4.246e-05   308.4   &lt;2e-16 ***</span></span>
+<span><span class="co">## (Intercept) -1.540e+02  4.278e+00 -35.992  &lt; 2e-16 ***</span></span>
+<span><span class="co">## mag          3.980e+01  9.260e-01  42.975  &lt; 2e-16 ***</span></span>
+<span><span class="co">## depth        9.189e-03  1.454e-03   6.321 3.91e-10 ***</span></span>
 <span><span class="co">## ---</span></span>
 <span><span class="co">## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">## </span></span>
-<span><span class="co">## Residual standard error: 0.9991 on 997 degrees of freedom</span></span>
-<span><span class="co">## Multiple R-squared:  0.9981, Adjusted R-squared:  0.9981 </span></span>
-<span><span class="co">## F-statistic: 2.649e+05 on 2 and 997 DF,  p-value: &lt; 2.2e-16</span></span></code></pre>
+<span><span class="co">## Residual standard error: 9.985 on 997 degrees of freedom</span></span>
+<span><span class="co">## Multiple R-squared:  0.6514, Adjusted R-squared:  0.6507 </span></span>
+<span><span class="co">## F-statistic: 931.6 on 2 and 997 DF,  p-value: &lt; 2.2e-16</span></span></code></pre>
 </div>
 <div class="section level2">
 <h2 id="compare-models">4. Compare models<a class="anchor" aria-label="anchor" href="#compare-models"></a>
@@ -536,11 +536,11 @@ R’s built-in <code>quakes</code> dataset.</p>
 <pre><code><span><span class="co">## [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] Running White test</span></span></code></pre>
-<pre><code><span><span class="co">## [INFO] White test completed: statistic = 126.7671 df = 5 p = 0</span></span></code></pre>
+<pre><code><span><span class="co">## [INFO] White test completed: statistic = 249.2441 df = 5 p = 0</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>
 <pre><code><span><span class="co">##           white breusch_pagan</span></span>
 <span><span class="co">## Model1 125.5580      191.9257</span></span>
-<span><span class="co">## Model2 126.7671      194.2812</span></span></code></pre>
+<span><span class="co">## Model2 249.2441      463.6599</span></span></code></pre>
 <p>The weighted least squares fit typically reduces the
 heteroscedasticity metrics.</p>
 </div>

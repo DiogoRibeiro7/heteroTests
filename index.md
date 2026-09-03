@@ -9,7 +9,7 @@ visualise and mitigate heteroscedasticity.
 
 Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID
 0009-0001-2022-7072](https://orcid.org/0009-0001-2022-7072)) at
-**ESMAD - Instituto Politécnico do Porto**.
+**Faculty of Media Arts and Design, Technical University of Porto**.
 
 ## What it provides
 
