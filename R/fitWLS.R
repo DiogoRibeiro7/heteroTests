@@ -41,7 +41,11 @@ fitWLS <- function(model) {
   response <- stats::model.response(mf)
   design <- stats::model.matrix(model, data = mf)
 
-  res <- residuals(model)
+  # model$residuals, not residuals(model): under na.action = na.exclude the
+  # latter is padded back to the original row count with NA placeholders, while
+  # the model matrix and response cover only the fitted rows, and lm.wfit()
+  # then fails with "incompatible dimensions".
+  res <- model$residuals
   w <- rfgls_weights(res, design)
 
   fit <- stats::lm.wfit(design, response, w)
@@ -101,8 +105,32 @@ rfgls_weights <- function(res, design) {
   }
 
   w <- 1 / sigma2
-  if (!all(is.finite(w)) || any(w <= 0) ||
-        diff(range(w)) < .Machine$double.eps) {
+  if (!all(is.finite(w)) || any(w <= 0)) {
+    return(equal)
+  }
+
+  # A relative tolerance, not an absolute one: the auxiliary fit leaves
+  # floating-point noise of order 1e-13 even when the fitted log-variance is
+  # constant, which is far above .Machine$double.eps, so an absolute test here
+  # would never fire.
+  if (diff(range(w)) / mean(w) < 1e-8) {
+    return(equal)
+  }
+
+  # Weights that span more than six orders of magnitude concentrate the fit on
+  # a handful of observations, which is the failure this function was rewritten
+  # to remove. Genuine heteroscedasticity does not reach that far: measured
+  # weight ratios are about 14 for sd proportional to x, 236 for x^2 and 2.5e+03
+  # for exp(x), so this bound only catches a pathological auxiliary fit. Warn
+  # rather than fall back silently, since a caller who asked for WLS should know
+  # it got OLS.
+  if (max(w) / min(w) > 1e6) {
+    warning(
+      "fitWLS: the estimated variance model spans more than six orders of ",
+      "magnitude, which would concentrate the fit on a few observations. ",
+      "Falling back to equal weights, so the result is the unweighted fit.",
+      call. = FALSE
+    )
     return(equal)
   }
   w

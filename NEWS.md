@@ -46,7 +46,7 @@ attribute.
   previously reported `NA` there, correctly, because the degenerate weighting
   made the weighted fit perfectly explained; that cell has now held three
   different things across three releases and the test records all three.
-- `advancedRemediation()` compares AIC and RMSE across OLS, WLS and robust
+- `autoCompareRemediations()` compares AIC and RMSE across OLS, WLS and robust
   fits. The WLS row was computed from the degenerate fit and is now meaningful.
 - The WLS section of `real_world_case_studies.Rmd` no longer needs its warning
   that the weighted variance profile was flat by arithmetic rather than by

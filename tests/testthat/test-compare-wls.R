@@ -41,21 +41,49 @@ test_that("fitWLS weights come from a variance model, not the raw residuals", {
   expect_true(all(is.finite(w)) && all(w > 0))
 
   # A variance model produces weights that vary smoothly with the fitted
-  # variance rather than spanning many orders of magnitude.
-  expect_lt(max(w) / stats::median(w), 100)
+  # variance rather than spanning many orders of magnitude. Compare the full
+  # range: a median-based ratio would miss a single extreme *small* weight,
+  # which concentrates the fit just as effectively as an extreme large one.
+  expect_lt(max(w) / min(w), 100)
 
   top5 <- sum(sort(w, decreasing = TRUE)[1:5]) / sum(w)
   expect_lt(top5, 0.5)
 })
 
-test_that("fitWLS falls back to OLS when the variance model is unusable", {
-  # A fit whose residuals carry no variance signal must degrade to equal
-  # weights rather than error or produce degenerate ones.
-  set.seed(42)
-  d <- data.frame(x = 1:40, y = 1:40 + rnorm(40, sd = 1e-8))
+test_that("fitWLS falls back to equal weights when the variance model is flat", {
+  # Deterministic: an exactly linear response leaves residuals at floating-point
+  # zero, so the logged squared residuals are constant, the auxiliary fit has no
+  # slope, and there is no variance signal to weight by. The result must be the
+  # unweighted fit, not merely some finite positive weights -- assert equality
+  # rather than plausibility, or the test passes on any successful run.
+  d <- data.frame(x = 1:40)
+  d$y <- 3 + 2 * d$x
   m <- lm(y ~ x, data = d)
   w <- suppressWarnings(weights(fitWLS(m)))
 
-  expect_length(w, 40L)
-  expect_true(all(is.finite(w)) && all(w > 0))
+  expect_equal(w, rep(1, 40L))
+})
+
+test_that("fitWLS handles na.exclude models", {
+  # residuals(model) is padded back to the original row count under
+  # na.exclude while the model matrix covers only the fitted rows, so taking
+  # weights from it made lm.wfit() fail with "incompatible dimensions".
+  set.seed(1)
+  d <- data.frame(x = runif(60, 1, 5))
+  d$y <- 1 + 2 * d$x + rnorm(60, sd = 0.5 * d$x)
+  d$y[7] <- NA
+
+  fit_ex <- fitWLS(lm(y ~ x, data = d, na.action = na.exclude))
+  fit_om <- fitWLS(lm(y ~ x, data = d))
+
+  # The weights used in the fit cover the 59 complete rows.
+  expect_length(fit_ex$weights, 59L)
+
+  # weights() then pads back to the original 60 under na.exclude, which is the
+  # point of that na.action; the hole sits at the row that was dropped.
+  expect_length(weights(fit_ex), 60L)
+  expect_equal(unname(which(is.na(weights(fit_ex)))), 7L)
+
+  # Dropping the row either way must give the same fit.
+  expect_equal(unname(coef(fit_ex)), unname(coef(fit_om)))
 })
