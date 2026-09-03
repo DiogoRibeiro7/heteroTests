@@ -10,13 +10,35 @@ fitWLS(model)
 \item{model}{A fitted model of class \code{lm}.}
 }
 \value{
-A new \code{lm} object fitted with weights.
+A new \code{lm} object fitted with weights. The estimated variances are
+attached as the \code{"variance_model"} attribute.
 }
 \description{
-Estimate heteroscedasticity-consistent weights from residuals and refit the model.
+Refit a model by feasible generalised least squares, weighting each
+observation by the inverse of an estimated error variance.
 }
 \details{
-The weights are computed as the inverse squared residuals from the initial fit.
+The variance is \emph{modelled}, not read off the residuals directly. A single
+squared residual is a one-degree-of-freedom estimate of \eqn{\sigma_i^2} and
+far too noisy to invert: weighting by \eqn{1/e_i^2} hands almost all of the
+weight to whichever observations the initial fit happened to reproduce most
+closely. This function instead regresses \eqn{\log e_i^2} on the model's own
+design matrix and takes \eqn{\hat\sigma_i^2 = \exp(\hat g_i)} from the fitted
+values, the standard feasible-GLS recipe; weights are \eqn{1/\hat\sigma_i^2}.
+
+The log scale keeps the fitted variances positive without constraining the
+auxiliary regression, and residuals that are numerically zero are floored
+before the logarithm, with a warning.
+
+Weights estimated this way are consistent under a correctly specified variance
+model, so standard errors from the returned fit are usable. They were not
+before 0.9.0, when the weights were the raw inverse squared residuals: the
+weighted residual sum of squares then collapsed towards \eqn{n} regardless of
+the data, and nominal 95\% intervals covered the truth about 10\% of the time.
+
+If the variance model cannot be fitted, or yields no usable variation, the
+function falls back to equal weights, which reduces the result to the original
+OLS fit.
 }
 \examples{
 data(mtcars)

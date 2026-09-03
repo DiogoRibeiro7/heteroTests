@@ -3,20 +3,20 @@ message: |
   If you use this software, please cite it using the metadata below.
   See algorithms_bibliography() for references on diagnostic tests.
 title: "heteroTests"
-version: "0.8.1"
+version: "0.9.0"
 type: software
 authors:
   - given-names: "Diogo"
     family-names: "Ribeiro"
     orcid: "https://orcid.org/0009-0001-2022-7072"
     email: "dfr@esmad.ipp.pt"
-    affiliation: "ESMAD - Instituto Politécnico do Porto"
+    affiliation: "Faculty of Media Arts and Design, Technical University of Porto"
 contact:
   - given-names: "Diogo"
     family-names: "Ribeiro"
     email: "diogo.debastos.ribeiro@gmail.com"
     orcid: "https://orcid.org/0009-0001-2022-7072"
-    affiliation: "ESMAD - Instituto Politécnico do Porto"
+    affiliation: "Faculty of Media Arts and Design, Technical University of Porto"
 repository-code: "https://github.com/DiogoRibeiro7/heteroTests"
 license: "Apache-2.0"
 date-released: "2026-09-01"
@@ -39,7 +39,7 @@ preferred-citation:
   title: "heteroTests: Heteroscedasticity Diagnostic Tools"
   year: "2026"
   url: "https://github.com/DiogoRibeiro7/heteroTests"
-  version: "0.8.1"
+  version: "0.9.0"
 references:
   - type: article
     authors:
