@@ -127,7 +127,7 @@ code("# Scale-location view: sqrt(|standardised residual|) vs fitted value.",
      "       title = \"Scale-location plot\",",
      "       subtitle = \"Rising spread is consistent with heteroscedasticity\")"),
 
-md("Both plots show clearly increasing dispersion: tracts with higher predicted",
+md("Both plots show clearly increasing dispersion: events with higher predicted",
    "values have much more variable residuals. This is the pattern the formal tests",
    "are designed to detect."),
 
