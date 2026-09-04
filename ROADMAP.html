@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,17 +74,48 @@
 </div>
 <div class="section level2">
 <h2 id="current-priorities-next">Current priorities (next)<a class="anchor" aria-label="anchor" href="#current-priorities-next"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox"><strong>Finish CRAN readiness.</strong> Run a full <code>R CMD check --as-cran</code> with every Suggests installed and clear any remaining notes; decide whether <code>boston_housing</code> should remain a verbatim <code><a href="https://rdrr.io/pkg/MASS/man/Boston.html" class="external-link">MASS::Boston</a></code> copy or be replaced with a derived example. (Data are now <code>.rda</code>; <code>cran-comments.md</code> reflects the real state.)</label></li>
-<li><label><input type="checkbox">Restore <code>renv.lock</code> to match the declared <code>Imports</code>/<code>Suggests</code>.</label></li>
-<li><label><input type="checkbox">Clear the remaining <code>R CMD check</code> notes: reconcile the hand-written <code>.Rd</code> files with the function signatures (<code>\usage</code>/code mismatches) and replace non-ASCII characters in source with escapes. The <code>.Rd</code> files for the tests corrected in 0.7.0 are already reconciled; the rest are pre-existing and best done as a dedicated documentation-reconciliation pass.</label></li>
-</ul></div>
+<ul class="task-list"><li><label><input type="checkbox"><strong>Finish CRAN readiness.</strong> Run <code>R CMD check --as-cran</code> with every Suggests installed and clear what remains. The last local run left three notes, two of them environmental (no network to verify the system clock, <code>V8</code> absent for math rendering); the <code>\doi{}</code> note was cleared in 0.8.1.</label></li>
+<li><label><input type="checkbox">Replace non-ASCII characters in source with escapes.</label></li>
+<li><label><input type="checkbox">Decide whether R 4.1 remains the supported floor, or whether the minimum should track R’s own support window.</label></li>
+</ul><div class="section level3">
+<h3 id="validation-matrix">Validation matrix<a class="anchor" aria-label="anchor" href="#validation-matrix"></a></h3>
+<p>The validation effort ran in four passes and is complete for the exported surface. Evidence lives in <code>inst/validation/</code>, with scripts that regenerate it.</p>
+<ul class="task-list"><li><label><input type="checkbox" checked>Pass A, classical regression diagnostics (0.7.0).</label></li>
+<li><label><input type="checkbox" checked>Pass B, group-variance tests (0.7.1).</label></li>
+<li><label><input type="checkbox" checked>Pass C, the methods with least reference coverage (0.7.2).</label></li>
+<li><label><input type="checkbox" checked>Full sweep over all 32 exported <code>perform*Test()</code> functions (0.11.0), each driven by the null and alternative appropriate to what it tests rather than one process for all of them.</label></li>
+</ul><p>Six exported procedures were found to be broken, and all six shared a single property: no size or power check.</p>
+<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>procedure</th>
+<th>fault</th>
+<th>outcome</th>
+</tr></thead><tbody><tr><td><code>performRiceTest()</code></td>
+<td>insensitive by construction; rejection rate 0% under every variance pattern tried</td>
+<td>withdrawn in 0.8.0</td>
+</tr><tr><td><code>performCurryWalshTest()</code></td>
+<td>0% rejection</td>
+<td>withdrawn in 0.8.0</td>
+</tr><tr><td><code><a href="reference/fitWLS.html">fitWLS()</a></code></td>
+<td>weights were the inverse squared residuals of the same fit; nominal 95% intervals covered 10.4%</td>
+<td>corrected to feasible GLS in 0.9.0</td>
+</tr><tr><td><code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code></td>
+<td>resampled rows rather than under the null, so the p-value sat near 0.5; 0% power</td>
+<td>null-imposed resampling in 0.10.0</td>
+</tr><tr><td><code><a href="reference/performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code></td>
+<td>statistic omitted the <code>- 1</code> and the square from Breusch-Pagan’s equation 5; size 32.5%</td>
+<td>corrected in 0.11.0</td>
+</tr><tr><td><code><a href="reference/performPesaranTest.html">performPesaranTest()</a></code></td>
+<td>
+<code>T</code> divided where Pesaran’s CD multiplies, making the statistic <code>1/T</code> too small; size 0.0%</td>
+<td>corrected in 0.11.0</td>
+</tr></tbody></table><p>Twenty-five of the twenty-six heteroscedasticity tests hold their nominal level, at 400 replications and n = 150. The exception is <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code>, conservative at 0.012; <code>inst/validation/README.md</code> carries the table and the reasoning, and generates those counts from the CSV rather than restating them, because an earlier draft of this paragraph quoted figures from a different run and a z computed against the wrong standard error.</p>
+<p>Two conclusions worth keeping. A reference comparison is not a substitute for a size check: four of the six faults above are in procedures with no reference implementation to compare against, and the two that had one agreed with it. And a stored-value regression test would have frozen each fault rather than caught it, so the guards added are simulated size, not recorded numbers.</p>
+</div>
+</div>
 <div class="section level2">
 <h2 id="short-term-improvements">Short-term improvements<a class="anchor" aria-label="anchor" href="#short-term-improvements"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox">Pass B of the validation matrix: the group-variance tests (Levene, Brown-Forsythe, Bartlett, Fligner-Killeen, Hartley F-max, O’Brien, modified Bartlett), several of which have closed-form definitions or reference implementations to reproduce.</label></li>
-<li><label><input type="checkbox">Pass C of the validation matrix: the methods with the least reference coverage (Cameron-Trivedi, ordered LM, Davidian-Carroll, Rice, Curry-Walsh, rank permutation, high-dimensional, spatial and panel diagnostics). These need either an established implementation to reproduce or the original paper’s statistic reconstructed independently.</label></li>
-<li><label><input type="checkbox">Extend the validation matrix to the remaining <code>perform*Test</code> exports and publish the combined size/power table.</label></li>
-<li><label><input type="checkbox">Stop labelling percentile intervals of a test statistic as confidence intervals. (The p-value convention itself was standardised in 0.7.0.)</label></li>
-<li><label><input type="checkbox">Factor out repeated boilerplate (scalar validators, the model/data preparation block, intercept-stripping) into shared helpers.</label></li>
+<ul class="task-list"><li><label><input type="checkbox">Factor out repeated boilerplate (scalar validators, the model/data preparation block, intercept-stripping) into shared helpers.</label></li>
+<li><label><input type="checkbox">Give the group-variance tests a heavy-tailed size column in the shipped sweep. Bartlett and Hartley reject about 24% of the time against a <code>t5</code> null, which the Pass B table records but the full sweep does not yet cover.</label></li>
+<li><label><input type="checkbox">Add a reference comparison for the panel statistics. Neither <code><a href="reference/performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code> nor <code><a href="reference/performPesaranTest.html">performPesaranTest()</a></code> has one among the packages the accuracy table uses, which is why both were wrong until 0.11.0 and why simulated size is the only thing guarding them.</label></li>
 </ul></div>
 <div class="section level2">
 <h2 id="sequencing">Sequencing<a class="anchor" aria-label="anchor" href="#sequencing"></a></h2>
