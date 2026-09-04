@@ -137,10 +137,11 @@ it, so the guards added are simulated size, not recorded numbers.
 - [ ] Factor out repeated boilerplate (scalar validators, the model/data
   preparation block, intercept-stripping) into shared helpers.
 - [x] Added a heavy-tailed size column to the shipped sweep, covering all 26
-  heteroscedasticity tests rather than only the group-variance ones. Eighteen
-  hold their level under a `t5` null; the eight that do not are the
+  heteroscedasticity tests rather than only the group-variance ones. Sixteen
+  hold their level under a `t5` null. Eight over-reject -- the
   normality-dependent statistics, led by classical Breusch-Pagan at 0.287
-  against Koenker's 0.048.
+  against Koenker's 0.048 -- and two are conservative enough to be named as
+  well.
 - [x] Added a reference comparison for the panel statistics.
   `performBPRandomEffectsTest()` reproduces `plm::plmtest(type = "bp")` and
   `performPesaranTest()` reproduces `plm::pcdtest(model = "pooling")`, both to

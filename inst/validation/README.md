@@ -217,16 +217,18 @@ Outside that band:
 
 - `performBoxMTest()`, size 0.012, 6.75 standard errors below nominal.
 
-Under a homoscedastic t5 null, 18 of the 26 heteroscedasticity tests hold their level. These do not:
+Under a homoscedastic t5 null, 16 of the 26 heteroscedasticity tests hold their level, meaning they land within three standard errors of nominal in either direction. These do not:
 
-- `performBPTest()`, 0.287 against a nominal 0.05.
-- `performBreuschPaganTest()`, 0.287 against a nominal 0.05.
-- `performHartleyFmaxTest()`, 0.280 against a nominal 0.05.
-- `performBartlettTest()`, 0.268 against a nominal 0.05.
-- `performCookWeisbergTest()`, 0.205 against a nominal 0.05.
-- `performNCVTest()`, 0.205 against a nominal 0.05.
-- `performSzroeterTest()`, 0.163 against a nominal 0.05.
-- `performGQTest()`, 0.152 against a nominal 0.05.
+- `performBPTest()`, 0.287 against a nominal 0.05, over-rejecting.
+- `performBreuschPaganTest()`, 0.287 against a nominal 0.05, over-rejecting.
+- `performHartleyFmaxTest()`, 0.280 against a nominal 0.05, over-rejecting.
+- `performBartlettTest()`, 0.268 against a nominal 0.05, over-rejecting.
+- `performCookWeisbergTest()`, 0.205 against a nominal 0.05, over-rejecting.
+- `performNCVTest()`, 0.205 against a nominal 0.05, over-rejecting.
+- `performSzroeterTest()`, 0.163 against a nominal 0.05, over-rejecting.
+- `performGQTest()`, 0.152 against a nominal 0.05, over-rejecting.
+- `performFlignerKilleenTest()`, 0.022 against a nominal 0.05, under-rejecting.
+- `performQuantileRegressionTest()`, 0.020 against a nominal 0.05, under-rejecting.
 
 Inside the band but worth naming, at more than two standard errors:
 
@@ -260,6 +262,11 @@ carries, made visible:
   `performLeveneTest()`, `performOBrienTest()` -- stay between 0.022 and 0.048.
 - `performCookWeisbergTest()` and `performNCVTest()` are the same score test
   and inherit the same normality assumption, at 0.205.
+
+Two tests fail the column by being too conservative rather than too liberal:
+`performFlignerKilleenTest()` at 0.022 and `performQuantileRegressionTest()` at
+0.020. That costs power rather than validity, but the count above is two-sided,
+so they are named alongside the over-rejecting ones rather than passed over.
 
 So the heavy-tailed column mostly reproduces the textbook advice, from this
 package's own implementations. Where it does not, prefer the measurement.

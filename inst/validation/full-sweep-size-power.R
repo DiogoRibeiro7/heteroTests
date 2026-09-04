@@ -240,22 +240,30 @@ for (k in seq_along(TESTS)) {
     power_effective = unname(a["eff"]),
     size_t5 = unname(h["rate"]),
     size_t5_mc_se = unname(h["se"]),
-    failures = sum(is.na(p_null)) + sum(is.na(p_alt)),
+    size_t5_effective = unname(h["eff"]),
+    # Counts every scenario, including the heavy-tailed null. Leaving it out
+     # meant a t5 invocation could fail without appearing in the failure count
+     # or the warning below, so size_t5 would quietly rest on fewer samples.
+    failures = sum(is.na(p_null)) + sum(is.na(p_alt)) +
+      sum(is.na(p_heavy) & !all(is.na(p_heavy))),
     stringsAsFactors = FALSE
   )
-  lost <- 2L * n_mc - unname(s["eff"]) - unname(a["eff"])
+  scenarios <- if (is.null(fam$heavy)) 2L else 3L
+  lost <- scenarios * n_mc - unname(s["eff"]) - unname(a["eff"]) -
+    (if (is.null(fam$heavy)) 0L else unname(h["eff"]))
   message(sprintf("%-32s size %.3f  t5 %s  power %.3f%s", nm, s["rate"],
                   if (is.na(h["rate"])) "   . " else sprintf("%.3f", h["rate"]),
                   a["rate"],
                   if (lost > 0) sprintf("   [%d of %d invocations failed]",
-                                        lost, 2L * n_mc) else ""))
+                                        lost, scenarios * n_mc) else ""))
 }
 
 out <- do.call(rbind, rows)
 if (any(out$failures > 0L)) {
   warning(sprintf(
     "%d of %d test invocations failed and were dropped; size and power below ",
-    sum(out$failures), 2L * n_mc * nrow(out)),
+    sum(out$failures),
+    n_mc * (2L * nrow(out) + sum(!is.na(out$size_t5)))),
     "rest on the effective counts in the CSV, not on N_MC.", call. = FALSE)
 }
 path <- file.path("inst", "validation", "full-sweep-size-power.csv")

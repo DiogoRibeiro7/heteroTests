@@ -135,16 +135,22 @@ if (file.exists(csv_s)) {
   # where they separate from the rank- and median-based ones.
   if (has_t5) {
     zt <- (sw$size_t5 - alpha) / sw$size_t5_mc_se
-    ok <- hetero & !is.na(zt) & zt <= 3
-    fragile <- which(hetero & !is.na(zt) & zt > 3)
+    # Two-sided, and non-finite counts as failing, to match the Gaussian block
+    # above. One-sided would have counted a badly conservative result as
+    # holding its level, and an empirical size of exactly zero gives an
+    # estimated standard error of zero and hence zt = -Inf, which a `zt <= 3`
+    # comparison passes.
+    ok <- hetero & !is.na(zt) & is.finite(zt) & abs(zt) <= 3
+    fragile <- which(hetero & !is.na(zt) & (!is.finite(zt) | abs(zt) > 3))
     cat(sprintf(
-      "\nUnder a homoscedastic t5 null, %d of the %d heteroscedasticity tests hold their level.",
+      "\nUnder a homoscedastic t5 null, %d of the %d heteroscedasticity tests hold their level, meaning they land within three standard errors of nominal in either direction.",
       sum(ok), sum(hetero & !is.na(zt))))
     if (length(fragile)) {
       cat(" These do not:\n\n")
       for (i in fragile[order(-sw$size_t5[fragile])]) {
-        cat(sprintf("- `%s()`, %.3f against a nominal %.2f.\n",
-                    sw$test[i], sw$size_t5[i], alpha))
+        cat(sprintf("- `%s()`, %.3f against a nominal %.2f, %s-rejecting.\n",
+                    sw$test[i], sw$size_t5[i], alpha,
+                    if (!is.finite(zt[i]) || zt[i] > 0) "over" else "under"))
       }
     } else {
       cat("\n")
