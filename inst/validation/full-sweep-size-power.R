@@ -245,7 +245,7 @@ for (k in seq_along(TESTS)) {
      # meant a t5 invocation could fail without appearing in the failure count
      # or the warning below, so size_t5 would quietly rest on fewer samples.
     failures = sum(is.na(p_null)) + sum(is.na(p_alt)) +
-      sum(is.na(p_heavy) & !all(is.na(p_heavy))),
+      (if (is.null(fam$heavy)) 0L else sum(is.na(p_heavy))),
     stringsAsFactors = FALSE
   )
   scenarios <- if (is.null(fam$heavy)) 2L else 3L

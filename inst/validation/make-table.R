@@ -150,7 +150,7 @@ if (file.exists(csv_s)) {
       for (i in fragile[order(-sw$size_t5[fragile])]) {
         cat(sprintf("- `%s()`, %.3f against a nominal %.2f, %s-rejecting.\n",
                     sw$test[i], sw$size_t5[i], alpha,
-                    if (!is.finite(zt[i]) || zt[i] > 0) "over" else "under"))
+                    if (zt[i] < 0) "under" else "over"))
       }
     } else {
       cat("\n")
