@@ -30,4 +30,4 @@
 "performRESETTest","form","omitted quadratic",400,0.045,0.0103652062208139,400,1,0,400,0
 "performBPRandomEffectsTest","effect","random intercepts",400,0.03,0.00852936105461599,400,1,0,400,0
 "performPesaranTest","csdep","common time factor",400,0.0375,0.00949917759598166,400,1,0,400,0
-"performSpatialHeteroTest","spatial","variance clustered in space",400,0.05,0.0108972473588517,400,0.5025,0.0249996874980468,400,0
+"performSpatialHeteroTest","spatial","variance clustered in space",400,0.045,0.0103652062208139,400,0.3625,0.0240361056537868,400,0

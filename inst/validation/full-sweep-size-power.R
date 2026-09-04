@@ -83,16 +83,23 @@ make_panel <- function(sd_u, factor_sd) {
 # Spatial design on a regular grid. Under the null the error variance is
 # constant; under the alternative it rises with distance from the grid centre,
 # so high-variance units sit together in space.
+#
+# The grid is 10 x 15 rather than square so that it holds exactly n_obs cells,
+# which keeps this row on the same sample size as the rest of the sweep.
+spatial_rows <- 10L
+spatial_cols <- as.integer(n_obs / spatial_rows)
+stopifnot(spatial_rows * spatial_cols == n_obs)
+
 make_spatial <- function(clustered) {
-  side <- 12L
-  grid <- expand.grid(row = seq_len(side), col = seq_len(side))
-  centre <- (side + 1) / 2
-  dist <- sqrt((grid$row - centre)^2 + (grid$col - centre)^2)
+  grid <- expand.grid(row = seq_len(spatial_rows), col = seq_len(spatial_cols))
+  row_centre <- (spatial_rows + 1) / 2
+  col_centre <- (spatial_cols + 1) / 2
+  dist <- sqrt((grid$row - row_centre)^2 + (grid$col - col_centre)^2)
   sd_i <- if (clustered) 0.3 + dist else rep(1, nrow(grid))
   x <- runif(nrow(grid), 1, 5)
   d <- data.frame(x = x, row = grid$row, col = grid$col,
                   y = 1 + 2 * x + rnorm(nrow(grid), sd = sd_i))
-  nb <- spdep::cell2nb(side, side)
+  nb <- spdep::cell2nb(spatial_rows, spatial_cols)
   list(model = lm(y ~ x, data = d), data = d,
        listw = spdep::nb2listw(nb, style = "W"))
 }

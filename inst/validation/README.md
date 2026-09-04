@@ -205,7 +205,7 @@ the time under the null at four groups. See `NEWS.md`.
 | `performRESETTest()` | omitted quadratic | 0.045 | 1.000 |
 | `performBPRandomEffectsTest()` | random intercepts | 0.030 | 1.000 |
 | `performPesaranTest()` | common time factor | 0.037 | 1.000 |
-| `performSpatialHeteroTest()` | variance clustered in space | 0.050 | 0.502 |
+| `performSpatialHeteroTest()` | variance clustered in space | 0.045 | 0.362 |
 
 Replications: 400. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0109.
 
@@ -225,7 +225,9 @@ Each test is driven against its own alternative, so the power column compares
 tests only within a family. The heteroscedasticity diagnostics face
 `sd = x^2`; the ARCH pair faces an ARCH(1) process, which is a harder problem
 at this sample size and is why their power sits near 0.84. The spatial test
-faces variance rising with distance from the centre of a 12x12 grid, at 0.50.
+faces error variance rising with distance from the centre of a 10 by 15 grid,
+which holds the same 150 observations as the rest of the sweep, and reaches
+0.36 against it.
 
 Two remarks on the tests the summary names.
 
