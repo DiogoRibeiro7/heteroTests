@@ -4,6 +4,7 @@
 ^\.git$
 ^\.github$
 ^README\.md$
+^cran$
 ^cran\.md$
 ^cran-comments\.md$
 ^TODO\.md$
