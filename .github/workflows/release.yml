@@ -8,8 +8,18 @@ on:
 permissions:
   contents: write
 
+# Only one release workflow may run at a time. This prevents two main pushes
+# for the same package version from racing tag creation, release upload and
+# repository-side CRAN storage.
+concurrency:
+  group: heterotests-release
+  cancel-in-progress: false
+
 jobs:
   create-release:
+    # workflow_dispatch can be launched from another ref; never create a release
+    # or mutate main unless the workflow is running from main itself.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,8 +72,6 @@ jobs:
         with:
           use-public-rspm: true
 
-      # R CMD build renders the vignettes, so the builder and everything the
-      # vignettes use must be installed before creating a new release tarball.
       - uses: r-lib/actions/setup-r-dependencies@v2
         if: steps.release.outputs.mode == 'new_release'
         with:
@@ -100,9 +108,6 @@ jobs:
           generate_release_notes: true
           files: ${{ steps.build.outputs.staged_tarball }}
 
-      # For an older release that predates repository-side CRAN storage, use
-      # the release asset itself. Rebuilding from today's main branch could
-      # produce different bytes while retaining the same package version.
       - name: Download existing release tarball for backfill
         if: steps.release.outputs.mode == 'backfill'
         shell: bash
@@ -147,9 +152,6 @@ jobs:
           source_sha=$(sha256sum "$source_tarball" | awk '{print $1}')
           echo "CRAN source SHA-256: $source_sha"
 
-          # Put the generated file on top of the latest main, not necessarily
-          # the event SHA. This avoids a non-fast-forward failure when another
-          # merge lands while the release is being built.
           git fetch origin main
           git checkout -B cran-artifact origin/main
 
@@ -174,7 +176,6 @@ jobs:
           git add -f "$cran_path"
           git commit -m "chore: store CRAN source for v${{ steps.release.outputs.version }}"
 
-          # Rebase and retry if main moved between the fetch and the push.
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
               exit 0
@@ -184,10 +185,20 @@ jobs:
             git fetch origin main
             if ! git rebase origin/main; then
               git rebase --abort || true
-              if git show "origin/main:$cran_path" >/dev/null 2>&1; then
-                echo "$cran_path was stored by another workflow run."
-                exit 0
+
+              if git show "origin/main:$cran_path" > "$RUNNER_TEMP/remote-cran.tar.gz" 2>/dev/null; then
+                remote_sha=$(sha256sum "$RUNNER_TEMP/remote-cran.tar.gz" | awk '{print $1}')
+                if [ "$remote_sha" = "$source_sha" ]; then
+                  echo "$cran_path was stored by another run with the expected digest."
+                  exit 0
+                fi
+
+                echo "$cran_path was stored by another run with a different SHA-256." >&2
+                echo "Expected: $source_sha" >&2
+                echo "Found:    $remote_sha" >&2
+                exit 1
               fi
+
               exit 1
             fi
           done
