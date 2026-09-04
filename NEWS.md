@@ -16,7 +16,7 @@ Monte Carlo standard error of 1.1%, with power between 95% and 100% against
 among the packages the accuracy table compares against, so only simulation
 would have found them.
 
-### performBPRandomEffectsTest rejected a third of the time under the null
+### `performBPRandomEffectsTest()` rejected a third of the time under the null
 
 The statistic was
 
@@ -41,7 +41,7 @@ at all, and does not respond to heteroscedasticity: against errors with
 `sd = x^2` the corrected statistic rejects 3.2% of the time, which is the
 nominal level rather than power.
 
-### performPesaranTest never rejected
+### `performPesaranTest()` never rejected
 
 The statistic was `sqrt(N(N-1)/(2T))` times the *mean* pairwise residual
 correlation, against Pesaran's (2004, 2015)
