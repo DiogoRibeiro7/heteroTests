@@ -98,7 +98,9 @@ performPesaranTest <- function(model, data, id, time) {
     stop("No usable pairwise residual correlations.", call. = FALSE)
   }
   CD <- sqrt(2 * T / (N * (N - 1))) * sum(cor_vals, na.rm = TRUE)
-  p_value <- 2 * (1 - pnorm(abs(CD)))
+  # As above, the upper tail rather than its complement, so a large |CD|
+  # does not collapse to a p-value of exactly zero.
+  p_value <- 2 * stats::pnorm(abs(CD), lower.tail = FALSE)
 
   structure(
     list(
