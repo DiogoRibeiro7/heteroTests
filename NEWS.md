@@ -1,5 +1,76 @@
 # heteroTests News
 
+## 0.10.0
+
+`rbootstrap_test_statistic()` now resamples under the null. Its p-value
+changes, and so does the `p.value_bootstrap` field of the two robust tests,
+hence the minor version.
+
+### The bootstrap p-value could not detect anything
+
+The helper resampled rows of the data with replacement, refitted, and
+recomputed the statistic. Those replicates follow the statistic's distribution
+under whatever variance structure the data actually have, not under the null:
+they are centred on the observed statistic, so comparing the two returns
+roughly one half however strong the heteroscedasticity is.
+
+Measured over 400 samples at n = 120, B = 199, testing Koenker's statistic:
+
+| procedure | size, homoscedastic | power, sd = x^2 |
+| --- | ---: | ---: |
+| pairs resampling (before) | 0.0% | **0.0%** |
+| null-imposed (now) | 5.0% | 100% |
+| `performWildBootstrapTest()` | 2.5% | 100% |
+| Koenker, asymptotic | 5.0% | 100% |
+
+Zero rejections under a strong alternative. The p-value was exported directly
+and also reached users as `p.value_bootstrap` from `performWhiteTestRobust()`
+and `performBPTestRobust()` when called with `bootstrap = TRUE`.
+
+`resample` now takes `"null"`, which is the default. The response is
+regenerated as `fitted + e*`, with `e*` drawn with replacement from the
+residuals after dividing by `sqrt(1 - h_i)` and centring, so the regenerated
+data satisfy homoscedasticity by construction. Size is 5.0% (Monte Carlo
+standard error 1.1%) and power is 99.2% against `sd = 0.5x` and 100% against
+`sd = x^2`. Size holds at 5.0% under homoscedastic `t_5` errors as well, so
+the calibration does not depend on Gaussian tails -- which matters here,
+because Bartlett's and Hartley's tests reject about 24% of the time against
+the same heavy-tailed null (see `inst/validation/README.md`).
+
+The leverage correction is not decorative. OLS residuals have variance
+`sigma^2 (1 - h_i)`, so resampling them unscaled under-disperses the
+regenerated errors; a version without it rejected about 13% of the time under
+the null. This is the construction `performWildBootstrapTest()` already used.
+
+`resample = "pairs"` is still available and still returns the replicates and
+the interval, which describe the statistic's variability perfectly well. It now
+returns `NA` for `p_value` rather than a number that cannot be interpreted.
+
+Null-imposed resampling is restricted to a Gaussian `lm` whose response is a
+plain variable, and errors otherwise. Two cases previously ran and returned a
+plausible p-value from replicates that meant nothing: a transformed response
+such as `log(y) ~ x`, where `fitted()` is on the log scale and the data column
+holds `y`, so refitting took the logarithm twice and returned p = 1; and a
+`glm`, where the refit used `safe_lm()` and dropped the family and link,
+returning p = 0.952 for a Poisson model. `resample = "pairs"` resamples rows
+and is unaffected by the transformed-response case, so it remains available
+there.
+
+A `glm` is now refused by *both* strategies. Each replicate is refitted with
+least squares whichever strategy is used, so on a Poisson fit of counts the
+coefficients move from (0.457, 0.406) on the log link to (-0.931, 2.281) on the
+identity scale: the replicates describe a different model from the one passed.
+The helper documented `glm` support it never had.
+
+### Percentile intervals are not confidence intervals
+
+The `ci` component was documented as a "percentile confidence interval for the
+statistic". It is a percentile interval of the bootstrap distribution: it
+summarises where the resampled statistic falls, is not an interval for a
+parameter, and carries no coverage guarantee. The documentation says so. This
+closes the corresponding roadmap item.
+
+
 ## 0.9.0
 
 `fitWLS()` now estimates its weights from a variance model. The numbers it

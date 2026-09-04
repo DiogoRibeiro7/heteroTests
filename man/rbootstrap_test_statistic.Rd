@@ -11,18 +11,51 @@ rbootstrap_test_statistic(
   B = 1000,
   parallel = FALSE,
   ci_level = 0.95,
-  resample = c("pairs"),
+  resample = c("null", "pairs"),
   n_cores = NULL,
   progress = interactive(),
   ...
 )
 }
+\details{
+The \code{resample} argument decides what the replicates mean.
+
+With \code{resample = "null"} (the default) the response is regenerated as
+\eqn{\hat y_i + e^*_i}, where the \eqn{e^*_i} are drawn with replacement from
+the model's residuals after dividing by \eqn{\sqrt{1 - h_i}} and centring.
+Those data satisfy homoscedasticity by construction, so the replicates
+estimate the null distribution and \code{p_value} is a test. The leverage
+correction matters: OLS residuals have variance \eqn{\sigma^2 (1 - h_i)}, and
+resampling them unscaled under-disperses the regenerated errors, which
+inflates the rejection rate.
+
+With \code{resample = "pairs"} rows are sampled with replacement. The
+replicates then follow the statistic's distribution under whatever variance
+structure the data actually have, which is useful for describing its
+variability but is not a null distribution: the replicates are centred on the
+observed statistic, so comparing the two returns roughly 0.5 whatever the
+data. Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%.
+\code{p_value} is therefore \code{NA} for pairs resampling.
+
+Neither strategy accepts a \code{glm}: each replicate is refitted with least
+squares, so the family and link would be discarded and the replicates would
+describe a different model from the one supplied.
+
+Null-imposed resampling additionally requires the response to be a plain
+variable. For \code{log(y) ~ x} the fitted values are on the log scale while
+the data column holds \code{y}, so regenerating one from the other and
+refitting would take the logarithm twice. That case raises an error;
+\code{resample = "pairs"} resamples rows and is unaffected by it.
+}
+
 \arguments{
 \item{test_function}{A function that accepts \verb{(model, data, ...)} and
 returns an object with a numeric \code{statistic} element (typically an
 \code{htest} result).}
 
-\item{model}{A fitted model of class \code{lm} or \code{glm}.}
+\item{model}{A fitted model of class \code{lm}. A \code{glm} is rejected:
+each replicate is refitted with least squares, which would discard its family
+and link.}
 
 \item{data}{Data frame used when fitting \code{model}.}
 
@@ -32,8 +65,10 @@ returns an object with a numeric \code{statistic} element (typically an
 
 \item{ci_level}{Confidence level for the percentile interval.}
 
-\item{resample}{Bootstrap strategy. Currently only "pairs" sampling is
-supported where rows of \code{data} are sampled with replacement.}
+\item{resample}{Bootstrap strategy. \code{"null"} (the default) regenerates
+the response under homoscedasticity and yields a testable \code{p_value};
+\code{"pairs"} samples rows of \code{data} with replacement and yields
+replicates and an interval but no p-value. See Details.}
 
 \item{n_cores}{Optional integer specifying the number of worker processes to
 use when \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}.}
@@ -51,8 +86,13 @@ original data.}
 \item{\code{original_statistic}}{Numeric value of the test statistic from
 the original sample.}
 \item{\code{replicates}}{Numeric vector of bootstrap statistics.}
-\item{\code{ci}}{Percentile confidence interval for the statistic.}
-\item{\code{p_value}}{Empirical bootstrap p-value.}
+\item{\code{ci}}{Percentile interval of the bootstrap distribution of the
+statistic, at \code{ci_level}. This summarises where the resampled statistic
+falls; it is not a confidence interval for a parameter and carries no
+coverage guarantee.}
+\item{\code{p_value}}{Empirical p-value from the null-imposed replicates,
+computed as \eqn{(1 + \#\{T^*_b \ge T\}) / (B_{\mathrm{eff}} + 1)};
+\code{NA} when \code{resample = "pairs"}.}
 \item{\code{B}}{Requested number of replications.}
 \item{\code{effective_samples}}{Number of non-missing bootstrap
 replications.}
@@ -62,10 +102,9 @@ replications.}
 \description{
 Provides a consistent wrapper around bootstrap resampling for test
 statistics produced by heteroscedasticity diagnostics. The routine
-refits the supplied model on bootstrap resamples of the working data
-and evaluates \code{test_function} on each replicate. Percentile confidence
-intervals and an empirical p-value are returned alongside the
-bootstrap distribution.
+refits the supplied model on each bootstrap replicate and evaluates
+\code{test_function} on it, returning the bootstrap distribution, a
+percentile interval, and---for null-imposed resampling---a p-value.
 }
 \examples{
 data(mtcars)

@@ -11,22 +11,52 @@ NULL
 #' Bootstrap a test statistic
 #'
 #' Provides a consistent wrapper around bootstrap resampling for test
-#' statistics produced by heteroscedasticity diagnostics. The routine
-#' refits the supplied model on bootstrap resamples of the working data
-#' and evaluates `test_function` on each replicate. Percentile confidence
-#' intervals and an empirical p-value are returned alongside the
-#' bootstrap distribution.
+#' statistics produced by heteroscedasticity diagnostics. The routine refits
+#' the supplied model on each bootstrap replicate and evaluates
+#' `test_function` on it, returning the bootstrap distribution, a percentile
+#' interval, and---for null-imposed resampling---a p-value.
+#'
+#' @details
+#' The `resample` argument decides what the replicates mean.
+#'
+#' With `resample = "null"` (the default) the response is regenerated as
+#' \eqn{\hat y_i + e^*_i}, where the \eqn{e^*_i} are drawn with replacement
+#' from the model's residuals after dividing by \eqn{\sqrt{1 - h_i}} and
+#' centring. Those data satisfy homoscedasticity by construction, so the
+#' replicates estimate the null distribution and `p_value` is a test. The
+#' leverage correction matters: OLS residuals have variance
+#' \eqn{\sigma^2 (1 - h_i)}, and resampling them unscaled under-disperses the
+#' regenerated errors, which inflates the rejection rate.
+#'
+#' With `resample = "pairs"` rows are sampled with replacement. The replicates
+#' then follow the statistic's distribution under whatever variance structure
+#' the data actually have, which is useful for describing its variability but
+#' is not a null distribution: the replicates are centred on the observed
+#' statistic, so comparing the two returns roughly 0.5 whatever the data.
+#' Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%. `p_value` is
+#' therefore `NA` for pairs resampling, and was removed rather than kept as a
+#' number that cannot be interpreted.
+#'
+#' Null-imposed resampling additionally requires the response to be a plain
+#' variable: for `log(y) ~ x` the fitted values are on the log scale while the
+#' data column holds `y`, so regenerating one from the other and refitting
+#' would take the logarithm twice. That case raises an error;
+#' `resample = "pairs"` resamples rows and is unaffected by it.
 #'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
-#' @param model A fitted model of class `lm` or `glm`.
+#' @param model A fitted model of class `lm`. A `glm` is rejected: each
+#'   replicate is refitted with least squares, which would discard its
+#'   family and link.
 #' @param data Data frame used when fitting `model`.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
 #' @param parallel Logical, compute replicates in parallel when possible?
 #' @param ci_level Confidence level for the percentile interval.
-#' @param resample Bootstrap strategy. Currently only "pairs" sampling is
-#'   supported where rows of `data` are sampled with replacement.
+#' @param resample Bootstrap strategy. `"null"` (the default) regenerates the
+#'   response under homoscedasticity and yields a testable `p_value`;
+#'   `"pairs"` samples rows of `data` with replacement and yields replicates
+#'   and an interval but no p-value. See Details.
 #' @param n_cores Optional integer specifying the number of worker processes to
 #'   use when `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`.
 #' @param progress Logical flag controlling whether a textual progress bar is
@@ -40,8 +70,13 @@ NULL
 #'     \item{`original_statistic`}{Numeric value of the test statistic from
 #'       the original sample.}
 #'     \item{`replicates`}{Numeric vector of bootstrap statistics.}
-#'     \item{`ci`}{Percentile confidence interval for the statistic.}
-#'     \item{`p_value`}{Empirical bootstrap p-value.}
+#'     \item{`ci`}{Percentile interval of the bootstrap distribution of the
+#'       statistic, at `ci_level`. This summarises where the resampled
+#'       statistic falls; it is not a confidence interval for a parameter and
+#'       carries no coverage guarantee.}
+#'     \item{`p_value`}{Empirical p-value from the null-imposed replicates,
+#'       computed as \eqn{(1 + \#\{T^*_b \ge T\}) / (B_{\mathrm{eff}} + 1)};
+#'       `NA` when `resample = "pairs"`.}
 #'     \item{`B`}{Requested number of replications.}
 #'     \item{`effective_samples`}{Number of non-missing bootstrap
 #'       replications.}
@@ -59,7 +94,7 @@ NULL
 #' @export
 rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
                                       parallel = FALSE, ci_level = 0.95,
-                                      resample = c("pairs"), n_cores = NULL,
+                                      resample = c("null", "pairs"), n_cores = NULL,
                                       progress = interactive(), ...) {
   if (!is.function(test_function)) {
     stop("`test_function` must be a function.", call. = FALSE)
@@ -91,6 +126,21 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     n_cores <- as.integer(n_cores)
   }
 
+  # Both strategies refit each replicate with safe_lm(), which builds an lm and
+  # drops a glm's family and link: on a Poisson fit of counts the coefficients
+  # move from (0.457, 0.406) on the log link to (-0.931, 2.281) on the identity
+  # scale, so the replicates describe a different model from the one supplied.
+  # Neither strategy is usable for a glm, so both refuse rather than return
+  # replicates of something the caller did not ask about.
+  if (inherits(model, "glm")) {
+    stop(
+      "`rbootstrap_test_statistic()` supports Gaussian `lm` models only. Each ",
+      "replicate is refitted with least squares, which would discard the ",
+      "family and link of a `glm` and bootstrap a different model.",
+      call. = FALSE
+    )
+  }
+
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic
   if (is.null(statistic) || length(statistic) == 0L) {
@@ -106,9 +156,61 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
 
   extra_args <- list(...)
 
+  # Null-imposed resampling. Regenerating the response as
+  # yhat + iid draws from the residuals gives data that satisfy
+  # homoscedasticity by construction, so the replicates estimate the null
+  # distribution of the statistic and the p-value below is a test.
+  #
+  # Residuals are divided by sqrt(1 - h_i) before resampling: OLS residuals
+  # have variance sigma^2 (1 - h_i), so resampling them raw under-disperses the
+  # regenerated errors and the test rejects too often. This is the construction
+  # performWildBootstrapTest() uses, following Davidson and Flachaire (2008).
+  response_col <- all.vars(formula)[1L]
+  fitted_vals <- stats::fitted(model)
+  null_residuals <- NULL
+  if (identical(resample, "null")) {
+    # Regenerating the response only makes sense where the fitted values and
+    # the residuals live on the same scale as the column being overwritten.
+    #
+    # For a transformed response such as log(y) ~ x, fitted() is on the log
+    # scale while the data column holds y, so writing one into the other and
+    # refitting would take the logarithm a second time. For a glm, fitted() is
+    # on the response scale, the residuals are deviance residuals, and the
+    # refit below uses safe_lm(), which would silently drop the family and
+    # link. Both cases previously ran and returned a plausible p-value from
+    # meaningless replicates.
+    if (!is.name(formula[[2L]])) {
+      stop(
+        "Null-imposed resampling needs a plain response variable, but the ",
+        "model's response is `", deparse(formula[[2L]]), "`, which is on a ",
+        "different scale from the data column. Fit the model on a ",
+        "pre-transformed column, or use resample = \"pairs\".",
+        call. = FALSE
+      )
+    }
+    leverage <- stats::hatvalues(model)
+    null_residuals <- stats::residuals(model) /
+      sqrt(pmax(1 - leverage, .Machine$double.eps))
+    null_residuals <- null_residuals - mean(null_residuals)
+    if (length(fitted_vals) != n || length(null_residuals) != n) {
+      stop(
+        "Null-imposed resampling needs one fitted value and one residual per ",
+        "row of `data`; the model was fitted on a different sample. Refit on ",
+        "`data`, or pass resample = \"pairs\".",
+        call. = FALSE
+      )
+    }
+  }
+
   compute_bootstrap <- function(index) {
-    sampled_idx <- sample.int(n, replace = TRUE)
-    boot_data <- data[sampled_idx, , drop = FALSE]
+    if (identical(resample, "null")) {
+      boot_data <- data
+      boot_data[[response_col]] <- fitted_vals +
+        sample(null_residuals, n, replace = TRUE)
+    } else {
+      sampled_idx <- sample.int(n, replace = TRUE)
+      boot_data <- data[sampled_idx, , drop = FALSE]
+    }
     boot_model <- tryCatch(
       safe_lm(formula, data = boot_data),
       error = function(e) NULL
@@ -158,7 +260,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       on.exit(parallel::stopCluster(cl), add = TRUE)
       parallel::clusterEvalQ(cl, library(heteroTests))
       parallel::clusterExport(cl,
-        varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function"),
+        varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function",
+                    "resample", "response_col", "fitted_vals", "null_residuals"),
         envir = environment()
       )
       for (chunk in chunk_plan) {
@@ -184,9 +287,20 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     probs <- c((1 - ci_level) / 2, 1 - (1 - ci_level) / 2)
     ci_vals <- stats::quantile(replicates, probs = probs, na.rm = TRUE, names = FALSE)
     ci <- stats::setNames(ci_vals, c("lower", "upper"))
-    # Finite-simulation convention: (1 + #) / (B_eff + 1), where B_eff counts
-    # the replicates that actually converged.
-    p_value <- (1 + sum(replicates >= original_stat, na.rm = TRUE)) / (effective + 1)
+    if (identical(resample, "null")) {
+      # Finite-simulation convention: (1 + #) / (B_eff + 1), where B_eff counts
+      # the replicates that actually converged.
+      p_value <- (1 + sum(replicates >= original_stat, na.rm = TRUE)) / (effective + 1)
+    } else {
+      # Pairs resampling regenerates the data as observed, so the replicates
+      # follow the statistic's distribution under whatever variance structure
+      # the data actually have -- centred on the observed statistic rather than
+      # on the null. Comparing the two returns roughly 0.5 whatever the data:
+      # measured rejection under sd = x^2 was 0%. The replicates and the
+      # interval still describe the statistic's variability, so they are
+      # returned; the p-value is not.
+      p_value <- NA_real_
+    }
   }
 
   list(
