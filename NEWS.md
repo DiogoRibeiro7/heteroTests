@@ -1,5 +1,58 @@
 # heteroTests News
 
+## 0.11.1
+
+Two panel p-values change value, though not their conclusions.
+
+### The panel p-values no longer underflow to zero
+
+`performBPRandomEffectsTest()` and `performPesaranTest()` computed their upper
+tails as `1 - pchisq()` and `1 - pnorm()`. Both collapse to exactly zero once
+the statistic is large: at `LM = 182.9` the subtraction returns `0` where the
+upper tail returns `1.1e-41`, which is the value `plm::plmtest()` reports. A
+p-value of exactly zero is wrong, and it discards the magnitude that anything
+working on a log scale or applying a multiplicity correction needs. Both now
+pass `lower.tail = FALSE`.
+
+### Both are now checked against `plm`
+
+Neither statistic had a reference implementation among the packages the
+accuracy table compares against, which is why both were wrong until 0.11.0 and
+why simulated size was the only thing that caught them. `plm` has had both all
+along.
+
+`performBPRandomEffectsTest()` reproduces `plm::plmtest(type = "bp")` exactly,
+and `performPesaranTest()` reproduces `plm::pcdtest(model = "pooling")`, both
+to 1e-8 across N = 20/30/40 and T = 5/6/8.
+
+The `model` argument is the part worth recording. `pcdtest()` defaults to
+`model = NULL`, which tests the series rather than any model's residuals and
+gives 0.817 where this package gives 1.580. `performPesaranTest()` takes a
+fitted `lm`, whose residuals are identical to the pooling residuals, so
+`"pooling"` is the comparison that puts both on the same quantity; `"within"`
+and `"random"` give 1.220 and 1.258, which are different estimands rather than
+disagreements.
+
+`plm` and `withr` join `Suggests`. The tests attach `plm` with
+`withr::local_package()` rather than calling through `::`, because `pcdtest()`
+calls `plm()` internally without qualifying the namespace and fails when the
+package is only installed.
+
+### Continuous integration
+
+- `R CMD check --as-cran` no longer runs on every merge. CRAN submission is not
+  the near-term target, and that job costs about an hour: it installs a LaTeX
+  toolchain and every check dependency, then rebuilds the vignettes. It had
+  also stopped completing -- three consecutive runs on `main` were cancelled or
+  left queued inside it -- so it was a gate producing a signal nobody received.
+  It now runs weekly and on `workflow_dispatch`.
+- A concurrency group is added, keyed by pull request number for pull requests
+  and by commit for everything else. A ref-keyed group would have put pushes,
+  the weekly schedule and manual dispatches on `main` into one queue, and
+  GitHub keeps only one pending run per group, so a third arrival would cancel
+  the pending one.
+
+
 ## 0.11.0
 
 Two panel statistics were wrong against their published definitions. Both
