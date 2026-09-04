@@ -9,65 +9,234 @@ permissions:
   contents: write
 
 jobs:
-  create-release:
+  detect-version:
+    # workflow_dispatch can be launched from another ref; release automation is
+    # intentionally limited to the canonical main branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package version
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
+          if [ -z "$version" ]; then
+            echo "DESCRIPTION does not contain a package Version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  create-release:
+    needs: detect-version
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    # Serialize only runs for the same package version. Distinct version bumps
+    # use distinct groups, so GitHub cannot discard one version while another
+    # release is running. Repeated pushes for one version still cannot race tag
+    # creation, release upload, or repository-side CRAN storage.
+    concurrency:
+      group: heterotests-release-${{ needs.detect-version.outputs.version }}
+      cancel-in-progress: false
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Detect version bump
-        id: version
+
+      - name: Detect release work
+        id: release
+        shell: bash
         run: |
-          current=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
-          echo "version=$current" >> "$GITHUB_OUTPUT"
-          if git rev-parse HEAD^ >/dev/null 2>&1; then
-            previous=$(git show HEAD^:DESCRIPTION 2>/dev/null | grep '^Version:' | awk '{print $2}')
-          else
-            previous=""
+          set -euo pipefail
+
+          version="${{ needs.detect-version.outputs.version }}"
+          checked_out_version=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
+          if [ "$checked_out_version" != "$version" ]; then
+            echo "Version changed between detection and release checkout." >&2
+            echo "Detected: $version" >&2
+            echo "Checkout: $checked_out_version" >&2
+            exit 1
           fi
-          if [ "$current" != "$previous" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          tarball="heteroTests_${version}.tar.gz"
+          cran_path="cran/${tarball}"
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "cran_path=$cran_path" >> "$GITHUB_OUTPUT"
+
+          # Re-evaluate release state only after acquiring the version-specific
+          # concurrency lock. An earlier same-version run may have completed
+          # while this job was queued.
+          git fetch --tags origin
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            tag_exists=true
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            tag_exists=false
           fi
-      - name: Check for existing tag
-        id: tag
-        if: steps.version.outputs.changed == 'true'
-        run: |
-          version="${{ steps.version.outputs.version }}"
-          if git rev-parse "v${version}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+
+          if [ -f "$cran_path" ]; then
+            artifact_exists=true
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            artifact_exists=false
           fi
+
+          if [ "$tag_exists" = false ]; then
+            mode=new_release
+          elif [ "$artifact_exists" = false ]; then
+            mode=backfill
+          else
+            mode=none
+          fi
+
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "artifact_exists=$artifact_exists" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
       - uses: r-lib/actions/setup-pandoc@v2
-        if: steps.version.outputs.changed == 'true' && steps.tag.outputs.exists == 'false'
+        if: steps.release.outputs.mode == 'new_release'
+
       - uses: r-lib/actions/setup-r@v2
-        if: steps.version.outputs.changed == 'true' && steps.tag.outputs.exists == 'false'
+        if: steps.release.outputs.mode == 'new_release'
         with:
           use-public-rspm: true
-      # R CMD build renders the vignettes, so the builder and everything the
-      # vignettes use must be installed first; without this the build fails in
-      # loadVignetteBuilder(). This step only runs on a version bump, which is
-      # why the omission went unnoticed until 0.7.0.
+
       - uses: r-lib/actions/setup-r-dependencies@v2
-        if: steps.version.outputs.changed == 'true' && steps.tag.outputs.exists == 'false'
+        if: steps.release.outputs.mode == 'new_release'
         with:
           extra-packages: any::knitr, any::rmarkdown
           needs: check
+
       - name: Build source package
         id: build
-        if: steps.version.outputs.changed == 'true' && steps.tag.outputs.exists == 'false'
+        if: steps.release.outputs.mode == 'new_release'
+        shell: bash
         run: |
-          rm -f *.tar.gz
+          set -euo pipefail
+
+          expected="${{ steps.release.outputs.tarball }}"
+          rm -f heteroTests_*.tar.gz
           R CMD build .
-          tarball=$(ls -1t *.tar.gz | head -n 1)
-          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+          if [ ! -f "$expected" ]; then
+            echo "Expected R CMD build to produce $expected" >&2
+            exit 1
+          fi
+
+          staged="$RUNNER_TEMP/$expected"
+          cp "$expected" "$staged"
+          echo "staged_tarball=$staged" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub release
-        if: steps.version.outputs.changed == 'true' && steps.tag.outputs.exists == 'false'
+        if: steps.release.outputs.mode == 'new_release'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: heteroTests v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.release.outputs.version }}
+          name: heteroTests v${{ steps.release.outputs.version }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
-          files: ${{ steps.build.outputs.tarball }}
+          files: ${{ steps.build.outputs.staged_tarball }}
+
+      - name: Download existing release tarball for backfill
+        if: steps.release.outputs.mode == 'backfill'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          version="${{ steps.release.outputs.version }}"
+          tarball="${{ steps.release.outputs.tarball }}"
+          destination="$RUNNER_TEMP/$tarball"
+          download_dir="$RUNNER_TEMP/cran-backfill"
+
+          mkdir -p "$download_dir"
+          gh release download "v${version}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$tarball" \
+            --dir "$download_dir"
+
+          if [ ! -f "$download_dir/$tarball" ]; then
+            echo "Release v${version} does not contain $tarball" >&2
+            exit 1
+          fi
+
+          cp "$download_dir/$tarball" "$destination"
+
+      - name: Store exact CRAN source package in repository
+        if: steps.release.outputs.mode == 'new_release' || steps.release.outputs.mode == 'backfill'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tarball="${{ steps.release.outputs.tarball }}"
+          cran_path="${{ steps.release.outputs.cran_path }}"
+          source_tarball="$RUNNER_TEMP/$tarball"
+
+          if [ ! -f "$source_tarball" ]; then
+            echo "Missing staged release tarball: $source_tarball" >&2
+            exit 1
+          fi
+
+          source_sha=$(sha256sum "$source_tarball" | awk '{print $1}')
+          echo "CRAN source SHA-256: $source_sha"
+
+          git fetch origin main
+          git checkout -B cran-artifact origin/main
+
+          if [ -f "$cran_path" ]; then
+            existing_sha=$(sha256sum "$cran_path" | awk '{print $1}')
+            if [ "$existing_sha" = "$source_sha" ]; then
+              echo "$cran_path is already stored with the expected digest."
+              exit 0
+            fi
+
+            echo "$cran_path already exists with a different SHA-256." >&2
+            echo "Expected: $source_sha" >&2
+            echo "Found:    $existing_sha" >&2
+            exit 1
+          fi
+
+          mkdir -p cran
+          cp "$source_tarball" "$cran_path"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$cran_path"
+          git commit -m "chore: store CRAN source for v${{ steps.release.outputs.version }}"
+
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "main moved while storing the CRAN artifact; retrying ($attempt/3)."
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+
+              if git show "origin/main:$cran_path" > "$RUNNER_TEMP/remote-cran.tar.gz" 2>/dev/null; then
+                remote_sha=$(sha256sum "$RUNNER_TEMP/remote-cran.tar.gz" | awk '{print $1}')
+                if [ "$remote_sha" = "$source_sha" ]; then
+                  echo "$cran_path was stored by another run with the expected digest."
+                  exit 0
+                fi
+
+                echo "$cran_path was stored by another run with a different SHA-256." >&2
+                echo "Expected: $source_sha" >&2
+                echo "Found:    $remote_sha" >&2
+                exit 1
+              fi
+
+              exit 1
+            fi
+          done
+
+          echo "Could not push $cran_path to main after three attempts." >&2
+          exit 1
