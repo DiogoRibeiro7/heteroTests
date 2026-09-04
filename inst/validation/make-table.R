@@ -71,3 +71,28 @@ if (file.exists(csv_b)) {
     b$replications[1], 0.05
   ))
 }
+
+# --- Full sweep -------------------------------------------------------------
+
+csv_s <- file.path("inst", "validation", "full-sweep-size-power.csv")
+if (!file.exists(csv_s)) csv_s <- "full-sweep-size-power.csv"
+if (file.exists(csv_s)) {
+  sw <- utils::read.csv(csv_s, stringsAsFactors = FALSE)
+  # Flag anything more than three Monte Carlo standard errors from nominal, so
+  # the reader is not left to do the arithmetic.
+  alpha <- 0.05
+  z <- (sw$size - alpha) / sw$size_mc_se
+  flag <- ifelse(!is.finite(z) | abs(z) <= 3, "",
+                 ifelse(z > 0, " (high)", " (low)"))
+
+  cat("\n### Full sweep over every exported test\n\n")
+  cat("| Test | Alternative | Size | Power |\n")
+  cat("| --- | --- | ---: | ---: |\n")
+  for (i in seq_len(nrow(sw))) {
+    cat(sprintf("| `%s()` | %s | %.3f%s | %.3f |\n",
+                sw$test[i], sw$alternative[i], sw$size[i], flag[i], sw$power[i]))
+  }
+  cat(sprintf(
+    "\nReplications: %d. Nominal level: %.2f. Monte Carlo standard error at the nominal level: %.4f.\n",
+    sw$replications[1], alpha, sqrt(alpha * (1 - alpha) / sw$replications[1])))
+}

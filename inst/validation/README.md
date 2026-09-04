@@ -10,7 +10,7 @@ For each method that means checking the statistic itself, its degrees of
 freedom, its null distribution, the direction of the alternative, the p-value,
 the treatment of the intercept, and the handling of rank deficiency.
 
-The work is split into three passes:
+The work is split into three passes and a closing sweep:
 
 - **Pass A — classical regression diagnostics.** Complete as of 0.7.0.
 - **Pass B — group-variance tests.** Levene, Brown-Forsythe, Bartlett,
@@ -19,6 +19,9 @@ The work is split into three passes:
 - **Pass C — the remainder.** Cameron-Trivedi, ordered LM, Davidian-Carroll,
   Rice, Curry-Walsh, wild bootstrap, rank permutation, quantile regression,
   high-dimensional, spatial and panel diagnostics. Complete as of 0.7.2.
+- **Full sweep — every exported test.** All 32 `perform*Test()` functions, each
+  driven by the null and alternative appropriate to what it tests rather than a
+  single process for all of them. Complete as of 0.11.0.
 
 These lists name what each pass examined, not what the package still exports.
 Six of the package's diagnostics were removed in 0.8.0, either because their
@@ -31,6 +34,8 @@ test that remains.
 | --- | --- |
 | `pass-a-size-power.R` | The Monte Carlo study. Run from the repository root: `Rscript inst/validation/pass-a-size-power.R [n_mc]`. |
 | `pass-a-size-power.csv` | Its output, in long format, one row per test and scenario. |
+| `full-sweep-size-power.R` | The sweep over every exported test. `Rscript inst/validation/full-sweep-size-power.R`, with `N_MC` overridable. |
+| `full-sweep-size-power.csv` | Its output, one row per test, with the alternative each was driven against. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -164,6 +169,74 @@ when their assumption holds; Fligner-Killeen pays the most for its robustness.
 Before 0.7.1, `performOBrienTest()` rejected 100% of the time in every column,
 including the null ones, and `performHartleyFmaxTest()` rejected about 35% of
 the time under the null at four groups. See `NEWS.md`.
+
+### Full sweep over every exported test
+
+| Test | Alternative | Size | Power |
+| --- | --- | ---: | ---: |
+| `performCookWeisbergTest()` | sd = x^2 | 0.072 | 0.980 |
+| `performDavidianCarrollTest()` | sd = x^2 | 0.042 | 0.975 |
+| `performHarveyTest()` | sd = x^2 | 0.058 | 1.000 |
+| `performNCVTest()` | sd = x^2 | 0.072 | 0.980 |
+| `performSpearmanTest()` | sd = x^2 | 0.070 | 0.980 |
+| `performSpreadLevelTest()` | sd = x^2 | 0.055 | 0.975 |
+| `performBPTest()` | sd = x^2 | 0.058 | 1.000 |
+| `performBreuschPaganTest()` | sd = x^2 | 0.058 | 1.000 |
+| `performKoenkerTest()` | sd = x^2 | 0.045 | 1.000 |
+| `performStudentizedBPTest()` | sd = x^2 | 0.045 | 1.000 |
+| `performWhiteTest()` | sd = x^2 | 0.032 | 1.000 |
+| `performQuantileRegressionTest()` | sd = x^2 | 0.048 | 1.000 |
+| `performHighDimensionalTest()` | sd = x^2 | 0.045 | 1.000 |
+| `performRankPermutationTest()` | sd = x^2 | 0.050 | 1.000 |
+| `performWildBootstrapTest()` | sd = x^2 | 0.052 | 1.000 |
+| `performBartlettTest()` | sd = x^2 | 0.060 | 1.000 |
+| `performBrownForsytheTest()` | sd = x^2 | 0.055 | 1.000 |
+| `performFlignerKilleenTest()` | sd = x^2 | 0.048 | 1.000 |
+| `performHartleyFmaxTest()` | sd = x^2 | 0.062 | 1.000 |
+| `performLeveneTest()` | sd = x^2 | 0.068 | 1.000 |
+| `performOBrienTest()` | sd = x^2 | 0.048 | 1.000 |
+| `performBoxMTest()` | sd = x^2 | 0.012 (low) | 1.000 |
+| `performGlejserTest()` | sd = x^2 | 0.060 | 1.000 |
+| `performParkTest()` | sd = x^2 | 0.062 | 1.000 |
+| `performGQTest()` | sd = x^2 | 0.082 | 1.000 |
+| `performSzroeterTest()` | sd = x^2 | 0.058 | 1.000 |
+| `performArchLMTest()` | ARCH(1), alpha = 0.6 | 0.048 | 0.830 |
+| `performMcLeodLiTest()` | ARCH(1), alpha = 0.6 | 0.040 | 0.848 |
+| `performRESETTest()` | omitted quadratic | 0.045 | 1.000 |
+| `performBPRandomEffectsTest()` | random intercepts | 0.030 | 1.000 |
+| `performPesaranTest()` | common time factor | 0.037 | 1.000 |
+
+Replications: 400. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0109.
+
+Each test is driven against its own alternative, so the power column compares
+tests only within a family. The heteroscedasticity diagnostics face
+`sd = x^2`; the ARCH pair faces an ARCH(1) process, which is a harder problem
+at this sample size and is why their power sits near 0.84 rather than 1.
+
+Twenty-six of the twenty-eight heteroscedasticity tests fall inside three
+Monte Carlo standard errors of the nominal level. Two remarks on the rest:
+
+- `performBoxMTest()` is conservative at 0.012. Box's M is a test of equality
+  of covariance matrices rather than of scalar variances, so it is answering a
+  broader question here, and it is known to be sensitive to non-normality in
+  the opposite direction. It is left as it is.
+- `performGQTest()` at 0.082 is 2.9 standard errors above nominal, which is
+  within the flagging threshold but worth explaining. It is a property of this
+  design rather than of the implementation: `lmtest::gqtest()` gives 0.070 on
+  the same samples, and with a single regressor both give 0.025. The package
+  reproduces `lmtest::gqtest()` exactly at matched `fraction` -- the difference
+  is zero at 0.1, 0.2 and 0.3 -- though it cannot reproduce that function's
+  default, since `lmtest` omits no central observations and `performGQTest()`
+  requires `fraction` strictly between 0 and 1.
+
+Four tests are not heteroscedasticity diagnostics and are included because they
+are exported and were unvalidated: `performRESETTest()` (functional form),
+`performBPRandomEffectsTest()` (presence of an individual effect),
+`performPesaranTest()` (cross-sectional dependence) and `performBoxMTest()`
+(equality of covariance matrices). Reading their power as power against
+heteroscedasticity would be a mistake; the corrected
+`performBPRandomEffectsTest()` rejects at 3.2% against `sd = x^2`, which is the
+nominal level rather than power.
 
 ## History
 
