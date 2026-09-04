@@ -187,10 +187,12 @@ are simulated size, not recorded numbers.
 Factor out repeated boilerplate (scalar validators, the model/data
 preparation block, intercept-stripping) into shared helpers.
 
-Give the group-variance tests a heavy-tailed size column in the shipped
-sweep. Bartlett and Hartley reject about 24% of the time against a `t5`
-null, which the Pass B table records but the full sweep does not yet
-cover.
+Added a heavy-tailed size column to the shipped sweep, covering all 26
+heteroscedasticity tests rather than only the group-variance ones.
+Sixteen hold their level under a `t5` null. Eight over-reject – the
+normality-dependent statistics, led by classical Breusch-Pagan at 0.287
+against Koenker’s 0.048 – and two are conservative enough to be named as
+well.
 
 Added a reference comparison for the panel statistics.
 [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
