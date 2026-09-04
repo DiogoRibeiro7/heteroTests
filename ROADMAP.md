@@ -76,13 +76,24 @@ Dates are omitted in favour of milestone ordering.
 
 ## Current priorities (next)
 
-- [ ] **Finish CRAN readiness.** Run `R CMD check --as-cran` with every Suggests
-  installed and clear what remains. The last local run left three notes, two of
-  them environmental (no network to verify the system clock, `V8` absent for
-  math rendering); the `\doi{}` note was cleared in 0.8.1.
+**CRAN submission is deferred.** The package is not considered mature enough to
+submit, so nothing here is sequenced towards a submission date. `R CMD check
+--as-cran` is still worth passing as a quality signal -- it is what surfaced the
+`\doi{}` note cleared in 0.8.1 -- but it no longer runs on every merge, because
+it costs about an hour and three consecutive runs were cancelled or left queued
+before finishing. It runs weekly and on demand
+(`gh workflow run R-CMD-check.yml`).
+
+- [ ] Keep `--as-cran` clean on the weekly run. The last local run left three
+  notes, two of them environmental: no network to verify the system clock, and
+  `V8` absent for math rendering.
 - [ ] Replace non-ASCII characters in source with escapes.
 - [ ] Decide whether R 4.1 remains the supported floor, or whether the minimum
   should track R's own support window.
+
+With submission deferred, the useful work is the statistical surface rather
+than packaging: the validation matrix below is complete for the exported tests,
+and its follow-ons are listed under short-term improvements.
 
 ### Validation matrix
 

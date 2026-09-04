@@ -9,6 +9,23 @@ on:
     - cron: '0 3 * * 1'
   workflow_dispatch:
 
+# Supersede a pull request's earlier runs, but never a push to main: those are
+# the runs whose results are recorded against a merge.
+#
+# The group is keyed by commit rather than by ref for everything except pull
+# requests. On main the ref is identical for push, schedule and
+# workflow_dispatch, so a ref-keyed group would put all three in one queue --
+# and because GitHub holds at most one pending run per group, a third arrival
+# cancels the pending one. A merge landing while the weekly run sits in its
+# hour-long cran-check would then wait behind it, and the merge after that
+# would cancel it: exactly the lost result this block exists to prevent.
+# Keying by SHA gives each commit its own group, so nothing queues or cancels.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
@@ -74,7 +91,14 @@ jobs:
 
   cran-check:
     name: CRAN submission checks
-    if: github.event_name != 'pull_request'
+    # Not run on every merge. CRAN submission is not the near-term target, and
+    # this job costs about an hour: it installs a LaTeX toolchain, every
+    # `needs: check` dependency, and rebuilds the vignettes under --as-cran.
+    # Three consecutive main runs were still queued or cancelled while it ran,
+    # so it never completed anyway. It remains available on demand and on the
+    # weekly schedule, which is enough to keep the signal that caught the
+    # \doi{} note in 0.8.1.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: R-CMD-check
     runs-on: ubuntu-latest
     env:
