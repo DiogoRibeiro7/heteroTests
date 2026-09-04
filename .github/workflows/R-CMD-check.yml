@@ -9,6 +9,12 @@ on:
     - cron: '0 3 * * 1'
   workflow_dispatch:
 
+# Supersede a pull request's earlier runs, but never a push to main: those are
+# the runs whose results are recorded against a merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
@@ -74,7 +80,14 @@ jobs:
 
   cran-check:
     name: CRAN submission checks
-    if: github.event_name != 'pull_request'
+    # Not run on every merge. CRAN submission is not the near-term target, and
+    # this job costs about an hour: it installs a LaTeX toolchain, every
+    # `needs: check` dependency, and rebuilds the vignettes under --as-cran.
+    # Three consecutive main runs were still queued or cancelled while it ran,
+    # so it never completed anyway. It remains available on demand and on the
+    # weekly schedule, which is enough to keep the signal that caught the
+    # \doi{} note in 0.8.1.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: R-CMD-check
     runs-on: ubuntu-latest
     env:
