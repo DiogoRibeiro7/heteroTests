@@ -8,19 +8,42 @@ on:
 permissions:
   contents: write
 
-# Only one release workflow may run at a time. This prevents two main pushes
-# for the same package version from racing tag creation, release upload and
-# repository-side CRAN storage.
-concurrency:
-  group: heterotests-release
-  cancel-in-progress: false
-
 jobs:
-  create-release:
-    # workflow_dispatch can be launched from another ref; never create a release
-    # or mutate main unless the workflow is running from main itself.
+  detect-version:
+    # workflow_dispatch can be launched from another ref; release automation is
+    # intentionally limited to the canonical main branch.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package version
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
+          if [ -z "$version" ]; then
+            echo "DESCRIPTION does not contain a package Version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  create-release:
+    needs: detect-version
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    # Serialize only runs for the same package version. Distinct version bumps
+    # use distinct groups, so GitHub cannot discard one version while another
+    # release is running. Repeated pushes for one version still cannot race tag
+    # creation, release upload, or repository-side CRAN storage.
+    concurrency:
+      group: heterotests-release-${{ needs.detect-version.outputs.version }}
+      cancel-in-progress: false
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,7 +55,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          version=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
+          version="${{ needs.detect-version.outputs.version }}"
+          checked_out_version=$(grep '^Version:' DESCRIPTION | awk '{print $2}')
+          if [ "$checked_out_version" != "$version" ]; then
+            echo "Version changed between detection and release checkout." >&2
+            echo "Detected: $version" >&2
+            echo "Checkout: $checked_out_version" >&2
+            exit 1
+          fi
+
           tarball="heteroTests_${version}.tar.gz"
           cran_path="cran/${tarball}"
 
@@ -40,6 +71,10 @@ jobs:
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
           echo "cran_path=$cran_path" >> "$GITHUB_OUTPUT"
 
+          # Re-evaluate release state only after acquiring the version-specific
+          # concurrency lock. An earlier same-version run may have completed
+          # while this job was queued.
+          git fetch --tags origin
           if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
             tag_exists=true
           else
