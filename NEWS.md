@@ -1,5 +1,73 @@
 # heteroTests News
 
+## 0.11.0
+
+Two panel statistics were wrong against their published definitions. Both
+change, hence the minor version.
+
+### Where these came from
+
+A size and power sweep over all 32 exported `perform*Test()` functions, each
+driven by a null and an alternative appropriate to what it actually tests.
+Twenty-six of the twenty-eight heteroscedasticity tests hold their nominal
+level: at 400 replications and n = 150, size ranges from 3.0% to 6.2% against a
+Monte Carlo standard error of 1.1%, with power between 95% and 100% against
+`sd = x^2`. The two below did not, and neither has a reference implementation
+among the packages the accuracy table compares against, so only simulation
+would have found them.
+
+### performBPRandomEffectsTest rejected a third of the time under the null
+
+The statistic was
+
+    T^2 / (2(T - 1)) * sum_i (sum_t e_it)^2 / sum_it e_it^2
+
+against Breusch and Pagan's (1980) equation 5,
+
+    nT / (2(T - 1)) * [ sum_i (sum_t e_it)^2 / sum_it e_it^2 - 1 ]^2
+
+The bracketed ratio is close to one under the null, and the published statistic
+measures its squared departure from one. Dropping the `- 1` and the square
+leaves a quantity that sits at `T^2 / (2(T - 1))` -- 3.6 for T = 6, against a
+chi-square(1) critical value of 3.841. Measured median statistic 3.548, and
+size 32.5% against a nominal 5%. It is now 5.8%, with power 100% against random
+intercepts.
+
+The documentation was wrong in the same place. The help page was titled a test
+for random effects but described a test for "heteroscedasticity in random
+effects models", and the roxygen claimed it tested whether the effect's
+variance varies across units. It tests whether an individual effect is present
+at all, and does not respond to heteroscedasticity: against errors with
+`sd = x^2` the corrected statistic rejects 3.2% of the time, which is the
+nominal level rather than power.
+
+### performPesaranTest never rejected
+
+The statistic was `sqrt(N(N-1)/(2T))` times the *mean* pairwise residual
+correlation, against Pesaran's (2004, 2015)
+
+    CD = sqrt( 2T / (N(N-1)) ) * sum_{i<j} rho_ij
+
+which is the same quantity multiplied by T. The implemented version was
+therefore exactly `1/T` too small: at T = 8 its standard deviation was 0.133
+where the published form gives 1.067, and since the reference distribution is
+standard normal, size was 0.0%. It is now 6.5%, with power 100% against a
+common time factor.
+
+The pairwise correlations are also computed with a single `cor()` call rather
+than a double loop that grew a vector by `c()`.
+
+### Also
+
+- `performRESETTest` was checked in the same sweep and is correct: size 5.2%,
+  power 100% against an omitted quadratic term.
+- `performGQTest` reproduces `lmtest::gqtest()` exactly at matched `fraction`
+  -- the difference is zero at 0.1, 0.2 and 0.3. It cannot reproduce that
+  function's default, because `lmtest` omits no central observations by default
+  and `performGQTest()` requires `fraction` strictly between 0 and 1.
+- `tests/testthat/test-panel-statistics.R` pins both corrections by simulated
+  size rather than by a stored value, since a stored value would not have
+  caught either fault.
 ## 0.10.0
 
 `rbootstrap_test_statistic()` now resamples under the null. Its p-value

@@ -3,7 +3,7 @@ message: |
   If you use this software, please cite it using the metadata below.
   See algorithms_bibliography() for references on diagnostic tests.
 title: "heteroTests"
-version: "0.10.0"
+version: "0.11.0"
 type: software
 authors:
   - given-names: "Diogo"
@@ -39,7 +39,7 @@ preferred-citation:
   title: "heteroTests: Heteroscedasticity Diagnostic Tools"
   year: "2026"
   url: "https://github.com/DiogoRibeiro7/heteroTests"
-  version: "0.10.0"
+  version: "0.11.0"
 references:
   - type: article
     authors:

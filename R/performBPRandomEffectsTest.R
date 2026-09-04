@@ -1,8 +1,14 @@
-#' Breusch–Pagan LM test for random-effects heteroscedasticity
+#' Breusch–Pagan LM test for random effects
 #'
-#' Computes the Breusch and Pagan (1980) Lagrange Multiplier statistic for testing
-#' whether the variance of the individual-specific random effect varies across
-#' cross-sectional units in a panel model.
+#' Computes the Breusch and Pagan (1980) Lagrange Multiplier statistic for the
+#' null that the individual-specific error variance is zero, against the
+#' alternative that a random individual effect is present.
+#'
+#' This is a test for the presence of an individual effect, not a test for
+#' heteroscedasticity, and it does not respond to one: simulated at n = 400,
+#' its rejection rate is 100% against random intercepts and 3.2% against errors
+#' with `sd = x^2`, which is the nominal level rather than power. Use the
+#' auxiliary-regression diagnostics for non-constant variance.
 #'
 #' @param model A fitted [stats::lm] object estimated on stacked panel data whose
 #'   residuals are analysed. The function assumes the observations are ordered by
@@ -78,7 +84,18 @@ performBPRandomEffectsTest <- function(model, data, id) {
   }
   T <- mean(T_i)
   sum_ei <- tapply(res, idfac, sum)
-  LM <- (T^2 / (2 * (T - 1))) * sum(sum_ei^2) / sum(res^2)
+
+  # Breusch and Pagan (1980), equation 5:
+  #
+  #   LM = nT / (2 (T - 1)) * [ sum_i (sum_t e_it)^2 / sum_it e_it^2 - 1 ]^2
+  #
+  # The ratio is close to 1 under the null, and the statistic measures its
+  # squared departure from 1. Dropping the "- 1" and the square, as this
+  # function did before 0.11.0, leaves a quantity that sits at T^2 / (2(T-1))
+  # -- 3.6 for T = 6, against a chi-square(1) critical value of 3.841 -- so it
+  # rejected about a third of the time when there was no individual effect.
+  ratio <- sum(sum_ei^2) / sum(res^2)
+  LM <- (length(res) / (2 * (T - 1))) * (ratio - 1)^2
   p_value <- 1 - pchisq(LM, df = 1)
 
   structure(
