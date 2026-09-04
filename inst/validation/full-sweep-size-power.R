@@ -44,11 +44,21 @@ invisible(ht_set_log_level("SILENT"))
 
 # --- data-generating processes ----------------------------------------------
 
-make_xs <- function(sd_fun) {
+# `errors` picks the error distribution. Both are scaled to unit variance, so
+# the null is homoscedastic either way and only the tails differ. t_5 is the
+# heaviest tail with a finite fourth moment, which is what the normal-theory
+# tests need: Bartlett's and Hartley's statistics assume it, and the Pass B
+# table records them rejecting about 24% of the time against this null.
+make_xs <- function(sd_fun, errors = c("normal", "t5")) {
+  errors <- match.arg(errors)
   x <- runif(n_obs, 1, 5)
   z <- runif(n_obs, 1, 5)
-  d <- data.frame(y = 1 + 2 * x + 0.5 * z + rnorm(n_obs, sd = sd_fun(x)),
-                  x = x, z = z)
+  e <- if (errors == "normal") {
+    rnorm(n_obs)
+  } else {
+    rt(n_obs, df = 5) / sqrt(5 / 3)
+  }
+  d <- data.frame(y = 1 + 2 * x + 0.5 * z + sd_fun(x) * e, x = x, z = z)
   d$g <- cut(d$x, 3, labels = c("a", "b", "c"))
   list(model = lm(y ~ x + z, data = d), data = d)
 }
@@ -113,7 +123,13 @@ make_reset <- function(quad) {
 FAMILIES <- list(
   hetero = list(null = function() make_xs(function(x) rep(1, length(x))),
                 alt  = function() make_xs(function(x) x^2),
-                alt_label = "sd = x^2"),
+                alt_label = "sd = x^2",
+                # A second null, homoscedastic but heavy-tailed. Only the
+                # heteroscedasticity family gets one: the other families test
+                # different things, and a t_5 null would not isolate tail
+                # sensitivity for them.
+                heavy = function() make_xs(function(x) rep(1, length(x)),
+                                           errors = "t5")),
   arch   = list(null = function() make_ts(0),
                 alt  = function() make_ts(0.6),
                 alt_label = "ARCH(1), alpha = 0.6"),
@@ -201,8 +217,16 @@ for (k in seq_along(TESTS)) {
   set.seed(20260905L)
   p_alt <- vapply(seq_len(n_mc), function(i) pval(fn, fam$alt()), numeric(1))
 
+  p_heavy <- if (is.null(fam$heavy)) {
+    rep(NA_real_, n_mc)
+  } else {
+    set.seed(20260906L)
+    vapply(seq_len(n_mc), function(i) pval(fn, fam$heavy()), numeric(1))
+  }
+
   s <- rate(p_null)
   a <- rate(p_alt)
+  h <- rate(p_heavy)
   rows[[k]] <- data.frame(
     test = nm,
     family = TESTS[[k]][[2]],
@@ -214,20 +238,32 @@ for (k in seq_along(TESTS)) {
     power = unname(a["rate"]),
     power_mc_se = unname(a["se"]),
     power_effective = unname(a["eff"]),
-    failures = sum(is.na(p_null)) + sum(is.na(p_alt)),
+    size_t5 = unname(h["rate"]),
+    size_t5_mc_se = unname(h["se"]),
+    size_t5_effective = unname(h["eff"]),
+    # Counts every scenario, including the heavy-tailed null. Leaving it out
+     # meant a t5 invocation could fail without appearing in the failure count
+     # or the warning below, so size_t5 would quietly rest on fewer samples.
+    failures = sum(is.na(p_null)) + sum(is.na(p_alt)) +
+      (if (is.null(fam$heavy)) 0L else sum(is.na(p_heavy))),
     stringsAsFactors = FALSE
   )
-  lost <- 2L * n_mc - unname(s["eff"]) - unname(a["eff"])
-  message(sprintf("%-32s size %.3f  power %.3f%s", nm, s["rate"], a["rate"],
+  scenarios <- if (is.null(fam$heavy)) 2L else 3L
+  lost <- scenarios * n_mc - unname(s["eff"]) - unname(a["eff"]) -
+    (if (is.null(fam$heavy)) 0L else unname(h["eff"]))
+  message(sprintf("%-32s size %.3f  t5 %s  power %.3f%s", nm, s["rate"],
+                  if (is.na(h["rate"])) "   . " else sprintf("%.3f", h["rate"]),
+                  a["rate"],
                   if (lost > 0) sprintf("   [%d of %d invocations failed]",
-                                        lost, 2L * n_mc) else ""))
+                                        lost, scenarios * n_mc) else ""))
 }
 
 out <- do.call(rbind, rows)
 if (any(out$failures > 0L)) {
   warning(sprintf(
     "%d of %d test invocations failed and were dropped; size and power below ",
-    sum(out$failures), 2L * n_mc * nrow(out)),
+    sum(out$failures),
+    n_mc * (2L * nrow(out) + sum(!is.na(out$size_t5)))),
     "rest on the effective counts in the CSV, not on N_MC.", call. = FALSE)
 }
 path <- file.path("inst", "validation", "full-sweep-size-power.csv")

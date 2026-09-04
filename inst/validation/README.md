@@ -172,40 +172,40 @@ the time under the null at four groups. See `NEWS.md`.
 
 ### Full sweep over every exported test
 
-| Test | Alternative | Size | Power |
-| --- | --- | ---: | ---: |
-| `performCookWeisbergTest()` | sd = x^2 | 0.072 | 0.980 |
-| `performDavidianCarrollTest()` | sd = x^2 | 0.042 | 0.975 |
-| `performHarveyTest()` | sd = x^2 | 0.058 | 1.000 |
-| `performNCVTest()` | sd = x^2 | 0.072 | 0.980 |
-| `performSpearmanTest()` | sd = x^2 | 0.070 | 0.980 |
-| `performSpreadLevelTest()` | sd = x^2 | 0.055 | 0.975 |
-| `performBPTest()` | sd = x^2 | 0.058 | 1.000 |
-| `performBreuschPaganTest()` | sd = x^2 | 0.058 | 1.000 |
-| `performKoenkerTest()` | sd = x^2 | 0.045 | 1.000 |
-| `performStudentizedBPTest()` | sd = x^2 | 0.045 | 1.000 |
-| `performWhiteTest()` | sd = x^2 | 0.032 | 1.000 |
-| `performQuantileRegressionTest()` | sd = x^2 | 0.048 | 1.000 |
-| `performHighDimensionalTest()` | sd = x^2 | 0.045 | 1.000 |
-| `performRankPermutationTest()` | sd = x^2 | 0.050 | 1.000 |
-| `performWildBootstrapTest()` | sd = x^2 | 0.052 | 1.000 |
-| `performBartlettTest()` | sd = x^2 | 0.060 | 1.000 |
-| `performBrownForsytheTest()` | sd = x^2 | 0.055 | 1.000 |
-| `performFlignerKilleenTest()` | sd = x^2 | 0.048 | 1.000 |
-| `performHartleyFmaxTest()` | sd = x^2 | 0.062 | 1.000 |
-| `performLeveneTest()` | sd = x^2 | 0.068 | 1.000 |
-| `performOBrienTest()` | sd = x^2 | 0.048 | 1.000 |
-| `performBoxMTest()` | sd = x^2 | 0.012 (low) | 1.000 |
-| `performGlejserTest()` | sd = x^2 | 0.060 | 1.000 |
-| `performParkTest()` | sd = x^2 | 0.062 | 1.000 |
-| `performGQTest()` | sd = x^2 | 0.082 | 1.000 |
-| `performSzroeterTest()` | sd = x^2 | 0.058 | 1.000 |
-| `performArchLMTest()` | ARCH(1), alpha = 0.6 | 0.048 | 0.830 |
-| `performMcLeodLiTest()` | ARCH(1), alpha = 0.6 | 0.040 | 0.848 |
-| `performRESETTest()` | omitted quadratic | 0.045 | 1.000 |
-| `performBPRandomEffectsTest()` | random intercepts | 0.030 | 1.000 |
-| `performPesaranTest()` | common time factor | 0.037 | 1.000 |
-| `performSpatialHeteroTest()` | variance clustered in space | 0.045 | 0.362 |
+| Test | Alternative | Size | Size, t5 | Power |
+| --- | --- | ---: | ---: | ---: |
+| `performCookWeisbergTest()` | sd = x^2 | 0.072 | 0.205 | 0.980 |
+| `performDavidianCarrollTest()` | sd = x^2 | 0.042 | 0.045 | 0.975 |
+| `performHarveyTest()` | sd = x^2 | 0.058 | 0.060 | 1.000 |
+| `performNCVTest()` | sd = x^2 | 0.072 | 0.205 | 0.980 |
+| `performSpearmanTest()` | sd = x^2 | 0.070 | 0.032 | 0.980 |
+| `performSpreadLevelTest()` | sd = x^2 | 0.055 | 0.042 | 0.975 |
+| `performBPTest()` | sd = x^2 | 0.058 | 0.287 | 1.000 |
+| `performBreuschPaganTest()` | sd = x^2 | 0.058 | 0.287 | 1.000 |
+| `performKoenkerTest()` | sd = x^2 | 0.045 | 0.048 | 1.000 |
+| `performStudentizedBPTest()` | sd = x^2 | 0.045 | 0.048 | 1.000 |
+| `performWhiteTest()` | sd = x^2 | 0.032 | 0.048 | 1.000 |
+| `performQuantileRegressionTest()` | sd = x^2 | 0.048 | 0.020 | 1.000 |
+| `performHighDimensionalTest()` | sd = x^2 | 0.045 | 0.048 | 1.000 |
+| `performRankPermutationTest()` | sd = x^2 | 0.050 | 0.048 | 1.000 |
+| `performWildBootstrapTest()` | sd = x^2 | 0.052 | 0.042 | 1.000 |
+| `performBartlettTest()` | sd = x^2 | 0.060 | 0.268 | 1.000 |
+| `performBrownForsytheTest()` | sd = x^2 | 0.055 | 0.035 | 1.000 |
+| `performFlignerKilleenTest()` | sd = x^2 | 0.048 | 0.022 | 1.000 |
+| `performHartleyFmaxTest()` | sd = x^2 | 0.062 | 0.280 | 1.000 |
+| `performLeveneTest()` | sd = x^2 | 0.068 | 0.048 | 1.000 |
+| `performOBrienTest()` | sd = x^2 | 0.048 | 0.028 | 1.000 |
+| `performBoxMTest()` | sd = x^2 | 0.012 (low) | 0.070 | 1.000 |
+| `performGlejserTest()` | sd = x^2 | 0.060 | 0.058 | 1.000 |
+| `performParkTest()` | sd = x^2 | 0.062 | 0.058 | 1.000 |
+| `performGQTest()` | sd = x^2 | 0.082 | 0.152 | 1.000 |
+| `performSzroeterTest()` | sd = x^2 | 0.058 | 0.163 | 1.000 |
+| `performArchLMTest()` | ARCH(1), alpha = 0.6 | 0.048 | -- | 0.830 |
+| `performMcLeodLiTest()` | ARCH(1), alpha = 0.6 | 0.040 | -- | 0.848 |
+| `performRESETTest()` | omitted quadratic | 0.045 | -- | 1.000 |
+| `performBPRandomEffectsTest()` | random intercepts | 0.030 | -- | 1.000 |
+| `performPesaranTest()` | common time factor | 0.037 | -- | 1.000 |
+| `performSpatialHeteroTest()` | variance clustered in space | 0.045 | -- | 0.362 |
 
 Replications: 400. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0109.
 
@@ -216,6 +216,19 @@ The sweep covers 32 exported tests: 26 heteroscedasticity diagnostics and 6 with
 Outside that band:
 
 - `performBoxMTest()`, size 0.012, 6.75 standard errors below nominal.
+
+Under a homoscedastic t5 null, 16 of the 26 heteroscedasticity tests hold their level, meaning they land within three standard errors of nominal in either direction. These do not:
+
+- `performBPTest()`, 0.287 against a nominal 0.05, over-rejecting.
+- `performBreuschPaganTest()`, 0.287 against a nominal 0.05, over-rejecting.
+- `performHartleyFmaxTest()`, 0.280 against a nominal 0.05, over-rejecting.
+- `performBartlettTest()`, 0.268 against a nominal 0.05, over-rejecting.
+- `performCookWeisbergTest()`, 0.205 against a nominal 0.05, over-rejecting.
+- `performNCVTest()`, 0.205 against a nominal 0.05, over-rejecting.
+- `performSzroeterTest()`, 0.163 against a nominal 0.05, over-rejecting.
+- `performGQTest()`, 0.152 against a nominal 0.05, over-rejecting.
+- `performFlignerKilleenTest()`, 0.022 against a nominal 0.05, under-rejecting.
+- `performQuantileRegressionTest()`, 0.020 against a nominal 0.05, under-rejecting.
 
 Inside the band but worth naming, at more than two standard errors:
 
@@ -229,11 +242,40 @@ faces error variance rising with distance from the centre of a 10 by 15 grid,
 which holds the same 150 observations as the rest of the sweep, and reaches
 0.36 against it.
 
-Two remarks on the tests the summary names.
+The `Size, t5` column is a second homoscedastic null with \eqn{t_5} errors
+scaled to unit variance, so only the tails differ. It applies to the
+heteroscedasticity family alone; the other families test different things and a
+heavy-tailed null would not isolate tail sensitivity for them.
 
-- `performBoxMTest()` is conservative. Box's M tests equality of covariance
-  matrices rather than of scalar variances, so it is answering a broader
-  question here, and it is known to be sensitive to non-normality in the
+That column is the one to read before choosing a test. The split it shows is
+not a defect in any implementation -- it is the assumption each statistic
+carries, made visible:
+
+- The classical Breusch-Pagan statistic divides by \eqn{2\sigma^4}, which is
+  the variance of \eqn{e_i^2} only under normality. At 0.287 it rejects a true
+  null more than five times too often. `performKoenkerTest()` and
+  `performStudentizedBPTest()` are the studentized form that exists to remove
+  exactly this dependence, and they sit at 0.048.
+- Bartlett's and Hartley's tests assume normal errors in the same way, at 0.268
+  and 0.280. The median- and rank-based alternatives to them --
+  `performBrownForsytheTest()`, `performFlignerKilleenTest()`,
+  `performLeveneTest()`, `performOBrienTest()` -- stay between 0.022 and 0.048.
+- `performCookWeisbergTest()` and `performNCVTest()` are the same score test
+  and inherit the same normality assumption, at 0.205.
+
+Two tests fail the column by being too conservative rather than too liberal:
+`performFlignerKilleenTest()` at 0.022 and `performQuantileRegressionTest()` at
+0.020. That costs power rather than validity, but the count above is two-sided,
+so they are named alongside the over-rejecting ones rather than passed over.
+
+So the heavy-tailed column mostly reproduces the textbook advice, from this
+package's own implementations. Where it does not, prefer the measurement.
+
+Two remarks on the tests the summary names under the Gaussian null.
+
+- `performBoxMTest()` is conservative there. Box's M tests equality of
+  covariance matrices rather than of scalar variances, so it is answering a
+  broader question, and it is known to be sensitive to non-normality in the
   opposite direction. It is left as it is.
 - `performGQTest()` is inside the band but at the high end, and the reason is
   the design rather than the implementation: `lmtest::gqtest()` gives 0.070 on
