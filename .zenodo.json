@@ -1,6 +1,6 @@
 {
   "title": "heteroTests: Heteroscedasticity Diagnostics for Linear Models in R",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "publication_date": "2026-09-01",
   "description": "heteroTests is an R package for heteroscedasticity diagnostics in linear-model workflows. It provides a consistent interface for classical variance diagnostics including White, Breusch-Pagan, Koenker, Goldfeld-Quandt, group-wise variance tests and ARCH-related checks, together with streaming implementations, simulation utilities, diagnostic visualisation and workflow helpers. The project emphasizes reproducible statistical software, reference comparisons, behavioural testing and explicit assumptions; advanced and experimental diagnostics remain subject to ongoing validation.",
   "creators": [

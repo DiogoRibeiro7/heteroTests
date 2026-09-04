@@ -81,13 +81,23 @@ performPesaranTest <- function(model, data, id, time) {
   for (i in seq_along(ids)) {
     mat[, i] <- df$res[df$id == ids[i]]
   }
-  cor_vals <- c()
-  for (i in 1:(N - 1)) {
-    for (j in (i + 1):N) {
-      cor_vals <- c(cor_vals, cor(mat[, i], mat[, j]))
-    }
+  rho <- stats::cor(mat)
+  cor_vals <- rho[upper.tri(rho)]
+
+  # Pesaran (2004, 2015):
+  #
+  #   CD = sqrt( 2T / (N (N - 1)) ) * sum_{i<j} rho_ij
+  #
+  # which is asymptotically standard normal under cross-sectional
+  # independence. Before 0.11.0 this read sqrt(N (N - 1) / (2T)) times the
+  # *mean* correlation, which is the same quantity divided by T: the statistic
+  # came out T times too small -- measured standard deviation 0.133 against
+  # 1.067 for the published form at T = 8 -- so the test never rejected.
+  pairs_used <- sum(!is.na(cor_vals))
+  if (pairs_used == 0L) {
+    stop("No usable pairwise residual correlations.", call. = FALSE)
   }
-  CD <- sqrt(N * (N - 1) / (2 * T)) * mean(cor_vals, na.rm = TRUE)
+  CD <- sqrt(2 * T / (N * (N - 1))) * sum(cor_vals, na.rm = TRUE)
   p_value <- 2 * (1 - pnorm(abs(CD)))
 
   structure(

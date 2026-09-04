@@ -1,8 +1,8 @@
 \name{performBPRandomEffectsTest}
 \alias{performBPRandomEffectsTest}
-\title{Breusch-Pagan test for random effects}
-\description{Lagrange Multiplier test for heteroscedasticity in random effects models.}
-\details{The statistic is calculated as \eqn{n \sum \bar{e}_i^2 / \hat{\sigma}^2}, where \eqn{\bar{e}_i} are average residuals by individual and \eqn{\hat{\sigma}^2} is the pooled error variance. It follows a chi-square distribution with one degree of freedom.}
+\title{Breusch-Pagan LM test for random effects}
+\description{Lagrange Multiplier test for the presence of a random individual effect in panel data. This is not a test for heteroscedasticity and does not respond to one; use the auxiliary-regression diagnostics for that.}
+\details{The statistic is Breusch and Pagan (1980) equation 5, \eqn{LM = nT / (2(T-1)) [ \sum_i (\sum_t e_{it})^2 / \sum_{it} e_{it}^2 - 1 ]^2}, which follows a chi-square distribution with one degree of freedom under the null of no individual effect. The bracketed ratio is close to one under the null and the statistic measures its squared departure from one. Before 0.11.0 the "- 1" and the square were absent and the scaling used T^2 rather than nT, which left the statistic sitting at the critical value: it rejected about a third of the time when no individual effect was present.}
 \usage{performBPRandomEffectsTest(model, data, id)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
