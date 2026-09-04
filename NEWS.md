@@ -144,7 +144,7 @@ closes the corresponding roadmap item.
 `fitWLS()` now estimates its weights from a variance model. The numbers it
 returns change, hence the minor version.
 
-### fitWLS() produced unusable standard errors
+### `fitWLS()` produced unusable standard errors
 
 The weights were the inverse squared residuals of the initial fit,
 `w_i = 1 / e_i^2`. A squared residual is a one-degree-of-freedom estimate of
