@@ -80,6 +80,23 @@ make_panel <- function(sd_u, factor_sd) {
   list(model = lm(y ~ x, data = d), data = d)
 }
 
+# Spatial design on a regular grid. Under the null the error variance is
+# constant; under the alternative it rises with distance from the grid centre,
+# so high-variance units sit together in space.
+make_spatial <- function(clustered) {
+  side <- 12L
+  grid <- expand.grid(row = seq_len(side), col = seq_len(side))
+  centre <- (side + 1) / 2
+  dist <- sqrt((grid$row - centre)^2 + (grid$col - centre)^2)
+  sd_i <- if (clustered) 0.3 + dist else rep(1, nrow(grid))
+  x <- runif(nrow(grid), 1, 5)
+  d <- data.frame(x = x, row = grid$row, col = grid$col,
+                  y = 1 + 2 * x + rnorm(nrow(grid), sd = sd_i))
+  nb <- spdep::cell2nb(side, side)
+  list(model = lm(y ~ x, data = d), data = d,
+       listw = spdep::nb2listw(nb, style = "W"))
+}
+
 make_reset <- function(quad) {
   x <- runif(n_obs, 1, 5)
   d <- data.frame(x = x, y = 1 + 2 * x + quad * x^2 + rnorm(n_obs))
@@ -101,7 +118,10 @@ FAMILIES <- list(
                 alt_label = "common time factor"),
   form   = list(null = function() make_reset(0),
                 alt  = function() make_reset(0.6),
-                alt_label = "omitted quadratic")
+                alt_label = "omitted quadratic"),
+  spatial = list(null = function() make_spatial(FALSE),
+                 alt  = function() make_spatial(TRUE),
+                 alt_label = "variance clustered in space")
 )
 
 # --- how each exported test is invoked --------------------------------------
@@ -139,7 +159,9 @@ TESTS <- list(
   list("performBPRandomEffectsTest", "effect",
        function(o) performBPRandomEffectsTest(o$model, o$data, "id")),
   list("performPesaranTest", "csdep",
-       function(o) performPesaranTest(o$model, o$data, "id", "time"))
+       function(o) performPesaranTest(o$model, o$data, "id", "time")),
+  list("performSpatialHeteroTest", "spatial",
+       function(o) performSpatialHeteroTest(o$model, o$data, o$listw))
 )
 
 pval <- function(fn, o) {
@@ -153,6 +175,12 @@ rate <- function(p) {
   if (length(ok) == 0L) return(c(rate = NA_real_, eff = 0, se = NA_real_))
   r <- mean(ok < alpha)
   c(rate = r, eff = length(ok), se = sqrt(r * (1 - r) / length(ok)))
+}
+
+has_spdep <- requireNamespace("spdep", quietly = TRUE)
+if (!has_spdep) {
+  message("spdep is not installed; performSpatialHeteroTest will be skipped.")
+  TESTS <- Filter(function(t) t[[2]] != "spatial", TESTS)
 }
 
 rows <- vector("list", length(TESTS))
@@ -175,15 +203,26 @@ for (k in seq_along(TESTS)) {
     replications = n_mc,
     size = unname(s["rate"]),
     size_mc_se = unname(s["se"]),
+    size_effective = unname(s["eff"]),
     power = unname(a["rate"]),
     power_mc_se = unname(a["se"]),
+    power_effective = unname(a["eff"]),
     failures = sum(is.na(p_null)) + sum(is.na(p_alt)),
     stringsAsFactors = FALSE
   )
-  message(sprintf("%-32s size %.3f  power %.3f", nm, s["rate"], a["rate"]))
+  lost <- 2L * n_mc - unname(s["eff"]) - unname(a["eff"])
+  message(sprintf("%-32s size %.3f  power %.3f%s", nm, s["rate"], a["rate"],
+                  if (lost > 0) sprintf("   [%d of %d invocations failed]",
+                                        lost, 2L * n_mc) else ""))
 }
 
 out <- do.call(rbind, rows)
+if (any(out$failures > 0L)) {
+  warning(sprintf(
+    "%d of %d test invocations failed and were dropped; size and power below ",
+    sum(out$failures), 2L * n_mc * nrow(out)),
+    "rest on the effective counts in the CSV, not on N_MC.", call. = FALSE)
+}
 path <- file.path("inst", "validation", "full-sweep-size-power.csv")
 if (!dir.exists(dirname(path))) path <- "full-sweep-size-power.csv"
 utils::write.csv(out, path, row.names = FALSE)

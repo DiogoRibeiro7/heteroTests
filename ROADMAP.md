@@ -108,9 +108,12 @@ property: no size or power check.
 | `performBPRandomEffectsTest()` | statistic omitted the `- 1` and the square from Breusch-Pagan's equation 5; size 32.5% | corrected in 0.11.0 |
 | `performPesaranTest()` | `T` divided where Pesaran's CD multiplies, making the statistic `1/T` too small; size 0.0% | corrected in 0.11.0 |
 
-Twenty-six of the twenty-eight heteroscedasticity tests hold their nominal
-level: at 400 replications and n = 150, size runs from 3.0% to 6.2% against a
-Monte Carlo standard error of 1.1%.
+Twenty-five of the twenty-six heteroscedasticity tests hold their nominal
+level, at 400 replications and n = 150. The exception is `performBoxMTest()`,
+conservative at 0.012; `inst/validation/README.md` carries the table and the
+reasoning, and generates those counts from the CSV rather than restating them,
+because an earlier draft of this paragraph quoted figures from a different run
+and a z computed against the wrong standard error.
 
 Two conclusions worth keeping. A reference comparison is not a substitute for a
 size check: four of the six faults above are in procedures with no reference
