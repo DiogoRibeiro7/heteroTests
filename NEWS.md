@@ -16,7 +16,7 @@ Monte Carlo standard error of 1.1%, with power between 95% and 100% against
 among the packages the accuracy table compares against, so only simulation
 would have found them.
 
-### performBPRandomEffectsTest rejected a third of the time under the null
+### `performBPRandomEffectsTest()` rejected a third of the time under the null
 
 The statistic was
 
@@ -41,7 +41,7 @@ at all, and does not respond to heteroscedasticity: against errors with
 `sd = x^2` the corrected statistic rejects 3.2% of the time, which is the
 nominal level rather than power.
 
-### performPesaranTest never rejected
+### `performPesaranTest()` never rejected
 
 The statistic was `sqrt(N(N-1)/(2T))` times the *mean* pairwise residual
 correlation, against Pesaran's (2004, 2015)
@@ -144,7 +144,7 @@ closes the corresponding roadmap item.
 `fitWLS()` now estimates its weights from a variance model. The numbers it
 returns change, hence the minor version.
 
-### fitWLS() produced unusable standard errors
+### `fitWLS()` produced unusable standard errors
 
 The weights were the inverse squared residuals of the initial fit,
 `w_i = 1 / e_i^2`. A squared residual is a one-degree-of-freedom estimate of

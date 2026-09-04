@@ -76,34 +76,62 @@ Dates are omitted in favour of milestone ordering.
 
 ## Current priorities (next)
 
-- [ ] **Finish CRAN readiness.** Run a full `R CMD check --as-cran` with every
-  Suggests installed and clear any remaining notes; decide whether `boston_housing`
-  should remain a verbatim `MASS::Boston` copy or be replaced with a derived
-  example. (Data are now `.rda`; `cran-comments.md` reflects the real state.)
-- [ ] Restore `renv.lock` to match the declared `Imports`/`Suggests`.
-- [ ] Clear the remaining `R CMD check` notes: reconcile the hand-written `.Rd`
-  files with the function signatures (`\usage`/code mismatches) and replace
-  non-ASCII characters in source with escapes. The `.Rd` files for the tests
-  corrected in 0.7.0 are already reconciled; the rest are pre-existing and best
-  done as a dedicated documentation-reconciliation pass.
+- [ ] **Finish CRAN readiness.** Run `R CMD check --as-cran` with every Suggests
+  installed and clear what remains. The last local run left three notes, two of
+  them environmental (no network to verify the system clock, `V8` absent for
+  math rendering); the `\doi{}` note was cleared in 0.8.1.
+- [ ] Replace non-ASCII characters in source with escapes.
+- [ ] Decide whether R 4.1 remains the supported floor, or whether the minimum
+  should track R's own support window.
+
+### Validation matrix
+
+The validation effort ran in four passes and is complete for the exported
+surface. Evidence lives in `inst/validation/`, with scripts that regenerate it.
+
+- [x] Pass A, classical regression diagnostics (0.7.0).
+- [x] Pass B, group-variance tests (0.7.1).
+- [x] Pass C, the methods with least reference coverage (0.7.2).
+- [x] Full sweep over all 32 exported `perform*Test()` functions (0.11.0), each
+  driven by the null and alternative appropriate to what it tests rather than
+  one process for all of them.
+
+Six exported procedures were found to be broken, and all six shared a single
+property: no size or power check.
+
+| procedure | fault | outcome |
+| --- | --- | --- |
+| `performRiceTest()` | insensitive by construction; rejection rate 0% under every variance pattern tried | withdrawn in 0.8.0 |
+| `performCurryWalshTest()` | 0% rejection | withdrawn in 0.8.0 |
+| `fitWLS()` | weights were the inverse squared residuals of the same fit; nominal 95% intervals covered 10.4% | corrected to feasible GLS in 0.9.0 |
+| `rbootstrap_test_statistic()` | resampled rows rather than under the null, so the p-value sat near 0.5; 0% power | null-imposed resampling in 0.10.0 |
+| `performBPRandomEffectsTest()` | statistic omitted the `- 1` and the square from Breusch-Pagan's equation 5; size 32.5% | corrected in 0.11.0 |
+| `performPesaranTest()` | `T` divided where Pesaran's CD multiplies, making the statistic `1/T` too small; size 0.0% | corrected in 0.11.0 |
+
+Twenty-five of the twenty-six heteroscedasticity tests hold their nominal
+level, at 400 replications and n = 150. The exception is `performBoxMTest()`,
+conservative at 0.012; `inst/validation/README.md` carries the table and the
+reasoning, and generates those counts from the CSV rather than restating them,
+because an earlier draft of this paragraph quoted figures from a different run
+and a z computed against the wrong standard error.
+
+Two conclusions worth keeping. A reference comparison is not a substitute for a
+size check: four of the six faults above are in procedures with no reference
+implementation to compare against, and the two that had one agreed with it. And
+a stored-value regression test would have frozen each fault rather than caught
+it, so the guards added are simulated size, not recorded numbers.
 
 ## Short-term improvements
 
-- [ ] Pass B of the validation matrix: the group-variance tests (Levene,
-  Brown-Forsythe, Bartlett, Fligner-Killeen, Hartley F-max, O'Brien, modified
-  Bartlett), several of which have closed-form definitions or reference
-  implementations to reproduce.
-- [ ] Pass C of the validation matrix: the methods with the least reference
-  coverage (Cameron-Trivedi, ordered LM, Davidian-Carroll, Rice, Curry-Walsh,
-  rank permutation, high-dimensional, spatial and panel diagnostics). These
-  need either an established implementation to reproduce or the original
-  paper's statistic reconstructed independently.
-- [ ] Extend the validation matrix to the remaining `perform*Test` exports and
-  publish the combined size/power table.
-- [ ] Stop labelling percentile intervals of a test statistic as confidence
-  intervals. (The p-value convention itself was standardised in 0.7.0.)
-- [ ] Factor out repeated boilerplate (scalar validators, the model/data preparation
-  block, intercept-stripping) into shared helpers.
+- [ ] Factor out repeated boilerplate (scalar validators, the model/data
+  preparation block, intercept-stripping) into shared helpers.
+- [ ] Give the group-variance tests a heavy-tailed size column in the shipped
+  sweep. Bartlett and Hartley reject about 24% of the time against a `t5` null,
+  which the Pass B table records but the full sweep does not yet cover.
+- [ ] Add a reference comparison for the panel statistics. Neither
+  `performBPRandomEffectsTest()` nor `performPesaranTest()` has one among the
+  packages the accuracy table uses, which is why both were wrong until 0.11.0
+  and why simulated size is the only thing guarding them.
 
 ## Sequencing
 
