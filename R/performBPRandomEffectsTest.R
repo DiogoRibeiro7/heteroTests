@@ -96,7 +96,11 @@ performBPRandomEffectsTest <- function(model, data, id) {
   # rejected about a third of the time when there was no individual effect.
   ratio <- sum(sum_ei^2) / sum(res^2)
   LM <- (length(res) / (2 * (T - 1))) * (ratio - 1)^2
-  p_value <- 1 - pchisq(LM, df = 1)
+  # lower.tail = FALSE rather than 1 - pchisq(): the complement underflows
+  # to exactly zero for large statistics, which loses the p-value's
+  # magnitude. At LM = 182.9 the subtraction gives 0 where the upper tail
+  # gives 1.1e-41, the value plm::plmtest() reports.
+  p_value <- stats::pchisq(LM, df = 1, lower.tail = FALSE)
 
   structure(
     list(
