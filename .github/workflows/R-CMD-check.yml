@@ -11,8 +11,19 @@ on:
 
 # Supersede a pull request's earlier runs, but never a push to main: those are
 # the runs whose results are recorded against a merge.
+#
+# The group is keyed by commit rather than by ref for everything except pull
+# requests. On main the ref is identical for push, schedule and
+# workflow_dispatch, so a ref-keyed group would put all three in one queue --
+# and because GitHub holds at most one pending run per group, a third arrival
+# cancels the pending one. A merge landing while the weekly run sits in its
+# hour-long cran-check would then wait behind it, and the merge after that
+# would cancel it: exactly the lost result this block exists to prevent.
+# Keying by SHA gives each commit its own group, so nothing queues or cancels.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
