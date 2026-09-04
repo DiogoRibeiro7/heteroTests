@@ -74,10 +74,12 @@
 </div>
 <div class="section level2">
 <h2 id="current-priorities-next">Current priorities (next)<a class="anchor" aria-label="anchor" href="#current-priorities-next"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox"><strong>Finish CRAN readiness.</strong> Run <code>R CMD check --as-cran</code> with every Suggests installed and clear what remains. The last local run left three notes, two of them environmental (no network to verify the system clock, <code>V8</code> absent for math rendering); the <code>\doi{}</code> note was cleared in 0.8.1.</label></li>
+<p><strong>CRAN submission is deferred.</strong> The package is not considered mature enough to submit, so nothing here is sequenced towards a submission date. <code>R CMD check --as-cran</code> is still worth passing as a quality signal – it is what surfaced the <code>\doi{}</code> note cleared in 0.8.1 – but it no longer runs on every merge, because it costs about an hour and three consecutive runs were cancelled or left queued before finishing. It runs weekly and on demand (<code>gh workflow run R-CMD-check.yml</code>).</p>
+<ul class="task-list"><li><label><input type="checkbox">Keep <code>--as-cran</code> clean on the weekly run. The last local run left three notes, two of them environmental: no network to verify the system clock, and <code>V8</code> absent for math rendering.</label></li>
 <li><label><input type="checkbox">Replace non-ASCII characters in source with escapes.</label></li>
 <li><label><input type="checkbox">Decide whether R 4.1 remains the supported floor, or whether the minimum should track R’s own support window.</label></li>
-</ul><div class="section level3">
+</ul><p>With submission deferred, the useful work is the statistical surface rather than packaging: the validation matrix below is complete for the exported tests, and its follow-ons are listed under short-term improvements.</p>
+<div class="section level3">
 <h3 id="validation-matrix">Validation matrix<a class="anchor" aria-label="anchor" href="#validation-matrix"></a></h3>
 <p>The validation effort ran in four passes and is complete for the exported surface. Evidence lives in <code>inst/validation/</code>, with scripts that regenerate it.</p>
 <ul class="task-list"><li><label><input type="checkbox" checked>Pass A, classical regression diagnostics (0.7.0).</label></li>
