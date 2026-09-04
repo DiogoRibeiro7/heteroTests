@@ -180,13 +180,13 @@ sweep. Bartlett and Hartley reject about 24% of the time against a `t5`
 null, which the Pass B table records but the full sweep does not yet
 cover.
 
-Add a reference comparison for the panel statistics. Neither
+Added a reference comparison for the panel statistics.
 [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
-nor
+reproduces `plm::plmtest(type = "bp")` and
 [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md)
-has one among the packages the accuracy table uses, which is why both
-were wrong until 0.11.0 and why simulated size is the only thing
-guarding them.
+reproduces `plm::pcdtest(model = "pooling")`, both to 1e-8 across three
+panel shapes. Neither had a reference among the packages the accuracy
+table uses, which is why both were wrong until 0.11.0.
 
 ## Sequencing
 
