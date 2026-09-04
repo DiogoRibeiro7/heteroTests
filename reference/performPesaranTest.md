@@ -51,6 +51,6 @@ dependence in panels. *Cambridge Working Papers in Economics*.
 #>  Pesaran CD test for cross-sectional dependence
 #> 
 #> data:  y ~ x
-#> z = 0.40875, p-value = 0.6827
+#> z = 0.081751, p-value = 0.9348
 #> 
 ```

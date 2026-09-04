@@ -11,14 +11,14 @@ Source:
 [`inst/CITATION`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/inst/CITATION)
 
 Ribeiro D (2025). *heteroTests: Heteroscedasticity Diagnostic Tools*. R
-package version 0.11.0, <https://github.com/DiogoRibeiro7/heteroTests>.
+package version 0.10.0, <https://github.com/DiogoRibeiro7/heteroTests>.
 
     @Manual{,
       title = {heteroTests: Heteroscedasticity Diagnostic Tools},
       author = {Diogo Ribeiro},
       year = {2025},
       url = {https://github.com/DiogoRibeiro7/heteroTests},
-      note = {R package version 0.11.0},
+      note = {R package version 0.10.0},
     }
 
 See the vignette for a detailed introduction to all diagnostics.

@@ -101,7 +101,7 @@
   : Perform Engle's ARCH LM test
 
 - [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
-  : Breusch-Pagan LM test for random effects
+  : Breusch-Pagan test for random effects
 
 - [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
   [`performBreuschPaganTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
