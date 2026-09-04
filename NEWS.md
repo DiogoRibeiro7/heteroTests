@@ -14,7 +14,7 @@ p-value of exactly zero is wrong, and it discards the magnitude that anything
 working on a log scale or applying a multiplicity correction needs. Both now
 pass `lower.tail = FALSE`.
 
-### Both are now checked against plm
+### Both are now checked against `plm`
 
 Neither statistic had a reference implementation among the packages the
 accuracy table compares against, which is why both were wrong until 0.11.0 and

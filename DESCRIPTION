@@ -45,6 +45,7 @@ Suggests:
     bench,
     lmtest,
     plm,
+    withr,
     car,
     vartest,
     mgcv,
