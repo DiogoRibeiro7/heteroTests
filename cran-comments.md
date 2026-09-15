@@ -28,6 +28,11 @@ response to the review:
     interactive server when printed, so its example is guarded by
     `if (interactive())` rather than wrapped in `\dontrun{}`.
 
+* Not raised in the review, but the same concern: with its `\donttest{}` part
+  included, the `performWhiteTestBootstrap()` example ran for just over five
+  seconds, so its bootstrap replications there are reduced from 999 to 499.
+  It now runs in under two seconds.
+
 ## Test environments
 
 - Local: Windows 11, R 4.5.1

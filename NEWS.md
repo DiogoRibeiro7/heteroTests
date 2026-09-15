@@ -23,6 +23,11 @@ default or exported function changes.
   example is guarded by `interactive()`, since printing the Shiny application
   it returns starts a blocking server.
 
+- The `\donttest{}` part of the `performWhiteTestBootstrap()` example uses 499
+  bootstrap replications rather than 999. With that part included, as
+  `R CMD check --as-cran` runs it, the example took 5.0 to 5.7 seconds, over
+  the five-second limit for examples; it now takes about 1.7 seconds.
+
 ## 0.11.1
 
 Two panel p-values change value, though not their conclusions.
