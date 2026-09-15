@@ -43,6 +43,10 @@ response to the review:
 
 ## R CMD check results
 
+0 errors | 0 warnings | 0 notes
+
+From `R CMD check --as-cran --run-donttest` on the 0.11.2 source tarball, locally on Windows 11 with . The run set `_R_CHECK_CRAN_INCOMING_REMOTE_=false`, so the remote incoming checks were not part of it; the DOIs added to the Description were resolved separately against doi.org. The incoming check is expected to add the usual note for a new submission.
+
 `R CMD check` is run on every push via GitHub Actions. Locally the package builds
 and installs cleanly and the `testthat` suite passes under edition 3.
 
