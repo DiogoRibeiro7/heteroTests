@@ -38,14 +38,3 @@ to
 [`rvalidateSampleSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateSampleSize.md)
 and should return either a numeric minimum or a list containing
 `min_obs` and, optionally, `reason`.
-
-## Examples
-
-``` r
-heteroTests:::rTEST_REQUIREMENTS$white$min_obs
-#> [1] 20
-
-# Dynamic entry: ARCH LM depends on the lag order
-heteroTests:::rTEST_REQUIREMENTS$arch_lm(lags = 3)
-#> [1] 11
-```

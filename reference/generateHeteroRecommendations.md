@@ -112,9 +112,32 @@ non-specialist audiences who need actionable guidance.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
 model <- lm(mpg ~ wt + hp, data = mtcars)
 recs <- generateHeteroRecommendations(model, mtcars)
 print(recs)
-} # }
+#> Heteroscedasticity Recommendation Overview
+#> --------------------------------------------------
+#> Observations: 32 | Variables: 11
+#> Sample size category: small
+#> Missingness: none (0.0%)
+#> 
+#> Key recommendations:
+#> - breusch_pagan: Baseline regression-based heteroscedasticity check.
+#> - quantile_regression: Variables carb show strong skewness; quantile slope comparisons provide a complementary distributional check.
+#> - rank_permutation: Rank-based test is robust when asymptotics are unreliable.
+#> - white: Detects general forms of non-constant variance.
+#> - wild_bootstrap: Bootstrap inference performs well in small samples.
+#> 
+#> Summary:
+#> No strong evidence of heteroscedasticity across the evaluated diagnostics. 
+#> No remediation required. 
+#> 
+#> Narrative excerpt:
+#> Heteroscedasticity Diagnostic Recommendation Report
+#> Observations: 32; Variables: 11
+#> Sample size category: small
+#> Missingness level: none (0.0% overall)
+#> Response variable: mpg
+#>  
+#> ...
 ```

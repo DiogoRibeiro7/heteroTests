@@ -44,17 +44,3 @@ rvalidateDistributionalAssumptions(data, assumptions = list())
 A list containing `passed` (logical flag), `messages` (character vector
 of violations), `warnings` (character vector of recoverable issues), and
 `details` (named list with diagnostic information for each assumption).
-
-## Examples
-
-``` r
-res <- heteroTests:::rvalidateDistributionalAssumptions(
-  mtcars,
-  assumptions = list(
-    normality = list(variables = "mpg"),
-    positive = list(variables = "disp", test_name = "Demo Test")
-  )
-)
-res$passed
-#> [1] TRUE
-```

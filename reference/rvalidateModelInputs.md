@@ -32,10 +32,3 @@ rvalidateModelInputs(model, test_name, min_obs = 10)
 ## Value
 
 Invisibly returns `model` when validation passes.
-
-## Examples
-
-``` r
-mod <- stats::lm(mpg ~ wt, data = mtcars)
-heteroTests:::rvalidateModelInputs(mod, test_name = "Demo Test")
-```

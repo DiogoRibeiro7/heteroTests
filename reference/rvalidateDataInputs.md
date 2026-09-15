@@ -28,9 +28,3 @@ rvalidateDataInputs(data, required_vars = NULL, min_obs = 10)
 ## Value
 
 Invisibly returns the validated `data` object.
-
-## Examples
-
-``` r
-heteroTests:::rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
-```

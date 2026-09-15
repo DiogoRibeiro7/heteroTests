@@ -33,11 +33,3 @@ rvalidateGroupingVariable(data, group_var, min_group_size = 3, min_groups = 2)
 A list mirroring the structure of
 [`rvalidateDistributionalAssumptions()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateDistributionalAssumptions.md)
 with information about the evaluated grouping variable.
-
-## Examples
-
-``` r
-grp <- heteroTests:::rvalidateGroupingVariable(mtcars, group_var = "cyl")
-grp$details$n_groups
-#> NULL
-```

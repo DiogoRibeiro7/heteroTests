@@ -13,7 +13,7 @@ with decision-tree style guidance."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -142,11 +142,34 @@ and narrative target non-specialist audiences who need actionable guidance.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">hp</span>, data <span class="op">=</span> <span class="va">mtcars</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">hp</span>, data <span class="op">=</span> <span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">recs</span> <span class="op">&lt;-</span> <span class="fu">generateHeteroRecommendations</span><span class="op">(</span><span class="va">model</span>, <span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">recs</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Heteroscedasticity Recommendation Overview</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> --------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 32 | Variables: 11</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Sample size category: small</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Missingness: none (0.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Key recommendations:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - breusch_pagan: Baseline regression-based heteroscedasticity check.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - quantile_regression: Variables carb show strong skewness; quantile slope comparisons provide a complementary distributional check.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - rank_permutation: Rank-based test is robust when asymptotics are unreliable.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - white: Detects general forms of non-constant variance.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - wild_bootstrap: Bootstrap inference performs well in small samples.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Summary:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> No strong evidence of heteroscedasticity across the evaluated diagnostics. </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> No remediation required. </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Narrative excerpt:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Heteroscedasticity Diagnostic Recommendation Report</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 32; Variables: 11</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Sample size category: small</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Missingness level: none (0.0% overall)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Response variable: mpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ...</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

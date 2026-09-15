@@ -50,9 +50,18 @@ Invisibly returns the path to the generated report.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-data(mtcars)
-model <- lm(mpg ~ wt + hp, data = mtcars)
-generateDiagnosticReport(model, mtcars)
-} # }
+# \donttest{
+if (requireNamespace("rmarkdown", quietly = TRUE) &&
+    rmarkdown::pandoc_available()) {
+  model <- lm(mpg ~ wt + hp, data = mtcars)
+  generateDiagnosticReport(
+    model, mtcars,
+    output_file = file.path(tempdir(), "diagnostic_report.html")
+  )
+}
+#> [INFO] Running White test
+#> [INFO] White test completed: statistic = 6.5431 df = 5 p = 0.2569
+#> [INFO] Running Breusch-Pagan test
+#> Report generated: /tmp/RtmpQiQgGc/diagnostic_report.html
+# }
 ```

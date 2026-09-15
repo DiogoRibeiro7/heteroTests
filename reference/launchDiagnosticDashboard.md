@@ -38,9 +38,10 @@ results tables and interactive plots.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-data(mtcars)
-mod <- lm(mpg ~ wt + hp, data = mtcars)
-launchDiagnosticDashboard(mod, mtcars)
-} # }
+if (interactive() && requireNamespace("shiny", quietly = TRUE) &&
+    requireNamespace("DT", quietly = TRUE) &&
+    requireNamespace("plotly", quietly = TRUE)) {
+  mod <- lm(mpg ~ wt + hp, data = mtcars)
+  launchDiagnosticDashboard(mod, mtcars)
+}
 ```

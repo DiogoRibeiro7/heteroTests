@@ -41,11 +41,3 @@ A list with components `data` (the processed data frame),
 removed observations), `removed_fraction` (proportion removed relative
 to the original data), `removed_variables` (variables with observed
 missingness), and `loss_message` (the formatted warning text).
-
-## Examples
-
-``` r
-cleaned <- heteroTests:::rhandleMissingValues(mtcars, c("mpg", "wt"))
-cleaned$removed_count
-#> [1] 0
-```

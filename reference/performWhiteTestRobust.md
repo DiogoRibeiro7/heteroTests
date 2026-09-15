@@ -95,405 +95,405 @@ performWhiteTestRobust(mod, mtcars, bootstrap = TRUE, B = 200)
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.9771 df = 5 p = 0.4187
+#> [INFO] White test completed: statistic = 4.1767 df = 5 p = 0.5243
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.0417 df = 5 p = 0.4108
+#> [INFO] White test completed: statistic = 6.0809 df = 5 p = 0.2984
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.6524 df = 5 p = 0.6005
+#> [INFO] White test completed: statistic = 1.2523 df = 5 p = 0.9398
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.1572 df = 5 p = 0.527
+#> [INFO] White test completed: statistic = 6.6931 df = 5 p = 0.2445
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.2677 df = 5 p = 0.2015
+#> [INFO] White test completed: statistic = 1.918 df = 5 p = 0.8604
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.6104 df = 5 p = 0.1791
+#> [INFO] White test completed: statistic = 4.0071 df = 5 p = 0.5484
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.6122 df = 5 p = 0.7595
+#> [INFO] White test completed: statistic = 2.1534 df = 5 p = 0.8275
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 11.9717 df = 5 p = 0.0352
+#> [INFO] White test completed: statistic = 7.7347 df = 5 p = 0.1715
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.5032 df = 5 p = 0.2603
+#> [INFO] White test completed: statistic = 7.2991 df = 5 p = 0.1993
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0494 df = 5 p = 0.6924
+#> [INFO] White test completed: statistic = 7.4501 df = 5 p = 0.1893
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.9092 df = 5 p = 0.5626
+#> [INFO] White test completed: statistic = 5.0159 df = 5 p = 0.4139
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.3857 df = 5 p = 0.7936
+#> [INFO] White test completed: statistic = 6.8661 df = 5 p = 0.2308
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.0109 df = 5 p = 0.5479
+#> [INFO] White test completed: statistic = 4.1635 df = 5 p = 0.5261
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.8693 df = 5 p = 0.7201
+#> [INFO] White test completed: statistic = 5.579 df = 5 p = 0.3494
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.8251 df = 5 p = 0.5749
+#> [INFO] White test completed: statistic = 6.0149 df = 5 p = 0.3048
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.354 df = 5 p = 0.6456
+#> [INFO] White test completed: statistic = 4.4289 df = 5 p = 0.4895
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.0948 df = 5 p = 0.5358
+#> [INFO] White test completed: statistic = 2.3186 df = 5 p = 0.8035
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.6829 df = 5 p = 0.5959
+#> [INFO] White test completed: statistic = 3.7419 df = 5 p = 0.5871
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.6188 df = 5 p = 0.0868
+#> [INFO] White test completed: statistic = 2.0753 df = 5 p = 0.8386
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.5533 df = 5 p = 0.256
+#> [INFO] White test completed: statistic = 6.477 df = 5 p = 0.2625
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.5337 df = 5 p = 0.0896
+#> [INFO] White test completed: statistic = 2.5982 df = 5 p = 0.7616
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.982 df = 5 p = 0.1572
+#> [INFO] White test completed: statistic = 2.8615 df = 5 p = 0.7213
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.5869 df = 5 p = 0.6103
+#> [INFO] White test completed: statistic = 6.622 df = 5 p = 0.2503
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.9344 df = 5 p = 0.7101
+#> [INFO] White test completed: statistic = 8.3353 df = 5 p = 0.1387
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.9969 df = 5 p = 0.4163
+#> [INFO] White test completed: statistic = 6.606 df = 5 p = 0.2516
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0353 df = 5 p = 0.6945
+#> [INFO] White test completed: statistic = 6.477 df = 5 p = 0.2625
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.7763 df = 5 p = 0.0818
+#> [INFO] White test completed: statistic = 8.0425 df = 5 p = 0.1539
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0768 df = 5 p = 0.6881
+#> [INFO] White test completed: statistic = 8.897 df = 5 p = 0.1132
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0579 df = 5 p = 0.6911
+#> [INFO] White test completed: statistic = 6.763 df = 5 p = 0.2389
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.1222 df = 5 p = 0.1043
+#> [INFO] White test completed: statistic = 6.8873 df = 5 p = 0.2292
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.2135 df = 5 p = 0.6671
+#> [INFO] White test completed: statistic = 3.7811 df = 5 p = 0.5813
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.3639 df = 5 p = 0.4983
+#> [INFO] White test completed: statistic = 5.7303 df = 5 p = 0.3334
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.0321 df = 5 p = 0.9599
+#> [INFO] White test completed: statistic = 1.2091 df = 5 p = 0.944
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.012 df = 5 p = 0.4144
+#> [INFO] White test completed: statistic = 6.0323 df = 5 p = 0.3031
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.1663 df = 5 p = 0.2904
+#> [INFO] White test completed: statistic = 2.4925 df = 5 p = 0.7776
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.5299 df = 5 p = 0.1841
+#> [INFO] White test completed: statistic = 7.7703 df = 5 p = 0.1694
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9182 df = 5 p = 0.8603
+#> [INFO] White test completed: statistic = 5.9617 df = 5 p = 0.31
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.4072 df = 5 p = 0.7904
+#> [INFO] White test completed: statistic = 5.0401 df = 5 p = 0.411
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.0852 df = 5 p = 0.1057
+#> [INFO] White test completed: statistic = 8.5743 df = 5 p = 0.1273
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.2391 df = 5 p = 0.3874
+#> [INFO] White test completed: statistic = 7.511 df = 5 p = 0.1853
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.7736 df = 5 p = 0.7348
+#> [INFO] White test completed: statistic = 16.2019 df = 5 p = 0.0063
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.4644 df = 5 p = 0.3619
+#> [INFO] White test completed: statistic = 3.2043 df = 5 p = 0.6685
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.3487 df = 5 p = 0.5004
+#> [INFO] White test completed: statistic = 3.9169 df = 5 p = 0.5614
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.1858 df = 5 p = 0.8229
+#> [INFO] White test completed: statistic = 2.7393 df = 5 p = 0.7401
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.4487 df = 5 p = 0.4868
+#> [INFO] White test completed: statistic = 2.0214 df = 5 p = 0.8462
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7115 df = 5 p = 0.5917
+#> [INFO] White test completed: statistic = 2.3601 df = 5 p = 0.7974
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.8173 df = 5 p = 0.7281
+#> [INFO] White test completed: statistic = 1.5255 df = 5 p = 0.9101
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.1672 df = 5 p = 0.3958
+#> [INFO] White test completed: statistic = 8.6327 df = 5 p = 0.1246
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.6405 df = 5 p = 0.6022
+#> [INFO] White test completed: statistic = 4.1921 df = 5 p = 0.5221
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.649 df = 5 p = 0.601
+#> [INFO] White test completed: statistic = 6.4546 df = 5 p = 0.2645
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.104 df = 5 p = 0.8346
+#> [INFO] White test completed: statistic = 7.2667 df = 5 p = 0.2016
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.2807 df = 5 p = 0.6568
+#> [INFO] White test completed: statistic = 9.3407 df = 5 p = 0.0962
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.7809 df = 5 p = 0.0817
+#> [INFO] White test completed: statistic = 3.4697 df = 5 p = 0.628
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.4783 df = 5 p = 0.3603
+#> [INFO] White test completed: statistic = 3.9137 df = 5 p = 0.5619
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 11.3524 df = 5 p = 0.0448
+#> [INFO] White test completed: statistic = 3.9094 df = 5 p = 0.5625
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.6944 df = 5 p = 0.5942
+#> [INFO] White test completed: statistic = 1.3211 df = 5 p = 0.9327
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.1356 df = 5 p = 0.6791
+#> [INFO] White test completed: statistic = 3.6198 df = 5 p = 0.6053
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.1811 df = 5 p = 0.8236
+#> [INFO] White test completed: statistic = 17.0505 df = 5 p = 0.0044
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.4238 df = 5 p = 0.9217
+#> [INFO] White test completed: statistic = 3.776 df = 5 p = 0.5821
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.4342 df = 5 p = 0.4887
+#> [INFO] White test completed: statistic = 2.5799 df = 5 p = 0.7644
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.8339 df = 5 p = 0.7256
+#> [INFO] White test completed: statistic = 3.8022 df = 5 p = 0.5782
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.3233 df = 5 p = 0.1977
+#> [INFO] White test completed: statistic = 1.5673 df = 5 p = 0.9052
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 12.3107 df = 5 p = 0.0308
+#> [INFO] White test completed: statistic = 11.1876 df = 5 p = 0.0478
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 14.7659 df = 5 p = 0.0114
+#> [INFO] White test completed: statistic = 2.8519 df = 5 p = 0.7228
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 10.272 df = 5 p = 0.0679
+#> [INFO] White test completed: statistic = 4.4725 df = 5 p = 0.4836
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.1216 df = 5 p = 0.2118
+#> [INFO] White test completed: statistic = 5.3638 df = 5 p = 0.3731
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.0125 df = 5 p = 0.5476
+#> [INFO] White test completed: statistic = 6.4215 df = 5 p = 0.2673
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.3786 df = 5 p = 0.3714
+#> [INFO] White test completed: statistic = 2.8322 df = 5 p = 0.7258
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3091 df = 5 p = 0.6524
+#> [INFO] White test completed: statistic = 0.9934 df = 5 p = 0.9631
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.2234 df = 5 p = 0.1005
+#> [INFO] White test completed: statistic = 9.4471 df = 5 p = 0.0925
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.8138 df = 5 p = 0.0807
+#> [INFO] White test completed: statistic = 8.4629 df = 5 p = 0.1325
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.4413 df = 5 p = 0.2656
+#> [INFO] White test completed: statistic = 8.3381 df = 5 p = 0.1386
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.1292 df = 5 p = 0.531
+#> [INFO] White test completed: statistic = 5.1474 df = 5 p = 0.3982
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.5324 df = 5 p = 0.2578
+#> [INFO] White test completed: statistic = 3.6314 df = 5 p = 0.6036
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.1322 df = 5 p = 0.8306
+#> [INFO] White test completed: statistic = 7.8092 df = 5 p = 0.1671
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0143 df = 5 p = 0.6978
+#> [INFO] White test completed: statistic = 13.954 df = 5 p = 0.0159
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.0627 df = 5 p = 0.5404
+#> [INFO] White test completed: statistic = 4.9582 df = 5 p = 0.421
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.1158 df = 5 p = 0.4019
+#> [INFO] White test completed: statistic = 1.8924 df = 5 p = 0.8638
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.1072 df = 5 p = 0.8341
+#> [INFO] White test completed: statistic = 5.8284 df = 5 p = 0.3233
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.391 df = 5 p = 0.4946
+#> [INFO] White test completed: statistic = 6.9002 df = 5 p = 0.2282
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.4233 df = 5 p = 0.635
+#> [INFO] White test completed: statistic = 5.1329 df = 5 p = 0.3999
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.7472 df = 5 p = 0.2401
+#> [INFO] White test completed: statistic = 4.0347 df = 5 p = 0.5444
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.5268 df = 5 p = 0.4763
+#> [INFO] White test completed: statistic = 2.4592 df = 5 p = 0.7826
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.0486 df = 5 p = 0.8424
+#> [INFO] White test completed: statistic = 6.7969 df = 5 p = 0.2362
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.1339 df = 5 p = 0.8303
+#> [INFO] White test completed: statistic = 3.9575 df = 5 p = 0.5555
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.1814 df = 5 p = 0.2075
+#> [INFO] White test completed: statistic = 2.2667 df = 5 p = 0.8112
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.4575 df = 5 p = 0.1888
+#> [INFO] White test completed: statistic = 1.6153 df = 5 p = 0.8994
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.731 df = 5 p = 0.5888
+#> [INFO] White test completed: statistic = 3.3384 df = 5 p = 0.648
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7671 df = 5 p = 0.5834
+#> [INFO] White test completed: statistic = 4.9048 df = 5 p = 0.4276
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.7444 df = 5 p = 0.3319
+#> [INFO] White test completed: statistic = 6.7732 df = 5 p = 0.2381
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.9494 df = 5 p = 0.5567
+#> [INFO] White test completed: statistic = 2.7647 df = 5 p = 0.7362
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.0531 df = 5 p = 0.8417
+#> [INFO] White test completed: statistic = 5.6891 df = 5 p = 0.3377
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9612 df = 5 p = 0.8545
+#> [INFO] White test completed: statistic = 2.3546 df = 5 p = 0.7982
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.2924 df = 5 p = 0.2788
+#> [INFO] White test completed: statistic = 6.1588 df = 5 p = 0.2911
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.06 df = 5 p = 0.8408
+#> [INFO] White test completed: statistic = 9.17 df = 5 p = 0.1025
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.4983 df = 5 p = 0.4801
+#> [INFO] White test completed: statistic = 2.2025 df = 5 p = 0.8205
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.2172 df = 5 p = 0.5186
+#> [INFO] White test completed: statistic = 6.9139 df = 5 p = 0.2271
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 12.3467 df = 5 p = 0.0303
+#> [INFO] White test completed: statistic = 5.4368 df = 5 p = 0.3649
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.9416 df = 5 p = 0.5578
+#> [INFO] White test completed: statistic = 4.6308 df = 5 p = 0.4626
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.5254 df = 5 p = 0.3552
+#> [INFO] White test completed: statistic = 2.5989 df = 5 p = 0.7615
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 8.9943 df = 5 p = 0.1093
+#> [INFO] White test completed: statistic = 5.4488 df = 5 p = 0.3636
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.2634 df = 5 p = 0.6595
+#> [INFO] White test completed: statistic = 4.1464 df = 5 p = 0.5285
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.5053 df = 5 p = 0.9125
+#> [INFO] White test completed: statistic = 6.9026 df = 5 p = 0.228
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.5136 df = 5 p = 0.2594
+#> [INFO] White test completed: statistic = 3.9435 df = 5 p = 0.5576
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9955 df = 5 p = 0.8498
+#> [INFO] White test completed: statistic = 3.6266 df = 5 p = 0.6043
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.838 df = 5 p = 0.436
+#> [INFO] White test completed: statistic = 6.4537 df = 5 p = 0.2645
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.3556 df = 5 p = 0.374
+#> [INFO] White test completed: statistic = 4.2265 df = 5 p = 0.5173
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.6027 df = 5 p = 0.1795
+#> [INFO] White test completed: statistic = 3.3779 df = 5 p = 0.6419
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.904 df = 5 p = 0.7148
+#> [INFO] White test completed: statistic = 6.1516 df = 5 p = 0.2917
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9348 df = 5 p = 0.8581
+#> [INFO] White test completed: statistic = 5.5335 df = 5 p = 0.3543
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.8668 df = 5 p = 0.5687
+#> [INFO] White test completed: statistic = 1.7997 df = 5 p = 0.8761
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7695 df = 5 p = 0.5831
+#> [INFO] White test completed: statistic = 3.5202 df = 5 p = 0.6203
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.354 df = 5 p = 0.1956
+#> [INFO] White test completed: statistic = 9.3786 df = 5 p = 0.0949
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 13.7977 df = 5 p = 0.0169
+#> [INFO] White test completed: statistic = 6.2734 df = 5 p = 0.2805
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.2964 df = 5 p = 0.8068
+#> [INFO] White test completed: statistic = 8.8067 df = 5 p = 0.117
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.4343 df = 5 p = 0.9205
+#> [INFO] White test completed: statistic = 1.5553 df = 5 p = 0.9066
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.7119 df = 5 p = 0.3353
+#> [INFO] White test completed: statistic = 2.4 df = 5 p = 0.7915
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.1459 df = 5 p = 0.2923
+#> [INFO] White test completed: statistic = 4.2586 df = 5 p = 0.5128
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.4381 df = 5 p = 0.7858
+#> [INFO] White test completed: statistic = 9.8074 df = 5 p = 0.0809
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.2212 df = 5 p = 0.6659
+#> [INFO] White test completed: statistic = 2.6529 df = 5 p = 0.7533
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 10.3608 df = 5 p = 0.0656
+#> [INFO] White test completed: statistic = 5.7948 df = 5 p = 0.3267
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.6077 df = 5 p = 0.6072
+#> [INFO] White test completed: statistic = 8.7307 df = 5 p = 0.1203
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.3073 df = 5 p = 0.8052
+#> [INFO] White test completed: statistic = 9.1046 df = 5 p = 0.105
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 8.2154 df = 5 p = 0.1448
+#> [INFO] White test completed: statistic = 3.6269 df = 5 p = 0.6043
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.9223 df = 5 p = 0.5607
+#> [INFO] White test completed: statistic = 6.3419 df = 5 p = 0.2744
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 16.5813 df = 5 p = 0.0054
+#> [INFO] White test completed: statistic = 6.0381 df = 5 p = 0.3025
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.3275 df = 5 p = 0.9321
+#> [INFO] White test completed: statistic = 3.8921 df = 5 p = 0.5651
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 10.8238 df = 5 p = 0.055
+#> [INFO] White test completed: statistic = 3.3237 df = 5 p = 0.6502
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.1859 df = 5 p = 0.2072
+#> [INFO] White test completed: statistic = 4.5892 df = 5 p = 0.468
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.0642 df = 5 p = 0.2159
+#> [INFO] White test completed: statistic = 2.8667 df = 5 p = 0.7205
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 0.7843 df = 5 p = 0.978
+#> [INFO] White test completed: statistic = 2.6435 df = 5 p = 0.7547
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.294 df = 5 p = 0.5079
+#> [INFO] White test completed: statistic = 4.3285 df = 5 p = 0.5032
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.2765 df = 5 p = 0.3831
+#> [INFO] White test completed: statistic = 4.4567 df = 5 p = 0.4857
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.4986 df = 5 p = 0.9132
+#> [INFO] White test completed: statistic = 5.5274 df = 5 p = 0.355
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7472 df = 5 p = 0.5864
+#> [INFO] White test completed: statistic = 4.1142 df = 5 p = 0.5331
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 16.4514 df = 5 p = 0.0057
+#> [INFO] White test completed: statistic = 3.4519 df = 5 p = 0.6307
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 8.03 df = 5 p = 0.1546
+#> [INFO] White test completed: statistic = 6.2859 df = 5 p = 0.2794
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3804 df = 5 p = 0.6416
+#> [INFO] White test completed: statistic = 3.5797 df = 5 p = 0.6114
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.9806 df = 5 p = 0.703
+#> [INFO] White test completed: statistic = 3.9347 df = 5 p = 0.5589
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.955 df = 5 p = 0.4214
+#> [INFO] White test completed: statistic = 14.1721 df = 5 p = 0.0146
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3444 df = 5 p = 0.6471
+#> [INFO] White test completed: statistic = 0.611 df = 5 p = 0.9875
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.9477 df = 5 p = 0.7081
+#> [INFO] White test completed: statistic = 4.4925 df = 5 p = 0.4809
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 8.1093 df = 5 p = 0.1503
+#> [INFO] White test completed: statistic = 2.9229 df = 5 p = 0.7119
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.1925 df = 5 p = 0.2067
+#> [INFO] White test completed: statistic = 3.9737 df = 5 p = 0.5532
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.5094 df = 5 p = 0.622
+#> [INFO] White test completed: statistic = 1.7254 df = 5 p = 0.8857
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 16.4882 df = 5 p = 0.0056
+#> [INFO] White test completed: statistic = 1.6509 df = 5 p = 0.895
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 13.2041 df = 5 p = 0.0215
+#> [INFO] White test completed: statistic = 2.8507 df = 5 p = 0.723
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.4544 df = 5 p = 0.9183
+#> [INFO] White test completed: statistic = 2.5346 df = 5 p = 0.7713
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.0832 df = 5 p = 0.8375
+#> [INFO] White test completed: statistic = 3.2405 df = 5 p = 0.663
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.1886 df = 5 p = 0.1018
+#> [INFO] White test completed: statistic = 6.9087 df = 5 p = 0.2275
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.2353 df = 5 p = 0.2037
+#> [INFO] White test completed: statistic = 8.3416 df = 5 p = 0.1384
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.6303 df = 5 p = 0.4626
+#> [INFO] White test completed: statistic = 4.2685 df = 5 p = 0.5114
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.5853 df = 5 p = 0.3487
+#> [INFO] White test completed: statistic = 6.257 df = 5 p = 0.282
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.1839 df = 5 p = 0.2887
+#> [INFO] White test completed: statistic = 7.1846 df = 5 p = 0.2073
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 0.8567 df = 5 p = 0.9733
+#> [INFO] White test completed: statistic = 3.8569 df = 5 p = 0.5702
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.9255 df = 5 p = 0.7115
+#> [INFO] White test completed: statistic = 3.2654 df = 5 p = 0.6591
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.5556 df = 5 p = 0.4725
+#> [INFO] White test completed: statistic = 1.9463 df = 5 p = 0.8565
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.0853 df = 5 p = 0.5372
+#> [INFO] White test completed: statistic = 5.698 df = 5 p = 0.3367
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.6528 df = 5 p = 0.4597
+#> [INFO] White test completed: statistic = 2.8464 df = 5 p = 0.7237
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9403 df = 5 p = 0.8573
+#> [INFO] White test completed: statistic = 4.1464 df = 5 p = 0.5285
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7091 df = 5 p = 0.592
+#> [INFO] White test completed: statistic = 6.4331 df = 5 p = 0.2663
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.0317 df = 5 p = 0.412
+#> [INFO] White test completed: statistic = 8.0383 df = 5 p = 0.1541
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.4742 df = 5 p = 0.3608
+#> [INFO] White test completed: statistic = 3.7375 df = 5 p = 0.5878
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.4769 df = 5 p = 0.2625
+#> [INFO] White test completed: statistic = 4.8084 df = 5 p = 0.4397
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.8105 df = 5 p = 0.0808
+#> [INFO] White test completed: statistic = 8.3841 df = 5 p = 0.1363
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.3174 df = 5 p = 0.8037
+#> [INFO] White test completed: statistic = 2.1429 df = 5 p = 0.829
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.5359 df = 5 p = 0.354
+#> [INFO] White test completed: statistic = 2.0997 df = 5 p = 0.8352
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.1049 df = 5 p = 0.6838
+#> [INFO] White test completed: statistic = 5.3836 df = 5 p = 0.3709
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 8.4189 df = 5 p = 0.1346
+#> [INFO] White test completed: statistic = 6.9156 df = 5 p = 0.227
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.67 df = 5 p = 0.8927
+#> [INFO] White test completed: statistic = 6.3496 df = 5 p = 0.2737
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9639 df = 5 p = 0.8541
+#> [INFO] White test completed: statistic = 3.4359 df = 5 p = 0.6331
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.7791 df = 5 p = 0.5816
+#> [INFO] White test completed: statistic = 8.2655 df = 5 p = 0.1422
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.5169 df = 5 p = 0.6208
+#> [INFO] White test completed: statistic = 6.5519 df = 5 p = 0.2562
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.9433 df = 5 p = 0.8569
+#> [INFO] White test completed: statistic = 8.2113 df = 5 p = 0.145
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.9802 df = 5 p = 0.703
+#> [INFO] White test completed: statistic = 4.6273 df = 5 p = 0.463
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.1344 df = 5 p = 0.5302
+#> [INFO] White test completed: statistic = 4.562 df = 5 p = 0.4716
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.0004 df = 5 p = 0.3062
+#> [INFO] White test completed: statistic = 5.3304 df = 5 p = 0.3769
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.2213 df = 5 p = 0.518
+#> [INFO] White test completed: statistic = 4.1483 df = 5 p = 0.5283
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.2626 df = 5 p = 0.2018
+#> [INFO] White test completed: statistic = 2.4834 df = 5 p = 0.779
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3807 df = 5 p = 0.6415
+#> [INFO] White test completed: statistic = 4.0321 df = 5 p = 0.5448
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 10.1908 df = 5 p = 0.07
+#> [INFO] White test completed: statistic = 1.3426 df = 5 p = 0.9305
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.0634 df = 5 p = 0.9573
+#> [INFO] White test completed: statistic = 4.7542 df = 5 p = 0.4466
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 5.9809 df = 5 p = 0.3081
+#> [INFO] White test completed: statistic = 3.3901 df = 5 p = 0.6401
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.4326 df = 5 p = 0.489
+#> [INFO] White test completed: statistic = 6.244 df = 5 p = 0.2832
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.2037 df = 5 p = 0.5205
+#> [INFO] White test completed: statistic = 7.2579 df = 5 p = 0.2022
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.6271 df = 5 p = 0.7572
+#> [INFO] White test completed: statistic = 3.9805 df = 5 p = 0.5522
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.0862 df = 5 p = 0.6867
+#> [INFO] White test completed: statistic = 2.7762 df = 5 p = 0.7344
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 7.1997 df = 5 p = 0.2062
+#> [INFO] White test completed: statistic = 5.3421 df = 5 p = 0.3756
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.484 df = 5 p = 0.9149
+#> [INFO] White test completed: statistic = 7.1147 df = 5 p = 0.2123
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 1.6512 df = 5 p = 0.895
+#> [INFO] White test completed: statistic = 4.0189 df = 5 p = 0.5467
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3192 df = 5 p = 0.6509
+#> [INFO] White test completed: statistic = 4.7546 df = 5 p = 0.4466
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.2876 df = 5 p = 0.5088
+#> [INFO] White test completed: statistic = 7.4592 df = 5 p = 0.1887
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 9.3286 df = 5 p = 0.0967
+#> [INFO] White test completed: statistic = 4.631 df = 5 p = 0.4626
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.5139 df = 5 p = 0.7744
+#> [INFO] White test completed: statistic = 3.7232 df = 5 p = 0.5899
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 6.9848 df = 5 p = 0.2218
+#> [INFO] White test completed: statistic = 2.8306 df = 5 p = 0.7261
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.4259 df = 5 p = 0.4899
+#> [INFO] White test completed: statistic = 12.3172 df = 5 p = 0.0307
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 4.5766 df = 5 p = 0.4697
+#> [INFO] White test completed: statistic = 3.7105 df = 5 p = 0.5918
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.5908 df = 5 p = 0.7628
+#> [INFO] White test completed: statistic = 4.9682 df = 5 p = 0.4198
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 2.0013 df = 5 p = 0.849
+#> [INFO] White test completed: statistic = 3.8066 df = 5 p = 0.5776
 #> [INFO] Running White test
-#> [INFO] White test completed: statistic = 3.3112 df = 5 p = 0.6521
+#> [INFO] White test completed: statistic = 3.3544 df = 5 p = 0.6455
 #> 
 #>  White's test for heteroscedasticity (robust)
 #> 
