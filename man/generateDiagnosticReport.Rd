@@ -35,9 +35,14 @@ Creates a standalone report summarizing heteroscedasticity tests and
 diagnostic plots for a fitted model.
 }
 \examples{
-\dontrun{
-data(mtcars)
-model <- lm(mpg ~ wt + hp, data = mtcars)
-generateDiagnosticReport(model, mtcars)
+\donttest{
+if (requireNamespace("rmarkdown", quietly = TRUE) &&
+    rmarkdown::pandoc_available()) {
+  model <- lm(mpg ~ wt + hp, data = mtcars)
+  generateDiagnosticReport(
+    model, mtcars,
+    output_file = file.path(tempdir(), "diagnostic_report.html")
+  )
+}
 }
 }

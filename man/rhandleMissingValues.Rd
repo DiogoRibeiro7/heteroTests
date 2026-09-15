@@ -35,8 +35,4 @@ Provides a centralized mechanism for dealing with missing values in
 heteroscedasticity tests. The function can either drop incomplete cases,
 emit warnings, or fail fast when missingness is not permitted.
 }
-\examples{
-cleaned <- heteroTests:::rhandleMissingValues(mtcars, c("mpg", "wt"))
-cleaned$removed_count
-}
 \keyword{internal}
