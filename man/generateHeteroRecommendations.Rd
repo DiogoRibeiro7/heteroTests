@@ -76,11 +76,9 @@ strategies matched to detected variance patterns. The generated decision tree
 and narrative target non-specialist audiences who need actionable guidance.
 }
 \examples{
-\dontrun{
 model <- lm(mpg ~ wt + hp, data = mtcars)
 recs <- generateHeteroRecommendations(model, mtcars)
 print(recs)
-}
 }
 \seealso{\code{runHeteroTests()}, \code{suggestRemediation()},
 \code{generateDiagnosticReport()}}

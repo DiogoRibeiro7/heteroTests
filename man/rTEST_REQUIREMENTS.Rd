@@ -31,10 +31,4 @@ Dynamic entries are functions that receive additional arguments supplied to
 \code{\link[=rvalidateSampleSize]{rvalidateSampleSize()}} and should return either a numeric minimum or a list
 containing \code{min_obs} and, optionally, \code{reason}.
 }
-\examples{
-heteroTests:::rTEST_REQUIREMENTS$white$min_obs
-
-# Dynamic entry: ARCH LM depends on the lag order
-heteroTests:::rTEST_REQUIREMENTS$arch_lm(lags = 3)
-}
 \keyword{internal}

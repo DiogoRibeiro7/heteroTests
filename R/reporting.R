@@ -12,10 +12,15 @@
 #' @param include_theory Logical; include background theory section.
 #' @return Invisibly returns the path to the generated report.
 #' @examples
-#' \dontrun{
-#' data(mtcars)
-#' model <- lm(mpg ~ wt + hp, data = mtcars)
-#' generateDiagnosticReport(model, mtcars)
+#' \donttest{
+#' if (requireNamespace("rmarkdown", quietly = TRUE) &&
+#'     rmarkdown::pandoc_available()) {
+#'   model <- lm(mpg ~ wt + hp, data = mtcars)
+#'   generateDiagnosticReport(
+#'     model, mtcars,
+#'     output_file = file.path(tempdir(), "diagnostic_report.html")
+#'   )
+#' }
 #' }
 #' @export
 generateDiagnosticReport <- function(model, data = NULL,

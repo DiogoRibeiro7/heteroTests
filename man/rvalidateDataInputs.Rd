@@ -22,7 +22,4 @@ Performs standard checks on input data.frames prior to running
 heteroscedasticity diagnostics. The routine verifies that required
 variables are available and that the sample size meets minimum criteria.
 }
-\examples{
-heteroTests:::rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
-}
 \keyword{internal}

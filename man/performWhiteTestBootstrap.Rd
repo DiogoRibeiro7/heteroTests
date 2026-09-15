@@ -61,7 +61,7 @@ performWhiteTestBootstrap(mod, sim, B = 199)
 
 \donttest{
 # More replications give a smoother p-value estimate
-performWhiteTestBootstrap(mod, sim, B = 999)
+performWhiteTestBootstrap(mod, sim, B = 499)
 
 # Enable parallel processing when supported by the operating system
 if (.Platform$OS.type != "windows") {

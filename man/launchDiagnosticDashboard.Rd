@@ -29,9 +29,10 @@ exploring heteroscedastic data-generating processes. Download buttons are
 provided for both results tables and interactive plots.
 }
 \examples{
-\dontrun{
-data(mtcars)
-mod <- lm(mpg ~ wt + hp, data = mtcars)
-launchDiagnosticDashboard(mod, mtcars)
+if (interactive() && requireNamespace("shiny", quietly = TRUE) &&
+    requireNamespace("DT", quietly = TRUE) &&
+    requireNamespace("plotly", quietly = TRUE)) {
+  mod <- lm(mpg ~ wt + hp, data = mtcars)
+  launchDiagnosticDashboard(mod, mtcars)
 }
 }

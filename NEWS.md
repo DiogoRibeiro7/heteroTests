@@ -1,5 +1,33 @@
 # heteroTests News
 
+## 0.11.2
+
+Changes requested by the CRAN review of the 0.11.1 submission. No statistic,
+default or exported function changes.
+
+- The `Description` field no longer says "in R", and now cites the methods the
+  package implements, with DOIs: White (1980), Breusch and Pagan (1979),
+  Koenker (1981), Goldfeld and Quandt (1965), Harvey (1976), Cook and Weisberg
+  (1983), Engle (1982), Bartlett (1937), Brown and Forsythe (1974) and Hartley
+  (1950).
+- No example reaches an unexported object through `:::`. The six help pages
+  that did -- for `rhandleMissingValues()`, `rTEST_REQUIREMENTS`,
+  `rvalidateDataInputs()`, `rvalidateDistributionalAssumptions()`,
+  `rvalidateGroupingVariable()` and `rvalidateModelInputs()` -- document
+  internal objects, where `::` would fail. Their examples are removed rather
+  than the objects exported.
+- No example uses `\dontrun{}`. The recommendations example runs in well under
+  a second and is unwrapped. The report example takes about ten seconds and
+  needs `pandoc`, so it runs under `\donttest{}` behind
+  `rmarkdown::pandoc_available()` and writes to `tempdir()`. The dashboard
+  example is guarded by `interactive()`, since printing the Shiny application
+  it returns starts a blocking server.
+
+- The `\donttest{}` part of the `performWhiteTestBootstrap()` example uses 499
+  bootstrap replications rather than 999. With that part included, as
+  `R CMD check --as-cran` runs it, the example took 5.0 to 5.7 seconds, over
+  the five-second limit for examples; it now takes about 1.7 seconds.
+
 ## 0.11.1
 
 Two panel p-values change value, though not their conclusions.

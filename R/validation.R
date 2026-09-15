@@ -524,9 +524,6 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
 #' @param min_obs Minimum number of observations required for the calling
 #'   procedure. Defaults to `10`.
 #' @return Invisibly returns `model` when validation passes.
-#' @examples
-#' mod <- stats::lm(mpg ~ wt, data = mtcars)
-#' heteroTests:::rvalidateModelInputs(mod, test_name = "Demo Test")
 #' @keywords internal
 rvalidateModelInputs <- function(model, test_name, min_obs = 10) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"white\"")
@@ -548,8 +545,6 @@ rvalidateModelInputs <- function(model, test_name, min_obs = 10) {
 #'   present in `data`.
 #' @param min_obs Minimum number of observations required. Defaults to `10`.
 #' @return Invisibly returns the validated `data` object.
-#' @examples
-#' heteroTests:::rvalidateDataInputs(mtcars, required_vars = c("mpg", "wt"))
 #' @keywords internal
 rvalidateDataInputs <- function(data, required_vars = NULL, min_obs = 10) {
   min_obs <- enforce_integer_scalar(min_obs, "min_obs", lower = 0L)
@@ -580,9 +575,6 @@ rvalidateDataInputs <- function(data, required_vars = NULL, min_obs = 10) {
 #'   observations), `removed_fraction` (proportion removed relative to the
 #'   original data), `removed_variables` (variables with observed missingness),
 #'   and `loss_message` (the formatted warning text).
-#' @examples
-#' cleaned <- heteroTests:::rhandleMissingValues(mtcars, c("mpg", "wt"))
-#' cleaned$removed_count
 #' @keywords internal
 rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
   if (!is.data.frame(data)) {
@@ -902,15 +894,6 @@ check_outlier_assumption <- function(data, config, numeric_columns) {
 #' @return A list containing `passed` (logical flag), `messages` (character
 #'   vector of violations), `warnings` (character vector of recoverable issues),
 #'   and `details` (named list with diagnostic information for each assumption).
-#' @examples
-#' res <- heteroTests:::rvalidateDistributionalAssumptions(
-#'   mtcars,
-#'   assumptions = list(
-#'     normality = list(variables = "mpg"),
-#'     positive = list(variables = "disp", test_name = "Demo Test")
-#'   )
-#' )
-#' res$passed
 #' @keywords internal
 rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
   if (!is.data.frame(data)) {
@@ -977,9 +960,6 @@ rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
 #' @return A list mirroring the structure of
 #'   [rvalidateDistributionalAssumptions()] with information about the evaluated
 #'   grouping variable.
-#' @examples
-#' grp <- heteroTests:::rvalidateGroupingVariable(mtcars, group_var = "cyl")
-#' grp$details$n_groups
 #' @keywords internal
 rvalidateGroupingVariable <- function(data, group_var, min_group_size = 3, min_groups = 2) {
   if (!is.data.frame(data)) {

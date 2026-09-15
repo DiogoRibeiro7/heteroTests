@@ -25,8 +25,4 @@ required by the heteroscedasticity testing infrastructure. The checks
 include class validation, successful fitting, availability of finite
 residuals, and minimum sample size requirements.
 }
-\examples{
-mod <- stats::lm(mpg ~ wt, data = mtcars)
-heteroTests:::rvalidateModelInputs(mod, test_name = "Demo Test")
-}
 \keyword{internal}
