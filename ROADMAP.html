@@ -33,122 +33,180 @@
 
 <div id="heterotests-roadmap" class="section level1">
 
-<p>This document tracks the direction of the package: what is done, what is in progress, and what is planned. It is updated alongside meaningful code changes. Dates are omitted in favour of milestone ordering.</p>
+<p>This document tracks where the package is going. It is updated alongside meaningful code changes. Milestones are ordered, not dated. The history of what changed and why lives in <code>NEWS.md</code>; the statistical evidence lives in <code>inst/validation/</code>.</p>
+<div class="section level2">
+<h2 id="where-things-stand-0112">Where things stand (0.11.2)<a class="anchor" aria-label="anchor" href="#where-things-stand-0112"></a></h2>
+<ul><li>
+<strong>On CRAN.</strong> 0.11.2 was accepted in September 2026, after one review round on 0.11.1.</li>
+<li>
+<strong>The validation matrix is complete</strong> for every exported <code>perform*Test()</code>. The sweep found six broken procedures, all corrected or withdrawn, and twenty-five of the twenty-six heteroscedasticity tests hold their nominal level (<code>inst/validation/README.md</code>).</li>
+<li>
+<strong>Reference equivalence</strong> is asserted to <code>1e-8</code> against <code>lmtest</code>, <code>car</code> and <code>plm</code> wherever a reference implementation exists.</li>
+<li>
+<strong>The public surface has not been reviewed as a whole.</strong> The package exports 126 objects. They accumulated feature by feature, and they include duplicates, internal helpers and several naming schemes. That surface, not the statistics, is what stands between 0.11.2 and 1.0.0.</li>
+</ul></div>
+<div class="section level2">
+<h2 id="what-100-means">What 1.0.0 means<a class="anchor" aria-label="anchor" href="#what-100-means"></a></h2>
+<p>1.0.0 is a promise rather than a feature count. From 1.0.0:</p>
+<ul><li>Exported names, argument names and order, and defaults change only in a major release, and only after a minor release in which the old form still works and warns.</li>
+<li>Every exported test returns an <code>htest</code> object with a documented, uniform set of fields.</li>
+<li>A correction to a statistic, its degrees of freedom or its p-value is a bug fix. It is never deferred for the sake of compatibility. It bumps the minor version and gets its own <code>NEWS.md</code> section, as 0.11.0 did.</li>
+</ul><p>Version numbers follow from that: a patch release changes no reported value; a minor release adds functionality or corrects a statistic; a major release breaks the API.</p>
+<p>Everything below exists to make that promise safe to give. The sequencing rule this file has always followed still holds: statistical correctness first, then the API, and never both in one release. Correctness is done, so the API is next.</p>
+</div>
 <div class="section level2">
 <h2 id="guiding-principles">Guiding principles<a class="anchor" aria-label="anchor" href="#guiding-principles"></a></h2>
 <ul><li>
 <strong>Statistical correctness first.</strong> Every test must reproduce an established reference (or a defensible derivation) and be covered by a test that checks <em>behaviour</em> (size and power), not just object structure.</li>
 <li>
-<strong>One consistent interface.</strong> All diagnostics return base-R <code>htest</code> objects and follow the <code>perform*Test(model, data, ...)</code> convention.</li>
+<strong>A reference comparison is not a substitute for a size check.</strong> Four of the six faults the sweep found were in procedures with no reference to compare against, and the two that had one agreed with it.</li>
 <li>
-<strong>Scale and robustness as first-class concerns</strong>, not afterthoughts: streaming implementations for large data, resampling/robust variants for small or non-normal samples.</li>
+<strong>Guards are simulated, not stored.</strong> A stored-value regression test would have frozen each of those faults rather than caught it.</li>
+<li>
+<strong>One consistent interface.</strong> All diagnostics return base-R <code>htest</code> objects and follow the <code>perform*Test(model, data, ...)</code> convention. (Nine exported tests do not yet; see 0.13.0.)</li>
+<li>
+<strong>Scale and robustness as first-class concerns</strong>: streaming implementations for large data, resampling and robust variants for small or non-normal samples.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="completed">Completed<a class="anchor" aria-label="anchor" href="#completed"></a></h2>
+<h2 id="milestones">Milestones<a class="anchor" aria-label="anchor" href="#milestones"></a></h2>
 <div class="section level3">
-<h3 id="statistical-correctness">Statistical correctness<a class="anchor" aria-label="anchor" href="#statistical-correctness"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox" checked>Corrected the Breusch–Pagan / Koenker swap: <code><a href="reference/performBPTest.html">performBPTest()</a></code> is the classical statistic (<code>lmtest::bptest(studentize = FALSE)</code>), <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> the studentized <code>n R^2</code> form (<code>studentize = TRUE</code>); validated to machine precision and in the reference-comparison tests.</label></li>
-<li><label><input type="checkbox" checked>Reimplemented <code><a href="reference/performWildBootstrapTest.html">performWildBootstrapTest()</a></code> as a <strong>null-imposed</strong> bootstrap so it controls size and actually has power; added size/power regression tests.</label></li>
-<li><label><input type="checkbox" checked>Kept the streaming variants algebraically identical to their exact counterparts (covered by <code>test-streaming.R</code>).</label></li>
-<li><label><input type="checkbox" checked>Resolved a duplicate <code>%||%</code> operator collision that could abort <code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code> on multi-column data.</label></li>
-<li><label><input type="checkbox" checked><strong>Pass A of the statistical validation matrix</strong> (classical regression diagnostics). Each test was checked definition -&gt; reference -&gt; implementation -&gt; numerical equivalence -&gt; size/power. Reference equivalence is asserted in <code>tests/testthat/test-pass-a-reference.R</code>; size and power are measured by <code>inst/validation/pass-a-size-power.R</code> and recorded in <code>inst/validation/pass-a-size-power.csv</code>. Corrections: <code><a href="reference/performSzroeterTest.html">performSzroeterTest()</a></code> (wrong standardisation, zero power), <code><a href="reference/performNCVTest.html">performNCVTest()</a></code> (was a Glejser-type t-test, not the score test it documented), <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code> (returned the Koenker statistic), <code><a href="reference/performHarveyTest.html">performHarveyTest()</a></code> (non-standard auxiliary design and statistic). <code><a href="reference/performArchLMTest.html">performArchLMTest()</a></code> and <code><a href="reference/performMcLeodLiTest.html">performMcLeodLiTest()</a></code> passed unchanged.</label></li>
-<li><label><input type="checkbox" checked>Unified input validation across the Pass A tests; <code><a href="reference/performNCVTest.html">performNCVTest()</a></code> and <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code> no longer bypass the shared framework. This also removed a masking effect in which the unvalidated NCV test succeeded on degenerate models and acted as a universal fallback for other failing tests.</label></li>
-<li><label><input type="checkbox" checked><code><a href="reference/compareModelDiagnostics.html">compareModelDiagnostics()</a></code> no longer reports a substituted fallback diagnostic under the requested test’s name.</label></li>
-<li><label><input type="checkbox" checked>Removed two shadowed duplicate definitions: the obsolete <code>performHCCovarianceTest()</code> and <code><a href="reference/performQuantileRegressionTest.html">performQuantileRegressionTest()</a></code> in <code>modern_diagnostics.R</code> were being overwritten at load time by the corrected versions. Correct behaviour depended on collation order.</label></li>
-<li><label><input type="checkbox" checked>Standardised bootstrap and permutation p-values on the finite-simulation convention <code>(1 + #) / (B_eff + 1)</code>, with a regression test covering every resampling entry point.</label></li>
-</ul></div>
-<div class="section level3">
-<h3 id="packaging--correctness-hygiene">Packaging / correctness hygiene<a class="anchor" aria-label="anchor" href="#packaging--correctness-hygiene"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox" checked>Declared dependencies correctly: <code>R6</code> and <code>parallel</code> in <code>Imports</code>, <code>digest</code> in <code>Suggests</code>.</label></li>
-<li><label><input type="checkbox" checked>Documented the previously undocumented <code>performBreuschPaganTest</code> export.</label></li>
-<li><label><input type="checkbox" checked>Consistent <code>df</code> labelling in <code>htest</code> output across the auxiliary-regression and ARCH tests.</label></li>
-<li><label><input type="checkbox" checked>Shipped the example datasets as <code>.rda</code> (with reproducible <code>data-raw/</code> scripts) and documented the <code>boston_housing</code> provenance.</label></li>
-<li><label><input type="checkbox" checked><code><a href="reference/performWhiteTest.html">performWhiteTest()</a></code> drops collinear auxiliary columns and uses <code>df = rank</code>, so it works on factor models; <code><a href="reference/performVIFDiagnostic.html">performVIFDiagnostic()</a></code> rewritten to work on the design matrix (factor-safe).</label></li>
-<li><label><input type="checkbox" checked>Consolidated the test suite onto one <code>test-*.R</code> convention, pinned <code>Config/testthat/edition: 3</code>, removed <code>context()</code> and three dead <code>skip()</code>ped files, and migrated edition-2 idioms; behavioural regression tests added.</label></li>
+<h3 id="id_011x-cran-maintenance-now">0.11.x: CRAN maintenance (now)<a class="anchor" aria-label="anchor" href="#id_011x-cran-maintenance-now"></a></h3>
+<ul class="task-list"><li><label><input type="checkbox">Watch the CRAN check results across all flavours and fix anything flagged within the deadline CRAN sets.</label></li>
+<li><label><input type="checkbox">README: install from CRAN first (<code>install.packages("heteroTests")</code>), with GitHub as the development route; add a CRAN badge and use the canonical URL <code>https://CRAN.R-project.org/package=heteroTests</code>.</label></li>
+<li><label><input type="checkbox">The README feature list is out of date. It still advertises an HC0–HC4 covariance test and Cameron–Trivedi, both removed in 0.8.0. Bring it in line with the exports, and extend <code>test-documentation-consistency.R</code> so a README or vignette that names a removed function fails.</label></li>
+<li><label><input type="checkbox">Documentation drift: the <code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> help page describes <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> as “the absolute-residual variant”, which predates the Breusch–Pagan/Koenker correction. Koenker is the studentized <code>n R^2</code> form.</label></li>
+<li><label><input type="checkbox">Check that the Zenodo record picked up 0.11.2, and cite the CRAN release in <code>inst/CITATION</code> and <code>CITATION.cff</code>.</label></li>
+<li><label><input type="checkbox">Close tracking issue #38 as On CRAN.</label></li>
+<li><label><input type="checkbox">Reinstate a release gate. <code>R CMD check --as-cran</code> can stay weekly rather than per merge, but it must pass in full on the tagged commit (vignettes and <code>--run-donttest</code> included) before any submission, alongside win-builder (R-devel).</label></li>
 </ul></div>
 <div class="section level3">
-<h3 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox" checked>Six-part executable tutorial series under <code>inst/tutorials/</code> (detection, remediation, modern &amp; scalable diagnostics, group-wise variance, time series / ARCH, and a power-based test-selection study).</label></li>
-<li><label><input type="checkbox" checked>Refreshed the R Journal manuscript: new sections on the modern/robust and streaming diagnostics, reproducible figures, and verified usage examples.</label></li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="current-priorities-next">Current priorities (next)<a class="anchor" aria-label="anchor" href="#current-priorities-next"></a></h2>
-<p><strong>CRAN submission is deferred.</strong> The package is not considered mature enough to submit, so nothing here is sequenced towards a submission date. <code>R CMD check --as-cran</code> is still worth passing as a quality signal – it is what surfaced the <code>\doi{}</code> note cleared in 0.8.1 – but it no longer runs on every merge, because it costs about an hour and three consecutive runs were cancelled or left queued before finishing. It runs weekly and on demand (<code>gh workflow run R-CMD-check.yml</code>).</p>
-<ul class="task-list"><li><label><input type="checkbox">Keep <code>--as-cran</code> clean on the weekly run. The last local run left three notes, two of them environmental: no network to verify the system clock, and <code>V8</code> absent for math rendering.</label></li>
-<li><label><input type="checkbox">Replace non-ASCII characters in source with escapes.</label></li>
-<li><label><input type="checkbox">Decide whether R 4.1 remains the supported floor, or whether the minimum should track R’s own support window.</label></li>
-</ul><p>With submission deferred, the useful work is the statistical surface rather than packaging: the validation matrix below is complete for the exported tests, and its follow-ons are listed under short-term improvements.</p>
-<div class="section level3">
-<h3 id="validation-matrix">Validation matrix<a class="anchor" aria-label="anchor" href="#validation-matrix"></a></h3>
-<p>The validation effort ran in four passes and is complete for the exported surface. Evidence lives in <code>inst/validation/</code>, with scripts that regenerate it.</p>
-<ul class="task-list"><li><label><input type="checkbox" checked>Pass A, classical regression diagnostics (0.7.0).</label></li>
-<li><label><input type="checkbox" checked>Pass B, group-variance tests (0.7.1).</label></li>
-<li><label><input type="checkbox" checked>Pass C, the methods with least reference coverage (0.7.2).</label></li>
-<li><label><input type="checkbox" checked>Full sweep over all 32 exported <code>perform*Test()</code> functions (0.11.0), each driven by the null and alternative appropriate to what it tests rather than one process for all of them.</label></li>
-</ul><p>Six exported procedures were found to be broken, and all six shared a single property: no size or power check.</p>
-<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>procedure</th>
-<th>fault</th>
-<th>outcome</th>
-</tr></thead><tbody><tr><td><code>performRiceTest()</code></td>
-<td>insensitive by construction; rejection rate 0% under every variance pattern tried</td>
-<td>withdrawn in 0.8.0</td>
-</tr><tr><td><code>performCurryWalshTest()</code></td>
-<td>0% rejection</td>
-<td>withdrawn in 0.8.0</td>
-</tr><tr><td><code><a href="reference/fitWLS.html">fitWLS()</a></code></td>
-<td>weights were the inverse squared residuals of the same fit; nominal 95% intervals covered 10.4%</td>
-<td>corrected to feasible GLS in 0.9.0</td>
-</tr><tr><td><code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code></td>
-<td>resampled rows rather than under the null, so the p-value sat near 0.5; 0% power</td>
-<td>null-imposed resampling in 0.10.0</td>
-</tr><tr><td><code><a href="reference/performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code></td>
-<td>statistic omitted the <code>- 1</code> and the square from Breusch-Pagan’s equation 5; size 32.5%</td>
-<td>corrected in 0.11.0</td>
-</tr><tr><td><code><a href="reference/performPesaranTest.html">performPesaranTest()</a></code></td>
-<td>
-<code>T</code> divided where Pesaran’s CD multiplies, making the statistic <code>1/T</code> too small; size 0.0%</td>
-<td>corrected in 0.11.0</td>
-</tr></tbody></table><p>Twenty-five of the twenty-six heteroscedasticity tests hold their nominal level, at 400 replications and n = 150. The exception is <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code>, conservative at 0.012; <code>inst/validation/README.md</code> carries the table and the reasoning, and generates those counts from the CSV rather than restating them, because an earlier draft of this paragraph quoted figures from a different run and a z computed against the wrong standard error.</p>
-<p>Two conclusions worth keeping. A reference comparison is not a substitute for a size check: four of the six faults above are in procedures with no reference implementation to compare against, and the two that had one agreed with it. And a stored-value regression test would have frozen each fault rather than caught it, so the guards added are simulated size, not recorded numbers.</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="short-term-improvements">Short-term improvements<a class="anchor" aria-label="anchor" href="#short-term-improvements"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox">Factor out repeated boilerplate (scalar validators, the model/data preparation block, intercept-stripping) into shared helpers.</label></li>
-<li><label><input type="checkbox" checked>Added a heavy-tailed size column to the shipped sweep, covering all 26 heteroscedasticity tests rather than only the group-variance ones. Sixteen hold their level under a <code>t5</code> null. Eight over-reject – the normality-dependent statistics, led by classical Breusch-Pagan at 0.287 against Koenker’s 0.048 – and two are conservative enough to be named as well.</label></li>
-<li><label><input type="checkbox" checked>Added a reference comparison for the panel statistics. <code><a href="reference/performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code> reproduces <code>plm::plmtest(type = "bp")</code> and <code><a href="reference/performPesaranTest.html">performPesaranTest()</a></code> reproduces <code>plm::pcdtest(model = "pooling")</code>, both to 1e-8 across three panel shapes. Neither had a reference among the packages the accuracy table uses, which is why both were wrong until 0.11.0.</label></li>
-</ul></div>
-<div class="section level2">
-<h2 id="sequencing">Sequencing<a class="anchor" aria-label="anchor" href="#sequencing"></a></h2>
-<p>Statistical correctness comes before API reduction. Shrinking the public surface is still wanted, but mixing API-breaking cleanup into the same release as method-definition corrections makes both harder to review and harder to explain in <code>NEWS.md</code>. The order is: finish the validation passes, green CI, release, and only then reduce the exported surface.</p>
-</div>
-<div class="section level2">
-<h2 id="medium-term">Medium-term<a class="anchor" aria-label="anchor" href="#medium-term"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox">Split and trim the oversized infrastructure modules (notably <code>validation.R</code>) into cache / result-type / assumption-checking / requirement-dispatch units.</label></li>
-<li><label><input type="checkbox">Extend streaming to more tests where it is meaningful, and expose a single <code>chunk_threshold_mb</code> policy consistently.</label></li>
-<li><label><input type="checkbox">Strengthen the feasible-WLS and auto-transform helpers (Box–Cox search, diagnostics on weighted residuals) used in the remediation workflow.</label></li>
-<li><label><input type="checkbox">Broaden reference-comparison coverage (skedastic, car, sandwich) into a single parametrised accuracy-validation test.</label></li>
-</ul></div>
-<div class="section level2">
-<h2 id="long-term">Long-term<a class="anchor" aria-label="anchor" href="#long-term"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox">First-class panel and spatial heteroscedasticity workflows.</label></li>
-<li><label><input type="checkbox">Helpers that bridge detection to conditional-variance modelling (ARCH/GARCH) for the time-series path.</label></li>
-<li><label><input type="checkbox">An experiment/report artefact (model card style) summarising a diagnostic run.</label></li>
-</ul></div>
-<div class="section level2">
-<h2 id="technical-debt">Technical debt<a class="anchor" aria-label="anchor" href="#technical-debt"></a></h2>
+<h3 id="id_0120-review-the-public-surface-deprecate-remove-nothing">0.12.0: review the public surface (deprecate, remove nothing)<a class="anchor" aria-label="anchor" href="#id_0120-review-the-public-surface-deprecate-remove-nothing"></a></h3>
+<p>Goal: every one of the 126 exports gets a verdict, which is one of <strong>core API</strong>, <strong>renamed</strong>, <strong>internal</strong> or <strong>moved out</strong>. Nothing is removed in this release. Everything that will go warns.</p>
+<ul class="task-list"><li>
+<label><input type="checkbox"><strong>Duplicate exports.</strong></label>
 <ul><li>
-<code>renv.lock</code> is incomplete relative to <code>Imports</code>/<code>Suggests</code>; the Docker build leans on <code>install_local()</code> rather than the lockfile.</li>
-<li>The recommendation/benchmark/dashboard layers are large relative to the package’s “simple implementations” remit; some carry optional dependencies that are only exercised conditionally.</li>
-<li>Several <code>htest</code> printers and metadata fields are hand-maintained and can drift from the roxygen sources; periodic reconciliation is needed.</li>
+<code><a href="reference/performBPTest.html">performBreuschPaganTest()</a></code> is <code><a href="reference/performBPTest.html">performBPTest()</a></code>, assigned at <code>R/performBPTest.R:232</code>.</li>
+<li>
+<code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> is a separate implementation that matches <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> in every column of the full sweep. Confirm the statistics agree to <code>1e-8</code>, then keep one.</li>
+<li>
+<code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code> delegates to <code><a href="reference/performNCVTest.html">performNCVTest()</a></code> with the fitted values as the variance regressor. Keep one entry point for the Cook–Weisberg score test, with <code>var_formula</code> as an optional argument.</li>
+<li>
+<code>*Enhanced</code> pairs: <code><a href="reference/checkModel.html">checkModel()</a></code>/<code><a href="reference/checkModelEnhanced.html">checkModelEnhanced()</a></code>, <code><a href="reference/plotResidualsFitted.html">plotResidualsFitted()</a></code>/<code><a href="reference/plotResidualsFittedEnhanced.html">plotResidualsFittedEnhanced()</a></code> and <code><a href="reference/plotDiagnosticSuite.html">plotDiagnosticSuite()</a></code>/<code><a href="reference/plotDiagnosticSuiteEnhanced.html">plotDiagnosticSuiteEnhanced()</a></code>. Merge each improvement into the base name.</li>
+</ul></li>
+<li><label><input type="checkbox"><strong>Internal machinery that is exported:</strong> <code><a href="reference/std_error.html">std_error()</a></code>, <code><a href="reference/std_warning.html">std_warning()</a></code>, <code><a href="reference/validateTestInputs.html">validateTestInputs()</a></code>, <code><a href="reference/checkData.html">checkData()</a></code>, <code>TestFactory</code>/<code><a href="reference/test_factory.html">test_factory()</a></code>, the cache functions (<code><a href="reference/cachedTest.html">cachedTest()</a></code>, <code><a href="reference/clearTestCache.html">clearTestCache()</a></code>, <code><a href="reference/clearAnalysisCache.html">clearAnalysisCache()</a></code>) and the <code>ht_*</code> logging functions. Unexport them unless a user-facing reason exists; for logging, keep at most <code><a href="reference/ht_logging.html">ht_set_log_level()</a></code>.</label></li>
+<li><label><input type="checkbox"><strong>The five <code>r</code>-prefixed exports</strong> (<code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code>, <code><a href="reference/rcalculateEffectSize.html">rcalculateEffectSize()</a></code>, <code><a href="reference/restimate_test_power.html">restimate_test_power()</a></code>, <code><a href="reference/rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code> and <code><a href="reference/rvalidate_against_reference.html">rvalidate_against_reference()</a></code>) follow no naming scheme in the package. Rename each to the house convention or unexport it.</label></li>
+<li><label><input type="checkbox"><strong><code><a href="reference/test.HeteroDiagnostic.html">test()</a></code> is a generic with a very common name.</strong> Attached after <code>devtools</code>, it masks <code>devtools::test()</code>. Replace it with a specific name or fold it into <code><a href="reference/summary.HeteroDiagnostic.html">summary.HeteroDiagnostic()</a></code>.</label></li>
+<li><label><input type="checkbox"><strong>Naming convention.</strong> camelCase dominates (<code>performXTest()</code>, <code><a href="reference/fitWLS.html">fitWLS()</a></code>, <code>plotX()</code>). Either declare the simulation family (<code><a href="reference/simulate_hetero.html">simulate_hetero()</a></code>, <code>sigma_*()</code>) a deliberate snake_case family or move it to camelCase. The one-offs (<code><a href="reference/run_benchmark_suite.html">run_benchmark_suite()</a></code>, <code><a href="reference/run_benchmark_suite.html">generate_benchmark_report()</a></code>, <code><a href="reference/simulation_framework.html">simulate_type_I_errors()</a></code>, <code><a href="reference/simulation_framework.html">simulate_power_analysis()</a></code>) are renamed either way.</label></li>
+<li><label><input type="checkbox"><strong>Scope.</strong> Decide what stays in the core package (see <a href="#decisions-needed">Decisions</a>). The dashboard (<code>R/dashboard.R</code>, 698 lines) and the benchmark suite (<code>R/benchmarking_system.R</code>, 798 lines) are the natural candidates for a companion package. Between them they account for most of the optional <code>Suggests</code> (<code>shiny</code>, <code>DT</code>, <code>plotly</code>, <code>htmlwidgets</code>, <code>bench</code>).</label></li>
+<li><label><input type="checkbox"><strong>Related model checks</strong> (<code><a href="reference/performRESETTest.html">performRESETTest()</a></code>, <code><a href="reference/performVIFDiagnostic.html">performVIFDiagnostic()</a></code>, <code><a href="reference/performInfluenceDiagnostics.html">performInfluenceDiagnostics()</a></code>, <code><a href="reference/performScatterDiagnostic.html">performScatterDiagnostic()</a></code>) are not heteroscedasticity tests. Keep them, grouped in the reference index as model checks, so they are not mistaken for tests of the variance.</label></li>
+<li><label><input type="checkbox"><strong>Mechanism.</strong> Use base <code><a href="https://rdrr.io/r/base/Deprecated.html" class="external-link">.Deprecated()</a></code>, so no new dependency is needed. Each call warns and names its replacement. <code>NEWS.md</code> carries an old → new mapping table.</label></li>
+<li><label><input type="checkbox"><strong>Exit criterion.</strong> An export inventory with a verdict for every one of the 126 exports, and <code>test-public-api.R</code> extended to assert the planned 1.0 export list, so that an accidental new export fails CI.</label></li>
+</ul></div>
+<div class="section level3">
+<h3 id="id_0130-make-the-interface-match-its-description">0.13.0: make the interface match its description<a class="anchor" aria-label="anchor" href="#id_0130-make-the-interface-match-its-description"></a></h3>
+<p>These changes break existing calls. They have to happen before 1.0.0, not after it.</p>
+<ul class="task-list"><li>
+<label><input type="checkbox"><strong>The <code>(model, data, ...)</code> convention.</strong> The README says every test follows it, but nine exported tests do not:</label>
+<ul><li>no <code>data</code> argument: <code><a href="reference/performArchLMTest.html">performArchLMTest()</a></code>, <code><a href="reference/performMcLeodLiTest.html">performMcLeodLiTest()</a></code>, <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code>, <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>, <code><a href="reference/performSpearmanTest.html">performSpearmanTest()</a></code>, <code><a href="reference/performSpreadLevelTest.html">performSpreadLevelTest()</a></code>, <code><a href="reference/performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code> and <code><a href="reference/performHarveyTest.html">performHarveyTest()</a></code>;</li>
+<li>no <code>model</code> argument: <code>performBoxMTest(data, group)</code>.</li>
+</ul>
+Proposal: <code>data = NULL</code> in second position everywhere, recovered from the model frame when omitted, which <code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code> already does through <code>.ht_prepare_model()</code>. This breaks positional calls such as <code>performArchLMTest(m, 3)</code>, which is the reason it cannot wait until after 1.0. Where it is feasible, detect the old positional form and warn for one release. <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code> may stay the documented exception, since it tests the data rather than residuals.</li>
+<li><label><input type="checkbox"><strong>Argument names.</strong> Harvey uses <code>studentize</code> and <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> uses <code>studentized</code>. Standardise on <code>studentize</code>, which matches <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code>.</label></li>
+<li><label><input type="checkbox"><strong>Resampling defaults.</strong> <code>B</code> is 499 for the wild bootstrap, 999 for rank permutation, and 1000 for the White bootstrap and <code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code>. Under the <code>(1 + #) / (B + 1)</code> convention, a test at level <code>alpha</code> is exact only when <code>alpha * (B + 1)</code> is an integer, and 1000 fails that at 5%. Standardise on 999, or on 499 where cost matters, and never use 1000.</label></li>
+<li><label><input type="checkbox"><strong>Wild bootstrap multiplier</strong> (Rademacher or Mammen). Settle it by a size study at small <code>n</code> with skewed errors, and record the result in <code>inst/validation/</code>.</label></li>
+<li><label><input type="checkbox"><strong>Reproducibility under <code>parallel = TRUE</code>.</strong> A search of <code>R/</code> finds no <code>clusterSetRNGStream()</code> and no L’Ecuyer set-up on the <code>mclapply()</code> and <code>parLapply()</code> paths, so <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> does not make parallel resampling results reproducible. Fix that, and add a test that compares two seeded parallel runs.</label></li>
+<li><label><input type="checkbox"><strong>The default battery.</strong> <code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code>, <code><a href="reference/test.HeteroDiagnostic.html">test()</a></code>/<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on <code>HeteroDiagnostic</code>, the advanced diagnostics and the dashboard all default to <code>c("white", "breusch_pagan")</code>, and <code>"breusch_pagan"</code> is the classical statistic. The package’s own sweep shows it rejecting 28.7% of the time under a <code>t5</code> null, against 4.8% for Koenker. Make the studentized form the default. The change alters default output, so it gets its own <code>NEWS.md</code> section.</label></li>
+<li><label><input type="checkbox"><strong>Return contract.</strong> Document the fields every <code>perform*Test()</code> returns, both the <code>htest</code> core and the package’s additions, on one help page. Check every exported test against it in a single parametrised test. This also retires the hand-maintained printer and metadata drift listed under the old technical debt.</label></li>
+<li><label><input type="checkbox"><strong>Uniform input validation</strong> across all exported tests. The README lists its absence as a known limitation.</label></li>
+</ul></div>
+<div class="section level3">
+<h3 id="id_0140-statistics-evidence-dependencies-and-internals-no-api-change">0.14.0: statistics evidence, dependencies and internals (no API change)<a class="anchor" aria-label="anchor" href="#id_0140-statistics-evidence-dependencies-and-internals-no-api-change"></a></h3>
+<ul class="task-list"><li><label><input type="checkbox"><strong>Re-run the full sweep at <code>N_MC = 5000</code>,</strong> so that the release gate in <code>inst/validation/README.md</code> (<code>[0.042, 0.058]</code>) applies to every exported test, not only Passes A and B. At 400 replications the Monte Carlo standard error is 1.1%, so the Gaussian sizes between 0.068 and 0.072 (Cook–Weisberg and NCV, Spearman, Levene) cannot be told apart from noise. Pass A, at 5000 replications, put Cook–Weisberg at 0.044.</label></li>
+<li><label><input type="checkbox"><strong><code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code></strong> is conservative, with size 0.012. It uses the chi-square approximation. Compare it against Box’s F approximation, then either switch or document the conservatism on the help page.</label></li>
+<li>
+<label><input type="checkbox"><strong>Dependencies.</strong></label>
+<ul><li>Move <code>curl</code> to <code>Suggests</code>: only <code><a href="reference/downloadTeachingData.html">downloadTeachingData()</a></code> uses it.</li>
+<li>
+<code>R6</code> goes if <code>TestFactory</code> leaves the API, since it is the only user.</li>
+<li>
+<code>Suggests</code> shrinks with the companion split.</li>
+<li>Settle whether <code>digest</code> belongs in <code>Imports</code> or <code>Suggests</code>, depending on whether caching stays exported.</li>
+</ul></li>
+<li><label><input type="checkbox"><strong>Pass <code>R CMD check</code> with <code>_R_CHECK_DEPENDS_ONLY_=true</code>.</strong> With 39 packages in <code>Suggests</code>, every test, example and vignette that uses one must degrade gracefully. Audit the <code>skip_if_not_installed()</code> coverage; 20 of the 69 test files currently use it.</label></li>
+<li><label><input type="checkbox"><strong>The R floor.</strong> <code>DESCRIPTION</code> claims R &gt;= 4.1, but CI tests only devel, release and oldrel-1. Either add R 4.1 to the matrix or raise the floor to what is tested.</label></li>
+<li><label><input type="checkbox">Replace non-ASCII characters in <code>R/</code> with escapes (89 lines across 27 files).</label></li>
+<li><label><input type="checkbox">Split <code>R/validation.R</code> (1,441 lines) into cache, result-type, assumption-checking and requirement-dispatch units, and factor out the repeated boilerplate: scalar validators, model and data preparation, and intercept stripping.</label></li>
+<li><label><input type="checkbox"><strong>Retire <code>TODO.md</code>, <code>SUGGESTIONS.md</code> and <code>cran.md</code>.</strong> The open items in the first two all concern <code>setup.sh</code> and bootstrapping <code>renv</code>, and <code>cran.md</code> is a generic guide. With CRAN now the install route, decide whether <code>setup.sh</code>, <code>renv.lock</code> and the <code>Dockerfile</code> remain supported. If they do, complete <code>renv.lock</code> against <code>Imports</code>/<code>Suggests</code> so the Docker build uses it instead of <code>install_local()</code>. If they do not, remove them.</label></li>
+<li><label><input type="checkbox">Keep the CRAN test run short. Long simulations run under <code>skip_on_cran()</code>, and the full versions run on CI.</label></li>
+</ul></div>
+<div class="section level3">
+<h3 id="id_100-freeze">1.0.0: freeze<a class="anchor" aria-label="anchor" href="#id_100-freeze"></a></h3>
+<ul class="task-list"><li><label><input type="checkbox">Remove everything deprecated in 0.12.0 and 0.13.0, or turn it into <code><a href="https://rdrr.io/r/base/Defunct.html" class="external-link">.Defunct()</a></code> stubs that name the replacement.</label></li>
+<li><label><input type="checkbox"><code>test-public-api.R</code> asserts the frozen export list exactly.</label></li>
+<li><label><input type="checkbox">pkgdown reference index grouped by the frozen API: tests by family (auxiliary regression, group-wise, rank-based, time series, panel and spatial, resampling), remediation, simulation, plotting and reporting.</label></li>
+<li>
+<label><input type="checkbox"><strong>Vignettes.</strong> There are eight, and <code>tutorial</code>, <code>using_heteroTests</code> and <code>comprehensive_guide</code> overlap. Consolidate them into a short set that does not:</label>
+<ul><li>getting started;</li>
+<li>choosing a test, turning the <code>t5</code> and power tables into advice;</li>
+<li>remediation;</li>
+<li>theory and references.</li>
+</ul></li>
+<li><label><input type="checkbox">Publish the stability policy from <a href="#what-100-means">What 1.0.0 means</a> in the README and on the pkgdown site.</label></li>
+<li><label><input type="checkbox"><code>NEWS.md</code> for 1.0.0 with the complete old → new migration table.</label></li>
+<li><label><input type="checkbox">Full <code>--as-cran</code> on every CI flavour, plus win-builder, then submit.</label></li>
+<li><label><input type="checkbox">Update the R Journal manuscript in <code>paper/</code> to the 1.0 API and submit it. Submitting on the frozen API avoids publishing function names that are about to be deprecated.</label></li>
+</ul></div>
+</div>
+<div class="section level2">
+<h2 id="after-100">After 1.0.0<a class="anchor" aria-label="anchor" href="#after-100"></a></h2>
+<ul><li>First-class panel and spatial heteroscedasticity workflows.</li>
+<li>Helpers that bridge detection to conditional-variance modelling (ARCH/GARCH) for the time-series path.</li>
+<li>An experiment/report artefact (model-card style) summarising a diagnostic run.</li>
+<li>Streaming for more tests where it is meaningful, under a single <code>chunk_threshold_mb</code> policy.</li>
+<li>Stronger feasible-WLS and auto-transform helpers (Box–Cox search, diagnostics on weighted residuals).</li>
+<li>A single parametrised accuracy-validation test, with reference coverage broadened to <code>skedastic</code> and <code>sandwich</code>.</li>
+<li>The companion package, if the scope decision goes that way.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="open-questions">Open questions<a class="anchor" aria-label="anchor" href="#open-questions"></a></h2>
-<ul><li>How much of the recommendation/automation layer belongs in the core package versus a companion package?</li>
-<li>What is the right default multiplier (<code>rademacher</code> vs <code>mammen</code>) and <code>B</code> for the null-imposed wild bootstrap across typical sample sizes?</li>
-<li>Should the caching layer depend on <code>digest</code> unconditionally (move to <code>Imports</code>) or remain an optional accelerator?</li>
-</ul></div>
+<h2 id="decisions-needed">Decisions needed<a class="anchor" aria-label="anchor" href="#decisions-needed"></a></h2>
+<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>Question</th>
+<th>Proposal</th>
+<th>Needed by</th>
+</tr></thead><tbody><tr><td>Does the dashboard/benchmark/recommendation layer stay in core?</td>
+<td>Move the dashboard and benchmark suite to a companion package; keep the recommendation engine, with its return format frozen</td>
+<td>0.12.0</td>
+</tr><tr><td>One name for the Cook–Weisberg score test</td>
+<td>Keep <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code> with optional <code>var_formula</code>; deprecate <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>
+</td>
+<td>0.12.0</td>
+</tr><tr><td>Replacement for the <code><a href="reference/test.HeteroDiagnostic.html">test()</a></code> generic</td>
+<td>Fold into <code><a href="reference/summary.HeteroDiagnostic.html">summary.HeteroDiagnostic()</a></code>
+</td>
+<td>0.12.0</td>
+</tr><tr><td>Naming of the simulation family</td>
+<td>Keep <code>simulate_*()</code>/<code>sigma_*()</code> as a documented snake_case family; rename the one-offs</td>
+<td>0.12.0</td>
+</tr><tr><td>
+<code>data</code> argument on every test</td>
+<td>
+<code>data = NULL</code> in second position; <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code> the documented exception</td>
+<td>0.13.0</td>
+</tr><tr><td>Default battery</td>
+<td>White + Koenker</td>
+<td>0.13.0</td>
+</tr><tr><td>Wild bootstrap multiplier and <code>B</code>
+</td>
+<td>Decide by simulation; <code>B = 999</code>
+</td>
+<td>0.13.0</td>
+</tr><tr><td>Supported R floor</td>
+<td>Test the floor in CI, or raise it to oldrel-1</td>
+<td>0.14.0</td>
+</tr><tr><td>
+<code>setup.sh</code> / <code>renv</code> / Docker</td>
+<td>Keep Docker for reproducibility; drop <code>setup.sh</code> now CRAN is the install route</td>
+<td>0.14.0</td>
+</tr></tbody></table></div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

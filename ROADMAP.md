@@ -1,8 +1,47 @@
 # heteroTests Roadmap
 
-This document tracks the direction of the package: what is done, what is
-in progress, and what is planned. It is updated alongside meaningful
-code changes. Dates are omitted in favour of milestone ordering.
+This document tracks where the package is going. It is updated alongside
+meaningful code changes. Milestones are ordered, not dated. The history
+of what changed and why lives in `NEWS.md`; the statistical evidence
+lives in `inst/validation/`.
+
+## Where things stand (0.11.2)
+
+- **On CRAN.** 0.11.2 was accepted in September 2026, after one review
+  round on 0.11.1.
+- **The validation matrix is complete** for every exported
+  `perform*Test()`. The sweep found six broken procedures, all corrected
+  or withdrawn, and twenty-five of the twenty-six heteroscedasticity
+  tests hold their nominal level (`inst/validation/README.md`).
+- **Reference equivalence** is asserted to `1e-8` against `lmtest`,
+  `car` and `plm` wherever a reference implementation exists.
+- **The public surface has not been reviewed as a whole.** The package
+  exports 126 objects. They accumulated feature by feature, and they
+  include duplicates, internal helpers and several naming schemes. That
+  surface, not the statistics, is what stands between 0.11.2 and 1.0.0.
+
+## What 1.0.0 means
+
+1.0.0 is a promise rather than a feature count. From 1.0.0:
+
+- Exported names, argument names and order, and defaults change only in
+  a major release, and only after a minor release in which the old form
+  still works and warns.
+- Every exported test returns an `htest` object with a documented,
+  uniform set of fields.
+- A correction to a statistic, its degrees of freedom or its p-value is
+  a bug fix. It is never deferred for the sake of compatibility. It
+  bumps the minor version and gets its own `NEWS.md` section, as 0.11.0
+  did.
+
+Version numbers follow from that: a patch release changes no reported
+value; a minor release adds functionality or corrects a statistic; a
+major release breaks the API.
+
+Everything below exists to make that promise safe to give. The
+sequencing rule this file has always followed still holds: statistical
+correctness first, then the API, and never both in one release.
+Correctness is done, so the API is next.
 
 ## Guiding principles
 
@@ -10,246 +49,332 @@ code changes. Dates are omitted in favour of milestone ordering.
   established reference (or a defensible derivation) and be covered by a
   test that checks *behaviour* (size and power), not just object
   structure.
+- **A reference comparison is not a substitute for a size check.** Four
+  of the six faults the sweep found were in procedures with no reference
+  to compare against, and the two that had one agreed with it.
+- **Guards are simulated, not stored.** A stored-value regression test
+  would have frozen each of those faults rather than caught it.
 - **One consistent interface.** All diagnostics return base-R `htest`
   objects and follow the `perform*Test(model, data, ...)` convention.
-- **Scale and robustness as first-class concerns**, not afterthoughts:
-  streaming implementations for large data, resampling/robust variants
-  for small or non-normal samples.
+  (Nine exported tests do not yet; see 0.13.0.)
+- **Scale and robustness as first-class concerns**: streaming
+  implementations for large data, resampling and robust variants for
+  small or non-normal samples.
 
-## Completed
+## Milestones
 
-### Statistical correctness
+### 0.11.x: CRAN maintenance (now)
 
-Corrected the Breusch–Pagan / Koenker swap:
-[`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
-is the classical statistic (`lmtest::bptest(studentize = FALSE)`),
+Watch the CRAN check results across all flavours and fix anything
+flagged within the deadline CRAN sets.
+
+README: install from CRAN first (`install.packages("heteroTests")`),
+with GitHub as the development route; add a CRAN badge and use the
+canonical URL `https://CRAN.R-project.org/package=heteroTests`.
+
+The README feature list is out of date. It still advertises an HC0–HC4
+covariance test and Cameron–Trivedi, both removed in 0.8.0. Bring it in
+line with the exports, and extend `test-documentation-consistency.R` so
+a README or vignette that names a removed function fails.
+
+Documentation drift: the
+[`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+help page describes
 [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-the studentized `n R^2` form (`studentize = TRUE`); validated to machine
-precision and in the reference-comparison tests.
+as “the absolute-residual variant”, which predates the
+Breusch–Pagan/Koenker correction. Koenker is the studentized `n R^2`
+form.
 
-Reimplemented
-[`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
-as a **null-imposed** bootstrap so it controls size and actually has
-power; added size/power regression tests.
+Check that the Zenodo record picked up 0.11.2, and cite the CRAN release
+in `inst/CITATION` and `CITATION.cff`.
 
-Kept the streaming variants algebraically identical to their exact
-counterparts (covered by `test-streaming.R`).
+Close tracking issue \#38 as On CRAN.
 
-Resolved a duplicate `%||%` operator collision that could abort
+Reinstate a release gate. `R CMD check --as-cran` can stay weekly rather
+than per merge, but it must pass in full on the tagged commit (vignettes
+and `--run-donttest` included) before any submission, alongside
+win-builder (R-devel).
+
+### 0.12.0: review the public surface (deprecate, remove nothing)
+
+Goal: every one of the 126 exports gets a verdict, which is one of
+**core API**, **renamed**, **internal** or **moved out**. Nothing is
+removed in this release. Everything that will go warns.
+
+**Duplicate exports.**
+
+- [`performBreuschPaganTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
+  is
+  [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md),
+  assigned at `R/performBPTest.R:232`.
+- [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+  is a separate implementation that matches
+  [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+  in every column of the full sweep. Confirm the statistics agree to
+  `1e-8`, then keep one.
+- [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+  delegates to
+  [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
+  with the fitted values as the variance regressor. Keep one entry point
+  for the Cook–Weisberg score test, with `var_formula` as an optional
+  argument.
+- `*Enhanced` pairs:
+  [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)/[`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md),
+  [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md)/[`plotResidualsFittedEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFittedEnhanced.md)
+  and
+  [`plotDiagnosticSuite()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuite.md)/[`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md).
+  Merge each improvement into the base name.
+
+**Internal machinery that is exported:**
+[`std_error()`](https://diogoribeiro7.github.io/heteroTests/reference/std_error.md),
+[`std_warning()`](https://diogoribeiro7.github.io/heteroTests/reference/std_warning.md),
+[`validateTestInputs()`](https://diogoribeiro7.github.io/heteroTests/reference/validateTestInputs.md),
+[`checkData()`](https://diogoribeiro7.github.io/heteroTests/reference/checkData.md),
+`TestFactory`/[`test_factory()`](https://diogoribeiro7.github.io/heteroTests/reference/test_factory.md),
+the cache functions
+([`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md),
+[`clearTestCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearTestCache.md),
+[`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md))
+and the `ht_*` logging functions. Unexport them unless a user-facing
+reason exists; for logging, keep at most
+[`ht_set_log_level()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md).
+
+**The five `r`-prefixed exports**
+([`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md),
+[`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md),
+[`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md),
+[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+and
+[`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md))
+follow no naming scheme in the package. Rename each to the house
+convention or unexport it.
+
+**[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
+is a generic with a very common name.** Attached after `devtools`, it
+masks `devtools::test()`. Replace it with a specific name or fold it
+into
+[`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md).
+
+**Naming convention.** camelCase dominates (`performXTest()`,
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
+`plotX()`). Either declare the simulation family
+([`simulate_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md),
+`sigma_*()`) a deliberate snake_case family or move it to camelCase. The
+one-offs
+([`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md),
+[`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md),
+[`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md),
+[`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md))
+are renamed either way.
+
+**Scope.** Decide what stays in the core package (see
+[Decisions](#decisions-needed)). The dashboard (`R/dashboard.R`, 698
+lines) and the benchmark suite (`R/benchmarking_system.R`, 798 lines)
+are the natural candidates for a companion package. Between them they
+account for most of the optional `Suggests` (`shiny`, `DT`, `plotly`,
+`htmlwidgets`, `bench`).
+
+**Related model checks**
+([`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md),
+[`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md),
+[`performInfluenceDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/performInfluenceDiagnostics.md),
+[`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md))
+are not heteroscedasticity tests. Keep them, grouped in the reference
+index as model checks, so they are not mistaken for tests of the
+variance.
+
+**Mechanism.** Use base
+[`.Deprecated()`](https://rdrr.io/r/base/Deprecated.html), so no new
+dependency is needed. Each call warns and names its replacement.
+`NEWS.md` carries an old → new mapping table.
+
+**Exit criterion.** An export inventory with a verdict for every one of
+the 126 exports, and `test-public-api.R` extended to assert the planned
+1.0 export list, so that an accidental new export fails CI.
+
+### 0.13.0: make the interface match its description
+
+These changes break existing calls. They have to happen before 1.0.0,
+not after it.
+
+**The `(model, data, ...)` convention.** The README says every test
+follows it, but nine exported tests do not:
+
+- no `data` argument:
+  [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md),
+  [`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md),
+  [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md),
+  [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md),
+  [`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md),
+  [`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md),
+  [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md)
+  and
+  [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md);
+- no `model` argument: `performBoxMTest(data, group)`.
+
+Proposal: `data = NULL` in second position everywhere, recovered from
+the model frame when omitted, which
 [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
-on multi-column data.
+already does through `.ht_prepare_model()`. This breaks positional calls
+such as `performArchLMTest(m, 3)`, which is the reason it cannot wait
+until after 1.0. Where it is feasible, detect the old positional form
+and warn for one release.
+[`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)
+may stay the documented exception, since it tests the data rather than
+residuals.
 
-**Pass A of the statistical validation matrix** (classical regression
-diagnostics). Each test was checked definition -\> reference -\>
-implementation -\> numerical equivalence -\> size/power. Reference
-equivalence is asserted in `tests/testthat/test-pass-a-reference.R`;
-size and power are measured by `inst/validation/pass-a-size-power.R` and
-recorded in `inst/validation/pass-a-size-power.csv`. Corrections:
-[`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md)
-(wrong standardisation, zero power),
-[`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
-(was a Glejser-type t-test, not the score test it documented),
-[`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
-(returned the Koenker statistic),
-[`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md)
-(non-standard auxiliary design and statistic).
-[`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md)
-and
-[`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md)
-passed unchanged.
+**Argument names.** Harvey uses `studentize` and
+[`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
+uses `studentized`. Standardise on `studentize`, which matches
+[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html).
 
-Unified input validation across the Pass A tests;
-[`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
-and
-[`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
-no longer bypass the shared framework. This also removed a masking
-effect in which the unvalidated NCV test succeeded on degenerate models
-and acted as a universal fallback for other failing tests.
+**Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
+permutation, and 1000 for the White bootstrap and
+[`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md).
+Under the `(1 + #) / (B + 1)` convention, a test at level `alpha` is
+exact only when `alpha * (B + 1)` is an integer, and 1000 fails that at
+5%. Standardise on 999, or on 499 where cost matters, and never use
+1000.
 
-[`compareModelDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/compareModelDiagnostics.md)
-no longer reports a substituted fallback diagnostic under the requested
-test’s name.
+**Wild bootstrap multiplier** (Rademacher or Mammen). Settle it by a
+size study at small `n` with skewed errors, and record the result in
+`inst/validation/`.
 
-Removed two shadowed duplicate definitions: the obsolete
-`performHCCovarianceTest()` and
-[`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)
-in `modern_diagnostics.R` were being overwritten at load time by the
-corrected versions. Correct behaviour depended on collation order.
+**Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
+`clusterSetRNGStream()` and no L’Ecuyer set-up on the `mclapply()` and
+`parLapply()` paths, so
+[`set.seed()`](https://rdrr.io/r/base/Random.html) does not make
+parallel resampling results reproducible. Fix that, and add a test that
+compares two seeded parallel runs.
 
-Standardised bootstrap and permutation p-values on the finite-simulation
-convention `(1 + #) / (B_eff + 1)`, with a regression test covering
-every resampling entry point.
+**The default battery.**
+[`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md),
+[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)/[`summary()`](https://rdrr.io/r/base/summary.html)
+on `HeteroDiagnostic`, the advanced diagnostics and the dashboard all
+default to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the
+classical statistic. The package’s own sweep shows it rejecting 28.7% of
+the time under a `t5` null, against 4.8% for Koenker. Make the
+studentized form the default. The change alters default output, so it
+gets its own `NEWS.md` section.
 
-### Packaging / correctness hygiene
+**Return contract.** Document the fields every `perform*Test()` returns,
+both the `htest` core and the package’s additions, on one help page.
+Check every exported test against it in a single parametrised test. This
+also retires the hand-maintained printer and metadata drift listed under
+the old technical debt.
 
-Declared dependencies correctly: `R6` and `parallel` in `Imports`,
-`digest` in `Suggests`.
+**Uniform input validation** across all exported tests. The README lists
+its absence as a known limitation.
 
-Documented the previously undocumented `performBreuschPaganTest` export.
+### 0.14.0: statistics evidence, dependencies and internals (no API change)
 
-Consistent `df` labelling in `htest` output across the
-auxiliary-regression and ARCH tests.
+**Re-run the full sweep at `N_MC = 5000`,** so that the release gate in
+`inst/validation/README.md` (`[0.042, 0.058]`) applies to every exported
+test, not only Passes A and B. At 400 replications the Monte Carlo
+standard error is 1.1%, so the Gaussian sizes between 0.068 and 0.072
+(Cook–Weisberg and NCV, Spearman, Levene) cannot be told apart from
+noise. Pass A, at 5000 replications, put Cook–Weisberg at 0.044.
 
-Shipped the example datasets as `.rda` (with reproducible `data-raw/`
-scripts) and documented the `boston_housing` provenance.
+**[`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)**
+is conservative, with size 0.012. It uses the chi-square approximation.
+Compare it against Box’s F approximation, then either switch or document
+the conservatism on the help page.
 
-[`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md)
-drops collinear auxiliary columns and uses `df = rank`, so it works on
-factor models;
-[`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md)
-rewritten to work on the design matrix (factor-safe).
+**Dependencies.**
 
-Consolidated the test suite onto one `test-*.R` convention, pinned
-`Config/testthat/edition: 3`, removed `context()` and three dead
-`skip()`ped files, and migrated edition-2 idioms; behavioural regression
-tests added.
+- Move `curl` to `Suggests`: only
+  [`downloadTeachingData()`](https://diogoribeiro7.github.io/heteroTests/reference/downloadTeachingData.md)
+  uses it.
+- `R6` goes if `TestFactory` leaves the API, since it is the only user.
+- `Suggests` shrinks with the companion split.
+- Settle whether `digest` belongs in `Imports` or `Suggests`, depending
+  on whether caching stays exported.
 
-### Documentation
+**Pass `R CMD check` with `_R_CHECK_DEPENDS_ONLY_=true`.** With 39
+packages in `Suggests`, every test, example and vignette that uses one
+must degrade gracefully. Audit the `skip_if_not_installed()` coverage;
+20 of the 69 test files currently use it.
 
-Six-part executable tutorial series under `inst/tutorials/` (detection,
-remediation, modern & scalable diagnostics, group-wise variance, time
-series / ARCH, and a power-based test-selection study).
+**The R floor.** `DESCRIPTION` claims R \>= 4.1, but CI tests only
+devel, release and oldrel-1. Either add R 4.1 to the matrix or raise the
+floor to what is tested.
 
-Refreshed the R Journal manuscript: new sections on the modern/robust
-and streaming diagnostics, reproducible figures, and verified usage
-examples.
+Replace non-ASCII characters in `R/` with escapes (89 lines across 27
+files).
 
-## Current priorities (next)
+Split `R/validation.R` (1,441 lines) into cache, result-type,
+assumption-checking and requirement-dispatch units, and factor out the
+repeated boilerplate: scalar validators, model and data preparation, and
+intercept stripping.
 
-**CRAN submission is deferred.** The package is not considered mature
-enough to submit, so nothing here is sequenced towards a submission
-date. `R CMD check --as-cran` is still worth passing as a quality signal
-– it is what surfaced the `\doi{}` note cleared in 0.8.1 – but it no
-longer runs on every merge, because it costs about an hour and three
-consecutive runs were cancelled or left queued before finishing. It runs
-weekly and on demand (`gh workflow run R-CMD-check.yml`).
+**Retire `TODO.md`, `SUGGESTIONS.md` and `cran.md`.** The open items in
+the first two all concern `setup.sh` and bootstrapping `renv`, and
+`cran.md` is a generic guide. With CRAN now the install route, decide
+whether `setup.sh`, `renv.lock` and the `Dockerfile` remain supported.
+If they do, complete `renv.lock` against `Imports`/`Suggests` so the
+Docker build uses it instead of `install_local()`. If they do not,
+remove them.
 
-Keep `--as-cran` clean on the weekly run. The last local run left three
-notes, two of them environmental: no network to verify the system clock,
-and `V8` absent for math rendering.
+Keep the CRAN test run short. Long simulations run under
+`skip_on_cran()`, and the full versions run on CI.
 
-Replace non-ASCII characters in source with escapes.
+### 1.0.0: freeze
 
-Decide whether R 4.1 remains the supported floor, or whether the minimum
-should track R’s own support window.
+Remove everything deprecated in 0.12.0 and 0.13.0, or turn it into
+[`.Defunct()`](https://rdrr.io/r/base/Defunct.html) stubs that name the
+replacement.
 
-With submission deferred, the useful work is the statistical surface
-rather than packaging: the validation matrix below is complete for the
-exported tests, and its follow-ons are listed under short-term
-improvements.
+`test-public-api.R` asserts the frozen export list exactly.
 
-### Validation matrix
+pkgdown reference index grouped by the frozen API: tests by family
+(auxiliary regression, group-wise, rank-based, time series, panel and
+spatial, resampling), remediation, simulation, plotting and reporting.
 
-The validation effort ran in four passes and is complete for the
-exported surface. Evidence lives in `inst/validation/`, with scripts
-that regenerate it.
+**Vignettes.** There are eight, and `tutorial`, `using_heteroTests` and
+`comprehensive_guide` overlap. Consolidate them into a short set that
+does not:
 
-Pass A, classical regression diagnostics (0.7.0).
+- getting started;
+- choosing a test, turning the `t5` and power tables into advice;
+- remediation;
+- theory and references.
 
-Pass B, group-variance tests (0.7.1).
+Publish the stability policy from [What 1.0.0 means](#what-100-means) in
+the README and on the pkgdown site.
 
-Pass C, the methods with least reference coverage (0.7.2).
+`NEWS.md` for 1.0.0 with the complete old → new migration table.
 
-Full sweep over all 32 exported `perform*Test()` functions (0.11.0),
-each driven by the null and alternative appropriate to what it tests
-rather than one process for all of them.
+Full `--as-cran` on every CI flavour, plus win-builder, then submit.
 
-Six exported procedures were found to be broken, and all six shared a
-single property: no size or power check.
+Update the R Journal manuscript in `paper/` to the 1.0 API and submit
+it. Submitting on the frozen API avoids publishing function names that
+are about to be deprecated.
 
-| procedure | fault | outcome |
+## After 1.0.0
+
+- First-class panel and spatial heteroscedasticity workflows.
+- Helpers that bridge detection to conditional-variance modelling
+  (ARCH/GARCH) for the time-series path.
+- An experiment/report artefact (model-card style) summarising a
+  diagnostic run.
+- Streaming for more tests where it is meaningful, under a single
+  `chunk_threshold_mb` policy.
+- Stronger feasible-WLS and auto-transform helpers (Box–Cox search,
+  diagnostics on weighted residuals).
+- A single parametrised accuracy-validation test, with reference
+  coverage broadened to `skedastic` and `sandwich`.
+- The companion package, if the scope decision goes that way.
+
+## Decisions needed
+
+| Question | Proposal | Needed by |
 |----|----|----|
-| `performRiceTest()` | insensitive by construction; rejection rate 0% under every variance pattern tried | withdrawn in 0.8.0 |
-| `performCurryWalshTest()` | 0% rejection | withdrawn in 0.8.0 |
-| [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) | weights were the inverse squared residuals of the same fit; nominal 95% intervals covered 10.4% | corrected to feasible GLS in 0.9.0 |
-| [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) | resampled rows rather than under the null, so the p-value sat near 0.5; 0% power | null-imposed resampling in 0.10.0 |
-| [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md) | statistic omitted the `- 1` and the square from Breusch-Pagan’s equation 5; size 32.5% | corrected in 0.11.0 |
-| [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md) | `T` divided where Pesaran’s CD multiplies, making the statistic `1/T` too small; size 0.0% | corrected in 0.11.0 |
-
-Twenty-five of the twenty-six heteroscedasticity tests hold their
-nominal level, at 400 replications and n = 150. The exception is
-[`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md),
-conservative at 0.012; `inst/validation/README.md` carries the table and
-the reasoning, and generates those counts from the CSV rather than
-restating them, because an earlier draft of this paragraph quoted
-figures from a different run and a z computed against the wrong standard
-error.
-
-Two conclusions worth keeping. A reference comparison is not a
-substitute for a size check: four of the six faults above are in
-procedures with no reference implementation to compare against, and the
-two that had one agreed with it. And a stored-value regression test
-would have frozen each fault rather than caught it, so the guards added
-are simulated size, not recorded numbers.
-
-## Short-term improvements
-
-Factor out repeated boilerplate (scalar validators, the model/data
-preparation block, intercept-stripping) into shared helpers.
-
-Added a heavy-tailed size column to the shipped sweep, covering all 26
-heteroscedasticity tests rather than only the group-variance ones.
-Sixteen hold their level under a `t5` null. Eight over-reject – the
-normality-dependent statistics, led by classical Breusch-Pagan at 0.287
-against Koenker’s 0.048 – and two are conservative enough to be named as
-well.
-
-Added a reference comparison for the panel statistics.
-[`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
-reproduces `plm::plmtest(type = "bp")` and
-[`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md)
-reproduces `plm::pcdtest(model = "pooling")`, both to 1e-8 across three
-panel shapes. Neither had a reference among the packages the accuracy
-table uses, which is why both were wrong until 0.11.0.
-
-## Sequencing
-
-Statistical correctness comes before API reduction. Shrinking the public
-surface is still wanted, but mixing API-breaking cleanup into the same
-release as method-definition corrections makes both harder to review and
-harder to explain in `NEWS.md`. The order is: finish the validation
-passes, green CI, release, and only then reduce the exported surface.
-
-## Medium-term
-
-Split and trim the oversized infrastructure modules (notably
-`validation.R`) into cache / result-type / assumption-checking /
-requirement-dispatch units.
-
-Extend streaming to more tests where it is meaningful, and expose a
-single `chunk_threshold_mb` policy consistently.
-
-Strengthen the feasible-WLS and auto-transform helpers (Box–Cox search,
-diagnostics on weighted residuals) used in the remediation workflow.
-
-Broaden reference-comparison coverage (skedastic, car, sandwich) into a
-single parametrised accuracy-validation test.
-
-## Long-term
-
-First-class panel and spatial heteroscedasticity workflows.
-
-Helpers that bridge detection to conditional-variance modelling
-(ARCH/GARCH) for the time-series path.
-
-An experiment/report artefact (model card style) summarising a
-diagnostic run.
-
-## Technical debt
-
-- `renv.lock` is incomplete relative to `Imports`/`Suggests`; the Docker
-  build leans on `install_local()` rather than the lockfile.
-- The recommendation/benchmark/dashboard layers are large relative to
-  the package’s “simple implementations” remit; some carry optional
-  dependencies that are only exercised conditionally.
-- Several `htest` printers and metadata fields are hand-maintained and
-  can drift from the roxygen sources; periodic reconciliation is needed.
-
-## Open questions
-
-- How much of the recommendation/automation layer belongs in the core
-  package versus a companion package?
-- What is the right default multiplier (`rademacher` vs `mammen`) and
-  `B` for the null-imposed wild bootstrap across typical sample sizes?
-- Should the caching layer depend on `digest` unconditionally (move to
-  `Imports`) or remain an optional accelerator?
+| Does the dashboard/benchmark/recommendation layer stay in core? | Move the dashboard and benchmark suite to a companion package; keep the recommendation engine, with its return format frozen | 0.12.0 |
+| One name for the Cook–Weisberg score test | Keep [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) with optional `var_formula`; deprecate [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md) | 0.12.0 |
+| Replacement for the [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md) generic | Fold into [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) | 0.12.0 |
+| Naming of the simulation family | Keep `simulate_*()`/`sigma_*()` as a documented snake_case family; rename the one-offs | 0.12.0 |
+| `data` argument on every test | `data = NULL` in second position; [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) the documented exception | 0.13.0 |
+| Default battery | White + Koenker | 0.13.0 |
+| Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.13.0 |
+| Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.14.0 |
+| `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.14.0 |
