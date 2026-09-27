@@ -38,6 +38,11 @@
   ],
   "related_identifiers": [
     {
+      "identifier": "https://CRAN.R-project.org/package=heteroTests",
+      "relation": "references",
+      "scheme": "url"
+    },
+    {
       "identifier": "https://github.com/DiogoRibeiro7/heteroTests",
       "relation": "isSupplementTo",
       "scheme": "url"
