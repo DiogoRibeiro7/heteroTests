@@ -18,6 +18,7 @@ contact:
     orcid: "https://orcid.org/0009-0001-2022-7072"
     affiliation: "Faculty of Media Arts and Design, Technical University of Porto"
 repository-code: "https://github.com/DiogoRibeiro7/heteroTests"
+url: "https://CRAN.R-project.org/package=heteroTests"
 license: "Apache-2.0"
 date-released: "2026-09-15"
 abstract: |
@@ -38,7 +39,7 @@ preferred-citation:
       orcid: "https://orcid.org/0009-0001-2022-7072"
   title: "heteroTests: Heteroscedasticity Diagnostic Tools"
   year: "2026"
-  url: "https://github.com/DiogoRibeiro7/heteroTests"
+  url: "https://CRAN.R-project.org/package=heteroTests"
   version: "0.11.2"
 references:
   - type: article

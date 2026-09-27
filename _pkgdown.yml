@@ -7,3 +7,5 @@ navbar:
   left:
     - text: "Reference"
       href: reference/index.html
+    - text: "CRAN"
+      href: https://CRAN.R-project.org/package=heteroTests
