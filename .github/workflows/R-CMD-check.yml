@@ -107,10 +107,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-pandoc@v2
-      - uses: r-lib/actions/setup-r@v2
+      - uses: DiogoRibeiro7/git-actions-collection/.github/actions/setup-r@v1
         with:
           r-version: 'release'
-          use-public-rspm: true
+          use-public-rspm: "true"
       # --as-cran builds the PDF manual, which needs a LaTeX toolchain. Without
       # this the job fails with 'pdflatex is not available', which reads as an Rd
       # problem but is purely a missing dependency.
