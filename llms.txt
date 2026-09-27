@@ -1,7 +1,5 @@
 # heteroTests
 
-[![R-CMD-check](https://github.com/DiogoRibeiro7/heteroTests/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/DiogoRibeiro7/heteroTests/actions/workflows/R-CMD-check.yml)
-
 `heteroTests` implements a broad collection of heteroscedasticity
 diagnostics for linear models in R. It includes classic tests such as
 White, Breusch–Pagan and Goldfeld–Quandt along with helper functions to
@@ -54,6 +52,24 @@ pipelines.
   grouped pipelines.
 
 ## Installation
+
+Install the released version from
+[CRAN](https://CRAN.R-project.org/package=heteroTests):
+
+``` r
+
+install.packages("heteroTests")
+```
+
+Or install the development version from GitHub:
+
+``` r
+
+install.packages("remotes")  # if needed
+remotes::install_github("DiogoRibeiro7/heteroTests")
+```
+
+## Development setup
 
 The package uses [`renv`](https://rstudio.github.io/renv/) to lock its
 dependencies. On Debian-based systems a single command sets up the
@@ -175,6 +191,8 @@ before submitting.
 
 If you use this package in your research, please cite it as described in
 [CITATION.cff](https://diogoribeiro7.github.io/heteroTests/CITATION.cff).
+Version 0.11.2 is also archived on
+[Zenodo](https://doi.org/10.5281/zenodo.22773917).
 
 ## License
 
