@@ -158,11 +158,11 @@ if (requireNamespace("lmtest", quietly = TRUE) &&
 #> ncv.250                     ncv Non-constant variance score         250
 #>                   fastest_package fastest_median_time time_per_observation
 #> breusch_pagan.100          lmtest               0.001              1.0e-05
-#> koenker.100                lmtest               0.001              1.0e-05
-#> ncv.100                       car               0.002              2.0e-05
-#> breusch_pagan.250          lmtest               0.001              4.0e-06
+#> koenker.100                lmtest               0.000              0.0e+00
+#> ncv.100               heteroTests               0.003              3.0e-05
+#> breusch_pagan.250          lmtest               0.000              0.0e+00
 #> koenker.250                lmtest               0.001              4.0e-06
-#> ncv.250                       car               0.003              1.2e-05
+#> ncv.250               heteroTests               0.003              1.2e-05
 #>                   memory_leader memory_median_mb
 #> breusch_pagan.100          <NA>               NA
 #> koenker.100                <NA>               NA
