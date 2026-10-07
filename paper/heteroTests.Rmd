@@ -52,7 +52,7 @@ their interfaces and returned objects differ substantially. A single analysis
 may require functions from \\CRANpkg{lmtest}, \\CRANpkg{car}, base R, and
 specialised packages, followed by custom code to harmonise results.
 
-\\CRANpkg{heteroTests} addresses this workflow problem by collecting a broad
+\\pkg{heteroTests} addresses this workflow problem by collecting a broad
 set of diagnostics behind a consistent interface and standard R `htest`
 objects. The package also provides batch execution, reproducible metadata,
 streaming implementations for large inputs, and helpers for interpretation and
