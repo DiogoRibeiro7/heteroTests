@@ -347,9 +347,98 @@ diagnostic is supposed to compute.
 
 # Simulation study
 
-The simulation study will evaluate empirical size and power under multiple
-sample sizes, variance functions, and error distributions. All tables and
-figures in this section will be generated from R code used by the manuscript.
+The simulation study separates calibration under the null from power under
+specific alternatives. This distinction is important because a procedure that
+rejects frequently under a heteroscedastic alternative is not useful if it also
+substantially exceeds its nominal rejection probability under homoscedasticity.
+
+All experiments use the linear mean model
+
+\[
+  y_i = 1 + 2x_i + \sigma(x_i)\varepsilon_i,
+  \qquad x_i \sim U(0,1),
+\]
+
+with independent errors. The significance level is \(\alpha=0.05\). Within
+each Monte Carlo replication the same simulated data set is supplied to all
+diagnostics, so differences in rejection rates are not inflated by using
+different random samples for different tests.
+
+The study includes White, classical Breusch--Pagan, Koenker, and a two-sided
+Goldfeld--Quandt test ordered by \(x\). These procedures represent different
+ways of detecting variance structure: general auxiliary-regression expansion,
+linear score-type alternatives, a studentized variant less dependent on
+normality, and an ordered two-sample variance comparison.
+
+## Empirical size
+
+Empirical size is estimated under \(\sigma(x)=1\) for sample sizes
+\(n\in\{50,100,250\}\). Two error distributions are considered: Gaussian
+errors and Student \(t_5\) errors rescaled to unit variance. The heavier-tailed
+case is included because agreement with a reference implementation does not
+imply that an asymptotic approximation is well calibrated under non-normal
+finite samples.
+
+For each reported rejection rate \(\widehat p\), the simulation records the
+Monte Carlo standard error
+
+\[
+  \operatorname{MCSE}(\widehat p)
+  = \sqrt{\frac{\widehat p(1-\widehat p)}{B_{\mathrm{eff}}}},
+\]
+
+where \(B_{\mathrm{eff}}\) is the number of valid replications. Approximate
+95% Monte Carlo intervals are reported as
+\(\widehat p \pm 1.96\operatorname{MCSE}(\widehat p)\), truncated to
+\([0,1]\). These intervals quantify simulation uncertainty; they are not
+confidence intervals for a population parameter estimated from observed data.
+
+## Power alternatives
+
+Power is studied under three variance patterns with Gaussian errors:
+
+- **linear:** variance scale increases monotonically with \(x\);
+- **step:** the variance changes abruptly at \(x=0.5\);
+- **U-shaped:** variance is smallest near the centre of the covariate range and
+  increases toward both extremes.
+
+For each pattern, an effect-strength parameter
+\(\gamma\in\{0.25,0.50,0.75,1.00\}\) interpolates between constant
+variance and the target profile. The resulting standard-deviation vector is
+renormalised to unit root-mean-square scale. Consequently, increasing
+\(\gamma\) changes the *shape* of heteroscedasticity without simply changing
+the overall noise magnitude. This avoids the common error of calling a global
+multiplicative scale change an increase in heteroscedastic effect size.
+
+The non-monotone U-shaped alternative is included deliberately. A test ordered
+by a single covariate direction can be powerful against monotone changes while
+having much less sensitivity to variance patterns that increase at both ends of
+the covariate range. The purpose of the study is therefore comparative rather
+than to identify a universally dominant diagnostic.
+
+## Reproducible experiment
+
+The complete experiment is implemented in
+`paper/simulation_study.R`. The manuscript run uses an explicit seed and
+writes both results and simulation metadata to `paper/generated/`:
+
+```{r simulation-command, eval=FALSE}
+system2(
+  "Rscript",
+  c("paper/simulation_study.R", "2000")
+)
+```
+
+The default manuscript configuration uses 2,000 replications per design cell.
+With a rejection probability near 0.05 this corresponds to a Monte Carlo
+standard error of approximately 0.005, which is small enough to distinguish
+material size distortions from ordinary simulation noise without pretending
+that the estimated rejection rates are exact.
+
+Numerical results and figures are intentionally read from the generated output
+rather than copied from earlier drafts. A render therefore cannot silently
+reuse the retired `power_summary.csv` values as evidence for the redesigned
+experiment.
 
 # Computational performance
 
