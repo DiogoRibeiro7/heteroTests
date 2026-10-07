@@ -243,15 +243,107 @@ memory-constrained analyses.
 
 # Validation strategy
 
-Validation has two complementary layers. Where an established implementation
-exists, heteroTests is compared against reference packages such as
-\\CRANpkg{lmtest} and \\CRANpkg{car}. Procedures without a suitable reference
-implementation are checked against their published definitions and tested for
-expected statistical behaviour.
+The validation strategy is organised around the claim being checked rather than
+around the package function that happens to implement it. Three forms of
+evidence are used: agreement with an established implementation, independent
+reconstruction of a published statistic, and behavioural tests of statistical
+or computational properties.
 
-The final article will report the package-version-specific validation results
-generated from the reproducibility scripts rather than copying numerical claims
-from earlier drafts.
+## Agreement with established implementations
+
+Where another R implementation exposes the same statistic under the same
+assumptions, the package test suite compares both the statistic and the
+associated p-value. This is the strongest validation available for wrappers of
+well-established methods because it checks not only formula transcription but
+also practical details such as degrees of freedom, alternative hypotheses, and
+centering conventions.
+
+The current suite includes direct comparisons with \\CRANpkg{lmtest} for the
+classical Breusch--Pagan, studentized Breusch--Pagan/Koenker, and
+Goldfeld--Quandt tests [@zeileis2002lmtest]. Mean-centred Levene,
+median-centred Brown--Forsythe, and Cook--Weisberg/non-constant-variance
+diagnostics are checked against \\CRANpkg{car} [@fox2019car]. Group-wise
+variance procedures are also compared with base R implementations for Bartlett
+and Fligner--Killeen tests and, where available, with \\CRANpkg{vartest} for
+Hartley and O'Brien procedures.
+
+These comparisons use explicit numerical tolerances in the automated test
+suite. The tolerance depends on the implementation pair: some functions match
+to floating-point equality, while others are checked within a small numerical
+tolerance because the two implementations may differ in intermediate linear
+algebra without changing the intended statistic.
+
+## Independent reconstruction
+
+An external package is not always available, and using another implementation
+is not sufficient when both could share the same mistake. For this reason, a
+second group of tests reconstructs the claimed statistic directly from its
+published definition or from lower-level base-R operations.
+
+Examples include the Cook--Weisberg score statistic [@cook1983detection],
+Harvey's multiplicative-variance LM statistic [@harvey1976estimating],
+Szroeter's ordered-variance statistic, Engle's ARCH LM statistic
+[@engle1982autoregressive], and the McLeod--Li procedure, which is checked
+against a Ljung--Box calculation on squared residuals. The same approach is
+used for O'Brien's transformed observations and for degrees-of-freedom
+behaviour under rank-deficient auxiliary models.
+
+This layer is particularly useful for implementation details that are easy to
+get subtly wrong. Examples caught during package development include scaling of
+ordered-variance statistics, auxiliary-model degrees of freedom, and the
+construction of resampling null distributions.
+
+## Behavioural and invariant checks
+
+Some properties are better validated as invariants than by comparing a single
+number. Property-based tests verify that supported diagnostics return valid
+`htest` objects with finite statistics and p-values in ([0,1]) over randomly
+generated inputs. Simulation-based regression tests check that selected
+classical procedures have empirical Type-I error close to the nominal level,
+using a tolerance based on the Monte Carlo standard error rather than a fixed
+arbitrary margin.
+
+Resampling procedures receive separate checks because an apparently plausible
+implementation can still produce invalid p-values. Bootstrap and permutation
+p-values use the finite-simulation convention
+
+\[
+  p = \frac{1 + \#\{T_b \ge T_{\mathrm{obs}}\}}
+           {B_{\mathrm{eff}} + 1},
+\]
+
+which prevents an estimated p-value of exactly zero and accounts for failed
+replicates through the effective number of simulations. Null-imposed residual
+resampling is also checked for leverage correction, while unsupported model
+classes or transformed responses are rejected rather than silently refitted
+under a different statistical model.
+
+Finally, the streaming implementations are compared directly with their
+ordinary in-memory counterparts. For White, Breusch--Pagan, and Koenker tests,
+the test suite checks equality of the statistic and p-value within numerical
+tolerance for identical data. This verifies the principal claim of the
+streaming layer: reduced peak memory use should not define a different
+diagnostic.
+
+## Reproducibility of the evidence
+
+The article does not hard-code validation numbers from earlier package
+versions. Reference comparisons and behavioural checks live in the package test
+suite, while empirical size, power, and performance results reported later in
+the paper are regenerated from the version analysed by the manuscript. This
+separation is intentional. Unit and reference tests answer whether an
+implementation is computing the intended object; simulation and benchmark
+sections answer how those procedures behave under selected data-generating
+processes and computational loads.
+
+The distinction also limits the claims made here. Agreement with another
+implementation is evidence of computational equivalence for the cases tested,
+not proof that the underlying statistical procedure is appropriate for every
+analysis. Likewise, satisfactory empirical size under a simulation design does
+not establish finite-sample validity outside that design. The purpose of this
+validation framework is therefore narrower: to make the software behaviour
+auditable and to reduce the risk that integration work changes the statistic a
+diagnostic is supposed to compute.
 
 # Simulation study
 
