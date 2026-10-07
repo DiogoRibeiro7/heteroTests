@@ -36,5 +36,6 @@ rmarkdown::render(
 
 rjtools::initial_check_article(
   path = ".",
-  pkg = ".."
+  pkg = "heteroTests",
+  ask = FALSE
 )
