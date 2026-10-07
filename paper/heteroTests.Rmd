@@ -1,0 +1,135 @@
+---
+title: "heteroTests: A Unified and Reproducible Framework for Heteroscedasticity Diagnostics in R"
+date: "2026-10-07"
+abstract: >
+  Heteroscedasticity diagnostics in R are distributed across multiple packages
+  with different interfaces, return objects, assumptions, and workflow
+  conventions. The heteroTests package provides a unified framework for
+  diagnosing non-constant variance in linear-model workflows. It combines
+  classical auxiliary-regression and group-wise procedures with rank-based,
+  ARCH-type, resampling, robust, spatial, and scalable variants behind a
+  consistent interface based on standard htest objects. This article describes
+  the package architecture, validation strategy, batch and streaming workflows,
+  and integration with common R modelling tools. Agreement with established
+  reference implementations is used where available, while simulation studies
+  assess empirical size and power under several variance structures and error
+  distributions. Computational benchmarks evaluate scaling with sample size
+  and illustrate the memory-bounded streaming implementations. A worked
+  example shows how heteroTests connects diagnosis, interpretation, and
+  remediation in a reproducible analysis.
+draft: true
+author:
+  - name: Diogo Ribeiro
+    affiliation: Faculty of Media Arts and Design, Technical University of Porto
+    address:
+      - Vila do Conde, Portugal
+    url: https://orcid.org/0009-0001-2022-7072
+    orcid: 0009-0001-2022-7072
+    email: dfr@esmad.ipp.pt
+type: package
+output:
+  rjtools::rjournal_article:
+    self_contained: yes
+    toc: no
+bibliography: heteroTests.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+
+library(heteroTests)
+```
+
+# Introduction
+
+Heteroscedasticity diagnostics are available throughout the R ecosystem, but
+their interfaces and returned objects differ substantially. A single analysis
+may require functions from \\CRANpkg{lmtest}, \\CRANpkg{car}, base R, and
+specialised packages, followed by custom code to harmonise results.
+
+\\pkg{heteroTests} addresses this workflow problem by collecting a broad
+set of diagnostics behind a consistent interface and standard R `htest`
+objects. The package also provides batch execution, reproducible metadata,
+streaming implementations for large inputs, and helpers for interpretation and
+remediation.
+
+This article focuses on the software contribution. Statistical definitions are
+introduced only where they clarify implementation choices, validation, or the
+conditions under which a diagnostic should be used.
+
+# Package design
+
+## A common diagnostic interface
+
+The core API follows the `perform*Test()` naming convention. Individual
+procedures return `htest` objects so that results can be printed, tidied, and
+combined using established R conventions.
+
+## Batch diagnostics
+
+`runHeteroTests()` provides a higher-level entry point for applying a
+configured set of diagnostics and collecting the results in a common form.
+
+## Scalable diagnostics
+
+The package includes streaming implementations of selected auxiliary-regression
+tests. These accumulate the required cross-products in chunks rather than
+retaining the full auxiliary design in memory.
+
+# Validation strategy
+
+Validation has two complementary layers. Where an established implementation
+exists, heteroTests is compared against reference packages such as
+\\CRANpkg{lmtest} and \\CRANpkg{car}. Procedures without a suitable reference
+implementation are checked against their published definitions and tested for
+expected statistical behaviour.
+
+The final article will report the package-version-specific validation results
+generated from the reproducibility scripts rather than copying numerical claims
+from earlier drafts.
+
+# Simulation study
+
+The simulation study will evaluate empirical size and power under multiple
+sample sizes, variance functions, and error distributions. All tables and
+figures in this section will be generated from R code used by the manuscript.
+
+# Computational performance
+
+Benchmarks will measure runtime and memory behaviour as sample size increases,
+with particular attention to the streaming implementations. Results will be
+regenerated for the release analysed in this article.
+
+# A reproducible diagnostic workflow
+
+This section will present one end-to-end analysis: fit a model, diagnose
+non-constant variance, interpret conflicting diagnostics, apply an appropriate
+remediation, and compare the resulting model diagnostics.
+
+# Comparison with existing R software
+
+The comparison will focus on software scope and workflow differences rather
+than treating existing packages as competitors. In particular, the article
+will distinguish specialised reference implementations from the unified
+interface and orchestration provided by heteroTests.
+
+# Discussion
+
+No single heteroscedasticity diagnostic is uniformly preferable. Test choice
+depends on the suspected variance structure, sample size, distributional
+assumptions, dependence structure, and the inferential purpose of the model.
+The package therefore exposes multiple procedures while retaining the
+information needed to understand how each result was obtained.
+
+# Summary
+
+heteroTests provides a common software layer for heteroscedasticity diagnostics
+in R. Its contribution is not a replacement for the underlying statistical
+literature, but a reproducible and extensible framework that makes heterogeneous
+diagnostics easier to validate, combine, scale, and integrate into modelling
+workflows.
