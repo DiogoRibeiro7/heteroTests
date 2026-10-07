@@ -47,39 +47,199 @@ library(heteroTests)
 
 # Introduction
 
-Heteroscedasticity diagnostics are available throughout the R ecosystem, but
-their interfaces and returned objects differ substantially. A single analysis
-may require functions from \\CRANpkg{lmtest}, \\CRANpkg{car}, base R, and
-specialised packages, followed by custom code to harmonise results.
+Heteroscedasticity is not a single diagnostic problem. Different procedures
+target different alternatives, rely on different assumptions, and are useful
+for different data structures. In R, this diversity is reflected in the
+software ecosystem: established implementations are distributed across base R
+and specialised packages such as \\CRANpkg{lmtest} and \\CRANpkg{car}
+[@zeileis2002lmtest; @fox2019car]. That distribution is appropriate from a
+methodological point of view, but it introduces a practical cost when several
+diagnostics must be used in the same analysis. Function signatures differ,
+return objects expose different fields, and model or data preparation often has
+to be repeated before results can be compared or reported together.
 
-\\pkg{heteroTests} addresses this workflow problem by collecting a broad
-set of diagnostics behind a consistent interface and standard R `htest`
-objects. The package also provides batch execution, reproducible metadata,
-streaming implementations for large inputs, and helpers for interpretation and
-remediation.
+The difficulty is therefore not the absence of individual tests. White's
+general test [@white1980heteroskedasticity], the Breusch--Pagan test
+[@breusch1979simple], Koenker's studentized variant [@koenker1981study], and
+Cook--Weisberg diagnostics [@cook1983detection], among others, are well
+established. The software problem is that a reproducible workflow frequently
+needs more than one of them, together with a common representation of the model,
+the data used for fitting, the diagnostic result, and the choices that determine
+how the statistic was computed.
 
-This article focuses on the software contribution. Statistical definitions are
-introduced only where they clarify implementation choices, validation, or the
-conditions under which a diagnostic should be used.
+\\pkg{heteroTests} addresses this software problem. It provides individual
+diagnostic functions, a registry that supports common orchestration, and a
+higher-level execution layer that normalises model and data inputs before
+running selected procedures. Results returned as `htest` objects are decorated
+with package-specific metadata and a `hetero_test` class, while collections are
+represented by `hetero_test_suite` or `hetero_grouped_suite` objects. This
+keeps compatibility with familiar R hypothesis-test conventions while making
+diagnostics easier to combine, tidy, inspect, and pass through automated
+workflows.
+
+The package does not propose that a single omnibus procedure should replace
+method-specific judgement. Nor does it claim statistical novelty merely by
+wrapping established tests. Its contribution is an execution and integration
+layer around heterogeneous diagnostics: consistent inputs and outputs, a
+registry for extension, batch execution, grouped-data handling, caching,
+ecosystem adapters, and memory-bounded implementations of selected
+auxiliary-regression tests.
+
+A second design goal is to avoid making scalability a separate user workflow.
+For supported diagnostics, `runHeteroTests()` estimates the size of the supplied
+data and can switch automatically from the ordinary implementation to a
+streaming implementation when a configurable memory threshold is exceeded.
+The streaming procedures accumulate the cross-products required by the
+auxiliary regression rather than materialising its full design matrix. This
+preserves the statistic while reducing peak memory use.
+
+The remainder of the article evaluates these design choices rather than
+re-deriving the underlying tests. The next section describes the package
+architecture and execution model. Later sections validate results against
+reference implementations where possible, study empirical size and power under
+controlled simulations, benchmark computational scaling, and demonstrate an
+end-to-end diagnostic workflow.
 
 # Package design
 
-## A common diagnostic interface
+The package is organised in four layers: individual statistical procedures,
+result normalisation, diagnostic orchestration, and ecosystem integration. This
+separation allows a diagnostic to remain independently callable while also
+participating in batch workflows.
 
-The core API follows the `perform*Test()` naming convention. Individual
-procedures return `htest` objects so that results can be printed, tidied, and
-combined using established R conventions.
+## Individual diagnostics and result objects
 
-## Batch diagnostics
+Individual procedures retain explicit names such as `performWhiteTest()`,
+`performBPTest()`, and `performKoenkerTest()`. The naming convention makes
+the diagnostic operation visible while avoiding namespace collisions with
+established functions in other packages.
 
-`runHeteroTests()` provides a higher-level entry point for applying a
-configured set of diagnostics and collecting the results in a common form.
+Most hypothesis-test functions return standard R `htest` objects. When a
+result is used through the orchestration layer, \\pkg{heteroTests} decorates it
+with the `hetero_test` class and attaches metadata identifying the diagnostic,
+the number of observations when available, the fitted model, the data source,
+and execution-specific information. The original `htest` structure is
+preserved, so conventional fields such as `statistic`, `parameter`,
+`p.value`, and `method` remain available.
 
-## Scalable diagnostics
+The additional class supports a common downstream interface. The package
+implements `tidy()`, `glance()`, and `augment()` methods through
+\\CRANpkg{generics}; suite-level methods combine individual results into data
+frames suitable for reporting or subsequent analysis. This design avoids
+requiring each underlying diagnostic to expose the same internal computation.
 
-The package includes streaming implementations of selected auxiliary-regression
-tests. These accumulate the required cross-products in chunks rather than
-retaining the full auxiliary design in memory.
+## Registry-based orchestration
+
+The diagnostic registry maps character names to functions that accept a model
+and data and return a diagnostic result. Built-in entries include the classical
+auxiliary-regression tests together with resampling, rank-based,
+high-dimensional, and spatial procedures. Users can extend the registry with
+`registerDiagnostic()`, after which custom diagnostics can be selected by
+`runHeteroTests()` in the same way as built-in entries.
+
+This registry is deliberately simpler than a plugin framework. It provides a
+stable dispatch point without requiring a new object hierarchy for every
+method. The registry is also shared with the broader diagnostic machinery in
+the package, which means that adding a compatible function is sufficient for it
+to participate in batch execution.
+
+The default call
+
+```{r basic-suite, eval=FALSE}
+fit <- lm(mpg ~ wt + qsec, data = mtcars)
+
+runHeteroTests(fit, mtcars)
+```
+
+runs White and Breusch--Pagan diagnostics. Additional registered procedures are
+selected explicitly:
+
+```{r selected-suite, eval=FALSE}
+runHeteroTests(
+  fit,
+  mtcars,
+  tests = c("white", "breusch_pagan", "koenker", "wild_bootstrap")
+)
+```
+
+A small default set is intentional. Running many diagnostics automatically would
+blur the distinction between exploratory screening and a test chosen because
+its assumptions and alternative hypothesis are appropriate for the model.
+
+## Input normalisation and grouped analyses
+
+The public execution layer accepts fitted `lm` and `glm` objects, formulas,
+selected \\CRANpkg{tidymodels} workflow or parsnip objects, and compatible
+data-frame representations. Internally, these inputs are normalised before a
+diagnostic is dispatched. Formula inputs are fitted using the supplied data,
+while supported workflow and parsnip objects are reduced to their underlying
+engine fits.
+
+Grouped tibbles receive different treatment. When a formula-based specification
+can be recovered, the model is refitted independently within each group and the
+result is returned as a `hetero_grouped_suite`, together with the group keys.
+The package therefore treats grouping as a set of separate modelling problems,
+rather than applying one global residual vector to pre-partitioned data.
+
+The input layer also accepts `data.table` and `dtplyr`-backed data and
+provides dedicated support for survey designs. These adapters are not intended
+to redefine the statistical meaning of the underlying diagnostics; they reduce
+the amount of conversion code required before a supported model can enter the
+same diagnostic pipeline.
+
+## Caching and failure handling
+
+Repeated diagnostic calls can reuse cached results. `runHeteroTests()` builds
+an analysis key from the model, data, selected tests, and relevant execution
+parameters when caching is enabled and the optional hashing dependency is
+available. Cached objects are returned using the same suite classes as newly
+computed results.
+
+Errors are analysed at the orchestration layer rather than being silently
+discarded. The package records diagnostic context, can attempt a supported
+fallback, and produces structured failure results for grouped analyses where
+continuing with the remaining groups is preferable to aborting the entire
+operation. For ordinary ungrouped calls, unrecoverable errors are still raised
+to the caller.
+
+## Memory-bounded auxiliary regressions
+
+White, Breusch--Pagan, and Koenker diagnostics also have streaming
+implementations. Their common computational problem is an auxiliary regression
+whose statistic depends on its coefficient of determination. Rather than
+constructing the complete auxiliary design matrix, the streaming code processes
+observations in chunks and accumulates
+
+\[
+  X^\top X, \qquad X^\top y, \qquad
+  \sum_i y_i, \qquad \text{and} \qquad \sum_i y_i^2.
+\]
+
+These quantities are sufficient to solve the auxiliary least-squares problem
+and recover the residual and total sums of squares. If
+\(\widehat{\beta}=(X^\top X)^{-1}X^\top y\), the residual sum of squares can
+be written as
+
+\[
+  \mathrm{SSE}=y^\top y-\widehat{\beta}^\top X^\top y,
+\]
+
+while the total sum of squares is obtained from the accumulated first and
+second moments of the response. The resulting \(R^2\) is therefore computed
+without retaining all rows of the auxiliary design simultaneously.
+
+This matters most for White's test, where squares and cross-products can expand
+the auxiliary design substantially. The implementation also checks for
+rank-deficient accumulated systems and can omit interaction expansion when the
+number of regressors exceeds a configurable limit. If \\CRANpkg{Matrix} is
+available, sufficiently large chunk cross-products may be evaluated using sparse
+matrices.
+
+`runHeteroTests()` estimates the size of the supplied data and uses these
+streaming implementations automatically for supported diagnostics when the
+configured threshold is exceeded. The threshold and chunk size remain user
+controls, so the same API can be used for both ordinary in-memory and
+memory-constrained analyses.
 
 # Validation strategy
 
