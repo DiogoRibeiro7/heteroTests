@@ -1,0 +1,7 @@
+Tool: built-in image generation
+
+Use case: logo-brand.
+Asset type: square project logo for heteroTests.
+Project purpose: heteroTests implements a broad collection of heteroscedasticity diagnostics for linear models in R. It includes classic tests such as White, Breusch--Pagan and Goldfeld--Quandt along with helper functions to visualise and mitigate heteroscedasticity.
+Design direction: A distinctive R-package hexagonal badge: a fan of large residual dots widening from a tight cluster into a broad spread, split across a diagonal coral-and-cobalt field. White dots and one clean dark regression stroke. Crisp modern two-dimensional statistical graphics; a flat hexagon on white. No axes labels or lettering.
+Composition: one finished square image, visually distinctive and readable at 160 pixels, with enough margin for README display. Produce the actual artwork, not a mockup sheet or brand presentation. No watermark. Do not use a navy-and-gold metallic badge aesthetic.
