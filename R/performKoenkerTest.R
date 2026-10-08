@@ -45,7 +45,14 @@
 #' with a zero weight is refused.
 #'
 #' The reference distribution takes the weights as known. When they were
-#' estimated from the same data, as by [fitWLS()], it is only approximate.
+#' estimated from the same data, as by [fitWLS()], it is only approximate, and
+#' not more accurate in larger samples. With a correctly specified variance
+#' function and normal errors, the Koenker test rejected 8% of the time at the
+#' 5% level with 150 observations and 11% with 600, the White test 6% and 8%,
+#' and the Harvey test never, because it repeats the regression the weights
+#' were estimated from (`inst/validation/weighted-fits-size.csv`).
+#' [performVarianceFormTest()] accounts for the estimation, held its level in
+#' the same designs, and is the test to use on a `fitWLS()` fit.
 #'
 #' @references
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.

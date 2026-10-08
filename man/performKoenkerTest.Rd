@@ -6,7 +6,7 @@
 \section{Weighted fits}{
 \code{lm(..., weights = w)} states that the error variance is \eqn{\sigma^2 / w_i}. On such a fit the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, the residuals of the equivalent unweighted regression, which have constant variance when the weights are right. The null hypothesis is then that the weights are adequate; the variance regressors stay on their original scale. Releases before 0.12.0 used the raw residuals, whose variance differs across observations by assumption, so a correctly weighted fit was rejected as often as an unweighted one. A fit with a zero weight is refused.
 
-The reference distribution takes the weights as known. When they were estimated from the same data, as by \code{\link{fitWLS}()}, it is only approximate.
+The reference distribution takes the weights as known. When they were estimated from the same data, as by \code{\link{fitWLS}()}, it is only approximate, and not more accurate in larger samples. With a correctly specified variance function and normal errors, the Koenker test rejected 8\% of the time at the 5\% level with 150 observations and 11\% with 600, the White test 6\% and 8\%, and the Harvey test never, because it repeats the regression the weights were estimated from (\code{inst/validation/weighted-fits-size.csv}). \code{\link{performVarianceFormTest}()} accounts for the estimation, held its level in the same designs, and is the test to use on a \code{fitWLS()} fit.
 }
 \usage{performKoenkerTest(model, data)}
 \arguments{

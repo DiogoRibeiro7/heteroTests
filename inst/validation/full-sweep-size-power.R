@@ -11,10 +11,11 @@
 # single data-generating process will not do. Each test is driven by the null
 # and alternative appropriate to what it actually tests: heteroscedasticity for
 # the variance diagnostics, ARCH errors for the time-series ones, an omitted
-# quadratic for RESET, a random intercept for the random-effects LM test, and a
-# common time factor for the cross-sectional dependence test. Reading a
-# rejection rate as "power" only makes sense against that test's own
-# alternative.
+# quadratic for RESET, a random intercept for the random-effects LM test, a
+# common time factor for the cross-sectional dependence test, and a variance
+# function of the wrong shape for the variance-form test, whose null is itself
+# heteroscedastic. Reading a rejection rate as "power" only makes sense against
+# that test's own alternative.
 
 is_source_checkout <- file.exists("DESCRIPTION") &&
   any(grepl(
@@ -144,7 +145,15 @@ FAMILIES <- list(
                 alt_label = "omitted quadratic"),
   spatial = list(null = function() make_spatial(FALSE),
                  alt  = function() make_spatial(TRUE),
-                 alt_label = "variance clustered in space")
+                 alt_label = "variance clustered in space"),
+  # The null of performVarianceFormTest() is a variance function, not constant
+  # variance. Under this null the log-variance is linear in x, the exponential
+  # form the test assumes by default; under the alternative it is quadratic in
+  # x. inst/validation/variance-form-size-power.R covers the other forms,
+  # sample sizes and heavy tails.
+  variance_form = list(null = function() make_xs(function(x) exp(0.4 * x)),
+                       alt  = function() make_xs(function(x) exp(0.25 * (x - 3)^2)),
+                       alt_label = "log-variance quadratic in x")
 )
 
 # --- how each exported test is invoked --------------------------------------
@@ -184,7 +193,9 @@ TESTS <- list(
   list("performPesaranTest", "csdep",
        function(o) performPesaranTest(o$model, o$data, "id", "time")),
   list("performSpatialHeteroTest", "spatial",
-       function(o) performSpatialHeteroTest(o$model, o$data, o$listw))
+       function(o) performSpatialHeteroTest(o$model, o$data, o$listw)),
+  list("performVarianceFormTest", "variance_form",
+       function(o) performVarianceFormTest(o$model))
 )
 
 pval <- function(fn, o) {
