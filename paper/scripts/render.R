@@ -24,27 +24,29 @@ if (!file.exists(article_file)) {
   stop("Manuscript not found: ", article_file, call. = FALSE)
 }
 
-run_spelling_workaround <- function(tex_file) {
+run_spelling_check <- function(tex_file) {
   tex <- readLines(tex_file, warn = FALSE)
 
-  if (!any(grepl("\\\\bibliography\\{", tex))) {
-    reference_boundary <- grep(
-      "\\\\section\\*?\\{References\\}|\\\\begin\\{CSLReferences\\}",
-      tex
-    )
+  # rjtools::check_spelling() currently expects the generated TeX to contain
+  # a literal \\bibliography{} command. The current R Journal/citeproc output
+  # may instead render references without that marker, leaving its internal
+  # bib_loc empty. Add a boundary only to a temporary copy used by the checker.
+  reference_boundary <- grep(
+    "\\\\section\\*?\\{References\\}|\\\\begin\\{CSLReferences\\}",
+    tex
+  )
 
-    insert_after <- if (length(reference_boundary) > 0L) {
-      max(0L, reference_boundary[[1L]] - 1L)
-    } else {
-      length(tex)
-    }
-
-    tex <- append(
-      tex,
-      "\\bibliography{heteroTests}",
-      after = insert_after
-    )
+  insert_after <- if (length(reference_boundary) > 0L) {
+    max(0L, reference_boundary[[1L]] - 1L)
+  } else {
+    length(tex)
   }
+
+  tex <- append(
+    tex,
+    "\\bibliography{heteroTests}",
+    after = insert_after
+  )
 
   tmp <- tempfile("heteroTests-rjtools-spelling-")
   dir.create(tmp)
@@ -54,7 +56,22 @@ run_spelling_workaround <- function(tex_file) {
   rjtools::check_spelling(tmp)
 }
 
-run_remaining_rjtools_checks <- function() {
+run_rjtools_checks <- function() {
+  cat("\n--- R Journal checks ---\n")
+
+  # This is the same check sequence used by initial_check_article(), except
+  # spelling uses the parser-compatible temporary TeX copy above.
+  rjtools::check_filenames(".")
+  rjtools::check_structure(".")
+  rjtools::check_folder_structure(".")
+  rjtools::check_unnecessary_files(".")
+  rjtools::check_cover_letter(".")
+
+  rjtools::check_title(".", ignore = "heteroTests")
+  rjtools::check_section(".")
+  rjtools::check_abstract(".")
+  run_spelling_check("heteroTests.tex")
+
   rjtools::check_proposed_pkg("heteroTests", ask = FALSE)
   rjtools::check_pkg_label(".")
   rjtools::check_packages_available(".")
@@ -83,41 +100,6 @@ if (!file.exists(tex_file)) {
   stop("R Journal TeX source was not generated: ", tex_file, call. = FALSE)
 }
 
-check_error <- tryCatch(
-  {
-    rjtools::initial_check_article(
-      path = ".",
-      pkg = "heteroTests",
-      ask = FALSE
-    )
-    NULL
-  },
-  error = identity
-)
-
-if (inherits(check_error, "error")) {
-  tex <- readLines(tex_file, warn = FALSE)
-  missing_bibliography_boundary <- !any(
-    grepl("\\\\bibliography\\{", tex)
-  )
-  spelling_parser_failure <- identical(
-    conditionMessage(check_error),
-    "argument of length 0"
-  )
-
-  if (!missing_bibliography_boundary || !spelling_parser_failure) {
-    stop(check_error)
-  }
-
-  message(
-    "rjtools::check_spelling() could not locate a \\bibliography{} ",
-    "boundary in the generated TeX. Running the spelling check on a ",
-    "temporary parser-compatible copy, then continuing with the remaining ",
-    "official rjtools checks."
-  )
-
-  run_spelling_workaround(tex_file)
-  run_remaining_rjtools_checks()
-}
+run_rjtools_checks()
 
 message("R Journal article rendered and checked: ", normalizePath(pdf_file))
