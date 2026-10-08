@@ -45,12 +45,23 @@ extracts above were generated with 0.11.2 and were not regenerated.
 
 Version 0.12.0 changes the four simulated procedures (White, Breusch-Pagan,
 Koenker, Goldfeld-Quandt) only for weighted fits, and the study fits
-unweighted models. As a check, `paper/scripts/simulation_study.R` was run with
-150 replications per cell under 0.11.2 and under 0.12.0 with the script's own
-seed. The two `simulation_results.csv` files were identical in all 168 rows.
+unweighted models. Two checks were run with the script's own seed:
+
+- The full study, `paper/scripts/simulation_study.R` with 2000 replications
+  per cell, was rerun under 0.12.0. The rejection rates and valid-replication
+  counts equal the committed extracts in all 24 rows of
+  `simulation_size_table.csv` and all 36 rows of
+  `simulation_power_full_strength.csv`.
+- The same script was run with 150 replications per cell under 0.11.2 and
+  under 0.12.0. The two `simulation_results.csv` files were identical in all
+  168 rows.
+
+Environment of both checks:
 
 - R: 4.3.3
 - Platform: x86_64-pc-linux-gnu, Ubuntu 24.04.5 LTS
+
+The performance study was not rerun.
 
 ## Weighted fits and the variance-function test
 

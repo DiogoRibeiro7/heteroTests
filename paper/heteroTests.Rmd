@@ -559,8 +559,8 @@ full experiment used `heteroTests` 0.11.2 under R 4.6.1 on Ubuntu 24.04.5;
 the workflow and artifact identifiers are recorded in
 `paper/generated/PROVENANCE.md`. Version 0.12.0, which the rest of the article
 describes, changes these four procedures only for weighted fits. The study
-fits unweighted models, and its results do not depend on which of the two
-versions is used.
+fits unweighted models, and a rerun of the full experiment under 0.12.0
+reproduced every rejection rate in those extracts exactly.
 
 ## Simulation results
 
