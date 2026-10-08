@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/project-avatar.png" alt="heteroTests project logo" width="160" height="160">
+</p>
+
 # heteroTests
 
 <!-- badges: start -->
