@@ -62,6 +62,7 @@ registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapT
 registerDiagnostic("quantile_regression", function(model, data) performQuantileRegressionTest(model, data))
 registerDiagnostic("rank_permutation", function(model, data) performRankPermutationTest(model, data))
 registerDiagnostic("high_dimensional", function(model, data) performHighDimensionalTest(model, data))
+registerDiagnostic("variance_form", function(model, data) performVarianceFormTest(model, data))
 registerDiagnostic(
   "spatial_hetero",
   function(model, data) {
