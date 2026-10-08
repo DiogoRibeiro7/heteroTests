@@ -42,6 +42,18 @@ knitr::opts_chunk$set(
   fig.align = "center"
 )
 
+# RJournal.sty loads inconsolata, which loads xkeyval; with xkeyval present a
+# comma inside \includegraphics[alt={...}] breaks the figure and prints the alt
+# text instead. pdfLaTeX does not use alt text, so keep it for HTML only.
+if (knitr::is_latex_output()) {
+  # The rjtools LaTeX template does not scale figures to the text width.
+  knitr::opts_chunk$set(out.width = "\\linewidth")
+  knitr::opts_hooks$set(fig.alt = function(options) {
+    options$fig.alt <- NULL
+    options
+  })
+}
+
 library(heteroTests)
 
 sim_size <- utils::read.csv(
@@ -76,7 +88,7 @@ Heteroscedasticity is not a single diagnostic problem. Different procedures
 target different alternatives, rely on different assumptions, and are useful
 for different data structures. In R, this diversity is reflected in the
 software ecosystem: established implementations are distributed across base R
-and specialised packages such as \\CRANpkg{lmtest} and \\CRANpkg{car}
+and specialised packages such as \CRANpkg{lmtest} and \CRANpkg{car}
 [@zeileis2002lmtest; @fox2019car]. That distribution is appropriate from a
 methodological point of view, but it introduces a practical cost when several
 diagnostics must be used in the same analysis. Function signatures differ,
@@ -92,7 +104,7 @@ needs more than one of them, together with a common representation of the model,
 the data used for fitting, the diagnostic result, and the choices that determine
 how the statistic was computed.
 
-\\CRANpkg{heteroTests} addresses this software problem. It provides individual
+\CRANpkg{heteroTests} addresses this software problem. It provides individual
 diagnostic functions, a registry that supports common orchestration, and a
 higher-level execution layer that normalises model and data inputs before
 running selected procedures. Results returned as `htest` objects are decorated
@@ -140,7 +152,7 @@ the diagnostic operation visible while avoiding namespace collisions with
 established functions in other packages.
 
 Most hypothesis-test functions return standard R `htest` objects. When a
-result is used through the orchestration layer, \\CRANpkg{heteroTests} decorates it
+result is used through the orchestration layer, \CRANpkg{heteroTests} decorates it
 with the `hetero_test` class and attaches metadata identifying the diagnostic,
 the number of observations when available, the fitted model, the data source,
 and execution-specific information. The original `htest` structure is
@@ -149,7 +161,7 @@ preserved, so conventional fields such as `statistic`, `parameter`,
 
 The additional class supports a common downstream interface. The package
 implements `tidy()`, `glance()`, and `augment()` methods through
-\\CRANpkg{generics}; suite-level methods combine individual results into data
+\CRANpkg{generics}; suite-level methods combine individual results into data
 frames suitable for reporting or subsequent analysis. This design avoids
 requiring each underlying diagnostic to expose the same internal computation.
 
@@ -194,7 +206,7 @@ its assumptions and alternative hypothesis are appropriate for the model.
 ## Input normalisation and grouped analyses
 
 The public execution layer accepts fitted `lm` and `glm` objects, formulas,
-selected \\CRANpkg{tidymodels} workflow or parsnip objects, and compatible
+selected \CRANpkg{tidymodels} workflow or parsnip objects, and compatible
 data-frame representations. Internally, these inputs are normalised before a
 diagnostic is dispatched. Formula inputs are fitted using the supplied data,
 while supported workflow and parsnip objects are reduced to their underlying
@@ -256,7 +268,7 @@ without retaining all rows of the auxiliary design simultaneously.
 This matters most for White's test, where squares and cross-products can expand
 the auxiliary design substantially. The implementation also checks for
 rank-deficient accumulated systems and can omit interaction expansion when the
-number of regressors exceeds a configurable limit. If \\CRANpkg{Matrix} is
+number of regressors exceeds a configurable limit. If \CRANpkg{Matrix} is
 available, sufficiently large chunk cross-products may be evaluated using sparse
 matrices.
 
@@ -283,13 +295,13 @@ well-established methods because it checks not only formula transcription but
 also practical details such as degrees of freedom, alternative hypotheses, and
 centering conventions.
 
-The current suite includes direct comparisons with \\CRANpkg{lmtest} for the
+The current suite includes direct comparisons with \CRANpkg{lmtest} for the
 classical Breusch--Pagan, studentized Breusch--Pagan/Koenker, and
 Goldfeld--Quandt tests [@goldfeld1965tests; @zeileis2002lmtest]. Mean-centred Levene,
 median-centred Brown--Forsythe, and Cook--Weisberg/non-constant-variance
-diagnostics are checked against \\CRANpkg{car} [@fox2019car]. Group-wise
+diagnostics are checked against \CRANpkg{car} [@fox2019car]. Group-wise
 variance procedures are also compared with base R implementations for Bartlett
-and Fligner--Killeen tests and, where available, with \\CRANpkg{vartest} for
+and Fligner--Killeen tests and, where available, with \CRANpkg{vartest} for
 Hartley and O'Brien procedures.
 
 These comparisons use explicit numerical tolerances in the automated test
@@ -498,7 +510,13 @@ size_n100[["MC upper (%)"]] <- round(size_n100[["MC upper (%)"]], 2)
 
 knitr::kable(
   size_n100[, c("Error", "Test", "Rejection (%)", "MC lower (%)", "MC upper (%)")],
-  caption = "Empirical size at n = 100 with 2,000 Monte Carlo replications. Bounds are approximate 95% Monte Carlo intervals.",
+  # kable() does not escape captions; a bare % would start a LaTeX comment.
+  caption = paste0(
+    "Empirical size at n = 100 with 2,000 Monte Carlo replications. ",
+    "Bounds are approximate 95",
+    if (knitr::is_latex_output()) "\\%" else "%",
+    " Monte Carlo intervals."
+  ),
   booktabs = TRUE
 )
 ```
@@ -564,15 +582,15 @@ different software problems.
 
 ## Reference-package overhead
 
-For statistically equivalent procedures, \\CRANpkg{heteroTests} is benchmarked
-against the corresponding implementation in \\CRANpkg{lmtest} or
-\\CRANpkg{car}. The benchmark covers classical Breusch--Pagan, Koenker's
+For statistically equivalent procedures, \CRANpkg{heteroTests} is benchmarked
+against the corresponding implementation in \CRANpkg{lmtest} or
+\CRANpkg{car}. The benchmark covers classical Breusch--Pagan, Koenker's
 studentized form, and the Cook--Weisberg/non-constant-variance score test.
 
 Synthetic regression data are generated with four predictors and several
 variance patterns. Sample size increases from small inputs to \(10^5\)
 observations in the manuscript configuration. For each test and sample size we
-record elapsed time and, when the \\CRANpkg{bench} package is available,
+record elapsed time and, when the \CRANpkg{bench} package is available,
 allocated memory. The benchmark also records absolute differences in the
 reported statistic and p-value relative to the reference implementation.
 
@@ -623,9 +641,9 @@ R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance.
 The reference comparisons show that integration and validation have a measurable
 runtime cost, but do not change the reported inference. Across all benchmarked
 sample sizes, the largest median p-value difference from the corresponding
-\\CRANpkg{lmtest} or \\CRANpkg{car} implementation is
+\CRANpkg{lmtest} or \CRANpkg{car} implementation is
 `r format(max(perf_accuracy$median_p_value_diff, na.rm = TRUE), scientific = TRUE, digits = 3)`.
-At \(n=10^5\), median elapsed times for \\CRANpkg{heteroTests} are
+At \(n=10^5\), median elapsed times for \CRANpkg{heteroTests} are
 `r sprintf("%.3f", subset(perf_speed, test == "breusch_pagan" & package == "heteroTests" & sample_size == 100000)$median_time)` s
 for Breusch--Pagan,
 `r sprintf("%.3f", subset(perf_speed, test == "koenker" & package == "heteroTests" & sample_size == 100000)$median_time)` s
@@ -753,7 +771,8 @@ workflow_table <- data.frame(
     workflow_tests,
     function(x) x$p.value,
     numeric(1)
-  )
+  ),
+  row.names = NULL
 )
 
 workflow_table$Statistic <- round(workflow_table$Statistic, 3)
@@ -822,7 +841,10 @@ coefficient_comparison$Std.Error <- round(
 
 knitr::kable(
   coefficient_comparison,
-  caption = "Coefficient estimates and model-based standard errors before and after feasible weighted least squares.",
+  caption = paste(
+    "Coefficient estimates and model-based standard errors before and after",
+    "feasible weighted least squares."
+  ),
   booktabs = TRUE
 )
 ```
@@ -949,35 +971,35 @@ knitr::kable(
 
 Base R already provides high-quality procedures for several classical
 equal-variance problems, including Bartlett and Fligner--Killeen tests.
-\\CRANpkg{heteroTests} does not improve these statistics by reimplementing them;
+\CRANpkg{heteroTests} does not improve these statistics by reimplementing them;
 the value of including compatible procedures is that their results can
 participate in the same reporting and orchestration layer as
 regression-specific diagnostics.
 
-\\CRANpkg{lmtest} provides established regression diagnostic procedures,
+\CRANpkg{lmtest} provides established regression diagnostic procedures,
 including Breusch--Pagan and Goldfeld--Quandt tests
 [@zeileis2002lmtest]. These implementations are used as numerical reference
 points in the validation suite. When an analyst needs only one such procedure,
 calling `lmtest::bptest()` or `lmtest::gqtest()` directly is simpler than
 introducing another abstraction layer.
 
-\\CRANpkg{car} has a broader regression-diagnostics role and provides, among
+\CRANpkg{car} has a broader regression-diagnostics role and provides, among
 other tools, the non-constant-variance score test and Levene-type variance
 comparisons [@fox2019car]. These functions also serve as reference
 implementations in the package tests. The relationship is therefore
-complementary: \\CRANpkg{car} supplies mature specialised diagnostics, while
-\\CRANpkg{heteroTests} supplies a common execution and result layer when these
+complementary: \CRANpkg{car} supplies mature specialised diagnostics, while
+\CRANpkg{heteroTests} supplies a common execution and result layer when these
 kinds of diagnostics must be combined with others.
 
-\\CRANpkg{vartest} concentrates on tests for equality of variances. The
-\\CRANpkg{heteroTests} validation suite compares its Hartley and O'Brien
-implementations against \\CRANpkg{vartest} where that package is available. For an
+\CRANpkg{vartest} concentrates on tests for equality of variances. The
+\CRANpkg{heteroTests} validation suite compares its Hartley and O'Brien
+implementations against \CRANpkg{vartest} where that package is available. For an
 analysis centred specifically on group-variance testing, the specialised
 package remains a natural direct interface.
 
 ## Detection and robust inference are different tasks
 
-\\CRANpkg{sandwich} addresses a different problem. Its
+\CRANpkg{sandwich} addresses a different problem. Its
 heteroscedasticity-consistent covariance estimators modify coefficient
 inference without requiring the analyst to specify a parametric variance model
 [@zeileis2006sandwich]. A diagnostic package and a robust-covariance package
@@ -988,14 +1010,14 @@ that can remain valid when that assumption is relaxed.
 This distinction matters in practice. The worked example used feasible WLS
 because the variance structure was deliberately modelled. If the coefficient
 estimates were the primary target and no scientifically defensible variance
-model were available, a \\CRANpkg{sandwich} covariance estimator could be a more
-appropriate follow-up. \\CRANpkg{heteroTests} should therefore be viewed as
+model were available, a \CRANpkg{sandwich} covariance estimator could be a more
+appropriate follow-up. \CRANpkg{heteroTests} should therefore be viewed as
 complementary to robust covariance estimation rather than as a substitute for
 it.
 
 ## What the integration layer adds
 
-The software contribution of \\CRANpkg{heteroTests} appears when an analysis
+The software contribution of \CRANpkg{heteroTests} appears when an analysis
 requires several diagnostics or must be embedded in a larger reproducible
 workflow. In that setting the package adds five pieces of infrastructure that
 are not properties of any individual heteroscedasticity test:
@@ -1025,7 +1047,7 @@ is computationally superior.
 
 The practical boundary is therefore straightforward. For a single established
 test, the specialised implementation is often the shortest and clearest
-choice. \\CRANpkg{heteroTests} becomes useful when the analysis needs multiple
+choice. \CRANpkg{heteroTests} becomes useful when the analysis needs multiple
 diagnostic families, consistent result handling, extensible orchestration,
 large-data execution paths, or a reproducible bridge from diagnosis to
 subsequent modelling decisions.
@@ -1104,7 +1126,7 @@ computation; it changes the auxiliary specification and should therefore be
 treated as an explicit computational choice rather than as an exact substitute
 for the unrestricted White expansion.
 
-The performance comparison with \\CRANpkg{lmtest} and \\CRANpkg{car} also
+The performance comparison with \CRANpkg{lmtest} and \CRANpkg{car} also
 shows the cost of abstraction. Input checking, result decoration, and
 orchestration add runtime relative to direct calls for some diagnostics. At the
 same time, the numerical agreement results indicate that the additional
@@ -1153,7 +1175,7 @@ part of the software contribution rather than auxiliary documentation.
 
 # Conclusion
 
-\\CRANpkg{heteroTests} provides a common software layer for heteroscedasticity
+\CRANpkg{heteroTests} provides a common software layer for heteroscedasticity
 diagnostics in R. Its contribution is not a new omnibus test and not a claim
 that one diagnostic should replace established specialised implementations.
 Instead, the package standardises execution and result handling, supports
