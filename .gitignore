@@ -69,8 +69,9 @@ paper/*_files/
 paper/*_cache/
 
 # Local R Journal render products. These are generated for inspection/submission
-# but are not source-controlled.
+# but are not source-controlled. The generated paper/heteroTests.tex and
+# paper/RJwrapper.tex are committed: re-render with paper/scripts/render.R and
+# commit them together with any change to paper/heteroTests.Rmd.
 paper/heteroTests.pdf
-paper/heteroTests.tex
 paper/heteroTests.html
 paper/heteroTests.R
