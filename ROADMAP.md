@@ -328,6 +328,59 @@ after it.
   broadened to `skedastic` and `sandwich`.
 - The companion package, if the scope decision goes that way.
 
+## Candidate tests
+
+None of these is scheduled. Each would be a new export, so each has to clear
+the release gate in `inst/validation/README.md` before it ships: agreement to
+`1e-8` with an established implementation or with a reconstruction of the
+primary reference, simulated size inside the gate, and power against the
+alternative it is built for. The first group covers questions the package
+cannot answer yet. The second refines tests it already has.
+
+Questions the package cannot answer yet:
+
+- **Harrison–McCabe (1979).** The share of the residual sum of squares that
+  falls in the first part of an ordered sample. Reference implementations:
+  `lmtest::hmctest()` and `skedastic::harrison_mccabe()`.
+- **A Glejser test that is valid under skewed errors** (Im 2000; Machado and
+  Santos Silva 2000). The help page of `performGlejserTest()` already warns
+  that the uncorrected statistic is not, and cites Im. No reference
+  implementation has been identified, so the guard is simulated size under a
+  skewed null.
+- **Modified Wald test for groupwise heteroscedasticity** in a fixed-effects
+  panel (Greene 2000; Baum 2001). The panel tests cover an individual effect
+  and cross-sectional dependence, not unequal variances across units.
+  Reference implementation: Stata's `xttest3`.
+- **Sign and size bias tests** (Engle and Ng 1993): whether the squared
+  residuals respond differently to negative and to positive lagged residuals.
+  The time-series tests detect ARCH effects and say nothing about asymmetry.
+  `rugarch::signbias()` computes the tests for a fitted GARCH model.
+- **A break in the variance at an unknown date**: the CUSUM of squares test
+  (Brown, Durbin and Evans 1975) or the statistic of Inclán and Tiao (1994).
+  Goldfeld–Quandt and Szroeter need the ordering and the split to be chosen in
+  advance.
+
+Refinements of tests the package already has:
+
+- **Simonoff–Tsai (1994) and Verbyla (1993).** Versions of the Cook–Weisberg
+  score test built on modified profile likelihood and on residual maximum
+  likelihood, for small samples and high-leverage designs. Reference
+  implementations: `skedastic::simonoff_tsai()` and `skedastic::verbyla()`.
+- **Bickel (1978) and Anscombe (1961).** Tests of the variance against the
+  fitted values. Bickel's is the robust one. Reference implementations:
+  `skedastic::bickel()` and `skedastic::anscombe()`.
+- **Li–Yao (2019)** for regressions with many regressors.
+  `performHighDimensionalTest()` regresses the squared residuals on principal
+  components and cites no heteroscedasticity test as its source. Reference
+  implementation: `skedastic::li_yao()`.
+- **A spatial Breusch–Pagan test** (Anselin 1988) for fitted spatial models.
+  `performSpatialHeteroTest()` applies Moran's I to the squared residuals,
+  which detects variance that clusters in space and does not test it against
+  regressors. Reference implementation: `spatialreg::bptest.Sarlm()`.
+- **A consistent test of a variance function** (Dette, Neumeyer and Van
+  Keilegom 2007). `performVarianceFormTest()` has power against the terms it
+  is given; this one has it against any departure, at the cost of smoothing.
+
 ## Decisions needed
 
 | Question | Proposal | Needed by |
