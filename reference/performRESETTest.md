@@ -9,6 +9,13 @@ neglected nonlinearity.
 performRESETTest(model, power = 2:3)
 ```
 
+## Details
+
+On a fit with weights the augmented model is fitted by weighted least
+squares and both residual sums of squares are weighted. Releases before
+0.12.0 refitted the augmented model without the weights, so the two
+models were not nested.
+
 ## Arguments
 
 - model:

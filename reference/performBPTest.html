@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,10 @@
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The test statistic is half the explained sum of squares from regressing the scaled squared residuals \(e_i^2/\hat{\sigma}^2 - 1\) (with \(\hat{\sigma}^2 = \sum e_i^2 / n\)) on the explanatory variables. Under the null hypothesis of homoscedasticity <em>and normal disturbances</em> it follows a chi-square distribution with degrees of freedom equal to the number of regressors, matching <code>lmtest::bptest(..., studentize = FALSE)</code>. For the studentized \(n R^2\) form that drops the normality assumption use <code><a href="performKoenkerTest.html">performKoenkerTest</a></code> or <code><a href="performStudentizedBPTest.html">performStudentizedBPTest</a></code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="weighted-fits">Weighted fits<a class="anchor" aria-label="anchor" href="#weighted-fits"></a></h2>
+    <p>On a fit with weights the test is computed from the Pearson residuals \(\sqrt{w_i}\, e_i\), so it tests whether the weights are adequate; see the section on weighted fits in <code><a href="performKoenkerTest.html">performKoenkerTest()</a></code>, which also covers weights estimated by <code><a href="fitWLS.html">fitWLS()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>

@@ -68,6 +68,10 @@ T\\)/(B + 1)\\. Under \\H_0\\ this controls size even for heavy-tailed
 errors; under the alternative the observed statistic is extreme relative
 to the homoscedastic reference, giving power.
 
+Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+least squares, which would drop the weights and test a different model
+from the one supplied.
+
 ## References
 
 Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.

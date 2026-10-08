@@ -19,6 +19,13 @@ plotResidualsFitted(model)
 
 A `ggplot` object.
 
+## Details
+
+For a weighted fit the Pearson residuals \\\sqrt{w_i}\\ e_i\\ are
+plotted, as in `plot.lm()`: those are the residuals that have constant
+variance when the weights are right. The other residual plots in the
+package do the same.
+
 ## Examples
 
 ``` r

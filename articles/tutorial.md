@@ -513,13 +513,46 @@ compareModelDiagnostics(list(base_model, wls_model))
 
     ## [INFO] Running White test
 
-    ## [INFO] White test completed: statistic = 249.2441 df = 5 p = 0
+    ## [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
 
     ## [INFO] Running Breusch-Pagan test
 
-    ##           white breusch_pagan
-    ## Model1 125.5580      191.9257
-    ## Model2 249.2441      463.6599
+    ##            white breusch_pagan
+    ## Model1 125.55798     191.92574
+    ## Model2  42.15312      40.79457
 
 The weighted least squares fit typically reduces the heteroscedasticity
-metrics.
+metrics. On a weighted fit the tests are computed from the standardized
+residuals, the raw residuals multiplied by the square root of their
+weights, so a drop in the statistics means that the weighting worked.
+
+## 5. Check the variance function
+
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+assumed that the log of the error variance is linear in the regressors.
+[`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
+tests that shape against the squares and products of the same
+regressors.
+
+``` r
+
+performVarianceFormTest(wls_model)
+```
+
+    ## [INFO] Running variance-function specification test (exponential form)
+
+    ## 
+    ##  Specification test of the variance function (exponential form)
+    ## 
+    ## data:  stations ~ mag + depth; variance regressors: model regressors; against: squares and products of the variance regressors
+    ## F = 2.4434, df1 = 3, df2 = 994, p-value = 0.06273
+    ## alternative hypothesis: the variance function is misspecified
+    ## sample estimates:
+    ##           mag         depth 
+    ##  1.2366541660 -0.0001871687
+
+A small p-value says that the variance function needs those extra terms,
+and that another `form` or `var_formula` in
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+is worth trying. Unlike the tests in step 4, this one allows for the
+weights having been estimated from the same data.

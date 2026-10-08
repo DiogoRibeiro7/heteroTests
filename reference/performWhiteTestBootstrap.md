@@ -59,6 +59,10 @@ follows:
 4.  Estimate the bootstrap p-value as \\\hat{p} = B^{-1} \sum\_{b = 1}^B
     I\\T^{\*(b)} \ge T\_{\text{obs}}\\\\.
 
+Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+least squares, which would drop the weights and test a different model
+from the one supplied.
+
 The bootstrap distribution offers improved size control for moderate
 sample sizes or high-dimensional designs where the chi-squared
 approximation may be inaccurate. When `parallel = TRUE` the resampling

@@ -24,6 +24,13 @@ plotBeforeAfter(original, remedied)
 
 A `ggplot` object with residuals of both models.
 
+## Details
+
+A weighted fit is shown through its Pearson residuals \\\sqrt{w_i}\\
+e_i\\, so the plot shows whether the weighting flattened the spread. Its
+raw residuals would look as heteroscedastic as the original ones however
+good the weights were.
+
 ## Examples
 
 ``` r

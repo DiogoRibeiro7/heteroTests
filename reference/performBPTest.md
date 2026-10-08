@@ -25,6 +25,15 @@ form that drops the normality assumption use
 or
 [`performStudentizedBPTest`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md).
 
+## Weighted fits
+
+On a fit with weights the test is computed from the Pearson residuals
+\\\sqrt{w_i}\\ e_i\\, so it tests whether the weights are adequate; see
+the section on weighted fits in
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md),
+which also covers weights estimated by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md).
+
 ## Arguments
 
 - model:

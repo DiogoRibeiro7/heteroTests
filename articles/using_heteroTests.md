@@ -1431,14 +1431,14 @@ wls_model <- fitWLS(hd$model)
 # Re-test after remedy
 test(HeteroDiagnostic(wls_model, quakes))
 # [INFO] Running White test
-# [INFO] White test completed: statistic = 249.2441 df = 5 p = 0
+# [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
 # [INFO] Running Breusch-Pagan test
 # $white
 # 
 #   White's test for heteroscedasticity
 # 
 # data:  model
-# X-squared = 249.24, df = 5, p-value < 2.2e-16
+# X-squared = 42.153, df = 5, p-value = 5.485e-08
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
@@ -1447,7 +1447,7 @@ test(HeteroDiagnostic(wls_model, quakes))
 #   Breusch-Pagan test for heteroscedasticity
 # 
 # data:  stations ~ mag + depth
-# X-squared = 463.66, df = 2, p-value < 2.2e-16
+# X-squared = 40.795, df = 2, p-value = 1.385e-09
 # 
 # 
 # $vif
@@ -1459,7 +1459,7 @@ test(HeteroDiagnostic(wls_model, quakes))
 #   RESET test for nonlinearity
 # 
 # data:  stations ~ mag + depth
-# F = 183.04, df1 = 2, df2 = 995, p-value < 2.2e-16
+# F = 130.71, df1 = 2, df2 = 995, p-value < 2.2e-16
 # 
 # 
 # $influence

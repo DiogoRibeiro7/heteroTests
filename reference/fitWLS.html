@@ -9,7 +9,7 @@ observation by the inverse of an estimated error variance."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,12 @@ observation by the inverse of an estimated error variance.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fitWLS</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fitWLS</span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  var_formula <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exponential"</span>, <span class="st">"power"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -52,11 +57,31 @@ observation by the inverse of an estimated error variance.</p>
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>A fitted model of class <code>lm</code>.</p></dd>
 
+
+<dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
+<dd><p>Optional <a href="https://rdrr.io/r/base/data.frame.html" class="external-link">base::data.frame</a> holding the variables named in
+<code>var_formula</code>. It is needed only when they are not in the model frame, and
+is matched to the fitted rows by row name.</p></dd>
+
+
+<dt id="arg-var-formula">var_formula<a class="anchor" aria-label="anchor" href="#arg-var-formula"></a></dt>
+<dd><p>One-sided formula naming the variance regressors, for
+example <code>~ x</code>. <code>NULL</code>, the default, uses the regressors of <code>model</code>.</p></dd>
+
+
+<dt id="arg-form">form<a class="anchor" aria-label="anchor" href="#arg-form"></a></dt>
+<dd><p>Character scalar choosing the variance function:
+<code>"exponential"</code> (the default) or <code>"power"</code>. See the section on variance
+functions.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A new <code>lm</code> object fitted with weights. The estimated variances are
-attached as the <code>"variance_model"</code> attribute.</p>
+attached as the <code>"variance_model"</code> attribute, and the fitted variance
+function (its form, regressors and coefficients) as the
+<code>"variance_function"</code> attribute, which is what
+<code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> reads.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -64,20 +89,64 @@ attached as the <code>"variance_model"</code> attribute.</p>
 squared residual is a one-degree-of-freedom estimate of \(\sigma_i^2\) and
 far too noisy to invert: weighting by \(1/e_i^2\) hands almost all of the
 weight to whichever observations the initial fit happened to reproduce most
-closely. This function instead regresses \(\log e_i^2\) on the model's own
-design matrix and takes \(\hat\sigma_i^2 = \exp(\hat g_i)\) from the fitted
-values, the standard feasible-GLS recipe; weights are \(1/\hat\sigma_i^2\).</p>
-<p>The log scale keeps the fitted variances positive without constraining the
-auxiliary regression, and residuals that are numerically zero are floored
-before the logarithm, with a warning.</p>
-<p>Weights estimated this way are consistent under a correctly specified variance
-model, so standard errors from the returned fit are usable. They were not
-before 0.9.0, when the weights were the raw inverse squared residuals: the
-weighted residual sum of squares then collapsed towards \(n\) regardless of
-the data, and nominal 95% intervals covered the truth about 10% of the time.</p>
-<p>If the variance model cannot be fitted, or yields no usable variation, the
-function falls back to equal weights, which reduces the result to the original
-OLS fit.</p>
+closely. This function instead fits a variance function to the squared
+residuals and takes \(\hat\sigma_i^2\) from its fitted values, the
+standard feasible-GLS recipe; weights are \(1/\hat\sigma_i^2\).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="variance-functions">Variance functions<a class="anchor" aria-label="anchor" href="#variance-functions"></a></h2>
+
+
+<p><code>form</code> chooses the shape of the variance function and <code>var_formula</code> the
+variables \(z_i\) it depends on. Both forms are linear in the logarithm
+of the variance and carry their own constant.</p><dl><dt><code>"exponential"</code></dt>
+<dd><p>\(\log \sigma_i^2 = \gamma_0 + z_i^\top \gamma\),
+the multiplicative model of Harvey (1976), estimated by regressing
+\(\log e_i^2\) on \(z_i\). The log scale keeps the fitted variances
+positive without constraining the auxiliary regression. This is the
+default, and with <code>var_formula = NULL</code> it is what <code>fitWLS()</code> has
+computed since 0.9.0.</p></dd>
+
+<dt><code>"power"</code></dt>
+<dd><p>\(\log \sigma_i^2 = \gamma_0 + \sum_j \delta_j \log
+    z_{ij}\), that is \(\sigma_i^2 \propto \prod_j z_{ij}^{\delta_j}\), the
+model of Park (1966). It is the exponential form in the logarithms of
+the regressors, which must be strictly positive. \(\delta = 2\) is the
+textbook case of a standard deviation proportional to \(z\).</p></dd>
+
+
+</dl><p>Other log-linear shapes are written through <code>var_formula</code>, for example
+<code>~ x + I(x^2)</code> or <code>~ sqrt(x)</code>. The additive model
+\(\sigma_i^2 = \alpha_0 + z_i^\top \alpha\) is not offered: nothing keeps
+its fitted variances positive, and in the validation study it was not
+usable in a material share of samples drawn from an additive model itself
+(<code>inst/validation/README.md</code>).</p>
+<p>Residuals that are numerically zero are floored before the logarithm is
+taken, with a warning.</p>
+<p>Weights estimated this way are consistent under a correctly specified
+variance function, so standard errors from the returned fit are usable. They
+were not before 0.9.0, when the weights were the raw inverse squared
+residuals: the weighted residual sum of squares then collapsed towards
+\(n\) regardless of the data, and nominal 95% intervals covered the truth
+about 10% of the time.</p>
+<p>Whether the variance function <em>is</em> correctly specified can be tested: pass
+the result to <code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code>.</p>
+<p>If the variance function cannot be fitted, or yields no usable variation,
+the function falls back to equal weights, which reduces the result to the
+original OLS fit.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Harvey, A. C. (1976). Estimating regression models with multiplicative
+heteroscedasticity. <em>Econometrica, 44</em>(3), 461–465.
+<a href="https://doi.org/10.2307/1913974" class="external-link">doi:10.2307/1913974</a></p>
+<p>Park, R. E. (1966). Estimation with heteroscedastic error terms.
+<em>Econometrica, 34</em>(4), 888. <a href="https://doi.org/10.2307/1910108" class="external-link">doi:10.2307/1910108</a></p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> to test the variance function that was
+fitted.</p></div>
     </div>
 
     <div class="section level2">
@@ -106,6 +175,12 @@ OLS fit.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Multiple R-squared:  0.8405,	Adjusted R-squared:  0.8296 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> F-statistic: 76.44 on 2 and 29 DF,  p-value: 2.742e-12</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Variance proportional to a power of one regressor</span></span></span>
+<span class="r-in"><span><span class="va">wls_power</span> <span class="op">&lt;-</span> <span class="fu">fitWLS</span><span class="op">(</span><span class="va">m</span>, var_formula <span class="op">=</span> <span class="op">~</span> <span class="va">wt</span>, form <span class="op">=</span> <span class="st">"power"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">wls_power</span>, <span class="st">"variance_function"</span><span class="op">)</span><span class="op">$</span><span class="va">coefficients</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)     log(wt) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1.3406009  -0.9787352 </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

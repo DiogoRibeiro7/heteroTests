@@ -9,7 +9,7 @@ after applying a remediation method (e.g. WLS or robust regression)."></head><bo
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,13 @@ after applying a remediation method (e.g. WLS or robust regression).</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>ggplot</code> object with residuals of both models.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A weighted fit is shown through its Pearson residuals \(\sqrt{w_i}\, e_i\),
+so the plot shows whether the weighting flattened the spread. Its raw
+residuals would look as heteroscedastic as the original ones however good
+the weights were.</p>
     </div>
 
     <div class="section level2">

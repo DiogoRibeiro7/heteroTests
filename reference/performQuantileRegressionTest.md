@@ -62,6 +62,10 @@ against that location-shift/homoskedastic specification. The result
 should not be interpreted as a universal test for every possible form of
 heteroscedasticity.
 
+Weighted fits are refused. The quantile regressions are fitted without
+the weights, so their slopes would describe a different model from the
+one supplied.
+
 ## References
 
 Koenker, R., & Bassett, G. (1982). Robust tests for heteroscedasticity

@@ -203,6 +203,9 @@
 - [`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md)
   : Variance inflation factors
 
+- [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
+  : Test the functional form of the error variance
+
 - [`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md)
   : Perform White's test for heteroscedasticity
 

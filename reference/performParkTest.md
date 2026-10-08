@@ -37,7 +37,8 @@ degrees of freedom.
 ## References
 
 Park, R. E. (1966). Estimation with heteroscedastic error terms.
-*Econometrica*, 34(5), 888.
+*Econometrica*, 34(4), 888.
+[doi:10.2307/1910108](https://doi.org/10.2307/1910108)
 
 ## Examples
 

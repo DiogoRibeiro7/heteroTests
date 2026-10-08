@@ -257,7 +257,7 @@ transforms.
 - Koenker, R. (1981). A note on studentizing a test for
   heteroscedasticity. *Journal of Econometrics, 17*(1), 107–112.
 - Park, R. E. (1966). Estimation with heteroscedastic error terms.
-  *Econometrica, 34*(4), 888–908.
+  *Econometrica, 34*(4), 888.
 - White, H. (1980). A heteroskedasticity-consistent covariance matrix
   estimator and a direct test for heteroskedasticity. *Econometrica,
   48*(4), 817–838.

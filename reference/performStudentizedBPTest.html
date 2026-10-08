@@ -13,7 +13,7 @@ less sensitive to violations of normality and small-sample bias."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,12 +75,17 @@ and p-value for the null hypothesis of constant error variance.</p>
     <p>Following Koenker (1981) and the implementation in
 <a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a>, the procedure fits an auxiliary
 regression of \(e_i^2 - \hat{\sigma}^2\) on the regressors from the
-original model (including the intercept), where \(e_i\) denotes the weighted
+original model (including the intercept), where \(e_i\) denotes the
 residuals and \(\hat{\sigma}^2\) their mean squared error. Under
 homoskedasticity the statistic
-\(T = n \sum w_i \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2\) is
+\(T = n \sum \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2\) is
 asymptotically chi-squared with degrees of freedom equal to the number of
-regressors beyond the intercept. The implementation shares the validation
+regressors beyond the intercept. On a weighted fit \(e_i\) is the Pearson
+residual \(\sqrt{w_i}\) times the raw residual and the auxiliary
+regression is unweighted; see the section on weighted fits in
+<code><a href="performKoenkerTest.html">performKoenkerTest()</a></code>. This departs from <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code>, which keeps the
+raw residuals and weights the auxiliary regression. The implementation
+shares the validation
 helpers used across the package to ensure that: (i) the model and data satisfy
 minimum sample-size thresholds via <a href="rvalidateModelInputs.html">rvalidateModelInputs()</a> and
 <a href="rvalidateDataInputs.html">rvalidateDataInputs()</a>, (ii) missing values are handled by

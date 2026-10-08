@@ -20,6 +20,15 @@ by the residual mean square of segment 1 and is therefore directional
 rather than being forced above one. Split arithmetic and p-value
 conventions match `lmtest::gqtest(..., point = 0.5)`.
 
+## Weighted fits
+
+On a fit with weights each segment is refitted with its own weights and
+the segments are compared on the weighted residual sum of squares,
+\\\sum w_i e_i^2\\. That is the Goldfeld-Quandt statistic of the
+equivalent unweighted regression, so the test asks whether the weights
+are adequate. Releases before 0.12.0 refitted the segments without the
+weights.
+
 ## Arguments
 
 - model:

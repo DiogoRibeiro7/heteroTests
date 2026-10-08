@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,6 +47,10 @@
     <p>Let \(\hat{e}_i\) denote the OLS residuals and \(\hat{\sigma}^2 = \sum_i \hat{e}_i^2 / n\) the maximum-likelihood variance estimate. The test regresses the scaled squared residuals \(u_i = \hat{e}_i^2 / \hat{\sigma}^2\) on the variance regressors \(Z\) and computes half the explained sum of squares of that auxiliary regression. Under homoscedasticity and normal errors the statistic is asymptotically chi-square with degrees of freedom equal to the number of variance regressors.</p>
 <p>With <code>var_formula = NULL</code> the fitted values are the sole variance regressor, matching the default of <code><a href="https://rdrr.io/pkg/car/man/ncvTest.html" class="external-link">car::ncvTest()</a></code> and Stata's <code>estat hettest</code>.</p>
 <p>Because the divisor 2 is the null variance of \(\hat{e}^2 / \sigma^2\) under normality, the test is sensitive to non-normal errors; <code><a href="performKoenkerTest.html">performKoenkerTest</a></code> provides the studentized variant, which is robust to non-normal kurtosis.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="weighted-fits">Weighted fits<a class="anchor" aria-label="anchor" href="#weighted-fits"></a></h2>
+    <p>On a fit with weights the test is computed from the Pearson residuals \(\sqrt{w_i}\, e_i\), so it tests whether the weights are adequate; see the section on weighted fits in <code><a href="performKoenkerTest.html">performKoenkerTest()</a></code>, which also covers weights estimated by <code><a href="fitWLS.html">fitWLS()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>

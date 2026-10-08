@@ -11,7 +11,7 @@ test statistic across many bootstrap replications."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,7 +91,10 @@ with replacement, forming \(y^{*(b)} = \hat{y} + \hat{e}^{*(b)}\).</p></li>
 statistic \(T^{*(b)}\) using the same auxiliary specification.</p></li>
 <li><p>Estimate the bootstrap p-value as
 \(\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}\).</p></li>
-</ol><p>The bootstrap distribution offers improved size control for moderate sample
+</ol><p>Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+least squares, which would drop the weights and test a different model from
+the one supplied.</p>
+<p>The bootstrap distribution offers improved size control for moderate sample
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When <code>parallel = TRUE</code> the resampling step exploits available CPU
 cores to reduce computation time.</p>

@@ -36,13 +36,20 @@ Following Koenker (1981) and the implementation in
 [lmtest::bptest()](https://rdrr.io/pkg/lmtest/man/bptest.html), the
 procedure fits an auxiliary regression of \\e_i^2 - \hat{\sigma}^2\\ on
 the regressors from the original model (including the intercept), where
-\\e_i\\ denotes the weighted residuals and \\\hat{\sigma}^2\\ their mean
-squared error. Under homoskedasticity the statistic \\T = n \sum w_i
-\hat{g}\_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2\\ is asymptotically
-chi-squared with degrees of freedom equal to the number of regressors
-beyond the intercept. The implementation shares the validation helpers
-used across the package to ensure that: (i) the model and data satisfy
-minimum sample-size thresholds via
+\\e_i\\ denotes the residuals and \\\hat{\sigma}^2\\ their mean squared
+error. Under homoskedasticity the statistic \\T = n \sum \hat{g}\_i^2 /
+\sum (e_i^2 - \hat{\sigma}^2)^2\\ is asymptotically chi-squared with
+degrees of freedom equal to the number of regressors beyond the
+intercept. On a weighted fit \\e_i\\ is the Pearson residual
+\\\sqrt{w_i}\\ times the raw residual and the auxiliary regression is
+unweighted; see the section on weighted fits in
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md).
+This departs from
+[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html), which
+keeps the raw residuals and weights the auxiliary regression. The
+implementation shares the validation helpers used across the package to
+ensure that: (i) the model and data satisfy minimum sample-size
+thresholds via
 [rvalidateModelInputs()](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateModelInputs.md)
 and
 [rvalidateDataInputs()](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateDataInputs.md),

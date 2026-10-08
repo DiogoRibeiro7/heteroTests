@@ -15,7 +15,7 @@ percentile interval, and—for null-imposed resampling—a p-value."></head><bod
 
     <a class="navbar-brand me-2" href="../index.html">heteroTests</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,6 +86,9 @@ data. Measured rejection under \(\sigma_i = x_i^2\) was 0%.
 <p>Neither strategy accepts a <code>glm</code>: each replicate is refitted with least
 squares, so the family and link would be discarded and the replicates would
 describe a different model from the one supplied.</p>
+<p>Weighted fits are refused under either strategy, as <code>glm</code> fits are: each
+replicate is refitted by ordinary least squares, so the replicates would
+come from the unweighted model.</p>
 <p>Null-imposed resampling additionally requires the response to be a plain
 variable. For <code>log(y) ~ x</code> the fitted values are on the log scale while
 the data column holds <code>y</code>, so regenerating one from the other and
