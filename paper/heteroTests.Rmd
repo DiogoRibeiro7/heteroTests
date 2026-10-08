@@ -693,9 +693,199 @@ ggplot2::ggplot(
 
 # A reproducible diagnostic workflow
 
-This section will present one end-to-end analysis: fit a model, diagnose
-non-constant variance, interpret conflicting diagnostics, apply an appropriate
-remediation, and compare the resulting model diagnostics.
+The previous sections treat diagnostics as statistical and computational
+objects. This section shows how the package is intended to be used in an
+analysis: diagnose a specific model, interpret the evidence, and choose a
+follow-up whose assumptions match the variance pattern.
+
+A controlled example is useful here because the correct mean and variance
+structures are known. We generate
+
+\[
+  y_i = 1 + 2x_i + \varepsilon_i,
+  \qquad
+  \varepsilon_i \sim N\!\left(0, \exp(1.8x_i)\right),
+\]
+
+with \(x_i\sim U(-1,1)\). The mean model is therefore correctly specified as
+linear, while the log variance is linear in the same predictor. This is a case
+where feasible weighted least squares is an interpretable follow-up rather than
+a generic attempt to make a diagnostic p-value disappear.
+
+```{r workflow-data}
+set.seed(20261008)
+
+n_workflow <- 500L
+workflow_data <- data.frame(
+  x = stats::runif(n_workflow, -1, 1)
+)
+workflow_data$sigma <- exp(0.9 * workflow_data$x)
+workflow_data$y <- 1 + 2 * workflow_data$x +
+  stats::rnorm(n_workflow, sd = workflow_data$sigma)
+
+ols_fit <- stats::lm(y ~ x, data = workflow_data)
+```
+
+## Diagnose the fitted model
+
+The example uses three regression-based diagnostics with complementary
+properties: White's general test, classical Breusch--Pagan, and Koenker's
+studentized form. They are selected explicitly rather than by running every
+available diagnostic.
+
+```{r workflow-diagnostics}
+workflow_tests <- runHeteroTests(
+  ols_fit,
+  workflow_data,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+
+workflow_table <- data.frame(
+  Diagnostic = c("White", "Breusch-Pagan", "Koenker"),
+  Statistic = vapply(
+    workflow_tests,
+    function(x) unname(x$statistic[[1]]),
+    numeric(1)
+  ),
+  p.value = vapply(
+    workflow_tests,
+    function(x) x$p.value,
+    numeric(1)
+  )
+)
+
+workflow_table$Statistic <- round(workflow_table$Statistic, 3)
+workflow_table$p.value <- format.pval(
+  workflow_table$p.value,
+  digits = 3,
+  eps = 0.001
+)
+
+knitr::kable(
+  workflow_table,
+  caption = "Heteroscedasticity diagnostics for the initial OLS model.",
+  booktabs = TRUE
+)
+```
+
+The diagnostics can also be passed to the package's lightweight recommendation
+layer:
+
+```{r workflow-remediation-suggestion}
+workflow_suggestion <- suggestRemediation(workflow_tests)
+workflow_suggestion
+```
+
+The recommendation should be read as workflow guidance, not as an automatic
+model-selection rule. A significant test says that the constant-variance
+assumption is not supported for the fitted mean model; it does not by itself
+choose between a variance model, heteroscedasticity-consistent covariance
+estimation, a transformation, or a different mean specification.
+
+## Model the variance
+
+Here the data-generating mechanism makes a variance model appropriate. The
+`fitWLS()` helper estimates a feasible-GLS model by regressing logged squared
+OLS residuals on the original design matrix, exponentiating the fitted
+log-variance, and using its inverse as the weight. It does not invert individual
+squared residuals.
+
+```{r workflow-wls}
+wls_fit <- fitWLS(ols_fit)
+
+coef_summary <- function(model, method) {
+  tab <- summary(model)$coefficients
+  data.frame(
+    Method = method,
+    Term = rownames(tab),
+    Estimate = tab[, "Estimate"],
+    Std.Error = tab[, "Std. Error"],
+    row.names = NULL
+  )
+}
+
+coefficient_comparison <- rbind(
+  coef_summary(ols_fit, "OLS"),
+  coef_summary(wls_fit, "Feasible WLS")
+)
+
+coefficient_comparison$Estimate <- round(
+  coefficient_comparison$Estimate,
+  3
+)
+coefficient_comparison$Std.Error <- round(
+  coefficient_comparison$Std.Error,
+  3
+)
+
+knitr::kable(
+  coefficient_comparison,
+  caption = "Coefficient estimates and model-based standard errors before and after feasible weighted least squares.",
+  booktabs = TRUE
+)
+```
+
+Because the mean model is unchanged, the point of WLS is not to force the raw
+residuals to have constant spread. If the fitted variance is
+\(\widehat\sigma_i^2\), the relevant residual scale is
+
+\[
+  r_i^{(w)} =
+  \frac{y_i-\widehat y_i}{\widehat\sigma_i}
+  =
+  \sqrt{w_i}\,(y_i-\widehat y_i).
+\]
+
+A useful before/after check therefore compares the OLS residuals with these
+weighted residuals, not the raw residuals from the weighted fit.
+
+```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel uses residuals on the weighted scale, sqrt(w_i) e_i."}
+workflow_residuals <- rbind(
+  data.frame(
+    x = workflow_data$x,
+    residual = stats::residuals(ols_fit),
+    Model = "OLS residuals"
+  ),
+  data.frame(
+    x = workflow_data$x,
+    residual = sqrt(stats::weights(wls_fit)) * stats::residuals(wls_fit),
+    Model = "WLS weighted residuals"
+  )
+)
+
+ggplot2::ggplot(
+  workflow_residuals,
+  ggplot2::aes(x = x, y = residual)
+) +
+  ggplot2::geom_point(alpha = 0.35, size = 0.8) +
+  ggplot2::geom_smooth(method = "loess", se = FALSE) +
+  ggplot2::facet_wrap(~Model, nrow = 1) +
+  ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2::labs(
+    x = "x",
+    y = "Residual"
+  ) +
+  ggplot2::theme_minimal(base_size = 9)
+```
+
+For a compact numerical summary, the correlation between residual magnitude and
+the predictor changes from
+`r sprintf("%.3f", cor(abs(residuals(ols_fit)), workflow_data$x))`
+for OLS to
+`r sprintf("%.3f", cor(abs(sqrt(weights(wls_fit)) * residuals(wls_fit)), workflow_data$x))`
+on the weighted WLS scale. This is only a descriptive check, but it shows what
+the remediation is intended to accomplish: account for a systematic variance
+pattern while retaining the same linear mean specification.
+
+A different inferential goal would lead to a different follow-up. If the
+coefficient estimates were the primary target and no variance model were
+scientifically justified, heteroscedasticity-consistent covariance estimation
+would be a natural alternative [@lumley2015sandwich]. Conversely, evidence of
+mean-model misspecification should be addressed before treating the variance
+alone. The diagnostic layer is therefore a decision point in the modelling
+workflow, not an instruction to apply WLS after every rejected null.
 
 # Comparison with existing R software
 
