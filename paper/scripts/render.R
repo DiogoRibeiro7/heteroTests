@@ -34,8 +34,15 @@ rmarkdown::render(
   clean = TRUE
 )
 
+pdf_file <- "heteroTests.pdf"
+if (!file.exists(pdf_file)) {
+  stop("R Journal PDF was not generated: ", pdf_file, call. = FALSE)
+}
+
 rjtools::initial_check_article(
   path = ".",
   pkg = "heteroTests",
   ask = FALSE
 )
+
+message("R Journal article rendered and checked: ", normalizePath(pdf_file))

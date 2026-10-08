@@ -3,7 +3,7 @@
 # Reproducible Monte Carlo study for the R Journal article.
 #
 # Usage:
-#   Rscript paper/simulation_study.R [replications]
+#   Rscript paper/scripts/simulation_study.R [replications]
 #
 # The default is intended for manuscript results. A smaller value can be used
 # locally for a smoke test, but should not be committed as final evidence.
