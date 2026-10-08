@@ -43,6 +43,31 @@ knitr::opts_chunk$set(
 )
 
 library(heteroTests)
+
+sim_size <- utils::read.csv(
+  file.path("generated", "simulation_size_table.csv"),
+  check.names = FALSE
+)
+sim_power <- utils::read.csv(
+  file.path("generated", "simulation_power_full_strength.csv"),
+  stringsAsFactors = FALSE
+)
+perf_speed <- utils::read.csv(
+  file.path("generated", "performance_reference_speed.csv"),
+  stringsAsFactors = FALSE
+)
+perf_accuracy <- utils::read.csv(
+  file.path("generated", "performance_accuracy_table.csv"),
+  stringsAsFactors = FALSE
+)
+perf_stream <- utils::read.csv(
+  file.path("generated", "performance_streaming_summary.csv"),
+  stringsAsFactors = FALSE
+)
+
+pct <- function(x, digits = 1L) {
+  sprintf(paste0("%.", digits, "f\\%%"), 100 * x)
+}
 ```
 
 # Introduction
@@ -297,7 +322,7 @@ construction of resampling null distributions.
 
 Some properties are better validated as invariants than by comparing a single
 number. Property-based tests verify that supported diagnostics return valid
-`htest` objects with finite statistics and p-values in ([0,1]) over randomly
+`htest` objects with finite statistics and p-values in \([0,1]\) over randomly
 generated inputs. Simulation-based regression tests check that selected
 classical procedures have empirical Type-I error close to the nominal level,
 using a tolerance based on the Monte Carlo standard error rather than a fixed
@@ -435,10 +460,97 @@ standard error of approximately 0.005, which is small enough to distinguish
 material size distortions from ordinary simulation noise without pretending
 that the estimated rejection rates are exact.
 
-Numerical results and figures are intentionally read from the generated output
-rather than copied from earlier drafts. A render therefore cannot silently
-reuse the retired `power_summary.csv` values as evidence for the redesigned
-experiment.
+Numerical results and figures are intentionally read from committed extracts of
+the successful workflow artifact rather than copied from earlier drafts. The
+full experiment used `heteroTests` 0.11.2 under R 4.6.1 on Ubuntu 24.04.5;
+the workflow and artifact identifiers are recorded in
+`paper/generated/PROVENANCE.md`.
+
+## Simulation results
+
+Under Gaussian errors, all four procedures remain close to the nominal 5%
+level across the three sample sizes. At \(n=100\), for example, rejection
+rates range from
+`r sprintf("%.2f\\%%", min(subset(sim_size, Error == "gaussian" & n == 100)[["Rejection (%)"]]))`
+to
+`r sprintf("%.2f\\%%", max(subset(sim_size, Error == "gaussian" & n == 100)[["Rejection (%)"]]))`.
+The heavier-tailed null separates the procedures much more clearly. At
+\(n=250\), the classical Breusch--Pagan test rejects
+`r sprintf("%.1f\\%%", subset(sim_size, Error == "t5" & n == 250 & Test == "Breusch-Pagan")[["Rejection (%)"]])`
+of homoscedastic samples and Goldfeld--Quandt rejects
+`r sprintf("%.1f\\%%", subset(sim_size, Error == "t5" & n == 250 & Test == "Goldfeld-Quandt")[["Rejection (%)"]])`,
+whereas Koenker and White reject
+`r sprintf("%.1f\\%%", subset(sim_size, Error == "t5" & n == 250 & Test == "Koenker")[["Rejection (%)"]])`
+and
+`r sprintf("%.1f\\%%", subset(sim_size, Error == "t5" & n == 250 & Test == "White")[["Rejection (%)"]])`,
+respectively. Thus the simulation reproduces the practical reason for keeping
+the studentized and more general procedures distinct from their
+normality-sensitive counterparts.
+
+Table \@ref(tab:size-results) reports the middle sample size for both error
+distributions; the complete size grid is stored in the generated CSV.
+
+```{r size-results, echo=FALSE}
+size_n100 <- subset(sim_size, n == 100)
+size_n100[["Rejection (%)"]] <- round(size_n100[["Rejection (%)"]], 2)
+size_n100[["MC lower (%)"]] <- round(size_n100[["MC lower (%)"]], 2)
+size_n100[["MC upper (%)"]] <- round(size_n100[["MC upper (%)"]], 2)
+
+knitr::kable(
+  size_n100[, c("Error", "Test", "Rejection (%)", "MC lower (%)", "MC upper (%)")],
+  caption = "Empirical size at n = 100 with 2,000 Monte Carlo replications. Bounds are approximate 95% Monte Carlo intervals.",
+  booktabs = TRUE
+)
+```
+
+Power depends strongly on the variance shape. At full effect strength and
+\(n=100\), all four procedures have high power against the monotone linear
+alternative: the observed rejection rates range from
+`r pct(min(subset(sim_power, pattern == "Linear" & n == 100)$estimate), 1)`
+to
+`r pct(max(subset(sim_power, pattern == "Linear" & n == 100)$estimate), 1)`.
+The step alternative is similarly easy at this sample size. The U-shaped
+alternative is qualitatively different: White reaches
+`r pct(subset(sim_power, pattern == "U-shaped" & n == 100 & test == "White")$estimate, 1)`,
+while Breusch--Pagan, Koenker, and Goldfeld--Quandt reach only
+`r pct(subset(sim_power, pattern == "U-shaped" & n == 100 & test == "Breusch-Pagan")$estimate, 1)`,
+`r pct(subset(sim_power, pattern == "U-shaped" & n == 100 & test == "Koenker")$estimate, 1)`,
+and
+`r pct(subset(sim_power, pattern == "U-shaped" & n == 100 & test == "Goldfeld-Quandt")$estimate, 1)`.
+This is not a ranking of the procedures in general; it illustrates that tests
+targeting monotone or ordered variance changes can have little power against a
+symmetric non-monotone alternative.
+
+```{r power-full-strength, echo=FALSE, fig.width=7.5, fig.height=4.3, fig.cap="Empirical rejection rates at full heteroscedastic effect strength across variance patterns and sample sizes. Each point is based on 2,000 Monte Carlo replications."}
+power_plot <- sim_power
+power_plot$n <- factor(power_plot$n, levels = c(50, 100, 250))
+
+ggplot2::ggplot(
+  power_plot,
+  ggplot2::aes(
+    x = n,
+    y = estimate,
+    group = test,
+    linetype = test,
+    shape = test
+  )
+) +
+  ggplot2::geom_line() +
+  ggplot2::geom_point(size = 1.8) +
+  ggplot2::facet_wrap(~pattern, nrow = 1) +
+  ggplot2::scale_y_continuous(
+    limits = c(0, 1),
+    labels = function(x) paste0(round(100 * x), "%")
+  ) +
+  ggplot2::labs(
+    x = "Sample size",
+    y = "Empirical rejection rate",
+    linetype = "Diagnostic",
+    shape = "Diagnostic"
+  ) +
+  ggplot2::theme_minimal(base_size = 9) +
+  ggplot2::theme(legend.position = "bottom")
+```
 
 # Computational performance
 
@@ -458,7 +570,7 @@ against the corresponding implementation in \\CRANpkg{lmtest} or
 studentized form, and the Cook--Weisberg/non-constant-variance score test.
 
 Synthetic regression data are generated with four predictors and several
-variance patterns. Sample size increases from small inputs to (10^5)
+variance patterns. Sample size increases from small inputs to \(10^5\)
 observations in the manuscript configuration. For each test and sample size we
 record elapsed time and, when the \\CRANpkg{bench} package is available,
 allocated memory. The benchmark also records absolute differences in the
@@ -503,8 +615,81 @@ system2("Rscript", "paper/summarise_performance.R")
 ```
 
 The manuscript does not use the retired `scaling_plot.pdf` as evidence. The
-reported performance results are generated from the package version analysed by
-the article and are preserved together with the raw benchmark outputs.
+reported performance results were generated from `heteroTests` 0.11.2 under
+R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance.
+
+## Performance results
+
+The reference comparisons show that integration and validation have a measurable
+runtime cost, but do not change the reported inference. Across all benchmarked
+sample sizes, the largest median p-value difference from the corresponding
+\\CRANpkg{lmtest} or \\CRANpkg{car} implementation is
+`r format(max(perf_accuracy$median_p_value_diff, na.rm = TRUE), scientific = TRUE, digits = 3)`.
+At \(n=10^5\), median elapsed times for \\pkg{heteroTests} are
+`r sprintf("%.3f", subset(perf_speed, test == "breusch_pagan" & package == "heteroTests" & sample_size == 100000)$median_time)` s
+for Breusch--Pagan,
+`r sprintf("%.3f", subset(perf_speed, test == "koenker" & package == "heteroTests" & sample_size == 100000)$median_time)` s
+for Koenker, and
+`r sprintf("%.3f", subset(perf_speed, test == "ncv" & package == "heteroTests" & sample_size == 100000)$median_time)` s
+for NCV. The corresponding reference timings are retained in the generated
+benchmark table rather than collapsed into a single speed ratio.
+
+The streaming comparison gives a more direct software result. At
+\(n=250{,}000\), measured allocation falls from
+`r sprintf("%.1f", subset(perf_stream, test == "breusch_pagan" & sample_size == 250000 & implementation == "exact")$memory_mb)` MB
+to
+`r sprintf("%.1f", subset(perf_stream, test == "breusch_pagan" & sample_size == 250000 & implementation == "streaming")$memory_mb)` MB
+for Breusch--Pagan, from
+`r sprintf("%.1f", subset(perf_stream, test == "koenker" & sample_size == 250000 & implementation == "exact")$memory_mb)` MB
+to
+`r sprintf("%.1f", subset(perf_stream, test == "koenker" & sample_size == 250000 & implementation == "streaming")$memory_mb)` MB
+for Koenker, and from
+`r sprintf("%.1f", subset(perf_stream, test == "white" & sample_size == 250000 & implementation == "exact")$memory_mb)` MB
+to
+`r sprintf("%.1f", subset(perf_stream, test == "white" & sample_size == 250000 & implementation == "streaming")$memory_mb)` MB
+for White. In this benchmark the chunked implementations are also faster, though
+that should be treated as an empirical result of this design rather than a
+guarantee.
+
+Most importantly, the largest absolute statistic difference between exact and
+streaming computations at \(n=250{,}000\) is
+`r format(max(subset(perf_stream, sample_size == 250000)$statistic_diff), scientific = TRUE, digits = 3)`,
+and the largest p-value difference is
+`r format(max(subset(perf_stream, sample_size == 250000)$p_value_diff), scientific = TRUE, digits = 3)`.
+The benchmark therefore supports the intended interpretation of streaming as a
+different computational path to essentially the same statistic, not as an
+approximate test.
+
+```{r streaming-memory, echo=FALSE, fig.width=7.2, fig.height=4.3, fig.cap="Allocated memory for exact and streaming implementations. Values are medians from three benchmark replications with chunk size 5,000."}
+stream_mem <- subset(perf_stream, is.finite(memory_mb))
+stream_mem$sample_size <- factor(
+  stream_mem$sample_size,
+  levels = c(1000, 10000, 100000, 250000)
+)
+
+ggplot2::ggplot(
+  stream_mem,
+  ggplot2::aes(
+    x = sample_size,
+    y = memory_mb,
+    group = implementation,
+    linetype = implementation,
+    shape = implementation
+  )
+) +
+  ggplot2::geom_line() +
+  ggplot2::geom_point(size = 1.8) +
+  ggplot2::facet_wrap(~test, scales = "free_y") +
+  ggplot2::scale_y_log10() +
+  ggplot2::labs(
+    x = "Sample size",
+    y = "Allocated memory (MB, log scale)",
+    linetype = "Implementation",
+    shape = "Implementation"
+  ) +
+  ggplot2::theme_minimal(base_size = 9) +
+  ggplot2::theme(legend.position = "bottom")
+```
 
 # A reproducible diagnostic workflow
 
