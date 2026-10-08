@@ -1,16 +1,13 @@
 name: R Journal performance
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "paper/performance_study.R"
-      - "paper/summarise_performance.R"
-      - "paper/heteroTests.Rmd"
-      - ".github/workflows/r-journal-performance.yml"
-      - "R/**"
-      - "DESCRIPTION"
   workflow_dispatch:
+    inputs:
+      quick:
+        description: "Run the reduced benchmark grid"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   performance:
@@ -49,8 +46,13 @@ jobs:
           Rscript -e "cat(as.character(packageVersion('heteroTests')), '\n')" > paper/generated/performance-package-version.txt
 
       - name: Run performance study
+        shell: bash
         run: |
-          Rscript paper/performance_study.R
+          if [[ "${{ inputs.quick }}" == "true" ]]; then
+            Rscript paper/performance_study.R --quick
+          else
+            Rscript paper/performance_study.R
+          fi
 
       - name: Build manuscript performance outputs
         run: |
