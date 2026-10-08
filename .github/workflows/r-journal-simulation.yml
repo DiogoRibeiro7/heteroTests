@@ -1,16 +1,13 @@
 name: R Journal simulation
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "paper/simulation_study.R"
-      - "paper/summarise_simulation.R"
-      - "paper/heteroTests.Rmd"
-      - ".github/workflows/r-journal-simulation.yml"
-      - "R/**"
-      - "DESCRIPTION"
   workflow_dispatch:
+    inputs:
+      replications:
+        description: "Monte Carlo replications per design cell"
+        required: true
+        default: "2000"
+        type: string
 
 jobs:
   simulation:
@@ -46,9 +43,9 @@ jobs:
           Rscript -e "sessionInfo()" > paper/generated/session-info.txt
           Rscript -e "cat(as.character(packageVersion('heteroTests')), '\n')" > paper/generated/package-version.txt
 
-      - name: Run full simulation study
+      - name: Run simulation study
         run: |
-          Rscript paper/simulation_study.R 2000
+          Rscript paper/simulation_study.R "${{ inputs.replications }}"
 
       - name: Build manuscript simulation outputs
         run: |
