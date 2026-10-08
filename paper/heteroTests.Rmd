@@ -841,7 +841,7 @@ residuals to have constant spread. If the fitted variance is
 A useful before/after check therefore compares the OLS residuals with these
 weighted residuals, not the raw residuals from the weighted fit.
 
-```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel uses residuals on the weighted scale, sqrt(w_i) e_i.", fig.alt="Two residual scatterplots against x. The OLS panel shows increasing residual spread, while the weighted WLS panel shows a more stable spread across x."}
+```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel shows residuals on the weighted scale.", fig.alt="Two residual scatterplots against x. The OLS panel shows increasing residual spread, while the weighted WLS panel shows a more stable spread across x."}
 workflow_residuals <- rbind(
   data.frame(
     x = workflow_data$x,
