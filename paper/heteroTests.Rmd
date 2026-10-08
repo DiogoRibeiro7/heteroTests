@@ -1,6 +1,6 @@
 ---
 title: "heteroTests: A Unified and Reproducible Framework for Heteroscedasticity Diagnostics in R"
-date: "2026-10-07"
+date: "2026-10-08"
 abstract: >
   Heteroscedasticity diagnostics in R are distributed across multiple packages
   with different interfaces, return objects, assumptions, and workflow
@@ -17,7 +17,7 @@ abstract: >
   and illustrate the memory-bounded streaming implementations. A worked
   example shows how heteroTests connects diagnosis, interpretation, and
   remediation in a reproducible analysis.
-draft: true
+draft: false
 author:
   - name: Diogo Ribeiro
     affiliation: Faculty of Media Arts and Design, Technical University of Porto
@@ -92,7 +92,7 @@ needs more than one of them, together with a common representation of the model,
 the data used for fitting, the diagnostic result, and the choices that determine
 how the statistic was computed.
 
-\\pkg{heteroTests} addresses this software problem. It provides individual
+\\CRANpkg{heteroTests} addresses this software problem. It provides individual
 diagnostic functions, a registry that supports common orchestration, and a
 higher-level execution layer that normalises model and data inputs before
 running selected procedures. Results returned as `htest` objects are decorated
@@ -140,7 +140,7 @@ the diagnostic operation visible while avoiding namespace collisions with
 established functions in other packages.
 
 Most hypothesis-test functions return standard R `htest` objects. When a
-result is used through the orchestration layer, \\pkg{heteroTests} decorates it
+result is used through the orchestration layer, \\CRANpkg{heteroTests} decorates it
 with the `hetero_test` class and attaches metadata identifying the diagnostic,
 the number of observations when available, the fitted model, the data source,
 and execution-specific information. The original `htest` structure is
@@ -285,7 +285,7 @@ centering conventions.
 
 The current suite includes direct comparisons with \\CRANpkg{lmtest} for the
 classical Breusch--Pagan, studentized Breusch--Pagan/Koenker, and
-Goldfeld--Quandt tests [@zeileis2002lmtest]. Mean-centred Levene,
+Goldfeld--Quandt tests [@goldfeld1965tests; @zeileis2002lmtest]. Mean-centred Levene,
 median-centred Brown--Forsythe, and Cook--Weisberg/non-constant-variance
 diagnostics are checked against \\CRANpkg{car} [@fox2019car]. Group-wise
 variance procedures are also compared with base R implementations for Bartlett
@@ -308,7 +308,7 @@ published definition or from lower-level base-R operations.
 Examples include the Cook--Weisberg score statistic [@cook1983detection],
 Harvey's multiplicative-variance LM statistic [@harvey1976estimating],
 Szroeter's ordered-variance statistic, Engle's ARCH LM statistic
-[@engle1982autoregressive], and the McLeod--Li procedure, which is checked
+[@engle1982autoregressive], and the McLeod--Li procedure [@mcleod1983diagnosis], which is checked
 against a Ljung--Box calculation on squared residuals. The same approach is
 used for O'Brien's transformed observations and for degrees-of-freedom
 behaviour under rank-deficient auxiliary models.
@@ -444,13 +444,13 @@ than to identify a universally dominant diagnostic.
 ## Reproducible experiment
 
 The complete experiment is implemented in
-`paper/simulation_study.R`. The manuscript run uses an explicit seed and
+`paper/scripts/simulation_study.R`. The manuscript run uses an explicit seed and
 writes both results and simulation metadata to `paper/generated/`:
 
 ```{r simulation-command, eval=FALSE}
 system2(
   "Rscript",
-  c("paper/simulation_study.R", "2000")
+  c("paper/scripts/simulation_study.R", "2000")
 )
 ```
 
@@ -521,7 +521,7 @@ This is not a ranking of the procedures in general; it illustrates that tests
 targeting monotone or ordered variance changes can have little power against a
 symmetric non-monotone alternative.
 
-```{r power-full-strength, echo=FALSE, fig.width=7.5, fig.height=4.3, fig.cap="Empirical rejection rates at full heteroscedastic effect strength across variance patterns and sample sizes. Each point is based on 2,000 Monte Carlo replications."}
+```{r power-full-strength, echo=FALSE, fig.width=7.5, fig.height=4.3, fig.cap="Empirical rejection rates at full heteroscedastic effect strength across variance patterns and sample sizes. Each point is based on 2,000 Monte Carlo replications.", fig.alt="Three-panel line chart of empirical rejection rates for linear, step, and U-shaped variance patterns. Lines compare White, Breusch-Pagan, Koenker, and Goldfeld-Quandt diagnostics across sample sizes 50, 100, and 250."}
 power_plot <- sim_power
 power_plot$n <- factor(power_plot$n, levels = c(50, 100, 250))
 
@@ -564,7 +564,7 @@ different software problems.
 
 ## Reference-package overhead
 
-For statistically equivalent procedures, \\pkg{heteroTests} is benchmarked
+For statistically equivalent procedures, \\CRANpkg{heteroTests} is benchmarked
 against the corresponding implementation in \\CRANpkg{lmtest} or
 \\CRANpkg{car}. The benchmark covers classical Breusch--Pagan, Koenker's
 studentized form, and the Cook--Weisberg/non-constant-variance score test.
@@ -603,15 +603,15 @@ processing may be slower for data that already fit comfortably in memory.
 
 ## Reproducible benchmark workflow
 
-The complete benchmark is implemented in `paper/performance_study.R`; summary
-tables and figures are generated by `paper/summarise_performance.R`. Both
+The complete benchmark is implemented in `paper/scripts/performance_study.R`; summary
+tables and figures are generated by `paper/scripts/summarise_performance.R`. Both
 scripts write to `paper/generated/`, together with metadata describing seeds,
 sample sizes, replication counts, chunk size, and whether memory profiling was
 available.
 
 ```{r performance-command, eval=FALSE}
-system2("Rscript", "paper/performance_study.R")
-system2("Rscript", "paper/summarise_performance.R")
+system2("Rscript", "paper/scripts/performance_study.R")
+system2("Rscript", "paper/scripts/summarise_performance.R")
 ```
 
 The manuscript does not use the retired `scaling_plot.pdf` as evidence. The
@@ -625,7 +625,7 @@ runtime cost, but do not change the reported inference. Across all benchmarked
 sample sizes, the largest median p-value difference from the corresponding
 \\CRANpkg{lmtest} or \\CRANpkg{car} implementation is
 `r format(max(perf_accuracy$median_p_value_diff, na.rm = TRUE), scientific = TRUE, digits = 3)`.
-At \(n=10^5\), median elapsed times for \\pkg{heteroTests} are
+At \(n=10^5\), median elapsed times for \\CRANpkg{heteroTests} are
 `r sprintf("%.3f", subset(perf_speed, test == "breusch_pagan" & package == "heteroTests" & sample_size == 100000)$median_time)` s
 for Breusch--Pagan,
 `r sprintf("%.3f", subset(perf_speed, test == "koenker" & package == "heteroTests" & sample_size == 100000)$median_time)` s
@@ -660,7 +660,7 @@ The benchmark therefore supports the intended interpretation of streaming as a
 different computational path to essentially the same statistic, not as an
 approximate test.
 
-```{r streaming-memory, echo=FALSE, fig.width=7.2, fig.height=4.3, fig.cap="Allocated memory for exact and streaming implementations. Values are medians from three benchmark replications with chunk size 5,000."}
+```{r streaming-memory, echo=FALSE, fig.width=7.2, fig.height=4.3, fig.cap="Allocated memory for exact and streaming implementations. Values are medians from three benchmark replications with chunk size 5,000.", fig.alt="Three-panel line chart comparing allocated memory for exact and streaming Breusch-Pagan, Koenker, and White implementations. Streaming uses less memory at each displayed sample size."}
 stream_mem <- subset(perf_stream, is.finite(memory_mb))
 stream_mem$sample_size <- factor(
   stream_mem$sample_size,
@@ -841,7 +841,7 @@ residuals to have constant spread. If the fitted variance is
 A useful before/after check therefore compares the OLS residuals with these
 weighted residuals, not the raw residuals from the weighted fit.
 
-```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel uses residuals on the weighted scale, sqrt(w_i) e_i."}
+```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel uses residuals on the weighted scale, sqrt(w_i) e_i.", fig.alt="Two residual scatterplots against x. The OLS panel shows increasing residual spread, while the weighted WLS panel shows a more stable spread across x."}
 workflow_residuals <- rbind(
   data.frame(
     x = workflow_data$x,
@@ -882,7 +882,7 @@ pattern while retaining the same linear mean specification.
 A different inferential goal would lead to a different follow-up. If the
 coefficient estimates were the primary target and no variance model were
 scientifically justified, heteroscedasticity-consistent covariance estimation
-would be a natural alternative [@lumley2015sandwich]. Conversely, evidence of
+would be a natural alternative [@zeileis2006sandwich]. Conversely, evidence of
 mean-model misspecification should be addressed before treating the variance
 alone. The diagnostic layer is therefore a decision point in the modelling
 workflow, not an instruction to apply WLS after every rejected null.
@@ -949,7 +949,7 @@ knitr::kable(
 
 Base R already provides high-quality procedures for several classical
 equal-variance problems, including Bartlett and Fligner--Killeen tests.
-\\pkg{heteroTests} does not improve these statistics by reimplementing them;
+\\CRANpkg{heteroTests} does not improve these statistics by reimplementing them;
 the value of including compatible procedures is that their results can
 participate in the same reporting and orchestration layer as
 regression-specific diagnostics.
@@ -965,13 +965,13 @@ introducing another abstraction layer.
 other tools, the non-constant-variance score test and Levene-type variance
 comparisons [@fox2019car]. These functions also serve as reference
 implementations in the package tests. The relationship is therefore
-complementary: \\pkg{car} supplies mature specialised diagnostics, while
-\\pkg{heteroTests} supplies a common execution and result layer when these
+complementary: \\CRANpkg{car} supplies mature specialised diagnostics, while
+\\CRANpkg{heteroTests} supplies a common execution and result layer when these
 kinds of diagnostics must be combined with others.
 
 \\CRANpkg{vartest} concentrates on tests for equality of variances. The
-\\pkg{heteroTests} validation suite compares its Hartley and O'Brien
-implementations against \\pkg{vartest} where that package is available. For an
+\\CRANpkg{heteroTests} validation suite compares its Hartley and O'Brien
+implementations against \\CRANpkg{vartest} where that package is available. For an
 analysis centred specifically on group-variance testing, the specialised
 package remains a natural direct interface.
 
@@ -980,7 +980,7 @@ package remains a natural direct interface.
 \\CRANpkg{sandwich} addresses a different problem. Its
 heteroscedasticity-consistent covariance estimators modify coefficient
 inference without requiring the analyst to specify a parametric variance model
-[@lumley2015sandwich]. A diagnostic package and a robust-covariance package
+[@zeileis2006sandwich]. A diagnostic package and a robust-covariance package
 therefore answer different questions: one provides evidence about the
 constant-variance assumption, while the other provides an inferential strategy
 that can remain valid when that assumption is relaxed.
@@ -988,14 +988,14 @@ that can remain valid when that assumption is relaxed.
 This distinction matters in practice. The worked example used feasible WLS
 because the variance structure was deliberately modelled. If the coefficient
 estimates were the primary target and no scientifically defensible variance
-model were available, a \\pkg{sandwich} covariance estimator could be a more
-appropriate follow-up. \\pkg{heteroTests} should therefore be viewed as
+model were available, a \\CRANpkg{sandwich} covariance estimator could be a more
+appropriate follow-up. \\CRANpkg{heteroTests} should therefore be viewed as
 complementary to robust covariance estimation rather than as a substitute for
 it.
 
 ## What the integration layer adds
 
-The software contribution of \\pkg{heteroTests} appears when an analysis
+The software contribution of \\CRANpkg{heteroTests} appears when an analysis
 requires several diagnostics or must be embedded in a larger reproducible
 workflow. In that setting the package adds five pieces of infrastructure that
 are not properties of any individual heteroscedasticity test:
@@ -1025,7 +1025,7 @@ is computationally superior.
 
 The practical boundary is therefore straightforward. For a single established
 test, the specialised implementation is often the shortest and clearest
-choice. \\pkg{heteroTests} becomes useful when the analysis needs multiple
+choice. \\CRANpkg{heteroTests} becomes useful when the analysis needs multiple
 diagnostic families, consistent result handling, extensible orchestration,
 large-data execution paths, or a reproducible bridge from diagnosis to
 subsequent modelling decisions.
@@ -1042,7 +1042,7 @@ The simulation study illustrates this directly. Under Gaussian homoscedastic
 errors, the four procedures considered remain close to the nominal 5% level,
 but their behaviour separates under heavier tails. Classical Breusch--Pagan and
 Goldfeld--Quandt tests become substantially oversized under standardized
-(t_5) errors, whereas Koenker and White remain much closer to nominal size.
+\(t_5\) errors, whereas Koenker and White remain much closer to nominal size.
 The distinction between classical and studentized score tests is therefore not
 an implementation detail. It affects the practical meaning of the result when
 normality is questionable.
@@ -1088,8 +1088,8 @@ can materially reduce measured memory use while preserving the reported
 statistic to numerical precision in the designs studied. However, this
 computational route is not free of trade-offs.
 
-The calculation works with (X^\top X), whose condition number is the square of
-the condition number of (X). Ill-conditioned auxiliary designs can therefore
+The calculation works with \(X^\top X\), whose condition number is the square of
+the condition number of \(X\). Ill-conditioned auxiliary designs can therefore
 be more numerically delicate than a decomposition applied directly to the full
 design matrix. The implementation checks for rank deficiency and falls back to
 more stable solves where possible, but the streaming path should still be
@@ -1153,7 +1153,7 @@ part of the software contribution rather than auxiliary documentation.
 
 # Conclusion
 
-\\pkg{heteroTests} provides a common software layer for heteroscedasticity
+\\CRANpkg{heteroTests} provides a common software layer for heteroscedasticity
 diagnostics in R. Its contribution is not a new omnibus test and not a claim
 that one diagnostic should replace established specialised implementations.
 Instead, the package standardises execution and result handling, supports
