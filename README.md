@@ -36,10 +36,18 @@ like `stats::bptest()` and slot directly into automated pipelines.
   `performBPTestStreaming()`, `performKoenkerTestStreaming()`) accumulate the
   auxiliary cross-products in chunks; results are exact and memory-bounded, and
   `runHeteroTests()` adopts them automatically for large inputs.
-- **Remediation and guidance** — weighted least squares (`fitWLS()`), robust
-  fits (`fitRobust()`), variance-stabilising transforms (`autoTransform()`), a
-  model-comparison helper, and a recommendation engine
-  (`generateHeteroRecommendations()`) that interprets a diagnostic run.
+- **The shape of the variance** — `performVarianceFormTest()` tests whether an
+  exponential or a power variance function describes the heteroscedasticity,
+  where the other tests only establish that the variance is not constant.
+- **Remediation and guidance** — weighted least squares (`fitWLS()`) with a
+  choice of variance function, robust fits (`fitRobust()`),
+  variance-stabilising transforms (`autoTransform()`), a model-comparison
+  helper, and a recommendation engine (`generateHeteroRecommendations()`) that
+  interprets a diagnostic run.
+- **Weighted fits** — on an `lm` fitted with weights the tests are computed
+  from the standardized residuals, so they ask whether the weights are
+  adequate. For weights estimated by `fitWLS()`, `performVarianceFormTest()`
+  is the test that allows for the estimation.
 - **Ecosystem integration** — `broom` tidiers, `ggplot2` theming/`autoplot`, and
   helpers for tidymodels, survey designs and grouped pipelines.
 
@@ -99,6 +107,9 @@ plot(hd)
 # Fit a weighted least squares model
 wls <- fitWLS(model)
 compareModelDiagnostics(list(model, wls))
+
+# Was the variance function the right shape?
+performVarianceFormTest(wls)
 ```
 
 See `vignettes/tutorial.Rmd` and `browseVignettes("heteroTests")` for a full walkthrough.

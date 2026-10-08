@@ -47,5 +47,23 @@ compareModelDiagnostics(list(base_model, wls_model))
 ```
 
 The weighted least squares fit typically reduces the heteroscedasticity metrics.
+On a weighted fit the tests are computed from the standardized residuals, the
+raw residuals multiplied by the square root of their weights, so a drop in the
+statistics means that the weighting worked.
+
+## 5. Check the variance function
+
+`fitWLS()` assumed that the log of the error variance is linear in the
+regressors. `performVarianceFormTest()` tests that shape against the squares
+and products of the same regressors.
+
+```{r}
+performVarianceFormTest(wls_model)
+```
+
+A small p-value says that the variance function needs those extra terms, and
+that another `form` or `var_formula` in `fitWLS()` is worth trying. Unlike the
+tests in step 4, this one allows for the weights having been estimated from
+the same data.
 
 

@@ -3,7 +3,7 @@ message: |
   If you use this software, please cite it using the metadata below.
   See algorithms_bibliography() for references on diagnostic tests.
 title: "heteroTests"
-version: "0.11.2"
+version: "0.12.0"
 type: software
 authors:
   - given-names: "Diogo"
@@ -20,7 +20,7 @@ contact:
 repository-code: "https://github.com/DiogoRibeiro7/heteroTests"
 url: "https://CRAN.R-project.org/package=heteroTests"
 license: "Apache-2.0"
-date-released: "2026-09-15"
+date-released: "2026-10-08"
 abstract: |
   heteroTests provides a collection of heteroscedasticity diagnostics for
   linear models in R. It includes classic tests such as White's and the
@@ -40,7 +40,7 @@ preferred-citation:
   title: "heteroTests: Heteroscedasticity Diagnostic Tools"
   year: "2026"
   url: "https://CRAN.R-project.org/package=heteroTests"
-  version: "0.11.2"
+  version: "0.12.0"
 references:
   - type: article
     authors:
