@@ -31,6 +31,10 @@ Tests equality of regression slopes across two or more conditional quantiles usi
 }
 \details{
 Under a pure location-shift model with homoskedastic errors, regression slopes are equal across quantiles. Rejection therefore provides evidence against that location-shift/homoskedastic specification. The result should not be interpreted as a universal test for every possible form of heteroscedasticity.
+
+Weighted fits are refused. The quantile regressions are fitted without the
+weights, so their slopes would describe a different model from the one
+supplied.
 }
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {

@@ -31,3 +31,4 @@
 "performBPRandomEffectsTest","effect","random intercepts",400,0.03,0.00852936105461599,400,1,0,400,NA,NA,0,0
 "performPesaranTest","csdep","common time factor",400,0.0375,0.00949917759598166,400,1,0,400,NA,NA,0,0
 "performSpatialHeteroTest","spatial","variance clustered in space",400,0.045,0.0103652062208139,400,0.3625,0.0240361056537868,400,NA,NA,0,0
+"performVarianceFormTest","variance_form","log-variance quadratic in x",400,0.0575,0.0116397755562554,400,0.9775,0.00741514497498194,400,NA,NA,0,0

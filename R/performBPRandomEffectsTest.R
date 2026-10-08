@@ -76,7 +76,7 @@ performBPRandomEffectsTest <- function(model, data, id) {
     stop("`id` must be a column in `data`.")
   }
 
-  res <- residuals(model)
+  res <- rpearson_residuals(model)
   idfac <- factor(data[[id]])
   T_i <- tapply(res, idfac, length)
   if (length(unique(T_i)) > 1) {

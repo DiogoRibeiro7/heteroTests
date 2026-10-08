@@ -38,7 +38,7 @@
 performSpreadLevelTest <- function(model) {
   checkModel(model)
 
-  abs_res <- abs(residuals(model))
+  abs_res <- abs(rpearson_residuals(model))
   abs_res <- pmax(abs_res, .Machine$double.eps)
   fit <- abs(fitted(model))
   fit <- pmax(fit, .Machine$double.eps)

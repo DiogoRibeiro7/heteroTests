@@ -41,6 +41,10 @@ Neither strategy accepts a \code{glm}: each replicate is refitted with least
 squares, so the family and link would be discarded and the replicates would
 describe a different model from the one supplied.
 
+Weighted fits are refused under either strategy, as \code{glm} fits are: each
+replicate is refitted by ordinary least squares, so the replicates would
+come from the unweighted model.
+
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while
 the data column holds \code{y}, so regenerating one from the other and

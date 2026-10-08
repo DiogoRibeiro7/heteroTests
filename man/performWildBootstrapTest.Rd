@@ -52,6 +52,10 @@ on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under
 \eqn{H_0} this controls size even for heavy-tailed errors; under the alternative
 the observed statistic is extreme relative to the homoscedastic reference, giving
 power.
+
+Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+least squares, which would drop the weights and test a different model from
+the one supplied.
 }
 \examples{
 data(mtcars)

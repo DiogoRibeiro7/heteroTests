@@ -29,6 +29,10 @@ rTEST_REQUIREMENTS <- list(
   park = list(min_obs = 10L, reason = "Log transformation requires minimum sample"),
   glejser = list(min_obs = 12L, reason = "Auxiliary regression requires enough observations"),
   harvey = list(min_obs = 15L, reason = "Log-variance regression requires residual degrees of freedom"),
+  variance_form = list(
+    min_obs = 30L,
+    reason = "Variance function and specification regression are both estimated"
+  ),
   spearman = list(min_obs = 10L, reason = "Correlation test requires adequate sample size"),
   levene = list(min_obs_per_group = 5L, reason = "Group ANOVA needs sufficient observations"),
   brown_forsythe = list(min_obs_per_group = 5L, reason = "Median-based variance test needs adequate group sizes"),

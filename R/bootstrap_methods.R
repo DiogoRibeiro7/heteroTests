@@ -37,6 +37,10 @@ NULL
 #' therefore `NA` for pairs resampling, and was removed rather than kept as a
 #' number that cannot be interpreted.
 #'
+#' Weighted fits are refused under either strategy, as `glm` fits are: each
+#' replicate is refitted by ordinary least squares, so the replicates would
+#' come from the unweighted model.
+#'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
 #' data column holds `y`, so regenerating one from the other and refitting
@@ -140,6 +144,11 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       call. = FALSE
     )
   }
+
+  # The same holds for a weighted fit: safe_lm() refits each replicate by
+  # ordinary least squares, so the replicates would come from the unweighted
+  # model while the observed statistic came from the weighted one.
+  rrefuse_weighted_fit(model, "rbootstrap_test_statistic()")
 
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic

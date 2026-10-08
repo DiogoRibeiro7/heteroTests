@@ -122,7 +122,7 @@ performHarveyTest <- function(model,
     }
   }
 
-  e <- stats::residuals(model)
+  e <- rpearson_residuals(model)
   if (any(!is.finite(e))) {
     std_error(
       "rassumption_violation",

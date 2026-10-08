@@ -353,7 +353,7 @@ interpretHeteroTestResults <- function(test_results, alpha = 0.05) {
 #'   tactics.
 #' @keywords internal
 identifyVariancePatterns <- function(model, data) {
-  res <- tryCatch(stats::residuals(model), error = function(e) NULL)
+  res <- tryCatch(rpearson_residuals(model), error = function(e) NULL)
   fitted_vals <- tryCatch(stats::fitted(model), error = function(e) NULL)
 
   if (is.null(res) || is.null(fitted_vals)) {

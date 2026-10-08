@@ -27,12 +27,17 @@ less sensitive to violations of normality and small-sample bias.
 Following Koenker (1981) and the implementation in
 \link[lmtest:bptest]{lmtest::bptest()}, the procedure fits an auxiliary
 regression of \eqn{e_i^2 - \hat{\sigma}^2} on the regressors from the
-original model (including the intercept), where \eqn{e_i} denotes the weighted
+original model (including the intercept), where \eqn{e_i} denotes the
 residuals and \eqn{\hat{\sigma}^2} their mean squared error. Under
 homoskedasticity the statistic
-\eqn{T = n \sum w_i \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
+\eqn{T = n \sum \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
 asymptotically chi-squared with degrees of freedom equal to the number of
-regressors beyond the intercept. The implementation shares the validation
+regressors beyond the intercept. On a weighted fit \eqn{e_i} is the Pearson
+residual \eqn{\sqrt{w_i}} times the raw residual and the auxiliary
+regression is unweighted; see the section on weighted fits in
+\code{\link[=performKoenkerTest]{performKoenkerTest()}}. This departs from \code{lmtest::bptest()}, which keeps the
+raw residuals and weights the auxiliary regression. The implementation
+shares the validation
 helpers used across the package to ensure that: (i) the model and data satisfy
 minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()} and
 \link[=rvalidateDataInputs]{rvalidateDataInputs()}, (ii) missing values are handled by

@@ -41,6 +41,12 @@
 #' consider the studentized \eqn{n R^2} variant [performStudentizedBPTest()] or
 #' the equivalent [performKoenkerTest()] when normality is in doubt.
 #'
+#' @section Weighted fits:
+#' On a fit with weights the test is computed from the Pearson residuals
+#' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
+#' the section on weighted fits in [performKoenkerTest()], which also covers
+#' weights estimated by [fitWLS()].
+#'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
 #' and random coefficient variation. *Econometrica, 47*(5), 1287–1294.
@@ -128,7 +134,7 @@ performBPTest <- function(model, data) {
   }
 
   cleaned <- rhandleMissingValues(data, variables = required_vars)
-  aligned <- align_to_model(cleaned$data, stats::residuals(model))
+  aligned <- align_to_model(cleaned$data, rpearson_residuals(model))
   working_data <- aligned$data
   residuals <- aligned$residuals
 

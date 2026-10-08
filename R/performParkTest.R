@@ -38,7 +38,7 @@
 #' `inst/validation/pass-a-size-power.csv`.
 #' @references
 #' Park, R. E. (1966). Estimation with heteroscedastic error terms. *Econometrica,
-#' 34*(4), 888–898. <https://doi.org/10.2307/1909774>
+#' 34*(4), 888. <https://doi.org/10.2307/1910108>
 #'
 #' Wooldridge, J. M. (2020). *Introductory Econometrics: A Modern Approach*
 #' (7th ed.). Cengage Learning. Section 8.4 reviews the Park test.

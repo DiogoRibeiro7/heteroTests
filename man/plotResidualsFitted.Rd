@@ -16,6 +16,11 @@ A \code{ggplot} object.
 Generates a simple scatter plot of residuals against fitted values from a
 linear model. A horizontal reference line at zero is added.
 }
+\details{
+For a weighted fit the Pearson residuals \eqn{\sqrt{w_i}\, e_i} are plotted,
+as in \code{plot.lm()}: those are the residuals that have constant variance when
+the weights are right. The other residual plots in the package do the same.
+}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)

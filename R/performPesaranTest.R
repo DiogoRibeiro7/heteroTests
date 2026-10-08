@@ -70,7 +70,7 @@ performPesaranTest <- function(model, data, id, time) {
     stop("`id` and `time` must be columns in `data`.")
   }
 
-  res <- residuals(model)
+  res <- rpearson_residuals(model)
   df <- data.frame(id = data[[id]], time = data[[time]], res = res)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)

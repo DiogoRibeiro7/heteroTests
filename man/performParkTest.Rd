@@ -15,4 +15,4 @@
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  performParkTest(m, mtcars, "wt")
 }
-\references{Park, R. E. (1966). Estimation with heteroscedastic error terms. \emph{Econometrica}, 34(5), 888.}
+\references{Park, R. E. (1966). Estimation with heteroscedastic error terms. \emph{Econometrica}, 34(4), 888. \doi{10.2307/1910108}}

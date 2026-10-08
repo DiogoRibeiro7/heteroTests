@@ -63,7 +63,7 @@ performOBrienTest <- function(model, data, group) {
   required_vars <- unique(c(all.vars(model_terms), group))
   rvalidateDataInputs(data, required_vars = required_vars, min_obs = 6L)
 
-  residuals <- stats::residuals(model)
+  residuals <- rpearson_residuals(model)
   resid_names <- names(residuals)
   data_rows <- rownames(data)
 

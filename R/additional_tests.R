@@ -15,7 +15,9 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
   rvalidateDataInputs(data, required_vars = required_vars, min_obs = min_obs_data)
 
   cleaned <- rhandleMissingValues(data, variables = required_vars)
-  residuals <- stats::residuals(model)
+  # Pearson residuals: identical to residuals(model) for an unweighted fit, and
+  # sqrt(w) * e for a weighted one. See rpearson_residuals().
+  residuals <- rpearson_residuals(model)
 
   resid_names <- names(residuals)
   data_rows <- rownames(cleaned$data)
@@ -71,12 +73,17 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' Following Koenker (1981) and the implementation in
 #' \link[lmtest:bptest]{lmtest::bptest()}, the procedure fits an auxiliary
 #' regression of \eqn{e_i^2 - \hat{\sigma}^2} on the regressors from the
-#' original model (including the intercept), where \eqn{e_i} denotes the weighted
+#' original model (including the intercept), where \eqn{e_i} denotes the
 #' residuals and \eqn{\hat{\sigma}^2} their mean squared error. Under
 #' homoskedasticity the statistic
-#' \eqn{T = n \sum w_i \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
+#' \eqn{T = n \sum \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
 #' asymptotically chi-squared with degrees of freedom equal to the number of
-#' regressors beyond the intercept. The implementation shares the validation
+#' regressors beyond the intercept. On a weighted fit \eqn{e_i} is the Pearson
+#' residual \eqn{\sqrt{w_i}} times the raw residual and the auxiliary
+#' regression is unweighted; see the section on weighted fits in
+#' [performKoenkerTest()]. This departs from `lmtest::bptest()`, which keeps the
+#' raw residuals and weights the auxiliary regression. The implementation
+#' shares the validation
 #' helpers used across the package to ensure that: (i) the model and data satisfy
 #' minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()} and
 #' \link[=rvalidateDataInputs]{rvalidateDataInputs()}, (ii) missing values are handled by
@@ -141,7 +148,11 @@ performStudentizedBPTest <- function(model, data) {
   }
 
   response <- stats::model.response(model_frame)
-  design_matrix <- stats::model.matrix(model, data = model_frame)
+  # model.matrix(model), not model.matrix(model, data = model_frame): the
+  # latter re-evaluates the model call against the model frame, where a weights
+  # column is stored as "(weights)" and the name used in the call is gone, so
+  # every weighted fit failed with "object not found".
+  design_matrix <- stats::model.matrix(model)
 
   if (ncol(design_matrix) < 2L) {
     stop(
@@ -171,14 +182,20 @@ performStudentizedBPTest <- function(model, data) {
     )
   }
 
+  # Pearson residuals sqrt(w) * e: the residuals of the equivalent unweighted
+  # fit, and the ones that are homoscedastic when the weights are right. With
+  # no weights this is the ordinary residual vector. Before 0.12.0 the raw
+  # residuals were used and the auxiliary regression was weighted instead, the
+  # lmtest::bptest() treatment, which tests the raw residuals for constant
+  # variance and so rejects a correctly weighted fit.
   base_fit <- stats::lm.wfit(design_matrix, response, weights)
-  residuals <- base_fit$residuals
+  residuals <- sqrt(weights) * base_fit$residuals
 
   if (length(residuals) != nrow(working_data)) {
     stop("Studentized BP test could not align residuals with the working data.", call. = FALSE)
   }
 
-  sigma2 <- sum(weights * residuals^2) / effective_n
+  sigma2 <- sum(residuals^2) / effective_n
   if (!is.finite(sigma2) || sigma2 <= .Machine$double.eps) {
     std_error(
       "rassumption_violation",
@@ -194,13 +211,15 @@ performStudentizedBPTest <- function(model, data) {
     )
   }
 
-  aux_fit <- stats::lm.wfit(design_matrix, centered_sq, weights)
+  # The auxiliary regression is unweighted: the squared Pearson residuals are
+  # already on the homoscedastic scale.
+  aux_fit <- stats::lm.wfit(design_matrix, centered_sq, rep.int(1, nrow(design_matrix)))
   df <- aux_fit$rank - 1L
   if (df <= 0) {
     stop("Studentized BP auxiliary regression has insufficient rank.", call. = FALSE)
   }
 
-  numerator <- sum(weights * aux_fit$fitted.values^2)
+  numerator <- sum(aux_fit$fitted.values^2)
   denominator <- sum(centered_sq^2)
   if (!is.finite(numerator) || !is.finite(denominator) || denominator <= .Machine$double.eps) {
     std_error(
@@ -256,6 +275,10 @@ performStudentizedBPTest <- function(model, data) {
 #'     \eqn{\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}}.
 #' }
 #'
+#' Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+#' least squares, which would drop the weights and test a different model from
+#' the one supplied.
+#'
 #' The bootstrap distribution offers improved size control for moderate sample
 #' sizes or high-dimensional designs where the chi-squared approximation may be
 #' inaccurate. When `parallel = TRUE` the resampling step exploits available CPU
@@ -294,6 +317,7 @@ performStudentizedBPTest <- function(model, data) {
 #' @export
 performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
   test_label <- "Bootstrap White"
+  rrefuse_weighted_fit(model, "performWhiteTestBootstrap()")
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))

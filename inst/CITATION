@@ -10,7 +10,7 @@ bibentry(
     given = "Diogo",
     family = "Ribeiro",
     role = c("aut", "cre"),
-    email = "diogo.debastos.ribeiro@gmail.com",
+    email = "dfr@esmad.ipp.pt",
     comment = c(
       ORCID = "0009-0001-2022-7072",
       affiliation = "Faculty of Media Arts and Design, Technical University of Porto"

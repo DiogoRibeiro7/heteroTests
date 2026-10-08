@@ -3,6 +3,10 @@
 #' Generates a simple scatter plot of residuals against fitted values from a
 #' linear model. A horizontal reference line at zero is added.
 #'
+#' For a weighted fit the Pearson residuals \eqn{\sqrt{w_i}\, e_i} are plotted,
+#' as in `plot.lm()`: those are the residuals that have constant variance when
+#' the weights are right. The other residual plots in the package do the same.
+#'
 #' @param model A fitted model of class `lm`.
 #'
 #' @return A \code{ggplot} object.
@@ -12,7 +16,7 @@
 #' plotResidualsFitted(m)
 plotResidualsFitted <- function(model) {
   checkModel(model)
-  df <- data.frame(fitted = fitted(model), resid = residuals(model))
+  df <- data.frame(fitted = fitted(model), resid = rpearson_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
     ggplot2::geom_point() +
     ggplot2::geom_smooth(method = "loess", se = FALSE, color = "blue") +
@@ -40,7 +44,7 @@ plotSpreadLevel <- function(model) {
   checkModel(model)
   df <- data.frame(
     fitted = fitted(model),
-    res_sqrt = sqrt(abs(residuals(model)))
+    res_sqrt = sqrt(abs(rpearson_residuals(model)))
   )
   ggplot2::ggplot(df, ggplot2::aes(fitted, res_sqrt)) +
     ggplot2::geom_point() +
@@ -83,6 +87,11 @@ plotDiagnosticSuite <- function(model) {
 #' Overlays residuals of two models on a single plot to visualise improvement
 #' after applying a remediation method (e.g. WLS or robust regression).
 #'
+#' A weighted fit is shown through its Pearson residuals \eqn{\sqrt{w_i}\, e_i},
+#' so the plot shows whether the weighting flattened the spread. Its raw
+#' residuals would look as heteroscedastic as the original ones however good
+#' the weights were.
+#'
 #' @param original The original `lm` or `glm` model.
 #' @param remedied The model fitted after remediation.
 #'
@@ -97,10 +106,10 @@ plotBeforeAfter <- function(original, remedied) {
   checkModel(remedied)
   df <- data.frame(
     fitted = c(fitted(original), fitted(remedied)),
-    resid = c(residuals(original), residuals(remedied)),
+    resid = c(rpearson_residuals(original), rpearson_residuals(remedied)),
     model = rep(
       c("original", "remedied"),
-      c(length(residuals(original)), length(residuals(remedied)))
+      c(length(rpearson_residuals(original)), length(rpearson_residuals(remedied)))
     )
   )
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid, colour = model)) +
@@ -129,7 +138,7 @@ plotBeforeAfter <- function(original, remedied) {
 #' plotResidualDensity(m)
 plotResidualDensity <- function(model) {
   checkModel(model)
-  df <- data.frame(resid = residuals(model))
+  df <- data.frame(resid = rpearson_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(resid)) +
     ggplot2::geom_density(fill = "lightblue", alpha = 0.5) +
     ggplot2::labs(
@@ -152,7 +161,7 @@ plotResidualDensity <- function(model) {
 #' plotResidualQQ(m)
 plotResidualQQ <- function(model) {
   checkModel(model)
-  df <- data.frame(resid = residuals(model))
+  df <- data.frame(resid = rpearson_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(sample = resid)) +
     ggplot2::stat_qq() +
     ggplot2::stat_qq_line() +
@@ -179,7 +188,7 @@ plotResidualQQ <- function(model) {
 plotBubbleVariance <- function(model, variable = NULL) {
   checkModel(model)
   df <- data.frame(model.frame(model))
-  df$resid <- residuals(model)
+  df$resid <- rpearson_residuals(model)
   df$abs_resid <- abs(df$resid)
   if (is.null(variable)) {
     variable <- attr(terms(model), "term.labels")[1]
@@ -212,8 +221,8 @@ plotResidualsFittedEnhanced <- function(model) {
   checkModel(model)
   df <- data.frame(
     fitted = fitted(model),
-    resid = residuals(model),
-    abs_resid = abs(residuals(model))
+    resid = rpearson_residuals(model),
+    abs_resid = abs(rpearson_residuals(model))
   )
   cd <- cooks.distance(model)
   df$influential <- cd > 4 / length(cd)

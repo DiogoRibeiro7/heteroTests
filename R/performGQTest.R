@@ -32,6 +32,13 @@
 #' `point = 0.5`, which permits direct numerical validation against the reference
 #' implementation.
 #'
+#' @section Weighted fits:
+#' On a fit with weights each segment is refitted with its own weights and the
+#' segments are compared on the weighted residual sum of squares,
+#' \eqn{\sum w_i e_i^2}. That is the Goldfeld-Quandt statistic of the equivalent
+#' unweighted regression, so the test asks whether the weights are adequate.
+#' Releases before 0.12.0 refitted the segments without the weights.
+#'
 #' @references
 #' Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity.
 #' *Journal of the American Statistical Association, 60*(310), 539–547.
@@ -111,13 +118,51 @@ performGQTest <- function(model, data, order_by, fraction = 0.2,
   g1_index <- seq_len(point1)
   g2_index <- seq.int(point2, n)
 
-  model1 <- safe_lm(stats::formula(model), data = ordered_data[g1_index, , drop = FALSE])
-  model2 <- safe_lm(stats::formula(model), data = ordered_data[g2_index, , drop = FALSE])
+  prior_weights <- rprior_weights(model)
+  if (is.null(prior_weights)) {
+    model1 <- safe_lm(stats::formula(model), data = ordered_data[g1_index, , drop = FALSE])
+    model2 <- safe_lm(stats::formula(model), data = ordered_data[g2_index, , drop = FALSE])
 
-  rss1 <- sum(stats::residuals(model1)^2)
-  rss2 <- sum(stats::residuals(model2)^2)
-  df_segment1 <- model1$df.residual
-  df_segment2 <- model2$df.residual
+    rss1 <- sum(stats::residuals(model1)^2)
+    rss2 <- sum(stats::residuals(model2)^2)
+    df_segment1 <- model1$df.residual
+    df_segment2 <- model2$df.residual
+  } else {
+    # On a weighted fit each segment is refitted with its own weights and
+    # compared on the weighted residual sum of squares, sum(w * e^2). That is
+    # the Goldfeld-Quandt statistic of the equivalent unweighted fit of
+    # sqrt(w) * y on sqrt(w) * X, whose errors are homoscedastic when the
+    # weights are right. Refitting without the weights, as releases before
+    # 0.12.0 did, compares raw variances that differ by construction.
+    design <- stats::model.matrix(model)
+    response <- stats::model.response(stats::model.frame(model))
+    if (nrow(design) != n || length(prior_weights) != n) {
+      stop(
+        sprintf(
+          "%s could not align the weighted fit with `data` (model rows = %d, data rows = %d).",
+          test_label, nrow(design), n
+        ),
+        call. = FALSE
+      )
+    }
+    ord <- order(working_data[[order_by]])
+    segment_fit <- function(index) {
+      rows <- ord[index]
+      fit <- stats::lm.wfit(
+        design[rows, , drop = FALSE], response[rows], prior_weights[rows]
+      )
+      list(
+        rss = sum(prior_weights[rows] * fit$residuals^2),
+        df = fit$df.residual
+      )
+    }
+    segment1 <- segment_fit(g1_index)
+    segment2 <- segment_fit(g2_index)
+    rss1 <- segment1$rss
+    rss2 <- segment2$rss
+    df_segment1 <- segment1$df
+    df_segment2 <- segment2$df
+  }
 
   if (df_segment1 <= 0 || df_segment2 <= 0) {
     std_error(

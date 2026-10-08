@@ -4,6 +4,7 @@
 \title{Perform Breusch-Pagan test for heteroscedasticity}
 \description{Implements the classical Breusch-Pagan (1979) test on a fitted linear model, in which the scaled squared residuals are regressed on the original regressors.}
 \details{The test statistic is half the explained sum of squares from regressing the scaled squared residuals \eqn{e_i^2/\hat{\sigma}^2 - 1} (with \eqn{\hat{\sigma}^2 = \sum e_i^2 / n}) on the explanatory variables. Under the null hypothesis of homoscedasticity \emph{and normal disturbances} it follows a chi-square distribution with degrees of freedom equal to the number of regressors, matching \code{lmtest::bptest(..., studentize = FALSE)}. For the studentized \eqn{n R^2} form that drops the normality assumption use \code{\link{performKoenkerTest}} or \code{\link{performStudentizedBPTest}}.}
+\section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}
 \usage{performBPTest(model, data)
 performBreuschPaganTest(model, data)}
 \arguments{

@@ -1,5 +1,183 @@
 # heteroTests News
 
+## 0.12.0
+
+Tests on weighted fits change value, and the package gains a test of the shape
+of the variance. No test changes value on an unweighted fit: re-running the
+full sweep reproduces its 32 existing rows digit for digit. `fitWLS()` with its
+default arguments returns the weights it returned in 0.11.2 for any model with
+an intercept.
+
+### Tests on a weighted fit read the wrong residuals
+
+`lm(..., weights = w)` states that the error variance is `sigma^2 / w_i`. The
+raw residuals of such a fit are heteroscedastic by assumption, and every test
+read them. A model fitted with exactly the right weights was therefore
+rejected as often as the same model fitted with none, and the workflow the
+README and the vignettes describe -- diagnose, refit with `fitWLS()`, test
+again -- could not succeed.
+
+`inst/validation/weighted-fits-size.R` measures it: data with `sd = x^2`,
+150 observations, a model fitted with weights `1 / x^4`, 400 replications. Run
+against 0.11.2, the 27 heteroscedasticity diagnostics that ran all rejected in
+400 samples out of 400, and three could not run at all. The 27 that accept a
+weighted fit now reject between 2.2% and 7.7% of the time, against a Monte
+Carlo standard error of 1.1%. A fit from `fitWLS()` fared no better: with the
+variance function correctly specified, `performKoenkerTest()` on 0.11.2
+rejected the weighted fit 99.9% of the time.
+
+The tutorial vignette showed the fault on real data. For `quakes`,
+`compareModelDiagnostics(list(base_model, wls_model))` reported a White
+statistic of 125.6 for the least-squares fit and 249.2 for the weighted one,
+and Breusch-Pagan statistics of 191.9 and 463.7, directly above the sentence
+"The weighted least squares fit typically reduces the heteroscedasticity
+metrics." It now reports 42.2 and 40.8 for the weighted fit.
+
+On a weighted fit the tests are now computed from the Pearson residuals
+`sqrt(w_i) * e_i`. Those are the residuals of the equivalent unweighted
+regression of `sqrt(w) y` on `sqrt(w) X`, and they have constant variance when
+the weights are right. `car::ncvTest()` and `plot.lm()` make the same choice.
+The null hypothesis becomes that the weights are adequate.
+
+- Every residual-based test reads the Pearson residuals. Variance regressors,
+  grouping variables and ordering variables stay on their original scale.
+- `performNCVTest()` and `performCookWeisbergTest()` now reproduce
+  `car::ncvTest()` on a weighted fit to `1e-8`. They did not before.
+- `performGQTest()` refits each segment with its weights and compares weighted
+  residual sums of squares. It reproduces `lmtest::gqtest()` on the
+  transformed regression to `1e-8` at `fraction` 0.1, 0.2 and 0.3.
+- `performRESETTest()` fits the augmented model by weighted least squares.
+  Before, it compared a weighted restricted fit with an unweighted augmented
+  one, which are not nested, and rejected 23.0% of the time under the null in
+  the design above. It now rejects 5.5%.
+- `performArchLMTest()` and `performMcLeodLiTest()` read a variance that rises
+  along the sample as volatility clustering, whatever the weights: 72.3% and
+  79.7% on a correctly weighted fit. Now 4.0% and 4.8%.
+- `performStudentizedBPTest()` used the raw residuals and weighted the
+  auxiliary regression instead, the treatment in `lmtest::bptest()`, which
+  tests the raw residuals and is therefore not a reference for weighted fits.
+  It now agrees with `performKoenkerTest()` on weighted fits as it does on
+  unweighted ones.
+- `performStudentizedBPTest()`, `performBPTestRobust()` and
+  `performWildBootstrapTest()` failed with `object 'w' not found` whenever the
+  weights were a column of the data. They rebuilt the design matrix from the
+  model frame, where that column is stored as `(weights)`.
+- The residual plots (`plotResidualsFitted()`, `plotSpreadLevel()`,
+  `plotBeforeAfter()` and the others) and the variance-pattern summary of the
+  recommendation engine use the Pearson residuals of a weighted fit.
+  `plotBeforeAfter()` drew a weighted remedy as heteroscedastic as the
+  original however good the weights were.
+- `performWildBootstrapTest()`, `performWhiteTestBootstrap()`,
+  `rbootstrap_test_statistic()` (and so `bootstrap = TRUE` in the two `*Robust`
+  tests) and `performQuantileRegressionTest()` refit the mean model without
+  the weights. They now refuse a weighted fit, as `rbootstrap_test_statistic()`
+  already refused a `glm`, instead of returning a statistic for a different
+  model.
+- A fit with a zero weight is refused: the observation is not part of the fit
+  and its Pearson residual is an artificial zero.
+
+### Weights that were estimated are not weights that are known
+
+The reference distributions take the weights as given. That is exact for
+weights known in advance and approximate for a `fitWLS()` fit, whose weights
+come from the same residuals, and the approximation does not improve with the
+sample size. With the variance function correctly specified and Gaussian
+errors, at the 5% level (2000 replications, standard error 0.5%):
+
+| Test on a `fitWLS()` fit | n = 150 | n = 600 |
+| --- | ---: | ---: |
+| `performKoenkerTest()` | 7.7% | 11.0% |
+| `performWhiteTest()` | 6.3% | 8.3% |
+| `performBPTest()` | 10.6% | 11.8% |
+| `performHarveyTest()` | 0.0% | 0.0% |
+| `performVarianceFormTest()` | 4.8% | 5.2% |
+
+Harvey's test never rejects because it repeats the regression the weights were
+estimated from. The statistics remain useful for comparing a weighted fit with
+the original, which is what `compareModelDiagnostics()` does, but their
+p-values on a `fitWLS()` fit are not calibrated. The help page of
+`performKoenkerTest()` says so, and the last row is the test built for that
+case.
+
+### `performVarianceFormTest()`: is the variance function the right shape?
+
+Every other test in the package has constant variance as its null hypothesis.
+Rejecting it says that the variance moves with some variables, not whether an
+exponential or a power function of them describes it. The new test takes a
+variance function as its null hypothesis.
+
+It fits the variance function, refits the model by weighted least squares, and
+regresses the squared standardized residuals on the regressors of the variance
+function and on terms added to them: by default their squares and pairwise
+products, or the terms of a one-sided formula given as `against`. The
+statistic is the F test of the added terms, the regression-based construction
+of Wooldridge (1990, 1991). Keeping the variance regressors in that regression
+is what makes the test valid with estimated weights, and it is also where the
+information is. A Koenker test on the weighted fit asks about directions the
+estimation has already fitted: with variance `x^3` fitted as exponential, at
+600 observations, it rejected 6.9% of the time, less often than the 11.0% it
+rejects when the fitted form is right. The new test rejected 92.9%. The White
+test, which also contains squares, rejected 87.9%, but its level on a
+`fitWLS()` fit is not 5%.
+
+`inst/validation/variance-form-size-power.R` runs both forms against five
+true variance functions at 50, 150 and 400 observations with Gaussian and
+`t_5` errors, 5000 replications a cell:
+
+- When the form under test is the true one, or the variance is constant, the
+  rejection rate runs from 4.2% to 5.7% over the 24 cells, and all of them are
+  inside the release-gate interval [0.042, 0.058].
+- Against a log-variance that is quadratic in `x`, power is 51.7% at 50
+  observations and 98.0% at 150 for the exponential form.
+- Against the other log-linear form, power grows more slowly: 22.4% at 150
+  observations and 74.1% at 400 for an exponential null and variance `x^3`.
+- Against `sigma^2 = 0.5 + x`, which is close to both forms over the range of
+  `x`, it rejects between 4.3% and 6.6% of the time. The test cannot separate
+  shapes the data cannot separate, and the help page says so.
+
+The test accepts either the unweighted model with `var_formula` and `form`, or
+a `fitWLS()` result, whose variance function it then tests. It is registered
+as `"variance_form"` for `runHeteroTests()`.
+
+### `fitWLS()` fits the variance function it is asked for
+
+`fitWLS(model, data = NULL, var_formula = NULL, form = c("exponential",
+"power"))`. `var_formula` names the variance regressors and `form` the shape:
+exponential, Harvey's (1976) `log sigma^2 = g0 + z'g`, or power, Park's (1966)
+`sigma^2` proportional to `z^d`. The defaults reproduce 0.11.2. The fit
+carries the variance function as its `"variance_function"` attribute, next to
+the `"variance_model"` attribute it already had.
+
+One value changes. The variance function now always has its own constant.
+`fitWLS()` regressed `log(e^2)` on the model's design matrix, so for a mean
+model without an intercept the log-variance had no constant either, which
+pins the variance at 1 where the regressors are zero. Models with an intercept
+are unaffected.
+
+### Withdrawn before release
+
+An additive variance function, `sigma^2 = a + z'b`, was implemented as a third
+form and removed. Nothing keeps its fitted variances positive. Under its own
+null, at 5000 replications, the test rejected 6.1% of the time with 150 and
+with 400 observations, outside the release gate, and the fitted variances were
+not all positive in 17% of samples at 50 observations and 6% at 150. It needs a
+constrained estimator before it can be offered.
+
+### Also
+
+- The Park (1966) reference pointed at another paper. Its DOI is
+  `10.2307/1910108` and it is a one-page note, *Econometrica* 34(4), 888. The
+  help page cited `10.2307/1909774`, which is Henshaw (1966), with pages
+  888-898, and the theory vignette gave 888-908.
+- `tests/testthat/test-weighted-fits.R` and `test-variance-form.R` pin the
+  corrections by simulated size and power as well as by reconstruction, since
+  no stored value and no comparison with `lmtest::bptest()` would have caught
+  the fault.
+- The full sweep covers `performVarianceFormTest()`: size 5.8%, power 97.8%
+  against a log-variance quadratic in `x`.
+- The tutorial vignette gains a step that tests the variance function of its
+  weighted fit.
+
 ## 0.11.2
 
 Changes requested by the CRAN review of the 0.11.1 submission. No statistic,
