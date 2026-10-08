@@ -36,4 +36,35 @@ Committed extracts:
 - `performance_streaming_summary.csv`
 
 The long-running source experiments remain reproducible through
-`paper/simulation_study.R` and `paper/performance_study.R`.
+`paper/scripts/simulation_study.R` and `paper/scripts/performance_study.R`.
+
+## Package version described by the article
+
+The article describes heteroTests 0.12.0. The simulation and performance
+extracts above were generated with 0.11.2 and were not regenerated.
+
+Version 0.12.0 changes the four simulated procedures (White, Breusch-Pagan,
+Koenker, Goldfeld-Quandt) only for weighted fits, and the study fits
+unweighted models. As a check, `paper/scripts/simulation_study.R` was run with
+150 replications per cell under 0.11.2 and under 0.12.0 with the script's own
+seed. The two `simulation_results.csv` files were identical in all 168 rows.
+
+- R: 4.3.3
+- Platform: x86_64-pc-linux-gnu, Ubuntu 24.04.5 LTS
+
+## Weighted fits and the variance-function test
+
+The rejection rates the article quotes for weighted fits and for
+`performVarianceFormTest()` are not stored in this directory. The article
+reads them at render time from the installed package, through
+`system.file("validation", "weighted-fits-size.csv", package = "heteroTests")`,
+so they belong to the package version being rendered.
+
+- Script: `inst/validation/weighted-fits-size.R`
+- Package: heteroTests 0.12.0
+- R: 4.3.3
+- Platform: x86_64-pc-linux-gnu, Ubuntu 24.04.5 LTS
+- Seeds: 20261008 (known weights), 20261009 (weights estimated by `fitWLS()`),
+  20261010 (wrong variance function)
+- Replications per cell: 400 (known weights), 2000 (the other two blocks)
+- Alpha: 0.05

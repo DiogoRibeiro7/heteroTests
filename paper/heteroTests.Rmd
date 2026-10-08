@@ -16,7 +16,8 @@ abstract: >
   distributions. Computational benchmarks evaluate scaling with sample size
   and illustrate the memory-bounded streaming implementations. A worked
   example shows how heteroTests connects diagnosis, interpretation, and
-  remediation in a reproducible analysis.
+  remediation in a reproducible analysis, and how the variance model behind
+  the remediation can itself be tested.
 draft: false
 author:
   - name: Diogo Ribeiro
@@ -64,6 +65,32 @@ perf_stream <- utils::read.csv(
   file.path("generated", "performance_streaming_summary.csv"),
   stringsAsFactors = FALSE
 )
+
+# Rejection rates for weighted fits come from the validation study that is
+# installed with the package, so they describe the version being rendered.
+weighted_path <- system.file(
+  "validation", "weighted-fits-size.csv",
+  package = "heteroTests"
+)
+if (!nzchar(weighted_path)) {
+  stop(
+    "This article needs heteroTests >= 0.12.0, which installs the ",
+    "weighted-fit validation results.",
+    call. = FALSE
+  )
+}
+weighted_fits <- utils::read.csv(weighted_path, stringsAsFactors = FALSE)
+weighted_known <- subset(
+  weighted_fits,
+  weights == "known" & !is.na(rejection_rate)
+)
+weighted_rate <- function(test_name, block, n_obs) {
+  rows <- weighted_fits$test == test_name &
+    weighted_fits$weights == block &
+    weighted_fits$n == n_obs &
+    weighted_fits$errors == "normal"
+  weighted_fits$rejection_rate[rows]
+}
 
 pct <- function(x, digits = 1L) {
   sprintf(paste0("%.", digits, "f\\%%"), 100 * x)
@@ -117,6 +144,12 @@ streaming implementation when a configurable memory threshold is exceeded.
 The streaming procedures accumulate the cross-products required by the
 auxiliary regression rather than materialising its full design matrix. This
 preserves the statistic while reducing peak memory use.
+
+A third is to keep the diagnostics meaningful after a model has been adjusted
+for heteroscedasticity. Tests applied to a weighted fit are computed on the
+weighted scale, where they ask whether the weights are adequate, and the
+variance function used to construct feasible weights can be tested as a null
+hypothesis in its own right.
 
 The remainder of the article evaluates these design choices rather than
 re-deriving the underlying tests. The next section describes the package
@@ -266,6 +299,44 @@ configured threshold is exceeded. The threshold and chunk size remain user
 controls, so the same API can be used for both ordinary in-memory and
 memory-constrained analyses.
 
+## Weighted fits and variance functions
+
+Two design decisions concern models that have already been adjusted for
+heteroscedasticity. The first is what a diagnostic should compute for a fit
+obtained with `lm(..., weights = w)`. Such a fit asserts that the error
+variance is proportional to \(1/w_i\), so its raw residuals are
+heteroscedastic by assumption and a statistic computed from them cannot show
+whether the weights are adequate. For weighted fits the diagnostics therefore
+use the Pearson residuals, the raw residuals multiplied by the square roots of
+their weights. These are the residuals of the equivalent unweighted regression
+and have constant variance when the weights are correct, so the null
+hypothesis becomes that the weights are adequate. Variance regressors,
+grouping variables, and ordering variables remain on their original scale.
+Procedures that regenerate the response and refit the mean model, such as the
+resampling tests, would discard the weights; for a weighted fit they stop with
+an error instead of testing a different model.
+
+The second decision is to make the variance model used for remediation
+explicit and testable. `fitWLS()` estimates a variance function from the OLS
+residuals and refits by feasible weighted least squares. Its `var_formula`
+argument names the variance regressors, and `form` selects an exponential
+function, in which the log variance is linear in those regressors
+[@harvey1976estimating], or a power function, in which it is linear in their
+logarithms [@park1966estimation]. The fitted function is stored with the
+returned model.
+
+`performVarianceFormTest()` takes such a function as its null hypothesis. The
+other diagnostics test constant variance, so a rejection shows that the
+variance changes with some variables but not whether a particular functional
+form describes the change. The variance-function test regresses the squared
+standardised residuals of the weighted fit on the variance regressors and on
+additional terms, by default the squares and cross-products of those
+regressors, and reports the \(F\) test of the additional terms. It is a
+regression-based specification test
+[@wooldridge1990unified; @wooldridge1991application]. Retaining the variance
+regressors in the auxiliary regression removes the first-order effect of
+having estimated the variance function from the same residuals.
+
 # Validation strategy
 
 The validation strategy is organised around the claim being checked rather than
@@ -291,6 +362,16 @@ diagnostics are checked against \\CRANpkg{car} [@fox2019car]. Group-wise
 variance procedures are also compared with base R implementations for Bartlett
 and Fligner--Killeen tests and, where available, with \\CRANpkg{vartest} for
 Hartley and O'Brien procedures.
+
+Weighted fits show why the choice of reference matters. For a model fitted
+with weights, `car::ncvTest()` computes its score statistic from Pearson
+residuals, whereas `lmtest::bptest()` retains the raw residuals and weights
+the auxiliary regression. The two functions therefore test different
+hypotheses, and only the first asks whether the weights are adequate.
+\\CRANpkg{heteroTests} follows the Pearson-residual convention described
+earlier. On weighted fits its score test is compared with \\CRANpkg{car}, and
+its Goldfeld--Quandt test with `lmtest::gqtest()` applied to the equivalent
+transformed regression.
 
 These comparisons use explicit numerical tolerances in the automated test
 suite. The tolerance depends on the implementation pair: some functions match
@@ -328,6 +409,18 @@ classical procedures have empirical Type-I error close to the nominal level,
 using a tolerance based on the Monte Carlo standard error rather than a fixed
 arbitrary margin.
 
+The same principle covers weighted fits. When heteroscedastic data are fitted
+with the correct weights, a diagnostic should reject at its nominal rate. This
+property has to be tested by simulation, because no comparison on unweighted
+fits can reveal it: before version 0.12.0 the heteroscedasticity diagnostics
+read the raw residuals of a weighted fit, agreed with their references on
+every unweighted comparison, and rejected a correctly weighted model in every
+replication of the package's validation design. In the current version the
+`r nrow(weighted_known)` procedures that accept a weighted fit reject between
+`r pct(min(weighted_known$rejection_rate), 0)` and
+`r pct(max(weighted_known$rejection_rate), 0)` of such models at the 5% level,
+based on `r weighted_known$replications[1]` replications each.
+
 Resampling procedures receive separate checks because an apparently plausible
 implementation can still produce invalid p-values. Bootstrap and permutation
 p-values use the finite-simulation convention
@@ -340,8 +433,8 @@ p-values use the finite-simulation convention
 which prevents an estimated p-value of exactly zero and accounts for failed
 replicates through the effective number of simulations. Null-imposed residual
 resampling is also checked for leverage correction, while unsupported model
-classes or transformed responses are rejected rather than silently refitted
-under a different statistical model.
+classes, weighted fits, and transformed responses are rejected rather than
+silently refitted under a different statistical model.
 
 Finally, the streaming implementations are compared directly with their
 ordinary in-memory counterparts. For White, Breusch--Pagan, and Koenker tests,
@@ -352,10 +445,10 @@ diagnostic.
 
 ## Reproducibility of the evidence
 
-The article does not hard-code validation numbers from earlier package
-versions. Reference comparisons and behavioural checks live in the package test
-suite, while empirical size, power, and performance results reported later in
-the paper are regenerated from the version analysed by the manuscript. This
+The article does not hard-code validation numbers. Reference comparisons and
+behavioural checks live in the package test suite, while the empirical size,
+power, and performance results reported later are read at render time from
+recorded runs, each identified by package version, environment, and seed. This
 separation is intentional. Unit and reference tests answer whether an
 implementation is computing the intended object; simulation and benchmark
 sections answer how those procedures behave under selected data-generating
@@ -464,7 +557,10 @@ Numerical results and figures are intentionally read from committed extracts of
 the successful workflow artifact rather than copied from earlier drafts. The
 full experiment used `heteroTests` 0.11.2 under R 4.6.1 on Ubuntu 24.04.5;
 the workflow and artifact identifiers are recorded in
-`paper/generated/PROVENANCE.md`.
+`paper/generated/PROVENANCE.md`. Version 0.12.0, which the rest of the article
+describes, changes these four procedures only for weighted fits. The study
+fits unweighted models, and its results do not depend on which of the two
+versions is used.
 
 ## Simulation results
 
@@ -616,7 +712,9 @@ system2("Rscript", "paper/scripts/summarise_performance.R")
 
 The manuscript does not use the retired `scaling_plot.pdf` as evidence. The
 reported performance results were generated from `heteroTests` 0.11.2 under
-R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance.
+R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance. They
+were not regenerated for version 0.12.0, whose changes to the benchmarked
+procedures are confined to the handling of weighted fits.
 
 ## Performance results
 
@@ -695,8 +793,9 @@ ggplot2::ggplot(
 
 The previous sections treat diagnostics as statistical and computational
 objects. This section shows how the package is intended to be used in an
-analysis: diagnose a specific model, interpret the evidence, and choose a
-follow-up whose assumptions match the variance pattern.
+analysis: diagnose a specific model, interpret the evidence, choose a
+follow-up whose assumptions match the variance pattern, and check the variance
+model that the follow-up relies on.
 
 A controlled example is useful here because the correct mean and variance
 structures are known. We generate
@@ -790,7 +889,9 @@ Here the data-generating mechanism makes a variance model appropriate. The
 `fitWLS()` helper estimates a feasible-GLS model by regressing logged squared
 OLS residuals on the original design matrix, exponentiating the fitted
 log-variance, and using its inverse as the weight. It does not invert individual
-squared residuals.
+squared residuals. This is the default, exponential variance function; the
+`var_formula` and `form` arguments select other variance regressors or a power
+function.
 
 ```{r workflow-wls}
 wls_fit <- fitWLS(ols_fit)
@@ -878,6 +979,121 @@ for OLS to
 on the weighted WLS scale. This is only a descriptive check, but it shows what
 the remediation is intended to accomplish: account for a systematic variance
 pattern while retaining the same linear mean specification.
+
+## Check the variance model
+
+The weighted scale is also the one the package's diagnostics use for a
+weighted fit, so the same suite can be applied to `wls_fit` directly. Table
+\@ref(tab:workflow-retest-table) sets the resulting statistics beside those of
+the OLS fit.
+
+```{r workflow-retest}
+wls_tests <- runHeteroTests(
+  wls_fit,
+  workflow_data,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+```
+
+```{r workflow-retest-table, echo=FALSE}
+suite_statistics <- function(suite) {
+  vapply(suite, function(x) unname(x$statistic[[1]]), numeric(1))
+}
+
+retest_table <- data.frame(
+  Diagnostic = c("White", "Breusch-Pagan", "Koenker"),
+  OLS = round(suite_statistics(workflow_tests), 3),
+  WLS = round(suite_statistics(wls_tests), 3)
+)
+
+knitr::kable(
+  retest_table,
+  caption = "Diagnostic statistics for the OLS fit and for the feasible WLS fit, the latter computed from weighted residuals.",
+  booktabs = TRUE,
+  row.names = FALSE,
+  col.names = c("Diagnostic", "OLS fit", "Feasible WLS fit")
+)
+```
+
+All three statistics fall by more than two orders of magnitude. They are
+useful for this comparison, but their p-values should not be read as
+calibrated tests of the weighted model. The reference distributions treat the
+weights as known, whereas `fitWLS()` estimated them from the same residuals.
+In the validation study installed with the package, with a correctly specified
+variance function and Gaussian errors, the Koenker test applied to a
+`fitWLS()` fit rejected
+`r pct(weighted_rate("performKoenkerTest", "estimated", 150), 0)`
+of the time at the 5% level with 150 observations and
+`r pct(weighted_rate("performKoenkerTest", "estimated", 600), 0)`
+with 600, so the discrepancy does not shrink as the sample grows. Harvey's
+test, which repeats the regression the weights were estimated from, rejected
+`r pct(weighted_rate("performHarveyTest", "estimated", 600), 0)`
+of the time with 600 observations.
+
+`performVarianceFormTest()` is designed for this situation. Its null
+hypothesis is the variance function that produced the weights, and in the same
+validation designs it rejected
+`r pct(weighted_rate("performVarianceFormTest", "estimated", 150), 0)`
+of the time with 150 observations and
+`r pct(weighted_rate("performVarianceFormTest", "estimated", 600), 0)`
+with 600. Applied to `wls_fit`, it tests the fitted exponential function
+against the square of the variance regressor. Two further calls test a
+deliberately incomplete variance function, which contains only a quadratic
+term, first against its default added term and then against the linear term it
+omits.
+
+```{r workflow-variance-form}
+variance_check <- performVarianceFormTest(wls_fit)
+
+quadratic_default <- performVarianceFormTest(
+  ols_fit,
+  var_formula = ~ I(x^2)
+)
+quadratic_against_x <- performVarianceFormTest(
+  ols_fit,
+  var_formula = ~ I(x^2),
+  against = ~ x
+)
+```
+
+```{r workflow-variance-form-table, echo=FALSE}
+form_row <- function(result, variance, added) {
+  data.frame(
+    Variance = variance,
+    Added = added,
+    F = round(unname(result$statistic), 3),
+    p.value = format.pval(result$p.value, digits = 3, eps = 0.001)
+  )
+}
+
+form_table <- rbind(
+  form_row(variance_check, "x", "x squared"),
+  form_row(quadratic_default, "x squared", "x to the fourth power"),
+  form_row(quadratic_against_x, "x squared", "x")
+)
+
+knitr::kable(
+  form_table,
+  caption = "Variance-function tests for the worked example. Each row tests a log-variance that is linear in the listed regressor against the listed added term.",
+  booktabs = TRUE,
+  row.names = FALSE,
+  col.names = c("Variance regressor", "Added term", "F", "p-value")
+)
+```
+
+Table \@ref(tab:workflow-variance-form-table) reports the three tests. The
+first row is the function `fitWLS()` fitted. The test finds no evidence
+against it, and the estimated slope of the log variance is
+`r sprintf("%.2f", variance_check$estimate[["x"]])`
+against a true value of 1.8. The other two rows show what such a result does
+and does not establish. The quadratic-only function omits the linear
+dependence that generated the data, yet it is not rejected when tested against
+its default added term, because the misfit does not lie in that direction.
+Tested against the omitted linear term, it is rejected decisively. The test has power against the terms it is given; a
+non-rejection is evidence that those terms are not needed, not that the
+functional form is correct.
 
 A different inferential goal would lead to a different follow-up. If the
 coefficient estimates were the primary target and no variance model were
@@ -1118,7 +1334,13 @@ Detecting non-constant variance does not determine the next model. The worked
 example uses feasible WLS because the simulated variance is log-linear in the
 model design, matching the variance model estimated by `fitWLS()`. In an
 observational analysis, that structure would need scientific or empirical
-justification.
+justification. `performVarianceFormTest()` supplies part of the empirical
+side by testing a fitted variance function against added terms, but it cannot
+confirm a functional form, and variance functions that are close over the
+observed range of the regressors will all be accepted. Diagnostics of
+constant variance applied to a `fitWLS()` fit remain informative for
+comparison with the original model; they are not calibrated tests, because
+they treat estimated weights as known.
 
 Other goals lead to different responses. Heteroscedasticity-consistent
 covariance estimation can preserve the original coefficient estimates while
@@ -1135,7 +1357,9 @@ The simulation study covers one linear mean model, three variance patterns,
 three sample sizes, two null error distributions, and four diagnostics. Its
 findings describe those designs; they are not an exhaustive power ranking. In
 particular, panel, spatial, clustered, high-dimensional, and time-series
-settings require separate evaluation.
+settings require separate evaluation. The rejection rates quoted for weighted
+fits and for the variance-function test come from the package's own validation
+study, which uses a different design, and are not part of that comparison.
 
 The performance study is likewise platform-specific. The reported timings and
 allocations come from one R version and one Linux Actions environment, with a
@@ -1159,7 +1383,9 @@ that one diagnostic should replace established specialised implementations.
 Instead, the package standardises execution and result handling, supports
 extensible batch workflows, records diagnostic context, validates selected
 implementations against independent references, and supplies memory-bounded
-paths for large auxiliary regressions.
+paths for large auxiliary regressions. It also follows an analysis past the
+first rejection: diagnostics of a weighted fit are computed on the weighted
+scale, and the variance function behind the weights can itself be tested.
 
 The empirical results support that narrower claim. Reference comparisons agree
 to numerical precision for the procedures evaluated. The simulation study
