@@ -889,10 +889,146 @@ workflow, not an instruction to apply WLS after every rejected null.
 
 # Comparison with existing R software
 
-The comparison will focus on software scope and workflow differences rather
-than treating existing packages as competitors. In particular, the article
-will distinguish specialised reference implementations from the unified
-interface and orchestration provided by heteroTests.
+The package is best understood as an integration layer around a heterogeneous
+set of diagnostics, not as a replacement for the specialised packages from
+which several reference implementations are drawn. Table
+\@ref(tab:software-comparison) summarises the roles most relevant to the
+workflow in this article.
+
+```{r software-comparison, echo=FALSE}
+software_comparison <- data.frame(
+  Package = c(
+    "stats",
+    "lmtest",
+    "car",
+    "vartest",
+    "sandwich",
+    "heteroTests"
+  ),
+  Primary.role = c(
+    "General statistical infrastructure",
+    "Regression specification and diagnostic tests",
+    "Regression diagnostics and companion methods",
+    "Tests for equality of variances",
+    "Robust covariance estimation",
+    "Heteroscedasticity diagnostic orchestration"
+  ),
+  Examples = c(
+    "Bartlett; Fligner-Killeen",
+    "Breusch-Pagan; Goldfeld-Quandt",
+    "NCV/Cook-Weisberg; Levene",
+    "Hartley; O'Brien",
+    "HC covariance estimators",
+    "Unified tests; suites; streaming"
+  ),
+  Workflow.contribution = c(
+    "Reference implementations for classical group tests",
+    "Established regression-test implementations",
+    "Established regression and group diagnostics",
+    "Specialised group-variance procedures",
+    "Post-diagnostic robust inference",
+    "Common API, metadata, adapters and batch execution"
+  ),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(
+  software_comparison,
+  caption = "Roles of selected R packages used directly or as reference points in the heteroTests workflow.",
+  booktabs = TRUE,
+  col.names = c(
+    "Package",
+    "Primary role",
+    "Examples",
+    "Role in this workflow"
+  )
+)
+```
+
+## Established diagnostic implementations
+
+Base R already provides high-quality procedures for several classical
+equal-variance problems, including Bartlett and Fligner--Killeen tests.
+\\pkg{heteroTests} does not improve these statistics by reimplementing them;
+the value of including compatible procedures is that their results can
+participate in the same reporting and orchestration layer as
+regression-specific diagnostics.
+
+\\CRANpkg{lmtest} provides established regression diagnostic procedures,
+including Breusch--Pagan and Goldfeld--Quandt tests
+[@zeileis2002lmtest]. These implementations are used as numerical reference
+points in the validation suite. When an analyst needs only one such procedure,
+calling `lmtest::bptest()` or `lmtest::gqtest()` directly is simpler than
+introducing another abstraction layer.
+
+\\CRANpkg{car} has a broader regression-diagnostics role and provides, among
+other tools, the non-constant-variance score test and Levene-type variance
+comparisons [@fox2019car]. These functions also serve as reference
+implementations in the package tests. The relationship is therefore
+complementary: \\pkg{car} supplies mature specialised diagnostics, while
+\\pkg{heteroTests} supplies a common execution and result layer when these
+kinds of diagnostics must be combined with others.
+
+\\CRANpkg{vartest} concentrates on tests for equality of variances. The
+\\pkg{heteroTests} validation suite compares its Hartley and O'Brien
+implementations against \\pkg{vartest} where that package is available. For an
+analysis centred specifically on group-variance testing, the specialised
+package remains a natural direct interface.
+
+## Detection and robust inference are different tasks
+
+\\CRANpkg{sandwich} addresses a different problem. Its
+heteroscedasticity-consistent covariance estimators modify coefficient
+inference without requiring the analyst to specify a parametric variance model
+[@lumley2015sandwich]. A diagnostic package and a robust-covariance package
+therefore answer different questions: one provides evidence about the
+constant-variance assumption, while the other provides an inferential strategy
+that can remain valid when that assumption is relaxed.
+
+This distinction matters in practice. The worked example used feasible WLS
+because the variance structure was deliberately modelled. If the coefficient
+estimates were the primary target and no scientifically defensible variance
+model were available, a \\pkg{sandwich} covariance estimator could be a more
+appropriate follow-up. \\pkg{heteroTests} should therefore be viewed as
+complementary to robust covariance estimation rather than as a substitute for
+it.
+
+## What the integration layer adds
+
+The software contribution of \\pkg{heteroTests} appears when an analysis
+requires several diagnostics or must be embedded in a larger reproducible
+workflow. In that setting the package adds five pieces of infrastructure that
+are not properties of any individual heteroscedasticity test:
+
+1. **Common result semantics.** Hypothesis-test outputs retain the familiar
+   `htest` structure and can be decorated as `hetero_test` objects with
+   diagnostic and execution metadata.
+2. **Registry-based orchestration.** `runHeteroTests()` selects registered
+   diagnostics by name, supports user-defined entries, and returns suite objects
+   with a common downstream interface.
+3. **Input adapters.** Supported formulas, fitted models, grouped tibbles,
+   `data.table`/dtplyr objects, survey designs, and selected tidymodels objects
+   enter the same preprocessing path.
+4. **Reproducibility and validation.** Reference comparisons, behavioural tests,
+   explicit failure handling, and common metadata reduce the amount of bridging
+   code needed when several diagnostics are reported together.
+5. **Alternative computational paths.** Selected auxiliary-regression tests can
+   switch to memory-bounded streaming implementations without changing the
+   public diagnostic interface.
+
+These conveniences have a cost. The performance study shows measurable
+overhead relative to a direct call to a narrowly focused reference function,
+particularly for Breusch--Pagan and Koenker diagnostics. That overhead reflects
+input validation, result decoration, and the surrounding orchestration layer;
+it should not be presented as evidence that the statistical procedure itself
+is computationally superior.
+
+The practical boundary is therefore straightforward. For a single established
+test, the specialised implementation is often the shortest and clearest
+choice. \\pkg{heteroTests} becomes useful when the analysis needs multiple
+diagnostic families, consistent result handling, extensible orchestration,
+large-data execution paths, or a reproducible bridge from diagnosis to
+subsequent modelling decisions.
 
 # Discussion
 
