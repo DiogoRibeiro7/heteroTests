@@ -115,7 +115,7 @@ performFlignerKilleenTest <- function(model, data, group) {
     }
   }
 
-  aligned <- align_to_model(data, stats::residuals(model))
+  aligned <- align_to_model(data, rpearson_residuals(model))
   working_data <- aligned$data
   residuals <- aligned$residuals
 

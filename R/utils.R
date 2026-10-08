@@ -305,3 +305,83 @@ rlog_squared_residuals <- function(e, test_name) {
   }
   log(pmax(e2, floor_value))
 }
+
+#' Prior weights of a weighted least-squares fit
+#'
+#' Returns the weights of a weighted `lm`, and `NULL` for an unweighted fit or
+#' for a `glm`, whose prior weights are not inverse error variances.
+#'
+#' @param model A fitted model.
+#' @return Numeric vector of weights, or `NULL`.
+#' @keywords internal
+#' @noRd
+rprior_weights <- function(model) {
+  if (!inherits(model, "lm") || inherits(model, "glm")) {
+    return(NULL)
+  }
+  model$weights
+}
+
+#' Residuals on the scale a variance test should see
+#'
+#' `lm(..., weights = w)` states that \eqn{\mathrm{Var}(\varepsilon_i) =
+#' \sigma^2 / w_i}. The raw residuals of such a fit are heteroscedastic *by
+#' assumption*: a test computed from them rejects whenever the weights vary,
+#' whether or not they are right. The residuals that are homoscedastic when the
+#' weights are right are the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, the
+#' residuals of the equivalent unweighted fit of \eqn{\sqrt{w_i}\, y_i} on
+#' \eqn{\sqrt{w_i}\, x_i}. This is the choice `car::ncvTest()` and
+#' `plot.lm()` make.
+#'
+#' For an unweighted fit the result is `stats::residuals(model)` exactly, with
+#' the same names and the same padding under `na.exclude`.
+#'
+#' A zero weight removes an observation from the fit, and its Pearson residual
+#' is an artificial zero that would be counted as an observation by everything
+#' downstream. Such fits are refused rather than tested.
+#'
+#' @param model A fitted model.
+#' @return Numeric vector of residuals.
+#' @keywords internal
+#' @noRd
+rpearson_residuals <- function(model) {
+  w <- rprior_weights(model)
+  if (is.null(w)) {
+    return(stats::residuals(model))
+  }
+  if (any(!is.finite(w)) || any(w <= 0)) {
+    stop(
+      "The model was fitted with zero or non-finite weights. Observations ",
+      "with zero weight are not part of the fit, so the diagnostics cannot ",
+      "treat them as residuals. Refit on the observations with positive ",
+      "weight.",
+      call. = FALSE
+    )
+  }
+  stats::residuals(model, type = "pearson")
+}
+
+#' Refuse a weighted fit in a procedure that refits without the weights
+#'
+#' Some procedures regenerate the response and refit the mean model by ordinary
+#' least squares, or refit it under a different loss. On a weighted fit that
+#' describes a different model from the one supplied, so they refuse it, as
+#' `rbootstrap_test_statistic()` refuses a `glm`.
+#'
+#' @param model A fitted model.
+#' @param what Character scalar naming the calling procedure.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_weighted_fit <- function(model, what) {
+  if (is.null(rprior_weights(model))) {
+    return(invisible(NULL))
+  }
+  stop(
+    what, " does not support weighted fits: it refits the mean model without ",
+    "the weights, which would test a different model from the one supplied. ",
+    "Use a test computed from the residuals, such as performKoenkerTest() or ",
+    "performWhiteTest(); on a weighted fit those use the Pearson residuals.",
+    call. = FALSE
+  )
+}

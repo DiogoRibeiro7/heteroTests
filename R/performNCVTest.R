@@ -35,6 +35,12 @@
 #' [performKoenkerTest()] for the studentized variant, which replaces that
 #' constant with a consistent estimate and is robust to non-normal kurtosis.
 #'
+#' @section Weighted fits:
+#' On a fit with weights the test is computed from the Pearson residuals
+#' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
+#' the section on weighted fits in [performKoenkerTest()], which also covers
+#' weights estimated by [fitWLS()].
+#'
 #' @references
 #' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in
 #' regression. *Biometrika, 70*(1), 1–10. <https://doi.org/10.1093/biomet/70.1.1>
@@ -73,7 +79,7 @@ performNCVTest <- function(model, var_formula = NULL) {
 
   ht_log("INFO", "Running NCV score test")
 
-  e <- stats::residuals(model)
+  e <- rpearson_residuals(model)
   n <- length(e)
 
   # Cook and Weisberg scale by the ML variance estimate, i.e. RSS / n rather

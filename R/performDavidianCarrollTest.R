@@ -60,7 +60,7 @@ performDavidianCarrollTest <- function(model, degree = 2) {
     stop("`degree` must be a positive integer.")
   }
 
-  res <- residuals(model)
+  res <- rpearson_residuals(model)
   fit <- fitted(model)
   # Under na.action = na.exclude both vectors are padded back to the original
   # row count with NA placeholders, which made var(fit) NA and turned the

@@ -49,7 +49,7 @@ performSpearmanTest <- function(model) {
 
   ht_log("INFO", "Running Spearman rank correlation test")
 
-  abs_res <- abs(stats::residuals(model))
+  abs_res <- abs(rpearson_residuals(model))
   fit <- stats::fitted(model)
 
   if (length(abs_res) != length(fit)) {

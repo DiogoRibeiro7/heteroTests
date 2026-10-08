@@ -10,6 +10,10 @@
 #' that location-shift/homoskedastic specification. The test should not be read
 #' as a universal test for every possible form of heteroscedasticity.
 #'
+#' Weighted fits are refused. The quantile regressions are fitted without the
+#' weights, so their slopes would describe a different model from the one
+#' supplied.
+#'
 #' @inheritParams performBPTest
 #' @param taus Numeric vector containing at least two distinct quantiles in
 #'   `(0, 1)`. Defaults to `c(0.25, 0.75)`.
@@ -44,6 +48,7 @@ performQuantileRegressionTest <- function(model, data,
   if (!requireNamespace("quantreg", quietly = TRUE)) {
     stop("Package 'quantreg' is required for the quantile regression test.", call. = FALSE)
   }
+  rrefuse_weighted_fit(model, "performQuantileRegressionTest()")
   if (!is.numeric(taus) || length(taus) < 2L || anyNA(taus) ||
       any(!is.finite(taus)) || any(taus <= 0 | taus >= 1)) {
     stop("`taus` must contain at least two finite quantiles strictly between 0 and 1.", call. = FALSE)

@@ -50,6 +50,12 @@
 #' size. In such situations consider disabling `cross_products` or switching to
 #' the robust variants provided by the package.
 #'
+#' @section Weighted fits:
+#' On a fit with weights the test is computed from the Pearson residuals
+#' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
+#' the section on weighted fits in [performKoenkerTest()], which also covers
+#' weights estimated by [fitWLS()].
+#'
 #' @references
 #' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
 #' and a direct test for heteroskedasticity. *Econometrica, 48*(4), 817–838.
@@ -137,7 +143,7 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
   }
 
   cleaned <- rhandleMissingValues(data, variables = required_vars)
-  aligned <- align_to_model(cleaned$data, stats::residuals(model))
+  aligned <- align_to_model(cleaned$data, rpearson_residuals(model))
   working_data <- aligned$data
   residuals <- aligned$residuals
 
@@ -358,6 +364,7 @@ performWhiteTestEnhanced <- function(model, data, cross_products = TRUE,
 #' Bootstrap implementation for White test
 #' @keywords internal
 bootstrap_white_test <- function(model, data, B, parallel, cross_products) {
+  rrefuse_weighted_fit(model, "The bootstrap White test")
   
   fitted_vals <- fitted(model)
   original_residuals <- residuals(model)

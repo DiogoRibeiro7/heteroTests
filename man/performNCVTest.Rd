@@ -9,6 +9,7 @@ With \code{var_formula = NULL} the fitted values are the sole variance regressor
 
 Because the divisor 2 is the null variance of \eqn{\hat{e}^2 / \sigma^2} under normality, the test is sensitive to non-normal errors; \code{\link{performKoenkerTest}} provides the studentized variant, which is robust to non-normal kurtosis.
 }
+\section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}
 \usage{performNCVTest(model, var_formula = NULL)}
 \arguments{
   \item{model}{an object of class \code{lm}.}

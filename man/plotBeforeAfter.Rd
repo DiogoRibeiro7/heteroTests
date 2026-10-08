@@ -18,6 +18,12 @@ A \code{ggplot} object with residuals of both models.
 Overlays residuals of two models on a single plot to visualise improvement
 after applying a remediation method (e.g. WLS or robust regression).
 }
+\details{
+A weighted fit is shown through its Pearson residuals \eqn{\sqrt{w_i}\, e_i},
+so the plot shows whether the weighting flattened the spread. Its raw
+residuals would look as heteroscedastic as the original ones however good
+the weights were.
+}
 \examples{
 data(mtcars)
 m1 <- lm(mpg ~ wt, data = mtcars)

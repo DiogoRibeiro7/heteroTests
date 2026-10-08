@@ -94,7 +94,7 @@ performArchLMTest <- function(model, lags = 1) {
 
   ht_log("INFO", "Running ARCH LM test")
 
-  res2 <- stats::residuals(model)^2
+  res2 <- rpearson_residuals(model)^2
   if (stats::var(res2) <= .Machine$double.eps) {
     std_error(
       "rassumption_violation",

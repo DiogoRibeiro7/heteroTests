@@ -3,6 +3,7 @@
 \title{Perform Goldfeld-Quandt test for heteroscedasticity}
 \description{Implements the Goldfeld-Quandt test on a fitted linear model with directional or two-sided alternatives.}
 \details{Observations are ordered by a suspected variance-driving variable. With the split point fixed at the sample midpoint, a central fraction is omitted and the original model is re-estimated on the lower and upper segments. The statistic is the residual mean square of segment 2 divided by the residual mean square of segment 1 and is therefore directional rather than being forced above one. Split arithmetic and p-value conventions match \code{lmtest::gqtest(..., point = 0.5)}.}
+\section{Weighted fits}{On a fit with weights each segment is refitted with its own weights and the segments are compared on the weighted residual sum of squares, \eqn{\sum w_i e_i^2}. That is the Goldfeld-Quandt statistic of the equivalent unweighted regression, so the test asks whether the weights are adequate. Releases before 0.12.0 refitted the segments without the weights.}
 \usage{performGQTest(model, data, order_by, fraction = 0.2,
   alternative = c("greater", "two.sided", "less"))}
 \arguments{

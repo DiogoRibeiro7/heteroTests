@@ -45,6 +45,10 @@ statistic \eqn{T^{*(b)}} using the same auxiliary specification.
 \eqn{\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}}.
 }
 
+Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+least squares, which would drop the weights and test a different model from
+the one supplied.
+
 The bootstrap distribution offers improved size control for moderate sample
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When \code{parallel = TRUE} the resampling step exploits available CPU

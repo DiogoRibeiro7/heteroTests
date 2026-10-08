@@ -57,6 +57,6 @@ performScatterDiagnostic <- function(model, data, vars) {
     stop("Variables not found: ", paste(missing_vars, collapse = ", "))
   }
 
-  res <- abs(residuals(model))
+  res <- abs(rpearson_residuals(model))
   sapply(vars, function(v) cor(res, data[[v]], method = "spearman"))
 }

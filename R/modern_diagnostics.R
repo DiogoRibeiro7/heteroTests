@@ -72,6 +72,10 @@
 #' for heavy-tailed errors; under the alternative the observed statistic is
 #' extreme relative to the homoscedastic reference, giving power.
 #'
+#' Weighted fits are refused. Each bootstrap sample is refitted by ordinary
+#' least squares, which would drop the weights and test a different model from
+#' the one supplied.
+#'
 #' @inheritParams performBPTest
 #' @param B Integer number of bootstrap replications. Defaults to `499`.
 #' @param distribution Multiplier distribution used for the wild perturbation.
@@ -106,6 +110,7 @@ performWildBootstrapTest <- function(model, data, B = 499,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
   distribution <- match.arg(distribution)
+  rrefuse_weighted_fit(model, "performWildBootstrapTest()")
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
     stop("`B` must be a positive integer.", call. = FALSE)
   }
