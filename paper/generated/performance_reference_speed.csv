@@ -1,0 +1,25 @@
+"test","package","sample_size","median_time","label","time_per_observation"
+"breusch_pagan","heteroTests",100,0.00487981201149523,"Breusch-Pagan LM",4.87981201149523e-05
+"breusch_pagan","lmtest",100,0.000434928922913969,"Breusch-Pagan LM",4.34928922913969e-06
+"breusch_pagan","heteroTests",1000,0.005832239985466,"Breusch-Pagan LM",5.832239985466e-06
+"breusch_pagan","lmtest",1000,0.000717463088221848,"Breusch-Pagan LM",7.17463088221848e-07
+"breusch_pagan","heteroTests",10000,0.0293041780823842,"Breusch-Pagan LM",2.93041780823842e-06
+"breusch_pagan","lmtest",10000,0.00414187996648252,"Breusch-Pagan LM",4.14187996648252e-07
+"breusch_pagan","heteroTests",100000,0.27212436858099,"Breusch-Pagan LM",2.7212436858099e-06
+"breusch_pagan","lmtest",100000,0.0766449510701932,"Breusch-Pagan LM",7.66449510701932e-07
+"koenker","heteroTests",100,0.00501879013609141,"Koenker studentized BP",5.01879013609141e-05
+"koenker","lmtest",100,0.000414030044339597,"Koenker studentized BP",4.14030044339597e-06
+"koenker","heteroTests",1000,0.00582187005784363,"Koenker studentized BP",5.82187005784363e-06
+"koenker","lmtest",1000,0.000707194092683494,"Koenker studentized BP",7.07194092683494e-07
+"koenker","heteroTests",10000,0.0190532511333004,"Koenker studentized BP",1.90532511333004e-06
+"koenker","lmtest",10000,0.00398887612391263,"Koenker studentized BP",3.98887612391263e-07
+"koenker","heteroTests",100000,0.290629954426549,"Koenker studentized BP",2.90629954426549e-06
+"koenker","lmtest",100000,0.0722383440006524,"Koenker studentized BP",7.22383440006524e-07
+"ncv","car",100,0.00235590001102537,"Non-constant variance score",2.35590001102537e-05
+"ncv","heteroTests",100,0.00129114009905607,"Non-constant variance score",1.29114009905607e-05
+"ncv","car",1000,0.00264432490803301,"Non-constant variance score",2.64432490803301e-06
+"ncv","heteroTests",1000,0.0016494260635227,"Non-constant variance score",1.6494260635227e-06
+"ncv","car",10000,0.00683739106170833,"Non-constant variance score",6.83739106170833e-07
+"ncv","heteroTests",10000,0.00635254010558128,"Non-constant variance score",6.35254010558128e-07
+"ncv","car",100000,0.0886780855362304,"Non-constant variance score",8.86780855362304e-07
+"ncv","heteroTests",100000,0.0970024056150578,"Non-constant variance score",9.70024056150578e-07
