@@ -1032,16 +1032,147 @@ subsequent modelling decisions.
 
 # Discussion
 
-No single heteroscedasticity diagnostic is uniformly preferable. Test choice
-depends on the suspected variance structure, sample size, distributional
-assumptions, dependence structure, and the inferential purpose of the model.
-The package therefore exposes multiple procedures while retaining the
-information needed to understand how each result was obtained.
+The results in this article reinforce a point that is easy to lose when many
+diagnostics are available behind one interface: heteroscedasticity testing is
+not a model-selection tournament. Different procedures are sensitive to
+different departures from constant variance, and their finite-sample behaviour
+depends on assumptions that are not erased by software unification.
 
-# Summary
+The simulation study illustrates this directly. Under Gaussian homoscedastic
+errors, the four procedures considered remain close to the nominal 5% level,
+but their behaviour separates under heavier tails. Classical Breusch--Pagan and
+Goldfeld--Quandt tests become substantially oversized under standardized
+(t_5) errors, whereas Koenker and White remain much closer to nominal size.
+The distinction between classical and studentized score tests is therefore not
+an implementation detail. It affects the practical meaning of the result when
+normality is questionable.
 
-heteroTests provides a common software layer for heteroscedasticity diagnostics
-in R. Its contribution is not a replacement for the underlying statistical
-literature, but a reproducible and extensible framework that makes heterogeneous
-diagnostics easier to validate, combine, scale, and integrate into modelling
-workflows.
+Power is equally alternative-specific. Monotone linear and step changes are
+detected readily by several procedures in the simulation, while the symmetric
+U-shaped alternative strongly favours White's more general auxiliary expansion.
+This does not establish White as uniformly preferable; it shows why a test
+chosen for an ordered or monotone variance alternative can have little power
+when the actual variance structure is non-monotone. A useful workflow therefore
+starts from a plausible variance mechanism, not from the desire to run the
+largest possible collection of tests.
+
+That point also limits how `runHeteroTests()` should be interpreted. The
+function is an orchestration mechanism, not a multiple-testing procedure.
+Running many correlated diagnostics and then reporting the smallest p-value
+would alter the error rate and is not justified by the package interface. Batch
+execution is most useful when a small set of procedures has been selected for
+different but scientifically defensible alternatives, or when the exercise is
+explicitly exploratory and reported as such.
+
+## Statistical scope of the software adapters
+
+The input-normalisation layer broadens software compatibility, not statistical
+validity. Accepting a `glm`, a survey design, grouped data, or a tidymodels
+object does not imply that every registered diagnostic is theoretically valid
+for every such model. Each procedure retains the assumptions of its underlying
+statistical definition. The adapters reduce conversion and bookkeeping code;
+they do not convert a linear-model diagnostic into a general theorem for other
+model classes.
+
+The same distinction applies to grouped execution. Refitting a formula within
+each group produces a reproducible set of separate diagnostics, but inference
+across those groups still raises the ordinary issues of multiplicity,
+dependence, and unequal sample size. The suite object records and organises the
+results; it does not solve those inferential problems automatically.
+
+## Computational trade-offs
+
+The streaming implementation reduces peak allocation by replacing the full
+auxiliary design with accumulated cross-products. The benchmark shows that this
+can materially reduce measured memory use while preserving the reported
+statistic to numerical precision in the designs studied. However, this
+computational route is not free of trade-offs.
+
+The calculation works with (X^\top X), whose condition number is the square of
+the condition number of (X). Ill-conditioned auxiliary designs can therefore
+be more numerically delicate than a decomposition applied directly to the full
+design matrix. The implementation checks for rank deficiency and falls back to
+more stable solves where possible, but the streaming path should still be
+interpreted as a memory-oriented algorithm, not as a universally superior
+linear-algebra method.
+
+White's test introduces an additional dimensionality issue because squares and
+cross-products expand the auxiliary design as the predictor count increases.
+The implementation limits interaction expansion beyond a configurable number of
+regressors. That safeguard prevents uncontrolled growth in memory and
+computation; it changes the auxiliary specification and should therefore be
+treated as an explicit computational choice rather than as an exact substitute
+for the unrestricted White expansion.
+
+The performance comparison with \\CRANpkg{lmtest} and \\CRANpkg{car} also
+shows the cost of abstraction. Input checking, result decoration, and
+orchestration add runtime relative to direct calls for some diagnostics. At the
+same time, the numerical agreement results indicate that the additional
+software layer is not changing the intended inference in the reference cases
+tested. The relevant trade-off is therefore convenience and reproducibility
+against modest overhead, not statistical quality against speed.
+
+## Remediation is a modelling decision
+
+Detecting non-constant variance does not determine the next model. The worked
+example uses feasible WLS because the simulated variance is log-linear in the
+model design, matching the variance model estimated by `fitWLS()`. In an
+observational analysis, that structure would need scientific or empirical
+justification.
+
+Other goals lead to different responses. Heteroscedasticity-consistent
+covariance estimation can preserve the original coefficient estimates while
+changing their estimated uncertainty. A transformation changes the target model
+itself. Explicit generalized least squares models the variance structure.
+Misspecification of the conditional mean should be addressed before attributing
+all residual pattern to the variance. The package exposes several follow-up
+helpers, but none removes the analyst's responsibility to decide which
+inferential problem is actually being solved.
+
+## Limits of the empirical evidence
+
+The simulation study covers one linear mean model, three variance patterns,
+three sample sizes, two null error distributions, and four diagnostics. Its
+findings describe those designs; they are not an exhaustive power ranking. In
+particular, panel, spatial, clustered, high-dimensional, and time-series
+settings require separate evaluation.
+
+The performance study is likewise platform-specific. The reported timings and
+allocations come from one R version and one Linux Actions environment, with a
+fixed predictor dimension and benchmark configuration. Absolute runtime should
+not be interpreted as a hardware-independent property of the package. The more
+portable findings are the observed numerical agreement with reference
+implementations and the relative reduction in allocation between exact and
+streaming paths on the same platform.
+
+Finally, the package's breadth creates a maintenance obligation. A unified
+interface is useful only if the individual procedures remain tied to their
+published definitions and reference implementations. The validation matrix,
+simulation tests, and explicit provenance used in this article are therefore
+part of the software contribution rather than auxiliary documentation.
+
+# Conclusion
+
+\\pkg{heteroTests} provides a common software layer for heteroscedasticity
+diagnostics in R. Its contribution is not a new omnibus test and not a claim
+that one diagnostic should replace established specialised implementations.
+Instead, the package standardises execution and result handling, supports
+extensible batch workflows, records diagnostic context, validates selected
+implementations against independent references, and supplies memory-bounded
+paths for large auxiliary regressions.
+
+The empirical results support that narrower claim. Reference comparisons agree
+to numerical precision for the procedures evaluated. The simulation study
+shows why method choice still matters: classical Breusch--Pagan and
+Goldfeld--Quandt tests are sensitive to heavy-tailed null errors in the studied
+design, while White's broader auxiliary specification is much more sensitive to
+a non-monotone U-shaped variance alternative. The performance study shows that
+streaming White, Breusch--Pagan, and Koenker calculations can reduce measured
+allocation substantially while reproducing the in-memory statistics to
+numerical precision on the benchmark platform.
+
+The practical value is therefore reproducibility of the *workflow* rather than
+automatic selection of the *method*. Analysts can combine several justified
+variance diagnostics without writing bespoke bridging code, preserve the
+information needed to reconstruct what was computed, and choose a follow-up
+model or covariance strategy based on the scientific purpose of the analysis.
