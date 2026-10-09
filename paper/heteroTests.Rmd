@@ -14,10 +14,10 @@ abstract: >
   reference implementations is used where available, while simulation studies
   assess empirical size and power under several variance structures and error
   distributions. Computational benchmarks evaluate scaling with sample size
-  and illustrate the memory-bounded streaming implementations. A worked
-  example shows how heteroTests connects diagnosis, interpretation, and
-  remediation in a reproducible analysis, and how the variance model behind
-  the remediation can itself be tested.
+  and illustrate the memory-bounded streaming implementations. Worked
+  examples on simulated and observed data show how heteroTests connects
+  diagnosis, interpretation, and remediation in a reproducible analysis, and
+  how the variance model behind the remediation can itself be tested.
 draft: false
 author:
   - name: Diogo Ribeiro
@@ -107,6 +107,145 @@ weighted_rate <- function(test_name, block, n_obs) {
 pct <- function(x, digits = 1L) {
   sprintf(paste0("%.", digits, "f\\%%"), 100 * x)
 }
+
+# The procedures of the package, by the question each asks about the error
+# variance. A non-missing value is the name under which runHeteroTests() runs
+# the procedure. "--" marks an en dash between two surnames.
+procedure_groups <- list(
+  list(
+    question = "Does it depend on the regressors, in a form not specified in advance?",
+    procedures = list("White" = "white")
+  ),
+  list(
+    question = "Does it rise or fall with the regressors, a named variable, or the fitted values?",
+    procedures = list(
+      "Breusch--Pagan" = "breusch_pagan",
+      "Koenker's studentized form" = c("koenker", "student_bp"),
+      "Cook--Weisberg score test" = c("cook_weisberg", "ncv"),
+      "Harvey" = NA, "Glejser" = NA, "Park" = NA, "Davidian--Carroll" = NA,
+      "Spearman rank correlation" = NA,
+      "spread-level" = "spread_level"
+    )
+  ),
+  list(
+    question = "Does it change along an ordering of the observations?",
+    procedures = list(
+      "Goldfeld--Quandt" = NA,
+      "Szroeter" = "szroeter",
+      "rank permutation" = "rank_permutation"
+    )
+  ),
+  list(
+    question = "Does it differ between groups?",
+    procedures = list(
+      "Bartlett" = NA, "Levene" = NA, "Brown--Forsythe" = NA,
+      "Fligner--Killeen" = NA, "Hartley" = NA, "O'Brien" = NA,
+      "Box's M for covariance matrices" = NA
+    )
+  ),
+  list(
+    question = "Does it cluster in time?",
+    procedures = list("Engle's ARCH LM" = NA, "McLeod--Li" = NA)
+  ),
+  list(
+    question = "Does it cluster in space?",
+    procedures = list("Moran's I of the squared residuals" = "spatial_hetero")
+  ),
+  list(
+    question = "Is the asymptotic reference distribution in doubt?",
+    procedures = list(
+      "wild bootstrap of the Breusch--Pagan statistic" = "wild_bootstrap",
+      "bootstrap of White's statistic" = "white_bootstrap"
+    )
+  ),
+  list(
+    question = "Are there nearly as many regressors as observations?",
+    procedures = list("projection-based score test" = "high_dimensional")
+  ),
+  list(
+    question = "Do the regression slopes differ between conditional quantiles?",
+    procedures = list("quantile-regression slope test" = "quantile_regression")
+  ),
+  list(
+    question = "Do the weights of a weighted fit follow the right variance function?",
+    procedures = list("variance-function test" = "variance_form")
+  )
+)
+n_procedures <- sum(lengths(lapply(procedure_groups, `[[`, "procedures")))
+
+# The names in the table must be the ones the installed package registers.
+# box_m is registered for runMultivariateTests(), not for runHeteroTests().
+table_names <- unlist(lapply(procedure_groups, `[[`, "procedures"))
+table_names <- unname(table_names[!is.na(table_names)])
+registered <- ls(utils::getFromNamespace(".diagnostic_registry", "heteroTests"))
+stopifnot(setequal(table_names, setdiff(registered, "box_m")))
+
+# Where those procedures are found in other packages, with the functions
+# concerned. Each entry was checked against the documentation of the package.
+# For Spearman's correlation and Moran's I the function is the general test,
+# which the analyst applies to the residuals.
+elsewhere <- list(
+  stats = list(
+    procedures = c("Bartlett", "Fligner--Killeen", "Spearman rank correlation"),
+    functions = c("bartlett.test", "fligner.test", "cor.test")
+  ),
+  lmtest = list(
+    procedures = c(
+      "Breusch--Pagan", "Koenker's studentized form", "Goldfeld--Quandt"
+    ),
+    functions = c("bptest", "gqtest")
+  ),
+  car = list(
+    procedures = c("Cook--Weisberg score test", "Levene", "Brown--Forsythe"),
+    functions = c("ncvTest", "leveneTest")
+  ),
+  skedastic = list(
+    procedures = c(
+      "White", "Breusch--Pagan", "Koenker's studentized form",
+      "Cook--Weisberg score test", "Harvey", "Glejser", "Goldfeld--Quandt",
+      "Szroeter"
+    ),
+    functions = c(
+      "white", "breusch_pagan", "cook_weisberg", "harvey", "glejser",
+      "goldfeld_quandt", "szroeter"
+    )
+  ),
+  whitestrap = list(
+    procedures = c("White", "bootstrap of White's statistic"),
+    functions = c("white_test", "white_test_boot")
+  ),
+  vartest = list(
+    procedures = c(
+      "Bartlett", "Levene", "Fligner--Killeen", "Hartley", "O'Brien"
+    ),
+    functions = c(
+      "bartletts.test", "levene.test", "fk.test", "hartley.test", "obrien.test"
+    )
+  ),
+  heplots = list(
+    procedures = "Box's M for covariance matrices",
+    functions = "boxM"
+  ),
+  FinTS = list(procedures = "Engle's ARCH LM", functions = "ArchTest"),
+  TSA = list(procedures = "McLeod--Li", functions = "McLeod.Li.test"),
+  spdep = list(
+    procedures = "Moran's I of the squared residuals",
+    functions = "moran.mc"
+  ),
+  quantreg = list(
+    procedures = "quantile-regression slope test",
+    functions = "anova.rq"
+  )
+)
+table_labels <- unlist(lapply(
+  procedure_groups,
+  function(group) names(group$procedures)
+))
+found_elsewhere <- unique(unlist(lapply(elsewhere, `[[`, "procedures")))
+stopifnot(all(found_elsewhere %in% table_labels))
+n_packages <- length(elsewhere)
+n_found_elsewhere <- length(found_elsewhere)
+most_in_one_package <- max(lengths(lapply(elsewhere, `[[`, "procedures")))
 ```
 
 # Introduction
@@ -131,6 +270,19 @@ needs more than one of them, together with a common representation of the model,
 the data used for fitting, the diagnostic result, and the choices that determine
 how the statistic was computed.
 
+An analyst who needs one of these tests has no reason to change tools:
+`lmtest::bptest()` and `car::ncvTest()` are single calls, and nothing in this
+article argues against them. The difficulty begins with the second test. The
+procedures in Table \@ref(tab:procedures) that exist outside
+\CRANpkg{heteroTests} are spread over `r n_packages` packages (Table
+\@ref(tab:software-comparison)), and no one of those packages has more than
+`r most_in_one_package` of them. Each has its own arguments and its own kind of
+result: an `htest` object from one function, a `chisqTest` object or an
+`anova` table from another, a bare vector of p-values from a third. Comparing
+two tests therefore means installing, learning, and reconciling two packages,
+and the work is repeated after the first rejection, when the model has been
+adjusted and has to be examined again.
+
 \CRANpkg{heteroTests} addresses this software problem. It provides individual
 diagnostic functions, a registry that supports common orchestration, and a
 higher-level execution layer that normalises model and data inputs before
@@ -142,12 +294,22 @@ diagnostics easier to combine, tidy, inspect, and pass through automated
 workflows.
 
 The package does not propose that a single omnibus procedure should replace
-method-specific judgement. Nor does it claim statistical novelty merely by
-wrapping established tests. Its contribution is an execution and integration
-layer around heterogeneous diagnostics: consistent inputs and outputs, a
-registry for extension, batch execution, grouped-data handling, caching,
-ecosystem adapters, and memory-bounded implementations of selected
-auxiliary-regression tests.
+method-specific judgement, and it does not introduce a new test statistic: the
+procedures are established ones. Its contribution is the software around them.
+The package implements the `r n_procedures` procedures in Table
+\@ref(tab:procedures). Those that need only a model and its data share one
+calling convention and one result class, so the set chosen for an analysis
+runs in one call and is reported in one table. Around that sit a registry for
+extension, grouped-data handling, caching, ecosystem adapters, and
+memory-bounded implementations of selected auxiliary-regression tests.
+
+Choosing among the procedures remains the analyst's decision, and the package
+supports it with evidence instead of an automatic rule. Table
+\@ref(tab:procedures) arranges the procedures by the question each one asks
+about the variance. The validation study installed with the package runs every
+test under a null and an alternative design, and the simulation study in this
+article examines four of them in detail, so that statements such as which
+tests keep their level under heavy-tailed errors are measured and not assumed.
 
 A second design goal is to avoid making scalability a separate user workflow.
 For supported diagnostics, `runHeteroTests()` estimates the size of the supplied
@@ -168,7 +330,7 @@ re-deriving the underlying tests. The next section describes the package
 architecture and execution model. Later sections validate results against
 reference implementations where possible, study empirical size and power under
 controlled simulations, benchmark computational scaling, and demonstrate an
-end-to-end diagnostic workflow.
+end-to-end diagnostic workflow on simulated and on observed data.
 
 # Package design
 
@@ -183,6 +345,60 @@ Individual procedures retain explicit names such as `performWhiteTest()`,
 `performBPTest()`, and `performKoenkerTest()`. The naming convention makes
 the diagnostic operation visible while avoiding namespace collisions with
 established functions in other packages.
+
+Table \@ref(tab:procedures) lists the procedures by the question each one asks
+about the error variance, which is also the first thing to settle when
+choosing one. A name in code font is the name under which `runHeteroTests()`
+runs the procedure. The others are called directly, most of them because they
+need an ordering or grouping variable that a batch call cannot supply.
+Streaming versions of the White, Breusch--Pagan, and Koenker tests are
+provided in addition, as are diagnostics for the mean function, collinearity,
+and influential observations.
+
+```{r procedures, echo=FALSE}
+code_font <- function(x) {
+  if (knitr::is_latex_output()) {
+    sprintf("\\texttt{%s}", gsub("_", "\\_", x, fixed = TRUE))
+  } else {
+    sprintf("<code>%s</code>", x)
+  }
+}
+dash <- if (knitr::is_latex_output()) "--" else "&ndash;"
+
+procedure_cell <- function(procedures) {
+  labels <- gsub("--", dash, names(procedures), fixed = TRUE)
+  registry <- vapply(procedures, function(nm) {
+    if (all(is.na(nm))) "" else paste0(" (", paste(code_font(nm), collapse = ", "), ")")
+  }, character(1))
+  paste(paste0(labels, registry), collapse = "; ")
+}
+
+procedure_table <- data.frame(
+  Question = vapply(procedure_groups, `[[`, character(1), "question"),
+  Procedures = vapply(
+    procedure_groups,
+    function(group) procedure_cell(group$procedures),
+    character(1)
+  ),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(
+  procedure_table,
+  caption = "Procedures implemented in heteroTests, arranged by the question each one asks about the error variance. Names in code font are those accepted by runHeteroTests().",
+  booktabs = TRUE,
+  linesep = "\\addlinespace",
+  position = "!t",
+  escape = FALSE,
+  row.names = FALSE,
+  col.names = c("Question about the error variance", "Procedures"),
+  align = if (knitr::is_latex_output()) {
+    ">{\\raggedright\\arraybackslash}p{4.4cm}>{\\raggedright\\arraybackslash}p{8.4cm}"
+  } else {
+    "ll"
+  }
+)
+```
 
 Most hypothesis-test functions return standard R `htest` objects. When a
 result is used through the orchestration layer, \CRANpkg{heteroTests} decorates it
@@ -232,6 +448,9 @@ runHeteroTests(
 )
 ```
 
+The four names in this call are examples. Any name shown in code font in Table
+\@ref(tab:procedures) can be requested in the same way.
+
 A small default set is intentional. Running many diagnostics automatically would
 blur the distinction between exploratory screening and a test chosen because
 its assumptions and alternative hypothesis are appropriate for the model.
@@ -251,9 +470,12 @@ result is returned as a `hetero_grouped_suite`, together with the group keys.
 The package therefore treats grouping as a set of separate modelling problems,
 rather than applying one global residual vector to pre-partitioned data.
 
-The input layer also accepts `data.table` and `dtplyr`-backed data and
-provides dedicated support for survey designs. These adapters are not intended
-to redefine the statistical meaning of the underlying diagnostics; they reduce
+The input layer also accepts `data.table` and `dtplyr`-backed data, and
+`runSurveyHeteroTests()` takes the data out of a survey design object. That
+function does not use the sampling weights, strata, or clusters of the design:
+its results are those of the unweighted diagnostics. These adapters are not
+intended to redefine the statistical meaning of the underlying diagnostics;
+they reduce
 the amount of conversion code required before a supported model can enter the
 same diagnostic pipeline.
 
@@ -399,7 +621,7 @@ second group of tests reconstructs the claimed statistic directly from its
 published definition or from lower-level base-R operations.
 
 Examples include the Cook--Weisberg score statistic [@cook1983detection],
-Harvey's multiplicative-variance LM statistic [@harvey1976estimating],
+Harvey's LM statistic for multiplicative variance [@harvey1976estimating],
 Szroeter's ordered-variance statistic, Engle's ARCH LM statistic
 [@engle1982autoregressive], and the McLeod--Li procedure [@mcleod1983diagnosis], which is checked
 against a Ljung--Box calculation on squared residuals. The same approach is
@@ -494,6 +716,13 @@ each Monte Carlo replication the same simulated data set is supplied to all
 diagnostics, so differences in rejection rates are not inflated by using
 different random samples for different tests.
 
+The design is deliberately minimal. With a single regressor, each variance
+pattern is a function of one variable and can be written down exactly. A
+regressor that is uniform on the unit interval produces no high-leverage
+observations, so differences between the tests are not driven by a few points.
+The intercept and slope are immaterial: all four statistics are computed from
+least-squares residuals, which do not depend on the regression coefficients.
+
 The study includes White, classical Breusch--Pagan, Koenker, and a two-sided
 Goldfeld--Quandt test ordered by \(x\). These procedures represent different
 ways of detecting variance structure: general auxiliary-regression expansion,
@@ -503,7 +732,10 @@ normality, and an ordered two-sample variance comparison.
 ## Empirical size
 
 Empirical size is estimated under \(\sigma(x)=1\) for sample sizes
-\(n\in\{50,100,250\}\). Two error distributions are considered: Gaussian
+\(n\in\{50,100,250\}\). The smallest is one at which the asymptotic
+reference distributions of these tests are in doubt, the largest one at which
+they should be adequate if they are going to be, and the middle value shows
+how quickly they improve. Two error distributions are considered: Gaussian
 errors and Student \(t_5\) errors rescaled to unit variance. The heavier-tailed
 case is included because agreement with a reference implementation does not
 imply that an asymptotic approximation is well calibrated under non-normal
@@ -517,24 +749,35 @@ Monte Carlo standard error
   = \sqrt{\frac{\widehat p(1-\widehat p)}{B_{\mathrm{eff}}}},
 \]
 
-where \(B_{\mathrm{eff}}\) is the number of valid replications. Approximate
-95% Monte Carlo intervals are reported as
+where \(B_{\mathrm{eff}}\) is the number of valid replications. An
+approximate 95% Monte Carlo interval is
 \(\widehat p \pm 1.96\operatorname{MCSE}(\widehat p)\), truncated to
-\([0,1]\). These intervals quantify simulation uncertainty; they are not
-confidence intervals for a population parameter estimated from observed data.
+\([0,1]\). Such an interval quantifies simulation uncertainty; it is not a
+confidence interval for a population parameter estimated from observed data.
 
 ## Power alternatives
 
-Power is studied under three variance patterns with Gaussian errors:
+Power is studied under three patterns for the error standard deviation, with
+Gaussian errors:
 
-- **linear:** variance scale increases monotonically with \(x\);
-- **step:** the variance changes abruptly at \(x=0.5\);
-- **U-shaped:** variance is smallest near the centre of the covariate range and
-  increases toward both extremes.
+- **linear:** \(\sigma(x)\propto 0.5+x\), which increases monotonically with
+  \(x\);
+- **step:** \(\sigma(x)\propto 0.5\) for \(x<0.5\) and \(1.5\) otherwise, an
+  abrupt change at the midpoint;
+- **U-shaped:** \(\sigma(x)\propto 0.35+2(x-0.5)^2\), smallest at the centre
+  of the covariate range and increasing toward both extremes.
+
+The three were chosen to differ in kind, not in size. In the first two the
+standard deviation triples across the range of \(x\), once gradually and once
+at a single point; in the third it is about two and a half times larger at the
+ends than in the middle, with no overall trend.
 
 For each pattern, an effect-strength parameter
 \(\gamma\in\{0.25,0.50,0.75,1.00\}\) interpolates between constant
-variance and the target profile. The resulting standard-deviation vector is
+variance, which would be \(\gamma=0\), and the full pattern at
+\(\gamma=1\). The four equally spaced values trace the power curve between
+the two; the results reported below are for \(\gamma=1\). The resulting
+standard-deviation vector is
 renormalised to unit root-mean-square scale. Consequently, increasing
 \(\gamma\) changes the *shape* of heteroscedasticity without simply changing
 the overall noise magnitude. This avoids the common error of calling a global
@@ -549,8 +792,9 @@ than to identify a universally dominant diagnostic.
 ## Reproducible experiment
 
 The complete experiment is implemented in
-`paper/scripts/simulation_study.R`. The manuscript run uses an explicit seed and
-writes both results and simulation metadata to `paper/generated/`:
+`paper/scripts/simulation_study.R`. The manuscript run uses the seed 20261007,
+which is set once at the start of the script, and writes both results and
+simulation metadata to `paper/generated/`:
 
 ```{r simulation-command, eval=FALSE}
 system2(
@@ -568,14 +812,16 @@ that the estimated rejection rates are exact.
 Numerical results and figures are intentionally read from committed extracts of
 the successful workflow artifact rather than copied from earlier drafts. The
 full experiment used `heteroTests` 0.11.2 under R 4.6.1 on Ubuntu 24.04.5;
-the workflow and artifact identifiers are recorded in
-`paper/generated/PROVENANCE.md`. Version 0.12.0, which the rest of the article
+the workflow and artifact identifiers are recorded in the file
+`PROVENANCE.md` under `paper/generated/`. Version 0.12.0, which the rest of
+the article
 describes, changes these four procedures only for weighted fits. The study
 fits unweighted models, and a rerun of the full experiment under 0.12.0
 reproduced every rejection rate in those extracts exactly.
 
 ## Simulation results
 
+Table \@ref(tab:size-results) reports the empirical size in every design cell.
 Under Gaussian errors, all four procedures remain close to the nominal 5%
 level across the three sample sizes. At \(n=100\), for example, rejection
 rates range from
@@ -595,25 +841,34 @@ respectively. Thus the simulation reproduces the practical reason for keeping
 the studentized and more general procedures distinct from their
 normality-sensitive counterparts.
 
-Table \@ref(tab:size-results) reports the middle sample size for both error
-distributions; the complete size grid is stored in the generated CSV.
-
 ```{r size-results, echo=FALSE}
-size_n100 <- subset(sim_size, n == 100)
-size_n100[["Rejection (%)"]] <- round(size_n100[["Rejection (%)"]], 2)
-size_n100[["MC lower (%)"]] <- round(size_n100[["MC lower (%)"]], 2)
-size_n100[["MC upper (%)"]] <- round(size_n100[["MC upper (%)"]], 2)
+size_wide <- stats::reshape(
+  sim_size[, c("Error", "Test", "n", "Rejection (%)")],
+  idvar = c("Error", "Test"),
+  timevar = "n",
+  direction = "wide"
+)
+size_wide$Error <- c(gaussian = "Gaussian", t5 = "Student t5")[size_wide$Error]
+size_se <- (sim_size[["MC upper (%)"]] - sim_size[["MC lower (%)"]]) / (2 * 1.96)
 
 knitr::kable(
-  size_n100[, c("Error", "Test", "Rejection (%)", "MC lower (%)", "MC upper (%)")],
+  size_wide,
   # kable() does not escape captions; a bare % would start a LaTeX comment.
-  caption = paste0(
-    "Empirical size at n = 100 with 2,000 Monte Carlo replications. ",
-    "Bounds are approximate 95",
+  caption = sprintf(
+    paste(
+      "Empirical size: percentage of rejections at the 5%s level under",
+      "constant variance, from 2,000 Monte Carlo replications per cell.",
+      "Monte Carlo standard errors lie between %.1f and %.1f percentage",
+      "points."
+    ),
     if (knitr::is_latex_output()) "\\%" else "%",
-    " Monte Carlo intervals."
+    min(size_se), max(size_se)
   ),
-  booktabs = TRUE
+  booktabs = TRUE,
+  linesep = c("", "", "", "\\addlinespace"),
+  digits = 2,
+  row.names = FALSE,
+  col.names = c("Errors", "Test", "n = 50", "n = 100", "n = 250")
 )
 ```
 
@@ -827,7 +1082,8 @@ structures are known. We generate
 with \(x_i\sim U(-1,1)\). The mean model is therefore correctly specified as
 linear, while the log variance is linear in the same predictor. This is a case
 where feasible weighted least squares is an interpretable follow-up rather than
-a generic attempt to make a diagnostic p-value disappear.
+a generic attempt to make a diagnostic p-value disappear. The same steps are
+then applied to observed data, where the answer is not known in advance.
 
 ```{r workflow-data}
 set.seed(20261008)
@@ -1125,61 +1381,137 @@ mean-model misspecification should be addressed before treating the variance
 alone. The diagnostic layer is therefore a decision point in the modelling
 workflow, not an instruction to apply WLS after every rejected null.
 
+## The same steps on observed data
+
+The controlled example has a known answer. Observed data do not, and the same
+steps then end in a choice instead of a confirmation. The `cats` data in
+\CRANpkg{MASS} [@venables2002modern] record the body weight, in kilograms, and
+the heart weight, in grams, of `r nrow(MASS::cats)` adult cats
+[@fisher1947analysis]. Heart weight is regressed on body weight.
+
+```{r cats-diagnostics}
+cats <- MASS::cats
+cats_fit <- stats::lm(Hwt ~ Bwt, data = cats)
+
+cats_tests <- runHeteroTests(
+  cats_fit,
+  cats,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+```
+
+```{r cats-table, echo=FALSE}
+cats_table <- data.frame(
+  Diagnostic = c("White", "Breusch-Pagan", "Koenker"),
+  Statistic = round(
+    vapply(cats_tests, function(x) unname(x$statistic[[1]]), numeric(1)),
+    3
+  ),
+  df = vapply(cats_tests, function(x) unname(x$parameter[[1]]), numeric(1)),
+  p.value = format.pval(
+    round(vapply(cats_tests, function(x) x$p.value, numeric(1)), 3),
+    eps = 0.001
+  )
+)
+
+knitr::kable(
+  cats_table,
+  caption = "Heteroscedasticity diagnostics for the regression of heart weight on body weight in the cats data.",
+  booktabs = TRUE,
+  row.names = FALSE,
+  col.names = c("Diagnostic", "Statistic", "df", "p-value")
+)
+```
+
+All three tests reject constant variance (Table \@ref(tab:cats-table)): the
+heart weights of the heavier cats are more variable. Two remedies are
+available, and the package can examine both.
+
+```{r cats-remedies}
+cats_wls <- fitWLS(cats_fit)
+cats_exponential <- performVarianceFormTest(cats_wls)
+cats_power <- performVarianceFormTest(fitWLS(cats_fit, form = "power"))
+
+cats_log_fit <- stats::lm(log(Hwt) ~ log(Bwt), data = cats)
+cats_log_tests <- runHeteroTests(
+  cats_log_fit,
+  cats,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+```
+
+```{r cats-summary, include=FALSE}
+form_result <- function(x) {
+  sprintf("\\(F=%.2f\\), \\(p=%.2f\\)", unname(x$statistic), x$p.value)
+}
+cats_log_p <- vapply(cats_log_tests, function(x) x$p.value, numeric(1))
+```
+
+The first keeps the model and changes the weights. The exponential variance
+function fitted by `fitWLS()` is not rejected
+(`r form_result(cats_exponential)`), and neither is a power function
+(`r form_result(cats_power)`). Body weights in these data run from
+`r min(cats$Bwt)` to `r max(cats$Bwt)` kg, and over that range the two functions
+are too close for `r nrow(cats)` observations to separate, which is the
+limitation of the variance-function test noted above. The weighted fit moves
+the slope from `r sprintf("%.2f", coef(cats_fit)[["Bwt"]])` to
+`r sprintf("%.2f", coef(cats_wls)[["Bwt"]])` grams per kilogram.
+
+The second remedy changes the model. On the logarithmic scale the slope is
+`r sprintf("%.2f", coef(cats_log_fit)[[2]])`, so heart weight is close to
+proportional to body weight, and none of the three tests rejects (p-values
+between `r sprintf("%.2f", min(cats_log_p))` and
+`r sprintf("%.2f", max(cats_log_p))`). Which of the two descriptions to prefer
+is not a question the diagnostics answer. It depends on whether the analysis
+needs the relationship on the original scale or accepts an error that is
+proportional to the response.
+
 # Comparison with existing R software
 
 The package is best understood as an integration layer around a heterogeneous
 set of diagnostics, not as a replacement for the specialised packages from
 which several reference implementations are drawn. Table
-\@ref(tab:software-comparison) summarises the roles most relevant to the
-workflow in this article.
+\@ref(tab:software-comparison) shows how those diagnostics are distributed:
+`r n_found_elsewhere` of the `r n_procedures` procedures in Table
+\@ref(tab:procedures) have a counterpart in one of `r n_packages` other
+packages.
 
 ```{r software-comparison, echo=FALSE}
 software_comparison <- data.frame(
-  Package = c(
-    "stats",
-    "lmtest",
-    "car",
-    "vartest",
-    "sandwich",
-    "heteroTests"
-  ),
-  Primary.role = c(
-    "General statistical infrastructure",
-    "Regression specification and diagnostic tests",
-    "Regression diagnostics and companion methods",
-    "Tests for equality of variances",
-    "Robust covariance estimation",
-    "Heteroscedasticity diagnostic orchestration"
-  ),
-  Examples = c(
-    "Bartlett; Fligner-Killeen",
-    "Breusch-Pagan; Goldfeld-Quandt",
-    "NCV/Cook-Weisberg; Levene",
-    "Hartley; O'Brien",
-    "HC covariance estimators",
-    "Unified tests; suites; streaming"
-  ),
-  Workflow.contribution = c(
-    "Reference implementations for classical group tests",
-    "Established regression-test implementations",
-    "Established regression and group diagnostics",
-    "Specialised group-variance procedures",
-    "Post-diagnostic robust inference",
-    "Common API, metadata, adapters and batch execution"
-  ),
+  Package = names(elsewhere),
+  Procedures = vapply(elsewhere, function(entry) {
+    paste(gsub("--", dash, entry$procedures, fixed = TRUE), collapse = "; ")
+  }, character(1)),
+  Functions = vapply(elsewhere, function(entry) {
+    paste(code_font(entry$functions), collapse = ", ")
+  }, character(1)),
   stringsAsFactors = FALSE
 )
 
 knitr::kable(
   software_comparison,
-  caption = "Roles of selected R packages used directly or as reference points in the heteroTests workflow.",
+  caption = "Where the procedures implemented in heteroTests are found in other R packages, with the functions that provide them. For Spearman's correlation and Moran's I the function is the general test, which the analyst applies to the residuals.",
   booktabs = TRUE,
-  col.names = c(
-    "Package",
-    "Primary role",
-    "Examples",
-    "Role in this workflow"
-  )
+  linesep = "\\addlinespace",
+  position = "!t",
+  escape = FALSE,
+  row.names = FALSE,
+  col.names = c("Package", "Procedures", "Functions"),
+  # Fixed-width columns in the PDF, where the unwrapped table is wider than
+  # the page.
+  align = if (knitr::is_latex_output()) {
+    paste0(
+      "l",
+      ">{\\raggedright\\arraybackslash}p{5.8cm}",
+      ">{\\raggedright\\arraybackslash}p{4.6cm}"
+    )
+  } else {
+    "lll"
+  }
 )
 ```
 
@@ -1212,6 +1544,24 @@ kinds of diagnostics must be combined with others.
 implementations against \CRANpkg{vartest} where that package is available. For an
 analysis centred specifically on group-variance testing, the specialised
 package remains a natural direct interface.
+
+\CRANpkg{skedastic} is the closest in scope. It is devoted to
+heteroskedasticity in the linear regression model and collects 25 tests,
+several of which \CRANpkg{heteroTests} does not implement, together with
+auxiliary variance models, feasible weighted least squares, and
+heteroskedasticity-consistent covariance estimators. All of its tests are
+tests for a single linear regression model. The group-wise, time-series, and
+spatial procedures of Table \@ref(tab:procedures) lie outside it, which is why
+an analysis that needs both still crosses a package boundary.
+
+The remaining packages in Table \@ref(tab:software-comparison) each contribute
+one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for
+White's test and its bootstrap, \CRANpkg{heplots} for Box's M,
+\CRANpkg{FinTS} and \CRANpkg{TSA} for ARCH effects in time series,
+\CRANpkg{spdep} for spatial autocorrelation, and \CRANpkg{quantreg} for
+quantile regression. None of this is a defect of those packages. It is the
+reason that running, comparing, and reporting a set of tests chosen from
+different rows of Table \@ref(tab:procedures) otherwise takes bridging code.
 
 ## Detection and robust inference are different tasks
 
@@ -1291,8 +1641,9 @@ U-shaped alternative strongly favours White's more general auxiliary expansion.
 This does not establish White as uniformly preferable; it shows why a test
 chosen for an ordered or monotone variance alternative can have little power
 when the actual variance structure is non-monotone. A useful workflow therefore
-starts from a plausible variance mechanism, not from the desire to run the
-largest possible collection of tests.
+starts from a plausible variance mechanism, which is how Table
+\@ref(tab:procedures) is organised, not from the desire to run the largest
+possible collection of tests.
 
 That point also limits how `runHeteroTests()` should be interpreted. The
 function is an orchestration mechanism, not a multiple-testing procedure.
@@ -1381,7 +1732,9 @@ findings describe those designs; they are not an exhaustive power ranking. In
 particular, panel, spatial, clustered, high-dimensional, and time-series
 settings require separate evaluation. The rejection rates quoted for weighted
 fits and for the variance-function test come from the package's own validation
-study, which uses a different design, and are not part of that comparison.
+study, which uses a different design, and are not part of that comparison. The
+example on observed data is a single data set: it illustrates the workflow and
+is not evidence about the tests.
 
 The performance study is likewise platform-specific. The reported timings and
 allocations come from one R version and one Linux Actions environment, with a
