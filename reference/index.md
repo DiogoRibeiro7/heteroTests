@@ -297,7 +297,7 @@
   : Run panel-data heteroscedasticity tests
 
 - [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)
-  : Run heteroscedasticity diagnostics on survey designs
+  : Run heteroscedasticity diagnostics on the data of a survey design
 
 - [`runTimeSeriesTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runTimeSeriesTests.md)
   : Run time-series heteroscedasticity tests

@@ -35,7 +35,11 @@ but additional tests can be requested. Custom diagnostics registered via
 - data:
 
   optional data frame used to fit `model`. If omitted,
-  `model.frame(model)` is used.
+  `model.frame(model)` is used. With data grouped by
+  [`dplyr::group_by()`](https://dplyr.tidyverse.org/reference/group_by.html)
+  the model is refitted within each group by evaluating its own call on
+  that group, so every variable it uses, including weights, offset and
+  subset, must be a column of `data`.
 
 - tests:
 
