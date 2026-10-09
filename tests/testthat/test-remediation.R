@@ -15,6 +15,11 @@ test_that("severity reported when heteroscedasticity detected", {
   expect_true(!is.null(suggest$severity))
 })
 
+test_that("print dispatches to the registered method", {
+  expect_output(print(suggest), "Heteroscedasticity Remediation Suggestions")
+  expect_output(print(suggest), "Severity:")
+})
+
 m2 <- lm(y ~ x1 + x2, data = data_homosced)
 res2 <- runHeteroTests(m2, data_homosced, tests = c("white", "breusch_pagan"))
 

@@ -1,5 +1,13 @@
 # heteroTests News
 
+## Development version
+
+- `print()` on the result of `suggestRemediation()` now uses its print method.
+  The method existed but was not registered in `NAMESPACE`, so results printed
+  as a bare list with an `attr(,"class")` line. This also affects the
+  dashboard's suggestions panel and the remediation section of generated
+  reports, which print the same object.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

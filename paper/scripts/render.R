@@ -27,26 +27,26 @@ if (!file.exists(article_file)) {
 run_spelling_check <- function(tex_file) {
   tex <- readLines(tex_file, warn = FALSE)
 
-  # rjtools::check_spelling() currently expects the generated TeX to contain
-  # a literal \\bibliography{} command. The current R Journal/citeproc output
-  # may instead render references without that marker, leaving its internal
-  # bib_loc empty. Add a boundary only to a temporary copy used by the checker.
-  reference_boundary <- grep(
-    "\\\\section\\*?\\{References\\}|\\\\begin\\{CSLReferences\\}",
-    tex
-  )
+  # rjtools::check_spelling() spell-checks the lines between \\abstract{ and a
+  # literal \\section*{References} heading. The R Journal template emits
+  # \\bibliography{} without that heading, leaving the checker's internal
+  # bib_loc empty. Add the heading only to a temporary copy used by the checker.
+  references_heading <- "\\section*{References}"
 
-  insert_after <- if (length(reference_boundary) > 0L) {
-    max(0L, reference_boundary[[1L]] - 1L)
-  } else {
-    length(tex)
+  if (!any(grepl(references_heading, tex, fixed = TRUE))) {
+    reference_boundary <- grep(
+      "\\\\bibliography\\{|\\\\begin\\{CSLReferences\\}",
+      tex
+    )
+
+    insert_after <- if (length(reference_boundary) > 0L) {
+      reference_boundary[[1L]] - 1L
+    } else {
+      length(tex)
+    }
+
+    tex <- append(tex, references_heading, after = insert_after)
   }
-
-  tex <- append(
-    tex,
-    "\\bibliography{heteroTests}",
-    after = insert_after
-  )
 
   tmp <- tempfile("heteroTests-rjtools-spelling-")
   dir.create(tmp)
@@ -58,6 +58,14 @@ run_spelling_check <- function(tex_file) {
 
 run_rjtools_checks <- function() {
   cat("\n--- R Journal checks ---\n")
+
+  # check_proposed_pkg() and check_packages_available() query CRAN through
+  # available.packages(), which fails under Rscript when no mirror is set.
+  repos <- getOption("repos")
+  if (is.null(repos) || identical(unname(repos[["CRAN"]]), "@CRAN@")) {
+    old_repos <- options(repos = c(CRAN = "https://cloud.r-project.org"))
+    on.exit(options(old_repos), add = TRUE)
+  }
 
   # This is the same check sequence used by initial_check_article(), except
   # spelling uses the parser-compatible temporary TeX copy above.
