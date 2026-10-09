@@ -45,7 +45,8 @@ runHeteroTests <- function(model, data = NULL,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,
                            progress = interactive()) {
-  prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests")
+  rrefuse_survey_fit(model)
+  prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests()")
 
   if (prepared$grouped && length(prepared$group_splits) > 0) {
     if (is.null(prepared$fit_factory)) {

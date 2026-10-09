@@ -269,3 +269,44 @@ if (file.exists(csv_v)) {
     0.05 - half[1], 0.05 + half[1],
     nrow(null_rows), min(null_rows$rejection_rate), max(null_rows$rejection_rate)))
 }
+
+# --- Survey designs -----------------------------------------------------------
+
+csv_s <- file.path("inst", "validation", "survey-designs-size.csv")
+if (!file.exists(csv_s)) csv_s <- "survey-designs-size.csv"
+if (file.exists(csv_s)) {
+  sv <- utils::read.csv(csv_s, stringsAsFactors = FALSE)
+  procedures <- c(
+    ols = "`runSurveyHeteroTests()`",
+    weights_as_precision = "Sampling weights as precision weights",
+    design_wald = "Design-based Wald test (not in the package)",
+    design_score = "Design-based score test (not in the package)"
+  )
+  designs <- c(
+    ignorable = "Ignorable",
+    ignorable_strong = "Ignorable, strong",
+    stratified = "Stratified",
+    informative = "Informative",
+    clustered = "Clustered",
+    heteroscedastic = "Power"
+  )
+  tests <- c(koenker = "Koenker", white = "White")
+  for (test in names(tests)) {
+    for (n in sort(unique(sv$n))) {
+      cat(sprintf("\n### Survey designs, %s regressors, n = %d\n\n", tests[[test]], n))
+      cat("| Procedure | ", paste(designs, collapse = " | "), " |\n", sep = "")
+      cat("| --- | ", paste(rep("---:", length(designs)), collapse = " | "), " |\n", sep = "")
+      for (procedure in names(procedures)) {
+        cells <- vapply(names(designs), function(design) {
+          hit <- sv$test == test & sv$n == n & sv$procedure == procedure &
+            sv$design == design
+          if (any(hit)) sprintf("%.3f", sv$rejection_rate[hit][1L]) else "--"
+        }, character(1))
+        cat("| ", procedures[[procedure]], " | ", paste(cells, collapse = " | "), " |\n", sep = "")
+      }
+    }
+  }
+  cat(sprintf(
+    "\nReplications: %d. Nominal level: 0.05. Monte Carlo standard error at the nominal level: %.4f.\n",
+    sv$replications[1], sqrt(0.05 * 0.95 / sv$replications[1])))
+}

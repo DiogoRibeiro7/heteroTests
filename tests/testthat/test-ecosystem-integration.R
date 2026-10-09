@@ -58,7 +58,10 @@ testthat::test_that("survey designs route through helper", {
   skip_if_not_installed("survey")
   data(api, package = "survey")
   design <- survey::svydesign(id = ~1, strata = ~stype, weights = ~pw, data = apistrat)
-  res <- runSurveyHeteroTests(api00 ~ api99 + ell, design, tests = "white")
+  testthat::expect_warning(
+    res <- runSurveyHeteroTests(api00 ~ api99 + ell, design, tests = "white"),
+    "does not use the sampling weights"
+  )
   testthat::expect_s3_class(res, "hetero_test_suite")
 })
 

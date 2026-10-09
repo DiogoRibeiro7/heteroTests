@@ -114,19 +114,28 @@ Found on the way and left for their own changes:
   `performQuantileRegressionTest()` refuse a weighted fit, because they refit
   without the weights. Resampling the Pearson residuals and refitting with the
   weights would lift the refusal for the first three.
-- [ ] **`runSurveyHeteroTests()` drops the survey weights.** It calls
-  `stats::lm(formula, data = data, weights = weights)`, where `weights` is a
+- [x] **`runSurveyHeteroTests()` did not use the survey weights.** It called
+  `stats::lm(formula, data = data, weights = weights)`, where `weights` was a
   local variable. `lm()` looks the name up in `data` and then in the
-  environment of the formula, finds `stats::weights`, fails, and the
-  `tryCatch()` refits without weights. The documented survey-weighted fit
-  does not happen. Fixing the scoping raises a second question, which
-  residuals a test should read under sampling weights: they are not inverse
-  error variances, so the Pearson residuals are not the answer there.
+  environment of the formula, found `stats::weights`, failed, and the
+  `tryCatch()` refitted without weights. Resolved after 0.12.0 by making the
+  function say what it does, because using the weights would have been worse:
+  sampling weights are not inverse error variances, and a test on a fit that
+  uses them rejected a homoscedastic model 97% to 100% of the time when the
+  weights varied with the regressor. `runHeteroTests(formula, design)` did
+  exactly that through a `svyglm()` fit, and now takes the unweighted route
+  too. Evidence: `inst/validation/survey-designs-size.R`. A design-based test
+  is under *Candidate tests*.
 - [x] **`.ht_fit_from_formula()` had the same scoping fault** and always failed
   with `invalid type (closure) for variable '(weights)'`, so the per-group
   refits built from an `lm`, `glm` or parsnip fit could not run. Fixed after
   0.12.0: each group is refitted by evaluating the model's own call on it,
   which gives it its own rows of the weights and keeps the family of a `glm`.
+- [ ] **`tidy()` returns one row per degree of freedom.** A result with two
+  parameters, such as the F test of `performVarianceFormTest()` or the wild
+  bootstrap with its `df` and `B`, is tidied into two rows, and the grouped
+  and suite methods stack them. It should be one row per test, with the
+  second parameter in a column of its own.
 - [ ] **An additive variance function**, `sigma^2 = a + z'b`, was implemented
   for `fitWLS()` and the form test and withdrawn before release. Under its own
   null, at 5000 replications, the test rejected 6.1% of the time at the 5%
@@ -348,6 +357,16 @@ Questions the package cannot answer yet:
   that the uncorrected statistic is not, and cites Im. No reference
   implementation has been identified, so the guard is simulated size under a
   skewed null.
+- **A design-based test of constant variance for survey data.** The tests
+  assume an independent sample with equal weights, and
+  `runSurveyHeteroTests()` rejects a homoscedastic model 37% to 100% of the
+  time when selection depends on the response or the sample is clustered. The
+  natural candidates regress the squared residuals of a `survey::svyglm()` fit
+  on the variance regressors using the design, as a Wald test
+  (`survey::regTermTest()`) or as a Rao score test. Both were measured in
+  `inst/validation/survey-designs-size.R` and neither clears the gate: 6% to
+  25% under the null at 300 and 1000 observations when the weights vary with
+  the regressor. The variance estimate needs a small-sample correction first.
 - **Modified Wald test for groupwise heteroscedasticity** in a fixed-effects
   panel (Greene 2000; Baum 2001). The panel tests cover an individual effect
   and cross-sectional dependence, not unequal variances across units.

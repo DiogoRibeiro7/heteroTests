@@ -31,7 +31,10 @@ runDiagnostics <- function(model, data = NULL,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,
                            progress = interactive()) {
-  prepared <- .ht_prepare_model(model, data = data, context = "runDiagnostics", allow_grouped = FALSE)
+  prepared <- .ht_prepare_model(
+    model,
+    data = data, context = "runDiagnostics()", allow_grouped = FALSE
+  )
   model <- prepared$model
   data <- prepared$data %||% tryCatch(model.frame(model), error = function(e) NULL)
   hetero <- runHeteroTests(
