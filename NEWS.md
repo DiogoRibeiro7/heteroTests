@@ -8,6 +8,17 @@
   dashboard's suggestions panel and the remediation section of generated
   reports, which print the same object.
 
+- `runHeteroTests()` with a fitted model and grouped data now runs. The
+  per-group refit passed the weights to `lm()` as a local variable, where
+  `lm()` does not look, and stopped with
+  `invalid type (closure) for variable '(weights)'` for every `lm`, `glm` and
+  parsnip fit, weighted or not. Only a formula with grouped data worked. Each
+  group is now fitted by evaluating the model's own call on it, so a weighted
+  model uses that group's rows of the weights, a `glm` keeps its family and a
+  `subset` is applied within the group. A model whose weights, offset or
+  subset are vectors in the workspace cannot be split by group and is refused
+  with a message that says so.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

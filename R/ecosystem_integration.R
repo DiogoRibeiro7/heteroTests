@@ -110,13 +110,49 @@
   NULL
 }
 
-.ht_fit_from_formula <- function(formula, data, weights = NULL, engine = c("lm", "glm")) {
-  engine <- match.arg(engine)
-  if (identical(engine, "glm")) {
-    stats::glm(formula, data = data, weights = weights)
-  } else {
-    stats::lm(formula, data = data, weights = weights)
+# Refit a fitted lm/glm on another data frame by evaluating its own call again,
+# so the family, weights, offset, subset and na.action are the ones the model
+# was fitted with. Passing those to stats::lm() as local variables does not
+# work: lm() looks them up in `data` and then in the environment of the formula,
+# never in the function that calls it.
+.ht_refit_model <- function(model, data) {
+  call <- tryCatch(stats::getCall(model), error = function(e) NULL)
+  formula <- .ht_extract_formula(model)
+  if (!is.call(call) || is.null(formula)) {
+    stop(
+      "The fitted model does not record the call that produced it, so it ",
+      "cannot be refitted on other data.",
+      call. = FALSE
+    )
   }
+  call$formula <- formula
+  call$data <- quote(.ht_refit_data)
+  enclosure <- environment(formula)
+  if (!is.environment(enclosure)) {
+    enclosure <- globalenv()
+  }
+  env <- new.env(parent = enclosure)
+  env$.ht_refit_data <- data
+  eval(call, env)
+}
+
+# The same, for one group of a grouped analysis. A model whose weights, offset
+# or subset are vectors in the workspace cannot be split by group, and lm()
+# reports that as a length mismatch; say what it means.
+.ht_refit_group <- function(model, data) {
+  tryCatch(
+    .ht_refit_model(model, data),
+    error = function(e) {
+      stop(
+        "The model could not be refitted within a group: ",
+        conditionMessage(e), "\n",
+        "Grouped diagnostics evaluate the model's own call on each group, so ",
+        "every variable it uses, including weights, offset and subset, must ",
+        "be a column of `data`.",
+        call. = FALSE
+      )
+    }
+  )
 }
 
 .ht_prepare_model <- function(model, data = NULL, context = "diagnostic", allow_grouped = TRUE) {
@@ -167,7 +203,7 @@
         group_splits = if (allow_grouped) prep$group_splits else NULL,
         group_keys = if (allow_grouped) prep$group_keys else NULL,
         fit_factory = if (!is.null(formula) && allow_grouped) {
-          function(df) .ht_fit_from_formula(formula, df, weights = tryCatch(stats::weights(engine_fit), error = function(e) NULL), engine = if (inherits(engine_fit, "glm")) "glm" else "lm")
+          function(df) .ht_refit_group(engine_fit, df)
         } else {
           NULL
         },
@@ -202,9 +238,8 @@
     base_data <- data %||% tryCatch(model.frame(model), error = function(e) NULL)
     prep <- .ht_prepare_input_data(base_data, context)
     formula <- .ht_extract_formula(model)
-    weights <- tryCatch(stats::weights(model), error = function(e) NULL)
     fit_factory <- if (!is.null(formula) && allow_grouped) {
-      function(df) .ht_fit_from_formula(formula, df, weights = weights, engine = if (inherits(model, "glm")) "glm" else "lm")
+      function(df) .ht_refit_group(model, df)
     } else {
       NULL
     }

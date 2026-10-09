@@ -122,10 +122,11 @@ Found on the way and left for their own changes:
   does not happen. Fixing the scoping raises a second question, which
   residuals a test should read under sampling weights: they are not inverse
   error variances, so the Pearson residuals are not the answer there.
-- [ ] **`.ht_fit_from_formula()` has the same scoping fault** and always fails
+- [x] **`.ht_fit_from_formula()` had the same scoping fault** and always failed
   with `invalid type (closure) for variable '(weights)'`, so the per-group
-  refits built from an `lm`, `glm` or parsnip fit cannot run. A fix also has
-  to subset the weights to each group.
+  refits built from an `lm`, `glm` or parsnip fit could not run. Fixed after
+  0.12.0: each group is refitted by evaluating the model's own call on it,
+  which gives it its own rows of the weights and keeps the family of a `glm`.
 - [ ] **An additive variance function**, `sigma^2 = a + z'b`, was implemented
   for `fitWLS()` and the form test and withdrawn before release. Under its own
   null, at 5000 replications, the test rejected 6.1% of the time at the 5%
