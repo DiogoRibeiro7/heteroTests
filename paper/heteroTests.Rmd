@@ -179,6 +179,73 @@ table_names <- unlist(lapply(procedure_groups, `[[`, "procedures"))
 table_names <- unname(table_names[!is.na(table_names)])
 registered <- ls(utils::getFromNamespace(".diagnostic_registry", "heteroTests"))
 stopifnot(setequal(table_names, setdiff(registered, "box_m")))
+
+# Where those procedures are found in other packages, with the functions
+# concerned. Each entry was checked against the documentation of the package.
+# For Spearman's correlation and Moran's I the function is the general test,
+# which the analyst applies to the residuals.
+elsewhere <- list(
+  stats = list(
+    procedures = c("Bartlett", "Fligner--Killeen", "Spearman rank correlation"),
+    functions = c("bartlett.test", "fligner.test", "cor.test")
+  ),
+  lmtest = list(
+    procedures = c(
+      "Breusch--Pagan", "Koenker's studentized form", "Goldfeld--Quandt"
+    ),
+    functions = c("bptest", "gqtest")
+  ),
+  car = list(
+    procedures = c("Cook--Weisberg score test", "Levene", "Brown--Forsythe"),
+    functions = c("ncvTest", "leveneTest")
+  ),
+  skedastic = list(
+    procedures = c(
+      "White", "Breusch--Pagan", "Koenker's studentized form",
+      "Cook--Weisberg score test", "Harvey", "Glejser", "Goldfeld--Quandt",
+      "Szroeter"
+    ),
+    functions = c(
+      "white", "breusch_pagan", "cook_weisberg", "harvey", "glejser",
+      "goldfeld_quandt", "szroeter"
+    )
+  ),
+  whitestrap = list(
+    procedures = c("White", "bootstrap of White's statistic"),
+    functions = c("white_test", "white_test_boot")
+  ),
+  vartest = list(
+    procedures = c(
+      "Bartlett", "Levene", "Fligner--Killeen", "Hartley", "O'Brien"
+    ),
+    functions = c(
+      "bartletts.test", "levene.test", "fk.test", "hartley.test", "obrien.test"
+    )
+  ),
+  heplots = list(
+    procedures = "Box's M for covariance matrices",
+    functions = "boxM"
+  ),
+  FinTS = list(procedures = "Engle's ARCH LM", functions = "ArchTest"),
+  TSA = list(procedures = "McLeod--Li", functions = "McLeod.Li.test"),
+  spdep = list(
+    procedures = "Moran's I of the squared residuals",
+    functions = "moran.mc"
+  ),
+  quantreg = list(
+    procedures = "quantile-regression slope test",
+    functions = "anova.rq"
+  )
+)
+table_labels <- unlist(lapply(
+  procedure_groups,
+  function(group) names(group$procedures)
+))
+found_elsewhere <- unique(unlist(lapply(elsewhere, `[[`, "procedures")))
+stopifnot(all(found_elsewhere %in% table_labels))
+n_packages <- length(elsewhere)
+n_found_elsewhere <- length(found_elsewhere)
+most_in_one_package <- max(lengths(lapply(elsewhere, `[[`, "procedures")))
 ```
 
 # Introduction
@@ -205,9 +272,16 @@ how the statistic was computed.
 
 An analyst who needs one of these tests has no reason to change tools:
 `lmtest::bptest()` and `car::ncvTest()` are single calls, and nothing in this
-article argues against them. The case for a common interface begins when an
-analysis needs several tests, and it continues after the first rejection, when
-the model has been adjusted and has to be examined again.
+article argues against them. The difficulty begins with the second test. The
+procedures in Table \@ref(tab:procedures) that exist outside
+\CRANpkg{heteroTests} are spread over `r n_packages` packages (Table
+\@ref(tab:software-comparison)), and no one of those packages has more than
+`r most_in_one_package` of them. Each has its own arguments and its own kind of
+result: an `htest` object from one function, a `chisqTest` object or an
+`anova` table from another, a bare vector of p-values from a third. Comparing
+two tests therefore means installing, learning, and reconciling two packages,
+and the work is repeated after the first rejection, when the model has been
+adjusted and has to be examined again.
 
 \CRANpkg{heteroTests} addresses this software problem. It provides individual
 diagnostic functions, a registry that supports common orchestration, and a
@@ -1401,68 +1475,42 @@ proportional to the response.
 The package is best understood as an integration layer around a heterogeneous
 set of diagnostics, not as a replacement for the specialised packages from
 which several reference implementations are drawn. Table
-\@ref(tab:software-comparison) summarises the roles most relevant to the
-workflow in this article.
+\@ref(tab:software-comparison) shows how those diagnostics are distributed:
+`r n_found_elsewhere` of the `r n_procedures` procedures in Table
+\@ref(tab:procedures) have a counterpart in one of `r n_packages` other
+packages.
 
 ```{r software-comparison, echo=FALSE}
 software_comparison <- data.frame(
-  Package = c(
-    "stats",
-    "lmtest",
-    "car",
-    "vartest",
-    "sandwich",
-    "heteroTests"
-  ),
-  Primary.role = c(
-    "General statistical infrastructure",
-    "Regression specification and diagnostic tests",
-    "Regression diagnostics and companion methods",
-    "Tests for equality of variances",
-    "Robust covariance estimation",
-    "Heteroscedasticity diagnostic orchestration"
-  ),
-  Examples = c(
-    "Bartlett; Fligner-Killeen",
-    "Breusch-Pagan; Goldfeld-Quandt",
-    "NCV/Cook-Weisberg; Levene",
-    "Hartley; O'Brien",
-    "HC covariance estimators",
-    "Unified tests; suites; streaming"
-  ),
-  Workflow.contribution = c(
-    "Reference implementations for classical group tests",
-    "Established regression-test implementations",
-    "Established regression and group diagnostics",
-    "Specialised group-variance procedures",
-    "Post-diagnostic robust inference",
-    "Common API, metadata, adapters and batch execution"
-  ),
+  Package = names(elsewhere),
+  Procedures = vapply(elsewhere, function(entry) {
+    paste(gsub("--", dash, entry$procedures, fixed = TRUE), collapse = "; ")
+  }, character(1)),
+  Functions = vapply(elsewhere, function(entry) {
+    paste(code_font(entry$functions), collapse = ", ")
+  }, character(1)),
   stringsAsFactors = FALSE
 )
 
 knitr::kable(
   software_comparison,
-  caption = "Roles of selected R packages used directly or as reference points in the heteroTests workflow.",
+  caption = "Where the procedures implemented in heteroTests are found in other R packages, with the functions that provide them. For Spearman's correlation and Moran's I the function is the general test, which the analyst applies to the residuals.",
   booktabs = TRUE,
   linesep = "\\addlinespace",
-  col.names = c(
-    "Package",
-    "Primary role",
-    "Examples",
-    "Role in this workflow"
-  ),
+  position = "!t",
+  escape = FALSE,
+  row.names = FALSE,
+  col.names = c("Package", "Procedures", "Functions"),
   # Fixed-width columns in the PDF, where the unwrapped table is wider than
   # the page.
   align = if (knitr::is_latex_output()) {
     paste0(
       "l",
-      ">{\\raggedright\\arraybackslash}p{3.3cm}",
-      ">{\\raggedright\\arraybackslash}p{3.0cm}",
-      ">{\\raggedright\\arraybackslash}p{3.9cm}"
+      ">{\\raggedright\\arraybackslash}p{5.8cm}",
+      ">{\\raggedright\\arraybackslash}p{4.6cm}"
     )
   } else {
-    "llll"
+    "lll"
   }
 )
 ```
@@ -1496,6 +1544,24 @@ kinds of diagnostics must be combined with others.
 implementations against \CRANpkg{vartest} where that package is available. For an
 analysis centred specifically on group-variance testing, the specialised
 package remains a natural direct interface.
+
+\CRANpkg{skedastic} is the closest in scope. It is devoted to
+heteroskedasticity in the linear regression model and collects 25 tests,
+several of which \CRANpkg{heteroTests} does not implement, together with
+auxiliary variance models, feasible weighted least squares, and
+heteroskedasticity-consistent covariance estimators. All of its tests are
+tests for a single linear regression model. The group-wise, time-series, and
+spatial procedures of Table \@ref(tab:procedures) lie outside it, which is why
+an analysis that needs both still crosses a package boundary.
+
+The remaining packages in Table \@ref(tab:software-comparison) each contribute
+one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for
+White's test and its bootstrap, \CRANpkg{heplots} for Box's M,
+\CRANpkg{FinTS} and \CRANpkg{TSA} for ARCH effects in time series,
+\CRANpkg{spdep} for spatial autocorrelation, and \CRANpkg{quantreg} for
+quantile regression. None of this is a defect of those packages. It is the
+reason that running, comparing, and reporting a set of tests chosen from
+different rows of Table \@ref(tab:procedures) otherwise takes bridging code.
 
 ## Detection and robust inference are different tasks
 
