@@ -345,6 +345,7 @@ rprior_weights <- function(model) {
 #' @keywords internal
 #' @noRd
 rpearson_residuals <- function(model) {
+  rrefuse_survey_fit(model)
   w <- rprior_weights(model)
   if (is.null(w)) {
     return(stats::residuals(model))
@@ -382,6 +383,31 @@ rrefuse_weighted_fit <- function(model, what) {
     "the weights, which would test a different model from the one supplied. ",
     "Use a test computed from the residuals, such as performKoenkerTest() or ",
     "performWhiteTest(); on a weighted fit those use the Pearson residuals.",
+    call. = FALSE
+  )
+}
+
+#' Refuse a model fitted to a survey design
+#'
+#' `residuals()` of a `survey::svyglm()` fit are multiplied by the square roots
+#' of the sampling weights. Those are not precision weights, so a test computed
+#' from such residuals rejects a homoscedastic model whenever the weights vary
+#' with the regressors.
+#'
+#' @param model A fitted model.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_survey_fit <- function(model) {
+  if (!inherits(model, "svyglm")) {
+    return(invisible(NULL))
+  }
+  stop(
+    "The model is a survey::svyglm() fit, whose residuals are scaled by the ",
+    "sampling weights. The diagnostics would read those weights as precision ",
+    "weights and reject a homoscedastic model whenever they vary with the ",
+    "regressors. The package has no design-based test; see ",
+    "?runSurveyHeteroTests for what it can and cannot say about survey data.",
     call. = FALSE
   )
 }

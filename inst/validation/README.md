@@ -43,6 +43,8 @@ test that remains.
 | `weighted-fits-size.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `variance-form-size-power.R` | `performVarianceFormTest()` for each form against five true variance functions. `Rscript inst/validation/variance-form-size-power.R`, with `N_MC` overridable. |
 | `variance-form-size-power.csv` | Its output, one row per form, truth, error distribution and sample size. |
+| `survey-designs-size.R` | The tests `runSurveyHeteroTests()` runs on the data of a survey design, beside three ways of using the design that were not adopted. `Rscript inst/validation/survey-designs-size.R`, with `N_MC` overridable. Needs `survey`. |
+| `survey-designs-size.csv` | Its output, one row per test, procedure, design and sample size. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -494,6 +496,108 @@ evidence for the form.
 Heavy tails cost power, 0.293 against 0.741 for the exponential form at 400
 observations, without moving the level.
 
+### Survey designs
+
+`runSurveyHeteroTests()` takes the data out of a survey design, fits the model
+by ordinary least squares and runs the ordinary tests. It does not use the
+sampling weights, strata or clusters. Its help page said otherwise up to
+0.12.0; the weights never reached the fit. This study says when the function
+holds its level as it is, and why none of the three ways of bringing the
+design in replaced it.
+
+The population model is `y = 1 + 2 x + e` with `x` standard normal. The error
+variance is constant in every design but the last, so every column but
+**Power** is a size.
+
+| Design | Sampling |
+| --- | --- |
+| Ignorable | The chance of selection depends on `x` alone, as `exp(0.4 x)`. Weights vary about 5 to 1. |
+| Ignorable, strong | The same with `exp(0.9 x)`. Weights vary about 36 to 1. |
+| Stratified | Three strata cut on `x`, sampled at 15%, 35% and 50% of the sample, with finite-population corrections. |
+| Informative | Units with `x > 0` and `abs(e) > 1` are four times as likely to be selected. The errors are homoscedastic in the population and not in the sample. |
+| Clustered | Clusters of ten with equal weights, a cluster-level component in `x`, and a cluster effect in the error whose scale varies between clusters. |
+| Power | The ignorable design with `sd(e) = exp(0.2 x)`. |
+
+The first row of each table is the function, called as a user would call it.
+The second is the same test on `lm(weights = w)` with the sampling weights,
+which reads the residuals multiplied by `sqrt(w)`; a test applied to a
+`survey::svyglm()` fit computes the same statistic. The last two are not in
+the package. Both regress the squared residuals of the `svyglm()` fit on the
+variance regressors using the design: the Wald version is
+`survey::regTermTest()` on that regression, and the score version estimates
+the variance of the weighted score from the design under the null.
+
+**Koenker regressors, n = 300.**
+
+| Procedure | Ignorable | Ignorable, strong | Stratified | Informative | Clustered | Power |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `runSurveyHeteroTests()` | 0.047 | 0.053 | 0.048 | 0.830 | 0.371 | 0.997 |
+| Sampling weights as precision weights | 0.988 | 1.000 | 0.998 | 0.930 | 0.371 | 0.062 |
+| Design-based Wald test (not in the package) | 0.077 | 0.177 | 0.085 | 0.073 | 0.037 | 0.999 |
+| Design-based score test (not in the package) | 0.068 | 0.130 | 0.084 | 0.075 | 0.028 | 0.999 |
+
+**Koenker regressors, n = 1000.**
+
+| Procedure | Ignorable | Ignorable, strong | Stratified | Informative | Clustered | Power |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `runSurveyHeteroTests()` | 0.045 | 0.057 | 0.046 | 1.000 | 0.428 | 1.000 |
+| Sampling weights as precision weights | 1.000 | 1.000 | 1.000 | 1.000 | 0.428 | 0.086 |
+| Design-based Wald test (not in the package) | 0.068 | 0.102 | 0.076 | 0.058 | 0.029 | 1.000 |
+| Design-based score test (not in the package) | 0.064 | 0.089 | 0.076 | 0.056 | 0.026 | 1.000 |
+
+**White regressors, n = 300.**
+
+| Procedure | Ignorable | Ignorable, strong | Stratified | Informative | Clustered | Power |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `runSurveyHeteroTests()` | 0.046 | 0.049 | 0.043 | 0.772 | 0.488 | 0.981 |
+| Sampling weights as precision weights | 0.970 | 1.000 | 0.984 | 0.888 | 0.488 | 0.082 |
+| Design-based Wald test (not in the package) | 0.139 | 0.254 | 0.166 | 0.102 | 0.077 | 0.991 |
+| Design-based score test (not in the package) | 0.093 | 0.097 | 0.137 | 0.089 | 0.017 | 0.986 |
+
+**White regressors, n = 1000.**
+
+| Procedure | Ignorable | Ignorable, strong | Stratified | Informative | Clustered | Power |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `runSurveyHeteroTests()` | 0.047 | 0.053 | 0.051 | 0.999 | 0.595 | 1.000 |
+| Sampling weights as precision weights | 1.000 | 1.000 | 1.000 | 1.000 | 0.595 | 0.120 |
+| Design-based Wald test (not in the package) | 0.080 | 0.172 | 0.120 | 0.077 | 0.062 | 1.000 |
+| Design-based score test (not in the package) | 0.067 | 0.095 | 0.112 | 0.069 | 0.034 | 1.000 |
+
+Replications: 2000. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0049.
+
+Reading the tables:
+
+- **The function holds its level when the design is ignorable given the
+  regressors.** Over the twelve cells of the first three designs it rejects
+  between 0.043 and 0.057 of the time, all inside the 99% band around 0.05 at
+  2000 replications, [0.037, 0.063]. Unequal weights do not matter by
+  themselves, however unequal, as long as selection depends only on variables
+  in the model.
+- **It does not when selection depends on the response or the sample is
+  clustered.** It rejects a model with constant error variance 0.772 to 1.000
+  of the time under informative sampling and 0.371 to 0.595 of the time in the
+  clustered design, and more often in the larger sample. The function warns
+  about unequal weights and about clusters for this reason; it cannot tell
+  whether unequal weights are informative.
+- **Sampling weights are not precision weights.** Treated as such they make
+  the test reject a homoscedastic model 0.970 to 1.000 of the time in the
+  first three designs, because the residuals it reads are multiplied by
+  `sqrt(w)` and `w` varies with `x`. In the power column the same test rejects
+  0.062 to 0.120 of the time, where the unweighted one rejects 0.981 to 1.000:
+  the weights fall with `x` while the variance rises, and the two nearly
+  cancel. This is what `runHeteroTests(formula, design)` computed up to
+  0.12.0, through a `svyglm()` fit, and why such fits are now refused.
+- **The design-based tests do what they are for and still reject too often.**
+  They are the only rows that come near the nominal level under informative sampling
+  (0.056 to 0.102) and in the clustered design (0.017 to 0.077). In the first
+  three designs the Wald test rejects 0.068 to 0.254 of the time and the score
+  test 0.064 to 0.137, and of their forty size cells three fall inside the
+  band. Their variance estimate makes no use of the fact that the squared
+  errors have a common variance under the null, which the ordinary tests rely
+  on, and where the weights vary a few observations carry most of it. Neither
+  was adopted. A design-based test needs a small-sample correction before it
+  can clear the release gate.
+
 ## History
 
 Before 0.7.0, `Szroeter` rejected in 0.0% of samples in every one of these
@@ -503,6 +607,10 @@ scenarios, including all the power columns. The full before-and-after is in
 Before 0.12.0, every heteroscedasticity diagnostic rejected a correctly
 weighted fit in 100% of samples. The weighted-fits tables above are the
 after; the before is the same script run against 0.11.2.
+
+Up to 0.12.0, `runHeteroTests(formula, design)` tested a `survey::svyglm()`
+fit and so read the sampling weights as precision weights. The second row of
+each survey table is that statistic.
 
 The variance-form study once had a third form, an additive variance function
 `sigma^2 = a + z'b`, estimated by regressing the squared residuals on the

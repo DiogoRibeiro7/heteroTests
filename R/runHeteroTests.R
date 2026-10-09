@@ -10,6 +10,9 @@
 #' @param data Optional data source used to fit `model`. Accepts base data
 #'   frames, tibbles, `data.table`s, `dtplyr_step`s and grouped data produced by
 #'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.
+#'   With grouped data the model is refitted within each group by evaluating
+#'   its own call on that group, so every variable it uses, including weights,
+#'   offset and subset, must be a column of `data`.
 #' @param use_cache Logical, reuse cached diagnostic results when available.
 #'   Requires the **digest** package for hashing inputs and defaults to `TRUE`.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
@@ -42,7 +45,8 @@ runHeteroTests <- function(model, data = NULL,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,
                            progress = interactive()) {
-  prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests")
+  rrefuse_survey_fit(model)
+  prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests()")
 
   if (prepared$grouped && length(prepared$group_splits) > 0) {
     if (is.null(prepared$fit_factory)) {

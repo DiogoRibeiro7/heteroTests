@@ -8,6 +8,49 @@
   dashboard's suggestions panel and the remediation section of generated
   reports, which print the same object.
 
+- `runHeteroTests()` with a fitted model and grouped data now runs. The
+  per-group refit passed the weights to `lm()` as a local variable, where
+  `lm()` does not look, and stopped with
+  `invalid type (closure) for variable '(weights)'` for every `lm`, `glm` and
+  parsnip fit, weighted or not. Only a formula with grouped data worked. Each
+  group is now fitted by evaluating the model's own call on it, so a weighted
+  model uses that group's rows of the weights, a `glm` keeps its family and a
+  `subset` is applied within the group. A model whose weights, offset or
+  subset are vectors in the workspace cannot be split by group and is refused
+  with a message that says so.
+
+- Survey designs are no longer tested as if their sampling weights were
+  precision weights, and `runSurveyHeteroTests()` says what it does.
+
+  The help page of `runSurveyHeteroTests()` described a survey-weighted fit.
+  The weights never reached `lm()`, for the scoping reason above, and a
+  `tryCatch()` refitted without them, so the function ran the ordinary tests
+  on an ordinary least-squares fit. It still does, and its values are
+  unchanged. The help page now says that the design is not used and when the
+  tests hold their level regardless, and the function warns when the design
+  has unequal weights or clusters.
+
+  `runHeteroTests(formula, design)` and `runDiagnostics(formula, design)` took
+  a different route. They fitted the model with `survey::svyglm()` and tested
+  that fit, whose residuals are multiplied by the square roots of the sampling
+  weights. Sampling weights say how many population units an observation
+  stands for, not how variable its error is. In
+  `inst/validation/survey-designs-size.R`, on homoscedastic data sampled with
+  probabilities that depend on the regressor, that statistic rejected 97% to
+  100% of the time; on heteroscedastic data it rejected 6% to 12% of the time
+  where the unweighted test rejected 98% to 100%. **These two calls change
+  value**: they now do what `runSurveyHeteroTests()` does, with the same
+  warning. A `svyglm` fit passed to a test directly is refused.
+
+  The package has no design-based test of constant variance. The same study
+  tried two, a Wald and a score test on the regression of the squared
+  residuals on the regressors, estimated with the design. They are the only
+  procedures near their level when selection depends on the response or the
+  sample is clustered, where the function itself rejects 37% to 100% of the
+  time. In the designs the ordinary tests handle correctly they rejected 6%
+  to 25% of the time, and 3 of their 40 size cells fell inside the Monte Carlo
+  band. They were not adopted.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

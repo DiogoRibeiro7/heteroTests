@@ -16,7 +16,9 @@ runHeteroTests(
 }
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used.}
+  \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used. With
+  data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
+  group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}.}
   \item{tests}{character vector of test names to run. Supported values are any names registered via \code{registerDiagnostic}.}
   \item{use_cache}{logical indicating whether cached results should be reused when available. Requires the \pkg{digest}
   package and defaults to \code{TRUE}.}

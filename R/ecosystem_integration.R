@@ -110,35 +110,109 @@
   NULL
 }
 
-.ht_fit_from_formula <- function(formula, data, weights = NULL, engine = c("lm", "glm")) {
-  engine <- match.arg(engine)
-  if (identical(engine, "glm")) {
-    stats::glm(formula, data = data, weights = weights)
-  } else {
-    stats::lm(formula, data = data, weights = weights)
+# Refit a fitted lm/glm on another data frame by evaluating its own call again,
+# so the family, weights, offset, subset and na.action are the ones the model
+# was fitted with. Passing those to stats::lm() as local variables does not
+# work: lm() looks them up in `data` and then in the environment of the formula,
+# never in the function that calls it.
+.ht_refit_model <- function(model, data) {
+  call <- tryCatch(stats::getCall(model), error = function(e) NULL)
+  formula <- .ht_extract_formula(model)
+  if (!is.call(call) || is.null(formula)) {
+    stop(
+      "The fitted model does not record the call that produced it, so it ",
+      "cannot be refitted on other data.",
+      call. = FALSE
+    )
   }
+  call$formula <- formula
+  call$data <- quote(.ht_refit_data)
+  enclosure <- environment(formula)
+  if (!is.environment(enclosure)) {
+    enclosure <- globalenv()
+  }
+  env <- new.env(parent = enclosure)
+  env$.ht_refit_data <- data
+  eval(call, env)
+}
+
+# The same, for one group of a grouped analysis. A model whose weights, offset
+# or subset are vectors in the workspace cannot be split by group, and lm()
+# reports that as a length mismatch; say what it means.
+.ht_refit_group <- function(model, data) {
+  tryCatch(
+    .ht_refit_model(model, data),
+    error = function(e) {
+      stop(
+        "The model could not be refitted within a group: ",
+        conditionMessage(e), "\n",
+        "Grouped diagnostics evaluate the model's own call on each group, so ",
+        "every variable it uses, including weights, offset and subset, must ",
+        "be a column of `data`.",
+        call. = FALSE
+      )
+    }
+  )
+}
+
+# What a survey design gets: an ordinary least-squares fit to its data. The
+# diagnostics have no design-based version, and the alternatives that look
+# like one are worse. Sampling weights are not precision weights, so a fit by
+# lm(weights = ) or survey::svyglm(), whose residuals() carry the square roots
+# of the weights, makes every test reject a homoscedastic model whenever the
+# weights vary with the regressors. inst/validation/survey-designs-size.R has
+# the measurements.
+.ht_survey_ols <- function(formula, design, context) {
+  data <- as.data.frame(design$variables)
+  ignored <- .ht_survey_ignored_features(design)
+  if (length(ignored) > 0L) {
+    warning(
+      context, " does not use the ", paste(ignored, collapse = " or "),
+      " of the survey design. The model is fitted by ordinary least squares ",
+      "and the tests treat the observations as an independent sample, so ",
+      "they hold their level only if the design can be ignored given the ",
+      "regressors. See ?runSurveyHeteroTests.",
+      call. = FALSE
+    )
+  }
+  list(model = stats::lm(formula, data = data), data = data)
+}
+
+# The parts of a design the classical tests cannot see: unequal weights, and
+# sampling units that hold more than one observation.
+.ht_survey_ignored_features <- function(design) {
+  ignored <- character()
+  probabilities <- tryCatch(as.numeric(design$prob), error = function(e) numeric())
+  probabilities <- probabilities[is.finite(probabilities)]
+  spread <- if (length(probabilities) > 1L) diff(range(probabilities)) else 0
+  if (spread > 1e-8 * max(probabilities, 0)) {
+    ignored <- c(ignored, "sampling weights")
+  }
+  units <- tryCatch(design$cluster[[1L]], error = function(e) NULL)
+  if (!is.null(units) && anyDuplicated(units) > 0L) {
+    ignored <- c(ignored, "clusters")
+  }
+  ignored
 }
 
 .ht_prepare_model <- function(model, data = NULL, context = "diagnostic", allow_grouped = TRUE) {
   if (inherits(data, "survey.design")) {
-    if (!requireNamespace("survey", quietly = TRUE)) {
-      stop("`survey` design supplied but the survey package is not installed.", call. = FALSE)
-    }
     if (!inherits(model, "formula")) {
-      stop("When supplying a survey design you must provide the model as a formula.", call. = FALSE)
+      stop(
+        "When supplying a survey design you must provide the model as a formula.",
+        call. = FALSE
+      )
     }
-    fit <- survey::svyglm(model, design = data)
-    mf <- stats::model.frame(fit)
-    prep <- .ht_prepare_input_data(as.data.frame(mf), context)
+    fit <- .ht_survey_ols(model, data, context)
     return(list(
-      model = fit,
-      data = prep$data,
-      grouped = prep$grouped,
-      group_splits = prep$group_splits,
-      group_keys = prep$group_keys,
-      fit_factory = function(df) survey::svyglm(model, design = survey::svydesign(ids = ~1, data = df, weights = stats::weights(fit))),
+      model = fit$model,
+      data = fit$data,
+      grouped = FALSE,
+      group_splits = NULL,
+      group_keys = NULL,
+      fit_factory = NULL,
       formula = model,
-      engine = "svyglm",
+      engine = "lm",
       source = "survey"
     ))
   }
@@ -167,7 +241,7 @@
         group_splits = if (allow_grouped) prep$group_splits else NULL,
         group_keys = if (allow_grouped) prep$group_keys else NULL,
         fit_factory = if (!is.null(formula) && allow_grouped) {
-          function(df) .ht_fit_from_formula(formula, df, weights = tryCatch(stats::weights(engine_fit), error = function(e) NULL), engine = if (inherits(engine_fit, "glm")) "glm" else "lm")
+          function(df) .ht_refit_group(engine_fit, df)
         } else {
           NULL
         },
@@ -202,9 +276,8 @@
     base_data <- data %||% tryCatch(model.frame(model), error = function(e) NULL)
     prep <- .ht_prepare_input_data(base_data, context)
     formula <- .ht_extract_formula(model)
-    weights <- tryCatch(stats::weights(model), error = function(e) NULL)
     fit_factory <- if (!is.null(formula) && allow_grouped) {
-      function(df) .ht_fit_from_formula(formula, df, weights = weights, engine = if (inherits(model, "glm")) "glm" else "lm")
+      function(df) .ht_refit_group(model, df)
     } else {
       NULL
     }
@@ -451,26 +524,53 @@ tidy.hetero_grouped_suite <- function(x, ...) {
 
 # public interface ------------------------------------------------------
 
-#' Run heteroscedasticity diagnostics on survey designs
+#' Run heteroscedasticity diagnostics on the data of a survey design
 #'
-#' Provides a convenience wrapper that fits a survey-weighted linear model via
-#' [survey::svyglm()] before running [runHeteroTests()]. The fitted model and
-#' diagnostics share the same interface as the unweighted tools.
+#' A convenience wrapper that takes the data out of a
+#' [survey::svydesign()] object, fits the model by ordinary least squares and
+#' runs [runHeteroTests()]. **It does not use the sampling weights, strata or
+#' clusters of the design**, and warns when the design has unequal weights or
+#' clusters.
+#'
+#' The tests are the ones [runHeteroTests()] runs on any `lm`: they treat the
+#' observations as an independent sample with equal weights. They hold their
+#' level on survey data when the design can be ignored given the regressors,
+#' that is when the chance of being sampled depends only on variables in the
+#' model, and the sample has no clusters. When selection depends on the
+#' response, or observations are clustered, they reject a model with constant
+#' error variance far more often than their nominal level.
+#'
+#' The package has no design-based test of constant variance. Sampling weights
+#' are not precision weights: they say how many population units an
+#' observation stands for and nothing about its error variance. Passing them
+#' to `lm(weights = )`, or testing a [survey::svyglm()] fit, makes the tests
+#' examine residuals multiplied by the square roots of the weights, and a
+#' homoscedastic model is then rejected whenever the weights vary with the
+#' regressors. `svyglm` fits are refused for that reason.
+#'
+#' `inst/validation/survey-designs-size.R` measures all of this, together with
+#' two design-based tests that were tried and not adopted because they reject
+#' too often at the sample sizes examined.
 #'
 #' @param formula Model formula specifying the mean structure.
-#' @param design A [survey::survey.design] object describing the complex survey
-#'   design, including weights and (optionally) strata and clusters.
+#' @param design A [survey::svydesign()] object. Only its data are used.
 #' @param tests Character vector of diagnostic names forwarded to
 #'   [runHeteroTests()]. Defaults to the White and Breusch-Pagan tests.
 #' @param ... Additional arguments passed to [runHeteroTests()].
 #' @return A [`hetero_test_suite`] object containing the diagnostic results.
+#' @section Earlier versions:
+#' Up to 0.12.0 this page described a survey-weighted fit. The weights did not
+#' reach the fit, which was by ordinary least squares, as it is now, so the
+#' reported values are unchanged.
+#' @seealso [runHeteroTests()]
 #' @export
 #' @examples
-#' 
+#'
 #' if (requireNamespace("survey", quietly = TRUE)) {
 #'   library(survey)
 #'   data(api)
 #'   dstrata <- svydesign(id = ~1, strata = ~stype, weights = ~pw, data = apistrat)
+#'   # Warns: the weights of this design are unequal and are not used.
 #'   res <- runSurveyHeteroTests(api00 ~ api99 + ell, dstrata, tests = "white")
 #'   generics::tidy(res)
 #' }
@@ -484,21 +584,6 @@ runSurveyHeteroTests <- function(formula, design, tests = c("white", "breusch_pa
   if (!inherits(design, "survey.design")) {
     stop("`design` must be a survey::svydesign() object describing the survey structure.", call. = FALSE)
   }
-  data <- as.data.frame(design$variables)
-  weights <- tryCatch(stats::weights(design), error = function(e) NULL)
-  if (is.null(weights)) {
-    weights <- tryCatch(design$prob, error = function(e) NULL)
-    if (!is.null(weights)) {
-      weights <- 1 / weights
-    }
-  }
-  if (!is.null(weights)) {
-    weights <- as.numeric(weights)
-  }
-  fit <- tryCatch(
-    stats::lm(formula, data = data, weights = weights),
-    error = function(e) stats::lm(formula, data = data)
-  )
-  runHeteroTests(fit, data = data, tests = tests, use_cache = FALSE, ...)
+  fit <- .ht_survey_ols(formula, design, "runSurveyHeteroTests()")
+  runHeteroTests(fit$model, data = fit$data, tests = tests, use_cache = FALSE, ...)
 }
-
