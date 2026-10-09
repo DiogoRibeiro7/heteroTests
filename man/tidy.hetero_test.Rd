@@ -31,6 +31,13 @@ the broom generics from the \pkg{generics} package.
 \value{
 A data frame summarising the diagnostic(s), or an augmented data set containing
 fitted values and residuals alongside the original predictors.
+
+\code{tidy} returns one row per test. \code{parameter} is the first parameter
+of the test and \code{parameter2} the second, for a test that has two (the
+denominator degrees of freedom of an F statistic, or the number of bootstrap
+replications); it is \code{NA} otherwise. \code{estimate} is given when the
+test reports exactly one estimate. Up to 0.12.0 a test with two parameters was
+returned as two rows.
 }
 \seealso{\code{generics::tidy}, \code{generics::glance}, \code{generics::augment}}
 \examples{

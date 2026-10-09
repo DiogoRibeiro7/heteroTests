@@ -30,7 +30,9 @@
 # globals. Declaring them here keeps the check output focused on real problems.
 utils::globalVariables(c(
   ".data",
-  ".highlight",
+  ".evidence",
+  ".label",
+  ".state",
   "abs_resid",
   "diagnostic",
   "effect_size",

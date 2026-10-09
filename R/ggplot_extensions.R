@@ -59,81 +59,132 @@ scale_fill_hetero_diagnostic <- function(...) {
 
 #' Autoplot heteroscedasticity diagnostics
 #'
-#' Generates a bar chart of diagnostic p-values, highlighting tests below the
-#' conventional 5% threshold.
+#' Draws one horizontal bar per test. The length of a bar is the evidence
+#' against the null hypothesis, \eqn{-\log_{10} p}, on an axis labelled with
+#' the p-values themselves, so a smaller p-value gives a longer bar. A dashed
+#' line marks `alpha`; bars that pass it are drawn in the accent colour and the
+#' others in grey. The p-value of each test is printed beside its bar, so no
+#' reading depends on colour.
+#'
+#' Bars stop at \eqn{p = 10^{-4}}: extra length beyond that would only
+#' compress the tests that are near the threshold. Labels give the p-value to
+#' three decimals, and `p < 0.001` below that. A test that failed has no bar
+#' and is labelled as such.
+#'
+#' For a grouped suite there is one panel per group.
 #'
 #' @param object A [`hetero_test_suite`] or [`hetero_grouped_suite`].
-#' @param ... Additional arguments passed to lower-level plotting helpers.
+#' @param ... Unused.
+#' @param alpha Significance level marked by the dashed line. Defaults to
+#'   `0.05`.
 #' @return A `ggplot` object.
+#' @section Earlier versions:
+#' Up to 0.12.0 the bars were the p-values themselves on a linear axis from 0
+#' to 1, so a test that rejected had no visible bar, and the highlighting of
+#' significant tests was never applied to a suite of more than one test.
+#' @examples
+#' fit <- lm(mpg ~ wt + qsec, data = mtcars)
+#' suite <- runHeteroTests(
+#'   fit, mtcars,
+#'   tests = c("white", "breusch_pagan", "koenker"),
+#'   progress = FALSE
+#' )
+#' ggplot2::autoplot(suite)
 #' @export
 #' @importFrom ggplot2 autoplot aes geom_col geom_hline facet_wrap labs scale_y_continuous
 #' @importFrom scales percent_format squish
-autoplot.hetero_test_suite <- function(object, ...) {
-  df <- tidy(object)
-  if (nrow(df) == 0) {
-    stop("No heteroscedasticity diagnostics available to plot.", call. = FALSE)
-  }
-  df$diagnostic <- factor(df$diagnostic, levels = unique(df$diagnostic))
-  highlight <- ifelse(isTRUE(df$p.value < 0.05), "significant", "non_significant")
-  highlight[is.na(highlight)] <- "unavailable"
-  df$.highlight <- factor(highlight, levels = c("non_significant", "significant", "unavailable"))
-  ggplot2::ggplot(df, ggplot2::aes(x = diagnostic, y = p.value, fill = .highlight)) +
-    ggplot2::geom_col(show.legend = FALSE) +
-    ggplot2::geom_hline(yintercept = 0.05, linetype = "dashed", colour = "#d73027") +
-    ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 1), oob = scales::squish) +
-    ggplot2::scale_fill_manual(
-      values = c(
-        non_significant = "#2c7bb6",
-        significant = "#d73027",
-        unavailable = "#a6a6a6"
-      )
-    ) +
-    ggplot2::labs(
-      x = "Diagnostic",
-      y = "p-value",
-      title = "Heteroscedasticity diagnostics",
-      subtitle = "Bars highlighted when p < 0.05"
-    ) +
-    theme_hetero()
+autoplot.hetero_test_suite <- function(object, ..., alpha = 0.05) {
+  .ht_evidence_plot(
+    tidy(object),
+    alpha = alpha,
+    title = "Heteroscedasticity diagnostics"
+  )
 }
 
+#' @rdname autoplot.hetero_test_suite
 #' @export
-#' @importFrom scales percent_format squish
-autoplot.hetero_grouped_suite <- function(object, ...) {
-  df <- tidy(object)
+autoplot.hetero_grouped_suite <- function(object, ..., alpha = 0.05) {
+  keys <- names(attr(object, "group_keys"))
+  plot <- .ht_evidence_plot(
+    tidy(object),
+    alpha = alpha,
+    title = "Heteroscedasticity diagnostics by group"
+  )
+  if (length(keys) == 0L) {
+    return(plot)
+  }
+  plot +
+    ggplot2::facet_wrap(
+      stats::reformulate(sprintf("`%s`", keys)),
+      labeller = ggplot2::label_both
+    ) +
+    ggplot2::theme(panel.spacing.x = ggplot2::unit(1.5, "lines"))
+}
+
+# The longest bar: p = 1e-4.
+.ht_evidence_cap <- 4
+
+# Colours of the bars. The accent is the first colour of the package palette.
+# The grey is light enough to recede and is never the only carrier of a value,
+# because every bar is labelled.
+.ht_evidence_fill <- c(
+  rejects = "#2c7bb6",
+  does_not_reject = "#9aa0a6",
+  unavailable = "#9aa0a6"
+)
+
+.ht_evidence_plot <- function(df, alpha, title) {
   if (nrow(df) == 0) {
     stop("No heteroscedasticity diagnostics available to plot.", call. = FALSE)
   }
-  diagnostic_cols <- setdiff(names(df), c(
-    "diagnostic", "statistic", "parameter", "p.value", "estimate",
-    "alternative", "method", "nobs", "status", "message", "model"
-  ))
-  highlight <- ifelse(isTRUE(df$p.value < 0.05), "significant", "non_significant")
-  highlight[is.na(highlight)] <- "unavailable"
-  df$.highlight <- factor(highlight, levels = c("non_significant", "significant", "unavailable"))
-  facet_formula <- if (length(diagnostic_cols) > 0) {
-    stats::as.formula(paste("~", paste(diagnostic_cols, collapse = "+")))
-  } else {
-    stats::as.formula("~ 1")
+  if (!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha) || alpha <= 0 || alpha >= 1) {
+    stop("`alpha` must be a single number between 0 and 1.", call. = FALSE)
   }
-  ggplot2::ggplot(df, ggplot2::aes(x = diagnostic, y = p.value, fill = .highlight)) +
-    ggplot2::geom_col(show.legend = FALSE) +
-    ggplot2::geom_hline(yintercept = 0.05, linetype = "dashed", colour = "#d73027") +
-    ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 1), oob = scales::squish) +
-    ggplot2::scale_fill_manual(
-      values = c(
-        non_significant = "#2c7bb6",
-        significant = "#d73027",
-        unavailable = "#a6a6a6"
-      )
-    ) +
-    ggplot2::labs(
-      x = "Diagnostic",
-      y = "p-value",
-      title = "Grouped heteroscedasticity diagnostics",
-      subtitle = "Bars highlighted when p < 0.05"
-    ) +
-    ggplot2::facet_wrap(facet_formula) +
-    theme_hetero()
-}
 
+  p <- df$p.value
+  # The first test requested is the top bar.
+  df$diagnostic <- factor(df$diagnostic, levels = rev(unique(df$diagnostic)))
+  evidence <- -log10(pmax(p, .Machine$double.xmin))
+  df$.evidence <- ifelse(is.na(p), 0, pmin(evidence, .ht_evidence_cap))
+  df$.state <- factor(
+    ifelse(is.na(p), "unavailable", ifelse(p < alpha, "rejects", "does_not_reject")),
+    levels = names(.ht_evidence_fill)
+  )
+  df$.label <- ifelse(
+    is.na(p),
+    "no result",
+    paste("p", ifelse(p < 0.001, "< 0.001", paste("=", formatC(p, format = "f", digits = 3))))
+  )
+
+  ggplot2::ggplot(df, ggplot2::aes(x = .evidence, y = diagnostic, fill = .state)) +
+    ggplot2::geom_col(width = 0.45, orientation = "y", show.legend = FALSE) +
+    # Holds the axis at its full length when every bar is short.
+    ggplot2::geom_blank(ggplot2::aes(x = .ht_evidence_cap)) +
+    ggplot2::geom_vline(
+      xintercept = -log10(alpha),
+      linetype = "dashed", colour = "#52514e", linewidth = 0.4
+    ) +
+    # The p-values form a column at the right-hand edge, clear of the bars and
+    # of the dashed line whatever the lengths of the bars.
+    ggplot2::geom_text(
+      ggplot2::aes(x = .ht_evidence_cap, label = .label),
+      hjust = 0, nudge_x = 0.12, size = 3.3, colour = "#333333"
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = 0:.ht_evidence_cap,
+      labels = c("1", "0.1", "0.01", "0.001", "0.0001"),
+      expand = ggplot2::expansion(mult = c(0, 0.3))
+    ) +
+    ggplot2::scale_fill_manual(values = .ht_evidence_fill, drop = FALSE) +
+    ggplot2::labs(
+      x = "p-value (log scale)",
+      y = NULL,
+      title = title,
+      subtitle = sprintf("Bars past the dashed line have p < %s", format(alpha))
+    ) +
+    theme_hetero() +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+}

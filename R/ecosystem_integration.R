@@ -343,10 +343,17 @@
   )
 }
 
+# One row per test. A result can carry two parameters (the degrees of freedom
+# of an F statistic, or a degree of freedom and a number of replications) and
+# several estimates. Passing those vectors to data.frame() recycled the row, so
+# such a test appeared twice in the tidy output and twice in every table and
+# plot built from it. The second parameter gets its own column, and an estimate
+# is reported only when there is exactly one.
 ht_tidy_single <- function(x) {
-  statistic <- x$statistic
-  parameter <- x$parameter %||% NA_real_
-  estimate <- x$estimate %||% NA_real_
+  element <- function(value, i) {
+    if (length(value) >= i) unname(value[[i]]) else NA_real_
+  }
+  estimate <- x$estimate
   method <- x$method %||% NA_character_
   alternative <- x$alternative %||% NA_character_
   extras <- attr(x, "extras") %||% list()
@@ -354,11 +361,12 @@ ht_tidy_single <- function(x) {
   failure_message <- extras$message %||% NA_character_
   suggestion_text <- extras$suggestions %||% NA_character_
   data.frame(
-    diagnostic = attr(x, "diagnostic") %||% names(statistic),
-    statistic = unname(statistic),
-    parameter = unname(parameter),
-    p.value = x$p.value %||% NA_real_,
-    estimate = if (length(estimate) > 0) unname(estimate) else NA_real_,
+    diagnostic = attr(x, "diagnostic") %||% names(x$statistic)[1L] %||% NA_character_,
+    statistic = element(x$statistic, 1L),
+    parameter = element(x$parameter, 1L),
+    parameter2 = element(x$parameter, 2L),
+    p.value = element(x$p.value, 1L),
+    estimate = if (length(estimate) == 1L) unname(estimate[[1L]]) else NA_real_,
     alternative = alternative,
     method = method,
     nobs = attr(x, "nobs") %||% NA_integer_,
@@ -405,11 +413,13 @@ tidy.hetero_test <- function(x, ...) {
 #' @method glance hetero_test
 #' @importFrom generics glance
 glance.hetero_test <- function(x, ...) {
+  tidied <- ht_tidy_single(x)
   data.frame(
     diagnostic = attr(x, "diagnostic") %||% NA_character_,
-    statistic = unname(x$statistic),
-    parameter = unname(x$parameter %||% NA_real_),
-    p.value = x$p.value %||% NA_real_,
+    statistic = tidied$statistic,
+    parameter = tidied$parameter,
+    parameter2 = tidied$parameter2,
+    p.value = tidied$p.value,
     method = x$method %||% NA_character_,
     nobs = attr(x, "nobs") %||% NA_integer_,
     stringsAsFactors = FALSE
