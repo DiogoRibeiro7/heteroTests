@@ -175,11 +175,16 @@ test_that("plotBeforeAfter works correctly", {
   
   # Should have appropriate labels
   expect_equal(p$labels$title, "Before/After Residual Comparison")
-  expect_equal(p$labels$colour, "Model")
-  
-  # Should have data from both models
+
+  # Should have data from both models, one panel each
   expect_true(nrow(p$data) > 0)
   expect_true("model" %in% names(p$data))
+  expect_setequal(unique(p$data$model), c("original", "remedied"))
+  expect_identical(
+    levels(p$data$panel),
+    c("Original", "Remedied (weighted residuals)")
+  )
+  expect_identical(names(p$facet$params$facets), "panel")
   expect_true(all(c("original", "remedied") %in% p$data$model))
   
   # Should have residuals from both models

@@ -19,6 +19,11 @@
   second parameter is now in a new column, `parameter2`, and `estimate` is
   given when a test reports exactly one. `glance()` follows.
 
+- `plotBeforeAfter()` draws the two models in two panels, each with its own
+  axes, where it used to overlay them in one panel in two similar blues.
+  Weighted residuals and the residuals of a transformed response are not in
+  the units of the original ones, so a common axis could flatten one of them.
+
 - `print()` on the result of `suggestRemediation()` now uses its print method.
   The method existed but was not registered in `NAMESPACE`, so results printed
   as a bare list with an `attr(,"class")` line. This also affects the
