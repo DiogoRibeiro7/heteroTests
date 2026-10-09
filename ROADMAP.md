@@ -136,6 +136,13 @@ Found on the way and left for their own changes:
   bootstrap with its `df` and `B`, is tidied into two rows, and the grouped
   and suite methods stack them. It should be one row per test, with the
   second parameter in a column of its own.
+- [ ] **`autoplot()` of a test suite does not show significant results.** The
+  bars are p-values on a linear axis from 0 to 1, so a test with p = 0.002
+  has no visible bar, and the chart is empty exactly when the tests reject.
+  The highlighting of p < 0.05 never applies either: the condition is written
+  `isTRUE(df$p.value < 0.05)`, which is `FALSE` for a suite of more than one
+  test. The grouped method has the same condition and adds a facet for the
+  `suggestions` column.
 - [ ] **An additive variance function**, `sigma^2 = a + z'b`, was implemented
   for `fitWLS()` and the form test and withdrawn before release. Under its own
   null, at 5000 replications, the test rejected 6.1% of the time at the 5%
@@ -344,19 +351,56 @@ None of these is scheduled. Each would be a new export, so each has to clear
 the release gate in `inst/validation/README.md` before it ships: agreement to
 `1e-8` with an established implementation or with a reconstruction of the
 primary reference, simulated size inside the gate, and power against the
-alternative it is built for. The first group covers questions the package
-cannot answer yet. The second refines tests it already has.
+alternative it is built for.
 
-Questions the package cannot answer yet:
+The list is arranged by where the test can be found today, because that
+decides both what there is to validate against and what the package would add.
+Availability was checked on 2026-10-09 by searching CRAN, the R documentation
+sites and the web for each test by name. "No R implementation found" reports
+that search. It is not proof that none exists.
 
-- **Harrison–McCabe (1979).** The share of the residual sum of squares that
-  falls in the first part of an ordered sample. Reference implementations:
-  `lmtest::hmctest()` and `skedastic::harrison_mccabe()`.
+### No R implementation found
+
+A first implementation in R. Where another system has one, it is the
+reference; where none does, the guard is a reconstruction of the primary
+reference and simulated size.
+
 - **A Glejser test that is valid under skewed errors** (Im 2000; Machado and
   Santos Silva 2000). The help page of `performGlejserTest()` already warns
-  that the uncorrected statistic is not, and cites Im. No reference
-  implementation has been identified, so the guard is simulated size under a
-  skewed null.
+  that the uncorrected statistic is not, and cites Im.
+  `skedastic::glejser()` is the uncorrected test as well. The guard is
+  simulated size under a skewed null.
+- **Modified Wald test for groupwise heteroscedasticity** in a fixed-effects
+  panel (Greene 2000; Baum 2001). The panel tests cover an individual effect
+  and cross-sectional dependence, not unequal variances across units.
+  Reference implementations: Stata's `xttest3` and the Python package
+  `panelbox`.
+- **A joint LM test of homoscedasticity in a one-way error-component model**
+  (Baltagi, Bresson and Pirotte 2006), against heteroscedasticity in the
+  individual effect and in the remainder error together.
+- **Pagan–Hall (1983)**, the test of constant variance after
+  instrumental-variables estimation, where Breusch–Pagan and White are valid
+  only under further conditions. Reference implementation: Stata's
+  `ivhettest`. The package accepts no instrumental-variables fit today, so
+  this one starts with the input layer.
+- **Kelejian–Robinson (1998)**, a joint test for spatial autocorrelation and
+  heteroscedasticity. `sphet::kpjtest()` is a different test by Kelejian and
+  Piras.
+- **Newey–Powell (1987)**, a test built on asymmetric least squares:
+  under constant variance the expectile regressions have equal slopes.
+  `expectreg` fits expectiles and has no such test.
+- **Tests in nonparametric regression**, which have power against any smooth
+  departure from constant variance and need no variance regressors to be
+  named: Eubank and Thomas (1993), Dette and Munk (1998), Zheng (2009), and
+  Chown and Müller (2018). The cost is a bandwidth or a difference sequence
+  to choose.
+- **A consistent test of a variance function**: Dette, Neumeyer and Van
+  Keilegom (2007), Wang and Zhou (2007), and Samarakoon and Song (2011).
+  `performVarianceFormTest()` has power against the terms it is given; these
+  have it against any departure, at the cost of smoothing.
+- **Bai, Pan and Yin (2018)**, a test of homoscedasticity when the number of
+  regressors grows with the sample. Li–Yao, below, is a different test for the
+  same setting.
 - **A design-based test of constant variance for survey data.** The tests
   assume an independent sample with equal weights, and
   `runSurveyHeteroTests()` rejects a homoscedastic model 37% to 100% of the
@@ -367,21 +411,25 @@ Questions the package cannot answer yet:
   `inst/validation/survey-designs-size.R` and neither clears the gate: 6% to
   25% under the null at 300 and 1000 observations when the weights vary with
   the regressor. The variance estimate needs a small-sample correction first.
-- **Modified Wald test for groupwise heteroscedasticity** in a fixed-effects
-  panel (Greene 2000; Baum 2001). The panel tests cover an individual effect
-  and cross-sectional dependence, not unequal variances across units.
-  Reference implementation: Stata's `xttest3`.
+
+### In another R package, not in this one
+
+These add no test to R. They add it to the common interface, and each comes
+with a reference implementation to agree with.
+
+- **Harrison–McCabe (1979).** The share of the residual sum of squares that
+  falls in the first part of an ordered sample. Reference implementations:
+  `lmtest::hmctest()` and `skedastic::harrison_mccabe()`.
 - **Sign and size bias tests** (Engle and Ng 1993): whether the squared
   residuals respond differently to negative and to positive lagged residuals.
   The time-series tests detect ARCH effects and say nothing about asymmetry.
   `rugarch::signbias()` computes the tests for a fitted GARCH model.
 - **A break in the variance at an unknown date**: the CUSUM of squares test
-  (Brown, Durbin and Evans 1975) or the statistic of Inclán and Tiao (1994).
-  Goldfeld–Quandt and Szroeter need the ordering and the split to be chosen in
-  advance.
-
-Refinements of tests the package already has:
-
+  (Brown, Durbin and Evans 1975), the statistic of Inclán and Tiao (1994), or
+  the kappa tests of Sansó, Aragó and Carrion (2004), which stay valid under
+  heavy tails and conditional heteroscedasticity. Goldfeld–Quandt and Szroeter
+  need the ordering and the split to be chosen in advance. Reference
+  implementation for the last: `micss::kappa_test()`.
 - **Simonoff–Tsai (1994) and Verbyla (1993).** Versions of the Cook–Weisberg
   score test built on modified profile likelihood and on residual maximum
   likelihood, for small samples and high-leverage designs. Reference
@@ -397,9 +445,27 @@ Refinements of tests the package already has:
   `performSpatialHeteroTest()` applies Moran's I to the squared residuals,
   which detects variance that clusters in space and does not test it against
   regressors. Reference implementation: `spatialreg::bptest.Sarlm()`.
-- **A consistent test of a variance function** (Dette, Neumeyer and Van
-  Keilegom 2007). `performVarianceFormTest()` has power against the terms it
-  is given; this one has it against any departure, at the cost of smoothing.
+- **The rest of `skedastic`.** Of its 25 tests, the package has counterparts
+  for seven. Besides those named above, `skedastic` provides `bamset()`,
+  `carapeto_holt()`, `diblasi_bowman()`, `dufour_etal()`, `evans_king()`,
+  `godfrey_orme()`, `honda()`, `horn()`, `rackauskas_zuokas()`,
+  `wilcox_keselman()`, `yuce()` and `zhou_etal()`. None is a priority by
+  itself; each is a candidate when a user asks for it.
+
+### Order of work
+
+The first group is where the package can contribute something R does not have,
+which is also what a reader of the article asks of it. Within that group:
+
+1. The robust Glejser test. It corrects a test the package already has and
+   already documents as invalid under skewed errors.
+2. The modified Wald test. The panel functions exist, and it is the test
+   Stata users look for under the name `xttest3`.
+3. The Dette, Neumeyer and Van Keilegom test. It removes the main limitation
+   of `performVarianceFormTest()`, and is the most work of the three.
+
+From the second group, Harrison–McCabe is the cheapest, with two reference
+implementations to agree with.
 
 ## Decisions needed
 
