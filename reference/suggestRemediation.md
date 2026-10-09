@@ -49,12 +49,8 @@ data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)
 res <- runHeteroTests(mod, mtcars)
 suggestRemediation(res)
-#> $severity
-#> [1] "Low"
-#> 
-#> $transformations
-#> [1] "log"  "sqrt"
-#> 
-#> attr(,"class")
-#> [1] "remediation_suggestions"
+#> Heteroscedasticity Remediation Suggestions
+#> ---------------------------------------------
+#> Severity: Low 
+#> Recommended transformations: log, sqrt 
 ```

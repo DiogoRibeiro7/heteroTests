@@ -90,14 +90,10 @@ transformations or variance modelling approaches are suggested.</p>
 <span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">qsec</span>, data <span class="op">=</span> <span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="runHeteroTests.html">runHeteroTests</a></span><span class="op">(</span><span class="va">mod</span>, <span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">suggestRemediation</span><span class="op">(</span><span class="va">res</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $severity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Low"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $transformations</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "log"  "sqrt"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "remediation_suggestions"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Heteroscedasticity Remediation Suggestions</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ---------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Severity: Low </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Recommended transformations: log, sqrt </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
