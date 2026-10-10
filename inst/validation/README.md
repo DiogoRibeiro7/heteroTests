@@ -39,7 +39,7 @@ test that remains.
 | `pass-a-size-power.csv` | Its output, in long format, one row per test and scenario. |
 | `full-sweep-size-power.R` | The sweep over every exported test. `Rscript inst/validation/full-sweep-size-power.R`, with `N_MC` overridable. |
 | `full-sweep-size-power.csv` | Its output, one row per test, with the alternative each was driven against. |
-| `weighted-fits-size.R` | The tests on weighted fits, with weights known and with weights estimated by `fitWLS()`, and the resampling tests with weights exact, estimated and too weak. `Rscript inst/validation/weighted-fits-size.R`, with `N_MC` and `MC_CORES` overridable. |
+| `weighted-fits-size.R` | The tests on weighted fits, with weights known and with weights estimated by `fitWLS()`, and the resampling tests with weights exact, true, estimated and too weak. `Rscript inst/validation/weighted-fits-size.R`, with `N_MC` and `MC_CORES` overridable. |
 | `weighted-fits-size.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `variance-form-size-power.R` | `performVarianceFormTest()` for each form against five true variance functions. `Rscript inst/validation/variance-form-size-power.R`, with `N_MC` overridable. |
 | `variance-form-size-power.csv` | Its output, one row per form, truth, error distribution and sample size. |
