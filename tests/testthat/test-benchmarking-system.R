@@ -37,8 +37,12 @@ test_that("benchmark suite produces structured output", {
       # zero, and `small_time * 50` is then zero too, so the comparison could
       # never hold however fast the code was. Add an absolute slack above the
       # clock's resolution; a genuine scaling blow-up is orders of magnitude
-      # larger than this and is still caught.
-      timer_slack <- 0.05
+      # larger than this and is still caught. Each call is timed once, so a
+      # full garbage collection that happens to fall inside one of them adds
+      # a few tenths of a second; where it falls depends on everything the
+      # session allocated before, not on the code being timed. The slack
+      # covers that too.
+      timer_slack <- 0.5
       expect_true(all(large_time <= small_time * 50 + timer_slack))
     }
   }
