@@ -12,7 +12,10 @@
   orders by the fitted values, so the alternative is that the variance rises
   with the mean, and gives Q = 1.099 (p = 0.136) whatever the order of the
   columns. With a single regressor that is the order of the regressor when
-  its slope is positive and the reverse order when it is negative.
+  its slope is positive and the reverse order when it is negative. The fitted
+  values are computed from the coefficients, so observations with the same
+  regressors tie exactly, and ties keep the order of the rows the model was
+  fitted to.
 
   Everything that runs the registered test changes with it: `runDiagnostics()`,
   `test()` and `summary()` on a `HeteroDiagnostic`, `compareModelDiagnostics()`,
