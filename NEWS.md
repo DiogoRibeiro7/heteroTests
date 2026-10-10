@@ -98,6 +98,15 @@
   The default is `robust = FALSE`, and every value the function returned
   before is unchanged.
 
+- `suggestDiagnosticsForProfile()` had two definitions, and only the one
+  loaded last ever ran. The other still recommended `"hc_covariance"`, a
+  diagnostic removed in 0.8.0, for data of 10,000 rows or more; had it been
+  the one loaded, passing its recommendations to `runHeteroTests(tests = )`
+  would have stopped with `Unknown tests: hc_covariance`. It is gone, and the
+  function returns exactly what it returned before. New tests check that every
+  name it can return is a registered diagnostic, and that no function in the
+  package has two different definitions.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

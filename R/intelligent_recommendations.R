@@ -181,36 +181,83 @@ suggestDiagnosticsForProfile <- function(profile) {
 
   if (identical(profile$size_bucket, "very_large")) {
     recommendations <- c(recommendations, list(
-      list(test = "hc_covariance", rationale = "HC3/HC4 covariance estimators stabilise inference for large datasets."),
-      list(test = "quantile_regression", rationale = "Quantile-based check highlights distributional heterogeneity.")
+      list(
+        test = "quantile_regression",
+        rationale = "Quantile-based checks can reveal distributional heterogeneity."
+      ),
+      list(
+        test = "koenker",
+        rationale = paste(
+          "Studentized Breusch-Pagan inference avoids the classical normality",
+          "scaling assumption."
+        )
+      )
     ))
   }
 
   if (isTRUE(profile$high_dimensional)) {
     recommendations <- c(recommendations, list(
-      list(test = "high_dimensional", rationale = "Designed for scenarios where predictors outnumber observations.")
+      list(
+        test = "high_dimensional",
+        rationale = paste(
+          "Experimental projection diagnostic for scenarios where predictors",
+          "outnumber observations."
+        )
+      )
     ))
   }
 
   if (isTRUE(profile$detected_spatial_fields)) {
     recommendations <- c(recommendations, list(
-      list(test = "spatial_hetero", rationale = "Spatial heteroscedasticity diagnostic for geographic data."),
-      list(test = "wild_bootstrap", rationale = "Spatial dependence often benefits from bootstrap-based inference.")
+      list(
+        test = "spatial_hetero",
+        rationale = "Spatial diagnostic for geographic residual-scale structure."
+      ),
+      list(
+        test = "wild_bootstrap",
+        rationale = paste(
+          "Bootstrap-based inference can complement spatial diagnostics when",
+          "its assumptions are appropriate."
+        )
+      )
     ))
   }
 
   if (!is.null(profile$missingness) && profile$missingness$overall_rate >= 0.05) {
     recommendations <- c(recommendations, list(
-      list(test = "quantile_regression", rationale = "Quantile diagnostics remain informative with moderate missingness."),
-      list(test = "wild_bootstrap", rationale = "Bootstrap procedures mitigate imbalance from incomplete cases.")
+      list(
+        test = "quantile_regression",
+        rationale = paste(
+          "Quantile slope comparisons provide a complementary distributional",
+          "check after missing-data handling."
+        )
+      ),
+      list(
+        test = "wild_bootstrap",
+        rationale = paste(
+          "Bootstrap diagnostics can provide a complementary finite-sample",
+          "check after missing-data handling."
+        )
+      )
     ))
   }
 
   if (nrow(profile$numeric_distribution) > 0) {
-    skewed <- profile$numeric_distribution$variable[profile$numeric_distribution$shape %in% c("strong_right_skew", "strong_left_skew")]
+    skewed <- profile$numeric_distribution$variable[
+      profile$numeric_distribution$shape %in% c("strong_right_skew", "strong_left_skew")
+    ]
     if (length(skewed) > 0) {
       recommendations <- c(recommendations, list(
-        list(test = "quantile_regression", rationale = sprintf("Variables %s show strong skewness; quantile checks capture tail effects.", paste(skewed, collapse = ", ")))
+        list(
+          test = "quantile_regression",
+          rationale = sprintf(
+            paste(
+              "Variables %s show strong skewness; quantile slope comparisons",
+              "provide a complementary distributional check."
+            ),
+            paste(skewed, collapse = ", ")
+          )
+        )
       ))
     }
   }
