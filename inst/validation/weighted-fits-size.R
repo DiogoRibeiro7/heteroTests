@@ -43,9 +43,11 @@
 # bootstrap the script repeats their resampling with that one change, and
 # checks first that without it the repetition reproduces the package's
 # replicates; rbootstrap_test_statistic() is given a test function that calls
-# fitWLS(). The last rows are a power, at N_MC replications: the weights 1 / x
-# where the standard deviation is x^2, which leave the weighted fit
-# heteroscedastic.
+# fitWLS(). The power rows run at N_MC replications: the weights 1 / x where
+# the standard deviation is x^2, which leave the weighted fit
+# heteroscedastic. The last rows fit the design of block 2 with the weights
+# of its true variance function, so that the rows with estimated weights have
+# a comparison on the same data.
 #
 # Block 4 is run by scenario, each with its own seed, so its results do not
 # depend on MC_CORES, which runs the scenarios in parallel through
@@ -211,6 +213,17 @@ make_power_of_x <- function(n, weight_power) {
   list(model = lm(y ~ x + z, data = d, weights = w), data = d)
 }
 
+# The design of block 2, sd = exp(0.3 x), fitted with the weights of its true
+# variance function, exp(-0.6 x), in place of those fitWLS() estimates. The
+# rows held fixed and re-estimated are compared with these.
+make_true_weights <- function(n) {
+  x <- runif(n, 1, 5)
+  z <- runif(n, 1, 5)
+  d <- data.frame(y = 1 + 2 * x + 0.5 * z + exp(0.3 * x) * rnorm(n), x = x, z = z)
+  d$w <- exp(-0.6 * x)
+  list(model = lm(y ~ x + z, data = d, weights = w), data = d)
+}
+
 # The statistics of the bootstrap tests, n R^2 of the squared Pearson residuals
 # on x and z (Koenker's, which the wild bootstrap uses) or on x, z, their
 # squares and their product (White's). check_repetition() asserts that they
@@ -350,12 +363,17 @@ boot_scenarios <- rbind(
   boot_scenario(boot_tests, c("estimated, held fixed", "estimated, re-estimated"), n_obs),
   boot_scenario("performWildBootstrapTest",
                 c("estimated, held fixed", "estimated, re-estimated"), 600L),
-  boot_scenario(boot_tests, "too weak", n_obs)
+  boot_scenario(boot_tests, "too weak", n_obs),
+  # Added after the others so that their seeds, seed_boot + i, stay as they
+  # were.
+  boot_scenario(boot_tests, "true", n_obs),
+  boot_scenario("performWildBootstrapTest", "true", 600L)
 )
 boot_design <- function(test, weights) {
   switch(weights,
     "exact" = "sd = x^2 fitted with weights 1 / x^4",
     "too weak" = "sd = x^2 fitted with weights 1 / x",
+    "true" = "sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)",
     "estimated, held fixed" = "fitWLS(), exponential variance correctly specified",
     "estimated, re-estimated" = paste(
       "fitWLS(), exponential variance correctly specified;",
@@ -381,6 +399,7 @@ run_boot_scenario <- function(i) {
     o <- switch(s$weights,
       "exact" = make_power_of_x(s$n, 4),
       "too weak" = make_power_of_x(s$n, 1),
+      "true" = make_true_weights(s$n),
       make_fgls("normal", s$n)
     )
     pval(function(o) boot_p_value(s$test, s$weights, o), o)

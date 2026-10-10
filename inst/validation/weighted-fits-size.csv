@@ -82,3 +82,7 @@
 "performWildBootstrapTest","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
 "performWhiteTestBootstrap","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
 "rbootstrap_test_statistic","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
+"performWildBootstrapTest","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.054,0.00505390937789747,2000,0
+"performWhiteTestBootstrap","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.054,0.00505390937789747,2000,0
+"rbootstrap_test_statistic","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.0455,0.00465992220965114,2000,0
+"performWildBootstrapTest","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",600,2000,0.048,0.00477995815881269,2000,0
