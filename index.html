@@ -61,7 +61,11 @@
 <p>Every test returns a base-R <code>htest</code> object and follows the same <code>perform*Test(model, data, ...)</code> convention, so results print, subset and compose like <code>stats::bptest()</code> and slot directly into automated pipelines.</p>
 <ul>
 <li>
-<strong>Auxiliary-regression tests</strong> — White, classical Breusch–Pagan, Koenker (studentized), Harvey, Park, Glejser. The classical and studentized Breusch–Pagan statistics are validated against <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code> to machine precision.</li>
+<strong>Auxiliary-regression tests</strong> — White, classical Breusch–Pagan, Koenker (studentized), Harvey, Park, Glejser. The classical and studentized Breusch–Pagan statistics are validated against <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code> to machine precision. <code>performGlejserTest(robust = TRUE)</code> is the Glejser test of Im
+<ol start="2000" style="list-style-type: decimal">
+<li>and of Machado and Santos Silva (2000), which keeps its level under skewed errors.</li>
+</ol>
+</li>
 <li>
 <strong>Group-wise variance tests</strong> — Levene, Brown–Forsythe, Bartlett, Fligner–Killeen, Hartley’s F-max (validated against <code>car</code>).</li>
 <li>

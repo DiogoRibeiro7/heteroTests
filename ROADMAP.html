@@ -195,8 +195,6 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <h3 id="no-r-implementation-found">No R implementation found<a class="anchor" aria-label="anchor" href="#no-r-implementation-found"></a></h3>
 <p>A first implementation in R. Where another system has one, it is the reference; where none does, the guard is a reconstruction of the primary reference and simulated size.</p>
 <ul><li>
-<strong>A Glejser test that is valid under skewed errors</strong> (Im 2000; Machado and Santos Silva 2000). The help page of <code><a href="reference/performGlejserTest.html">performGlejserTest()</a></code> already warns that the uncorrected statistic is not, and cites Im. <code>skedastic::glejser()</code> is the uncorrected test as well. The guard is simulated size under a skewed null.</li>
-<li>
 <strong>Modified Wald test for groupwise heteroscedasticity</strong> in a fixed-effects panel (Greene 2000; Baum 2001). The panel tests cover an individual effect and cross-sectional dependence, not unequal variances across units. Reference implementations: Stata’s <code>xttest3</code> and the Python package <code>panelbox</code>.</li>
 <li>
 <strong>A joint LM test of homoscedasticity in a one-way error-component model</strong> (Baltagi, Bresson and Pirotte 2006), against heteroscedasticity in the individual effect and in the remainder error together.</li>
@@ -238,11 +236,15 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <div class="section level3">
 <h3 id="order-of-work">Order of work<a class="anchor" aria-label="anchor" href="#order-of-work"></a></h3>
 <p>The first group is where the package can contribute something R does not have, which is also what a reader of the article asks of it. Within that group:</p>
-<ol style="list-style-type: decimal"><li>The robust Glejser test. It corrects a test the package already has and already documents as invalid under skewed errors.</li>
-<li>The modified Wald test. The panel functions exist, and it is the test Stata users look for under the name <code>xttest3</code>.</li>
-<li>The Dette, Neumeyer and Van Keilegom test. It removes the main limitation of <code><a href="reference/performVarianceFormTest.html">performVarianceFormTest()</a></code>, and is the most work of the three.</li>
+<ol style="list-style-type: decimal"><li>The modified Wald test. The panel functions exist, and it is the test Stata users look for under the name <code>xttest3</code>.</li>
+<li>The Dette, Neumeyer and Van Keilegom test. It removes the main limitation of <code><a href="reference/performVarianceFormTest.html">performVarianceFormTest()</a></code>, and is the most work of the two.</li>
 </ol><p>From the second group, Harrison–McCabe is the cheapest, with two reference implementations to agree with.</p>
 </div>
+<div class="section level3">
+<h3 id="done">Done<a class="anchor" aria-label="anchor" href="#done"></a></h3>
+<ul><li>
+<strong>A Glejser test that is valid under skewed errors</strong> (Im 2000; Machado and Santos Silva 2000), after 0.12.0, as <code>performGlejserTest(robust = TRUE)</code>. In the designs of <code>inst/validation/glejser-skewed-errors.R</code> the uncorrected statistic rejects a true null hypothesis 9% to 18% of the time at the 5% level when the errors are skewed, at every sample size, and <code>skedastic::glejser()</code> uses the uncorrected absolute residuals as well. The default is still Glejser’s statistic; whether it should be is under <em>Decisions needed</em>.</li>
+</ul></div>
 </div>
 <div class="section level2">
 <h2 id="decisions-needed">Decisions needed<a class="anchor" aria-label="anchor" href="#decisions-needed"></a></h2>
@@ -270,6 +272,11 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <td>0.14.0</td>
 </tr><tr><td>Default battery</td>
 <td>White + Koenker</td>
+<td>0.14.0</td>
+</tr><tr><td>Default of <code>robust</code> in <code><a href="reference/performGlejserTest.html">performGlejserTest()</a></code>
+</td>
+<td>
+<code>TRUE</code>. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so</td>
 <td>0.14.0</td>
 </tr><tr><td>Wild bootstrap multiplier and <code>B</code>
 </td>
