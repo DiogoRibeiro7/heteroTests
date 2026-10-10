@@ -119,7 +119,6 @@ runHeteroTests(m, mtcars)
 #> [1] "data.frame"
 # Specify additional diagnostics
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "ncv"))
-#> [INFO] Running Koenker test
 #> [INFO] Running NCV score test
 #> $white
 #> 

@@ -43,6 +43,13 @@ A data frame summarising the diagnostic(s), or an augmented data set
 containing fitted values and residuals alongside the original
 predictors.
 
+`tidy` returns one row per test. `parameter` is the first parameter of
+the test and `parameter2` the second, for a test that has two (the
+denominator degrees of freedom of an F statistic, or the number of
+bootstrap replications); it is `NA` otherwise. `estimate` is given when
+the test reports exactly one estimate. Up to 0.12.0 a test with two
+parameters was returned as two rows.
+
 ## See also
 
 [`generics::tidy`](https://generics.r-lib.org/reference/tidy.html),
@@ -58,9 +65,9 @@ if (requireNamespace("generics", quietly = TRUE)) {
   suite <- runHeteroTests(fit, mtcars, tests = c("white", "breusch_pagan"))
   generics::tidy(suite)
 }
-#>      diagnostic statistic parameter    p.value estimate
-#> 1         white  11.82248         5 0.03730286       NA
-#> 2 breusch_pagan   3.13479         2 0.20858780       NA
+#>      diagnostic statistic parameter parameter2    p.value estimate
+#> 1         white  11.82248         5         NA 0.03730286       NA
+#> 2 breusch_pagan   3.13479         2         NA 0.20858780       NA
 #>                  alternative                                    method nobs
 #> 1 heteroscedasticity present       White's test for heteroscedasticity   32
 #> 2                       <NA> Breusch-Pagan test for heteroscedasticity   32

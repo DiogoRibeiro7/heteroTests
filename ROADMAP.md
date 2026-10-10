@@ -162,20 +162,23 @@ Fixed after 0.12.0: each group is refitted by evaluating the model’s own
 call on it, which gives it its own rows of the weights and keeps the
 family of a `glm`.
 
-**`tidy()` returns one row per degree of freedom.** A result with two
+**`tidy()` returned one row per degree of freedom.** A result with two
 parameters, such as the F test of
 [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
-or the wild bootstrap with its `df` and `B`, is tidied into two rows,
-and the grouped and suite methods stack them. It should be one row per
-test, with the second parameter in a column of its own.
+or the wild bootstrap with its `df` and `B`, was tidied into two rows,
+and the grouped and suite methods stacked them. Fixed after 0.12.0: one
+row per test, with the second parameter in a column of its own,
+`parameter2`.
 
-**`autoplot()` of a test suite does not show significant results.** The
-bars are p-values on a linear axis from 0 to 1, so a test with p = 0.002
-has no visible bar, and the chart is empty exactly when the tests
-reject. The highlighting of p \< 0.05 never applies either: the
-condition is written `isTRUE(df$p.value < 0.05)`, which is `FALSE` for a
-suite of more than one test. The grouped method has the same condition
-and adds a facet for the `suggestions` column.
+**`autoplot()` of a test suite did not show significant results.** The
+bars were p-values on a linear axis from 0 to 1, so a test with p =
+0.002 had no visible bar, and the chart was empty exactly when the tests
+rejected. The highlighting of p \< 0.05 never applied either: the
+condition was written `isTRUE(df$p.value < 0.05)`, which is `FALSE` for
+a suite of more than one test. The grouped method had the same condition
+and added a facet for the `suggestions` column. Fixed after 0.12.0: the
+bars are `-log10(p)` on an axis labelled with p-values, with a line at
+`alpha` and the p-value printed beside each bar.
 
 **An additive variance function**, `sigma^2 = a + z'b`, was implemented
 for

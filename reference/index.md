@@ -21,6 +21,7 @@
   : Automatic transformation helper
 
 - [`autoplot(`*`<hetero_test_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/autoplot.hetero_test_suite.md)
+  [`autoplot(`*`<hetero_grouped_suite>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/autoplot.hetero_test_suite.md)
   : Autoplot heteroscedasticity diagnostics
 
 - [`bootstrap_methods`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_methods.md)

@@ -87,9 +87,9 @@ if (requireNamespace("survey", quietly = TRUE)) {
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 6.2317 df = 5 p = 0.2843
 #> [INFO] Running Breusch-Pagan test
-#>      diagnostic statistic parameter    p.value estimate
-#> 1         white  6.231719         5 0.28432020       NA
-#> 2 breusch_pagan  4.981994         2 0.08282735       NA
+#>      diagnostic statistic parameter parameter2    p.value estimate
+#> 1         white  6.231719         5         NA 0.28432020       NA
+#> 2 breusch_pagan  4.981994         2         NA 0.08282735       NA
 #>                  alternative                                    method nobs
 #> 1 heteroscedasticity present       White's test for heteroscedasticity  200
 #> 2                       <NA> Breusch-Pagan test for heteroscedasticity  200
