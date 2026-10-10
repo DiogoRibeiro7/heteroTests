@@ -1524,7 +1524,7 @@ if (.Platform$OS.type != "windows") {
 #>  Bootstrap White test
 #> 
 #> data:  mod
-#> X-squared = 13.801, B = 199, p-value = 0.01
+#> X-squared = 13.801, B = 199, p-value = 0.005
 #> 
 # }
 ```
