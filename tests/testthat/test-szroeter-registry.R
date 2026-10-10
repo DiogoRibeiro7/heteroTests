@@ -106,6 +106,28 @@ test_that("with one regressor the order follows the sign of its slope", {
   expect_gt(res_down$p.value, 0.95)
 })
 
+test_that("for a glm the order is that of the fitted mean, not the linear predictor", {
+  # The Gamma family's default link is the inverse, so the linear predictor
+  # falls as the mean rises, and ordering on the link scale would reverse the
+  # sign of Q.
+  set.seed(4)
+  n <- 80
+  d <- data.frame(x = runif(n, 1, 3))
+  d$y <- rgamma(n, shape = 5, rate = 5 * (0.3 + 0.2 * d$x))
+  m <- glm(y ~ x, family = Gamma(), data = d)
+  expect_lt(cor(fitted(m), predict(m)), 0)
+
+  by_mean <- performSzroeterTest(m, transform(d, mu = fitted(m)), order_by = "mu")
+  by_link <- performSzroeterTest(m, transform(d, eta = predict(m)), order_by = "eta")
+  res <- run_szroeter(m, d)
+  expect_equal(unname(res$statistic), unname(by_mean$statistic), tolerance = 1e-10)
+  expect_equal(res$p.value, by_mean$p.value, tolerance = 1e-10)
+  # The two orders give opposite signs, and Q is far enough from zero (-0.75
+  # here) for the difference to show.
+  expect_equal(unname(by_link$statistic), -unname(by_mean$statistic), tolerance = 1e-10)
+  expect_gt(abs(unname(res$statistic)), 0.5)
+})
+
 test_that("equal fitted values tie exactly, however the model is written", {
   # lm() stores its fitted values as y - e, so two observations with the same
   # design row can differ in the last bits by an amount that depends on the
@@ -177,6 +199,20 @@ test_that("the registered Szroeter test uses the rows the model used, and says n
   expect_warning(res50 <- run_szroeter(m50, d), NA)
   expect_equal(unname(res50$statistic), unname(szroeter_q(m50, key(m50))["q"]),
                tolerance = 1e-10)
+
+  # Data that lack rows of the fit: here the model has its own row names and
+  # the data the default ones. That is an error, and nothing before it is
+  # reported as a missing value.
+  named <- `rownames<-`(d, paste0("r", seq_len(n)))
+  m_named <- lm(y ~ x1 + x2, data = named)
+  expect_warning(
+    expect_error(
+      run_szroeter(m_named, d),
+      "requires `data` to contain the rows used to fit the model. Missing rows: r1, r2, r3",
+      fixed = TRUE
+    ),
+    NA
+  )
 
   # Weighted fit: the Pearson residuals, ordered by the fitted values.
   w <- runif(n, 0.5, 2)

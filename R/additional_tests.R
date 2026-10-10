@@ -441,10 +441,11 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' present, and ensure sufficient sample size and variability in the squared
 #' residuals.
 #'
-#' Ties in `order_by` keep the order of the rows the model was fitted to. That
-#' keeps the level under the null hypothesis, because that order does not
-#' depend on the residuals, but with a discrete ordering variable the
-#' statistic depends on the order of the rows.
+#' Ties in `order_by` keep the order of the rows the model was fitted to.
+#' Unless the rows were sorted by the response, that order does not depend on
+#' the residuals, so the test keeps its level under the null hypothesis; but
+#' with a discrete ordering variable the statistic depends on the order of the
+#' rows.
 #'
 #' `runHeteroTests(tests = "szroeter")`, and anything else that runs the
 #' registered diagnostic, orders the observations by the fitted values of

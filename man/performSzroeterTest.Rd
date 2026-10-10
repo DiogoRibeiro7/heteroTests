@@ -52,10 +52,11 @@ supplied data with the model residuals, check that the ordering variable is
 present, and ensure sufficient sample size and variability in the squared
 residuals.
 
-Ties in \code{order_by} keep the order of the rows the model was fitted to. That
-keeps the level under the null hypothesis, because that order does not
-depend on the residuals, but with a discrete ordering variable the
-statistic depends on the order of the rows.
+Ties in \code{order_by} keep the order of the rows the model was fitted to.
+Unless the rows were sorted by the response, that order does not depend on
+the residuals, so the test keeps its level under the null hypothesis; but
+with a discrete ordering variable the statistic depends on the order of the
+rows.
 
 \code{runHeteroTests(tests = "szroeter")}, and anything else that runs the
 registered diagnostic, orders the observations by the fitted values of
