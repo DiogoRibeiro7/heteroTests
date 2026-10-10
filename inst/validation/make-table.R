@@ -442,3 +442,129 @@ if (file.exists(csv_g)) {
     cat(".\n")
   }
 }
+
+# --- Modified Wald test for groupwise heteroscedasticity ----------------------
+
+csv_m <- file.path("inst", "validation", "modified-wald-size-power.csv")
+if (!file.exists(csv_m)) csv_m <- "modified-wald-size-power.csv"
+if (file.exists(csv_m)) {
+  mw <- utils::read.csv(csv_m, stringsAsFactors = FALSE, colClasses = c(periods = "character"))
+  laws <- c(normal = "Gaussian", t5 = "t5")
+  references <- c(
+    modified_wald = "chi-squared, N df (xttest3)",
+    modified_wald_n_minus_1 = "chi-squared, N - 1 df"
+  )
+  rate_of <- function(rows) {
+    if (nrow(rows)) sprintf("%.3f", rows$rejection_rate[1L]) else "--"
+  }
+
+  # One row per error distribution, number of units and reference
+  # distribution, one column per number of periods.
+  emit_mw <- function(block, title) {
+    rows <- mw[mw$block == block, , drop = FALSE]
+    periods <- sort(unique(as.integer(rows$periods)))
+    cat(sprintf("\n### %s\n\n", title))
+    cat("| Errors | Units | Reference | ",
+        paste(sprintf("T = %d", periods), collapse = " | "), " |\n", sep = "")
+    cat("| --- | ---: | --- | ", paste(rep("---:", length(periods)), collapse = " | "), " |\n",
+        sep = "")
+    for (law in names(laws)) {
+      for (units in sort(unique(rows$units))) {
+        for (test in names(references)) {
+          cells <- vapply(periods, function(t) {
+            rate_of(rows[rows$errors == law & rows$units == units & rows$test == test &
+                           rows$periods == as.character(t), , drop = FALSE])
+          }, character(1))
+          cat("| ", laws[[law]], " | ", units, " | ", references[[test]], " | ",
+              paste(cells, collapse = " | "), " |\n", sep = "")
+        }
+      }
+    }
+  }
+
+  emit_mw("size", "Modified Wald test, size in balanced panels")
+
+  unbalanced <- mw[mw$block == "size, unbalanced", , drop = FALSE]
+  cat("\n### Modified Wald test, size in unbalanced panels\n\n")
+  cat("| Errors | Units | Periods per unit | Mean periods | ",
+      paste(references, collapse = " | "), " |\n", sep = "")
+  cat("| --- | ---: | --- | ---: | ---: | ---: |\n")
+  for (law in names(laws)) {
+    for (units in sort(unique(unbalanced$units))) {
+      rows <- unbalanced[unbalanced$errors == law & unbalanced$units == units, , drop = FALSE]
+      cells <- vapply(names(references), function(test) rate_of(rows[rows$test == test, ]),
+                      character(1))
+      # Two decimals, trailing zeros dropped: "%.1f" rounds 16.25 to 16.2.
+      mean_periods <- sub("\\.?0+$", "", sprintf("%.2f", rows$mean_periods[1]))
+      cat(sprintf("| %s | %d | %s | %s | %s |\n", laws[[law]], units, rows$periods[1],
+                  mean_periods, paste(cells, collapse = " | ")))
+    }
+  }
+
+  emit_mw("size, long panels", "Modified Wald test, size in long panels")
+
+  power <- mw[mw$block == "power" & mw$test == "modified_wald", , drop = FALSE]
+  size_gaussian <- mw[mw$block == "size" & mw$test == "modified_wald" & mw$errors == "normal", ,
+                      drop = FALSE]
+  taus <- sort(unique(power$tau))
+  cat("\n### Modified Wald test, rejection rate under lognormal unit variances\n\n")
+  cat("| Units | Periods | Size, Gaussian | ",
+      paste(sprintf("tau = %.2f", taus), collapse = " | "), " |\n", sep = "")
+  cat("| ---: | ---: | ---: | ", paste(rep("---:", length(taus)), collapse = " | "), " |\n",
+      sep = "")
+  for (periods in sort(unique(as.integer(power$periods)))) {
+    for (units in sort(unique(power$units))) {
+      here <- function(rows) {
+        rows[rows$units == units & rows$periods == as.character(periods), , drop = FALSE]
+      }
+      cells <- vapply(taus, function(tau) rate_of(here(power[power$tau == tau, ])), character(1))
+      cat(sprintf("| %d | %d | %s | %s |\n", units, periods, rate_of(here(size_gaussian)),
+                  paste(cells, collapse = " | ")))
+    }
+  }
+  cat(sprintf(paste(
+    "\nReplications: %d. Nominal level: 0.05.",
+    "Monte Carlo standard error at the nominal level: %.4f.\n"
+  ), mw$replications[1], sqrt(0.05 * 0.95 / mw$replications[1])))
+
+  # The generated summary, for the same reason the full sweep has one. The
+  # published test is the one with N degrees of freedom; every block but the
+  # last is a null.
+  null_rows <- mw[mw$block != "power" & mw$test == "modified_wald", , drop = FALSE]
+  half <- stats::qnorm(0.995) * sqrt(0.05 * 0.95 / null_rows$replications)
+  inside <- abs(null_rows$rejection_rate - 0.05) <= half
+  below <- null_rows$rejection_rate < 0.05 - half
+  grid <- null_rows$block == "size"
+  span <- function(keep) {
+    sprintf("%.3f to %.3f", min(null_rows$rejection_rate[keep]),
+            max(null_rows$rejection_rate[keep]))
+  }
+  describe <- function(i) {
+    sprintf("- %s errors, %d units, %s periods: %.4f.\n", laws[[null_rows$errors[i]]],
+            null_rows$units[i], null_rows$periods[i], null_rows$rejection_rate[i])
+  }
+  cat("\n<!-- generated by make-table.R; do not edit the numbers by hand -->\n\n")
+  grid_units <- range(null_rows$units[grid])
+  grid_periods <- range(as.integer(null_rows$periods[grid]))
+  cat(sprintf(
+    paste(
+      "In the balanced panels of %d to %d units and %d to %d periods the test rejects",
+      "a true null hypothesis %s of the time with Gaussian errors and %s with t5 errors.",
+      "Of its %d null cells, %d fall inside the release-gate interval [%.4f, %.4f]"
+    ),
+    grid_units[1], grid_units[2], grid_periods[1], grid_periods[2],
+    span(grid & null_rows$errors == "normal"), span(grid & null_rows$errors == "t5"),
+    nrow(null_rows), sum(inside), 0.05 - half[1], 0.05 + half[1]
+  ))
+  if (any(inside)) {
+    cat(":\n\n")
+    for (i in which(inside)) cat(describe(i))
+  } else {
+    cat(".\n")
+  }
+  if (any(below)) {
+    cat("\nBelow it:\n\n")
+    for (i in which(below)) cat(describe(i))
+  }
+  cat(sprintf("\nThe other %d are above it.\n", sum(!inside & !below)))
+}
