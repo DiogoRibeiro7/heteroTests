@@ -106,6 +106,9 @@ hd <- HeteroDiagnostic(model, quakes)
 test(hd)
 plot(hd)
 
+# Choose the tests by name; listDiagnostics() returns the names
+runHeteroTests(model, quakes, tests = c("white", "koenker"))
+
 # Fit a weighted least squares model
 wls <- fitWLS(model)
 compareModelDiagnostics(list(model, wls))

@@ -2,6 +2,14 @@
 
 ## Development version
 
+- `listDiagnostics()` returns the names `runHeteroTests(tests = )` accepts,
+  sorted: the diagnostics the package registers and any added with
+  `registerDiagnostic()`. No exported function listed them before. Given a
+  name that is not registered, `runHeteroTests()` now stops with
+  `Unknown tests: <name>. listDiagnostics() returns the registered names.`
+  It used to say only `Unknown tests: <name>`, in an error raised from the
+  internal `.run_hetero_core()`.
+
 - `autoplot()` of a test suite showed nothing when the tests rejected. The
   bars were the p-values on a linear axis from 0 to 1, so a test with
   p = 0.002 had no visible bar, and the colouring of significant tests was

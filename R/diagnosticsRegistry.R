@@ -10,6 +10,7 @@
 #' @param name Name of the diagnostic.
 #' @param fun Function taking a model and data and returning a result.
 #' @return Invisibly returns \code{NULL}.
+#' @seealso [listDiagnostics()] for the names already registered.
 #' @examples
 #' custom <- function(model, data) list(dummy = TRUE)
 #' registerDiagnostic("custom", custom)
@@ -22,6 +23,22 @@ registerDiagnostic <- function(name, fun) {
   }
   assign(name, fun, envir = .diagnostic_registry)
   invisible(NULL)
+}
+
+#' List the registered diagnostics
+#'
+#' Returns the names [runHeteroTests()] accepts in `tests`: the diagnostics
+#' the package registers and any added with [registerDiagnostic()].
+#'
+#' `"box_m"` is registered for [runMultivariateTests()], which calls it with
+#' data and a grouping factor rather than with a model.
+#'
+#' @return A character vector of the registered names, sorted.
+#' @seealso [registerDiagnostic()], [runHeteroTests()]
+#' @examples
+#' listDiagnostics()
+listDiagnostics <- function() {
+  sort(ls(.diagnostic_registry))
 }
 
 #' Register a diagnostic plot

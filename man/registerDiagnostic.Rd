@@ -8,6 +8,7 @@
   \item{fun}{Function taking \code{model} and \code{data} arguments.}
 }
 \value{Invisibly returns \code{NULL}.}
+\seealso{\code{\link{listDiagnostics}} for the names already registered.}
 \examples{
 custom <- function(model, data) list(statistic = 0)
 registerDiagnostic("custom", custom)
