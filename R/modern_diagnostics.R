@@ -90,8 +90,8 @@
 #' known. In `inst/validation/weighted-fits-size.R`, on data whose standard
 #' deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
 #' correctly specified, normal errors and `B = 499`, its rejection rate at the
-#' 5% level was 0.086 with 150 observations and 0.105 with 600. On the same
-#' data with the true weights it was 0.054 and 0.048, and with the weights
+#' 5% level was 0.086 with 150 observations and 0.105 with 600. In the same
+#' design with the true weights it was 0.054 and 0.048, and with the weights
 #' estimated again in each replicate, which this function does not do, 0.060
 #' and 0.051. [performVarianceFormTest()] allows for the estimation.
 #'

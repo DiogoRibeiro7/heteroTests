@@ -47,7 +47,7 @@
 # the standard deviation is x^2, which leave the weighted fit
 # heteroscedastic. The last rows fit the design of block 2 with the weights
 # of its true variance function, so that the rows with estimated weights have
-# a comparison on the same data.
+# a comparison in the same design.
 #
 # Block 4 is run by scenario, each with its own seed, so its results do not
 # depend on MC_CORES, which runs the scenarios in parallel through

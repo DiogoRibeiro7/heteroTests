@@ -130,9 +130,9 @@ Found on the way and left for their own changes:
   bit-identical values. In `inst/validation/weighted-fits-size.R`, at 2000
   replications with `B = 499`, they reject a correctly weighted fit 0.045 to
   0.054 of the time in two designs. `performQuantileRegressionTest()` still
-  refuses one: on
-  the weighted scale its slopes differ across quantiles under the null
-  hypothesis, and a version for weighted fits needs its own construction. A
+  refuses one: on the weighted scale its slopes differ across quantiles under
+  the null hypothesis, and a version for weighted fits needs its own
+  construction. A
   lead: the quantile regressions of `sqrt(w) y` on `sqrt(w) X` with a column
   of ones added have equal slopes under the null hypothesis, which is the
   location-shift form the test assumes. It needs a derivation of the
@@ -185,7 +185,7 @@ Found on the way and left for their own changes:
 
   The bootstrap tests hold the weights fixed and share the error: the wild
   bootstrap rejects 0.086 with 150 observations and 0.105 with 600, where it
-  rejects 0.054 and 0.048 with the true weights on the same data. A
+  rejects 0.054 and 0.048 with the true weights in the same design. A
   bootstrap that runs `fitWLS()` again on every replicate is such a
   correction. In the same designs it rejects 0.042 to 0.060 with 150
   observations for the wild bootstrap, the White bootstrap and

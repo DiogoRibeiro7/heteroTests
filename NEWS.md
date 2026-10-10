@@ -19,7 +19,7 @@
   time at the 5% level in two designs, and reject weights that are too weak
   in every replication. With weights estimated by `fitWLS()` they hold the
   weights fixed, as the asymptotic tests take them as known, and share their
-  error: on data where the true weights give 0.054 with 150 observations and
+  error: in a design where the true weights give 0.054 with 150 observations and
   0.048 with 600, the wild bootstrap rejects 0.086 and 0.105, and
   `performKoenkerTest()` 0.077 and 0.110. Estimating the weights again in each
   replicate, which the package does not do, brings the three to 0.042 to 0.060

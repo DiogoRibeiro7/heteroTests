@@ -520,8 +520,8 @@ Four things follow.
   compute the statistic of Koenker's test; the White bootstrap that of
   White's test.
 - **With the weights of `fitWLS()` held fixed they are no better than the
-  tests of the second block.** On the same data, where the true weights give
-  0.054 and 0.048, the wild bootstrap rejects 0.086 at 150 observations and
+  tests of the second block.** In the same design, where the true weights
+  give 0.054 and 0.048, the wild bootstrap rejects 0.086 at 150 observations and
   0.105 at 600, beside 0.077 and 0.110 for `performKoenkerTest()`, the same
   statistic with its chi-squared reference. `rbootstrap_test_statistic()`
   rejects 0.083 at 150 observations against 0.045 with the true weights, and

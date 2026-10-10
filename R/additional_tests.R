@@ -305,7 +305,7 @@ performStudentizedBPTest <- function(model, data) {
 #' out. In `inst/validation/weighted-fits-size.R`, on data whose standard
 #' deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
 #' correctly specified, normal errors, 150 observations and `B = 499`, the
-#' rejection rate at the 5% level was 0.064. On the same data with the true
+#' rejection rate at the 5% level was 0.064. In the same design with the true
 #' weights it was 0.054, and with the weights estimated again in each
 #' replicate, which this function does not do, 0.042. The section on weighted
 #' fits in [performWildBootstrapTest()] has the larger error of Koenker's
