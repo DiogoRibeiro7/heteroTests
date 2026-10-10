@@ -69,10 +69,27 @@ registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
 registerDiagnostic("student_bp", function(model, data) performStudentizedBPTest(model, data))
 registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))
+# performSzroeterTest() needs an ordering of the observations and a registry
+# entry is called with the model and the data only. The ordering comes from
+# the model: the fitted values, so the alternative is that the variance rises
+# with the mean. With a single regressor that is the order of the regressor
+# when its slope is positive and the reverse order when it is negative. The
+# fitted values are matched to the rows of `data` by row name, as
+# performSzroeterTest() matches the residuals.
 registerDiagnostic(
   "szroeter",
   function(model, data) {
-    performSzroeterTest(model, data, order_by = names(data)[2])
+    fitted_values <- stats::fitted(model)
+    column <- "fitted values"
+    while (column %in% names(data)) {
+      column <- paste0(".", column)
+    }
+    data[[column]] <- if (is.null(names(fitted_values))) {
+      unname(fitted_values)
+    } else {
+      unname(fitted_values[match(rownames(data), names(fitted_values))])
+    }
+    performSzroeterTest(model, data, order_by = column)
   }
 )
 registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapTest(model, data))

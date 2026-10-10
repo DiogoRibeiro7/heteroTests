@@ -441,6 +441,12 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' present, and ensure sufficient sample size and variability in the squared
 #' residuals.
 #'
+#' `runHeteroTests(tests = "szroeter")`, and anything else that runs the
+#' registered diagnostic, orders the observations by the fitted values of
+#' `model`, so its alternative is variance that rises with the mean. With a
+#' single regressor that is the order of the regressor when its slope is
+#' positive and the reverse order when it is negative.
+#'
 #' @section Validation:
 #' The statistic and its null variance are checked against an independent
 #' reconstruction of Szroeter (1978) in

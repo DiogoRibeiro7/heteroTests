@@ -51,6 +51,12 @@ The implementation relies on the package validation helpers to align the
 supplied data with the model residuals, check that the ordering variable is
 present, and ensure sufficient sample size and variability in the squared
 residuals.
+
+\code{runHeteroTests(tests = "szroeter")}, and anything else that runs the
+registered diagnostic, orders the observations by the fitted values of
+\code{model}, so its alternative is variance that rises with the mean. With a
+single regressor that is the order of the regressor when its slope is
+positive and the reverse order when it is negative.
 }
 \section{Validation}{
 
