@@ -384,8 +384,12 @@ column of the data.
 
 The White family is conservative here at 0.022, more so than its 0.032 on an
 unweighted fit in the full sweep, and Szroeter is at the high end at 0.077
-against 0.058. Both are inside three standard errors of what the same tests do
-without weights.
+against 0.058. At 400 replications both are inside three standard errors of
+what the same tests do without weights, so this table cannot tell them apart.
+For Szroeter a larger study does: at 5000 replications, on the weighted design
+of `harrison-mccabe-size-power.R`, it rejects 0.067 of the time at 40
+observations, outside the release gate, and 0.056 and 0.055 at 100 and 400.
+See the section on the Harrison-McCabe test.
 
 The three tests marked `refused` regenerate the response or refit under a
 different loss, and refit without the weights. They stop with an error on a
@@ -953,6 +957,20 @@ small. Under normal errors `b` is a ratio of quadratic forms in normal
 variables whose distribution depends on the regressors, and the test computes
 its p-value from that distribution exactly, by Imhof's (1961) formula.
 
+**The source.** Harrison and McCabe (1979) is not open access and was not
+read. The definition is taken from Harrison (1981), by its first author, in
+*The Economic and Social Review* 12(4), 235-252, which is open access at
+<https://hdl.handle.net/2262/68690>. Its equation (2) is the statistic above,
+with `m` the integer part of `n / 2` and the observations ordered so that the
+variance rises under the alternative, and the test rejects for small `b`. It
+computes the exact test by Imhof's method, and its Table 3 prints the exact 5%
+critical values for a constant and a linear trend: 0.147, 0.243, 0.289 and
+0.317 at 10, 20, 30 and 40 observations. The null distribution of this package
+gives 0.1467, 0.2429, 0.2890 and 0.3168, and
+`tests/testthat/test-harrison-mccabe.R` asserts each to within `5e-4`. The same
+file checks that the p-value lies between those of the two beta-distributed
+bounds that Harrison (1981) restates from the 1979 article.
+
 The design is the cross-sectional one of Pass A, ordered by `x1`. The
 Goldfeld-Quandt and Szroeter tests are run on the same samples with the same
 ordering, each with its default split and its one-sided alternative of a
@@ -1119,7 +1137,8 @@ the start of the ordering, where `x1` is small, carry the largest weights and
 have the largest leverages, so their residuals are the smallest and the
 variance appears to rise along the ordering. The Harrison-McCabe and
 Goldfeld-Quandt tests, whose null distributions use the weighted design, are
-at 0.048 to 0.053 in the same cells.
+at 0.048 to 0.053 in the same cells. The finding is an open item in
+`ROADMAP.md`.
 
 ## History
 
