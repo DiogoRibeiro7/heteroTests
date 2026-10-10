@@ -518,36 +518,80 @@ reference and simulated size.
 - **Modified Wald test for groupwise heteroscedasticity** in a
   fixed-effects panel (Greene 2000; Baum 2001). The panel tests cover an
   individual effect and cross-sectional dependence, not unequal
-  variances across units. Reference implementations: Stata’s `xttest3`
-  and the Python package `panelbox`.
+  variances across units. Reference implementation: Stata’s `xttest3`.
+  The Python package `panelbox` (1.0.2) has a function of that name that
+  computes a different statistic, a likelihood-ratio form. A second
+  search on 2026-10-10 found no R implementation either. **Measured
+  after 0.12.0 and not adopted: it does not hold its level.** In the
+  designs of `inst/validation/modified-wald-size-power.R`, at 5000
+  replications, the test as `xttest3` computes it rejects a true null
+  hypothesis at the 5% level this often:
+
+  | Errors   | Units | T = 5 | T = 10 | T = 30 | T = 100 |
+  |----------|------:|------:|-------:|-------:|--------:|
+  | Gaussian |    10 | 0.927 |  0.681 |  0.282 |   0.100 |
+  | Gaussian |    30 | 1.000 |  0.966 |  0.584 |   0.183 |
+  | Gaussian |   100 | 1.000 |  1.000 |  0.928 |   0.361 |
+  | t5       |    10 | 0.966 |  0.876 |  0.621 |   0.367 |
+  | t5       |    30 | 1.000 |  0.999 |  0.944 |   0.717 |
+  | t5       |   100 | 1.000 |  1.000 |  1.000 |   0.982 |
+
+  Two unbalanced panels are at 0.809 and 1.000 under Gaussian errors.
+  Each unit’s term is divided by a variance estimated from the same few
+  residuals, and the excess grows with the number of units. In long
+  panels the error reverses, because the statistic tends to a
+  chi-squared with one degree of freedom fewer than its reference: with
+  2 units and 1000 periods it rejects 0.014 of the time. Three of the
+  study’s 40 null cells fall inside the release gate, all at 300 or 1000
+  periods, where the two errors happen to cancel, and under `t5` errors
+  it still rejects 0.129 of the time with 10 units and 0.235 with 30 at
+  1000 periods. Before a test of this hypothesis can ship it needs a
+  different variance estimate or a small-sample correction, which makes
+  it a different test. Two leads, neither part of the study: Bartlett’s
+  test on the within residuals held its level under Gaussian errors in
+  an exploratory run but, being a normal-theory test, not under `t5`
+  errors; and Juhl and Sosa-Escudero (2014, *Journal of Econometrics*
+  178, 484-494) derive studentized tests for heteroscedasticity after
+  fixed-effects estimation with the number of periods fixed, whose fit
+  to this hypothesis has not been checked. Greene’s page 598, which Baum
+  follows, could not be obtained, so whether Greene’s own form differs
+  from Baum’s was not checked.
+
 - **A joint LM test of homoscedasticity in a one-way error-component
   model** (Baltagi, Bresson and Pirotte 2006), against
   heteroscedasticity in the individual effect and in the remainder error
   together.
+
 - **Pagan–Hall (1983)**, the test of constant variance after
   instrumental-variables estimation, where Breusch–Pagan and White are
   valid only under further conditions. Reference implementation: Stata’s
   `ivhettest`. The package accepts no instrumental-variables fit today,
   so this one starts with the input layer.
+
 - **Kelejian–Robinson (1998)**, a joint test for spatial autocorrelation
   and heteroscedasticity. `sphet::kpjtest()` is a different test by
   Kelejian and Piras.
+
 - **Newey–Powell (1987)**, a test built on asymmetric least squares:
   under constant variance the expectile regressions have equal slopes.
   `expectreg` fits expectiles and has no such test.
+
 - **Tests in nonparametric regression**, which have power against any
   smooth departure from constant variance and need no variance
   regressors to be named: Eubank and Thomas (1993), Dette and Munk
   (1998), Zheng (2009), and Chown and Müller (2018). The cost is a
   bandwidth or a difference sequence to choose.
+
 - **A consistent test of a variance function**: Dette, Neumeyer and Van
   Keilegom (2007), Wang and Zhou (2007), and Samarakoon and Song (2011).
   [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
   has power against the terms it is given; these have it against any
   departure, at the cost of smoothing.
+
 - **Bai, Pan and Yin (2018)**, a test of homoscedasticity when the
   number of regressors grows with the sample. Li–Yao, below, is a
   different test for the same setting.
+
 - **A design-based test of constant variance for survey data.** The
   tests assume an independent sample with equal weights, and
   [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)
@@ -619,7 +663,8 @@ have, which is also what a reader of the article asks of it. Within that
 group:
 
 1.  The modified Wald test. The panel functions exist, and it is the
-    test Stata users look for under the name `xttest3`.
+    test Stata users look for under the name `xttest3`. Measured after
+    0.12.0 and not adopted, because it does not hold its level (above).
 2.  The Dette, Neumeyer and Van Keilegom test. It removes the main
     limitation of
     [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md),
