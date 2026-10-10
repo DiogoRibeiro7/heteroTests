@@ -364,10 +364,11 @@ rpearson_residuals <- function(model) {
 
 #' Refuse a weighted fit in a procedure that refits without the weights
 #'
-#' Some procedures regenerate the response and refit the mean model by ordinary
-#' least squares, or refit it under a different loss. On a weighted fit that
-#' describes a different model from the one supplied, so they refuse it, as
-#' `rbootstrap_test_statistic()` refuses a `glm`.
+#' Some procedures refit the mean model without the weights, or under a
+#' different loss. On a weighted fit that describes a different model from the
+#' one supplied, so they refuse it, as `rbootstrap_test_statistic()` refuses a
+#' `glm`. The resampling tests refit with the weights instead; see
+#' `rrefit_weighted()`.
 #'
 #' @param model A fitted model.
 #' @param what Character scalar naming the calling procedure.
@@ -382,9 +383,36 @@ rrefuse_weighted_fit <- function(model, what) {
     what, " does not support weighted fits: it refits the mean model without ",
     "the weights, which would test a different model from the one supplied. ",
     "Use a test computed from the residuals, such as performKoenkerTest() or ",
-    "performWhiteTest(); on a weighted fit those use the Pearson residuals.",
+    "performWhiteTest(), or the wild bootstrap of performWildBootstrapTest(); ",
+    "on a weighted fit those use the Pearson residuals.",
     call. = FALSE
   )
+}
+
+#' Refit a weighted least-squares model to a regenerated sample
+#'
+#' The resampling tests regenerate the response, or the rows, and refit the
+#' model. On a weighted fit the refit has to carry the weights. `lm()` looks its
+#' `weights` argument up in `data` and then in the environment of the formula,
+#' never in the function that calls it, so the weights cannot be passed as a
+#' local variable. They are placed in a child of the formula's environment
+#' instead, which leaves every other variable of the formula where it was.
+#'
+#' @param formula The model formula.
+#' @param data Data frame holding the regenerated sample.
+#' @param weights Prior weights, one per row of `data`.
+#' @return The weighted `lm` fit.
+#' @keywords internal
+#' @noRd
+rrefit_weighted <- function(formula, data, weights) {
+  enclosure <- environment(formula)
+  if (!is.environment(enclosure)) {
+    enclosure <- globalenv()
+  }
+  env <- new.env(parent = enclosure)
+  env$.ht_prior_weights <- weights
+  environment(formula) <- env
+  eval(quote(stats::lm(formula, data = data, weights = .ht_prior_weights)))
 }
 
 #' Refuse a model fitted to a survey design

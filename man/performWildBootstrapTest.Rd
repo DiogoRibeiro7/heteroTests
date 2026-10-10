@@ -52,11 +52,31 @@ on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under
 \eqn{H_0} this controls size even for heavy-tailed errors; under the alternative
 the observed statistic is extreme relative to the homoscedastic reference, giving
 power.
-
-Weighted fits are refused. Each bootstrap sample is refitted by ordinary
-least squares, which would drop the weights and test a different model from
-the one supplied.
 }
+\section{Weighted fits}{
+
+A fit with weights \eqn{w_i} is ordinary least squares on
+\eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} and \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i},
+whose errors have constant variance under the null hypothesis, and the
+bootstrap works in that regression. The statistic is computed from its
+residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}, with
+the auxiliary regressors on their original scale; the residuals that are
+resampled are the Pearson residuals divided by
+\eqn{\sqrt{1 - h_{ii}}}{sqrt(1 - h_ii)}, with the leverages of that
+regression, and centred; and each replicate refits it. An unweighted fit is
+resampled as before, and the same seed gives the same result.
+
+The weights are held fixed in every replicate. When they were estimated
+from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
+out, and the test inherits the error of the tests that take the weights as
+known. In the designs of \code{inst/validation/weighted-fits-size.R}, with the
+variance function correctly specified, normal errors and \code{B = 499}, its
+rejection rate at the 5\% level was 0.086 with 150 observations and 0.105
+with 600, against 0.053 with exact weights. With the weights estimated again
+in each replicate, which this function does not do, it was 0.060 and 0.051.
+\code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation.
+}
+
 \examples{
 data(mtcars)
 model <- lm(mpg ~ wt + qsec, data = mtcars)

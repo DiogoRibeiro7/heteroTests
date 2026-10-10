@@ -10,9 +10,18 @@
 #' that location-shift/homoskedastic specification. The test should not be read
 #' as a universal test for every possible form of heteroscedasticity.
 #'
-#' Weighted fits are refused. The quantile regressions are fitted without the
-#' weights, so their slopes would describe a different model from the one
-#' supplied.
+#' Weighted fits are refused, although the resampling tests accept them. On a
+#' fit with weights \eqn{w_i} the null hypothesis is that the Pearson residuals
+#' \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i} have constant variance, which is a
+#' statement about the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} on
+#' \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. The quantile regressions this test
+#' fits are of \eqn{y} on \eqn{x}, where the errors have variance
+#' \eqn{\sigma^2 / w_i}{sigma^2 / w_i} by assumption, so their slopes differ across
+#' quantiles even when the weights are right. Fitting them on the weighted scale
+#' does not repair that: there the conditional quantiles are the regression plus
+#' a constant, and the constant is not a column of the weighted regressors.
+#' A version of the test for weighted fits needs its own construction and its
+#' own size study, and has neither.
 #'
 #' @inheritParams performBPTest
 #' @param taus Numeric vector containing at least two distinct quantiles in

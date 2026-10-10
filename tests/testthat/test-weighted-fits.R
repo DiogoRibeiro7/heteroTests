@@ -230,20 +230,14 @@ test_that("RESET on a weighted fit is the F test between nested weighted fits", 
 
 # --- procedures that refit without the weights -------------------------------
 
-test_that("procedures that would drop the weights refuse a weighted fit", {
-  obj <- make_weighted()
-  d <- obj$data
-  refusal <- "does not support weighted fits"
-
-  expect_error(performWildBootstrapTest(obj$weighted, d, B = 19, progress = FALSE), refusal)
-  expect_error(performWhiteTestBootstrap(obj$weighted, d, B = 19), refusal)
-  expect_error(performWhiteTestRobust(obj$weighted, d, bootstrap = TRUE, B = 19), refusal)
-  expect_error(
-    rbootstrap_test_statistic(performWhiteTest, obj$weighted, d, B = 19, progress = FALSE),
-    refusal
-  )
+test_that("the quantile regression test refuses a weighted fit", {
+  # The resampling tests refit with the weights; see test-weighted-resampling.R.
   skip_if_not_installed("quantreg")
-  expect_error(performQuantileRegressionTest(obj$weighted, d), refusal)
+  obj <- make_weighted()
+  expect_error(
+    performQuantileRegressionTest(obj$weighted, obj$data),
+    "does not support weighted fits"
+  )
 })
 
 # --- what users see ------------------------------------------------------------

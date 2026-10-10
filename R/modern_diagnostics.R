@@ -72,9 +72,27 @@
 #' for heavy-tailed errors; under the alternative the observed statistic is
 #' extreme relative to the homoscedastic reference, giving power.
 #'
-#' Weighted fits are refused. Each bootstrap sample is refitted by ordinary
-#' least squares, which would drop the weights and test a different model from
-#' the one supplied.
+#' @section Weighted fits:
+#' A fit with weights \eqn{w_i} is ordinary least squares on
+#' \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} and \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i},
+#' whose errors have constant variance under the null hypothesis, and the
+#' bootstrap works in that regression. The statistic is computed from its
+#' residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}, with
+#' the auxiliary regressors on their original scale; the residuals that are
+#' resampled are the Pearson residuals divided by
+#' \eqn{\sqrt{1 - h_{ii}}}{sqrt(1 - h_ii)}, with the leverages of that
+#' regression, and centred; and each replicate refits it. An unweighted fit is
+#' resampled as before, and the same seed gives the same result.
+#'
+#' The weights are held fixed in every replicate. When they were estimated
+#' from the same data, as by [fitWLS()], the replicates leave that estimation
+#' out, and the test inherits the error of the tests that take the weights as
+#' known. In the designs of `inst/validation/weighted-fits-size.R`, with the
+#' variance function correctly specified, normal errors and `B = 499`, its
+#' rejection rate at the 5% level was 0.086 with 150 observations and 0.105
+#' with 600, against 0.053 with exact weights. With the weights estimated again
+#' in each replicate, which this function does not do, it was 0.060 and 0.051.
+#' [performVarianceFormTest()] allows for the estimation.
 #'
 #' @inheritParams performBPTest
 #' @param B Integer number of bootstrap replications. Defaults to `499`.
@@ -110,7 +128,6 @@ performWildBootstrapTest <- function(model, data, B = 499,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
   distribution <- match.arg(distribution)
-  rrefuse_weighted_fit(model, "performWildBootstrapTest()")
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
     stop("`B` must be a positive integer.", call. = FALSE)
   }
@@ -146,7 +163,15 @@ performWildBootstrapTest <- function(model, data, B = 499,
     stop("Fitted values must align with residuals for wild bootstrap.", call. = FALSE)
   }
 
-  design_matrix <- stats::model.matrix(model, data = model_frame)
+  # model.matrix(model, data = model_frame) evaluates the call of the fit again
+  # in its model frame. A weighted fit keeps its weights there as "(weights)",
+  # under which the call cannot find them, so it uses its stored design.
+  prior_weights <- rprior_weights(model)
+  design_matrix <- if (is.null(prior_weights)) {
+    stats::model.matrix(model, data = model_frame)
+  } else {
+    stats::model.matrix(model)
+  }
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]
   } else {
@@ -179,6 +204,18 @@ performWildBootstrapTest <- function(model, data, B = 499,
   null_residuals <- residuals / sqrt(pmax(1 - leverage, .Machine$double.eps))
   null_residuals <- null_residuals - mean(null_residuals)
 
+  # A weighted fit is ordinary least squares on sqrt(w) y and sqrt(w) X, and
+  # its errors have constant variance there under the null hypothesis. The
+  # residuals above are that regression's residuals (the Pearson residuals),
+  # and hatvalues() of a weighted fit are its leverages, so the bootstrap
+  # works in it throughout. A replicate is its fitted values plus the
+  # regenerated errors, refitted by least squares. The fitted values lie in
+  # the span of sqrt(w) X, so the residuals of the refit are those of the
+  # regenerated errors alone.
+  if (!is.null(prior_weights)) {
+    transformed_qr <- qr(sqrt(prior_weights) * design_matrix)
+  }
+
   response_col <- names(model_frame)[1]
   base_frame <- model_frame
   progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Wild bootstrap replications")
@@ -188,13 +225,16 @@ performWildBootstrapTest <- function(model, data, B = 499,
   for (b in seq_len(B)) {
     boot_multiplier <- multiplier_draw(length(residuals))
     boot_errors <- sample(null_residuals, length(residuals), replace = TRUE) * boot_multiplier
-    boot_response <- fitted_vals + boot_errors
-    boot_frame <- base_frame
-    boot_frame[[response_col]] <- boot_response
     boot_stat <- tryCatch(
       {
-        boot_model <- safe_lm(stats::formula(model), data = boot_frame)
-        boot_res <- stats::residuals(boot_model)
+        if (is.null(prior_weights)) {
+          boot_frame <- base_frame
+          boot_frame[[response_col]] <- fitted_vals + boot_errors
+          boot_model <- safe_lm(stats::formula(model), data = boot_frame)
+          boot_res <- stats::residuals(boot_model)
+        } else {
+          boot_res <- qr.resid(transformed_qr, boot_errors)
+        }
         .compute_bp_statistic(boot_res, predictors)$statistic[[1]]
       },
       error = function(e) NA_real_

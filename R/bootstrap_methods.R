@@ -37,9 +37,20 @@ NULL
 #' therefore `NA` for pairs resampling, and was removed rather than kept as a
 #' number that cannot be interpreted.
 #'
-#' Weighted fits are refused under either strategy, as `glm` fits are: each
-#' replicate is refitted by ordinary least squares, so the replicates would
-#' come from the unweighted model.
+#' A weighted `lm` is resampled on the scale where its null hypothesis is
+#' constant variance, the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i}
+#' on \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. Null-imposed resampling draws the
+#' \eqn{e^*_i}{e*_i} from the Pearson residuals
+#' \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}, divided by
+#' \eqn{\sqrt{1 - h_i}}{sqrt(1 - h_i)} with the leverages of that regression and
+#' centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
+#' it to \eqn{\hat y_i}{yhat_i}.
+#' Pairs resampling draws each row with its weight. Either way each replicate
+#' is refitted with the weights, so `test_function` sees a weighted fit, as it
+#' did on the original data. An unweighted fit is resampled as before, and the
+#' same seed gives the same result. The weights are held fixed; when they were
+#' estimated from the same data, see the section on weighted fits in
+#' [performWildBootstrapTest()].
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -50,9 +61,9 @@ NULL
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
-#' @param model A fitted model of class `lm`. A `glm` is rejected: each
-#'   replicate is refitted with least squares, which would discard its
-#'   family and link.
+#' @param model A fitted model of class `lm`, with or without weights. A `glm`
+#'   is rejected: each replicate is refitted with least squares, which would
+#'   discard its family and link.
 #' @param data Data frame used when fitting `model`.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
 #' @param parallel Logical, compute replicates in parallel when possible?
@@ -145,10 +156,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     )
   }
 
-  # The same holds for a weighted fit: safe_lm() refits each replicate by
-  # ordinary least squares, so the replicates would come from the unweighted
-  # model while the observed statistic came from the weighted one.
-  rrefuse_weighted_fit(model, "rbootstrap_test_statistic()")
+  # A weighted fit is refitted with its weights, so each replicate is the model
+  # that was supplied. NULL for an unweighted fit, which takes the path it
+  # always took.
+  prior_weights <- rprior_weights(model)
 
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic
@@ -174,6 +185,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # have variance sigma^2 (1 - h_i), so resampling them raw under-disperses the
   # regenerated errors and the test rejects too often. This is the construction
   # performWildBootstrapTest() uses, following Davidson and Flachaire (2008).
+  #
+  # On a weighted fit the construction is carried out in the regression of
+  # sqrt(w) y on sqrt(w) X, where the errors have constant variance under the
+  # null hypothesis: its residuals are the Pearson residuals, and hatvalues()
+  # of a weighted fit are its leverages. Each draw is returned to the scale of
+  # the observation it is added to by dividing by sqrt(w), and the refit
+  # carries the weights.
   response_col <- all.vars(formula)[1L]
   fitted_vals <- stats::fitted(model)
   null_residuals <- NULL
@@ -198,7 +216,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       )
     }
     leverage <- stats::hatvalues(model)
-    null_residuals <- stats::residuals(model) /
+    null_residuals <- rpearson_residuals(model) /
       sqrt(pmax(1 - leverage, .Machine$double.eps))
     null_residuals <- null_residuals - mean(null_residuals)
     if (length(fitted_vals) != n || length(null_residuals) != n) {
@@ -210,18 +228,35 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       )
     }
   }
+  # Pairs resampling draws each row with its weight.
+  if (!is.null(prior_weights) && length(prior_weights) != n) {
+    stop(
+      "Resampling a weighted fit needs one weight per row of `data`; the model ",
+      "was fitted on a different sample. Refit on `data`.",
+      call. = FALSE
+    )
+  }
 
   compute_bootstrap <- function(index) {
+    boot_weights <- prior_weights
     if (identical(resample, "null")) {
       boot_data <- data
-      boot_data[[response_col]] <- fitted_vals +
-        sample(null_residuals, n, replace = TRUE)
+      boot_errors <- sample(null_residuals, n, replace = TRUE)
+      if (!is.null(prior_weights)) {
+        boot_errors <- boot_errors / sqrt(prior_weights)
+      }
+      boot_data[[response_col]] <- fitted_vals + boot_errors
     } else {
       sampled_idx <- sample.int(n, replace = TRUE)
       boot_data <- data[sampled_idx, , drop = FALSE]
+      boot_weights <- prior_weights[sampled_idx]
     }
     boot_model <- tryCatch(
-      safe_lm(formula, data = boot_data),
+      if (is.null(boot_weights)) {
+        safe_lm(formula, data = boot_data)
+      } else {
+        rrefit_weighted(formula, boot_data, boot_weights)
+      },
       error = function(e) NULL
     )
     if (is.null(boot_model)) {
@@ -270,7 +305,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       parallel::clusterEvalQ(cl, library(heteroTests))
       parallel::clusterExport(cl,
         varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function",
-                    "resample", "response_col", "fitted_vals", "null_residuals"),
+                    "resample", "response_col", "fitted_vals", "null_residuals",
+                    "prior_weights"),
         envir = environment()
       )
       for (chunk in chunk_plan) {
