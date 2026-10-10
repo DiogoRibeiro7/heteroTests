@@ -87,14 +87,16 @@ compare with bootstrap or robust variants.
 ## Breusch–Pagan test
 
 Breusch and Pagan (1979) derived a Lagrange Multiplier (LM) test for variance
-patterns linear in the regressors. Denote by $X$ the regressor matrix without
-intercept. The statistic is
+patterns linear in the regressors. With
+$\widehat{\sigma}^2 = n^{-1}\sum_i \widehat{e}_i^2$, regress
+$g_i = \widehat{e}_i^2 / \widehat{\sigma}^2$ on an intercept and the
+regressors. The statistic is half the explained sum of squares of that
+regression,
 \[
-\text{LM} = \frac{1}{2\sigma^2} \widehat{e}^\top X(X^\top X)^{-1}X^\top \widehat{e},
+\text{LM} = \frac{1}{2} \sum_{i=1}^n (\widehat{g}_i - \bar{g})^2.
 \]
-which is equivalent to $nR^2$ from regressing $\widehat{e}^2$ on $X$.
-The test converges to a $\chi^2_{k}$ distribution, where $k$ is the number of
-non-intercept regressors.
+Under homoskedasticity and normal errors it converges to a $\chi^2_{k}$
+distribution, where $k$ is the number of non-intercept regressors.
 
 The package implementation supplements the LM computation with diagnostics that
 highlight influential residuals and stability warnings.
@@ -108,13 +110,16 @@ A significant Breusch–Pagan statistic reinforces the evidence of increasing
 variance. Because the test assumes normal errors, the vignette later contrasts
 it with Koenker's robust variant.
 
-## Koenker–Bassett studentised test
+## Koenker's studentised test
 
 Koenker (1981) proposed studentising the LM statistic to accommodate non-normal
-errors by scaling residuals with an estimate of their variance. The package
-implements this through `performKoenkerTest()`, which focuses on absolute
-residuals and yields a statistic with the same asymptotic $\chi^2$ reference
-but improved Type I error control under heavy tails.
+errors. Written in the squared residuals, the statistic above divides by
+$2\widehat{\sigma}^4$, which is the variance of $\widehat{e}_i^2$ only under
+normality; Koenker replaces it with the sample variance of the
+$\widehat{e}_i^2$. The result is $nR^2$ from the regression of
+$\widehat{e}_i^2$ on an intercept and the regressors, which
+`performKoenkerTest()` computes. It has the same asymptotic $\chi^2_k$
+reference but improved Type I error control under heavy tails.
 
 ```{r}
 koenker_result <- performKoenkerTest(model, quakes)
