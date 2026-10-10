@@ -249,10 +249,13 @@ test_that("resampling a weighted fit needs the rows the model was fitted to", {
 test_that("weighted resampling follows the rows of the data, in any order", {
   # The weights, the fitted values and the offset belong to rows. Before they
   # were matched by row name, data holding the same rows sorted by z drew each
-  # row with another row's weight.
+  # row with another row's weight. The model has an offset argument, outside
+  # the span of the regressors, so that its matching is checked too.
   obj <- make_weighted_fit()
-  m <- obj$model
-  sorted <- obj$data[order(obj$data$z), ]
+  d <- obj$data
+  d$o <- 0.3 * d$x^2
+  m <- lm(y ~ x + z, data = d, weights = w, offset = o)
+  sorted <- d[order(d$z), ]
   n <- nrow(sorted)
 
   set.seed(41)
@@ -262,7 +265,7 @@ test_that("weighted resampling follows the rows of the data, in any order", {
   set.seed(41)
   expected <- vapply(seq_len(5), function(b) {
     db <- sorted[sample.int(n, replace = TRUE), , drop = FALSE]
-    refit <- lm(y ~ x + z, data = db, weights = w)
+    refit <- lm(y ~ x + z, data = db, weights = w, offset = o)
     squared_pearson_r2(sqrt(db$w) * residuals(refit), ~ x + z, db)
   }, numeric(1))
   expect_equal(pairs$replicates, expected, tolerance = 1e-8)
@@ -272,14 +275,14 @@ test_that("weighted resampling follows the rows of the data, in any order", {
     performKoenkerTest, m, sorted, B = 5, progress = FALSE
   ))
   s <- sqrt(sorted$w)
-  pool <- sqrt(obj$data$w) * residuals(m) / sqrt(1 - hatvalues(m))
+  pool <- sqrt(d$w) * residuals(m) / sqrt(1 - hatvalues(m))
   pool <- pool - mean(pool)
   fit_sorted <- fitted(m)[rownames(sorted)]
   set.seed(42)
   expected <- vapply(seq_len(5), function(b) {
     db <- sorted
     db$y <- fit_sorted + sample(pool, n, replace = TRUE) / s
-    refit <- lm(y ~ x + z, data = db, weights = w)
+    refit <- lm(y ~ x + z, data = db, weights = w, offset = o)
     squared_pearson_r2(s * residuals(refit), ~ x + z, db)
   }, numeric(1))
   expect_equal(null$replicates, expected, tolerance = 1e-8)
