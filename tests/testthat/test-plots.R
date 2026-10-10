@@ -23,7 +23,7 @@ test_that("plotDiagnosticSuite returns list of plots", {
   lapply(res, expect_ggplot)
 })
 
-test_that("plotBeforeAfter overlays models", {
+test_that("plotBeforeAfter draws both models", {
   model <- lm(y ~ x1 + x2, data = data_heterosced)
   wls <- fitWLS(model)
   p <- plotBeforeAfter(model, wls)

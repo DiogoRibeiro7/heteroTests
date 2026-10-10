@@ -2,19 +2,53 @@
 % Please edit documentation in R/ggplot_extensions.R
 \name{autoplot.hetero_test_suite}
 \alias{autoplot.hetero_test_suite}
+\alias{autoplot.hetero_grouped_suite}
 \title{Autoplot heteroscedasticity diagnostics}
 \usage{
-\method{autoplot}{hetero_test_suite}(object, ...)
+\method{autoplot}{hetero_test_suite}(object, ..., alpha = 0.05)
+
+\method{autoplot}{hetero_grouped_suite}(object, ..., alpha = 0.05)
 }
 \arguments{
 \item{object}{A \code{\link{hetero_test_suite}} or \code{\link{hetero_grouped_suite}}.}
 
-\item{...}{Additional arguments passed to lower-level plotting helpers.}
+\item{...}{Unused.}
+
+\item{alpha}{Significance level marked by the dashed line. Defaults to
+\code{0.05}.}
 }
 \value{
 A \code{ggplot} object.
 }
 \description{
-Generates a bar chart of diagnostic p-values, highlighting tests below the
-conventional 5\% threshold.
+Draws one horizontal bar per test. The length of a bar is the evidence
+against the null hypothesis, \eqn{-\log_{10} p}, on an axis labelled with
+the p-values themselves, so a smaller p-value gives a longer bar. A dashed
+line marks \code{alpha}; bars that pass it are drawn in the accent colour and the
+others in grey. The p-value of each test is printed beside its bar, so no
+reading depends on colour.
+}
+\details{
+Bars stop at \eqn{p = 10^{-4}}: extra length beyond that would only
+compress the tests that are near the threshold. Labels give the p-value to
+three decimals, and \code{p < 0.001} below that. A test that failed has no bar
+and is labelled as such.
+
+For a grouped suite there is one panel per group.
+}
+\section{Earlier versions}{
+
+Up to 0.12.0 the bars were the p-values themselves on a linear axis from 0
+to 1, so a test that rejected had no visible bar, and the highlighting of
+significant tests was never applied to a suite of more than one test.
+}
+
+\examples{
+fit <- lm(mpg ~ wt + qsec, data = mtcars)
+suite <- runHeteroTests(
+  fit, mtcars,
+  tests = c("white", "breusch_pagan", "koenker"),
+  progress = FALSE
+)
+ggplot2::autoplot(suite)
 }

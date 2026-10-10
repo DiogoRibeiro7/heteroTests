@@ -84,18 +84,29 @@ plotDiagnosticSuite <- function(model) {
 
 #' Compare residuals before and after remediation
 #'
-#' Overlays residuals of two models on a single plot to visualise improvement
-#' after applying a remediation method (e.g. WLS or robust regression).
+#' Draws the residuals of two models against their fitted values in two panels,
+#' side by side, to show what a remediation method (a weighted fit, a
+#' transformation) did to the spread.
 #'
 #' A weighted fit is shown through its Pearson residuals \eqn{\sqrt{w_i}\, e_i},
 #' so the plot shows whether the weighting flattened the spread. Its raw
 #' residuals would look as heteroscedastic as the original ones however good
 #' the weights were.
 #'
+#' Each panel has its own axes. Weighted residuals and the residuals of a
+#' transformed response are not in the units of the original ones, and on a
+#' common axis one of the two panels could be squeezed flat. The panels are
+#' there to compare the shape of the two clouds, not their size.
+#'
 #' @param original The original `lm` or `glm` model.
 #' @param remedied The model fitted after remediation.
 #'
-#' @return A `ggplot` object with residuals of both models.
+#' @return A `ggplot` object with one panel per model. Its data have the
+#'   columns `fitted`, `resid`, `model` (`"original"` or `"remedied"`) and
+#'   `panel`.
+#' @section Earlier versions:
+#' Up to 0.12.0 the two sets of residuals were overlaid in one panel and told
+#' apart by colour.
 #' @examples
 #' data(mtcars)
 #' m1 <- lm(mpg ~ wt, data = mtcars)
@@ -104,24 +115,37 @@ plotDiagnosticSuite <- function(model) {
 plotBeforeAfter <- function(original, remedied) {
   checkModel(original)
   checkModel(remedied)
+  resid_original <- rpearson_residuals(original)
+  resid_remedied <- rpearson_residuals(remedied)
+  panel_label <- function(model, label) {
+    if (is.null(rprior_weights(model))) label else paste0(label, " (weighted residuals)")
+  }
+  labels <- c(
+    original = panel_label(original, "Original"),
+    remedied = panel_label(remedied, "Remedied")
+  )
+  model <- rep(
+    c("original", "remedied"),
+    c(length(resid_original), length(resid_remedied))
+  )
   df <- data.frame(
     fitted = c(fitted(original), fitted(remedied)),
-    resid = c(rpearson_residuals(original), rpearson_residuals(remedied)),
-    model = rep(
-      c("original", "remedied"),
-      c(length(rpearson_residuals(original)), length(rpearson_residuals(remedied)))
-    )
+    resid = c(resid_original, resid_remedied),
+    model = model,
+    panel = factor(labels[model], levels = unname(labels))
   )
-  ggplot2::ggplot(df, ggplot2::aes(fitted, resid, colour = model)) +
-    ggplot2::geom_point(alpha = 0.6) +
-    ggplot2::geom_smooth(method = "loess", se = FALSE) +
-    ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
+    ggplot2::geom_hline(yintercept = 0, colour = "#8c8c8c", linewidth = 0.3) +
+    ggplot2::geom_point(colour = .ht_palette[1], alpha = 0.5, size = 1.3) +
+    ggplot2::geom_smooth(
+      method = "loess", formula = y ~ x, se = FALSE,
+      colour = "#333333", linewidth = 0.7
+    ) +
+    ggplot2::facet_wrap(~panel, nrow = 1, scales = "free") +
     ggplot2::labs(
       x = "Fitted values", y = "Residuals",
-      title = "Before/After Residual Comparison",
-      colour = "Model"
+      title = "Before/After Residual Comparison"
     ) +
-    scale_colour_hetero_diagnostic() +
     theme_hetero()
 }
 

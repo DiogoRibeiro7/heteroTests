@@ -2,6 +2,28 @@
 
 ## Development version
 
+- `autoplot()` of a test suite showed nothing when the tests rejected. The
+  bars were the p-values on a linear axis from 0 to 1, so a test with
+  p = 0.002 had no visible bar, and the colouring of significant tests was
+  decided by `isTRUE(p < 0.05)`, which is `FALSE` for a suite of more than one
+  test. The plot now draws one horizontal bar per test whose length is
+  `-log10(p)`, on an axis labelled with p-values, with a dashed line at a new
+  `alpha` argument (default 0.05) and the p-value printed beside each bar. The
+  grouped method draws one panel per group; it used to add a panel variable
+  for the `suggestions` column as well.
+
+- `tidy()` returns one row per test. A result with two parameters, such as the
+  F statistic of `performVarianceFormTest()` or the wild bootstrap with its
+  degrees of freedom and number of replications, came back as two rows, and
+  every table and plot built from the tidy output counted the test twice. The
+  second parameter is now in a new column, `parameter2`, and `estimate` is
+  given when a test reports exactly one. `glance()` follows.
+
+- `plotBeforeAfter()` draws the two models in two panels, each with its own
+  axes, where it used to overlay them in one panel in two similar blues.
+  Weighted residuals and the residuals of a transformed response are not in
+  the units of the original ones, so a common axis could flatten one of them.
+
 - `print()` on the result of `suggestRemediation()` now uses its print method.
   The method existed but was not registered in `NAMESPACE`, so results printed
   as a bare list with an `attr(,"class")` line. This also affects the
