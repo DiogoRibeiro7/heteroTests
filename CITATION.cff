@@ -1,9 +1,11 @@
 cff-version: 1.2.0
 message: |
   If you use this software, please cite it using the metadata below.
-  See algorithms_bibliography() for references on diagnostic tests.
+  See the help topic ?algorithms_bibliography for references on diagnostic
+  tests.
 title: "heteroTests"
 version: "0.12.0"
+doi: "10.32614/CRAN.package.heteroTests"
 type: software
 authors:
   - given-names: "Diogo"
@@ -37,8 +39,9 @@ preferred-citation:
     - given-names: "Diogo"
       family-names: "Ribeiro"
       orcid: "https://orcid.org/0009-0001-2022-7072"
-  title: "heteroTests: Heteroscedasticity Diagnostic Tools"
+  title: "heteroTests: Heteroscedasticity Diagnostics for Linear Models"
   year: "2026"
+  doi: "10.32614/CRAN.package.heteroTests"
   url: "https://CRAN.R-project.org/package=heteroTests"
   version: "0.12.0"
 references:
@@ -78,15 +81,19 @@ references:
     journal: "Journal of the American Statistical Association"
     year: 1965
     doi: "10.2307/2283047"
-  - type: incollection
+  - type: generic
     authors:
       - family-names: "Levene"
         given-names: "Howard"
     title: "Robust Tests for Equality of Variances"
-    booktitle: "Contributions to Probability and Statistics"
-    pages: "278-292"
-    publisher: "Stanford University Press"
-    address: "Stanford, CA"
+    collection-title: "Contributions to Probability and Statistics"
+    collection-type: "book"
+    start: 278
+    end: 292
+    publisher:
+      name: "Stanford University Press"
+      city: "Stanford"
+      region: "CA"
     year: 1960
   - type: article
     authors:
@@ -142,14 +149,15 @@ references:
     journal: "Journal of Time Series Analysis"
     year: 1983
     doi: "10.1111/j.1467-9892.1983.tb00373.x"
-  - type: techreport
+  - type: report
     authors:
       - family-names: "Cameron"
         given-names: "A. Colin"
       - family-names: "Trivedi"
         given-names: "Pravin K."
     title: "The information matrix test and its applied alternative hypotheses"
-    institution: "University of California, Davis"
+    institution:
+      name: "University of California, Davis"
     year: 1990
   - type: article
     authors:
@@ -177,12 +185,13 @@ references:
     journal: "The American Journal of Psychology"
     year: 1904
     doi: "10.2307/1412159"
-  - type: techreport
+  - type: report
     authors:
       - family-names: "Cameron"
         given-names: "A. Colin"
     title: "Regression based tests of heteroskedasticity in models where the variance depends on the mean"
-    institution: "Department of Economics, University of California, Davis"
+    institution:
+      name: "Department of Economics, University of California, Davis"
     number: "WP-379"
     year: 1991
     url: "https://cameron.econ.ucdavis.edu/research/regressionbasedtests_heteroskedasticity_ucdwp379.pdf"
@@ -192,7 +201,8 @@ references:
         given-names: "William H."
     title: "Econometric Analysis"
     edition: "8"
-    publisher: "Pearson"
+    publisher:
+      name: "Pearson"
     year: 2018
   - type: book
     authors:
@@ -200,7 +210,8 @@ references:
         given-names: "Jeffrey M."
     title: "Introductory Econometrics: A Modern Approach"
     edition: "7"
-    publisher: "Cengage Learning"
+    publisher:
+      name: "Cengage Learning"
     year: 2020
   - type: book
     authors:
@@ -209,14 +220,16 @@ references:
       - family-names: "MacKinnon"
         given-names: "James G."
     title: "Econometric Theory and Methods"
-    publisher: "Oxford University Press"
+    publisher:
+      name: "Oxford University Press"
     year: 2004
   - type: book
     authors:
       - family-names: "Godfrey"
         given-names: "Leslie G."
     title: "Misspecification Tests in Econometrics"
-    publisher: "Cambridge University Press"
+    publisher:
+      name: "Cambridge University Press"
     year: 1988
   - type: book
     authors:
@@ -226,7 +239,8 @@ references:
         given-names: "Sanford"
     title: "An R Companion to Applied Regression"
     edition: "3"
-    publisher: "Sage Publications"
+    publisher:
+      name: "Sage Publications"
     year: 2019
   - type: book
     authors:
@@ -235,7 +249,8 @@ references:
       - family-names: "Zeileis"
         given-names: "Achim"
     title: "Applied Econometrics with R"
-    publisher: "Springer-Verlag"
+    publisher:
+      name: "Springer-Verlag"
     year: 2008
   - type: book
     authors:
@@ -244,5 +259,6 @@ references:
       - family-names: "Tibshirani"
         given-names: "Robert J."
     title: "An Introduction to the Bootstrap"
-    publisher: "Chapman & Hall"
+    publisher:
+      name: "Chapman & Hall"
     year: 1993

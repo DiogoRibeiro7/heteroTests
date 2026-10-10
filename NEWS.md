@@ -115,6 +115,16 @@
   name it can return is a registered diagnostic, and that no function in the
   package has two different definitions.
 
+- The help page of `performStudentizedBPTest()` called `performKoenkerTest()`
+  "the absolute-residual variant", which it has not been since 0.6.5. Both
+  compute Koenker's studentized `n R^2` statistic from the regression of the
+  squared residuals on the regressors, and the page now says so. It also cited
+  a section of Davidson and MacKinnon (2004) that does not exist; the test is
+  in Section 7.5. The vignette on statistical theory gave the classical
+  Breusch-Pagan statistic as `n R^2`, which is Koenker's, and said that
+  `performKoenkerTest()` uses the absolute residuals; it now gives each
+  statistic as the package computes it. No value changes.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

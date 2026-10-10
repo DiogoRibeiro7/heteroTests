@@ -18,21 +18,24 @@ An object of class \code{htest} reporting the chi-squared statistic
 and p-value for the null hypothesis of constant error variance.
 }
 \description{
-Computes the Koenker–Bassett studentized Lagrange Multiplier statistic for
-heteroscedasticity by regressing centred squared residuals on the regressors.
-Compared with the classical Breusch–Pagan test, the studentized version is
-less sensitive to violations of normality and small-sample bias.
+Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
+multiplier statistic, \eqn{n R^2} from the regression of the squared
+residuals on the regressors. The classical Breusch–Pagan statistic assumes
+normal errors and this one does not: in the simulations of
+\verb{inst/validation/} it holds its level under \eqn{t_5} errors, where the
+classical statistic rejects far too often.
 }
 \details{
 Following Koenker (1981) and the implementation in
 \link[lmtest:bptest]{lmtest::bptest()}, the procedure fits an auxiliary
 regression of \eqn{e_i^2 - \hat{\sigma}^2} on the regressors from the
 original model (including the intercept), where \eqn{e_i} denotes the
-residuals and \eqn{\hat{\sigma}^2} their mean squared error. Under
-homoskedasticity the statistic
-\eqn{T = n \sum \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
-asymptotically chi-squared with degrees of freedom equal to the number of
-regressors beyond the intercept. On a weighted fit \eqn{e_i} is the Pearson
+residuals and \eqn{\hat{\sigma}^2 = \sum e_i^2 / n} the mean of their
+squares. With \eqn{\hat{g}_i} the fitted values of that regression, the
+statistic \eqn{T = n \sum \hat{g}_i^2 / \sum (e_i^2 - \hat{\sigma}^2)^2} is
+its \eqn{n R^2}. Under homoskedasticity it is asymptotically chi-squared with
+degrees of freedom equal to the number of regressors beyond the intercept,
+whether or not the errors are normal. On a weighted fit \eqn{e_i} is the Pearson
 residual \eqn{\sqrt{w_i}} times the raw residual and the auxiliary
 regression is unweighted; see the section on weighted fits in
 \code{\link[=performKoenkerTest]{performKoenkerTest()}}. This departs from \code{lmtest::bptest()}, which keeps the
@@ -41,9 +44,9 @@ shares the validation
 helpers used across the package to ensure that: (i) the model and data satisfy
 minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()} and
 \link[=rvalidateDataInputs]{rvalidateDataInputs()}, (ii) missing values are handled by
-\link[=rhandleMissingValues]{rhandleMissingValues()}, and (iii) studentized-residual specific
-requirements registered in \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are
-met.
+\link[=rhandleMissingValues]{rhandleMissingValues()}, and (iii) the
+requirements registered for this test in
+\link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
 }
 \examples{
 data(mtcars)
@@ -64,12 +67,13 @@ Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 \doi{10.1016/0304-4076(81)90062-2}
 
 Davidson, R., & MacKinnon, J. G. (2004). \emph{Econometric Theory and Methods}.
-Oxford University Press. Section 16.7 discusses LM tests for heteroscedasticity
-including studentized variants.
+Oxford University Press. Section 7.5 derives the test as \eqn{n R^2} from
+the regression of the squared residuals on the variance regressors.
 }
 \seealso{
-\code{\link[=performBPTest]{performBPTest()}} for the classical LM statistic and \code{\link[=performKoenkerTest]{performKoenkerTest()}} for
-the absolute-residual variant. The robust workflow in
+\code{\link[=performBPTest]{performBPTest()}} for the classical LM statistic, which assumes normal
+errors, and \code{\link[=performKoenkerTest]{performKoenkerTest()}}, which computes the same studentized
+\eqn{n R^2} statistic on the squared residuals. The robust workflow in
 \link[=performBPTestRobust]{performBPTestRobust()} augments the studentized statistic with bootstrap
 diagnostics.
 }

@@ -27,7 +27,7 @@
 #' requirements using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, and (iv) a full-rank design
 #' matrix for the auxiliary regression.
 #'
-#' Rejecting the null indicates that the absolute residuals—and hence the error
+#' Rejecting the null indicates that the squared residuals—and hence the error
 #' variance—vary systematically with the predictors. The statistic simplifies to
 #' \eqn{n R^2} from the auxiliary regression and is compared against a
 #' chi-squared distribution with degrees of freedom equal to the number of

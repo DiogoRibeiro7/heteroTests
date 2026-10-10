@@ -15,25 +15,52 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072]
 
 ## What it provides
 
-Every test returns a base-R `htest` object and follows the same
-`perform*Test(model, data, ...)` convention, so results print, subset and compose
-like `stats::bptest()` and slot directly into automated pipelines.
+Every test returns a base-R `htest` object, so results print, subset and
+compose like those of `lmtest::bptest()` and slot directly into automated
+pipelines. Most tests take `(model, data, ...)`; the [roadmap](ROADMAP.md)
+lists the nine that do not yet. Where an established implementation exists, the
+test reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for
+Breusch--Pagan, Koenker and Goldfeld--Quandt, `car` for the Cook--Weisberg
+score test, Levene and Brown--Forsythe, `stats` for Bartlett and
+Fligner--Killeen, `vartest` for Hartley and O'Brien, and `plm` for the panel
+tests. Their simulated size and power are in
+[`inst/validation/`](inst/validation/README.md).
 
-- **Auxiliary-regression tests** — White, classical Breusch--Pagan, Koenker
-  (studentized), Harvey, Park, Glejser. The classical and studentized
-  Breusch--Pagan statistics are validated against `lmtest::bptest()` to machine
-  precision. `performGlejserTest(robust = TRUE)` is the Glejser test of Im
-  (2000) and of Machado and Santos Silva (2000), which keeps its level under
-  skewed errors.
-- **Group-wise variance tests** — Levene, Brown--Forsythe, Bartlett,
-  Fligner--Killeen, Hartley's F-max (validated against `car`).
-- **Rank-based and non-constant-variance diagnostics** — Spearman,
-  Cameron--Trivedi, Cook--Weisberg NCV, spread--level.
-- **ARCH-type tests** for time series — Engle's ARCH LM and McLeod--Li.
-- **Modern resampling and robust diagnostics** — a null-imposed wild bootstrap,
-  HC0–HC4 covariance test, quantile-regression test, rank-permutation test, and
-  high-dimensional and spatial variants for settings where the classical
-  asymptotics are unreliable.
+- **Does the variance depend on the regressors?** White
+  (`performWhiteTest()`), the classical Breusch--Pagan test (`performBPTest()`)
+  and Koenker's studentized form of it (`performKoenkerTest()`), Harvey
+  (`performHarveyTest()`), Park (`performParkTest()`), Glejser
+  (`performGlejserTest()`) and the Cook--Weisberg score test
+  (`performNCVTest()`, or `performCookWeisbergTest()` with the fitted values as
+  the variance regressor). `performGlejserTest(robust = TRUE)` is the Glejser
+  test of Im (2000) and of Machado and Santos Silva (2000), which keeps its
+  level under skewed errors.
+- **Does the variance change with the fitted values or along an ordering?**
+  Goldfeld--Quandt (`performGQTest()`), Szroeter (`performSzroeterTest()`),
+  Spearman's rank correlation (`performSpearmanTest()`), the spread--level test
+  (`performSpreadLevelTest()`) and Davidian--Carroll
+  (`performDavidianCarrollTest()`).
+- **Do groups have equal variances?** Levene, Brown--Forsythe, Bartlett,
+  Fligner--Killeen, Hartley's F-max and O'Brien on the residuals of a model
+  (`performLeveneTest()`, `performBrownForsytheTest()`, `performBartlettTest()`,
+  `performFlignerKilleenTest()`, `performHartleyFmaxTest()`,
+  `performOBrienTest()`), and Box's M for equal covariance matrices
+  (`performBoxMTest()`).
+- **Does the variance of a time series depend on its past?** Engle's ARCH LM
+  test (`performArchLMTest()`) and McLeod--Li (`performMcLeodLiTest()`).
+- **When the asymptotic reference distribution is in doubt** — a null-imposed
+  wild bootstrap (`performWildBootstrapTest()`), a bootstrap White test
+  (`performWhiteTestBootstrap()`), a rank-permutation test
+  (`performRankPermutationTest()`) and a quantile-regression test
+  (`performQuantileRegressionTest()`). `performWhiteTestRobust()` and
+  `performBPTestRobust()` add optional bootstrap resampling and effect sizes,
+  and `performHighDimensionalTest()` is a variant for designs with many
+  regressors.
+- **Panel and spatial data** — `performSpatialHeteroTest()` asks whether the
+  squared residuals cluster in space. For panels, `runPanelTests()` runs the
+  Breusch--Pagan test for a random effect (`performBPRandomEffectsTest()`) and
+  Pesaran's test of cross-sectional dependence (`performPesaranTest()`); they
+  check the panel model, not its variance.
 - **Scalability** — streaming implementations (`performWhiteTestStreaming()`,
   `performBPTestStreaming()`, `performKoenkerTestStreaming()`) accumulate the
   auxiliary cross-products in chunks; results are exact and memory-bounded, and
@@ -41,6 +68,11 @@ like `stats::bptest()` and slot directly into automated pipelines.
 - **The shape of the variance** — `performVarianceFormTest()` tests whether an
   exponential or a power variance function describes the heteroscedasticity,
   where the other tests only establish that the variance is not constant.
+- **Model checks that are not tests of the variance** — Ramsey's RESET
+  (`performRESETTest()`), variance inflation factors (`performVIFDiagnostic()`),
+  influential observations (`performInfluenceDiagnostics()`) and the
+  correlations of the absolute residuals with chosen variables
+  (`performScatterDiagnostic()`).
 - **Remediation and guidance** — weighted least squares (`fitWLS()`) with a
   choice of variance function, robust fits (`fitRobust()`),
   variance-stabilising transforms (`autoTransform()`), a model-comparison
@@ -51,7 +83,9 @@ like `stats::bptest()` and slot directly into automated pipelines.
   adequate. For weights estimated by `fitWLS()`, `performVarianceFormTest()`
   is the test that allows for the estimation.
 - **Ecosystem integration** — `broom` tidiers, `ggplot2` theming/`autoplot`, and
-  helpers for tidymodels, survey designs and grouped pipelines.
+  helpers for tidymodels and grouped pipelines. `runSurveyHeteroTests()` runs
+  the tests on the data of a survey design; it does not use the design, and its
+  help page says when the results hold.
 
 ## Installation
 
@@ -168,8 +202,11 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for co
 
 ## Citation
 
-If you use this package in your research, please cite it as described in [CITATION.cff](CITATION.cff).
-Version 0.11.2 is also archived on [Zenodo](https://doi.org/10.5281/zenodo.22773917).
+If you use this package in your research, please cite the CRAN release
+(<https://doi.org/10.32614/CRAN.package.heteroTests>), as `citation("heteroTests")`
+and [CITATION.cff](CITATION.cff) do. Releases are also archived on
+[Zenodo](https://doi.org/10.5281/zenodo.22226790); that DOI resolves to the
+latest archived version.
 
 ## License
 

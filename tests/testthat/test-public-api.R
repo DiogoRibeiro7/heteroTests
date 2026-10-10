@@ -17,6 +17,22 @@ removed_exports <- c(
   "performModifiedBartlettTest"
 )
 
+# The same six as prose names them, in the order above, for the README and the
+# vignettes, which name a test in words as often as by its function. The
+# README went on advertising "Cameron--Trivedi" and an "HC0-HC4 covariance
+# test" after both were removed in 0.8.0. Patterns are case-insensitive Perl
+# regular expressions; a dash between two names may be written -, --, an en
+# dash or an em dash, and any space may be a line break.
+removed_dash <- "\\s*[-\u2013\u2014]+\\s*"
+removed_display_names <- c(
+  "\\bRice('s)?\\s+test",
+  paste0("\\bCurry", removed_dash, "Walsh"),
+  paste0("\\bHC[0-4]?(", removed_dash, "HC[0-4]|\\s+to\\s+HC[0-4])?\\s+covariance\\s+test"),
+  "\\bordered\\s+LM\\s+test",
+  paste0("\\bCameron", removed_dash, "Trivedi"),
+  "\\bmodified\\s+Bartlett"
+)
+
 test_that("the removed diagnostics are no longer exported", {
   exports <- getNamespaceExports("heteroTests")
   for (nm in removed_exports) {
@@ -167,4 +183,52 @@ test_that("no object in R/ has two different definitions", {
 
   expect_identical(differing, character(),
                    info = "defined more than once, differently")
+})
+
+# README.md is not in the built package, so these two run from a source
+# checkout only. Each file is read whole, so a name broken across lines is
+# still found.
+readme_and_vignettes <- function(root) {
+  files <- c(
+    file.path(root, "README.md"),
+    list.files(file.path(root, "vignettes"), pattern = "[.]Rmd$", full.names = TRUE)
+  )
+  texts <- vapply(files, function(f) {
+    paste(readLines(f, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  }, character(1))
+  names(texts) <- basename(files)
+  texts
+}
+
+test_that("the README and the vignettes name no removed diagnostic", {
+  root <- skip_if_not_source_tree()
+  texts <- readme_and_vignettes(root)
+  patterns <- c(removed_exports, removed_display_names)
+
+  hits <- character()
+  for (f in names(texts)) {
+    for (p in patterns) {
+      if (grepl(p, texts[[f]], ignore.case = TRUE, perl = TRUE)) {
+        hits <- c(hits, paste0(f, " matches ", p))
+      }
+    }
+  }
+  expect_identical(
+    hits, character(),
+    info = paste("name a diagnostic removed in 0.8.0:", paste(hits, collapse = "; "))
+  )
+})
+
+test_that("every test the README and the vignettes name is exported", {
+  root <- skip_if_not_source_tree()
+  texts <- readme_and_vignettes(root)
+  named <- unique(unlist(regmatches(
+    texts, gregexpr("\\bperform[A-Za-z]+(?=\\()", texts, perl = TRUE)
+  )))
+  expect_gt(length(named), 0L)
+  not_exported <- setdiff(named, getNamespaceExports("heteroTests"))
+  expect_identical(
+    not_exported, character(),
+    info = paste("named but not exported:", paste(not_exported, collapse = ", "))
+  )
 })

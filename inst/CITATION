@@ -3,9 +3,18 @@ citHeader(paste(
   "See ?algorithms_bibliography for the primary reference behind each test."
 ))
 
+# The CRAN release, with the title, DOI and page of its Crossref record. A copy
+# installed from CRAN carries its publication date; one installed from GitHub
+# does not, and falls back to the year of the first CRAN release.
+cran_year <- if (is.null(meta$`Date/Publication`)) {
+  "2026"
+} else {
+  substr(meta$`Date/Publication`, 1L, 4L)
+}
+
 bibentry(
   bibtype = "Manual",
-  title = "heteroTests: Heteroscedasticity Diagnostic Tools",
+  title = paste0("heteroTests: ", meta$Title),
   author = person(
     given = "Diogo",
     family = "Ribeiro",
@@ -16,8 +25,9 @@ bibentry(
       affiliation = "Faculty of Media Arts and Design, Technical University of Porto"
     )
   ),
-  year = "2025",
-  url = "https://github.com/DiogoRibeiro7/heteroTests",
+  year = cran_year,
+  doi = "10.32614/CRAN.package.heteroTests",
+  url = "https://CRAN.R-project.org/package=heteroTests",
   note = paste("R package version", meta$Version)
 )
 
