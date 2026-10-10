@@ -103,6 +103,28 @@ if (!"alpha" %in% names(formals(suite_plot))) {
     call. = FALSE
   )
 }
+
+# The Glejser test for asymmetric errors, and its simulated size, come with
+# versions of the package later than 0.12.0.
+glejser_path <- system.file(
+  "validation", "glejser-skewed-errors.csv",
+  package = "heteroTests"
+)
+if (!nzchar(glejser_path)) {
+  stop(
+    "This article needs a version of heteroTests later than 0.12.0, which ",
+    "installs the validation results for the Glejser test.",
+    call. = FALSE
+  )
+}
+glejser_size <- subset(
+  utils::read.csv(glejser_path, stringsAsFactors = FALSE),
+  block == "size" & errors %in% c("chisq5", "exponential", "exponential_left", "lognormal")
+)
+glejser_n <- range(glejser_size$n)
+glejser_rates <- function(test_name) {
+  range(glejser_size$rejection_rate[glejser_size$test == test_name])
+}
 weighted_known <- subset(
   weighted_fits,
   weights == "known" & !is.na(rejection_rate)
@@ -1587,6 +1609,22 @@ heteroskedasticity-consistent covariance estimators. All of its tests are
 tests for a single linear regression model. The group-wise, time-series, and
 spatial procedures of Table \@ref(tab:procedures) lie outside it, which is why
 an analysis that needs both still crosses a package boundary.
+
+The package also has a form of one of these tests for which we found no other
+R implementation. The test of @glejser1969new regresses the absolute
+residuals on a variance regressor, and its statistic has its nominal level
+when positive and negative errors are equally likely, and in general not
+otherwise [@godfrey1996some]. @im2000robustifying and @machado2000glejser gave
+a correction that removes the condition. `skedastic::glejser()` uses the
+absolute residuals as they are, and so does `performGlejserTest()` unless it
+is called with `robust = TRUE`, which applies the correction. The validation
+study installed with the package runs both forms of the package's test on
+skewed errors of constant variance, with `r glejser_n[1]` to
+`r glejser_n[2]` observations. At the 5% level the uncorrected form rejects
+between `r pct(glejser_rates("glejser")[1])` and
+`r pct(glejser_rates("glejser")[2])` of the time, and the corrected one
+between `r pct(glejser_rates("glejser_robust")[1])` and
+`r pct(glejser_rates("glejser_robust")[2])`.
 
 The remaining packages in Table \@ref(tab:software-comparison) each contribute
 one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for
