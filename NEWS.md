@@ -109,7 +109,10 @@
   residual sum of squares that falls in the first part of the sample ordered
   by a variable, and it agrees with `lmtest::hmctest()` to `1e-8`. The p-value
   is exact under normal errors given the regressors, by Imhof's (1961)
-  formula. `lmtest::hmctest()` simulates its p-value from a regression on a
+  formula, and reproduces the exact critical values published by Harrison
+  (1981). The 1979 article was not read: the definition rests on Harrison
+  (1981), by its first author, and on `lmtest`. `lmtest::hmctest()`
+  simulates its p-value from a regression on a
   constant alone, whatever the model, and `skedastic::harrison_mccabe()`
   drops repeated eigenvalues before applying Imhof's formula, which changes
   its p-value. Weighted fits are supported.

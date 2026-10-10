@@ -290,6 +290,16 @@ after it.
 - [ ] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
   chi-square approximation. Compare it against Box's F approximation, then
   either switch or document the conservatism on the help page.
+- [ ] **`performSzroeterTest()` on a weighted fit.** In
+  `inst/validation/harrison-mccabe-size-power.R`, on a correctly weighted fit
+  with Gaussian errors, it rejects 0.067 of the time at 40 observations,
+  outside the release gate, and 0.056 and 0.055 at 100 and 400; without
+  weights it is inside the gate at all three sizes. Its null mean and
+  variance, `(n + 1) / 2` and `(n^2 - 1) / (6 n)`, do not depend on the
+  design, and in that weighted design the start of the ordering has the larger
+  leverages. Either take its null distribution from the weighted design, as
+  `performHarrisonMcCabeTest()` does, or document the restriction on the help
+  page.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
@@ -515,9 +525,11 @@ which is also what a reader of the article asks of it. Within that group:
   default is still Glejser's statistic; whether it should be is under
   *Decisions needed*.
 - **Harrison–McCabe (1979)**, after 0.12.0, as `performHarrisonMcCabeTest()`,
-  beside Goldfeld–Quandt and Szroeter. The statistic agrees with
-  `lmtest::hmctest()` to `1e-8`, and the p-value is exact under normal errors
-  given the regressors. Neither reference computes that p-value:
+  beside Goldfeld–Quandt and Szroeter. The 1979 article was not read; the
+  definition rests on Harrison (1981), by its first author, whose published
+  exact critical values the function reproduces, and on `lmtest::hmctest()`,
+  with which the statistic agrees to `1e-8`. The p-value is exact under
+  normal errors given the regressors. Neither reference computes that p-value:
   `lmtest::hmctest()` simulates it from a regression on a constant alone, and
   `skedastic::harrison_mccabe()` 2.0.3 drops repeated eigenvalues and, with
   `deflator`, leaves the design in the order of the rows. In the designs of
