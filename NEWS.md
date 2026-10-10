@@ -73,6 +73,31 @@
   to 25% of the time, and 3 of their 40 size cells fell inside the Monte Carlo
   band. They were not adopted.
 
+- `performGlejserTest()` gains `robust = TRUE`, the Glejser test of Im (2000)
+  and of Machado and Santos Silva (2000), which keeps its level when the
+  errors are skewed. No other R implementation of it was found.
+
+  Glejser's statistic has its nominal level when positive and negative errors
+  are equally likely. When they are not, and the variable tested is correlated
+  with the regressors, it does not in general, and a larger sample does not help. In
+  `inst/validation/glejser-skewed-errors.R`, at the 5% level and with 50 to
+  1000 observations, it rejected a true null hypothesis 12% to 14% of the time
+  under exponential errors and 15% to 18% under lognormal errors, which is
+  what the asymptotic theory gives for those designs. The help page said the
+  test was not valid there and pointed to Koenker's test.
+
+  With `robust = TRUE` the auxiliary regression is run on `|e| - m e`, where
+  `m` is the proportion of positive residuals less the proportion of negative
+  ones. In the same study it rejected 4.4% to 5.7% of the time from 150
+  observations on, and 5.7% to 6.6% at 50 under skewed errors. Under Gaussian
+  errors it gives up one or two percentage points of power at 50 observations.
+  Against Koenker's statistic on the same regressor it has 1 to 4 points less
+  power under Gaussian errors and 1 to 10 points more under exponential
+  errors.
+
+  The default is `robust = FALSE`, and every value the function returned
+  before is unchanged.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape

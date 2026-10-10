@@ -367,11 +367,6 @@ A first implementation in R. Where another system has one, it is the
 reference; where none does, the guard is a reconstruction of the primary
 reference and simulated size.
 
-- **A Glejser test that is valid under skewed errors** (Im 2000; Machado and
-  Santos Silva 2000). The help page of `performGlejserTest()` already warns
-  that the uncorrected statistic is not, and cites Im.
-  `skedastic::glejser()` is the uncorrected test as well. The guard is
-  simulated size under a skewed null.
 - **Modified Wald test for groupwise heteroscedasticity** in a fixed-effects
   panel (Greene 2000; Baum 2001). The panel tests cover an individual effect
   and cross-sectional dependence, not unequal variances across units.
@@ -459,15 +454,24 @@ with a reference implementation to agree with.
 The first group is where the package can contribute something R does not have,
 which is also what a reader of the article asks of it. Within that group:
 
-1. The robust Glejser test. It corrects a test the package already has and
-   already documents as invalid under skewed errors.
-2. The modified Wald test. The panel functions exist, and it is the test
+1. The modified Wald test. The panel functions exist, and it is the test
    Stata users look for under the name `xttest3`.
-3. The Dette, Neumeyer and Van Keilegom test. It removes the main limitation
-   of `performVarianceFormTest()`, and is the most work of the three.
+2. The Dette, Neumeyer and Van Keilegom test. It removes the main limitation
+   of `performVarianceFormTest()`, and is the most work of the two.
 
 From the second group, Harrison–McCabe is the cheapest, with two reference
 implementations to agree with.
+
+### Done
+
+- **A Glejser test that is valid under skewed errors** (Im 2000; Machado and
+  Santos Silva 2000), after 0.12.0, as `performGlejserTest(robust = TRUE)`.
+  In the designs of `inst/validation/glejser-skewed-errors.R` the uncorrected
+  statistic rejects a true null hypothesis 9% to 18% of the time at the 5%
+  level when the errors are skewed, at every sample size, and
+  `skedastic::glejser()` uses the uncorrected absolute residuals as well. The
+  default is still Glejser's statistic; whether it should be is under
+  *Decisions needed*.
 
 ## Decisions needed
 
@@ -479,6 +483,7 @@ implementations to agree with.
 | Naming of the simulation family | Keep `simulate_*()`/`sigma_*()` as a documented snake_case family; rename the one-offs | 0.13.0 |
 | `data` argument on every test | `data = NULL` in second position; `performBoxMTest()` the documented exception | 0.14.0 |
 | Default battery | White + Koenker | 0.14.0 |
+| Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.14.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.14.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.15.0 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.15.0 |

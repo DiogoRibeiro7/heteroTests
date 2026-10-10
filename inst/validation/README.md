@@ -45,6 +45,8 @@ test that remains.
 | `variance-form-size-power.csv` | Its output, one row per form, truth, error distribution and sample size. |
 | `survey-designs-size.R` | The tests `runSurveyHeteroTests()` runs on the data of a survey design, beside three ways of using the design that were not adopted. `Rscript inst/validation/survey-designs-size.R`, with `N_MC` overridable. Needs `survey`. |
 | `survey-designs-size.csv` | Its output, one row per test, procedure, design and sample size. |
+| `glejser-skewed-errors.R` | `performGlejserTest()` with and without `robust = TRUE`, beside Koenker's test, under symmetric and skewed errors. `Rscript inst/validation/glejser-skewed-errors.R`, with `N_MC` and `MC_CORES` overridable. |
+| `glejser-skewed-errors.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -597,6 +599,182 @@ Reading the tables:
   on, and where the weights vary a few observations carry most of it. Neither
   was adopted. A design-based test needs a small-sample correction before it
   can clear the release gate.
+
+### The Glejser test under asymmetric errors
+
+Glejser's statistic regresses the absolute residuals on a transformation of a
+regressor. An absolute residual differs from the absolute error by
+`sign(e) x'(b - beta)`, and the mean of that term is zero only when positive
+and negative errors are equally likely (Godfrey 1996). `robust = TRUE`
+regresses `abs(e) - m e` instead, where `m` is the proportion of positive
+residuals less the proportion of negative ones (Im 2000; Machado and Santos
+Silva 2000).
+
+The design is the cross-sectional one of Pass A,
+`y = 1 + 2 x1 + 0.5 x2 + sigma e`, with `x1` uniform on (1, 5) and the test
+applied to `x1`. The errors have mean 0 and variance 1 in every row. Their
+skewness is in the second column: a chi-squared with 5 degrees of freedom, an
+exponential, the same exponential with its sign changed, and a lognormal, all
+centred.
+
+Koenker's test is in the tables twice, because the help page of
+`performGlejserTest()` used to send the reader to it when the errors are
+skewed. `performKoenkerTest()` is the call that reader makes, and it tests both
+regressors of the mean equation. "Koenker's statistic on the same regressor"
+is `n R^2` of the squared residuals on the one regressor the Glejser test is
+given, with one degree of freedom. The package has no call for it and the
+script computes it. That row is the like-for-like comparison.
+
+**Glejser test, size by error distribution.**
+
+| Errors | Skewness | Test | n = 50 | n = 150 | n = 400 | n = 1000 |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Gaussian | 0 | `performGlejserTest()` | 0.054 | 0.049 | 0.045 | 0.050 |
+| Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.049 | 0.047 | 0.044 | 0.050 |
+| Gaussian | 0 | Koenker's statistic on the same regressor | 0.046 | 0.048 | 0.048 | 0.051 |
+| Gaussian | 0 | `performKoenkerTest()` | 0.046 | 0.053 | 0.048 | 0.049 |
+| t5 | 0 | `performGlejserTest()` | 0.054 | 0.050 | 0.053 | 0.055 |
+| t5 | 0 | `performGlejserTest(robust = TRUE)` | 0.046 | 0.048 | 0.053 | 0.054 |
+| t5 | 0 | Koenker's statistic on the same regressor | 0.048 | 0.046 | 0.049 | 0.053 |
+| t5 | 0 | `performKoenkerTest()` | 0.045 | 0.048 | 0.051 | 0.050 |
+| chi-squared(5) | 1.26 | `performGlejserTest()` | 0.094 | 0.096 | 0.089 | 0.088 |
+| chi-squared(5) | 1.26 | `performGlejserTest(robust = TRUE)` | 0.057 | 0.056 | 0.048 | 0.047 |
+| chi-squared(5) | 1.26 | Koenker's statistic on the same regressor | 0.058 | 0.060 | 0.053 | 0.050 |
+| chi-squared(5) | 1.26 | `performKoenkerTest()` | 0.058 | 0.058 | 0.052 | 0.050 |
+| exponential | 2 | `performGlejserTest()` | 0.133 | 0.134 | 0.132 | 0.123 |
+| exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.059 | 0.054 | 0.049 | 0.046 |
+| exponential | 2 | Koenker's statistic on the same regressor | 0.061 | 0.049 | 0.045 | 0.046 |
+| exponential | 2 | `performKoenkerTest()` | 0.063 | 0.055 | 0.046 | 0.049 |
+| exponential, mirrored | -2 | `performGlejserTest()` | 0.133 | 0.134 | 0.139 | 0.126 |
+| exponential, mirrored | -2 | `performGlejserTest(robust = TRUE)` | 0.058 | 0.057 | 0.046 | 0.047 |
+| exponential, mirrored | -2 | Koenker's statistic on the same regressor | 0.059 | 0.051 | 0.044 | 0.046 |
+| exponential, mirrored | -2 | `performKoenkerTest()` | 0.058 | 0.051 | 0.044 | 0.046 |
+| lognormal | 6.18 | `performGlejserTest()` | 0.166 | 0.177 | 0.169 | 0.174 |
+| lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.057 | 0.054 | 0.047 | 0.051 |
+| lognormal | 6.18 | Koenker's statistic on the same regressor | 0.048 | 0.041 | 0.039 | 0.045 |
+| lognormal | 6.18 | `performKoenkerTest()` | 0.054 | 0.046 | 0.047 | 0.044 |
+
+**Glejser test, size with `transformation = "inverse"`.**
+
+| Errors | Skewness | Test | n = 50 | n = 400 |
+| --- | ---: | --- | ---: | ---: |
+| Gaussian | 0 | `performGlejserTest()` | 0.055 | 0.053 |
+| Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.049 | 0.053 |
+| Gaussian | 0 | Koenker's statistic on the same regressor | 0.049 | 0.053 |
+| Gaussian | 0 | `performKoenkerTest()` | 0.048 | 0.057 |
+| exponential | 2 | `performGlejserTest()` | 0.118 | 0.120 |
+| exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.063 | 0.048 |
+| exponential | 2 | Koenker's statistic on the same regressor | 0.061 | 0.048 |
+| exponential | 2 | `performKoenkerTest()` | 0.062 | 0.053 |
+| lognormal | 6.18 | `performGlejserTest()` | 0.155 | 0.158 |
+| lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.066 | 0.053 |
+| lognormal | 6.18 | Koenker's statistic on the same regressor | 0.071 | 0.054 |
+| lognormal | 6.18 | `performKoenkerTest()` | 0.066 | 0.043 |
+
+**Glejser test, size after a correctly weighted fit.**
+
+| Errors | Skewness | Test | n = 150 | n = 400 |
+| --- | ---: | --- | ---: | ---: |
+| Gaussian | 0 | `performGlejserTest()` | 0.051 | 0.058 |
+| Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.050 | 0.057 |
+| Gaussian | 0 | Koenker's statistic on the same regressor | 0.051 | 0.053 |
+| Gaussian | 0 | `performKoenkerTest()` | 0.053 | 0.050 |
+| exponential | 2 | `performGlejserTest()` | 0.119 | 0.116 |
+| exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.053 | 0.052 |
+| exponential | 2 | Koenker's statistic on the same regressor | 0.051 | 0.048 |
+| exponential | 2 | `performKoenkerTest()` | 0.052 | 0.057 |
+| lognormal | 6.18 | `performGlejserTest()` | 0.153 | 0.148 |
+| lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.054 | 0.049 |
+| lognormal | 6.18 | Koenker's statistic on the same regressor | 0.044 | 0.039 |
+| lognormal | 6.18 | `performKoenkerTest()` | 0.043 | 0.043 |
+
+**Glejser test, power.**
+
+| Errors | Skewness | gamma | Test | n = 50 | n = 150 |
+| --- | ---: | ---: | --- | ---: | ---: |
+| Gaussian | 0 | 0.2 | `performGlejserTest()` | 0.163 | 0.441 |
+| Gaussian | 0 | 0.2 | `performGlejserTest(robust = TRUE)` | 0.152 | 0.434 |
+| Gaussian | 0 | 0.2 | Koenker's statistic on the same regressor | 0.167 | 0.478 |
+| Gaussian | 0 | 0.2 | `performKoenkerTest()` | 0.118 | 0.366 |
+| Gaussian | 0 | 0.4 | `performGlejserTest()` | 0.476 | 0.941 |
+| Gaussian | 0 | 0.4 | `performGlejserTest(robust = TRUE)` | 0.456 | 0.940 |
+| Gaussian | 0 | 0.4 | Koenker's statistic on the same regressor | 0.485 | 0.953 |
+| Gaussian | 0 | 0.4 | `performKoenkerTest()` | 0.346 | 0.900 |
+| exponential | 2 | 0.2 | `performGlejserTest()` | 0.203 | 0.365 |
+| exponential | 2 | 0.2 | `performGlejserTest(robust = TRUE)` | 0.105 | 0.209 |
+| exponential | 2 | 0.2 | Koenker's statistic on the same regressor | 0.096 | 0.179 |
+| exponential | 2 | 0.2 | `performKoenkerTest()` | 0.083 | 0.135 |
+| exponential | 2 | 0.4 | `performGlejserTest()` | 0.409 | 0.778 |
+| exponential | 2 | 0.4 | `performGlejserTest(robust = TRUE)` | 0.251 | 0.622 |
+| exponential | 2 | 0.4 | Koenker's statistic on the same regressor | 0.221 | 0.520 |
+| exponential | 2 | 0.4 | `performKoenkerTest()` | 0.167 | 0.398 |
+
+Replications: 5000. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0031.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+Under symmetric errors the default statistic rejects 0.045 to 0.058 of the time and the corrected one 0.044 to 0.057. Under asymmetric errors the default rejects 0.088 to 0.177 and the corrected one 0.046 to 0.066. Of the 36 null cells of the corrected statistic, 32 fall inside the release-gate interval [0.0421, 0.0579]. Outside it:
+
+- exponential errors, n = 50, size: 0.0592.
+- exponential, mirrored errors, n = 50, size: 0.0580.
+- exponential errors, n = 50, size, regressor outside the mean equation: 0.0626.
+- lognormal errors, n = 50, size, regressor outside the mean equation: 0.0658.
+
+Five things follow.
+
+- **The default statistic is not a 5% test when the errors are skewed.** With
+  `x1` as the auxiliary regressor it rejects 0.088 to 0.096 of the time at a
+  skewness of 1.26, 0.123 to 0.139 at a skewness of 2 in either direction, and
+  0.166 to 0.177 for the lognormal. With `1 / x1`, and after a weighted fit,
+  the rates are 0.116 to 0.120 for the exponential and 0.148 to 0.158 for the
+  lognormal. At 1000 observations each rate is within about one percentage
+  point of its value at 50. The term the statistic ignores is of the same
+  order as the statistic, so the excess is not a small-sample effect.
+- **The excess is the one the asymptotic theory gives.** The variance of the
+  numerator of the slope is
+  `Var(z) {Var|u| + rho^2 [m^2 Var(u) - 2 m E(u|u|)]}`, with `m = E sign(u)`
+  and `rho^2` the `R^2` of the auxiliary regressor on the regressors of the
+  mean equation, and the t statistic assumes `Var(z) Var|u|`. The table below
+  puts the size this implies beside the simulated one. It also shows what the
+  excess depends on: the shape of the errors and how far the auxiliary
+  regressor is explained by the mean equation, 1 for `x1` and 0.844 for
+  `1 / x1`. Under other error distributions the bracket can be negative, and
+  the default statistic then rejects too seldom.
+- **The corrected statistic holds its level from 150 observations.** All 27
+  of its null cells at 150 observations or more are inside the release-gate
+  interval, with `x1` or `1 / x1` as the auxiliary regressor and after a
+  weighted fit. At 50 observations four of its nine cells are above the
+  interval, at 0.058 to 0.066, all with skewed errors. In the same four cells
+  Koenker's statistic on the same regressor is at 0.059 to 0.071 and
+  `performKoenkerTest()` at 0.058 to 0.066.
+- **Under symmetric errors the correction costs little, and it is not free.**
+  The corrected statistic rejects less often than the default in ten of the
+  twelve symmetric null cells and as often in the other two: by 0.5 to 0.7
+  percentage points at 50 observations and by 0.2 or less from 150. With
+  Gaussian errors it loses 1.1 and 1.9 points of power at 50 observations and
+  under one point at 150.
+- **Against Koenker's statistic on the same regressor the ranking depends on
+  the errors.** With Gaussian errors Koenker's statistic has 1.3 to 4.4 points
+  more power than the corrected Glejser statistic. With exponential errors the
+  corrected Glejser statistic has 0.9 to 10.3 points more. `performKoenkerTest()`
+  is below both in every power cell, because it spends a degree of freedom on
+  `x2`, which the variance does not depend on. The rejection rates of the
+  default Glejser statistic under exponential errors are not powers, because
+  its size there is 0.13.
+
+**Glejser test, size of the default statistic against its asymptotic value.**
+
+| Errors | Regressor | Asymptotic | Simulated |
+| --- | --- | ---: | ---: |
+| chi-squared(5) | `x1` | 0.090 | 0.088 to 0.096 |
+| exponential | `x1` | 0.132 | 0.123 to 0.134 |
+| exponential | `1 / x1` | 0.120 | 0.118 to 0.120 |
+| lognormal | `x1` | 0.170 | 0.166 to 0.177 |
+| lognormal | `1 / x1` | 0.153 | 0.155 to 0.158 |
+
+The default of `robust` is `FALSE`, so `performGlejserTest()` returns what it
+returned in every earlier release. Whether the default should change is listed
+under *Decisions needed* in `ROADMAP.md`.
 
 ## History
 
