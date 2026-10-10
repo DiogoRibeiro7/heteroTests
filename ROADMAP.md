@@ -485,5 +485,6 @@ implementations to agree with.
 | Default battery | White + Koenker | 0.14.0 |
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.14.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.14.0 |
+| Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.15.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.15.0 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.15.0 |
