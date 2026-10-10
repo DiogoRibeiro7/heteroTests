@@ -92,6 +92,17 @@ if (!nzchar(weighted_path)) {
   )
 }
 weighted_fits <- utils::read.csv(weighted_path, stringsAsFactors = FALSE)
+
+# Two figures are drawn by the package. They need autoplot() as it is after
+# 0.12.0, where it gained the `alpha` argument and a log scale.
+suite_plot <- utils::getFromNamespace("autoplot.hetero_test_suite", "heteroTests")
+if (!"alpha" %in% names(formals(suite_plot))) {
+  stop(
+    "This article needs a version of heteroTests later than 0.12.0, whose ",
+    "autoplot() method draws the evidence of each test on a log scale.",
+    call. = FALSE
+  )
+}
 weighted_known <- subset(
   weighted_fits,
   weights == "known" & !is.na(rejection_rate)
@@ -413,6 +424,15 @@ implements `tidy()`, `glance()`, and `augment()` methods through
 \CRANpkg{generics}; suite-level methods combine individual results into data
 frames suitable for reporting or subsequent analysis. This design avoids
 requiring each underlying diagnostic to expose the same internal computation.
+
+The package also draws what it tests. A family of functions that includes
+`plotResidualsFitted()` and `plotSpreadLevel()` gives the usual residual
+displays for a fitted model, with a weighted fit shown on its weighted scale.
+`plotBeforeAfter()` sets the residuals of a model beside those of its
+remedy, and the `autoplot()` method for a suite draws the evidence of each test
+against a chosen level. All of them return \CRANpkg{ggplot2} objects, which can
+be modified or combined like any other. The last two are used in the worked
+examples below.
 
 ## Registry-based orchestration
 
@@ -1219,34 +1239,12 @@ residuals to have constant spread. If the fitted variance is
 
 A useful before/after check therefore compares the OLS residuals with these
 weighted residuals, not the raw residuals from the weighted fit.
+`plotBeforeAfter()` draws that comparison, using the weighted residuals for a
+weighted fit (Figure \@ref(fig:workflow-weighted-residuals)).
 
-```{r workflow-weighted-residuals, echo=FALSE, fig.width=7, fig.height=3.8, fig.cap="Residual spread before and after variance modelling. The WLS panel shows residuals on the weighted scale.", fig.alt="Two residual scatterplots against x. The OLS panel shows increasing residual spread, while the weighted WLS panel shows a more stable spread across x."}
-workflow_residuals <- rbind(
-  data.frame(
-    x = workflow_data$x,
-    residual = stats::residuals(ols_fit),
-    Model = "OLS residuals"
-  ),
-  data.frame(
-    x = workflow_data$x,
-    residual = sqrt(stats::weights(wls_fit)) * stats::residuals(wls_fit),
-    Model = "WLS weighted residuals"
-  )
-)
-
-ggplot2::ggplot(
-  workflow_residuals,
-  ggplot2::aes(x = x, y = residual)
-) +
-  ggplot2::geom_point(alpha = 0.35, size = 0.8) +
-  ggplot2::geom_smooth(method = "loess", se = FALSE) +
-  ggplot2::facet_wrap(~Model, nrow = 1) +
-  ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
-  ggplot2::labs(
-    x = "x",
-    y = "Residual"
-  ) +
-  ggplot2::theme_minimal(base_size = 9)
+```{r workflow-weighted-residuals, fig.width=7, fig.height=3.3, fig.cap="Residuals of the OLS fit and of the feasible WLS fit against their fitted values, as drawn by plotBeforeAfter(). The second panel is on the weighted scale, and each panel has its own axes.", fig.alt="Two residual scatterplots against fitted values. In the first panel, for the OLS fit, the spread of the residuals widens from left to right. In the second, for the weighted fit, the spread is even."}
+plotBeforeAfter(ols_fit, wls_fit) +
+  ggplot2::labs(title = NULL)
 ```
 
 For a compact numerical summary, the correlation between residual magnitude and
@@ -1426,8 +1424,44 @@ knitr::kable(
 ```
 
 All three tests reject constant variance (Table \@ref(tab:cats-table)): the
-heart weights of the heavier cats are more variable. Two remedies are
-available, and the package can examine both.
+heart weights of the heavier cats are more variable.
+
+The data also record the sex of each cat. Passing the formula with the data
+grouped by sex, here with \CRANpkg{dplyr}, fits the model and runs the tests
+within each group, and `autoplot()` draws the result.
+
+```{r cats-by-sex, fig.width=7, fig.height=2.5, fig.cap="The three tests applied separately to female and male cats, as drawn by autoplot(). A bar that passes the dashed line has a p-value below 0.05.", fig.alt="Two panels of horizontal bars, one for female and one for male cats, with one bar per test on a logarithmic p-value axis. The bars for the females are short and stop well before the dashed line at 0.05. The bars for the males all pass it."}
+cats_by_sex <- runHeteroTests(
+  Hwt ~ Bwt,
+  dplyr::group_by(cats, Sex),
+  tests = c("white", "breusch_pagan", "koenker"),
+  progress = FALSE
+)
+
+ggplot2::autoplot(cats_by_sex) +
+  ggplot2::labs(title = NULL, subtitle = NULL)
+```
+
+```{r cats-by-sex-summary, include=FALSE}
+cats_n <- table(cats$Sex)
+cats_range <- tapply(cats$Bwt, cats$Sex, range)
+cats_group_p <- generics::tidy(cats_by_sex)
+stopifnot(
+  all(cats_group_p$p.value[cats_group_p$Sex == "M"] < 0.05),
+  all(cats_group_p$p.value[cats_group_p$Sex == "F"] > 0.05)
+)
+```
+
+Among the `r cats_n[["M"]]` males all three tests reject, and among the
+`r cats_n[["F"]]` females none does (Figure \@ref(fig:cats-by-sex)). The females
+are fewer and lighter, with body weights between `r cats_range[["F"]][1]` and
+`r cats_range[["F"]][2]` kg against `r cats_range[["M"]][1]` to
+`r cats_range[["M"]][2]` kg for the males. The figure therefore locates the
+evidence in the part of the data where the spread has room to change. It does
+not show that the two sexes differ in kind.
+
+For the pooled regression two remedies are available, and the package can
+examine both.
 
 ```{r cats-remedies}
 cats_wls <- fitWLS(cats_fit)
