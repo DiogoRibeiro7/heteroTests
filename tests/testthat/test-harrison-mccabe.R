@@ -72,7 +72,11 @@ test_that("the statistic is the one lmtest::hmctest() computes", {
 
 test_that("the statistic is the share of the first part of the ordered residuals", {
   obj <- hmc_data(n = 45, seed = 2)
-  for (point in c(0.5, 0.2, 30)) {
+  # 0.3 * 45 is 13.5, where floor() and round() part: the first part holds 13
+  # observations, as in lmtest::hmctest() and Harrison (1981).
+  expect_identical(floor(0.3 * 45), 13)
+  expect_identical(round(0.3 * 45), 14)
+  for (point in c(0.5, 0.2, 0.3, 30)) {
     m <- if (point < 1) floor(point * 45) else point
     result <- quiet(performHarrisonMcCabeTest(obj$model, obj$data, "x1", point = point))
     expect_equal(unname(result$statistic),
@@ -127,6 +131,76 @@ test_that("the p-value is exact where the statistic has a beta distribution", {
   result <- quiet(performHarrisonMcCabeTest(fit, d, "z", point = m))
   expect_equal(result$p.value, pbeta(unname(result$statistic), m / 2, (n - m - 1) / 2),
                tolerance = 1e-10)
+})
+
+test_that("the exact critical values are those Harrison (1981) published for a trend", {
+  # Harrison (1981, Table 3) gives the exact 5% critical values of the test for
+  # a constant and the trend 1, ..., n, with m the integer part of n / 2, to
+  # three decimals. They are recomputed here from the package's own null
+  # distribution, and the exported function is checked to use that
+  # distribution on the same design with its rows shuffled.
+  published <- c(`10` = 0.147, `20` = 0.243, `30` = 0.289, `40` = 0.317)
+  for (n in c(10L, 20L, 30L, 40L)) {
+    spectrum <- heteroTests:::rhmc_spectrum(qr(cbind(1, seq_len(n))), n %/% 2)
+    critical <- stats::uniroot(function(b) {
+      heteroTests:::rhmc_tails(b, spectrum)[["lower"]] - 0.05
+    }, c(1e-6, 0.999), tol = 1e-12)$root
+    expect_lt(abs(critical - published[[as.character(n)]]), 5e-4)
+
+    set.seed(n)
+    d <- data.frame(trend = sample(n), y = rnorm(n))
+    result <- quiet(performHarrisonMcCabeTest(lm(y ~ trend, data = d), d, "trend"))
+    expect_equal(result$p.value,
+                 heteroTests:::rhmc_tails(unname(result$statistic), spectrum)[["lower"]],
+                 tolerance = 1e-10)
+  }
+})
+
+test_that("the p-value lies between those of the beta bounds", {
+  # Harrison and McCabe bound b between b_L ~ Beta((m - k) / 2, (n - m) / 2)
+  # and b_U ~ Beta(m / 2, (n - m - k) / 2) (Harrison 1981, Section II), so
+  # P(b_U <= b0) <= P(b <= b0) <= P(b_L <= b0) for every design. Harrison
+  # (1981) prints the 5% bounds (0.193, 0.289) for n = 20 and k = 2 and
+  # (0.095, 0.375) for k = 5.
+  expect_lt(abs(qbeta(0.05, 8 / 2, 10 / 2) - 0.193), 1e-3)
+  expect_lt(abs(qbeta(0.05, 10 / 2, 8 / 2) - 0.289), 1e-3)
+  expect_lt(abs(qbeta(0.05, 5 / 2, 10 / 2) - 0.095), 1e-3)
+  expect_lt(abs(qbeta(0.05, 10 / 2, 5 / 2) - 0.375), 1e-3)
+
+  set.seed(31)
+  for (i in 1:40) {
+    n <- sample(15:120, 1)
+    k <- sample(2:5, 1)
+    m <- sample(k:(n - k), 1)
+    d <- data.frame(matrix(rnorm(n * 4), n), z = rnorm(n), y = rnorm(n))
+    formula <- stats::reformulate(paste0("X", seq_len(k - 1)), response = "y")
+    result <- quiet(performHarrisonMcCabeTest(lm(formula, data = d), d, "z", point = m))
+    share <- unname(result$statistic)
+    expect_gte(result$p.value, pbeta(share, m / 2, (n - m - k) / 2) - 1e-9)
+    expect_lte(result$p.value, pbeta(share, (m - k) / 2, (n - m) / 2) + 1e-9)
+  }
+})
+
+test_that("the two-sided p-value is twice the smaller tail and at most 1", {
+  # Samples whose statistic falls on each side of the centre of its null
+  # distribution, so that one of the one-sided p-values is above 0.5.
+  found <- c(below = FALSE, above = FALSE)
+  for (seed in 1:200) {
+    obj <- hmc_data(n = 40, seed = 900 + seed)
+    less <- quiet(performHarrisonMcCabeTest(obj$model, obj$data, "x1"))$p.value
+    side <- if (less > 0.5 && less < 0.8) "above" else if (less > 0.2 && less < 0.5) "below"
+    if (is.null(side) || found[[side]]) next
+    found[[side]] <- TRUE
+    greater <- quiet(performHarrisonMcCabeTest(obj$model, obj$data, "x1",
+                                               alternative = "greater"))$p.value
+    both <- quiet(performHarrisonMcCabeTest(obj$model, obj$data, "x1",
+                                            alternative = "two.sided"))$p.value
+    expect_lte(both, 1)
+    expect_gt(both, 0.4)
+    expect_equal(both, 2 * min(less, greater), tolerance = 1e-12)
+    if (all(found)) break
+  }
+  expect_true(all(found))
 })
 
 test_that("the p-value agrees with the full projection matrix of the ordered design", {

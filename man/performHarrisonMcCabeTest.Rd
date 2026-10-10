@@ -19,7 +19,8 @@ performHarrisonMcCabeTest(
 \code{model} and the ordering variable named by \code{order_by}.}
 
 \item{order_by}{Character scalar naming the column of \code{data} that orders the
-observations. Tied values keep the order of the rows in \code{data}.}
+observations. Tied values keep the order the observations have in the
+fitted model.}
 
 \item{point}{The size of the first part of the ordered sample. A number
 strictly between 0 and 1 is a fraction of the sample, and the first part
@@ -29,7 +30,10 @@ hold at least as many observations as the model has coefficients.}
 
 \item{alternative}{Character scalar. \code{"less"} (the default) is the
 alternative that the variance increases with \code{order_by}, which makes the
-share small; \code{"greater"} that it decreases; \code{"two.sided"} either.}
+share small; \code{"greater"} that it decreases; \code{"two.sided"} either. The
+two-sided p-value is twice the smaller of the two one-sided ones, capped
+at 1, as in \code{\link[=performGQTest]{performGQTest()}} and in the default of
+\code{skedastic::harrison_mccabe()}.}
 }
 \value{
 An object of class \code{htest} with the share \code{HMC} as the
@@ -53,6 +57,11 @@ observations. A variance that increases along the ordering makes \eqn{b}
 small, and one that decreases makes it large. It is the statistic of
 \code{\link[lmtest:hmctest]{lmtest::hmctest()}}.
 
+The 1979 article was not consulted for this implementation. The definition
+follows Harrison (1981), by its first author, which restates the statistic
+with \eqn{m} the integer part of \eqn{n / 2} and rejects for small
+\eqn{b}, and it agrees with \code{\link[lmtest:hmctest]{lmtest::hmctest()}}.
+
 Under normal errors of constant variance, \eqn{b} is a ratio of quadratic
 forms in normal variables, and its distribution depends on the regressors.
 With \eqn{M} the residual-maker of the design in the ordered sample and
@@ -64,10 +73,17 @@ where the \eqn{z_j} are independent standard normal and the
 residual space, \eqn{k} being the number of coefficients. They are found
 from the \eqn{k} singular values of the first \eqn{m} rows of an
 orthonormal basis of the design, and the probability is evaluated by
-Imhof's (1961) formula with \code{\link[stats:integrate]{stats::integrate()}}. Under the null hypothesis
-the mean of \eqn{b} is
+Imhof's (1961) formula with \code{\link[stats:integrate]{stats::integrate()}}, as Harrison (1981) does
+for the exact variant of the test. For a constant and a linear trend, the
+5\% critical values this gives at 10, 20, 30 and 40 observations are those
+of Harrison's (1981) Table 3 to the three decimals printed there. Under the
+null hypothesis the mean of \eqn{b} is
 \eqn{(m - \sum_{i \le m} h_{(i)}) / (n - k)}{(m - sum(h[1:m])) / (n - k)},
 with \eqn{h_{(i)}}{h} the leverages in the ordered sample.
+
+The probability is computed to an absolute accuracy of about \code{2e-11}.
+Smaller p-values are not resolved, and a statistic far in a tail can return
+a p-value of 0.
 
 The p-value depends only on the space spanned by the regressors, so it does
 not change with the parametrisation of the model.
@@ -133,9 +149,13 @@ performHarrisonMcCabeTest(lm(y ~ x, data = d), d,
 
 }
 \references{
+Harrison, M. J. (1981). A comparison of the bounds, beta-approximate, and
+exact variants of two tests for heteroscedasticity based on ordinary least
+squares residuals. \emph{The Economic and Social Review, 12}(4), 235--252.
+
 Harrison, M. J., & McCabe, B. P. M. (1979). A test for heteroscedasticity
 based on ordinary least squares residuals. \emph{Journal of the American
-Statistical Association, 74}(366), 494--499.
+Statistical Association, 74}(366a), 494--499.
 \doi{10.1080/01621459.1979.10482544}
 
 Imhof, J. P. (1961). Computing the distribution of quadratic forms in
