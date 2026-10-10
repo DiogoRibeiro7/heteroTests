@@ -95,6 +95,9 @@
 - [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md)
   : Interactive diagnostic dashboard
 
+- [`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)
+  : List the registered diagnostics
+
 - [`modern_diagnostics`](https://diogoribeiro7.github.io/heteroTests/reference/modern_diagnostics.md)
   : Modern heteroscedasticity diagnostics
 

@@ -126,6 +126,9 @@
 <span><span class="fu"><a href="reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Choose the tests by name; listDiagnostics() returns the names</span></span>
+<span><span class="fu"><a href="reference/runHeteroTests.html">runHeteroTests</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Fit a weighted least squares model</span></span>
 <span><span class="va">wls</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fitWLS.html">fitWLS</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/compareModelDiagnostics.html">compareModelDiagnostics</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">wls</span><span class="op">)</span><span class="op">)</span></span>

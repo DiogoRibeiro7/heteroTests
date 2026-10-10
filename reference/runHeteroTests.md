@@ -43,8 +43,9 @@ but additional tests can be requested. Custom diagnostics registered via
 
 - tests:
 
-  character vector of test names to run. Supported values are any names
-  registered via `registerDiagnostic`.
+  character vector of test names to run: any of the names
+  [`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)
+  returns, which include those added with `registerDiagnostic`.
 
 - use_cache:
 

@@ -133,6 +133,9 @@ hd <- HeteroDiagnostic(model, quakes)
 test(hd)
 plot(hd)
 
+# Choose the tests by name; listDiagnostics() returns the names
+runHeteroTests(model, quakes, tests = c("white", "koenker"))
+
 # Fit a weighted least squares model
 wls <- fitWLS(model)
 compareModelDiagnostics(list(model, wls))
@@ -325,6 +328,9 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 
 - [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md)
   : Interactive diagnostic dashboard
+
+- [`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)
+  : List the registered diagnostics
 
 - [`modern_diagnostics`](https://diogoribeiro7.github.io/heteroTests/reference/modern_diagnostics.md)
   : Modern heteroscedasticity diagnostics

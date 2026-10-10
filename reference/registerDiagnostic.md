@@ -23,6 +23,11 @@ registerDiagnostic(name, fun)
 
 Invisibly returns `NULL`.
 
+## See also
+
+[`listDiagnostics`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)
+for the names already registered.
+
 ## Examples
 
 ``` r
