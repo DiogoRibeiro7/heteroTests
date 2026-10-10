@@ -2,6 +2,25 @@
 
 ## Development version
 
+- **`runHeteroTests(tests = "szroeter")` changes value.** The registered
+  Szroeter test ordered the observations by the second column of the data,
+  whatever it was: the response, a regressor or a column the model does not
+  use, so the result depended on the order of the columns. For
+  `lm(mpg ~ wt + hp, data = mtcars)` with `mtcars` as given it ordered by
+  `cyl`, which the model does not use, and gave Q = -0.709 (p = 0.761);
+  depending on which column came second, Q ran from -1.419 to 1.333. It now
+  orders by the fitted values, so the alternative is that the variance rises
+  with the mean, and gives Q = 1.099 (p = 0.136) whatever the order of the
+  columns. With a single regressor that is the order of the regressor when
+  its slope is positive and the reverse order when it is negative.
+
+  Everything that runs the registered test changes with it: `runDiagnostics()`,
+  `test()` and `summary()` on a `HeteroDiagnostic`, `compareModelDiagnostics()`,
+  `compareTestResults()`, `runSurveyHeteroTests()`, `runHeteroTestsParallel()`,
+  `cachedTest()` and the dashboard, when given `"szroeter"`.
+  `performSzroeterTest()` does not change, and no number recorded in
+  `inst/validation/` moves: the studies call it with an explicit ordering.
+
 - `listDiagnostics()` returns the names `runHeteroTests(tests = )` accepts,
   sorted: the diagnostics the package registers and any added with
   `registerDiagnostic()`. No exported function listed them before. Given a
