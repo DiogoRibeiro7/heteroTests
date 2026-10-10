@@ -22,7 +22,9 @@ like `stats::bptest()` and slot directly into automated pipelines.
 - **Auxiliary-regression tests** — White, classical Breusch--Pagan, Koenker
   (studentized), Harvey, Park, Glejser. The classical and studentized
   Breusch--Pagan statistics are validated against `lmtest::bptest()` to machine
-  precision.
+  precision. `performGlejserTest(robust = TRUE)` is the Glejser test of Im
+  (2000) and of Machado and Santos Silva (2000), which keeps its level under
+  skewed errors.
 - **Group-wise variance tests** — Levene, Brown--Forsythe, Bartlett,
   Fligner--Killeen, Hartley's F-max (validated against `car`).
 - **Rank-based and non-constant-variance diagnostics** — Spearman,
