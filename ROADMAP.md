@@ -461,9 +461,6 @@ reference and simulated size.
 These add no test to R. They add it to the common interface, and each comes
 with a reference implementation to agree with.
 
-- **Harrison–McCabe (1979).** The share of the residual sum of squares that
-  falls in the first part of an ordered sample. Reference implementations:
-  `lmtest::hmctest()` and `skedastic::harrison_mccabe()`.
 - **Sign and size bias tests** (Engle and Ng 1993): whether the squared
   residuals respond differently to negative and to positive lagged residuals.
   The time-series tests detect ARCH effects and say nothing about asymmetry.
@@ -490,7 +487,7 @@ with a reference implementation to agree with.
   which detects variance that clusters in space and does not test it against
   regressors. Reference implementation: `spatialreg::bptest.Sarlm()`.
 - **The rest of `skedastic`.** Of its 25 tests, the package has counterparts
-  for seven. Besides those named above, `skedastic` provides `bamset()`,
+  for eight. Besides those named above, `skedastic` provides `bamset()`,
   `carapeto_holt()`, `diblasi_bowman()`, `dufour_etal()`, `evans_king()`,
   `godfrey_orme()`, `honda()`, `horn()`, `rackauskas_zuokas()`,
   `wilcox_keselman()`, `yuce()` and `zhou_etal()`. None is a priority by
@@ -507,9 +504,6 @@ which is also what a reader of the article asks of it. Within that group:
 2. The Dette, Neumeyer and Van Keilegom test. It removes the main limitation
    of `performVarianceFormTest()`, and is the most work of the two.
 
-From the second group, Harrison–McCabe is the cheapest, with two reference
-implementations to agree with.
-
 ### Done
 
 - **A Glejser test that is valid under skewed errors** (Im 2000; Machado and
@@ -520,6 +514,16 @@ implementations to agree with.
   `skedastic::glejser()` uses the uncorrected absolute residuals as well. The
   default is still Glejser's statistic; whether it should be is under
   *Decisions needed*.
+- **Harrison–McCabe (1979)**, after 0.12.0, as `performHarrisonMcCabeTest()`,
+  beside Goldfeld–Quandt and Szroeter. The statistic agrees with
+  `lmtest::hmctest()` to `1e-8`, and the p-value is exact under normal errors
+  given the regressors. Neither reference computes that p-value:
+  `lmtest::hmctest()` simulates it from a regression on a constant alone, and
+  `skedastic::harrison_mccabe()` 2.0.3 drops repeated eigenvalues and, with
+  `deflator`, leaves the design in the order of the rows. In the designs of
+  `inst/validation/harrison-mccabe-size-power.R` it holds its level under
+  Gaussian errors, rejects 12% to 16% of the time under `t5` errors as the
+  other two ordered tests do, and has less power than either.
 
 ## Decisions needed
 
