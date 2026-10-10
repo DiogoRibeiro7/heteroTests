@@ -46,11 +46,13 @@ NULL
 #' centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
 #' it to \eqn{\hat y_i}{yhat_i}.
 #' Pairs resampling draws each row with its weight. Either way each replicate
-#' is refitted with the weights, so `test_function` sees a weighted fit, as it
-#' did on the original data. An unweighted fit is resampled as before, and the
-#' same seed gives the same result. The weights are held fixed; when they were
-#' estimated from the same data, see the section on weighted fits in
-#' [performWildBootstrapTest()].
+#' is refitted with the weights, and with an offset the model was given as an
+#' argument, so `test_function` sees a weighted fit, as it did on the original
+#' data. The rows of `data` are matched to those of the fit by row name, and a
+#' weighted fit whose rows `data` does not hold, once each, is refused. An
+#' unweighted fit is resampled as before, and the same seed gives the same
+#' result. The weights are held fixed; when they were estimated from the same
+#' data, see the section on weighted fits in [performWildBootstrapTest()].
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -191,7 +193,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # null hypothesis: its residuals are the Pearson residuals, and hatvalues()
   # of a weighted fit are its leverages. Each draw is returned to the scale of
   # the observation it is added to by dividing by sqrt(w), and the refit
-  # carries the weights.
+  # carries the weights and an offset the model was given as an argument.
   response_col <- all.vars(formula)[1L]
   fitted_vals <- stats::fitted(model)
   null_residuals <- NULL
@@ -228,17 +230,30 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       )
     }
   }
-  # Pairs resampling draws each row with its weight.
-  if (!is.null(prior_weights) && length(prior_weights) != n) {
-    stop(
-      "Resampling a weighted fit needs one weight per row of `data`; the model ",
-      "was fitted on a different sample. Refit on `data`.",
-      call. = FALSE
-    )
+  # A weighted fit has one weight per fitted row, and one value of an offset
+  # given as an argument. They and the fitted values are put in the row order
+  # of `data`, matched by row name, so that each row is regenerated or drawn
+  # with its own. An unweighted fit uses the fitted values by position, as it
+  # always has.
+  offset_argument <- NULL
+  if (!is.null(prior_weights)) {
+    fit_rows <- names(fitted_vals)
+    row_index <- if (is.null(fit_rows)) seq_len(n) else match(rownames(data), fit_rows)
+    if (length(prior_weights) != n || anyNA(row_index) || anyDuplicated(row_index) > 0L) {
+      stop(
+        "Resampling a weighted fit needs `data` to hold the rows the model was ",
+        "fitted to, once each, under the same row names. Refit on `data`.",
+        call. = FALSE
+      )
+    }
+    prior_weights <- prior_weights[row_index]
+    fitted_vals <- fitted_vals[row_index]
+    offset_argument <- roffset_argument(model)[row_index]
   }
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
+    boot_offset <- offset_argument
     if (identical(resample, "null")) {
       boot_data <- data
       boot_errors <- sample(null_residuals, n, replace = TRUE)
@@ -250,12 +265,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       sampled_idx <- sample.int(n, replace = TRUE)
       boot_data <- data[sampled_idx, , drop = FALSE]
       boot_weights <- prior_weights[sampled_idx]
+      boot_offset <- offset_argument[sampled_idx]
     }
     boot_model <- tryCatch(
       if (is.null(boot_weights)) {
         safe_lm(formula, data = boot_data)
       } else {
-        rrefit_weighted(formula, boot_data, boot_weights)
+        rrefit_weighted(formula, boot_data, boot_weights, boot_offset)
       },
       error = function(e) NULL
     )
@@ -306,7 +322,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       parallel::clusterExport(cl,
         varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function",
                     "resample", "response_col", "fitted_vals", "null_residuals",
-                    "prior_weights"),
+                    "prior_weights", "offset_argument"),
         envir = environment()
       )
       for (chunk in chunk_plan) {

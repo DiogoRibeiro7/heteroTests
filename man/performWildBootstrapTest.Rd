@@ -69,12 +69,13 @@ resampled as before, and the same seed gives the same result.
 The weights are held fixed in every replicate. When they were estimated
 from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
 out, and the test inherits the error of the tests that take the weights as
-known. In the designs of \code{inst/validation/weighted-fits-size.R}, with the
-variance function correctly specified, normal errors and \code{B = 499}, its
-rejection rate at the 5\% level was 0.086 with 150 observations and 0.105
-with 600, against 0.053 with exact weights. With the weights estimated again
-in each replicate, which this function does not do, it was 0.060 and 0.051.
-\code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation.
+known. In \code{inst/validation/weighted-fits-size.R}, on data whose standard
+deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
+correctly specified, normal errors and \code{B = 499}, its rejection rate at the
+5\% level was 0.086 with 150 observations and 0.105 with 600. On the same
+data with the true weights it was 0.054 and 0.048, and with the weights
+estimated again in each replicate, which this function does not do, 0.060
+and 0.051. \code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation.
 }
 
 \examples{

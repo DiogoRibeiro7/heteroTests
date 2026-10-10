@@ -289,22 +289,27 @@ performStudentizedBPTest <- function(model, data) {
 #' \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} and \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i},
 #' whose errors have constant variance under the null hypothesis, and the
 #' bootstrap is carried out in that regression. What is resampled is its
-#' residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i},
-#' centred because the regression need not contain a constant. Each draw is
-#' divided by \eqn{\sqrt{w_i}}{sqrt(w_i)} to return it to the scale of the
-#' observation it is added to, and each replicate is refitted with the
-#' weights, so [performWhiteTest()] computes its statistic from the Pearson
-#' residuals as it does for the fit supplied. An unweighted fit is resampled as
-#' before, and the same seed gives the same result.
+#' residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}.
+#' When the model has an intercept they are centred, as the residuals of an
+#' unweighted fit with an intercept are, because the weighted regression has
+#' no constant column. Each draw is divided by \eqn{\sqrt{w_i}}{sqrt(w_i)} to
+#' return it to the scale of the observation it is added to, and each
+#' replicate is refitted with the weights, and with an offset the model was
+#' given as an argument, so [performWhiteTest()] computes its statistic from
+#' the Pearson residuals as it does for the fit supplied. An unweighted fit is
+#' resampled as before, and the same seed gives the same result; with equal
+#' weights the result is that of the unweighted fit.
 #'
 #' The weights are held fixed in every replicate. When they were estimated
 #' from the same data, as by [fitWLS()], the replicates leave that estimation
-#' out. In the designs of `inst/validation/weighted-fits-size.R`, with the
-#' variance function correctly specified, normal errors, 150 observations and
-#' `B = 499`, the rejection rate at the 5% level was 0.064, against 0.052 with
-#' exact weights, and 0.042 with the weights estimated again in each
-#' replicate, which this function does not do. The section on weighted fits in
-#' [performWildBootstrapTest()] has the larger error of Koenker's statistic.
+#' out. In `inst/validation/weighted-fits-size.R`, on data whose standard
+#' deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
+#' correctly specified, normal errors, 150 observations and `B = 499`, the
+#' rejection rate at the 5% level was 0.064. On the same data with the true
+#' weights it was 0.054, and with the weights estimated again in each
+#' replicate, which this function does not do, 0.042. The section on weighted
+#' fits in [performWildBootstrapTest()] has the larger error of Koenker's
+#' statistic.
 #'
 #' @references
 #' Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*.
@@ -372,15 +377,22 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 
   # A weighted fit is ordinary least squares on sqrt(w) y and sqrt(w) X, whose
   # errors have constant variance under the null hypothesis and whose
-  # residuals are the Pearson residuals. Those are resampled, centred because
-  # that regression need not contain a constant, and each draw is returned to
-  # the scale of its observation by dividing by sqrt(w). The refit carries the
-  # weights, so performWhiteTest() computes the statistic of each replicate as
-  # it computed the observed one, from the Pearson residuals.
+  # residuals are the Pearson residuals. Those are resampled, and each draw is
+  # returned to the scale of its observation by dividing by sqrt(w). When the
+  # model has an intercept they are centred first: that regression has no
+  # constant column, so its residuals need not average zero, while those of an
+  # unweighted fit with an intercept do. Without an intercept neither path
+  # centres, so equal weights resample exactly as no weights. The refit
+  # carries the weights, and an offset given as an argument, so
+  # performWhiteTest() computes the statistic of each replicate as it computed
+  # the observed one, from the Pearson residuals.
   prior_weights <- rprior_weights(model)
   if (!is.null(prior_weights)) {
-    pearson <- rpearson_residuals(model)
-    centred_pearson <- pearson - mean(pearson)
+    pool <- rpearson_residuals(model)
+    if (attr(stats::terms(model), "intercept") == 1L) {
+      pool <- pool - mean(pool)
+    }
+    offset_argument <- roffset_argument(model)
   }
 
   bootstrap_stat <- function() {
@@ -389,7 +401,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
       resid <- stats::residuals(model)
       boot_resid <- sample(resid, replace = TRUE)
     } else {
-      boot_resid <- sample(centred_pearson, replace = TRUE) / sqrt(prior_weights)
+      boot_resid <- sample(pool, replace = TRUE) / sqrt(prior_weights)
     }
     boot_y <- fitted_vals + boot_resid
 
@@ -400,7 +412,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
     boot_model <- if (is.null(prior_weights)) {
       safe_lm(stats::formula(model), data = boot_data)
     } else {
-      rrefit_weighted(stats::formula(model), boot_data, prior_weights)
+      rrefit_weighted(stats::formula(model), boot_data, prior_weights, offset_argument)
     }
     unname(performWhiteTest(boot_model, boot_data)$statistic[1])
   }

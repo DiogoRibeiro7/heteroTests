@@ -40,10 +40,11 @@ statement about the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} on
 fits are of \eqn{y} on \eqn{x}, where the errors have variance
 \eqn{\sigma^2 / w_i}{sigma^2 / w_i} by assumption, so their slopes differ across
 quantiles even when the weights are right. Fitting them on the weighted scale
-does not repair that: there the conditional quantiles are the regression plus
-a constant, and the constant is not a column of the weighted regressors.
-A version of the test for weighted fits needs its own construction and its
-own size study, and has neither.
+does not by itself repair that: there the conditional quantiles are the
+regression plus a constant, and the constant is not a column of the weighted
+regressors. Adding a column of ones would restore the location-shift form,
+but that version of the test needs its own derivation and its own size
+study, and has neither.
 }
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {

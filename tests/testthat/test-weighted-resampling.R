@@ -145,13 +145,7 @@ test_that("pairs resampling draws each row with its weight", {
   expect_true(is.na(ours$p_value))
 })
 
-test_that("a fit with equal weights resamples as the fit without weights", {
-  obj <- make_weighted_fit()
-  d <- obj$data
-  d$equal <- 3
-  unweighted <- lm(y ~ x + z, data = d)
-  equal <- lm(y ~ x + z, data = d, weights = equal)
-
+check_equal_weights <- function(unweighted, equal, d, label) {
   run <- function(model, f) {
     set.seed(21)
     suppressWarnings(f(model))
@@ -183,9 +177,23 @@ test_that("a fit with equal weights resamples as the fit without weights", {
   for (nm in names(calls)) {
     a <- run(unweighted, calls[[nm]])
     b <- run(equal, calls[[nm]])
-    expect_equal(unname(b$statistic), unname(a$statistic), tolerance = 1e-8, label = nm)
-    expect_equal(b$p, a$p, tolerance = 1e-8, label = nm)
-    expect_equal(b$replicates, a$replicates, tolerance = 1e-8, label = nm)
+    what <- paste(label, nm)
+    expect_equal(unname(b$statistic), unname(a$statistic), tolerance = 1e-8, label = what)
+    expect_equal(b$p, a$p, tolerance = 1e-8, label = what)
+    expect_equal(b$replicates, a$replicates, tolerance = 1e-8, label = what)
+  }
+}
+
+test_that("a fit with equal weights resamples as the fit without weights", {
+  # With and without an intercept: the White bootstrap centres the Pearson
+  # residuals only when the model has one, because only then are the residuals
+  # of the unweighted fit centred.
+  obj <- make_weighted_fit()
+  d <- obj$data
+  d$equal <- 3
+  for (f in list(y ~ x + z, y ~ 0 + x + z)) {
+    check_equal_weights(lm(f, data = d), lm(f, data = d, weights = equal), d,
+                        label = deparse(f))
   }
 })
 
@@ -207,16 +215,164 @@ test_that("the robust wrappers bootstrap a weighted fit through rbootstrap_test_
   expect_true(all(is.finite(direct$replicates)))
 })
 
-test_that("resampling a weighted fit needs one weight per row of the data", {
+test_that("resampling a weighted fit needs the rows the model was fitted to", {
   obj <- make_weighted_fit()
   d <- obj$data
   longer <- rbind(d, d[1:5, ])
+  renamed <- d
+  rownames(renamed) <- paste0("r", seq_len(nrow(d)))
 
+  # Null resampling refuses data of another length before the weights are
+  # looked at, as it does for an unweighted fit.
+  expect_error(
+    rbootstrap_test_statistic(performKoenkerTest, obj$model, longer, B = 5,
+                              progress = FALSE),
+    "one fitted value and one residual per row"
+  )
   expect_error(
     rbootstrap_test_statistic(performKoenkerTest, obj$model, longer, B = 5,
                               resample = "pairs", progress = FALSE),
-    "one weight per row"
+    "rows the model was fitted to"
   )
+  # The package's tests refuse data whose row names do not match the fit, so
+  # the refusal is checked with a test function that does not look at them.
+  by_position <- function(model, data) list(statistic = sum(stats::residuals(model)^2))
+  for (strategy in c("null", "pairs")) {
+    expect_error(
+      rbootstrap_test_statistic(by_position, obj$model, renamed, B = 5,
+                                resample = strategy, progress = FALSE),
+      "rows the model was fitted to"
+    )
+  }
+})
+
+test_that("weighted resampling follows the rows of the data, in any order", {
+  # The weights, the fitted values and the offset belong to rows. Before they
+  # were matched by row name, data holding the same rows sorted by z drew each
+  # row with another row's weight.
+  obj <- make_weighted_fit()
+  m <- obj$model
+  sorted <- obj$data[order(obj$data$z), ]
+  n <- nrow(sorted)
+
+  set.seed(41)
+  pairs <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, sorted, B = 5, resample = "pairs", progress = FALSE
+  ))
+  set.seed(41)
+  expected <- vapply(seq_len(5), function(b) {
+    db <- sorted[sample.int(n, replace = TRUE), , drop = FALSE]
+    refit <- lm(y ~ x + z, data = db, weights = w)
+    squared_pearson_r2(sqrt(db$w) * residuals(refit), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(pairs$replicates, expected, tolerance = 1e-8)
+
+  set.seed(42)
+  null <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, sorted, B = 5, progress = FALSE
+  ))
+  s <- sqrt(sorted$w)
+  pool <- sqrt(obj$data$w) * residuals(m) / sqrt(1 - hatvalues(m))
+  pool <- pool - mean(pool)
+  fit_sorted <- fitted(m)[rownames(sorted)]
+  set.seed(42)
+  expected <- vapply(seq_len(5), function(b) {
+    db <- sorted
+    db$y <- fit_sorted + sample(pool, n, replace = TRUE) / s
+    refit <- lm(y ~ x + z, data = db, weights = w)
+    squared_pearson_r2(s * residuals(refit), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(null$replicates, expected, tolerance = 1e-8)
+})
+
+test_that("a weighted refit keeps an offset given as an argument", {
+  # lm(..., offset = o) keeps o in the model frame, not in the formula, so a
+  # refit from the formula alone would drop it.
+  obj <- make_weighted_fit()
+  d <- obj$data
+  # Not in the span of the regressors, or dropping it would not show.
+  d$o <- 0.3 * d$x^2
+  m <- lm(y ~ x + z, data = d, weights = w, offset = o)
+  n <- nrow(d)
+  s <- sqrt(d$w)
+  sX <- s * model.matrix(m)
+
+  # A refit that keeps the offset has residuals on the weighted scale equal to
+  # those of the regenerated errors on sqrt(w) X; one that drops it does not.
+  set.seed(51)
+  white <- suppressWarnings(performWhiteTestBootstrap(m, d, B = 5))
+  pool <- s * residuals(m)
+  pool <- pool - mean(pool)
+  white_terms <- ~ x + z + I(x^2) + I(z^2) + I(x * z)
+  set.seed(51)
+  expected <- vapply(seq_len(5), function(b) {
+    squared_pearson_r2(qr.resid(qr(sX), sample(pool, replace = TRUE)), white_terms, d)
+  }, numeric(1))
+  expect_equal(white$boot_statistics, expected, tolerance = 1e-8)
+
+  set.seed(52)
+  null <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, d, B = 5, progress = FALSE
+  ))
+  pool <- s * residuals(m) / sqrt(1 - hatvalues(m))
+  pool <- pool - mean(pool)
+  set.seed(52)
+  expected <- vapply(seq_len(5), function(b) {
+    squared_pearson_r2(qr.resid(qr(sX), sample(pool, n, replace = TRUE)), ~ x + z, d)
+  }, numeric(1))
+  expect_equal(null$replicates, expected, tolerance = 1e-8)
+
+  set.seed(53)
+  pairs <- suppressWarnings(rbootstrap_test_statistic(
+    performKoenkerTest, m, d, B = 5, resample = "pairs", progress = FALSE
+  ))
+  set.seed(53)
+  expected <- vapply(seq_len(5), function(b) {
+    db <- d[sample.int(n, replace = TRUE), , drop = FALSE]
+    refit <- lm(y ~ x + z, data = db, weights = w, offset = o)
+    squared_pearson_r2(sqrt(db$w) * residuals(refit), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(pairs$replicates, expected, tolerance = 1e-8)
+
+  set.seed(54)
+  wild <- performWildBootstrapTest(m, d, B = 5, progress = FALSE)
+  pool <- s * residuals(m) / sqrt(1 - hatvalues(m))
+  pool <- pool - mean(pool)
+  set.seed(54)
+  expected <- vapply(seq_len(5), function(b) {
+    v <- sample(c(-1, 1), n, replace = TRUE)
+    e <- sample(pool, n, replace = TRUE) * v
+    db <- d
+    db$y <- fitted(m) + e / s
+    refit <- lm(y ~ x + z, data = db, weights = w, offset = o)
+    squared_pearson_r2(s * residuals(refit), ~ x + z, d)
+  }, numeric(1))
+  expect_equal(wild$bootstrap$replicates, expected, tolerance = 1e-8)
+})
+
+test_that("a column of the data cannot stand in for the weights of a refit", {
+  # The weights are put into the call of each refit as values. Passed by name,
+  # a column of the same name in the data would have been used instead.
+  obj <- make_weighted_fit()
+  d <- obj$data
+  noisy <- d
+  noisy$.ht_prior_weights <- runif(nrow(d))
+  noisy$weights <- runif(nrow(d))
+
+  run <- function(data) {
+    set.seed(61)
+    white <- suppressWarnings(performWhiteTestBootstrap(obj$model, data, B = 5))
+    set.seed(62)
+    null <- suppressWarnings(rbootstrap_test_statistic(
+      performKoenkerTest, obj$model, data, B = 5, progress = FALSE
+    ))
+    set.seed(63)
+    pairs <- suppressWarnings(rbootstrap_test_statistic(
+      performKoenkerTest, obj$model, data, B = 5, resample = "pairs", progress = FALSE
+    ))
+    c(white$boot_statistics, null$replicates, pairs$replicates)
+  }
+  expect_equal(run(noisy), run(d), tolerance = 1e-12)
 })
 
 # --- simulated guards ------------------------------------------------------------
@@ -225,6 +381,13 @@ test_that("the bootstrap tests hold their level on a correctly weighted fit", {
   skip_on_cran()
   # sd = x^2 fitted with the weights 1 / x^4, so the null hypothesis holds for
   # the weighted model. In 0.12.0 each of these refused the fit.
+  #
+  # The rejection rate alone cannot catch a replicate that drops the weights
+  # or leaves its draws on the weighted scale: such replicates are
+  # heteroscedastic, so the observed statistic looks small against them and
+  # the test never rejects. The p-values then pile up near 1. Under the null
+  # hypothesis they are close to uniform, so their mean is checked as well;
+  # with 30 replications its standard error is about 0.05.
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
   tests <- list(
@@ -241,18 +404,23 @@ test_that("the bootstrap tests hold their level on a correctly weighted fit", {
   )
   for (nm in names(tests)) {
     p <- vapply(seq_len(tests[[nm]]$reps), function(i) {
+      heteroTests:::clearValidationCache()
       suppressWarnings(tests[[nm]]$f(make_weighted_fit(seed = 3000 + i)))
     }, numeric(1))
     expect_lt(mean(p < 0.05), 0.15, label = paste("rejection rate of", nm))
+    expect_gt(mean(p), 0.3, label = paste("mean p-value of", nm))
+    expect_lt(mean(p), 0.7, label = paste("mean p-value of", nm))
   }
 })
 
 test_that("the bootstrap tests reject weights that are too weak", {
   skip_on_cran()
   # sd = x^2 fitted with the weights 1 / x, which leave the weighted fit
-  # heteroscedastic. A replicate that dropped the weights, or did not return
-  # its draws to the scale of each observation, would carry the
-  # heteroscedasticity into the reference distribution and lose this power.
+  # heteroscedastic, so the tests should reject. This guards the power the
+  # resampling keeps. It does not guard the resampling itself: replicates that
+  # drop the weights or leave their draws on the weighted scale still reject
+  # these weights most of the time. The reconstructions above and the mean
+  # p-value under the null hypothesis catch those.
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
   tests <- list(
@@ -267,6 +435,7 @@ test_that("the bootstrap tests reject weights that are too weak", {
   )
   for (nm in names(tests)) {
     p <- vapply(seq_len(15), function(i) {
+      heteroTests:::clearValidationCache()
       suppressWarnings(tests[[nm]](make_weighted_fit(seed = 4000 + i, weight_power = 1)))
     }, numeric(1))
     expect_gt(mean(p < 0.05), 0.8, label = paste("rejection rate of", nm))

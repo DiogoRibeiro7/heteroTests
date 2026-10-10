@@ -50,11 +50,13 @@ on \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. Null-imposed resampling draws the
 centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
 it to \eqn{\hat y_i}{yhat_i}.
 Pairs resampling draws each row with its weight. Either way each replicate
-is refitted with the weights, so \code{test_function} sees a weighted fit, as it
-did on the original data. An unweighted fit is resampled as before, and the
-same seed gives the same result. The weights are held fixed; when they were
-estimated from the same data, see the section on weighted fits in
-\code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
+is refitted with the weights, and with an offset the model was given as an
+argument, so \code{test_function} sees a weighted fit, as it did on the original
+data. The rows of \code{data} are matched to those of the fit by row name, and a
+weighted fit whose rows \code{data} does not hold, once each, is refused. An
+unweighted fit is resampled as before, and the same seed gives the same
+result. The weights are held fixed; when they were estimated from the same
+data, see the section on weighted fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while

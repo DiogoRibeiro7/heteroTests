@@ -392,27 +392,47 @@ rrefuse_weighted_fit <- function(model, what) {
 #' Refit a weighted least-squares model to a regenerated sample
 #'
 #' The resampling tests regenerate the response, or the rows, and refit the
-#' model. On a weighted fit the refit has to carry the weights. `lm()` looks its
-#' `weights` argument up in `data` and then in the environment of the formula,
-#' never in the function that calls it, so the weights cannot be passed as a
-#' local variable. They are placed in a child of the formula's environment
-#' instead, which leaves every other variable of the formula where it was.
+#' model. On a weighted fit the refit has to carry the weights, and the offset
+#' when the model was given one as an argument; an offset written in the
+#' formula is evaluated again from `data`. `lm()` looks a name passed as
+#' `weights` or `offset` up in `data` and then in the environment of the
+#' formula, never in the function that calls it, so the vectors are put into
+#' the call itself, where no column of `data` can stand in for them.
 #'
 #' @param formula The model formula.
 #' @param data Data frame holding the regenerated sample.
 #' @param weights Prior weights, one per row of `data`.
+#' @param offset Offset given to the model as an argument, one value per row of
+#'   `data`, or `NULL`.
 #' @return The weighted `lm` fit.
 #' @keywords internal
 #' @noRd
-rrefit_weighted <- function(formula, data, weights) {
-  enclosure <- environment(formula)
-  if (!is.environment(enclosure)) {
-    enclosure <- globalenv()
+rrefit_weighted <- function(formula, data, weights, offset = NULL) {
+  fit_call <- as.call(list(
+    quote(stats::lm), formula = quote(formula), data = quote(data), weights = weights
+  ))
+  if (!is.null(offset)) {
+    fit_call$offset <- offset
   }
-  env <- new.env(parent = enclosure)
-  env$.ht_prior_weights <- weights
-  environment(formula) <- env
-  eval(quote(stats::lm(formula, data = data, weights = .ht_prior_weights)))
+  eval(fit_call)
+}
+
+#' Offset a model was given as an argument
+#'
+#' `lm(..., offset = o)` keeps `o` in the model frame as `(offset)`. An offset
+#' written in the formula, `offset(o)`, is a term of the formula instead, and a
+#' refit from the formula evaluates it again.
+#'
+#' @param model A fitted model.
+#' @return Numeric vector, one value per fitted observation, or `NULL`.
+#' @keywords internal
+#' @noRd
+roffset_argument <- function(model) {
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.null(frame) || !"(offset)" %in% names(frame)) {
+    return(NULL)
+  }
+  as.vector(frame[["(offset)"]])
 }
 
 #' Refuse a model fitted to a survey design
