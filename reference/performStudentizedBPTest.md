@@ -1,10 +1,11 @@
 # Studentized Breusch–Pagan test
 
-Computes the Koenker–Bassett studentized Lagrange Multiplier statistic
-for heteroscedasticity by regressing centred squared residuals on the
-regressors. Compared with the classical Breusch–Pagan test, the
-studentized version is less sensitive to violations of normality and
-small-sample bias.
+Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
+multiplier statistic, \\n R^2\\ from the regression of the squared
+residuals on the regressors. The classical Breusch–Pagan statistic
+assumes normal errors and this one does not: in the simulations of
+`inst/validation/` it holds its level under \\t_5\\ errors, where the
+classical statistic rejects far too often.
 
 ## Usage
 
@@ -36,13 +37,15 @@ Following Koenker (1981) and the implementation in
 [lmtest::bptest()](https://rdrr.io/pkg/lmtest/man/bptest.html), the
 procedure fits an auxiliary regression of \\e_i^2 - \hat{\sigma}^2\\ on
 the regressors from the original model (including the intercept), where
-\\e_i\\ denotes the residuals and \\\hat{\sigma}^2\\ their mean squared
-error. Under homoskedasticity the statistic \\T = n \sum \hat{g}\_i^2 /
-\sum (e_i^2 - \hat{\sigma}^2)^2\\ is asymptotically chi-squared with
-degrees of freedom equal to the number of regressors beyond the
-intercept. On a weighted fit \\e_i\\ is the Pearson residual
-\\\sqrt{w_i}\\ times the raw residual and the auxiliary regression is
-unweighted; see the section on weighted fits in
+\\e_i\\ denotes the residuals and \\\hat{\sigma}^2 = \sum e_i^2 / n\\
+the mean of their squares. With \\\hat{g}\_i\\ the fitted values of that
+regression, the statistic \\T = n \sum \hat{g}\_i^2 / \sum (e_i^2 -
+\hat{\sigma}^2)^2\\ is its \\n R^2\\. Under homoskedasticity it is
+asymptotically chi-squared with degrees of freedom equal to the number
+of regressors beyond the intercept, whether or not the errors are
+normal. On a weighted fit \\e_i\\ is the Pearson residual \\\sqrt{w_i}\\
+times the raw residual and the auxiliary regression is unweighted; see
+the section on weighted fits in
 [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md).
 This departs from
 [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html), which
@@ -55,7 +58,7 @@ and
 [rvalidateDataInputs()](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateDataInputs.md),
 (ii) missing values are handled by
 [rhandleMissingValues()](https://diogoribeiro7.github.io/heteroTests/reference/rhandleMissingValues.md),
-and (iii) studentized-residual specific requirements registered in
+and (iii) the requirements registered for this test in
 [rvalidateTestRequirements()](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateTestRequirements.md)
 are met.
 
@@ -66,15 +69,17 @@ heteroscedasticity. *Journal of Econometrics, 17*(1), 107–112.
 [doi:10.1016/0304-4076(81)90062-2](https://doi.org/10.1016/0304-4076%2881%2990062-2)
 
 Davidson, R., & MacKinnon, J. G. (2004). *Econometric Theory and
-Methods*. Oxford University Press. Section 16.7 discusses LM tests for
-heteroscedasticity including studentized variants.
+Methods*. Oxford University Press. Section 7.5 derives the test as \\n
+R^2\\ from the regression of the squared residuals on the variance
+regressors.
 
 ## See also
 
 [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
-for the classical LM statistic and
-[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-for the absolute-residual variant. The robust workflow in
+for the classical LM statistic, which assumes normal errors, and
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md),
+which computes the same studentized \\n R^2\\ statistic on the squared
+residuals. The robust workflow in
 [performBPTestRobust()](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
 augments the studentized statistic with bootstrap diagnostics.
 

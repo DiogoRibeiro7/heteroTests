@@ -14,9 +14,10 @@ citation("heteroTests")
     ## To cite heteroTests in publications, please use the entry below. See
     ## ?algorithms_bibliography for the primary reference behind each test.
     ## 
-    ##   Ribeiro D (2025). _heteroTests: Heteroscedasticity Diagnostic Tools_.
-    ##   R package version 0.12.0,
-    ##   <https://github.com/DiogoRibeiro7/heteroTests>.
+    ##   Ribeiro D (2026). _heteroTests: Heteroscedasticity Diagnostics for
+    ##   Linear Models_. doi:10.32614/CRAN.package.heteroTests
+    ##   <https://doi.org/10.32614/CRAN.package.heteroTests>. R package
+    ##   version 0.12.0, <https://CRAN.R-project.org/package=heteroTests>.
     ## 
     ##   See the vignette for a detailed introduction to all diagnostics.
     ## 

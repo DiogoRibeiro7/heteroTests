@@ -84,7 +84,9 @@ canonical URL `https://CRAN.R-project.org/package=heteroTests`.
 The README feature list is out of date. It still advertises an HC0–HC4
 covariance test and Cameron–Trivedi, both removed in 0.8.0. Bring it in
 line with the exports, and extend `test-documentation-consistency.R` so
-a README or vignette that names a removed function fails.
+a README or vignette that names a removed function fails. The guard went
+into `test-public-api.R`, beside the list of removed exports, and also
+matches the names prose gives the removed tests.
 
 Documentation drift: the
 [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
@@ -95,9 +97,10 @@ Breusch–Pagan/Koenker correction. Koenker is the studentized `n R^2`
 form.
 
 Check that the Zenodo record picked up 0.11.2, and cite the CRAN release
-in `inst/CITATION` and `CITATION.cff`.
+in `inst/CITATION` and `CITATION.cff`. Zenodo archives 0.11.2 and
+0.12.0; only the 0.12.0 record links to CRAN.
 
-Close tracking issue \#38 as On CRAN.
+Close tracking issue \#38 as On CRAN. It was closed on 2026-09-27.
 
 Reinstate a release gate. `R CMD check --as-cran` can stay weekly rather
 than per merge, but it must pass in full on the tagged commit (vignettes
@@ -304,8 +307,8 @@ the 127 exports, and `test-public-api.R` extended to assert the planned
 These changes break existing calls. They have to happen before 1.0.0,
 not after it.
 
-**The `(model, data, ...)` convention.** The README says every test
-follows it, but nine exported tests do not:
+**The `(model, data, ...)` convention.** Nine exported tests do not
+follow it yet, as the README says:
 
 - no `data` argument:
   [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md),

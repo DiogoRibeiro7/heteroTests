@@ -13,28 +13,91 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID
 
 ## What it provides
 
-Every test returns a base-R `htest` object and follows the same
-`perform*Test(model, data, ...)` convention, so results print, subset
-and compose like `stats::bptest()` and slot directly into automated
-pipelines.
+Every test returns a base-R `htest` object, so results print, subset and
+compose like those of
+[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) and
+slot directly into automated pipelines. Most tests take
+`(model, data, ...)`; the
+[roadmap](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md) lists
+the nine that do not yet. Where an established implementation exists,
+the test reproduces it and `tests/testthat/` asserts the agreement:
+`lmtest` for Breusch–Pagan, Koenker and Goldfeld–Quandt, `car` for the
+Cook–Weisberg score test, Levene and Brown–Forsythe, `stats` for
+Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
+`plm` for the panel tests. Their simulated size and power are in
+[`inst/validation/`](https://diogoribeiro7.github.io/heteroTests/inst/validation/README.md).
 
-- **Auxiliary-regression tests** — White, classical Breusch–Pagan,
-  Koenker (studentized), Harvey, Park, Glejser. The classical and
-  studentized Breusch–Pagan statistics are validated against
-  [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) to
-  machine precision. `performGlejserTest(robust = TRUE)` is the Glejser
-  test of Im
-  2000. and of Machado and Santos Silva (2000), which keeps its level
-        under skewed errors.
-- **Group-wise variance tests** — Levene, Brown–Forsythe, Bartlett,
-  Fligner–Killeen, Hartley’s F-max (validated against `car`).
-- **Rank-based and non-constant-variance diagnostics** — Spearman,
-  Cameron–Trivedi, Cook–Weisberg NCV, spread–level.
-- **ARCH-type tests** for time series — Engle’s ARCH LM and McLeod–Li.
-- **Modern resampling and robust diagnostics** — a null-imposed wild
-  bootstrap, HC0–HC4 covariance test, quantile-regression test,
-  rank-permutation test, and high-dimensional and spatial variants for
-  settings where the classical asymptotics are unreliable.
+- **Does the variance depend on the regressors?** White
+  ([`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md)),
+  the classical Breusch–Pagan test
+  ([`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md))
+  and Koenker’s studentized form of it
+  ([`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)),
+  Harvey
+  ([`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md)),
+  Park
+  ([`performParkTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performParkTest.md)),
+  Glejser
+  ([`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md))
+  and the Cook–Weisberg score test
+  ([`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md),
+  or
+  [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+  with the fitted values as the variance regressor).
+  `performGlejserTest(robust = TRUE)` is the Glejser test of Im (2000)
+  and of Machado and Santos Silva (2000), which keeps its level under
+  skewed errors.
+- **Does the variance change with the fitted values or along an
+  ordering?** Goldfeld–Quandt
+  ([`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)),
+  Szroeter
+  ([`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md)),
+  Spearman’s rank correlation
+  ([`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md)),
+  the spread–level test
+  ([`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md))
+  and Davidian–Carroll
+  ([`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md)).
+- **Do groups have equal variances?** Levene, Brown–Forsythe, Bartlett,
+  Fligner–Killeen, Hartley’s F-max and O’Brien on the residuals of a
+  model
+  ([`performLeveneTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performLeveneTest.md),
+  [`performBrownForsytheTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBrownForsytheTest.md),
+  [`performBartlettTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBartlettTest.md),
+  [`performFlignerKilleenTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performFlignerKilleenTest.md),
+  [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md),
+  [`performOBrienTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOBrienTest.md)),
+  and Box’s M for equal covariance matrices
+  ([`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)).
+- **Does the variance of a time series depend on its past?** Engle’s
+  ARCH LM test
+  ([`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md))
+  and McLeod–Li
+  ([`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md)).
+- **When the asymptotic reference distribution is in doubt** — a
+  null-imposed wild bootstrap
+  ([`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)),
+  a bootstrap White test
+  ([`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)),
+  a rank-permutation test
+  ([`performRankPermutationTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRankPermutationTest.md))
+  and a quantile-regression test
+  ([`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)).
+  [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md)
+  and
+  [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
+  add optional bootstrap resampling and effect sizes, and
+  [`performHighDimensionalTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHighDimensionalTest.md)
+  is a variant for designs with many regressors.
+- **Panel and spatial data** —
+  [`performSpatialHeteroTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpatialHeteroTest.md)
+  asks whether the squared residuals cluster in space. For panels,
+  [`runPanelTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runPanelTests.md)
+  runs the Breusch–Pagan test for a random effect
+  ([`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md))
+  and Pesaran’s test of cross-sectional dependence
+  ([`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md));
+  they check the panel model, not its variance.
 - **Scalability** — streaming implementations
   ([`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md),
   [`performBPTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestStreaming.md),
@@ -48,6 +111,14 @@ pipelines.
   tests whether an exponential or a power variance function describes
   the heteroscedasticity, where the other tests only establish that the
   variance is not constant.
+- **Model checks that are not tests of the variance** — Ramsey’s RESET
+  ([`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md)),
+  variance inflation factors
+  ([`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md)),
+  influential observations
+  ([`performInfluenceDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/performInfluenceDiagnostics.md))
+  and the correlations of the absolute residuals with chosen variables
+  ([`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md)).
 - **Remediation and guidance** — weighted least squares
   ([`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md))
   with a choice of variance function, robust fits
@@ -64,8 +135,10 @@ pipelines.
   [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
   is the test that allows for the estimation.
 - **Ecosystem integration** — `broom` tidiers, `ggplot2`
-  theming/`autoplot`, and helpers for tidymodels, survey designs and
-  grouped pipelines.
+  theming/`autoplot`, and helpers for tidymodels and grouped pipelines.
+  [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)
+  runs the tests on the data of a survey design; it does not use the
+  design, and its help page says when the results hold.
 
 ## Installation
 
@@ -211,10 +284,13 @@ before submitting.
 
 ## Citation
 
-If you use this package in your research, please cite it as described in
-[CITATION.cff](https://diogoribeiro7.github.io/heteroTests/CITATION.cff).
-Version 0.11.2 is also archived on
-[Zenodo](https://doi.org/10.5281/zenodo.22773917).
+If you use this package in your research, please cite the CRAN release
+(<https://doi.org/10.32614/CRAN.package.heteroTests>), as
+`citation("heteroTests")` and
+[CITATION.cff](https://diogoribeiro7.github.io/heteroTests/CITATION.cff)
+do. Releases are also archived on
+[Zenodo](https://doi.org/10.5281/zenodo.22226790); that DOI resolves to
+the latest archived version.
 
 ## License
 

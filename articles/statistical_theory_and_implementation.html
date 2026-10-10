@@ -172,18 +172,16 @@ variants.</p>
 <h2 id="breuschpagan-test">Breusch–Pagan test<a class="anchor" aria-label="anchor" href="#breuschpagan-test"></a>
 </h2>
 <p>Breusch and Pagan (1979) derived a Lagrange Multiplier (LM) test for
-variance patterns linear in the regressors. Denote by
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
-the regressor matrix without intercept. The statistic is
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">LM</mtext><mo>=</mo><mfrac><mn>1</mn><mrow><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><msup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>⊤</mi></msup><mi>X</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>X</mi><mi>⊤</mi></msup><mi>X</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mn>1</mn></mrow></msup><msup><mi>X</mi><mi>⊤</mi></msup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mo>,</mo></mrow><annotation encoding="application/x-tex">
-\text{LM} = \frac{1}{2\sigma^2} \widehat{e}^\top X(X^\top X)^{-1}X^\top \widehat{e},
-</annotation></semantics></math> which is equivalent to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><msup><mi>R</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">nR^2</annotation></semantics></math>
-from regressing
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mn>2</mn></msup><annotation encoding="application/x-tex">\widehat{e}^2</annotation></semantics></math>
-on
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>.
-The test converges to a
+variance patterns linear in the regressors. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mn>2</mn></msup><mo>=</mo><msup><mi>n</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><msub><mo>∑</mo><mi>i</mi></msub><msubsup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\widehat{\sigma}^2 = n^{-1}\sum_i \widehat{e}_i^2</annotation></semantics></math>,
+regress
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>i</mi></msub><mo>=</mo><msubsup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>i</mi><mn>2</mn></msubsup><mi>/</mi><msup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">g_i = \widehat{e}_i^2 / \widehat{\sigma}^2</annotation></semantics></math>
+on an intercept and the regressors. The statistic is half the explained
+sum of squares of that regression,
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">LM</mtext><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mo stretchy="false" form="prefix">(</mo><msub><mover><mi>g</mi><mo accent="true">̂</mo></mover><mi>i</mi></msub><mo>−</mo><mover><mi>g</mi><mo accent="true">‾</mo></mover><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\text{LM} = \frac{1}{2} \sum_{i=1}^n (\widehat{g}_i - \bar{g})^2.
+</annotation></semantics></math> Under homoskedasticity and normal
+errors it converges to a
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mi>k</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi^2_{k}</annotation></semantics></math>
 distribution, where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
@@ -205,14 +203,24 @@ increasing variance. Because the test assumes normal errors, the
 vignette later contrasts it with Koenker’s robust variant.</p>
 </div>
 <div class="section level2">
-<h2 id="koenkerbassett-studentised-test">Koenker–Bassett studentised test<a class="anchor" aria-label="anchor" href="#koenkerbassett-studentised-test"></a>
+<h2 id="koenkers-studentised-test">Koenker’s studentised test<a class="anchor" aria-label="anchor" href="#koenkers-studentised-test"></a>
 </h2>
 <p>Koenker (1981) proposed studentising the LM statistic to accommodate
-non-normal errors by scaling residuals with an estimate of their
-variance. The package implements this through
-<code><a href="../reference/performKoenkerTest.html">performKoenkerTest()</a></code>, which focuses on absolute residuals
-and yields a statistic with the same asymptotic
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>χ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\chi^2</annotation></semantics></math>
+non-normal errors. Written in the squared residuals, the statistic above
+divides by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">2\widehat{\sigma}^4</annotation></semantics></math>,
+which is the variance of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>i</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\widehat{e}_i^2</annotation></semantics></math>
+only under normality; Koenker replaces it with the sample variance of
+the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>i</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\widehat{e}_i^2</annotation></semantics></math>.
+The result is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><msup><mi>R</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">nR^2</annotation></semantics></math>
+from the regression of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>e</mi><mo accent="true">̂</mo></mover><mi>i</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\widehat{e}_i^2</annotation></semantics></math>
+on an intercept and the regressors, which
+<code><a href="../reference/performKoenkerTest.html">performKoenkerTest()</a></code> computes. It has the same asymptotic
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mi>k</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi^2_k</annotation></semantics></math>
 reference but improved Type I error control under heavy tails.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">koenker_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/performKoenkerTest.html">performKoenkerTest</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span><span class="op">)</span></span>

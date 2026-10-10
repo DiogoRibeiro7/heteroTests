@@ -10,14 +10,18 @@
 Source:
 [`inst/CITATION`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/inst/CITATION)
 
-Ribeiro D (2025). *heteroTests: Heteroscedasticity Diagnostic Tools*. R
-package version 0.12.0, <https://github.com/DiogoRibeiro7/heteroTests>.
+Ribeiro D (2026). *heteroTests: Heteroscedasticity Diagnostics for
+Linear Models*.
+[doi:10.32614/CRAN.package.heteroTests](https://doi.org/10.32614/CRAN.package.heteroTests).
+R package version 0.12.0,
+<https://CRAN.R-project.org/package=heteroTests>.
 
     @Manual{,
-      title = {heteroTests: Heteroscedasticity Diagnostic Tools},
+      title = {heteroTests: Heteroscedasticity Diagnostics for Linear Models},
       author = {Diogo Ribeiro},
-      year = {2025},
-      url = {https://github.com/DiogoRibeiro7/heteroTests},
+      year = {2026},
+      doi = {10.32614/CRAN.package.heteroTests},
+      url = {https://CRAN.R-project.org/package=heteroTests},
       note = {R package version 0.12.0},
     }
 

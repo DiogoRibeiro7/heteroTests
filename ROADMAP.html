@@ -75,11 +75,11 @@
 <div class="section level3">
 <h3 id="id_011x-cran-maintenance-now">0.11.x: CRAN maintenance (now)<a class="anchor" aria-label="anchor" href="#id_011x-cran-maintenance-now"></a></h3>
 <ul class="task-list"><li><label><input type="checkbox">Watch the CRAN check results across all flavours and fix anything flagged within the deadline CRAN sets.</label></li>
-<li><label><input type="checkbox">README: install from CRAN first (<code>install.packages("heteroTests")</code>), with GitHub as the development route; add a CRAN badge and use the canonical URL <code>https://CRAN.R-project.org/package=heteroTests</code>.</label></li>
-<li><label><input type="checkbox">The README feature list is out of date. It still advertises an HC0–HC4 covariance test and Cameron–Trivedi, both removed in 0.8.0. Bring it in line with the exports, and extend <code>test-documentation-consistency.R</code> so a README or vignette that names a removed function fails.</label></li>
-<li><label><input type="checkbox">Documentation drift: the <code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> help page describes <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> as “the absolute-residual variant”, which predates the Breusch–Pagan/Koenker correction. Koenker is the studentized <code>n R^2</code> form.</label></li>
-<li><label><input type="checkbox">Check that the Zenodo record picked up 0.11.2, and cite the CRAN release in <code>inst/CITATION</code> and <code>CITATION.cff</code>.</label></li>
-<li><label><input type="checkbox">Close tracking issue #38 as On CRAN.</label></li>
+<li><label><input type="checkbox" checked>README: install from CRAN first (<code>install.packages("heteroTests")</code>), with GitHub as the development route; add a CRAN badge and use the canonical URL <code>https://CRAN.R-project.org/package=heteroTests</code>.</label></li>
+<li><label><input type="checkbox" checked>The README feature list is out of date. It still advertises an HC0–HC4 covariance test and Cameron–Trivedi, both removed in 0.8.0. Bring it in line with the exports, and extend <code>test-documentation-consistency.R</code> so a README or vignette that names a removed function fails. The guard went into <code>test-public-api.R</code>, beside the list of removed exports, and also matches the names prose gives the removed tests.</label></li>
+<li><label><input type="checkbox" checked>Documentation drift: the <code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> help page describes <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> as “the absolute-residual variant”, which predates the Breusch–Pagan/Koenker correction. Koenker is the studentized <code>n R^2</code> form.</label></li>
+<li><label><input type="checkbox" checked>Check that the Zenodo record picked up 0.11.2, and cite the CRAN release in <code>inst/CITATION</code> and <code>CITATION.cff</code>. Zenodo archives 0.11.2 and 0.12.0; only the 0.12.0 record links to CRAN.</label></li>
+<li><label><input type="checkbox" checked>Close tracking issue #38 as On CRAN. It was closed on 2026-09-27.</label></li>
 <li><label><input type="checkbox">Reinstate a release gate. <code>R CMD check --as-cran</code> can stay weekly rather than per merge, but it must pass in full on the tagged commit (vignettes and <code>--run-donttest</code> included) before any submission, alongside win-builder (R-devel).</label></li>
 </ul></div>
 <div class="section level3">
@@ -125,7 +125,7 @@
 <h3 id="id_0140-make-the-interface-match-its-description">0.14.0: make the interface match its description<a class="anchor" aria-label="anchor" href="#id_0140-make-the-interface-match-its-description"></a></h3>
 <p>These changes break existing calls. They have to happen before 1.0.0, not after it.</p>
 <ul class="task-list"><li>
-<label><input type="checkbox"><strong>The <code>(model, data, ...)</code> convention.</strong> The README says every test follows it, but nine exported tests do not:</label>
+<label><input type="checkbox"><strong>The <code>(model, data, ...)</code> convention.</strong> Nine exported tests do not follow it yet, as the README says:</label>
 <ul><li>no <code>data</code> argument: <code><a href="reference/performArchLMTest.html">performArchLMTest()</a></code>, <code><a href="reference/performMcLeodLiTest.html">performMcLeodLiTest()</a></code>, <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code>, <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>, <code><a href="reference/performSpearmanTest.html">performSpearmanTest()</a></code>, <code><a href="reference/performSpreadLevelTest.html">performSpreadLevelTest()</a></code>, <code><a href="reference/performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code> and <code><a href="reference/performHarveyTest.html">performHarveyTest()</a></code>;</li>
 <li>no <code>model</code> argument: <code>performBoxMTest(data, group)</code>.</li>
 </ul>
