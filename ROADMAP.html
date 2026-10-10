@@ -284,6 +284,10 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <td>Decide by simulation; <code>B = 999</code>
 </td>
 <td>0.14.0</td>
+</tr><tr><td>Ties in the ordering of <code><a href="reference/performSzroeterTest.html">performSzroeterTest()</a></code>
+</td>
+<td>Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when <code>order_by</code> is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns</td>
+<td>0.15.0</td>
 </tr><tr><td>Supported R floor</td>
 <td>Test the floor in CI, or raise it to oldrel-1</td>
 <td>0.15.0</td>

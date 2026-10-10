@@ -100,6 +100,19 @@ weight onto the high ranks and drives \(Q\) upwards.</p>
 supplied data with the model residuals, check that the ordering variable is
 present, and ensure sufficient sample size and variability in the squared
 residuals.</p>
+<p>Ties in <code>order_by</code> keep the order of the rows the model was fitted to.
+Unless the rows were sorted by the response, that order does not depend on
+the residuals, so the test keeps its level under the null hypothesis; but
+with a discrete ordering variable the statistic depends on the order of the
+rows.</p>
+<p><code>runHeteroTests(tests = "szroeter")</code>, and anything else that runs the
+registered diagnostic, orders the observations by the fitted values of
+<code>model</code>, so its alternative is variance that rises with the mean. With a
+single regressor that is the order of the regressor when its slope is
+positive and the reverse order when it is negative. The fitted values are
+computed from the coefficients, so observations with the same regressors
+tie exactly, as they do under a factor or a binary regressor, and the ties
+are broken as above.</p>
     </div>
     <div class="section level2">
     <h2 id="validation">Validation<a class="anchor" aria-label="anchor" href="#validation"></a></h2>
