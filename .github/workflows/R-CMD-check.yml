@@ -97,7 +97,8 @@ jobs:
     # Three consecutive main runs were still queued or cancelled while it ran,
     # so it never completed anyway. It remains available on demand and on the
     # weekly schedule, which is enough to keep the signal that caught the
-    # \doi{} note in 0.8.1.
+    # \doi{} note in 0.8.1. The release gate is in release.yml, which runs
+    # --as-cran on the tarball it is about to tag and stops if it fails.
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: R-CMD-check
     runs-on: ubuntu-latest
