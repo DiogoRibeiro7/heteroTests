@@ -13,6 +13,9 @@
 #'   With grouped data the model is refitted within each group by evaluating
 #'   its own call on that group, so every variable it uses, including weights,
 #'   offset and subset, must be a column of `data`.
+#' @param tests Character vector of test names to run: any of the names
+#'   [listDiagnostics()] returns, which include those added with
+#'   `registerDiagnostic()`.
 #' @param use_cache Logical, reuse cached diagnostic results when available.
 #'   Requires the **digest** package for hashing inputs and defaults to `TRUE`.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
@@ -104,7 +107,11 @@ runHeteroTests <- function(model, data = NULL,
   available <- as.list(.diagnostic_registry)
   invalid <- setdiff(tests, names(available))
   if (length(invalid) > 0) {
-    stop("Unknown tests: ", paste(invalid, collapse = ", "))
+    stop(
+      "Unknown tests: ", paste(invalid, collapse = ", "),
+      ". listDiagnostics() returns the registered names.",
+      call. = FALSE
+    )
   }
 
   cache_key <- if (isTRUE(use_cache)) {
