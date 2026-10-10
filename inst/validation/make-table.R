@@ -310,3 +310,135 @@ if (file.exists(csv_s)) {
     "\nReplications: %d. Nominal level: 0.05. Monte Carlo standard error at the nominal level: %.4f.\n",
     sv$replications[1], sqrt(0.05 * 0.95 / sv$replications[1])))
 }
+
+# --- Glejser under asymmetric errors ------------------------------------------
+
+csv_g <- file.path("inst", "validation", "glejser-skewed-errors.csv")
+if (!file.exists(csv_g)) csv_g <- "glejser-skewed-errors.csv"
+if (file.exists(csv_g)) {
+  gl <- utils::read.csv(csv_g, stringsAsFactors = FALSE)
+  tests <- c(
+    glejser = "`performGlejserTest()`",
+    glejser_robust = "`performGlejserTest(robust = TRUE)`",
+    koenker_same_regressor = "Koenker's statistic on the same regressor",
+    koenker = "`performKoenkerTest()`"
+  )
+  errors <- c(
+    normal = "Gaussian",
+    t5 = "t5",
+    chisq5 = "chi-squared(5)",
+    exponential = "exponential",
+    exponential_left = "exponential, mirrored",
+    lognormal = "lognormal"
+  )
+  skewness <- c(
+    normal = "0", t5 = "0", chisq5 = "1.26", exponential = "2",
+    exponential_left = "-2", lognormal = "6.18"
+  )
+
+  # One row per error distribution and test, one column per sample size.
+  emit_glejser <- function(block, title, by_gamma = FALSE) {
+    rows <- gl[gl$block == block, , drop = FALSE]
+    sizes <- sort(unique(rows$n))
+    cat(sprintf("\n### %s\n\n", title))
+    cat("| Errors | Skewness | ", if (by_gamma) "gamma | ", "Test | ",
+        paste(sprintf("n = %d", sizes), collapse = " | "), " |\n", sep = "")
+    cat("| --- | ---: | ", if (by_gamma) "---: | ", "--- | ",
+        paste(rep("---:", length(sizes)), collapse = " | "), " |\n", sep = "")
+    for (law in intersect(names(errors), rows$errors)) {
+      for (gamma in sort(unique(rows$gamma[rows$errors == law]))) {
+        for (test in names(tests)) {
+          cells <- vapply(sizes, function(n) {
+            hit <- rows$errors == law & rows$gamma == gamma & rows$test == test & rows$n == n
+            if (any(hit)) sprintf("%.3f", rows$rejection_rate[hit][1L]) else "--"
+          }, character(1))
+          cat("| ", errors[[law]], " | ", skewness[[law]], " | ",
+              if (by_gamma) sprintf("%.1f | ", gamma), tests[[test]], " | ",
+              paste(cells, collapse = " | "), " |\n", sep = "")
+        }
+      }
+    }
+  }
+
+  emit_glejser("size", "Glejser test, size by error distribution")
+  emit_glejser(
+    "size, regressor outside the mean equation",
+    "Glejser test, size with `transformation = \"inverse\"`"
+  )
+  emit_glejser("size, weighted fit", "Glejser test, size after a correctly weighted fit")
+  emit_glejser("power", "Glejser test, power", by_gamma = TRUE)
+  # What the asymptotic theory gives for the default statistic. The numerator
+  # of its slope is n^(-1/2) sum (z - zbar) |e-hat|. With u the error,
+  # m = E sign(u) and rho^2 the R^2 of z on the regressors of the mean
+  # equation, its variance is
+  #   Var(z) {Var|u| + rho^2 [m^2 Var(u) - 2 m E(u|u|)]},
+  # and the t statistic assumes Var(z) Var|u|. Nothing here is simulated.
+  error_moments <- function(density, centre, scale) {
+    expect <- function(g) {
+      stats::integrate(function(x) g((x - centre) / scale) * density(x), 0, Inf,
+                       rel.tol = 1e-10, subdivisions = 2000L)$value
+    }
+    c(m = expect(sign), abs = expect(abs), signed_square = expect(function(u) u * abs(u)))
+  }
+  predicted_size <- function(mo, rho2, alpha = 0.05) {
+    ratio <- 1 + rho2 * (mo[["m"]]^2 - 2 * mo[["m"]] * mo[["signed_square"]]) /
+      (1 - mo[["abs"]]^2)
+    2 * stats::pnorm(-stats::qnorm(1 - alpha / 2) / sqrt(ratio))
+  }
+  moments <- list(
+    chisq5 = error_moments(function(x) stats::dchisq(x, 5), 5, sqrt(10)),
+    exponential = error_moments(stats::dexp, 1, 1),
+    lognormal = error_moments(stats::dlnorm, exp(0.5), sqrt((exp(1) - 1) * exp(1)))
+  )
+  # R^2 of 1 / x on x for x uniform on (1, 5).
+  uniform_mean <- function(g) stats::integrate(function(x) g(x) / 4, 1, 5, rel.tol = 1e-12)$value
+  rho2_inverse <- (1 - uniform_mean(function(x) 1 / x) * 3)^2 /
+    ((uniform_mean(function(x) 1 / x^2) - uniform_mean(function(x) 1 / x)^2) * 4 / 3)
+  simulated <- function(block, law) {
+    rate <- gl$rejection_rate[gl$block == block & gl$errors == law & gl$test == "glejser"]
+    if (length(rate)) sprintf("%.3f to %.3f", min(rate), max(rate)) else "--"
+  }
+  cat("\n### Glejser test, size of the default statistic against its asymptotic value\n\n")
+  cat("| Errors | Regressor | Asymptotic | Simulated |\n")
+  cat("| --- | --- | ---: | ---: |\n")
+  for (law in names(moments)) {
+    cat(sprintf("| %s | `x1` | %.3f | %s |\n", errors[[law]],
+                predicted_size(moments[[law]], 1), simulated("size", law)))
+    outside <- simulated("size, regressor outside the mean equation", law)
+    if (outside != "--") {
+      cat(sprintf("| %s | `1 / x1` | %.3f | %s |\n", errors[[law]],
+                  predicted_size(moments[[law]], rho2_inverse), outside))
+    }
+  }
+  cat(sprintf(
+    "\nReplications: %d. Nominal level: 0.05. Monte Carlo standard error at the nominal level: %.4f.\n",
+    gl$replications[1], sqrt(0.05 * 0.95 / gl$replications[1])))
+
+  # The generated summary, for the same reason the full sweep has one.
+  null_rows <- gl[gl$block != "power" & gl$test %in% c("glejser", "glejser_robust"), ,
+                  drop = FALSE]
+  symmetric <- null_rows$errors %in% c("normal", "t5")
+  robust <- null_rows$test == "glejser_robust"
+  half <- stats::qnorm(0.995) * sqrt(0.05 * 0.95 / null_rows$replications)
+  in_gate <- abs(null_rows$rejection_rate - 0.05) <= half
+  span <- function(keep) {
+    sprintf("%.3f to %.3f", min(null_rows$rejection_rate[keep]), max(null_rows$rejection_rate[keep]))
+  }
+  cat("\n<!-- generated by make-table.R; do not edit the numbers by hand -->\n\n")
+  cat(sprintf(
+    "Under symmetric errors the default statistic rejects %s of the time and the corrected one %s. Under asymmetric errors the default rejects %s and the corrected one %s. Of the %d null cells of the corrected statistic, %d fall inside the release-gate interval [%.4f, %.4f]",
+    span(symmetric & !robust), span(symmetric & robust),
+    span(!symmetric & !robust), span(!symmetric & robust),
+    sum(robust), sum(robust & in_gate), 0.05 - half[1], 0.05 + half[1]))
+  outside <- which(robust & !in_gate)
+  if (length(outside)) {
+    cat(". Outside it:\n\n")
+    for (i in outside) {
+      cat(sprintf("- %s errors, n = %d, %s: %.4f.\n",
+                  errors[[null_rows$errors[i]]], null_rows$n[i], null_rows$block[i],
+                  null_rows$rejection_rate[i]))
+    }
+  } else {
+    cat(".\n")
+  }
+}
