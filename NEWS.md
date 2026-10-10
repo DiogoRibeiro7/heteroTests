@@ -15,15 +15,16 @@
   for an unweighted fit: the same seed gives the same values as before.
 
   In `inst/validation/weighted-fits-size.R`, at 2000 replications with
-  `B = 499`, the three reject a correctly weighted fit 0.050 to 0.053 of the
-  time at the 5% level, and reject weights that are too weak in every
-  replication. With weights estimated by `fitWLS()` they hold the weights
-  fixed, as the asymptotic tests take them as known, and share their error:
-  the wild bootstrap rejects 0.086 of the time with 150 observations and 0.105
-  with 600, where `performKoenkerTest()` rejects 0.077 and 0.110. Estimating
-  the weights again in each replicate, which the package does not do, brings
-  the three to 0.042 to 0.060 with 150 observations and the wild bootstrap to
-  0.051 with 600. `ROADMAP.md` proposes an argument for it.
+  `B = 499`, the three reject a correctly weighted fit 0.045 to 0.054 of the
+  time at the 5% level in two designs, and reject weights that are too weak
+  in every replication. With weights estimated by `fitWLS()` they hold the
+  weights fixed, as the asymptotic tests take them as known, and share their
+  error: on data where the true weights give 0.054 with 150 observations and
+  0.048 with 600, the wild bootstrap rejects 0.086 and 0.105, and
+  `performKoenkerTest()` 0.077 and 0.110. Estimating the weights again in each
+  replicate, which the package does not do, brings the three to 0.042 to 0.060
+  with 150 observations and the wild bootstrap to 0.051 with 600. `ROADMAP.md`
+  proposes an argument for it.
 
   `performQuantileRegressionTest()` still refuses a weighted fit, and its help
   page says why.
