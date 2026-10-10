@@ -40,6 +40,10 @@ response to the review:
   and Windows (R-release)
 - GitHub Actions: a separate Ubuntu 22.04 job on R 4.1 checks the minimum
   version declared in `Depends:`
+- win-builder (R-devel) is not automated. It sends its results to the
+  maintainer's email address, so it is run by hand before a submission, on
+  the source tarball that the release workflow checked with `--as-cran` and
+  tagged.
 
 ## R CMD check results
 

@@ -87,10 +87,19 @@ weighted fits and closed it again, so the API is next.
   in `inst/CITATION` and `CITATION.cff`. Zenodo archives 0.11.2 and 0.12.0;
   only the 0.12.0 record links to CRAN.
 - [x] Close tracking issue #38 as On CRAN. It was closed on 2026-09-27.
-- [ ] Reinstate a release gate. `R CMD check --as-cran` can stay weekly rather
+- [x] Reinstate a release gate. `R CMD check --as-cran` can stay weekly rather
   than per merge, but it must pass in full on the tagged commit (vignettes and
   `--run-donttest` included) before any submission, alongside win-builder
-  (R-devel).
+  (R-devel). `release.yml` now runs `--as-cran --run-donttest` on the tarball
+  it is about to tag and creates no tag if the check warns or errors;
+  win-builder stays a manual step (`cran-comments.md`).
+- [ ] The gate fails today. The weekly `--as-cran` job stopped with an error
+  on 2026-09-28 and on 2026-10-05: the `\donttest{}` example of
+  `performWhiteTestBootstrap(parallel = TRUE)` starts `detectCores() - 1`
+  processes, three on the runner, and `--as-cran` allows two. The example is
+  skipped on Windows, so a local check there does not see it. Either the
+  example or the number of cores the function uses has to change before the
+  next release can be tagged.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 

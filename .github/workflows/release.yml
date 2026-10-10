@@ -107,10 +107,14 @@ jobs:
         with:
           use-public-rspm: "true"
 
+      # --as-cran checks the PDF manual, which needs LaTeX.
+      - uses: r-lib/actions/setup-tinytex@v2
+        if: steps.release.outputs.mode == 'new_release'
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         if: steps.release.outputs.mode == 'new_release'
         with:
-          extra-packages: any::knitr, any::rmarkdown
+          extra-packages: any::knitr, any::rmarkdown, any::rcmdcheck
           needs: check
 
       - name: Build source package
@@ -132,6 +136,28 @@ jobs:
           staged="$RUNNER_TEMP/$expected"
           cp "$expected" "$staged"
           echo "staged_tarball=$staged" >> "$GITHUB_OUTPUT"
+
+      # The release gate. The tarball about to be tagged, and stored as the
+      # CRAN source, must pass R CMD check --as-cran in full: vignettes
+      # rebuilt, \donttest examples run, PDF manual checked. A warning or an
+      # error stops the job here, before any tag or release exists; the next
+      # push to main, or a manual run, tries again. The two variables are the
+      # defaults check-r-package sets for the weekly "CRAN submission checks"
+      # job in R-CMD-check.yml. win-builder stays a manual step; see
+      # cran-comments.md.
+      - name: Check the release tarball with --as-cran
+        if: steps.release.outputs.mode == 'new_release'
+        shell: Rscript {0}
+        env:
+          _R_CHECK_CRAN_INCOMING_: "false"
+          _R_CHECK_FORCE_SUGGESTS_: "false"
+        run: |
+          rcmdcheck::rcmdcheck(
+            "${{ steps.build.outputs.staged_tarball }}",
+            args = c("--as-cran", "--run-donttest"),
+            error_on = "warning",
+            check_dir = file.path(Sys.getenv("RUNNER_TEMP"), "release-check")
+          )
 
       - name: Create GitHub release
         if: steps.release.outputs.mode == 'new_release'
