@@ -39,7 +39,7 @@ test that remains.
 | `pass-a-size-power.csv` | Its output, in long format, one row per test and scenario. |
 | `full-sweep-size-power.R` | The sweep over every exported test. `Rscript inst/validation/full-sweep-size-power.R`, with `N_MC` overridable. |
 | `full-sweep-size-power.csv` | Its output, one row per test, with the alternative each was driven against. |
-| `weighted-fits-size.R` | The tests on weighted fits, with weights known and with weights estimated by `fitWLS()`. `Rscript inst/validation/weighted-fits-size.R`, with `N_MC` overridable. |
+| `weighted-fits-size.R` | The tests on weighted fits, with weights known and with weights estimated by `fitWLS()`, and the resampling tests with weights exact, estimated and too weak. `Rscript inst/validation/weighted-fits-size.R`, with `N_MC` and `MC_CORES` overridable. |
 | `weighted-fits-size.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `variance-form-size-power.R` | `performVarianceFormTest()` for each form against five true variance functions. `Rscript inst/validation/variance-form-size-power.R`, with `N_MC` overridable. |
 | `variance-form-size-power.csv` | Its output, one row per form, truth, error distribution and sample size. |
@@ -324,9 +324,10 @@ lower number would mean the corresponding rate rests on fewer samples than
 
 `lm(..., weights = w)` states that the error variance is `sigma^2 / w_i`. No
 pass before 0.12.0 fitted a weighted model, and on one the tests read the raw
-residuals, which are heteroscedastic by assumption. Three blocks follow,
-because weights that are known and weights that were estimated are different
-cases, and estimated weights can come from the wrong variance function.
+residuals, which are heteroscedastic by assumption. Four blocks follow:
+weights that are known and weights that were estimated are different cases,
+estimated weights can come from the wrong variance function, and the
+resampling tests refit the model in every replicate.
 
 **Known weights.** The cross-sectional design of the full sweep under its
 alternative, `sd = x^2`, fitted with weights `1 / x^4`. The model is correctly
@@ -367,8 +368,6 @@ deviation that rises along the sample, with the weights that undo it.
 | `performRESETTest()` | 0.055 |
 | `performBPRandomEffectsTest()` | 0.055 |
 | `performPesaranTest()` | 0.072 |
-| `performWildBootstrapTest()` | refused |
-| `performWhiteTestBootstrap()` | refused |
 | `performQuantileRegressionTest()` | refused |
 
 Replications: 400. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0109.
@@ -385,9 +384,11 @@ unweighted fit in the full sweep, and Szroeter is at the high end at 0.077
 against 0.058. Both are inside three standard errors of what the same tests do
 without weights.
 
-The three tests marked `refused` regenerate the response or refit under a
-different loss, and refit without the weights. They stop with an error on a
-weighted fit instead of testing a different model.
+The test marked `refused` fits quantile regressions without the weights, and
+stops with an error on a weighted fit instead of testing a different model;
+its help page says why it was not adapted. The wild and the White bootstrap
+refused a weighted fit in 0.12.0 as well. They now resample on the weighted
+scale, and are measured in the fourth block, at 2000 replications.
 
 **Weights estimated by `fitWLS()`.** The log-variance is linear in `x`, so the
 variance function `fitWLS()` fits by default is correctly specified, and a test
@@ -440,6 +441,94 @@ nothing left to find, because the estimation has fitted those directions:
 Koenker rejects 0.069 at 600 observations, less than the 0.110 it rejects when
 the form is right. White and the variance-form test look at squares and
 products as well, and both find the misfit; only the second has a known level.
+
+**The resampling tests.** `performWildBootstrapTest()`,
+`performWhiteTestBootstrap()` and `rbootstrap_test_statistic()`, the last with
+`performKoenkerTest()` as its test function, each with `B = 499`. On a
+weighted fit they resample in the regression of `sqrt(w) y` on `sqrt(w) X`,
+where the null hypothesis is constant variance, and refit with the weights.
+The data are those of the first two blocks: `sd = x^2` with the exact weights
+`1 / x^4`, and the `fitWLS()` design. The three hold the weights of a
+`fitWLS()` fit fixed, as the tests of the second block take them as known.
+The block also runs each with the weights estimated again in every replicate,
+which the package does not do. For the wild and the White bootstrap the
+script repeats their resampling with that one change, after checking that
+without it the repetition reproduces the package's replicates;
+`rbootstrap_test_statistic()` is given a test function that calls `fitWLS()`.
+The wild bootstrap, the cheapest, also runs at 600 observations. The last
+table is a power: `sd = x^2` with the weights `1 / x`, which leave the
+weighted fit heteroscedastic.
+
+**The resampling tests, size.**
+
+| Test | Weights | n = 150 | n = 600 |
+| --- | --- | ---: | ---: |
+| `performWildBootstrapTest()` | exact | 0.053 | -- |
+| `performWhiteTestBootstrap()` | exact | 0.052 | -- |
+| `rbootstrap_test_statistic()`, Koenker | exact | 0.050 | -- |
+| `performWildBootstrapTest()` | `fitWLS()`, held fixed | 0.086 | 0.105 |
+| `performWhiteTestBootstrap()` | `fitWLS()`, held fixed | 0.064 | -- |
+| `rbootstrap_test_statistic()`, Koenker | `fitWLS()`, held fixed | 0.083 | -- |
+| `performWildBootstrapTest()` | `fitWLS()`, estimated again in each replicate | 0.060 | 0.051 |
+| `performWhiteTestBootstrap()` | `fitWLS()`, estimated again in each replicate | 0.042 | -- |
+| `rbootstrap_test_statistic()`, Koenker | `fitWLS()`, estimated again in each replicate | 0.045 | -- |
+
+Replications: 2000, with B = 499. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0049.
+
+**The resampling tests, power against weights that are too weak.**
+
+| Test | n = 150 |
+| --- | ---: |
+| `performWildBootstrapTest()` | 1.000 |
+| `performWhiteTestBootstrap()` | 1.000 |
+| `rbootstrap_test_statistic()`, Koenker | 1.000 |
+
+Replications: 400, with B = 499.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+With exact weights the three resampling tests reject 0.050 to 0.053 of the time. With the weights of `fitWLS()` held fixed they reject 0.064 to 0.105, where `performKoenkerTest()` on the same design rejects 0.077 at 150 observations and 0.110 at 600; with the weights estimated again in each replicate they reject 0.042 to 0.060. 7 of the 11 size cells fall inside [0.037, 0.063]. Outside it:
+
+- `performWildBootstrapTest()`, weights `fitWLS()`, held fixed, n = 150: 0.0865.
+- `performWhiteTestBootstrap()`, weights `fitWLS()`, held fixed, n = 150: 0.0640.
+- `rbootstrap_test_statistic()`, Koenker, weights `fitWLS()`, held fixed, n = 150: 0.0825.
+- `performWildBootstrapTest()`, weights `fitWLS()`, held fixed, n = 600: 0.1050.
+
+Against the weights 1 / x they reject 1.000 of the time.
+
+At 2000 replications the 99% interval around 0.05 is `[0.037, 0.063]`. A
+bootstrap test whose level is exact rejects 0.048 of the time at `p < 0.05`
+with `B = 499`, because its p-value takes the values `k / 500`.
+
+Four things follow.
+
+- **With exact weights the three hold their level.** They reject 0.050 to
+  0.053 of the time, where they refused the fit in 0.12.0. The wild bootstrap
+  and `rbootstrap_test_statistic()` with `performKoenkerTest()` compute the
+  statistic of Koenker's test; the White bootstrap that of White's test.
+- **With the weights of `fitWLS()` held fixed they are no better than the
+  tests of the second block.** The wild bootstrap rejects 0.086 at 150
+  observations and 0.105 at 600, beside 0.077 and 0.110 for
+  `performKoenkerTest()`, the same statistic with its chi-squared reference;
+  `rbootstrap_test_statistic()` rejects 0.083 at 150 observations, and the
+  White bootstrap 0.064 against 0.063 for `performWhiteTest()`. All four cells
+  are outside the interval. A replicate that keeps the weights is a sample
+  whose weights are known, so the reference distribution leaves out the
+  estimation that the observed statistic went through, and the discrepancy
+  does not shrink with the sample.
+- **Estimating the weights again in each replicate holds the level.** The
+  same three resampling schemes, with `fitWLS()` run on every replicate,
+  reject 0.042 to 0.060 of the time at 150 observations, and the wild
+  bootstrap 0.051 at 600, all inside the interval. The package does not do
+  this; `ROADMAP.md` proposes an argument that would. Until then the
+  re-estimating bootstrap is available through
+  `rbootstrap_test_statistic()` with a test function that calls `fitWLS()`,
+  as the script does, and `performVarianceFormTest()` remains the test that
+  allows for the estimation.
+- **The weights `1 / x` are rejected every time** by all three, at 400
+  replications. Resampling on the weighted scale imposes the null hypothesis
+  of the weighted model and keeps the power against weights that do not undo
+  the heteroscedasticity.
 
 ### The variance-form test
 

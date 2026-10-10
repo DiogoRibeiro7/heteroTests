@@ -5,8 +5,8 @@
 #
 # N_MC can be overridden for exploratory runs, e.g. N_MC=50 Rscript ... .
 # Release evidence uses N_MC=400 for the first block, the same as the full
-# sweep, and five times that for the second, whose point is a difference of a
-# few percentage points.
+# sweep, and five times that for the others, whose point is a difference of a
+# few percentage points. MC_CORES runs the scenarios of block 4 in parallel.
 #
 # lm(..., weights = w) states that the error variance is sigma^2 / w_i. Two
 # questions follow, and the two blocks answer them.
@@ -29,6 +29,34 @@
 # constant variance are usually asked to catch after a weighted fit. The block
 # shows which of them can: a test on the variance regressors themselves has
 # little left to find, and one that looks beyond them does.
+#
+# Block 4, the resampling tests. performWildBootstrapTest(),
+# performWhiteTestBootstrap() and rbootstrap_test_statistic() regenerate the
+# response and refit the model, on a weighted fit in the regression of
+# sqrt(w) y on sqrt(w) X. Each runs with B = 499 at five times N_MC, where the
+# 99% interval around a true 5% is [0.037, 0.063]. With exact weights the
+# rejection rate is a size, and so it is with weights that fitWLS() estimated
+# from a correctly specified variance function. The bootstrap tests hold
+# those weights fixed, as the tests of block 2 take them as known. The block
+# also runs each bootstrap with the weights estimated again in every
+# replicate, which the package does not do: for the wild and the White
+# bootstrap the script repeats their resampling with that one change, and
+# checks first that without it the repetition reproduces the package's
+# replicates; rbootstrap_test_statistic() is given a test function that calls
+# fitWLS(). The last rows are a power, at N_MC replications: the weights 1 / x
+# where the standard deviation is x^2, which leave the weighted fit
+# heteroscedastic.
+#
+# Block 4 is run by scenario, each with its own seed, so its results do not
+# depend on MC_CORES, which runs the scenarios in parallel through
+# parallel::mclapply(). Blocks 1 to 3 run first and in sequence.
+#
+# Each replication of block 4 starts by clearing the package's validation
+# cache. The tests store the result of every input validation, keyed by the
+# model and data, and nothing removes the entries. A scenario of block 4
+# validates about a million new models, and without the clearing each of the
+# slowest scenarios grew past 7.5 GB of memory in four and a half hours. The
+# cache only saves repeating a validation, so clearing it changes no value.
 
 is_source_checkout <- file.exists("DESCRIPTION") &&
   any(grepl(
@@ -43,16 +71,17 @@ if (requireNamespace("pkgload", quietly = TRUE) && is_source_checkout) {
   suppressPackageStartupMessages(library(heteroTests))
 }
 
-get_n_mc <- function() {
-  n_mc <- as.integer(Sys.getenv("N_MC", unset = "400"))
-  if (!is.finite(n_mc) || n_mc < 20L) {
-    stop("N_MC must be an integer >= 20.")
+get_count <- function(name, default, minimum) {
+  value <- as.integer(Sys.getenv(name, unset = default))
+  if (!is.finite(value) || value < minimum) {
+    stop(name, " must be an integer >= ", minimum, ".")
   }
-  n_mc
+  value
 }
 
 alpha <- 0.05
-n_mc <- get_n_mc()
+n_mc <- get_count("N_MC", "400", 20L)
+n_cores <- get_count("MC_CORES", "1", 1L)
 n_obs <- 150L
 invisible(ht_set_log_level("SILENT"))
 
@@ -134,12 +163,9 @@ KNOWN <- list(
        function(o) performBPRandomEffectsTest(o$model, o$data, "id")),
   list("performPesaranTest", make_panel,
        function(o) performPesaranTest(o$model, o$data, "id", "time")),
-  # These refit the mean model without the weights and refuse a weighted fit.
-  # They are listed so the matrix is complete; every call should fail.
-  list("performWildBootstrapTest", make_xs,
-       function(o) performWildBootstrapTest(o$model, o$data, B = 199, progress = FALSE)),
-  list("performWhiteTestBootstrap", make_xs,
-       function(o) performWhiteTestBootstrap(o$model, o$data, B = 199)),
+  # This one fits quantile regressions without the weights and refuses a
+  # weighted fit. It is listed so the matrix is complete; every call should
+  # fail. The resampling tests are in block 4.
   list("performQuantileRegressionTest", make_xs,
        function(o) performQuantileRegressionTest(o$model, o$data))
 )
@@ -169,6 +195,198 @@ ESTIMATED <- list(
   list("performHarveyTest", function(o) performHarveyTest(o$model)),
   list("performVarianceFormTest", function(o) performVarianceFormTest(o$model))
 )
+
+# --- block 4: the resampling tests --------------------------------------------
+
+n_boot <- 499L
+seed_boot <- 20261013L
+
+# The design of block 1, sd = x^2, fitted with the weights 1 / x^4 that undo
+# it, or with 1 / x, which leave the weighted fit heteroscedastic.
+make_power_of_x <- function(n, weight_power) {
+  x <- runif(n, 1, 5)
+  z <- runif(n, 1, 5)
+  d <- data.frame(y = 1 + 2 * x + 0.5 * z + x^2 * rnorm(n), x = x, z = z)
+  d$w <- 1 / x^weight_power
+  list(model = lm(y ~ x + z, data = d, weights = w), data = d)
+}
+
+# The statistics of the bootstrap tests, n R^2 of the squared Pearson residuals
+# on x and z (Koenker's, which the wild bootstrap uses) or on x, z, their
+# squares and their product (White's). check_repetition() asserts that they
+# equal what performKoenkerTest() and performWhiteTest() return; they are
+# written out because those functions validate their input on every call,
+# which is most of the cost of a replicate.
+koenker_statistic <- function(fit, data) {
+  e2 <- (sqrt(stats::weights(fit)) * stats::residuals(fit))^2
+  nrow(data) * summary(lm(e2 ~ x + z, data = data))$r.squared
+}
+white_statistic <- function(fit, data) {
+  e2 <- (sqrt(stats::weights(fit)) * stats::residuals(fit))^2
+  nrow(data) * summary(lm(e2 ~ x + z + I(x^2) + I(z^2) + I(x * z), data = data))$r.squared
+}
+
+# The resampling of performWildBootstrapTest() and performWhiteTestBootstrap()
+# on a fitWLS() fit, repeated with the weights estimated again in every
+# replicate. The package does not do this. With reestimate = FALSE each
+# replicate is refitted with the weights of the fit, as the package functions
+# do, and check_repetition() asserts that the two then agree. The wild
+# bootstrap resamples the Pearson residuals divided by sqrt(1 - h) and centred,
+# times Rademacher signs; the White bootstrap resamples the centred Pearson
+# residuals. Each draw is returned to the scale of its observation by dividing
+# by sqrt(w).
+resample_weighted <- function(o, scheme, reestimate, B = n_boot) {
+  model <- o$model
+  d <- o$data
+  n <- nrow(d)
+  fixed_weights <- stats::weights(model)
+  root_w <- sqrt(fixed_weights)
+  pearson <- root_w * stats::residuals(model)
+  pool <- if (scheme == "wild") {
+    r <- pearson / sqrt(pmax(1 - stats::hatvalues(model), .Machine$double.eps))
+    r - mean(r)
+  } else {
+    pearson - mean(pearson)
+  }
+  statistic <- if (scheme == "wild") koenker_statistic else white_statistic
+  observed <- statistic(model, d)
+  replicates <- vapply(seq_len(B), function(b) {
+    e <- if (scheme == "wild") {
+      v <- sample(c(-1, 1), n, replace = TRUE)
+      sample(pool, n, replace = TRUE) * v
+    } else {
+      sample(pool, replace = TRUE)
+    }
+    db <- d
+    db$y <- stats::fitted(model) + e / root_w
+    db$fixed_weights <- fixed_weights
+    tryCatch({
+      fit <- if (reestimate) {
+        fitWLS(lm(y ~ x + z, data = db))
+      } else {
+        lm(y ~ x + z, data = db, weights = fixed_weights)
+      }
+      statistic(fit, db)
+    }, error = function(e) NA_real_)
+  }, numeric(1))
+  ok <- is.finite(replicates)
+  list(
+    p.value = (1 + sum(replicates[ok] >= observed)) / (sum(ok) + 1),
+    replicates = replicates
+  )
+}
+
+# Koenker's statistic after fitWLS() has estimated the weights again from the
+# data it is given. On the data of the fit itself it is the statistic of the
+# fit, so through rbootstrap_test_statistic() only the replicates change.
+koenker_reestimated <- function(model, data) {
+  list(statistic = koenker_statistic(fitWLS(lm(y ~ x + z, data = data)), data))
+}
+
+check_repetition <- function() {
+  set.seed(seed_boot - 1L)
+  o <- make_fgls("normal", n_obs)
+  same <- function(a, b) isTRUE(all.equal(a, b, tolerance = 1e-8))
+  koenker <- unname(performKoenkerTest(o$model, o$data)$statistic)
+  white <- unname(suppressWarnings(performWhiteTest(o$model, o$data))$statistic)
+  agree <- c(
+    same(koenker_statistic(o$model, o$data), koenker),
+    same(koenker_reestimated(o$model, o$data)$statistic, koenker),
+    same(white_statistic(o$model, o$data), white)
+  )
+  if (!all(agree)) {
+    stop("The statistics written out here differ from the package's.")
+  }
+  for (scheme in c("wild", "white")) {
+    set.seed(seed_boot - 2L)
+    ours <- resample_weighted(o, scheme, reestimate = FALSE, B = 25L)
+    set.seed(seed_boot - 2L)
+    theirs <- if (scheme == "wild") {
+      r <- performWildBootstrapTest(o$model, o$data, B = 25L, progress = FALSE)
+      list(p.value = r$p.value, replicates = r$bootstrap$replicates)
+    } else {
+      r <- suppressWarnings(performWhiteTestBootstrap(o$model, o$data, B = 25L))
+      list(p.value = r$p.value, replicates = r$boot_statistics)
+    }
+    if (!same(ours$replicates, theirs$replicates) || ours$p.value != theirs$p.value) {
+      stop("The repetition of the ", scheme, " bootstrap does not reproduce the package.")
+    }
+  }
+  message("the statistics and the repeated wild and White bootstraps reproduce the package")
+}
+
+boot_p_value <- function(test, weights, o) {
+  reestimate <- weights == "estimated, re-estimated"
+  switch(test,
+    performWildBootstrapTest = if (reestimate) {
+      resample_weighted(o, "wild", reestimate = TRUE)
+    } else {
+      performWildBootstrapTest(o$model, o$data, B = n_boot, progress = FALSE)
+    },
+    performWhiteTestBootstrap = if (reestimate) {
+      resample_weighted(o, "white", reestimate = TRUE)
+    } else {
+      performWhiteTestBootstrap(o$model, o$data, B = n_boot)
+    },
+    rbootstrap_test_statistic = {
+      fn <- if (reestimate) koenker_reestimated else performKoenkerTest
+      r <- rbootstrap_test_statistic(fn, o$model, o$data, B = n_boot, progress = FALSE)
+      list(p.value = r$p_value)
+    }
+  )
+}
+
+boot_tests <- c(
+  "performWildBootstrapTest", "performWhiteTestBootstrap", "rbootstrap_test_statistic"
+)
+boot_scenario <- function(test, weights, n) {
+  expand.grid(test = test, weights = weights, n = n,
+              KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+}
+# The wild bootstrap, the cheapest, is also run at 600 observations, where the
+# tests of block 2 are further from their level than at 150.
+boot_scenarios <- rbind(
+  boot_scenario(boot_tests, "exact", n_obs),
+  boot_scenario(boot_tests, c("estimated, held fixed", "estimated, re-estimated"), n_obs),
+  boot_scenario("performWildBootstrapTest",
+                c("estimated, held fixed", "estimated, re-estimated"), 600L),
+  boot_scenario(boot_tests, "too weak", n_obs)
+)
+boot_design <- function(test, weights) {
+  switch(weights,
+    "exact" = "sd = x^2 fitted with weights 1 / x^4",
+    "too weak" = "sd = x^2 fitted with weights 1 / x",
+    "estimated, held fixed" = "fitWLS(), exponential variance correctly specified",
+    "estimated, re-estimated" = paste(
+      "fitWLS(), exponential variance correctly specified;",
+      if (test == "rbootstrap_test_statistic") {
+        "the test function calls fitWLS() again"
+      } else {
+        "fitWLS() again in each replicate (not in the package)"
+      }
+    )
+  )
+}
+
+run_boot_scenario <- function(i) {
+  s <- boot_scenarios[i, ]
+  # A power near 1 is measured precisely with fewer replications.
+  replications <- if (s$weights == "too weak") n_mc else 5L * n_mc
+  set.seed(seed_boot + i)
+  p <- vapply(seq_len(replications), function(rep) {
+    # The package keeps the result of every input validation, and one
+    # replication validates some 500 new models. Clearing that cache keeps the
+    # memory of a scenario bounded; it changes no value and draws no number.
+    heteroTests:::clearValidationCache()
+    o <- switch(s$weights,
+      "exact" = make_power_of_x(s$n, 4),
+      "too weak" = make_power_of_x(s$n, 1),
+      make_fgls("normal", s$n)
+    )
+    pval(function(o) boot_p_value(s$test, s$weights, o), o)
+  }, numeric(1))
+  summarise(s$test, s$weights, boot_design(s$test, s$weights), "normal", s$n, p)
+}
 
 # --- run ----------------------------------------------------------------------
 
@@ -235,7 +453,22 @@ for (n in c(150L, 600L)) {
   }
 }
 
-out <- do.call(rbind, rows)
+check_repetition()
+index <- seq_len(nrow(boot_scenarios))
+boot_rows <- if (n_cores > 1L) {
+  parallel::mclapply(index, run_boot_scenario, mc.cores = n_cores, mc.preschedule = FALSE)
+} else {
+  lapply(index, run_boot_scenario)
+}
+
+# A worker that was killed returns NULL and one that failed returns the error,
+# and rbind() would drop the first without a word.
+complete <- vapply(boot_rows, function(r) is.data.frame(r) && nrow(r) == 1L, logical(1))
+if (!all(complete)) {
+  stop("No result for block 4 scenario(s) ", paste(which(!complete), collapse = ", "), ".")
+}
+
+out <- do.call(rbind, c(rows, boot_rows))
 path <- file.path("inst", "validation", "weighted-fits-size.csv")
 if (!dir.exists(dirname(path))) path <- "weighted-fits-size.csv"
 utils::write.csv(out, path, row.names = FALSE)
