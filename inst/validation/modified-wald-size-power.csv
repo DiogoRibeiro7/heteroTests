@@ -1,0 +1,105 @@
+"block","test","errors","units","periods","mean_periods","shape","tau","replications","rejection_rate","mc_se","effective","failures"
+"size","modified_wald","normal",10,"5",5,"balanced",0,5000,0.927,0.00367888570086106,5000,0
+"size","modified_wald_n_minus_1","normal",10,"5",5,"balanced",0,5000,0.937,0.00343601513384327,5000,0
+"size","modified_wald","t5",10,"5",5,"balanced",0,5000,0.9662,0.0025556822963741,5000,0
+"size","modified_wald_n_minus_1","t5",10,"5",5,"balanced",0,5000,0.971,0.00237314137800511,5000,0
+"size","modified_wald","normal",30,"5",5,"balanced",0,5000,0.9996,0.000282786138274123,5000,0
+"size","modified_wald_n_minus_1","normal",30,"5",5,"balanced",0,5000,0.9998,0.000199979998999889,5000,0
+"size","modified_wald","t5",30,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","t5",30,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","normal",100,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","normal",100,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","t5",100,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","t5",100,"5",5,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","normal",10,"10",10,"balanced",0,5000,0.6808,0.00659259220640864,5000,0
+"size","modified_wald_n_minus_1","normal",10,"10",10,"balanced",0,5000,0.714,0.00639068071491606,5000,0
+"size","modified_wald","t5",10,"10",10,"balanced",0,5000,0.8762,0.004657758259077,5000,0
+"size","modified_wald_n_minus_1","t5",10,"10",10,"balanced",0,5000,0.8948,0.00433896208787309,5000,0
+"size","modified_wald","normal",30,"10",10,"balanced",0,5000,0.9656,0.00257746542168852,5000,0
+"size","modified_wald_n_minus_1","normal",30,"10",10,"balanced",0,5000,0.9698,0.00242024626846113,5000,0
+"size","modified_wald","t5",30,"10",10,"balanced",0,5000,0.9986,0.000528779727296718,5000,0
+"size","modified_wald_n_minus_1","t5",30,"10",10,"balanced",0,5000,0.9986,0.000528779727296718,5000,0
+"size","modified_wald","normal",100,"10",10,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","normal",100,"10",10,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","t5",100,"10",10,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","t5",100,"10",10,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","normal",10,"30",30,"balanced",0,5000,0.282,0.0063635838958876,5000,0
+"size","modified_wald_n_minus_1","normal",10,"30",30,"balanced",0,5000,0.3236,0.00661638934767294,5000,0
+"size","modified_wald","t5",10,"30",30,"balanced",0,5000,0.621,0.0068608891552043,5000,0
+"size","modified_wald_n_minus_1","t5",10,"30",30,"balanced",0,5000,0.662,0.00668963377173968,5000,0
+"size","modified_wald","normal",30,"30",30,"balanced",0,5000,0.5842,0.00697008407409839,5000,0
+"size","modified_wald_n_minus_1","normal",30,"30",30,"balanced",0,5000,0.6116,0.00689268365732825,5000,0
+"size","modified_wald","t5",30,"30",30,"balanced",0,5000,0.944,0.00325158422926425,5000,0
+"size","modified_wald_n_minus_1","t5",30,"30",30,"balanced",0,5000,0.9512,0.00304691844328003,5000,0
+"size","modified_wald","normal",100,"30",30,"balanced",0,5000,0.928,0.00365557109081467,5000,0
+"size","modified_wald_n_minus_1","normal",100,"30",30,"balanced",0,5000,0.9336,0.00352110891623647,5000,0
+"size","modified_wald","t5",100,"30",30,"balanced",0,5000,1,0,5000,0
+"size","modified_wald_n_minus_1","t5",100,"30",30,"balanced",0,5000,1,0,5000,0
+"size","modified_wald","normal",10,"100",100,"balanced",0,5000,0.1002,0.00424640930669666,5000,0
+"size","modified_wald_n_minus_1","normal",10,"100",100,"balanced",0,5000,0.1366,0.00485675694265216,5000,0
+"size","modified_wald","t5",10,"100",100,"balanced",0,5000,0.3672,0.00681709850302898,5000,0
+"size","modified_wald_n_minus_1","t5",10,"100",100,"balanced",0,5000,0.4146,0.00696716355484784,5000,0
+"size","modified_wald","normal",30,"100",100,"balanced",0,5000,0.1834,0.00547292316774135,5000,0
+"size","modified_wald_n_minus_1","normal",30,"100",100,"balanced",0,5000,0.2106,0.00576624036959959,5000,0
+"size","modified_wald","t5",30,"100",100,"balanced",0,5000,0.7168,0.00637177777390266,5000,0
+"size","modified_wald_n_minus_1","t5",30,"100",100,"balanced",0,5000,0.7392,0.00620940190356527,5000,0
+"size","modified_wald","normal",100,"100",100,"balanced",0,5000,0.3608,0.00679151470586643,5000,0
+"size","modified_wald_n_minus_1","normal",100,"100",100,"balanced",0,5000,0.3832,0.00687543104103299,5000,0
+"size","modified_wald","t5",100,"100",100,"balanced",0,5000,0.9816,0.00190060200989055,5000,0
+"size","modified_wald_n_minus_1","t5",100,"100",100,"balanced",0,5000,0.9846,0.00174142700105402,5000,0
+"size, unbalanced","modified_wald","normal",30,"10, 30, 100",46.6666666666667,"unbalanced_30",0,5000,0.8086,0.0055635607303237,5000,0
+"size, unbalanced","modified_wald_n_minus_1","normal",30,"10, 30, 100",46.6666666666667,"unbalanced_30",0,5000,0.8226,0.00540239280319378,5000,0
+"size, unbalanced","modified_wald","t5",30,"10, 30, 100",46.6666666666667,"unbalanced_30",0,5000,0.9802,0.00197017562668916,5000,0
+"size, unbalanced","modified_wald_n_minus_1","t5",30,"10, 30, 100",46.6666666666667,"unbalanced_30",0,5000,0.983,0.00182816848238886,5000,0
+"size, unbalanced","modified_wald","normal",100,"5, 10, 20, 30",16.25,"unbalanced_100",0,5000,1,0,5000,0
+"size, unbalanced","modified_wald_n_minus_1","normal",100,"5, 10, 20, 30",16.25,"unbalanced_100",0,5000,1,0,5000,0
+"size, unbalanced","modified_wald","t5",100,"5, 10, 20, 30",16.25,"unbalanced_100",0,5000,1,0,5000,0
+"size, unbalanced","modified_wald_n_minus_1","t5",100,"5, 10, 20, 30",16.25,"unbalanced_100",0,5000,1,0,5000,0
+"size, long panels","modified_wald","normal",2,"300",300,"balanced",0,5000,0.0198,0.00197017562668915,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",2,"300",300,"balanced",0,5000,0.0544,0.0032075111847038,5000,0
+"size, long panels","modified_wald","t5",2,"300",300,"balanced",0,5000,0.0514,0.00312275647465504,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",2,"300",300,"balanced",0,5000,0.1096,0.00441786916963371,5000,0
+"size, long panels","modified_wald","normal",10,"300",300,"balanced",0,5000,0.0524,0.00315132480077824,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",10,"300",300,"balanced",0,5000,0.0738,0.00369739259478893,5000,0
+"size, long panels","modified_wald","t5",10,"300",300,"balanced",0,5000,0.2106,0.00576624036959959,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",10,"300",300,"balanced",0,5000,0.2566,0.00617667289080456,5000,0
+"size, long panels","modified_wald","normal",30,"300",300,"balanced",0,5000,0.0782,0.00379696615734194,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",30,"300",300,"balanced",0,5000,0.095,0.00414668542332307,5000,0
+"size, long panels","modified_wald","t5",30,"300",300,"balanced",0,5000,0.4256,0.00699234781743586,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",30,"300",300,"balanced",0,5000,0.4616,0.00705018354371005,5000,0
+"size, long panels","modified_wald","normal",2,"1000",1000,"balanced",0,5000,0.0144,0.00168479316237929,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",2,"1000",1000,"balanced",0,5000,0.0516,0.00312849612433834,5000,0
+"size, long panels","modified_wald","t5",2,"1000",1000,"balanced",0,5000,0.039,0.00273784586856163,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",2,"1000",1000,"balanced",0,5000,0.0896,0.00403910485132535,5000,0
+"size, long panels","modified_wald","normal",10,"1000",1000,"balanced",0,5000,0.0356,0.00262040607540129,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",10,"1000",1000,"balanced",0,5000,0.0532,0.00317394895989208,5000,0
+"size, long panels","modified_wald","t5",10,"1000",1000,"balanced",0,5000,0.1288,0.00473731062946056,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",10,"1000",1000,"balanced",0,5000,0.1664,0.00526708724059133,5000,0
+"size, long panels","modified_wald","normal",30,"1000",1000,"balanced",0,5000,0.0492,0.00305873699425106,5000,0
+"size, long panels","modified_wald_n_minus_1","normal",30,"1000",1000,"balanced",0,5000,0.0596,0.00334806929438445,5000,0
+"size, long panels","modified_wald","t5",30,"1000",1000,"balanced",0,5000,0.2352,0.00599801567187016,5000,0
+"size, long panels","modified_wald_n_minus_1","t5",30,"1000",1000,"balanced",0,5000,0.2696,0.00627560100707494,5000,0
+"power","modified_wald","normal",10,"10",10,"balanced",0.25,5000,0.809,0.0055591186351795,5000,0
+"power","modified_wald_n_minus_1","normal",10,"10",10,"balanced",0.25,5000,0.837,0.00522361943483635,5000,0
+"power","modified_wald","normal",30,"10",10,"balanced",0.25,5000,0.9936,0.00112774465194919,5000,0
+"power","modified_wald_n_minus_1","normal",30,"10",10,"balanced",0.25,5000,0.9946,0.00103642076397571,5000,0
+"power","modified_wald","normal",100,"10",10,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",100,"10",10,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald","normal",10,"100",100,"balanced",0.25,5000,0.9144,0.00395658034165869,5000,0
+"power","modified_wald_n_minus_1","normal",10,"100",100,"balanced",0.25,5000,0.9336,0.00352110891623647,5000,0
+"power","modified_wald","normal",30,"100",100,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",30,"100",100,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald","normal",100,"100",100,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",100,"100",100,"balanced",0.25,5000,1,0,5000,0
+"power","modified_wald","normal",10,"10",10,"balanced",0.5,5000,0.9434,0.00326791799162708,5000,0
+"power","modified_wald_n_minus_1","normal",10,"10",10,"balanced",0.5,5000,0.952,0.00302311098043059,5000,0
+"power","modified_wald","normal",30,"10",10,"balanced",0.5,5000,0.9998,0.000199979998999889,5000,0
+"power","modified_wald_n_minus_1","normal",30,"10",10,"balanced",0.5,5000,0.9998,0.000199979998999889,5000,0
+"power","modified_wald","normal",100,"10",10,"balanced",0.5,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",100,"10",10,"balanced",0.5,5000,1,0,5000,0
+"power","modified_wald","normal",10,"100",100,"balanced",0.5,5000,0.998,0.000631822759957253,5000,0
+"power","modified_wald_n_minus_1","normal",10,"100",100,"balanced",0.5,5000,0.9986,0.000528779727296718,5000,0
+"power","modified_wald","normal",30,"100",100,"balanced",0.5,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",30,"100",100,"balanced",0.5,5000,1,0,5000,0
+"power","modified_wald","normal",100,"100",100,"balanced",0.5,5000,1,0,5000,0
+"power","modified_wald_n_minus_1","normal",100,"100",100,"balanced",0.5,5000,1,0,5000,0

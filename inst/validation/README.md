@@ -47,6 +47,8 @@ test that remains.
 | `survey-designs-size.csv` | Its output, one row per test, procedure, design and sample size. |
 | `glejser-skewed-errors.R` | `performGlejserTest()` with and without `robust = TRUE`, beside Koenker's test, under symmetric and skewed errors. `Rscript inst/validation/glejser-skewed-errors.R`, with `N_MC` and `MC_CORES` overridable. |
 | `glejser-skewed-errors.csv` | Its output, one row per test, block, error distribution and sample size. |
+| `modified-wald-size-power.R` | The modified Wald test for groupwise heteroscedasticity of Stata's `xttest3`, which the package does not export, on fixed-effects panels. `Rscript inst/validation/modified-wald-size-power.R`, with `N_MC` and `MC_CORES` overridable. Checks the statistic against the example in Baum (2001) when `plm` is installed. |
+| `modified-wald-size-power.csv` | Its output, one row per block, reference distribution, error distribution and panel shape. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -775,6 +777,169 @@ Five things follow.
 The default of `robust` is `FALSE`, so `performGlejserTest()` returns what it
 returned in every earlier release. Whether the default should change is listed
 under *Decisions needed* in `ROADMAP.md`.
+
+### The modified Wald test for groupwise heteroscedasticity
+
+The test Stata users run as `xttest3` after a fixed-effects regression, and the
+first candidate in the roadmap's order of work. It asks whether the error
+variance differs between the units of a panel. The package does not export it,
+and this study is the reason.
+
+For unit `i` with `T_i` residuals `e_it` from the within (fixed-effects) fit,
+Baum (2001) defines
+
+- `s2_i = sum_t e_it^2 / T_i`, the estimate of the unit's error variance;
+- `V_i = sum_t (e_it^2 - s2_i)^2 / (T_i (T_i - 1))`, the estimate of the
+  variance of `s2_i`;
+- `W = sum_i (s2_i - s2)^2 / V_i`, referred to a chi-squared distribution with
+  as many degrees of freedom as there are units.
+
+The article does not define `s2`. The code of `xttest3` (version 1.0.8, 4
+October 2024) takes the variance of all the residuals with divisor `n`, which
+is `sum e_it^2 / n` because the within residuals have mean zero. With that
+choice the script reproduces the article's example, `chi2(4) = 279.13` on
+Greene's Grunfeld data without firm 2, as 279.1279; the divisor `n - 1` would
+give 287.0876. Baum says he follows Greene (2000, p. 598), generalised to
+unbalanced panels. That page could not be obtained for this study, so any
+difference between Greene's form and Baum's is not recorded here.
+
+**Reference.** No R implementation was found (CRAN and GitHub, searched on
+2026-10-10). The Python package `panelbox` has a `ModifiedWaldTest`. It was
+run in version 1.0.2, with Python 3.13.5, NumPy 2.5.3, pandas 3.0.6 and SciPy
+1.18.1, on the data of Baum's example written to a file, and returned 30.181
+where the statistic above is 279.128. The residuals agree: `W` computed from
+panelbox's own residuals differs from the R value by less than `1e-11`. The
+difference is the statistic. Under that name panelbox computes
+`sum_i T_i log(s2 / s2_i)`, with `s2 = e'e / (n - N - k)` and `s2_i` the
+sample variance of unit `i`'s residuals. That formula, computed in R on the
+same file, matches panelbox's value to `1e-12`, and the script prints it for
+the example as 30.1809. It is a likelihood-ratio form, not Baum's statistic,
+so it is not a reference for this test. The comparison with panelbox itself
+was run once for this study; the Python environment is not part of the
+repository.
+
+**Designs.** `y_it = a_i + 0.5 x1_it - 0.25 x2_it + sigma_i e_it`, where
+`x1 = 0.5 a_i + N(0, 1)` is correlated with the unit effect and `x2` is
+uniform, so the fixed effects are needed. The errors are Gaussian, or `t5`
+scaled to unit variance. The residuals are those of
+`lm(y ~ x1 + x2 + factor(id))`, computed by the within transformation; the
+script checks that the two agree. Every cell reports the published test,
+referred to a chi-squared with `N` degrees of freedom, and the same statistic
+referred to `N - 1`, which `xttest3` does not use and which is there to
+separate the two sources of error. Under the alternative the variance of unit `i` is
+`exp(tau z_i - tau^2 / 2)` with `z_i` standard normal, drawn in each
+replication, so the unit variances are lognormal with mean 1.
+
+**Modified Wald test, size in balanced panels.**
+
+| Errors | Units | Reference | T = 5 | T = 10 | T = 30 | T = 100 |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Gaussian | 10 | chi-squared, N df (xttest3) | 0.927 | 0.681 | 0.282 | 0.100 |
+| Gaussian | 10 | chi-squared, N - 1 df | 0.937 | 0.714 | 0.324 | 0.137 |
+| Gaussian | 30 | chi-squared, N df (xttest3) | 1.000 | 0.966 | 0.584 | 0.183 |
+| Gaussian | 30 | chi-squared, N - 1 df | 1.000 | 0.970 | 0.612 | 0.211 |
+| Gaussian | 100 | chi-squared, N df (xttest3) | 1.000 | 1.000 | 0.928 | 0.361 |
+| Gaussian | 100 | chi-squared, N - 1 df | 1.000 | 1.000 | 0.934 | 0.383 |
+| t5 | 10 | chi-squared, N df (xttest3) | 0.966 | 0.876 | 0.621 | 0.367 |
+| t5 | 10 | chi-squared, N - 1 df | 0.971 | 0.895 | 0.662 | 0.415 |
+| t5 | 30 | chi-squared, N df (xttest3) | 1.000 | 0.999 | 0.944 | 0.717 |
+| t5 | 30 | chi-squared, N - 1 df | 1.000 | 0.999 | 0.951 | 0.739 |
+| t5 | 100 | chi-squared, N df (xttest3) | 1.000 | 1.000 | 1.000 | 0.982 |
+| t5 | 100 | chi-squared, N - 1 df | 1.000 | 1.000 | 1.000 | 0.985 |
+
+**Modified Wald test, size in unbalanced panels.**
+
+| Errors | Units | Periods per unit | Mean periods | chi-squared, N df (xttest3) | chi-squared, N - 1 df |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Gaussian | 30 | 10, 30, 100 | 46.67 | 0.809 | 0.823 |
+| Gaussian | 100 | 5, 10, 20, 30 | 16.25 | 1.000 | 1.000 |
+| t5 | 30 | 10, 30, 100 | 46.67 | 0.980 | 0.983 |
+| t5 | 100 | 5, 10, 20, 30 | 16.25 | 1.000 | 1.000 |
+
+**Modified Wald test, size in long panels.**
+
+| Errors | Units | Reference | T = 300 | T = 1000 |
+| --- | ---: | --- | ---: | ---: |
+| Gaussian | 2 | chi-squared, N df (xttest3) | 0.020 | 0.014 |
+| Gaussian | 2 | chi-squared, N - 1 df | 0.054 | 0.052 |
+| Gaussian | 10 | chi-squared, N df (xttest3) | 0.052 | 0.036 |
+| Gaussian | 10 | chi-squared, N - 1 df | 0.074 | 0.053 |
+| Gaussian | 30 | chi-squared, N df (xttest3) | 0.078 | 0.049 |
+| Gaussian | 30 | chi-squared, N - 1 df | 0.095 | 0.060 |
+| t5 | 2 | chi-squared, N df (xttest3) | 0.051 | 0.039 |
+| t5 | 2 | chi-squared, N - 1 df | 0.110 | 0.090 |
+| t5 | 10 | chi-squared, N df (xttest3) | 0.211 | 0.129 |
+| t5 | 10 | chi-squared, N - 1 df | 0.257 | 0.166 |
+| t5 | 30 | chi-squared, N df (xttest3) | 0.426 | 0.235 |
+| t5 | 30 | chi-squared, N - 1 df | 0.462 | 0.270 |
+
+**Modified Wald test, rejection rate under lognormal unit variances.**
+
+| Units | Periods | Size, Gaussian | tau = 0.25 | tau = 0.50 |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 10 | 0.681 | 0.809 | 0.943 |
+| 30 | 10 | 0.966 | 0.994 | 1.000 |
+| 100 | 10 | 1.000 | 1.000 | 1.000 |
+| 10 | 100 | 0.100 | 0.914 | 0.998 |
+| 30 | 100 | 0.183 | 1.000 | 1.000 |
+| 100 | 100 | 0.361 | 1.000 | 1.000 |
+
+Replications: 5000. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0031.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+In the balanced panels of 10 to 100 units and 5 to 100 periods the test rejects a true null hypothesis 0.100 to 1.000 of the time with Gaussian errors and 0.367 to 1.000 with t5 errors. Of its 40 null cells, 3 fall inside the release-gate interval [0.0421, 0.0579]:
+
+- t5 errors, 2 units, 300 periods: 0.0514.
+- Gaussian errors, 10 units, 300 periods: 0.0524.
+- Gaussian errors, 30 units, 1000 periods: 0.0492.
+
+Below it:
+
+- Gaussian errors, 2 units, 300 periods: 0.0198.
+- Gaussian errors, 2 units, 1000 periods: 0.0144.
+- t5 errors, 2 units, 1000 periods: 0.0390.
+- Gaussian errors, 10 units, 1000 periods: 0.0356.
+
+The other 33 are above it.
+
+What follows from the tables:
+
+- **The test does not hold its level in any panel of 5 to 100 periods.** It
+  rejects a true null hypothesis more often the more units there are and the
+  fewer periods: with 10 units and 100 periods it rejects 0.100 of the time
+  under Gaussian errors, and with 100 units and 5 or 10 periods it rejects in
+  every replication. In the unbalanced panels it rejects 0.809 of the time
+  with 30 units and 46.67 periods on average, and 1.000 with 100 units and
+  16.25.
+- **That pattern is what the denominators lead one to expect.** `V_i`
+  estimates a fourth moment from `T_i` residuals, and it is small when `s2_i`
+  is small, so a unit whose residuals happen to be small contributes a term
+  that is too large. The excess in each term shrinks as `T_i` grows, and the
+  `N` terms add up. Unbalanced panels carry a second error: with divisor
+  `T_i`, the expectation of `s2_i` is about `sigma^2 (T_i - 1) / T_i` for
+  within residuals, so units of different length differ in expectation even
+  under the null. The balanced panels, which do not have that error, are far
+  from the level too. The `xttest3` documentation warns that the test's power
+  is very low in panels with many units and few periods; in these designs the
+  problem there is its size.
+- **In long panels the degrees of freedom are wrong the other way.** `s2` is a
+  weighted mean of the `s2_i`, so the `N` terms of `W` satisfy one linear
+  restriction, and as the periods grow `W` tends to a chi-squared with `N - 1`
+  degrees of freedom. With 2 units and Gaussian errors the published test
+  rejects 0.020 and 0.014 of the time at 300 and 1000 periods; referred to
+  `N - 1`, 0.054 and 0.052. The three cells inside the release-gate interval
+  are places where the two errors cancel on the way down, not a range: with
+  10 units the published test goes from 0.052 at 300 periods to 0.036 at 1000.
+- **Heavy tails make it worse.** Under `t5` errors it still rejects 0.129 of
+  the time with 10 units and 0.235 with 30 at 1000 periods. The statistic is
+  described as robust to non-normality in large samples, and these samples are
+  not large enough.
+- **The rejection rates under the alternative are not powers.** They run from
+  0.809 to 1.000, in panels where the same test rejects a true null 0.100 to
+  1.000 of the time.
+
+The test was not adopted. The roadmap records it under *Candidate tests*.
 
 ## History
 
