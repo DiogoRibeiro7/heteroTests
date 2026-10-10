@@ -69,10 +69,54 @@ registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
 registerDiagnostic("student_bp", function(model, data) performStudentizedBPTest(model, data))
 registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))
+# performSzroeterTest() needs an ordering of the observations and a registry
+# entry is called with the model and the data only. The ordering comes from
+# the model: the fitted values, so the alternative is that the variance rises
+# with the mean. With a single regressor that is the order of the regressor
+# when its slope is positive and the reverse order when it is negative.
+#
+# The fitted values come from predict(type = "response"), which computes X b
+# (plus any offset) and, for a glm, maps it to the scale of the mean. They do
+# not come from fitted(), which an lm stores as y - e: rows with the same
+# design row would then differ in their last bits by an amount that depends on
+# the residual, and those rounding errors would decide the order within the
+# ties. With predict() such rows tie exactly and keep the order of the rows
+# the model was fitted to.
+#
+# The values are matched to the rows of `data` by row name, as
+# performSzroeterTest() matches the residuals, and the data are restricted to
+# the rows the model used. A row of the fit that `data` lacks is an error, with
+# the message performSzroeterTest() gives for it.
 registerDiagnostic(
   "szroeter",
   function(model, data) {
-    performSzroeterTest(model, data, order_by = names(data)[2])
+    mean_values <- stats::predict(model, type = "response")
+    if (is.null(names(mean_values))) {
+      stop(
+        "The registered Szroeter test needs fitted values named by row; ",
+        "call performSzroeterTest() with `order_by` instead.",
+        call. = FALSE
+      )
+    }
+    # as.data.frame() first: subsetting a tibble or a data.table renumbers
+    # its rows, and the row names are what the residuals are matched to.
+    data <- as.data.frame(data)
+    rows <- match(names(mean_values), rownames(data))
+    if (anyNA(rows)) {
+      stop(
+        "Szroeter test requires `data` to contain the rows used to fit the model. ",
+        "Missing rows: ",
+        paste(utils::head(names(mean_values)[is.na(rows)], 3L), collapse = ", "),
+        call. = FALSE
+      )
+    }
+    column <- "fitted values"
+    while (column %in% names(data)) {
+      column <- paste0(".", column)
+    }
+    data <- data[rows, , drop = FALSE]
+    data[[column]] <- unname(mean_values)
+    performSzroeterTest(model, data, order_by = column)
   }
 )
 registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapTest(model, data))

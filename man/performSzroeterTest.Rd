@@ -51,6 +51,21 @@ The implementation relies on the package validation helpers to align the
 supplied data with the model residuals, check that the ordering variable is
 present, and ensure sufficient sample size and variability in the squared
 residuals.
+
+Ties in \code{order_by} keep the order of the rows the model was fitted to.
+Unless the rows were sorted by the response, that order does not depend on
+the residuals, so the test keeps its level under the null hypothesis; but
+with a discrete ordering variable the statistic depends on the order of the
+rows.
+
+\code{runHeteroTests(tests = "szroeter")}, and anything else that runs the
+registered diagnostic, orders the observations by the fitted values of
+\code{model}, so its alternative is variance that rises with the mean. With a
+single regressor that is the order of the regressor when its slope is
+positive and the reverse order when it is negative. The fitted values are
+computed from the coefficients, so observations with the same regressors
+tie exactly, as they do under a factor or a binary regressor, and the ties
+are broken as above.
 }
 \section{Validation}{
 
