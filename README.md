@@ -80,8 +80,9 @@ tests. Their simulated size and power are in
   interprets a diagnostic run.
 - **Weighted fits** — on an `lm` fitted with weights the tests are computed
   from the standardized residuals, so they ask whether the weights are
-  adequate. For weights estimated by `fitWLS()`, `performVarianceFormTest()`
-  is the test that allows for the estimation.
+  adequate, and the bootstrap tests resample on the same scale. For weights
+  estimated by `fitWLS()`, `performVarianceFormTest()` is the test that allows
+  for the estimation.
 - **Ecosystem integration** — `broom` tidiers, `ggplot2` theming/`autoplot`, and
   helpers for tidymodels and grouped pipelines. `runSurveyHeteroTests()` runs
   the tests on the data of a survey design; it does not use the design, and its
