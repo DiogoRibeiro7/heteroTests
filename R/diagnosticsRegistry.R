@@ -73,21 +73,43 @@ registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBoot
 # entry is called with the model and the data only. The ordering comes from
 # the model: the fitted values, so the alternative is that the variance rises
 # with the mean. With a single regressor that is the order of the regressor
-# when its slope is positive and the reverse order when it is negative. The
-# fitted values are matched to the rows of `data` by row name, as
-# performSzroeterTest() matches the residuals.
+# when its slope is positive and the reverse order when it is negative.
+#
+# The fitted values come from predict(), which computes X b (plus any offset),
+# and not from fitted(), which an lm stores as y - e: rows with the same
+# design row would then differ in their last bits by an amount that depends on
+# the residual, and those rounding errors would decide the order within the
+# ties. With predict() such rows tie exactly and keep the order of the rows
+# the model was fitted to.
+#
+# The values are matched to the rows of `data` by row name, as
+# performSzroeterTest() matches the residuals, and the data are restricted to
+# the rows the model used. When some of those rows are missing from `data`
+# the data are passed whole, so that performSzroeterTest() reports them.
 registerDiagnostic(
   "szroeter",
   function(model, data) {
-    fitted_values <- stats::fitted(model)
+    mean_values <- stats::predict(model, type = "response")
+    if (is.null(names(mean_values))) {
+      stop(
+        "The registered Szroeter test needs fitted values named by row; ",
+        "call performSzroeterTest() with `order_by` instead.",
+        call. = FALSE
+      )
+    }
+    # as.data.frame() first: subsetting a tibble or a data.table renumbers
+    # its rows, and the row names are what the residuals are matched to.
+    data <- as.data.frame(data)
     column <- "fitted values"
     while (column %in% names(data)) {
       column <- paste0(".", column)
     }
-    data[[column]] <- if (is.null(names(fitted_values))) {
-      unname(fitted_values)
+    rows <- match(names(mean_values), rownames(data))
+    if (anyNA(rows)) {
+      data[[column]] <- unname(mean_values[match(rownames(data), names(mean_values))])
     } else {
-      unname(fitted_values[match(rownames(data), names(fitted_values))])
+      data <- data[rows, , drop = FALSE]
+      data[[column]] <- unname(mean_values)
     }
     performSzroeterTest(model, data, order_by = column)
   }
