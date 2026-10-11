@@ -7,7 +7,7 @@
 \maketitle
 
 \abstract{%
-Heteroscedasticity diagnostics in R are distributed across multiple packages with different interfaces, return objects, assumptions, and workflow conventions. The heteroTests package provides a unified framework for diagnosing non-constant variance in linear-model workflows. It combines classical auxiliary-regression and group-wise procedures with rank-based, ARCH-type, resampling, robust, spatial, and scalable variants behind a consistent interface based on standard htest objects. This article describes the package architecture, validation strategy, batch and streaming workflows, and integration with common R modelling tools. Agreement with established reference implementations is used where available, while simulation studies assess empirical size and power under several variance structures and error distributions. Computational benchmarks evaluate scaling with sample size and illustrate the memory-bounded streaming implementations. A worked example shows how heteroTests connects diagnosis, interpretation, and remediation in a reproducible analysis.
+Heteroscedasticity diagnostics in R are distributed across multiple packages with different interfaces, return objects, assumptions, and workflow conventions. The heteroTests package provides a unified framework for diagnosing non-constant variance in linear-model workflows. It combines classical auxiliary-regression and group-wise procedures with rank-based, ARCH-type, resampling, robust, spatial, and scalable variants behind a consistent interface based on standard htest objects. This article describes the package architecture, validation strategy, batch and streaming workflows, and integration with common R modelling tools. Agreement with established reference implementations is used where available, while simulation studies assess empirical size and power under several variance structures and error distributions. Computational benchmarks evaluate scaling with sample size and illustrate the memory-bounded streaming implementations. Worked examples on simulated and observed data show how heteroTests connects diagnosis, interpretation, and remediation in a reproducible analysis, and how the variance model behind the remediation can itself be tested.
 }
 
 \section{Introduction}\label{introduction}
@@ -32,6 +32,19 @@ needs more than one of them, together with a common representation of the model,
 the data used for fitting, the diagnostic result, and the choices that determine
 how the statistic was computed.
 
+An analyst who needs one of these tests has no reason to change tools:
+\texttt{lmtest::bptest()} and \texttt{car::ncvTest()} are single calls, and nothing in this
+article argues against them. The difficulty begins with the second test. The
+procedures in Table \ref{tab:procedures} that exist outside
+\CRANpkg{heteroTests} are spread over 11 packages (Table
+\ref{tab:software-comparison}), and no one of those packages has more than
+8 of them. Each has its own arguments and its own kind of
+result: an \texttt{htest} object from one function, a \texttt{chisqTest} object or an
+\texttt{anova} table from another, a bare vector of p-values from a third. Comparing
+two tests therefore means installing, learning, and reconciling two packages,
+and the work is repeated after the first rejection, when the model has been
+adjusted and has to be examined again.
+
 \CRANpkg{heteroTests} addresses this software problem. It provides individual
 diagnostic functions, a registry that supports common orchestration, and a
 higher-level execution layer that normalises model and data inputs before
@@ -43,12 +56,22 @@ diagnostics easier to combine, tidy, inspect, and pass through automated
 workflows.
 
 The package does not propose that a single omnibus procedure should replace
-method-specific judgement. Nor does it claim statistical novelty merely by
-wrapping established tests. Its contribution is an execution and integration
-layer around heterogeneous diagnostics: consistent inputs and outputs, a
-registry for extension, batch execution, grouped-data handling, caching,
-ecosystem adapters, and memory-bounded implementations of selected
-auxiliary-regression tests.
+method-specific judgement, and it does not introduce a new test statistic: the
+procedures are established ones. Its contribution is the software around them.
+The package implements the 28 procedures in Table
+\ref{tab:procedures}. Those that need only a model and its data share one
+calling convention and one result class, so the set chosen for an analysis
+runs in one call and is reported in one table. Around that sit a registry for
+extension, grouped-data handling, caching, ecosystem adapters, and
+memory-bounded implementations of selected auxiliary-regression tests.
+
+Choosing among the procedures remains the analyst's decision, and the package
+supports it with evidence instead of an automatic rule. Table
+\ref{tab:procedures} arranges the procedures by the question each one asks
+about the variance. The validation study installed with the package runs every
+test under a null and an alternative design, and the simulation study in this
+article examines four of them in detail, so that statements such as which
+tests keep their level under heavy-tailed errors are measured and not assumed.
 
 A second design goal is to avoid making scalability a separate user workflow.
 For supported diagnostics, \texttt{runHeteroTests()} estimates the size of the supplied
@@ -58,12 +81,18 @@ The streaming procedures accumulate the cross-products required by the
 auxiliary regression rather than materialising its full design matrix. This
 preserves the statistic while reducing peak memory use.
 
+A third is to keep the diagnostics meaningful after a model has been adjusted
+for heteroscedasticity. Tests applied to a weighted fit are computed on the
+weighted scale, where they ask whether the weights are adequate, and the
+variance function used to construct feasible weights can be tested as a null
+hypothesis in its own right.
+
 The remainder of the article evaluates these design choices rather than
 re-deriving the underlying tests. The next section describes the package
 architecture and execution model. Later sections validate results against
 reference implementations where possible, study empirical size and power under
 controlled simulations, benchmark computational scaling, and demonstrate an
-end-to-end diagnostic workflow.
+end-to-end diagnostic workflow on simulated and on observed data.
 
 \section{Package design}\label{package-design}
 
@@ -79,6 +108,46 @@ Individual procedures retain explicit names such as \texttt{performWhiteTest()},
 the diagnostic operation visible while avoiding namespace collisions with
 established functions in other packages.
 
+Table \ref{tab:procedures} lists the procedures by the question each one asks
+about the error variance, which is also the first thing to settle when
+choosing one. A name in code font is the name under which \texttt{runHeteroTests()}
+runs the procedure. The others are called directly, most of them because they
+need an ordering or grouping variable that a batch call cannot supply.
+Streaming versions of the White, Breusch--Pagan, and Koenker tests are
+provided in addition, as are diagnostics for the mean function, collinearity,
+and influential observations.
+
+\begin{table}[!t]
+
+\caption{\label{tab:procedures}Procedures implemented in heteroTests, arranged by the question each one asks about the error variance. Names in code font are those accepted by runHeteroTests().}
+\centering
+\begin{tabular}[t]{>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{8.4cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{8.4cm}}
+\toprule
+Question about the error variance & Procedures\\
+\midrule
+Does it depend on the regressors, in a form not specified in advance? & White (\texttt{white})\\
+\addlinespace
+Does it rise or fall with the regressors, a named variable, or the fitted values? & Breusch--Pagan (\texttt{breusch\_pagan}); Koenker's studentized form (\texttt{koenker}, \texttt{student\_bp}); Cook--Weisberg score test (\texttt{cook\_weisberg}, \texttt{ncv}); Harvey; Glejser; Park; Davidian--Carroll; Spearman rank correlation; spread-level (\texttt{spread\_level})\\
+\addlinespace
+Does it change along an ordering of the observations? & Goldfeld--Quandt; Szroeter (\texttt{szroeter}); rank permutation (\texttt{rank\_permutation})\\
+\addlinespace
+Does it differ between groups? & Bartlett; Levene; Brown--Forsythe; Fligner--Killeen; Hartley; O'Brien; Box's M for covariance matrices\\
+\addlinespace
+Does it cluster in time? & Engle's ARCH LM; McLeod--Li\\
+\addlinespace
+Does it cluster in space? & Moran's I of the squared residuals (\texttt{spatial\_hetero})\\
+\addlinespace
+Is the asymptotic reference distribution in doubt? & wild bootstrap of the Breusch--Pagan statistic (\texttt{wild\_bootstrap}); bootstrap of White's statistic (\texttt{white\_bootstrap})\\
+\addlinespace
+Are there nearly as many regressors as observations? & projection-based score test (\texttt{high\_dimensional})\\
+\addlinespace
+Do the regression slopes differ between conditional quantiles? & quantile-regression slope test (\texttt{quantile\_regression})\\
+\addlinespace
+Do the weights of a weighted fit follow the right variance function? & variance-function test (\texttt{variance\_form})\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 Most hypothesis-test functions return standard R \texttt{htest} objects. When a
 result is used through the orchestration layer, \CRANpkg{heteroTests} decorates it
 with the \texttt{hetero\_test} class and attaches metadata identifying the diagnostic,
@@ -92,6 +161,15 @@ implements \texttt{tidy()}, \texttt{glance()}, and \texttt{augment()} methods th
 \CRANpkg{generics}; suite-level methods combine individual results into data
 frames suitable for reporting or subsequent analysis. This design avoids
 requiring each underlying diagnostic to expose the same internal computation.
+
+The package also draws what it tests. A family of functions that includes
+\texttt{plotResidualsFitted()} and \texttt{plotSpreadLevel()} gives the usual residual
+displays for a fitted model, with a weighted fit shown on its weighted scale.
+\texttt{plotBeforeAfter()} sets the residuals of a model beside those of its
+remedy, and the \texttt{autoplot()} method for a suite draws the evidence of each test
+against a chosen level. All of them return \CRANpkg{ggplot2} objects, which can
+be modified or combined like any other. The last two are used in the worked
+examples below.
 
 \subsection{Registry-based orchestration}\label{registry-based-orchestration}
 
@@ -127,6 +205,9 @@ runHeteroTests(
 )
 \end{verbatim}
 
+The four names in this call are examples. Any name shown in code font in Table
+\ref{tab:procedures} can be requested in the same way.
+
 A small default set is intentional. Running many diagnostics automatically would
 blur the distinction between exploratory screening and a test chosen because
 its assumptions and alternative hypothesis are appropriate for the model.
@@ -146,9 +227,12 @@ result is returned as a \texttt{hetero\_grouped\_suite}, together with the group
 The package therefore treats grouping as a set of separate modelling problems,
 rather than applying one global residual vector to pre-partitioned data.
 
-The input layer also accepts \texttt{data.table} and \texttt{dtplyr}-backed data and
-provides dedicated support for survey designs. These adapters are not intended
-to redefine the statistical meaning of the underlying diagnostics; they reduce
+The input layer also accepts \texttt{data.table} and \texttt{dtplyr}-backed data, and
+\texttt{runSurveyHeteroTests()} takes the data out of a survey design object. That
+function does not use the sampling weights, strata, or clusters of the design:
+its results are those of the unweighted diagnostics. These adapters are not
+intended to redefine the statistical meaning of the underlying diagnostics;
+they reduce
 the amount of conversion code required before a supported model can enter the
 same diagnostic pipeline.
 
@@ -206,6 +290,44 @@ configured threshold is exceeded. The threshold and chunk size remain user
 controls, so the same API can be used for both ordinary in-memory and
 memory-constrained analyses.
 
+\subsection{Weighted fits and variance functions}\label{weighted-fits-and-variance-functions}
+
+Two design decisions concern models that have already been adjusted for
+heteroscedasticity. The first is what a diagnostic should compute for a fit
+obtained with \texttt{lm(...,\ weights\ =\ w)}. Such a fit asserts that the error
+variance is proportional to \(1/w_i\), so its raw residuals are
+heteroscedastic by assumption and a statistic computed from them cannot show
+whether the weights are adequate. For weighted fits the diagnostics therefore
+use the Pearson residuals, the raw residuals multiplied by the square roots of
+their weights. These are the residuals of the equivalent unweighted regression
+and have constant variance when the weights are correct, so the null
+hypothesis becomes that the weights are adequate. Variance regressors,
+grouping variables, and ordering variables remain on their original scale.
+Procedures that regenerate the response and refit the mean model, such as the
+resampling tests, would discard the weights; for a weighted fit they stop with
+an error instead of testing a different model.
+
+The second decision is to make the variance model used for remediation
+explicit and testable. \texttt{fitWLS()} estimates a variance function from the OLS
+residuals and refits by feasible weighted least squares. Its \texttt{var\_formula}
+argument names the variance regressors, and \texttt{form} selects an exponential
+function, in which the log variance is linear in those regressors
+\citep{harvey1976estimating}, or a power function, in which it is linear in their
+logarithms \citep{park1966estimation}. The fitted function is stored with the
+returned model.
+
+\texttt{performVarianceFormTest()} takes such a function as its null hypothesis. The
+other diagnostics test constant variance, so a rejection shows that the
+variance changes with some variables but not whether a particular functional
+form describes the change. The variance-function test regresses the squared
+standardised residuals of the weighted fit on the variance regressors and on
+additional terms, by default the squares and cross-products of those
+regressors, and reports the \(F\) test of the additional terms. It is a
+regression-based specification test
+\citep{wooldridge1990unified, wooldridge1991application}. Retaining the variance
+regressors in the auxiliary regression removes the first-order effect of
+having estimated the variance function from the same residuals.
+
 \section{Validation strategy}\label{validation-strategy}
 
 The validation strategy is organised around the claim being checked rather than
@@ -232,6 +354,16 @@ variance procedures are also compared with base R implementations for Bartlett
 and Fligner--Killeen tests and, where available, with \CRANpkg{vartest} for
 Hartley and O'Brien procedures.
 
+Weighted fits show why the choice of reference matters. For a model fitted
+with weights, \texttt{car::ncvTest()} computes its score statistic from Pearson
+residuals, whereas \texttt{lmtest::bptest()} retains the raw residuals and weights
+the auxiliary regression. The two functions therefore test different
+hypotheses, and only the first asks whether the weights are adequate.
+\textbackslash CRANpkg\{heteroTests\} follows the Pearson-residual convention described
+earlier. On weighted fits its score test is compared with \textbackslash CRANpkg\{car\}, and
+its Goldfeld--Quandt test with \texttt{lmtest::gqtest()} applied to the equivalent
+transformed regression.
+
 These comparisons use explicit numerical tolerances in the automated test
 suite. The tolerance depends on the implementation pair: some functions match
 to floating-point equality, while others are checked within a small numerical
@@ -246,7 +378,7 @@ second group of tests reconstructs the claimed statistic directly from its
 published definition or from lower-level base-R operations.
 
 Examples include the Cook--Weisberg score statistic \citep{cook1983detection},
-Harvey's multiplicative-variance LM statistic \citep{harvey1976estimating},
+Harvey's LM statistic for multiplicative variance \citep{harvey1976estimating},
 Szroeter's ordered-variance statistic, Engle's ARCH LM statistic
 \citep{engle1982autoregressive}, and the McLeod--Li procedure \citep{mcleod1983diagnosis}, which is checked
 against a Ljung--Box calculation on squared residuals. The same approach is
@@ -268,6 +400,18 @@ classical procedures have empirical Type-I error close to the nominal level,
 using a tolerance based on the Monte Carlo standard error rather than a fixed
 arbitrary margin.
 
+The same principle covers weighted fits. When heteroscedastic data are fitted
+with the correct weights, a diagnostic should reject at its nominal rate. This
+property has to be tested by simulation, because no comparison on unweighted
+fits can reveal it: before version 0.12.0 the heteroscedasticity diagnostics
+read the raw residuals of a weighted fit, agreed with their references on
+every unweighted comparison, and rejected a correctly weighted model in every
+replication of the package's validation design. In the current version the
+32 procedures that accept a weighted fit reject between
+2\% and
+8\% of such models at the 5\% level,
+based on 400 replications each.
+
 Resampling procedures receive separate checks because an apparently plausible
 implementation can still produce invalid p-values. Bootstrap and permutation
 p-values use the finite-simulation convention
@@ -280,8 +424,8 @@ p-values use the finite-simulation convention
 which prevents an estimated p-value of exactly zero and accounts for failed
 replicates through the effective number of simulations. Null-imposed residual
 resampling is also checked for leverage correction, while unsupported model
-classes or transformed responses are rejected rather than silently refitted
-under a different statistical model.
+classes, weighted fits, and transformed responses are rejected rather than
+silently refitted under a different statistical model.
 
 Finally, the streaming implementations are compared directly with their
 ordinary in-memory counterparts. For White, Breusch--Pagan, and Koenker tests,
@@ -292,10 +436,10 @@ diagnostic.
 
 \subsection{Reproducibility of the evidence}\label{reproducibility-of-the-evidence}
 
-The article does not hard-code validation numbers from earlier package
-versions. Reference comparisons and behavioural checks live in the package test
-suite, while empirical size, power, and performance results reported later in
-the paper are regenerated from the version analysed by the manuscript. This
+The article does not hard-code validation numbers. Reference comparisons and
+behavioural checks live in the package test suite, while the empirical size,
+power, and performance results reported later are read at render time from
+recorded runs, each identified by package version, environment, and seed. This
 separation is intentional. Unit and reference tests answer whether an
 implementation is computing the intended object; simulation and benchmark
 sections answer how those procedures behave under selected data-generating
@@ -329,6 +473,13 @@ each Monte Carlo replication the same simulated data set is supplied to all
 diagnostics, so differences in rejection rates are not inflated by using
 different random samples for different tests.
 
+The design is deliberately minimal. With a single regressor, each variance
+pattern is a function of one variable and can be written down exactly. A
+regressor that is uniform on the unit interval produces no high-leverage
+observations, so differences between the tests are not driven by a few points.
+The intercept and slope are immaterial: all four statistics are computed from
+least-squares residuals, which do not depend on the regression coefficients.
+
 The study includes White, classical Breusch--Pagan, Koenker, and a two-sided
 Goldfeld--Quandt test ordered by \(x\). These procedures represent different
 ways of detecting variance structure: general auxiliary-regression expansion,
@@ -338,7 +489,10 @@ normality, and an ordered two-sample variance comparison.
 \subsection{Empirical size}\label{empirical-size}
 
 Empirical size is estimated under \(\sigma(x)=1\) for sample sizes
-\(n\in\{50,100,250\}\). Two error distributions are considered: Gaussian
+\(n\in\{50,100,250\}\). The smallest is one at which the asymptotic
+reference distributions of these tests are in doubt, the largest one at which
+they should be adequate if they are going to be, and the middle value shows
+how quickly they improve. Two error distributions are considered: Gaussian
 errors and Student \(t_5\) errors rescaled to unit variance. The heavier-tailed
 case is included because agreement with a reference implementation does not
 imply that an asymptotic approximation is well calibrated under non-normal
@@ -352,30 +506,41 @@ Monte Carlo standard error
   = \sqrt{\frac{\widehat p(1-\widehat p)}{B_{\mathrm{eff}}}},
 \]
 
-where \(B_{\mathrm{eff}}\) is the number of valid replications. Approximate
-95\% Monte Carlo intervals are reported as
+where \(B_{\mathrm{eff}}\) is the number of valid replications. An
+approximate 95\% Monte Carlo interval is
 \(\widehat p \pm 1.96\operatorname{MCSE}(\widehat p)\), truncated to
-\([0,1]\). These intervals quantify simulation uncertainty; they are not
-confidence intervals for a population parameter estimated from observed data.
+\([0,1]\). Such an interval quantifies simulation uncertainty; it is not a
+confidence interval for a population parameter estimated from observed data.
 
 \subsection{Power alternatives}\label{power-alternatives}
 
-Power is studied under three variance patterns with Gaussian errors:
+Power is studied under three patterns for the error standard deviation, with
+Gaussian errors:
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{linear:} variance scale increases monotonically with \(x\);
+  \textbf{linear:} \(\sigma(x)\propto 0.5+x\), which increases monotonically with
+  \(x\);
 \item
-  \textbf{step:} the variance changes abruptly at \(x=0.5\);
+  \textbf{step:} \(\sigma(x)\propto 0.5\) for \(x<0.5\) and \(1.5\) otherwise, an
+  abrupt change at the midpoint;
 \item
-  \textbf{U-shaped:} variance is smallest near the centre of the covariate range and
-  increases toward both extremes.
+  \textbf{U-shaped:} \(\sigma(x)\propto 0.35+2(x-0.5)^2\), smallest at the centre
+  of the covariate range and increasing toward both extremes.
 \end{itemize}
+
+The three were chosen to differ in kind, not in size. In the first two the
+standard deviation triples across the range of \(x\), once gradually and once
+at a single point; in the third it is about two and a half times larger at the
+ends than in the middle, with no overall trend.
 
 For each pattern, an effect-strength parameter
 \(\gamma\in\{0.25,0.50,0.75,1.00\}\) interpolates between constant
-variance and the target profile. The resulting standard-deviation vector is
+variance, which would be \(\gamma=0\), and the full pattern at
+\(\gamma=1\). The four equally spaced values trace the power curve between
+the two; the results reported below are for \(\gamma=1\). The resulting
+standard-deviation vector is
 renormalised to unit root-mean-square scale. Consequently, increasing
 \(\gamma\) changes the \emph{shape} of heteroscedasticity without simply changing
 the overall noise magnitude. This avoids the common error of calling a global
@@ -390,8 +555,9 @@ than to identify a universally dominant diagnostic.
 \subsection{Reproducible experiment}\label{reproducible-experiment}
 
 The complete experiment is implemented in
-\texttt{paper/scripts/simulation\_study.R}. The manuscript run uses an explicit seed and
-writes both results and simulation metadata to \texttt{paper/generated/}:
+\texttt{paper/scripts/simulation\_study.R}. The manuscript run uses the seed 20261007,
+which is set once at the start of the script, and writes both results and
+simulation metadata to \texttt{paper/generated/}:
 
 \begin{verbatim}
 system2(
@@ -409,11 +575,16 @@ that the estimated rejection rates are exact.
 Numerical results and figures are intentionally read from committed extracts of
 the successful workflow artifact rather than copied from earlier drafts. The
 full experiment used \texttt{heteroTests} 0.11.2 under R 4.6.1 on Ubuntu 24.04.5;
-the workflow and artifact identifiers are recorded in
-\texttt{paper/generated/PROVENANCE.md}.
+the workflow and artifact identifiers are recorded in the file
+\texttt{PROVENANCE.md} under \texttt{paper/generated/}. Version 0.12.0, which the rest of
+the article
+describes, changes these four procedures only for weighted fits. The study
+fits unweighted models, and a rerun of the full experiment under 0.12.0
+reproduced every rejection rate in those extracts exactly.
 
 \subsection{Simulation results}\label{simulation-results}
 
+Table \ref{tab:size-results} reports the empirical size in every design cell.
 Under Gaussian errors, all four procedures remain close to the nominal 5\%
 level across the three sample sizes. At \(n=100\), for example, rejection
 rates range from
@@ -433,26 +604,23 @@ respectively. Thus the simulation reproduces the practical reason for keeping
 the studentized and more general procedures distinct from their
 normality-sensitive counterparts.
 
-Table \ref{tab:size-results} reports the middle sample size for both error
-distributions; the complete size grid is stored in the generated CSV.
-
 \begin{table}
 
-\caption{\label{tab:size-results}Empirical size at n = 100 with 2,000 Monte Carlo replications. Bounds are approximate 95\% Monte Carlo intervals.}
+\caption{\label{tab:size-results}Empirical size: percentage of rejections at the 5\% level under constant variance, from 2,000 Monte Carlo replications per cell. Monte Carlo standard errors lie between 0.4 and 0.9 percentage points.}
 \centering
-\begin{tabular}[t]{lllrrr}
+\begin{tabular}[t]{llrrr}
 \toprule
-  & Error & Test & Rejection (\%) & MC lower (\%) & MC upper (\%)\\
+Errors & Test & n = 50 & n = 100 & n = 250\\
 \midrule
-5 & gaussian & Breusch-Pagan & 4.85 & 3.91 & 5.79\\
-6 & gaussian & Goldfeld-Quandt & 5.80 & 4.78 & 6.82\\
-7 & gaussian & Koenker & 5.15 & 4.18 & 6.12\\
-8 & gaussian & White & 4.65 & 3.73 & 5.57\\
-17 & t5 & Breusch-Pagan & 18.15 & 16.46 & 19.84\\
+Gaussian & Breusch-Pagan & 5.30 & 4.85 & 5.05\\
+Gaussian & Goldfeld-Quandt & 5.55 & 5.80 & 5.35\\
+Gaussian & Koenker & 5.10 & 5.15 & 4.90\\
+Gaussian & White & 4.55 & 4.65 & 5.05\\
 \addlinespace
-18 & t5 & Goldfeld-Quandt & 19.50 & 17.76 & 21.24\\
-19 & t5 & Koenker & 4.30 & 3.41 & 5.19\\
-20 & t5 & White & 3.85 & 3.01 & 4.69\\
+Student t5 & Breusch-Pagan & 14.70 & 18.15 & 19.60\\
+Student t5 & Goldfeld-Quandt & 16.55 & 19.50 & 22.65\\
+Student t5 & Koenker & 4.75 & 4.30 & 4.20\\
+Student t5 & White & 4.50 & 3.85 & 4.40\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -555,7 +723,9 @@ system2("Rscript", "paper/scripts/summarise_performance.R")
 
 The manuscript does not use the retired \texttt{scaling\_plot.pdf} as evidence. The
 reported performance results were generated from \texttt{heteroTests} 0.11.2 under
-R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance.
+R 4.6.1 on Ubuntu 24.04.5 and are preserved with workflow provenance. They
+were not regenerated for version 0.12.0, whose changes to the benchmarked
+procedures are confined to the handling of weighted fits.
 
 \subsection{Performance results}\label{performance-results}
 
@@ -612,8 +782,9 @@ approximate test.
 
 The previous sections treat diagnostics as statistical and computational
 objects. This section shows how the package is intended to be used in an
-analysis: diagnose a specific model, interpret the evidence, and choose a
-follow-up whose assumptions match the variance pattern.
+analysis: diagnose a specific model, interpret the evidence, choose a
+follow-up whose assumptions match the variance pattern, and check the variance
+model that the follow-up relies on.
 
 A controlled example is useful here because the correct mean and variance
 structures are known. We generate
@@ -627,7 +798,8 @@ structures are known. We generate
 with \(x_i\sim U(-1,1)\). The mean model is therefore correctly specified as
 linear, while the log variance is linear in the same predictor. This is a case
 where feasible weighted least squares is an interpretable follow-up rather than
-a generic attempt to make a diagnostic p-value disappear.
+a generic attempt to make a diagnostic p-value disappear. The same steps are
+then applied to observed data, where the answer is not known in advance.
 
 \begin{verbatim}
 set.seed(20261008)
@@ -731,7 +903,9 @@ Here the data-generating mechanism makes a variance model appropriate. The
 \texttt{fitWLS()} helper estimates a feasible-GLS model by regressing logged squared
 OLS residuals on the original design matrix, exponentiating the fitted
 log-variance, and using its inverse as the weight. It does not invert individual
-squared residuals.
+squared residuals. This is the default, exponential variance function; the
+\texttt{var\_formula} and \texttt{form} arguments select other variance regressors or a power
+function.
 
 \begin{verbatim}
 wls_fit <- fitWLS(ols_fit)
@@ -800,6 +974,13 @@ residuals to have constant spread. If the fitted variance is
 
 A useful before/after check therefore compares the OLS residuals with these
 weighted residuals, not the raw residuals from the weighted fit.
+\texttt{plotBeforeAfter()} draws that comparison, using the weighted residuals for a
+weighted fit (Figure \ref{fig:workflow-weighted-residuals}).
+
+\begin{verbatim}
+plotBeforeAfter(ols_fit, wls_fit) +
+  ggplot2::labs(title = NULL)
+\end{verbatim}
 
 \begin{figure}
 
@@ -807,7 +988,7 @@ weighted residuals, not the raw residuals from the weighted fit.
 
 }
 
-\caption{Residual spread before and after variance modelling. The WLS panel shows residuals on the weighted scale.}\label{fig:workflow-weighted-residuals}
+\caption{Residuals of the OLS fit and of the feasible WLS fit against their fitted values, as drawn by plotBeforeAfter(). The second panel is on the weighted scale, and each panel has its own axes.}\label{fig:workflow-weighted-residuals}
 \end{figure}
 
 For a compact numerical summary, the correlation between residual magnitude and
@@ -819,6 +1000,106 @@ on the weighted WLS scale. This is only a descriptive check, but it shows what
 the remediation is intended to accomplish: account for a systematic variance
 pattern while retaining the same linear mean specification.
 
+\subsection{Check the variance model}\label{check-the-variance-model}
+
+The weighted scale is also the one the package's diagnostics use for a
+weighted fit, so the same suite can be applied to \texttt{wls\_fit} directly. Table
+\ref{tab:workflow-retest-table} sets the resulting statistics beside those of
+the OLS fit.
+
+\begin{verbatim}
+wls_tests <- runHeteroTests(
+  wls_fit,
+  workflow_data,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+\end{verbatim}
+
+\begin{table}
+
+\caption{\label{tab:workflow-retest-table}Diagnostic statistics for the OLS fit and for the feasible WLS fit, the latter computed from weighted residuals.}
+\centering
+\begin{tabular}[t]{lrr}
+\toprule
+Diagnostic & OLS fit & Feasible WLS fit\\
+\midrule
+White & 123.240 & 0.190\\
+Breusch-Pagan & 185.398 & 0.113\\
+Koenker & 103.212 & 0.144\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All three statistics fall by more than two orders of magnitude. They are
+useful for this comparison, but their p-values should not be read as
+calibrated tests of the weighted model. The reference distributions treat the
+weights as known, whereas \texttt{fitWLS()} estimated them from the same residuals.
+In the validation study installed with the package, with a correctly specified
+variance function and Gaussian errors, the Koenker test applied to a
+\texttt{fitWLS()} fit rejected
+8\%
+of the time at the 5\% level with 150 observations and
+11\%
+with 600, so the discrepancy does not shrink as the sample grows. Harvey's
+test, which repeats the regression the weights were estimated from, rejected
+0\%
+of the time with 600 observations.
+
+\texttt{performVarianceFormTest()} is designed for this situation. Its null
+hypothesis is the variance function that produced the weights, and in the same
+validation designs it rejected
+5\%
+of the time with 150 observations and
+5\%
+with 600. Applied to \texttt{wls\_fit}, it tests the fitted exponential function
+against the square of the variance regressor. Two further calls test a
+deliberately incomplete variance function, which contains only a quadratic
+term, first against its default added term and then against the linear term it
+omits.
+
+\begin{verbatim}
+variance_check <- performVarianceFormTest(wls_fit)
+
+quadratic_default <- performVarianceFormTest(
+  ols_fit,
+  var_formula = ~ I(x^2)
+)
+quadratic_against_x <- performVarianceFormTest(
+  ols_fit,
+  var_formula = ~ I(x^2),
+  against = ~ x
+)
+\end{verbatim}
+
+\begin{table}
+
+\caption{\label{tab:workflow-variance-form-table}Variance-function tests for the worked example. Each row tests a log-variance that is linear in the listed regressor against the listed added term.}
+\centering
+\begin{tabular}[t]{llrl}
+\toprule
+Variance regressor & Added term & F & p-value\\
+\midrule
+x & x squared & 0.046 & 0.831\\
+x squared & x to the fourth power & 0.014 & 0.906\\
+x squared & x & 124.598 & <0.001\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table \ref{tab:workflow-variance-form-table} reports the three tests. The
+first row is the function \texttt{fitWLS()} fitted. The test finds no evidence
+against it, and the estimated slope of the log variance is
+1.68
+against a true value of 1.8. The other two rows show what such a result does
+and does not establish. The quadratic-only function omits the linear
+dependence that generated the data, yet it is not rejected when tested against
+its default added term, because the misfit does not lie in that direction.
+Tested against the omitted linear term, it is rejected decisively. The test has power against the terms it is given; a
+non-rejection is evidence that those terms are not needed, not that the
+functional form is correct.
+
 A different inferential goal would lead to a different follow-up. If the
 coefficient estimates were the primary target and no variance model were
 scientifically justified, heteroscedasticity-consistent covariance estimation
@@ -827,29 +1108,154 @@ mean-model misspecification should be addressed before treating the variance
 alone. The diagnostic layer is therefore a decision point in the modelling
 workflow, not an instruction to apply WLS after every rejected null.
 
+\subsection{The same steps on observed data}\label{the-same-steps-on-observed-data}
+
+The controlled example has a known answer. Observed data do not, and the same
+steps then end in a choice instead of a confirmation. The \texttt{cats} data in
+\CRANpkg{MASS} \citep{venables2002modern} record the body weight, in kilograms, and
+the heart weight, in grams, of 144 adult cats
+\citep{fisher1947analysis}. Heart weight is regressed on body weight.
+
+\begin{verbatim}
+cats <- MASS::cats
+cats_fit <- stats::lm(Hwt ~ Bwt, data = cats)
+
+cats_tests <- runHeteroTests(
+  cats_fit,
+  cats,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+\end{verbatim}
+
+\begin{table}
+
+\caption{\label{tab:cats-table}Heteroscedasticity diagnostics for the regression of heart weight on body weight in the cats data.}
+\centering
+\begin{tabular}[t]{lrrl}
+\toprule
+Diagnostic & Statistic & df & p-value\\
+\midrule
+White & 16.975 & 2 & <0.001\\
+Breusch-Pagan & 10.440 & 1 & 0.001\\
+Koenker & 9.529 & 1 & 0.002\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All three tests reject constant variance (Table \ref{tab:cats-table}): the
+heart weights of the heavier cats are more variable.
+
+The data also record the sex of each cat. Passing the formula with the data
+grouped by sex, here with \CRANpkg{dplyr}, fits the model and runs the tests
+within each group, and \texttt{autoplot()} draws the result.
+
+\begin{verbatim}
+cats_by_sex <- runHeteroTests(
+  Hwt ~ Bwt,
+  dplyr::group_by(cats, Sex),
+  tests = c("white", "breusch_pagan", "koenker"),
+  progress = FALSE
+)
+
+ggplot2::autoplot(cats_by_sex) +
+  ggplot2::labs(title = NULL, subtitle = NULL)
+\end{verbatim}
+
+\begin{figure}
+
+{\centering \includegraphics[width=\linewidth]{heteroTests_files/figure-latex/cats-by-sex-1} 
+
+}
+
+\caption{The three tests applied separately to female and male cats, as drawn by autoplot(). A bar that passes the dashed line has a p-value below 0.05.}\label{fig:cats-by-sex}
+\end{figure}
+
+Among the 97 males all three tests reject, and among the
+47 females none does (Figure \ref{fig:cats-by-sex}). The females
+are fewer and lighter, with body weights between 2 and
+3 kg against 2 to
+3.9 kg for the males. The figure therefore locates the
+evidence in the part of the data where the spread has room to change. It does
+not show that the two sexes differ in kind.
+
+For the pooled regression two remedies are available, and the package can
+examine both.
+
+\begin{verbatim}
+cats_wls <- fitWLS(cats_fit)
+cats_exponential <- performVarianceFormTest(cats_wls)
+cats_power <- performVarianceFormTest(fitWLS(cats_fit, form = "power"))
+
+cats_log_fit <- stats::lm(log(Hwt) ~ log(Bwt), data = cats)
+cats_log_tests <- runHeteroTests(
+  cats_log_fit,
+  cats,
+  tests = c("white", "breusch_pagan", "koenker"),
+  use_cache = FALSE,
+  progress = FALSE
+)
+\end{verbatim}
+
+The first keeps the model and changes the weights. The exponential variance
+function fitted by \texttt{fitWLS()} is not rejected
+(\(F=1.52\), \(p=0.22\)), and neither is a power function
+(\(F=1.36\), \(p=0.25\)). Body weights in these data run from
+2 to 3.9 kg, and over that range the two functions
+are too close for 144 observations to separate, which is the
+limitation of the variance-function test noted above. The weighted fit moves
+the slope from 4.03 to
+3.86 grams per kilogram.
+
+The second remedy changes the model. On the logarithmic scale the slope is
+1.01, so heart weight is close to
+proportional to body weight, and none of the three tests rejects (p-values
+between 0.52 and
+0.57). Which of the two descriptions to prefer
+is not a question the diagnostics answer. It depends on whether the analysis
+needs the relationship on the original scale or accepts an error that is
+proportional to the response.
+
 \section{Comparison with existing R software}\label{comparison-with-existing-r-software}
 
 The package is best understood as an integration layer around a heterogeneous
 set of diagnostics, not as a replacement for the specialised packages from
 which several reference implementations are drawn. Table
-\ref{tab:software-comparison} summarises the roles most relevant to the
-workflow in this article.
+\ref{tab:software-comparison} shows how those diagnostics are distributed:
+21 of the 28 procedures in Table
+\ref{tab:procedures} have a counterpart in one of 11 other
+packages.
 
-\begin{table}
+\begin{table}[!t]
 
-\caption{\label{tab:software-comparison}Roles of selected R packages used directly or as reference points in the heteroTests workflow.}
+\caption{\label{tab:software-comparison}Where the procedures implemented in heteroTests are found in other R packages, with the functions that provide them. For Spearman's correlation and Moran's I the function is the general test, which the analyst applies to the residuals.}
 \centering
-\begin{tabular}[t]{llll}
+\begin{tabular}[t]{l>{\raggedright\arraybackslash}p{5.8cm}>{\raggedright\arraybackslash}p{4.6cm}l>{\raggedright\arraybackslash}p{5.8cm}>{\raggedright\arraybackslash}p{4.6cm}l>{\raggedright\arraybackslash}p{5.8cm}>{\raggedright\arraybackslash}p{4.6cm}}
 \toprule
-Package & Primary role & Examples & Role in this workflow\\
+Package & Procedures & Functions\\
 \midrule
-stats & General statistical infrastructure & Bartlett; Fligner-Killeen & Reference implementations for classical group tests\\
-lmtest & Regression specification and diagnostic tests & Breusch-Pagan; Goldfeld-Quandt & Established regression-test implementations\\
-car & Regression diagnostics and companion methods & NCV/Cook-Weisberg; Levene & Established regression and group diagnostics\\
-vartest & Tests for equality of variances & Hartley; O'Brien & Specialised group-variance procedures\\
-sandwich & Robust covariance estimation & HC covariance estimators & Post-diagnostic robust inference\\
+stats & Bartlett; Fligner--Killeen; Spearman rank correlation & \texttt{bartlett.test}, \texttt{fligner.test}, \texttt{cor.test}\\
 \addlinespace
-heteroTests & Heteroscedasticity diagnostic orchestration & Unified tests; suites; streaming & Common API, metadata, adapters and batch execution\\
+lmtest & Breusch--Pagan; Koenker's studentized form; Goldfeld--Quandt & \texttt{bptest}, \texttt{gqtest}\\
+\addlinespace
+car & Cook--Weisberg score test; Levene; Brown--Forsythe & \texttt{ncvTest}, \texttt{leveneTest}\\
+\addlinespace
+skedastic & White; Breusch--Pagan; Koenker's studentized form; Cook--Weisberg score test; Harvey; Glejser; Goldfeld--Quandt; Szroeter & \texttt{white}, \texttt{breusch\_pagan}, \texttt{cook\_weisberg}, \texttt{harvey}, \texttt{glejser}, \texttt{goldfeld\_quandt}, \texttt{szroeter}\\
+\addlinespace
+whitestrap & White; bootstrap of White's statistic & \texttt{white\_test}, \texttt{white\_test\_boot}\\
+\addlinespace
+vartest & Bartlett; Levene; Fligner--Killeen; Hartley; O'Brien & \texttt{bartletts.test}, \texttt{levene.test}, \texttt{fk.test}, \texttt{hartley.test}, \texttt{obrien.test}\\
+\addlinespace
+heplots & Box's M for covariance matrices & \texttt{boxM}\\
+\addlinespace
+FinTS & Engle's ARCH LM & \texttt{ArchTest}\\
+\addlinespace
+TSA & McLeod--Li & \texttt{McLeod.Li.test}\\
+\addlinespace
+spdep & Moran's I of the squared residuals & \texttt{moran.mc}\\
+\addlinespace
+quantreg & quantile-regression slope test & \texttt{anova.rq}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -883,6 +1289,40 @@ kinds of diagnostics must be combined with others.
 implementations against \CRANpkg{vartest} where that package is available. For an
 analysis centred specifically on group-variance testing, the specialised
 package remains a natural direct interface.
+
+\CRANpkg{skedastic} is the closest in scope. It is devoted to
+heteroskedasticity in the linear regression model and collects 25 tests,
+several of which \CRANpkg{heteroTests} does not implement, together with
+auxiliary variance models, feasible weighted least squares, and
+heteroskedasticity-consistent covariance estimators. All of its tests are
+tests for a single linear regression model. The group-wise, time-series, and
+spatial procedures of Table \ref{tab:procedures} lie outside it, which is why
+an analysis that needs both still crosses a package boundary.
+
+The package also has a form of one of these tests for which we found no other
+R implementation. The test of \citet{glejser1969new} regresses the absolute
+residuals on a variance regressor, and its statistic has its nominal level
+when positive and negative errors are equally likely, and in general not
+otherwise \citep{godfrey1996some}. \citet{im2000robustifying} and \citet{machado2000glejser} gave
+a correction that removes the condition. \texttt{skedastic::glejser()} uses the
+absolute residuals as they are, and so does \texttt{performGlejserTest()} unless it
+is called with \texttt{robust\ =\ TRUE}, which applies the correction. The validation
+study installed with the package runs both forms of the package's test on
+skewed errors of constant variance, with 50 to
+1000 observations. At the 5\% level the uncorrected form rejects
+between 8.8\% and
+17.7\% of the time, and the corrected one
+between 4.6\% and
+5.9\%.
+
+The remaining packages in Table \ref{tab:software-comparison} each contribute
+one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for
+White's test and its bootstrap, \CRANpkg{heplots} for Box's M,
+\CRANpkg{FinTS} and \CRANpkg{TSA} for ARCH effects in time series,
+\CRANpkg{spdep} for spatial autocorrelation, and \CRANpkg{quantreg} for
+quantile regression. None of this is a defect of those packages. It is the
+reason that running, comparing, and reporting a set of tests chosen from
+different rows of Table \ref{tab:procedures} otherwise takes bridging code.
 
 \subsection{Detection and robust inference are different tasks}\label{detection-and-robust-inference-are-different-tasks}
 
@@ -971,8 +1411,9 @@ U-shaped alternative strongly favours White's more general auxiliary expansion.
 This does not establish White as uniformly preferable; it shows why a test
 chosen for an ordered or monotone variance alternative can have little power
 when the actual variance structure is non-monotone. A useful workflow therefore
-starts from a plausible variance mechanism, not from the desire to run the
-largest possible collection of tests.
+starts from a plausible variance mechanism, which is how Table
+\ref{tab:procedures} is organised, not from the desire to run the largest
+possible collection of tests.
 
 That point also limits how \texttt{runHeteroTests()} should be interpreted. The
 function is an orchestration mechanism, not a multiple-testing procedure.
@@ -1036,7 +1477,13 @@ Detecting non-constant variance does not determine the next model. The worked
 example uses feasible WLS because the simulated variance is log-linear in the
 model design, matching the variance model estimated by \texttt{fitWLS()}. In an
 observational analysis, that structure would need scientific or empirical
-justification.
+justification. \texttt{performVarianceFormTest()} supplies part of the empirical
+side by testing a fitted variance function against added terms, but it cannot
+confirm a functional form, and variance functions that are close over the
+observed range of the regressors will all be accepted. Diagnostics of
+constant variance applied to a \texttt{fitWLS()} fit remain informative for
+comparison with the original model; they are not calibrated tests, because
+they treat estimated weights as known.
 
 Other goals lead to different responses. Heteroscedasticity-consistent
 covariance estimation can preserve the original coefficient estimates while
@@ -1053,7 +1500,11 @@ The simulation study covers one linear mean model, three variance patterns,
 three sample sizes, two null error distributions, and four diagnostics. Its
 findings describe those designs; they are not an exhaustive power ranking. In
 particular, panel, spatial, clustered, high-dimensional, and time-series
-settings require separate evaluation.
+settings require separate evaluation. The rejection rates quoted for weighted
+fits and for the variance-function test come from the package's own validation
+study, which uses a different design, and are not part of that comparison. The
+example on observed data is a single data set: it illustrates the workflow and
+is not evidence about the tests.
 
 The performance study is likewise platform-specific. The reported timings and
 allocations come from one R version and one Linux Actions environment, with a
@@ -1077,7 +1528,9 @@ that one diagnostic should replace established specialised implementations.
 Instead, the package standardises execution and result handling, supports
 extensible batch workflows, records diagnostic context, validates selected
 implementations against independent references, and supplies memory-bounded
-paths for large auxiliary regressions.
+paths for large auxiliary regressions. It also follows an analysis past the
+first rejection: diagnostics of a weighted fit are computed on the weighted
+scale, and the variance function behind the weights can itself be tested.
 
 The empirical results support that narrower claim. Reference comparisons agree
 to numerical precision for the procedures evaluated. The simulation study
