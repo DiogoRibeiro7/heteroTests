@@ -637,7 +637,8 @@ Student t5 & White & 4.50 & 3.85 & 4.40\\
 \end{tabular}
 \end{table}
 
-Power depends strongly on the variance shape. At full effect strength and
+Power depends strongly on the variance shape (Figure
+\ref{fig:power-full-strength}). At full effect strength and
 \(n=100\), all four procedures have high power against the monotone linear
 alternative: the observed rejection rates range from
 89.2\%
@@ -755,7 +756,8 @@ for Koenker, and
 for NCV. The corresponding reference timings are retained in the generated
 benchmark table rather than collapsed into a single speed ratio.
 
-The streaming comparison gives a more direct software result. At
+The streaming comparison gives a more direct software result (Figure
+\ref{fig:streaming-memory}). At
 \(n=250{,}000\), measured allocation falls from
 198.0 MB
 to
@@ -832,7 +834,7 @@ ols_fit <- stats::lm(y ~ x, data = workflow_data)
 The example uses three regression-based diagnostics with complementary
 properties: White's general test, classical Breusch--Pagan, and Koenker's
 studentized form. They are selected explicitly rather than by running every
-available diagnostic.
+available diagnostic, and Table \ref{tab:workflow-diagnostics} reports them.
 
 \begin{verbatim}
 workflow_tests <- runHeteroTests(
@@ -917,7 +919,8 @@ OLS residuals on the original design matrix, exponentiating the fitted
 log-variance, and using its inverse as the weight. It does not invert individual
 squared residuals. This is the default, exponential variance function; the
 \texttt{var\_formula} and \texttt{form} arguments select other variance regressors or a power
-function.
+function. Table \ref{tab:workflow-wls} sets the coefficients of the two fits
+side by side.
 
 \begin{verbatim}
 wls_fit <- fitWLS(ols_fit)
