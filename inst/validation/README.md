@@ -51,6 +51,14 @@ test that remains.
 | `modified-wald-size-power.csv` | Its output, one row per block, reference distribution, error distribution and panel shape. |
 | `harrison-mccabe-size-power.R` | `performHarrisonMcCabeTest()` beside the Goldfeld-Quandt and Szroeter tests on the same ordering: its p-value on samples drawn given the design, its size under Gaussian and t5 errors and after a weighted fit, and its power. `Rscript inst/validation/harrison-mccabe-size-power.R`, with `N_MC`, `N_NULL` and `MC_CORES` overridable. |
 | `harrison-mccabe-size-power.csv` | Its output, one row per test, block, error distribution, sample size and level. |
+| `variance-form-dnvk-design.md` | Design note for the test of Dette, Neumeyer and Van Keilegom (2007), which the package does not export: the statistic, its scope, the bandwidth, and its relation to `performVarianceFormTest()`. |
+| `variance-form-dnvk-prototype.R` | A prototype of that test in plain R, sourced by the next two scripts. It defines functions only. |
+| `variance-form-dnvk-reproduction.R` | Tables 4.1 and 4.5 of the authors' submitted manuscript, reproduced with the prototype. `Rscript inst/validation/variance-form-dnvk-reproduction.R`, with `N_MC`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. Does not load the package. |
+| `variance-form-dnvk-reproduction.csv` | Its output, one row per variant, model, `c`, sample size and level, with the manuscript's rate beside each. |
+| `variance-form-dnvk-size-power.R` | The prototype in the designs of `variance-form-size-power.R`, beside `performVarianceFormTest()`. `Rscript inst/validation/variance-form-dnvk-size-power.R`, with `N_MC`, `N_MC_GATE`, `N_BOOT`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. |
+| `variance-form-dnvk-size-power.csv` | Its output, one row per test, block, bandwidth, form, truth, error distribution and sample size. |
+| `variance-form-dnvk-bootstrap-check.R` | The null cells of that study bootstrapped twice on the same samples, from the fitted and from the true variance function. `Rscript inst/validation/variance-form-dnvk-bootstrap-check.R`, with `N_MC`, `N_BOOT`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. Does not load the package. |
+| `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -1244,6 +1252,383 @@ variance appears to rise along the ordering. The Harrison-McCabe and
 Goldfeld-Quandt tests, whose null distributions use the weighted design, are
 at 0.048 to 0.053 in the same cells. The finding is an open item in
 `ROADMAP.md`.
+
+### A consistent test of the variance function: a prototype
+
+`performVarianceFormTest()` tests a variance function against the terms it
+adds, and has little power against a departure those terms do not span.
+Dette, Neumeyer and Van Keilegom (2007) test the same null hypothesis against
+any smooth departure in one covariate. They standardize the residuals twice,
+by a kernel estimate of the variance and by the fitted parametric variance
+function smoothed with the same kernel, compare the two empirical distribution
+functions by a Kolmogorov-Smirnov and a Cramér-von Mises distance, and take
+the null distribution from a smooth residual bootstrap. This section is stage
+1 of that item of the roadmap: a prototype in plain R, which the package does
+not export, and a study of it. `variance-form-dnvk-design.md` defines the test
+step by step, says what adopting it would take, and ends with a
+recommendation. The published article could not be obtained, so the prototype
+follows the authors' submitted manuscript of 2005, and the tables reproduced
+below are the manuscript's.
+
+**The manuscript's tables.** The prototype is run on the designs of Tables 4.1
+and 4.5 of the manuscript as it describes them: `X` uniform on [0, 1],
+standard normal errors, Nadaraya-Watson estimates of the mean and the variance
+with `h = 0.3`, `B = 100` bootstrap samples with `v = 0.2`, the Cramér-von
+Mises statistic, and its rejection rule (4.2). Table 4.1 tests constant
+variance in three models and Table 4.5 the family `sigma^2 = 1 + theta x^2`;
+`c = 0` is the null hypothesis in each. Each cell gives the rate here and, in
+brackets, the manuscript's. The manuscript names no kernel and does not say
+whether the resampled residuals are rescaled, so the script also runs the
+Gaussian kernel and, for Table 4.5, residuals rescaled to unit variance. The
+reproduction proper is the Epanechnikov kernel with the residuals as they are.
+
+**Manuscript Table 4.1, constant variance, h = 0.3: here (manuscript).**
+
+| Model | c | Level | n = 50 | n = 100 | n = 200 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| (I) | 0.0 | 2.5% | 0.040 (0.038) | 0.038 (0.038) | 0.042 (0.032) |
+| (I) | 0.0 | 5.0% | 0.053 (0.058) | 0.058 (0.057) | 0.063 (0.052) |
+| (I) | 0.0 | 10.0% | 0.100 (0.101) | 0.104 (0.103) | 0.116 (0.106) |
+| (I) | 0.5 | 2.5% | 0.152 (0.136) | 0.324 (0.292) | 0.624 (0.564) |
+| (I) | 0.5 | 5.0% | 0.204 (0.173) | 0.388 (0.352) | 0.696 (0.638) |
+| (I) | 0.5 | 10.0% | 0.306 (0.246) | 0.509 (0.471) | 0.796 (0.736) |
+| (I) | 1.0 | 2.5% | 0.469 (0.431) | 0.851 (0.822) | 0.995 (0.991) |
+| (I) | 1.0 | 5.0% | 0.539 (0.502) | 0.887 (0.863) | 0.998 (0.997) |
+| (I) | 1.0 | 10.0% | 0.664 (0.614) | 0.940 (0.922) | 1.000 (0.999) |
+| (II) | 0.0 | 2.5% | 0.042 (0.033) | 0.039 (0.039) | 0.034 (0.037) |
+| (II) | 0.0 | 5.0% | 0.062 (0.061) | 0.064 (0.054) | 0.052 (0.055) |
+| (II) | 0.0 | 10.0% | 0.103 (0.109) | 0.110 (0.099) | 0.107 (0.109) |
+| (II) | 0.5 | 2.5% | 0.237 (0.219) | 0.522 (0.497) | 0.955 (0.949) |
+| (II) | 0.5 | 5.0% | 0.304 (0.279) | 0.620 (0.600) | 0.977 (0.968) |
+| (II) | 0.5 | 10.0% | 0.431 (0.414) | 0.777 (0.740) | 0.995 (0.992) |
+| (II) | 1.0 | 2.5% | 0.487 (0.466) | 0.811 (0.789) | 0.998 (0.988) |
+| (II) | 1.0 | 5.0% | 0.548 (0.539) | 0.865 (0.838) | 1.000 (0.993) |
+| (II) | 1.0 | 10.0% | 0.656 (0.650) | 0.931 (0.902) | 1.000 (0.999) |
+| (III) | 0.0 | 2.5% | 0.044 (0.035) | 0.035 (0.038) | 0.047 (0.038) |
+| (III) | 0.0 | 5.0% | 0.064 (0.057) | 0.051 (0.061) | 0.066 (0.049) |
+| (III) | 0.0 | 10.0% | 0.113 (0.108) | 0.102 (0.099) | 0.116 (0.098) |
+| (III) | 0.5 | 2.5% | 0.322 (0.285) | 0.650 (0.631) | 0.953 (0.948) |
+| (III) | 0.5 | 5.0% | 0.388 (0.351) | 0.714 (0.700) | 0.969 (0.967) |
+| (III) | 0.5 | 10.0% | 0.511 (0.471) | 0.799 (0.797) | 0.985 (0.984) |
+| (III) | 1.0 | 2.5% | 0.728 (0.651) | 0.975 (0.959) | 1.000 (1.000) |
+| (III) | 1.0 | 5.0% | 0.777 (0.708) | 0.985 (0.973) | 1.000 (1.000) |
+| (III) | 1.0 | 10.0% | 0.854 (0.810) | 0.993 (0.991) | 1.000 (1.000) |
+
+**Manuscript Table 4.5, sigma^2 = 1 + theta x^2, h = 0.3: here (manuscript).**
+
+| Model | c | Level | n = 50 | n = 100 | n = 200 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| (VII) | 0.0 | 2.5% | 0.031 (0.034) | 0.038 (0.034) | 0.043 (0.023) |
+| (VII) | 0.0 | 5.0% | 0.050 (0.055) | 0.058 (0.049) | 0.064 (0.095) |
+| (VII) | 0.0 | 10.0% | 0.096 (0.110) | 0.114 (0.096) | 0.108 (0.093) |
+| (VII) | 0.5 | 2.5% | 0.127 (0.200) | 0.314 (0.368) | 0.675 (0.662) |
+| (VII) | 0.5 | 5.0% | 0.182 (0.248) | 0.387 (0.440) | 0.746 (0.723) |
+| (VII) | 0.5 | 10.0% | 0.281 (0.337) | 0.516 (0.544) | 0.843 (0.827) |
+| (VII) | 1.0 | 2.5% | 0.274 (0.383) | 0.690 (0.715) | 0.973 (0.956) |
+| (VII) | 1.0 | 5.0% | 0.361 (0.456) | 0.766 (0.794) | 0.983 (0.976) |
+| (VII) | 1.0 | 10.0% | 0.537 (0.604) | 0.870 (0.888) | 0.996 (0.990) |
+
+**Manuscript tables, by the choices the manuscript does not state.**
+
+| Choice | Table | Null rates within the interval | Alternative rates within the interval | Alternatives, here less the manuscript, percentage points |
+| --- | --- | ---: | ---: | --- |
+| as described | 4.1 | 27 of 27 | 43 of 54 | 2.3 on average, 0.0 to 7.7 |
+| as described | 4.5 | 7 of 8 | 10 of 18 | -3.3 on average, -10.9 to 2.3 |
+| Gaussian kernel | 4.1 | 17 of 27 | 10 of 54 | -7.1 on average, -69.3 to 15.2 |
+| Gaussian kernel | 4.5 | 8 of 8 | 14 of 18 | -1.8 on average, -7.8 to 1.1 |
+| unit-variance residuals | 4.5 | 8 of 8 | 11 of 18 | -3.1 on average, -8.9 to 2.0 |
+
+Replications: 2000 here and 1000 in the manuscript, with B = 100 bootstrap samples and the rule (4.2). A rate is within the interval when it is within the 99% interval of the difference between two independent estimates.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+As described, of the 107 rates of the two tables, leaving out the misprinted one, 87 are within the 99% interval of the difference: 34 of the 35 under the null hypothesis (c = 0) and 53 of the 72 under the alternatives. Under the null hypothesis the rates here run from 0.050 to 0.066 at 5%, where the rule (4.2) with B = 100 rejects an exactly calibrated statistic 0.059 of the time (0.040 at 2.5%, 0.109 at 10%).
+Under the alternatives of Table 4.1 the rate here is higher than the manuscript's in 51 of 54 cells.
+Under the alternatives of Table 4.5 the rate here is higher than the manuscript's in 6 of 18 cells.
+
+Outside the interval, as described:
+
+- (I), c = 0.5, n = 50, 10.0% level: 0.306 here, 0.246 in the manuscript.
+- (I), c = 1.0, n = 50, 10.0% level: 0.664 here, 0.614 in the manuscript.
+- (I), c = 0.5, n = 200, 2.5% level: 0.624 here, 0.564 in the manuscript.
+- (I), c = 0.5, n = 200, 5.0% level: 0.696 here, 0.638 in the manuscript.
+- (I), c = 0.5, n = 200, 10.0% level: 0.796 here, 0.736 in the manuscript.
+- (II), c = 1.0, n = 100, 10.0% level: 0.931 here, 0.902 in the manuscript.
+- (II), c = 1.0, n = 200, 2.5% level: 0.998 here, 0.988 in the manuscript.
+- (II), c = 1.0, n = 200, 5.0% level: 1.000 here, 0.993 in the manuscript.
+- (III), c = 1.0, n = 50, 2.5% level: 0.728 here, 0.651 in the manuscript.
+- (III), c = 1.0, n = 50, 5.0% level: 0.777 here, 0.708 in the manuscript.
+- (III), c = 1.0, n = 50, 10.0% level: 0.854 here, 0.810 in the manuscript.
+- (VII), c = 0.5, n = 50, 2.5% level: 0.127 here, 0.200 in the manuscript.
+- (VII), c = 0.5, n = 50, 5.0% level: 0.182 here, 0.248 in the manuscript.
+- (VII), c = 0.5, n = 50, 10.0% level: 0.281 here, 0.337 in the manuscript.
+- (VII), c = 1.0, n = 50, 2.5% level: 0.274 here, 0.383 in the manuscript.
+- (VII), c = 1.0, n = 50, 5.0% level: 0.361 here, 0.456 in the manuscript.
+- (VII), c = 1.0, n = 50, 10.0% level: 0.537 here, 0.604 in the manuscript.
+- (VII), c = 0.5, n = 100, 2.5% level: 0.314 here, 0.368 in the manuscript.
+- (VII), c = 0.5, n = 100, 5.0% level: 0.387 here, 0.440 in the manuscript.
+- (VII), c = 0.0, n = 200, 2.5% level: 0.043 here, 0.023 in the manuscript.
+
+What follows from the reproduction:
+
+- **The level is reproduced.** Under the null hypothesis 34 of the 35 rates
+  are within the 99% interval of their difference from the manuscript's. Both
+  sit a little above the nominal level at 5%, because the rule (4.2) with
+  `B = 100` rejects an exactly calibrated statistic 0.059 of the time.
+- **The power is close, and not reproduced to Monte Carlo accuracy.** 53 of
+  the 72 rates under the alternatives are within the interval. Here the rate
+  is higher than the manuscript's in 51 of the 54 alternative cells of Table
+  4.1, by 2.3 percentage points on average and at most 7.7, and lower in
+  Table 4.5 at 50 and 100 observations, by up to 10.9. A difference with a
+  sign that holds across a table points to a detail the manuscript does not
+  state, such as the kernel. It is not the Gaussian kernel, which puts the
+  null rates of Table 4.1 too high (17 of 27 within the interval) and loses
+  most of the power against the oscillating model (II); rescaling the
+  residuals changes Table 4.5 little.
+- **One cell of the manuscript is misprinted.** (VII) with `n = 200` and
+  `c = 0` reads 0.095 at 5% and 0.093 at 10%. It is left out of the counts.
+
+**Size and power in the package's designs.** Block 1 of
+`variance-form-dnvk-size-power.R` runs the designs of
+`variance-form-size-power.R`: `y = 1 + 2 x + 0.5 z + sigma(x) e`, with `x` and
+`z` uniform on (1, 5), the model `y ~ x + z`, 50, 150 and 400 observations, and
+Gaussian and `t5` errors. It adds a sixth true variance, a log-variance with a
+sine wave of one period over the range of `x` on top of the exponential one.
+The wave is antisymmetric about the middle of the range, so the terms
+`performVarianceFormTest()` adds hardly span it; it was fixed before any result
+was seen. The prototype takes the least-squares fit of the linear model in
+place of the kernel mean, refits it to every bootstrap sample, smooths in `x`
+with the Epanechnikov kernel and `h = 0.3 (n / 100)^(-0.3)` times the range of
+`x`, and uses `B = 199` with the package's p-value `(1 + #) / (B + 1)`. Beside
+it, on the same samples, run `performVarianceFormTest()` with its defaults, as
+`variance-form-size-power.R` runs it, and with `var_formula = ~ x`, which is
+the like-for-like comparison: one variable, tested against its square. The
+twelve null cells with Gaussian errors decide criterion 2 of the release gate
+and have 5000 replications; the others have 1000, where the 99% interval
+around 0.05 is [0.032, 0.068]. Block 2 halves and doubles the constant of the
+bandwidth at 150 observations.
+
+**Prototype beside performVarianceFormTest(), size.**
+
+| Form tested | True variance | Test | Gaussian, n = 50 | Gaussian, n = 150 | Gaussian, n = 400 | t5, n = 50 | t5, n = 150 | t5, n = 400 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| exponential | `sigma^2 = 1` | Cramér-von Mises, prototype | 0.027 | 0.047 | 0.049 | 0.039 | 0.056 | 0.076 |
+| exponential | `sigma^2 = 1` | Kolmogorov-Smirnov, prototype | 0.007 | 0.023 | 0.027 | 0.013 | 0.027 | 0.041 |
+| exponential | `sigma^2 = 1` | `performVarianceFormTest(var_formula = ~ x)` | 0.046 | 0.052 | 0.053 | 0.052 | 0.046 | 0.043 |
+| exponential | `sigma^2 = 1` | `performVarianceFormTest()` | 0.042 | 0.050 | 0.051 | 0.052 | 0.047 | 0.052 |
+| exponential | `sigma^2 = exp(0.6 x)` | Cramér-von Mises, prototype | 0.034 | 0.030 | 0.036 | 0.036 | 0.024 | 0.035 |
+| exponential | `sigma^2 = exp(0.6 x)` | Kolmogorov-Smirnov, prototype | 0.013 | 0.015 | 0.026 | 0.016 | 0.014 | 0.027 |
+| exponential | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest(var_formula = ~ x)` | 0.054 | 0.053 | 0.050 | 0.035 | 0.038 | 0.043 |
+| exponential | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest()` | 0.053 | 0.050 | 0.050 | 0.070 | 0.039 | 0.048 |
+| power | `sigma^2 = 1` | Cramér-von Mises, prototype | 0.026 | 0.044 | 0.051 | 0.026 | 0.064 | 0.088 |
+| power | `sigma^2 = 1` | Kolmogorov-Smirnov, prototype | 0.007 | 0.021 | 0.029 | 0.009 | 0.034 | 0.054 |
+| power | `sigma^2 = 1` | `performVarianceFormTest(var_formula = ~ x)` | 0.047 | 0.051 | 0.048 | 0.049 | 0.050 | 0.058 |
+| power | `sigma^2 = 1` | `performVarianceFormTest()` | 0.051 | 0.060 | 0.053 | 0.063 | 0.043 | 0.070 |
+| power | `sigma^2 = x^3` | Cramér-von Mises, prototype | 0.027 | 0.019 | 0.023 | 0.034 | 0.024 | 0.031 |
+| power | `sigma^2 = x^3` | Kolmogorov-Smirnov, prototype | 0.015 | 0.014 | 0.020 | 0.020 | 0.020 | 0.021 |
+| power | `sigma^2 = x^3` | `performVarianceFormTest(var_formula = ~ x)` | 0.035 | 0.042 | 0.053 | 0.027 | 0.031 | 0.039 |
+| power | `sigma^2 = x^3` | `performVarianceFormTest()` | 0.043 | 0.049 | 0.051 | 0.042 | 0.053 | 0.051 |
+
+**Prototype beside performVarianceFormTest(), power, Gaussian errors.**
+
+| Form tested | True variance | Test | n = 50 | n = 150 | n = 400 |
+| --- | --- | --- | ---: | ---: | ---: |
+| exponential | `sigma^2 = x^3` | Cramér-von Mises, prototype | 0.045 | 0.104 | 0.248 |
+| exponential | `sigma^2 = x^3` | Kolmogorov-Smirnov, prototype | 0.023 | 0.083 | 0.212 |
+| exponential | `sigma^2 = x^3` | `performVarianceFormTest(var_formula = ~ x)` | 0.115 | 0.472 | 0.906 |
+| exponential | `sigma^2 = x^3` | `performVarianceFormTest()` | 0.055 | 0.243 | 0.745 |
+| exponential | `sigma^2 = 0.5 + x` | Cramér-von Mises, prototype | 0.029 | 0.056 | 0.102 |
+| exponential | `sigma^2 = 0.5 + x` | Kolmogorov-Smirnov, prototype | 0.011 | 0.032 | 0.054 |
+| exponential | `sigma^2 = 0.5 + x` | `performVarianceFormTest(var_formula = ~ x)` | 0.059 | 0.059 | 0.120 |
+| exponential | `sigma^2 = 0.5 + x` | `performVarianceFormTest()` | 0.050 | 0.040 | 0.076 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | Cramér-von Mises, prototype | 0.158 | 0.581 | 0.894 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | Kolmogorov-Smirnov, prototype | 0.058 | 0.416 | 0.873 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest(var_formula = ~ x)` | 0.679 | 0.996 | 1.000 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest()` | 0.518 | 0.982 | 1.000 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Cramér-von Mises, prototype | 0.041 | 0.183 | 0.750 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Kolmogorov-Smirnov, prototype | 0.012 | 0.069 | 0.453 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest(var_formula = ~ x)` | 0.057 | 0.075 | 0.089 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest()` | 0.052 | 0.077 | 0.079 |
+| power | `sigma^2 = exp(0.6 x)` | Cramér-von Mises, prototype | 0.035 | 0.010 | 0.024 |
+| power | `sigma^2 = exp(0.6 x)` | Kolmogorov-Smirnov, prototype | 0.012 | 0.004 | 0.027 |
+| power | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest(var_formula = ~ x)` | 0.078 | 0.194 | 0.457 |
+| power | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest()` | 0.080 | 0.134 | 0.328 |
+| power | `sigma^2 = 0.5 + x` | Cramér-von Mises, prototype | 0.027 | 0.022 | 0.024 |
+| power | `sigma^2 = 0.5 + x` | Kolmogorov-Smirnov, prototype | 0.013 | 0.012 | 0.017 |
+| power | `sigma^2 = 0.5 + x` | `performVarianceFormTest(var_formula = ~ x)` | 0.057 | 0.047 | 0.046 |
+| power | `sigma^2 = 0.5 + x` | `performVarianceFormTest()` | 0.063 | 0.053 | 0.049 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | Cramér-von Mises, prototype | 0.153 | 0.553 | 0.826 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | Kolmogorov-Smirnov, prototype | 0.062 | 0.381 | 0.811 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest(var_formula = ~ x)` | 0.597 | 0.988 | 1.000 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest()` | 0.444 | 0.949 | 1.000 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Cramér-von Mises, prototype | 0.052 | 0.199 | 0.753 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Kolmogorov-Smirnov, prototype | 0.020 | 0.070 | 0.459 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest(var_formula = ~ x)` | 0.055 | 0.078 | 0.132 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest()` | 0.058 | 0.065 | 0.089 |
+
+**Prototype beside performVarianceFormTest(), power, t5 errors.**
+
+| Form tested | True variance | Test | n = 50 | n = 150 | n = 400 |
+| --- | --- | --- | ---: | ---: | ---: |
+| exponential | `sigma^2 = x^3` | Cramér-von Mises, prototype | 0.051 | 0.067 | 0.153 |
+| exponential | `sigma^2 = x^3` | Kolmogorov-Smirnov, prototype | 0.027 | 0.058 | 0.139 |
+| exponential | `sigma^2 = x^3` | `performVarianceFormTest(var_formula = ~ x)` | 0.071 | 0.196 | 0.518 |
+| exponential | `sigma^2 = x^3` | `performVarianceFormTest()` | 0.041 | 0.070 | 0.332 |
+| exponential | `sigma^2 = 0.5 + x` | Cramér-von Mises, prototype | 0.036 | 0.074 | 0.105 |
+| exponential | `sigma^2 = 0.5 + x` | Kolmogorov-Smirnov, prototype | 0.012 | 0.040 | 0.063 |
+| exponential | `sigma^2 = 0.5 + x` | `performVarianceFormTest(var_formula = ~ x)` | 0.041 | 0.045 | 0.066 |
+| exponential | `sigma^2 = 0.5 + x` | `performVarianceFormTest()` | 0.043 | 0.047 | 0.050 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | Cramér-von Mises, prototype | 0.100 | 0.362 | 0.654 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | Kolmogorov-Smirnov, prototype | 0.030 | 0.204 | 0.595 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest(var_formula = ~ x)` | 0.503 | 0.904 | 0.991 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest()` | 0.376 | 0.807 | 0.982 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Cramér-von Mises, prototype | 0.039 | 0.102 | 0.324 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Kolmogorov-Smirnov, prototype | 0.015 | 0.049 | 0.184 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest(var_formula = ~ x)` | 0.055 | 0.050 | 0.072 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest()` | 0.067 | 0.061 | 0.054 |
+| power | `sigma^2 = exp(0.6 x)` | Cramér-von Mises, prototype | 0.029 | 0.012 | 0.010 |
+| power | `sigma^2 = exp(0.6 x)` | Kolmogorov-Smirnov, prototype | 0.008 | 0.005 | 0.007 |
+| power | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest(var_formula = ~ x)` | 0.071 | 0.114 | 0.249 |
+| power | `sigma^2 = exp(0.6 x)` | `performVarianceFormTest()` | 0.079 | 0.101 | 0.199 |
+| power | `sigma^2 = 0.5 + x` | Cramér-von Mises, prototype | 0.019 | 0.039 | 0.059 |
+| power | `sigma^2 = 0.5 + x` | Kolmogorov-Smirnov, prototype | 0.011 | 0.021 | 0.044 |
+| power | `sigma^2 = 0.5 + x` | `performVarianceFormTest(var_formula = ~ x)` | 0.037 | 0.049 | 0.056 |
+| power | `sigma^2 = 0.5 + x` | `performVarianceFormTest()` | 0.050 | 0.043 | 0.062 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | Cramér-von Mises, prototype | 0.108 | 0.337 | 0.596 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | Kolmogorov-Smirnov, prototype | 0.051 | 0.208 | 0.535 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest(var_formula = ~ x)` | 0.415 | 0.840 | 0.986 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | `performVarianceFormTest()` | 0.285 | 0.703 | 0.962 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Cramér-von Mises, prototype | 0.062 | 0.129 | 0.380 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | Kolmogorov-Smirnov, prototype | 0.021 | 0.067 | 0.229 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest(var_formula = ~ x)` | 0.049 | 0.062 | 0.080 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | `performVarianceFormTest()` | 0.046 | 0.046 | 0.061 |
+
+**Prototype, constant of the bandwidth, Gaussian errors, n = 150.**
+
+| Form tested | True variance | Hypothesis | Test | c = 0.15 | c = 0.30 | c = 0.60 |
+| --- | --- | --- | --- | ---: | ---: | ---: |
+| exponential | `sigma^2 = 1` | null | Cramér-von Mises, prototype | 0.046 | 0.047 | 0.048 |
+| exponential | `sigma^2 = 1` | null | Kolmogorov-Smirnov, prototype | 0.029 | 0.023 | 0.019 |
+| exponential | `sigma^2 = exp(0.6 x)` | null | Cramér-von Mises, prototype | 0.031 | 0.030 | 0.007 |
+| exponential | `sigma^2 = exp(0.6 x)` | null | Kolmogorov-Smirnov, prototype | 0.014 | 0.015 | 0.003 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | alternative | Cramér-von Mises, prototype | 0.551 | 0.581 | 0.601 |
+| exponential | `sigma^2 = exp(0.5 (x - 3)^2)` | alternative | Kolmogorov-Smirnov, prototype | 0.385 | 0.416 | 0.397 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | alternative | Cramér-von Mises, prototype | 0.259 | 0.183 | 0.095 |
+| exponential | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | alternative | Kolmogorov-Smirnov, prototype | 0.124 | 0.069 | 0.036 |
+| power | `sigma^2 = 1` | null | Cramér-von Mises, prototype | 0.053 | 0.044 | 0.040 |
+| power | `sigma^2 = 1` | null | Kolmogorov-Smirnov, prototype | 0.021 | 0.021 | 0.023 |
+| power | `sigma^2 = x^3` | null | Cramér-von Mises, prototype | 0.030 | 0.019 | 0.010 |
+| power | `sigma^2 = x^3` | null | Kolmogorov-Smirnov, prototype | 0.029 | 0.014 | 0.004 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | alternative | Cramér-von Mises, prototype | 0.528 | 0.553 | 0.477 |
+| power | `sigma^2 = exp(0.5 (x - 3)^2)` | alternative | Kolmogorov-Smirnov, prototype | 0.386 | 0.381 | 0.311 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | alternative | Cramér-von Mises, prototype | 0.279 | 0.199 | 0.141 |
+| power | `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))` | alternative | Kolmogorov-Smirnov, prototype | 0.125 | 0.070 | 0.052 |
+
+Replications: 1000 and 5000, with B = 199 bootstrap samples for the prototype. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0069 and 0.0031.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+- Cramér-von Mises, prototype: 4 of the 12 Gaussian null cells inside the 99% interval at their replications (rates 0.019 to 0.051); 6 of the 12 t5 null cells (rates 0.024 to 0.088).
+- Kolmogorov-Smirnov, prototype: 0 of the 12 Gaussian null cells inside the 99% interval at their replications (rates 0.007 to 0.029); 3 of the 12 t5 null cells (rates 0.009 to 0.054).
+- `performVarianceFormTest(var_formula = ~ x)`: 10 of the 12 Gaussian null cells inside the 99% interval at their replications (rates 0.035 to 0.054); 10 of the 12 t5 null cells (rates 0.027 to 0.058).
+- `performVarianceFormTest()`: 10 of the 12 Gaussian null cells inside the 99% interval at their replications (rates 0.042 to 0.060); 10 of the 12 t5 null cells (rates 0.039 to 0.070).
+
+Gaussian null cells of the Cramér-von Mises prototype outside that interval:
+
+- exponential form, `sigma^2 = 1`, n = 50: 0.0274.
+- power form, `sigma^2 = 1`, n = 50: 0.0264.
+- exponential form, `sigma^2 = exp(0.6 x)`, n = 50: 0.0337.
+- power form, `sigma^2 = x^3`, n = 50: 0.0266.
+- exponential form, `sigma^2 = exp(0.6 x)`, n = 150: 0.0304.
+- power form, `sigma^2 = x^3`, n = 150: 0.0194.
+- exponential form, `sigma^2 = exp(0.6 x)`, n = 400: 0.0360.
+- power form, `sigma^2 = x^3`, n = 400: 0.0226.
+
+In the 48 alternative cells of block 1 the Cramér-von Mises prototype rejects more often than `performVarianceFormTest(var_formula = ~ x)` in 12; the difference runs from -65.8 to 66.1 percentage points. By true variance:
+
+- `sigma^2 = exp(0.6 x)`: -43.3 to -4.2 points.
+- `sigma^2 = x^3`: -65.8 to -2.0 points.
+- `sigma^2 = 0.5 + x`: -3.0 to 3.9 points.
+- `sigma^2 = exp(0.5 (x - 3)^2)`: -54.2 to -10.6 points.
+- `sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))`: -1.6 to 66.1 points.
+
+The variance function had no least-squares fit, so that the prototype could not be computed, in 761 of the 136000 samples: at most 0.9% of the samples of a null cell and 5.2% of those of any cell (exponential form, `sigma^2 = exp(0.5 (x - 3)^2)`, t5 errors, n = 400). It had none in 0.26% of all bootstrap samples, at most 1.37% in a cell (exponential form, `sigma^2 = exp(0.5 (x - 3)^2)`, t5 errors, n = 150); those samples are left out of the bootstrap distribution.
+
+**Where the conservatism comes from.** `variance-form-dnvk-bootstrap-check.R`
+bootstraps the Gaussian null cells at 150 and 400 observations twice, on the
+same samples and with the same random numbers: from the least-squares fit of
+the variance function, as the prototype does, and from the true shape of the
+variance function scaled to the fitted level, which is not available in
+practice. The slope is `b` in `exp(a + b x)` or in `a x^b`.
+
+**Prototype, bootstrap data from the fitted and from the true variance function.**
+
+| Form tested | True variance | n | True slope | Mean fitted slope | Mean T | Mean T*, fitted | Mean T*, true shape | Size, fitted | Size, true shape |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| exponential | `sigma^2 = 1` | 150 | 0.0 | 0.005 | 0.0103 | 0.0105 | 0.0103 | 0.044 | 0.052 |
+| exponential | `sigma^2 = exp(0.6 x)` | 150 | 0.6 | 0.646 | 0.0638 | 0.1083 | 0.0799 | 0.033 | 0.037 |
+| exponential | `sigma^2 = 1` | 400 | 0.0 | -0.001 | 0.0068 | 0.0069 | 0.0069 | 0.043 | 0.046 |
+| exponential | `sigma^2 = exp(0.6 x)` | 400 | 0.6 | 0.607 | 0.0299 | 0.0456 | 0.0332 | 0.024 | 0.051 |
+| power | `sigma^2 = 1` | 150 | 0.0 | 0.011 | 0.0103 | 0.0109 | 0.0104 | 0.036 | 0.043 |
+| power | `sigma^2 = x^3` | 150 | 3.0 | 3.419 | 0.2124 | 0.2780 | 0.2161 | 0.015 | 0.047 |
+| power | `sigma^2 = 1` | 400 | 0.0 | 0.007 | 0.0071 | 0.0070 | 0.0070 | 0.050 | 0.050 |
+| power | `sigma^2 = x^3` | 400 | 3.0 | 3.088 | 0.1636 | 0.2118 | 0.1661 | 0.015 | 0.047 |
+
+Replications: 1000, with B = 199 bootstrap samples drawn from the same random numbers in both schemes. Gaussian errors.
+
+What follows:
+
+- **The prototype does not hold its level when the variance function is not
+  constant.** With Gaussian errors, 4 of its 12 null cells are inside the
+  release-gate interval [0.042, 0.058], all four with constant variance at 150
+  and 400 observations, at 0.044 to 0.051. Under `exp(0.6 x)` and `x^3` it
+  rejects 0.019 to 0.036 of the time at every sample size, still 0.036 and
+  0.023 at 400 observations, and at 50 observations every null cell is at
+  0.026 to 0.034. The Kolmogorov-Smirnov statistic is inside in no
+  cell: its values lie on a lattice, the bootstrap often reproduces the
+  observed value, and a p-value that counts ties as exceedances is
+  conservative.
+- **The cause is the fitted variance function the bootstrap data come from.**
+  The statistic's null distribution depends on the variance function. Where
+  the variance is not constant, the mean bootstrap statistic exceeds the mean
+  observed one by 29% to 70%, and the prototype rejects too seldom. Generated
+  from the true shape on the same samples, the bootstrap statistics come
+  within 2% of the observed ones for `x^3` and 11% for `exp(0.6 x)` at 400
+  observations, and the rejection rate rises from 0.015 to 0.047 in both cells
+  of the power form and from 0.024 to 0.051 in that of the exponential form.
+  For the exponential form at 150 observations the true shape leaves a gap of
+  25% and moves the rate only from 0.033 to 0.037, so the fit is not the whole
+  story there.
+- **Heavy tails move it the other way.** With `t5` errors and constant
+  variance it rejects 0.076 and 0.088 of the time at 400 observations.
+- **Its power is where a consistent test should have it, and little
+  elsewhere.** Against the wave, with Gaussian errors at 400 observations, it
+  rejects 0.750 and 0.753 of the time, where
+  `performVarianceFormTest(var_formula = ~ x)` rejects 0.089 and 0.132.
+  Against the two log-linear forms tested against each other and against the
+  quadratic log-variance it has less power than that test, by 2.0 to 65.8
+  percentage points: 0.581 against 0.996 for the quadratic log-variance at 150
+  observations, and 0.024 against 0.457 when the power form is tested against
+  `exp(0.6 x)` at 400. Part of that is its conservatism. Against
+  `sigma^2 = 0.5 + x`, which neither test detects well, the two are within 4
+  points of each other. A smaller bandwidth raises the power against the
+  wave, 0.259 and 0.279 at half the constant against 0.183 and 0.199, and a
+  larger one makes the null cells with a non-constant variance more
+  conservative still, 0.007 and 0.010.
+- **`performVarianceFormTest()` in a second run of its own designs.** Its
+  twelve Gaussian null cells here repeat those of
+  `variance-form-size-power.csv` on new samples, at 5000 replications. At its
+  defaults ten are inside the interval. Just outside are the exponential form
+  under constant variance at 50 observations, 0.0420, and the power form under
+  constant variance at 150, 0.0596, where the earlier run gave 0.048 and 0.052.
+  With `var_formula = ~ x`, which no earlier study measured, the power form
+  under `x^3` rejects 0.0348 of the time at 50 observations and 0.0416 at 150.
+  This stage changes nothing in that function; the numbers are recorded for
+  the author.
+
+Stage 1 ends here. `variance-form-dnvk-design.md` gives the recommendation,
+not to ship the test as the manuscript defines it, and the two ways forward;
+`ROADMAP.md` records the result.
 
 ## History
 
