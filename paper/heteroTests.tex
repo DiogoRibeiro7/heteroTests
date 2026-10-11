@@ -38,7 +38,7 @@ article argues against them. The difficulty begins with the second test. The
 procedures in Table \ref{tab:procedures} that exist outside
 \CRANpkg{heteroTests} are spread over 11 packages (Table
 \ref{tab:software-comparison}), and no one of those packages has more than
-8 of them. Each has its own arguments and its own kind of
+9 of them. Each has its own arguments and its own kind of
 result: an \texttt{htest} object from one function, a \texttt{chisqTest} object or an
 \texttt{anova} table from another, a bare vector of p-values from a third. Comparing
 two tests therefore means installing, learning, and reconciling two packages,
@@ -58,7 +58,7 @@ workflows.
 The package does not propose that a single omnibus procedure should replace
 method-specific judgement, and it does not introduce a new test statistic: the
 procedures are established ones. Its contribution is the software around them.
-The package implements the 28 procedures in Table
+The package implements the 29 procedures in Table
 \ref{tab:procedures}. Those that need only a model and its data share one
 calling convention and one result class, so the set chosen for an analysis
 runs in one call and is reported in one table. Around that sit a registry for
@@ -113,9 +113,11 @@ about the error variance, which is also the first thing to settle when
 choosing one. A name in code font is the name under which \texttt{runHeteroTests()}
 runs the procedure. The others are called directly, most of them because they
 need an ordering or grouping variable that a batch call cannot supply.
-Streaming versions of the White, Breusch--Pagan, and Koenker tests are
-provided in addition, as are diagnostics for the mean function, collinearity,
-and influential observations.
+Szroeter's test needs an ordering too, and under its name it orders the
+observations by the fitted values, so its alternative is a variance that rises
+with the mean. Streaming versions of the White, Breusch--Pagan, and Koenker
+tests are provided in addition, as are diagnostics for the mean function,
+collinearity, and influential observations.
 
 \begin{table}[!t]
 
@@ -129,7 +131,7 @@ Does it depend on the regressors, in a form not specified in advance? & White (\
 \addlinespace
 Does it rise or fall with the regressors, a named variable, or the fitted values? & Breusch--Pagan (\texttt{breusch\_pagan}); Koenker's studentized form (\texttt{koenker}, \texttt{student\_bp}); Cook--Weisberg score test (\texttt{cook\_weisberg}, \texttt{ncv}); Harvey; Glejser; Park; Davidian--Carroll; Spearman rank correlation; spread-level (\texttt{spread\_level})\\
 \addlinespace
-Does it change along an ordering of the observations? & Goldfeld--Quandt; Szroeter (\texttt{szroeter}); rank permutation (\texttt{rank\_permutation})\\
+Does it change along an ordering of the observations? & Goldfeld--Quandt; Harrison--McCabe; Szroeter (\texttt{szroeter}); rank permutation (\texttt{rank\_permutation})\\
 \addlinespace
 Does it differ between groups? & Bartlett; Levene; Brown--Forsythe; Fligner--Killeen; Hartley; O'Brien; Box's M for covariance matrices\\
 \addlinespace
@@ -178,7 +180,8 @@ and data and return a diagnostic result. Built-in entries include the classical
 auxiliary-regression tests together with resampling, rank-based,
 high-dimensional, and spatial procedures. Users can extend the registry with
 \texttt{registerDiagnostic()}, after which custom diagnostics can be selected by
-\texttt{runHeteroTests()} in the same way as built-in entries.
+\texttt{runHeteroTests()} in the same way as built-in entries, and
+\texttt{listDiagnostics()} returns the names registered.
 
 This registry is deliberately simpler than a plugin framework. It provides a
 stable dispatch point without requiring a new object hierarchy for every
@@ -303,9 +306,13 @@ their weights. These are the residuals of the equivalent unweighted regression
 and have constant variance when the weights are correct, so the null
 hypothesis becomes that the weights are adequate. Variance regressors,
 grouping variables, and ordering variables remain on their original scale.
-Procedures that regenerate the response and refit the mean model, such as the
-resampling tests, would discard the weights; for a weighted fit they stop with
-an error instead of testing a different model.
+The resampling tests regenerate the response and refit the mean model, and
+for a weighted fit they do so in that equivalent regression: they draw from the
+Pearson residuals, return each draw to the scale of its observation by
+dividing it by the square root of its weight, and refit with the weights. The
+quantile-regression slope test fits its quantile regressions without the
+weights, and for a weighted fit it stops with an error instead of testing a
+different model.
 
 The second decision is to make the variance model used for remediation
 explicit and testable. \texttt{fitWLS()} estimates a variance function from the OLS
@@ -359,8 +366,8 @@ with weights, \texttt{car::ncvTest()} computes its score statistic from Pearson
 residuals, whereas \texttt{lmtest::bptest()} retains the raw residuals and weights
 the auxiliary regression. The two functions therefore test different
 hypotheses, and only the first asks whether the weights are adequate.
-\textbackslash CRANpkg\{heteroTests\} follows the Pearson-residual convention described
-earlier. On weighted fits its score test is compared with \textbackslash CRANpkg\{car\}, and
+\CRANpkg{heteroTests} follows the Pearson-residual convention described
+earlier. On weighted fits its score test is compared with \CRANpkg{car}, and
 its Goldfeld--Quandt test with \texttt{lmtest::gqtest()} applied to the equivalent
 transformed regression.
 
@@ -406,11 +413,15 @@ property has to be tested by simulation, because no comparison on unweighted
 fits can reveal it: before version 0.12.0 the heteroscedasticity diagnostics
 read the raw residuals of a weighted fit, agreed with their references on
 every unweighted comparison, and rejected a correctly weighted model in every
-replication of the package's validation design. In the current version the
-32 procedures that accept a weighted fit reject between
+replication of the package's validation design. In the current version
+32 procedures reject between
 2\% and
-8\% of such models at the 5\% level,
-based on 400 replications each.
+8\% of such models at the 5\% level
+in that design, based on 400 replications each.
+The resampling tests, measured in a design of their own, reject between
+5.0\% and
+5.3\%, based on
+2,000 replications each.
 
 Resampling procedures receive separate checks because an apparently plausible
 implementation can still produce invalid p-values. Bootstrap and permutation
@@ -423,9 +434,10 @@ p-values use the finite-simulation convention
 
 which prevents an estimated p-value of exactly zero and accounts for failed
 replicates through the effective number of simulations. Null-imposed residual
-resampling is also checked for leverage correction, while unsupported model
-classes, weighted fits, and transformed responses are rejected rather than
-silently refitted under a different statistical model.
+resampling is also checked for leverage correction and, for a weighted fit,
+against resampling in the equivalent unweighted regression, while unsupported
+model classes and transformed responses are rejected rather than silently
+refitted under a different statistical model.
 
 Finally, the streaming implementations are compared directly with their
 ordinary in-memory counterparts. For White, Breusch--Pagan, and Koenker tests,
@@ -1042,8 +1054,13 @@ variance function and Gaussian errors, the Koenker test applied to a
 8\%
 of the time at the 5\% level with 150 observations and
 11\%
-with 600, so the discrepancy does not shrink as the sample grows. Harvey's
-test, which repeats the regression the weights were estimated from, rejected
+with 600, so the discrepancy does not shrink as the sample grows. The wild
+bootstrap holds the weights fixed in every replicate as well, and rejected
+9\%
+and
+10\%
+of the time. Harvey's test, which repeats the regression the weights were
+estimated from, rejected
 0\%
 of the time with 600 observations.
 
@@ -1223,7 +1240,7 @@ The package is best understood as an integration layer around a heterogeneous
 set of diagnostics, not as a replacement for the specialised packages from
 which several reference implementations are drawn. Table
 \ref{tab:software-comparison} shows how those diagnostics are distributed:
-21 of the 28 procedures in Table
+22 of the 29 procedures in Table
 \ref{tab:procedures} have a counterpart in one of 11 other
 packages.
 
@@ -1237,11 +1254,11 @@ Package & Procedures & Functions\\
 \midrule
 stats & Bartlett; Fligner--Killeen; Spearman rank correlation & \texttt{bartlett.test}, \texttt{fligner.test}, \texttt{cor.test}\\
 \addlinespace
-lmtest & Breusch--Pagan; Koenker's studentized form; Goldfeld--Quandt & \texttt{bptest}, \texttt{gqtest}\\
+lmtest & Breusch--Pagan; Koenker's studentized form; Goldfeld--Quandt; Harrison--McCabe & \texttt{bptest}, \texttt{gqtest}, \texttt{hmctest}\\
 \addlinespace
 car & Cook--Weisberg score test; Levene; Brown--Forsythe & \texttt{ncvTest}, \texttt{leveneTest}\\
 \addlinespace
-skedastic & White; Breusch--Pagan; Koenker's studentized form; Cook--Weisberg score test; Harvey; Glejser; Goldfeld--Quandt; Szroeter & \texttt{white}, \texttt{breusch\_pagan}, \texttt{cook\_weisberg}, \texttt{harvey}, \texttt{glejser}, \texttt{goldfeld\_quandt}, \texttt{szroeter}\\
+skedastic & White; Breusch--Pagan; Koenker's studentized form; Cook--Weisberg score test; Harvey; Glejser; Goldfeld--Quandt; Harrison--McCabe; Szroeter & \texttt{white}, \texttt{breusch\_pagan}, \texttt{cook\_weisberg}, \texttt{harvey}, \texttt{glejser}, \texttt{goldfeld\_quandt}, \texttt{harrison\_mccabe}, \texttt{szroeter}\\
 \addlinespace
 whitestrap & White; bootstrap of White's statistic & \texttt{white\_test}, \texttt{white\_test\_boot}\\
 \addlinespace
@@ -1314,6 +1331,27 @@ between 8.8\% and
 17.7\% of the time, and the corrected one
 between 4.6\% and
 5.9\%.
+
+The test of \citet{harrison1979test} is a case where the implementations agree on the
+statistic and differ in the p-value. The statistic is the share of the
+residual sum of squares that falls in the first part of the sample, ordered by
+a chosen variable, and under normal errors its null distribution depends on
+the regressors. \texttt{lmtest::hmctest()} simulates the p-value from a regression on
+a constant alone, whatever the model, and \texttt{skedastic::harrison\_mccabe()}
+applies Imhof's formula \citep{imhof1961computing} after keeping one copy of each
+repeated eigenvalue. \texttt{performHarrisonMcCabeTest()} applies the formula to all
+of them, so its p-value is exact for normal errors given the regressors. In
+the validation study installed with the package it rejects a true null
+hypothesis between 4.3\% and
+5.3\% of the time at the 5\% level
+under Gaussian errors, with 40 to 400 observations, with
+and without weights. Under Student \(t_5\) errors it rejects between
+11.7\% and
+16.3\% of the time, and the
+Goldfeld--Quandt and Szroeter tests between
+9.6\% and
+15.8\% on the same
+samples.
 
 The remaining packages in Table \ref{tab:software-comparison} each contribute
 one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for

@@ -125,9 +125,40 @@ glejser_n <- range(glejser_size$n)
 glejser_rates <- function(test_name) {
   range(glejser_size$rejection_rate[glejser_size$test == test_name])
 }
+
+# The Harrison--McCabe test, and its simulated size, come with versions of the
+# package later than 0.12.0.
+hmc_path <- system.file(
+  "validation", "harrison-mccabe-size-power.csv",
+  package = "heteroTests"
+)
+if (!nzchar(hmc_path)) {
+  stop(
+    "This article needs a version of heteroTests later than 0.12.0, which ",
+    "installs the validation results for the Harrison-McCabe test.",
+    call. = FALSE
+  )
+}
+hmc_study <- utils::read.csv(hmc_path, stringsAsFactors = FALSE)
+hmc_size <- subset(
+  hmc_study,
+  block %in% c("size", "size, weighted fit") & level == 0.05
+)
+hmc_rates <- function(test_names, error_name) {
+  rows <- hmc_size$test %in% test_names & hmc_size$errors == error_name
+  range(hmc_size$rejection_rate[rows])
+}
+hmc_n <- range(hmc_size$n)
+
 weighted_known <- subset(
   weighted_fits,
   weights == "known" & !is.na(rejection_rate)
+)
+# The resampling tests refit a weighted model with its weights, and are
+# measured in a design of their own.
+weighted_resampling <- subset(
+  weighted_fits,
+  weights == "exact" & !is.na(rejection_rate)
 )
 weighted_rate <- function(test_name, block, n_obs) {
   rows <- weighted_fits$test == test_name &
@@ -164,6 +195,7 @@ procedure_groups <- list(
     question = "Does it change along an ordering of the observations?",
     procedures = list(
       "Goldfeld--Quandt" = NA,
+      "Harrison--McCabe" = NA,
       "Szroeter" = "szroeter",
       "rank permutation" = "rank_permutation"
     )
@@ -210,13 +242,22 @@ n_procedures <- sum(lengths(lapply(procedure_groups, `[[`, "procedures")))
 # box_m is registered for runMultivariateTests(), not for runHeteroTests().
 table_names <- unlist(lapply(procedure_groups, `[[`, "procedures"))
 table_names <- unname(table_names[!is.na(table_names)])
-registered <- ls(utils::getFromNamespace(".diagnostic_registry", "heteroTests"))
+# listDiagnostics() comes with versions of the package later than 0.12.0.
+if (!exists("listDiagnostics", envir = asNamespace("heteroTests"), inherits = FALSE)) {
+  stop(
+    "This article needs a version of heteroTests later than 0.12.0, which ",
+    "exports listDiagnostics().",
+    call. = FALSE
+  )
+}
+registered <- listDiagnostics()
 stopifnot(setequal(table_names, setdiff(registered, "box_m")))
 
 # Where those procedures are found in other packages, with the functions
 # concerned. Each entry was checked against the documentation of the package.
 # For Spearman's correlation and Moran's I the function is the general test,
-# which the analyst applies to the residuals.
+# which the analyst applies to the residuals. The Harrison--McCabe entries were
+# checked against lmtest 0.9-40 and skedastic 2.0.3.
 elsewhere <- list(
   stats = list(
     procedures = c("Bartlett", "Fligner--Killeen", "Spearman rank correlation"),
@@ -224,9 +265,10 @@ elsewhere <- list(
   ),
   lmtest = list(
     procedures = c(
-      "Breusch--Pagan", "Koenker's studentized form", "Goldfeld--Quandt"
+      "Breusch--Pagan", "Koenker's studentized form", "Goldfeld--Quandt",
+      "Harrison--McCabe"
     ),
-    functions = c("bptest", "gqtest")
+    functions = c("bptest", "gqtest", "hmctest")
   ),
   car = list(
     procedures = c("Cook--Weisberg score test", "Levene", "Brown--Forsythe"),
@@ -236,11 +278,11 @@ elsewhere <- list(
     procedures = c(
       "White", "Breusch--Pagan", "Koenker's studentized form",
       "Cook--Weisberg score test", "Harvey", "Glejser", "Goldfeld--Quandt",
-      "Szroeter"
+      "Harrison--McCabe", "Szroeter"
     ),
     functions = c(
       "white", "breusch_pagan", "cook_weisberg", "harvey", "glejser",
-      "goldfeld_quandt", "szroeter"
+      "goldfeld_quandt", "harrison_mccabe", "szroeter"
     )
   ),
   whitestrap = list(
@@ -384,9 +426,11 @@ about the error variance, which is also the first thing to settle when
 choosing one. A name in code font is the name under which `runHeteroTests()`
 runs the procedure. The others are called directly, most of them because they
 need an ordering or grouping variable that a batch call cannot supply.
-Streaming versions of the White, Breusch--Pagan, and Koenker tests are
-provided in addition, as are diagnostics for the mean function, collinearity,
-and influential observations.
+Szroeter's test needs an ordering too, and under its name it orders the
+observations by the fitted values, so its alternative is a variance that rises
+with the mean. Streaming versions of the White, Breusch--Pagan, and Koenker
+tests are provided in addition, as are diagnostics for the mean function,
+collinearity, and influential observations.
 
 ```{r procedures, echo=FALSE}
 code_font <- function(x) {
@@ -463,7 +507,8 @@ and data and return a diagnostic result. Built-in entries include the classical
 auxiliary-regression tests together with resampling, rank-based,
 high-dimensional, and spatial procedures. Users can extend the registry with
 `registerDiagnostic()`, after which custom diagnostics can be selected by
-`runHeteroTests()` in the same way as built-in entries.
+`runHeteroTests()` in the same way as built-in entries, and
+`listDiagnostics()` returns the names registered.
 
 This registry is deliberately simpler than a plugin framework. It provides a
 stable dispatch point without requiring a new object hierarchy for every
@@ -588,9 +633,13 @@ their weights. These are the residuals of the equivalent unweighted regression
 and have constant variance when the weights are correct, so the null
 hypothesis becomes that the weights are adequate. Variance regressors,
 grouping variables, and ordering variables remain on their original scale.
-Procedures that regenerate the response and refit the mean model, such as the
-resampling tests, would discard the weights; for a weighted fit they stop with
-an error instead of testing a different model.
+The resampling tests regenerate the response and refit the mean model, and
+for a weighted fit they do so in that equivalent regression: they draw from the
+Pearson residuals, return each draw to the scale of its observation by
+dividing it by the square root of its weight, and refit with the weights. The
+quantile-regression slope test fits its quantile regressions without the
+weights, and for a weighted fit it stops with an error instead of testing a
+different model.
 
 The second decision is to make the variance model used for remediation
 explicit and testable. `fitWLS()` estimates a variance function from the OLS
@@ -644,8 +693,8 @@ with weights, `car::ncvTest()` computes its score statistic from Pearson
 residuals, whereas `lmtest::bptest()` retains the raw residuals and weights
 the auxiliary regression. The two functions therefore test different
 hypotheses, and only the first asks whether the weights are adequate.
-\\CRANpkg{heteroTests} follows the Pearson-residual convention described
-earlier. On weighted fits its score test is compared with \\CRANpkg{car}, and
+\CRANpkg{heteroTests} follows the Pearson-residual convention described
+earlier. On weighted fits its score test is compared with \CRANpkg{car}, and
 its Goldfeld--Quandt test with `lmtest::gqtest()` applied to the equivalent
 transformed regression.
 
@@ -691,11 +740,15 @@ property has to be tested by simulation, because no comparison on unweighted
 fits can reveal it: before version 0.12.0 the heteroscedasticity diagnostics
 read the raw residuals of a weighted fit, agreed with their references on
 every unweighted comparison, and rejected a correctly weighted model in every
-replication of the package's validation design. In the current version the
-`r nrow(weighted_known)` procedures that accept a weighted fit reject between
+replication of the package's validation design. In the current version
+`r nrow(weighted_known)` procedures reject between
 `r pct(min(weighted_known$rejection_rate), 0)` and
-`r pct(max(weighted_known$rejection_rate), 0)` of such models at the 5% level,
-based on `r weighted_known$replications[1]` replications each.
+`r pct(max(weighted_known$rejection_rate), 0)` of such models at the 5% level
+in that design, based on `r weighted_known$replications[1]` replications each.
+The resampling tests, measured in a design of their own, reject between
+`r pct(min(weighted_resampling$rejection_rate))` and
+`r pct(max(weighted_resampling$rejection_rate))`, based on
+`r format(weighted_resampling$replications[1], big.mark = ",")` replications each.
 
 Resampling procedures receive separate checks because an apparently plausible
 implementation can still produce invalid p-values. Bootstrap and permutation
@@ -708,9 +761,10 @@ p-values use the finite-simulation convention
 
 which prevents an estimated p-value of exactly zero and accounts for failed
 replicates through the effective number of simulations. Null-imposed residual
-resampling is also checked for leverage correction, while unsupported model
-classes, weighted fits, and transformed responses are rejected rather than
-silently refitted under a different statistical model.
+resampling is also checked for leverage correction and, for a weighted fit,
+against resampling in the equivalent unweighted regression, while unsupported
+model classes and transformed responses are rejected rather than silently
+refitted under a different statistical model.
 
 Finally, the streaming implementations are compared directly with their
 ordinary in-memory counterparts. For White, Breusch--Pagan, and Koenker tests,
@@ -1325,8 +1379,13 @@ variance function and Gaussian errors, the Koenker test applied to a
 `r pct(weighted_rate("performKoenkerTest", "estimated", 150), 0)`
 of the time at the 5% level with 150 observations and
 `r pct(weighted_rate("performKoenkerTest", "estimated", 600), 0)`
-with 600, so the discrepancy does not shrink as the sample grows. Harvey's
-test, which repeats the regression the weights were estimated from, rejected
+with 600, so the discrepancy does not shrink as the sample grows. The wild
+bootstrap holds the weights fixed in every replicate as well, and rejected
+`r pct(weighted_rate("performWildBootstrapTest", "estimated, held fixed", 150), 0)`
+and
+`r pct(weighted_rate("performWildBootstrapTest", "estimated, held fixed", 600), 0)`
+of the time. Harvey's test, which repeats the regression the weights were
+estimated from, rejected
 `r pct(weighted_rate("performHarveyTest", "estimated", 600), 0)`
 of the time with 600 observations.
 
@@ -1625,6 +1684,27 @@ between `r pct(glejser_rates("glejser")[1])` and
 `r pct(glejser_rates("glejser")[2])` of the time, and the corrected one
 between `r pct(glejser_rates("glejser_robust")[1])` and
 `r pct(glejser_rates("glejser_robust")[2])`.
+
+The test of @harrison1979test is a case where the implementations agree on the
+statistic and differ in the p-value. The statistic is the share of the
+residual sum of squares that falls in the first part of the sample, ordered by
+a chosen variable, and under normal errors its null distribution depends on
+the regressors. `lmtest::hmctest()` simulates the p-value from a regression on
+a constant alone, whatever the model, and `skedastic::harrison_mccabe()`
+applies Imhof's formula [@imhof1961computing] after keeping one copy of each
+repeated eigenvalue. `performHarrisonMcCabeTest()` applies the formula to all
+of them, so its p-value is exact for normal errors given the regressors. In
+the validation study installed with the package it rejects a true null
+hypothesis between `r pct(hmc_rates("harrison_mccabe", "normal")[1])` and
+`r pct(hmc_rates("harrison_mccabe", "normal")[2])` of the time at the 5% level
+under Gaussian errors, with `r hmc_n[1]` to `r hmc_n[2]` observations, with
+and without weights. Under Student \(t_5\) errors it rejects between
+`r pct(hmc_rates("harrison_mccabe", "t5")[1])` and
+`r pct(hmc_rates("harrison_mccabe", "t5")[2])` of the time, and the
+Goldfeld--Quandt and Szroeter tests between
+`r pct(hmc_rates(c("goldfeld_quandt", "szroeter"), "t5")[1])` and
+`r pct(hmc_rates(c("goldfeld_quandt", "szroeter"), "t5")[2])` on the same
+samples.
 
 The remaining packages in Table \@ref(tab:software-comparison) each contribute
 one or two procedures as part of a wider purpose: \CRANpkg{whitestrap} for
