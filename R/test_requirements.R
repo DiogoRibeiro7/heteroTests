@@ -42,6 +42,10 @@ rTEST_REQUIREMENTS <- list(
   obrien = list(min_obs_per_group = 3L, reason = "O'Brien transformation contains n_i - 2 in the denominator"),
   studentized_bp = list(min_obs = 15L, reason = "Studentized auxiliary regression requires adequate sample"),
   szroeter = list(min_obs = 15L, reason = "Rank-based statistic requires enough ordered observations"),
+  harrison_mccabe = list(
+    min_obs = 10L,
+    reason = "Each part of the ordered sample needs observations beyond the coefficients"
+  ),
   bootstrap_tests = list(min_obs = 50L, reason = "Bootstrap needs adequate base sample"),
   wild_bootstrap = list(min_obs = 30L, reason = "Wild bootstrap multipliers require stable auxiliary regression"),
   quantile_regression = list(min_obs = 40L, reason = "Quantile comparisons require sufficient data per quantile"),

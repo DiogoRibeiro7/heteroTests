@@ -1,0 +1,98 @@
+"block","test","errors","n","weights","variance","gamma","level","replications","rejection_rate","mc_se","effective","failures"
+"null distribution","harrison_mccabe_less","normal",40,"none","constant",0,0.01,100000,0.01057,0.000323392564849596,100000,0
+"null distribution","harrison_mccabe_less","normal",40,"none","constant",0,0.05,100000,0.0511,0.000696338926098491,100000,0
+"null distribution","harrison_mccabe_less","normal",40,"none","constant",0,0.1,100000,0.10051,0.00095082984755423,100000,0
+"null distribution","harrison_mccabe_greater","normal",40,"none","constant",0,0.01,100000,0.00997,0.00031417509608497,100000,0
+"null distribution","harrison_mccabe_greater","normal",40,"none","constant",0,0.05,100000,0.04867,0.000680450079726647,100000,0
+"null distribution","harrison_mccabe_greater","normal",40,"none","constant",0,0.1,100000,0.09954,0.000946740663539916,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",40,"none","constant",0,0.01,100000,0.01009,0.000316041008415047,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",40,"none","constant",0,0.05,100000,0.05004,0.000689463547984953,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",40,"none","constant",0,0.1,100000,0.09977,0.000947712757643369,100000,0
+"null distribution","regressor_free_less","normal",40,"none","constant",0,0.01,100000,0.01163,0.000339038981534572,100000,0
+"null distribution","regressor_free_less","normal",40,"none","constant",0,0.05,100000,0.05422,0.000716101889398429,100000,0
+"null distribution","regressor_free_less","normal",40,"none","constant",0,0.1,100000,0.10519,0.000970180724916755,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"none","constant",0,0.01,100000,0.00993,0.000313550555732245,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"none","constant",0,0.05,100000,0.04935,0.000684942169091669,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"none","constant",0,0.1,100000,0.09838,0.000941814077193583,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"none","constant",0,0.01,100000,0.01004,0.000315264942548327,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"none","constant",0,0.05,100000,0.04879,0.000681245446957262,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"none","constant",0,0.1,100000,0.09913,0.000945003931737853,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"none","constant",0,0.01,100000,0.01015,0.000316969675205689,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"none","constant",0,0.05,100000,0.04955,0.00068625649359405,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"none","constant",0,0.1,100000,0.09814,0.000940789776730168,100000,0
+"null distribution","regressor_free_less","normal",100,"none","constant",0,0.01,100000,0.01076,0.00032625484517475,100000,0
+"null distribution","regressor_free_less","normal",100,"none","constant",0,0.05,100000,0.05193,0.000701664272284117,100000,0
+"null distribution","regressor_free_less","normal",100,"none","constant",0,0.1,100000,0.10254,0.000959299475659192,100000,0
+"null distribution","harrison_mccabe_less","normal",400,"none","constant",0,0.01,100000,0.01055,0.000323089732117875,100000,0
+"null distribution","harrison_mccabe_less","normal",400,"none","constant",0,0.05,100000,0.05195,0.000701791974163284,100000,0
+"null distribution","harrison_mccabe_less","normal",400,"none","constant",0,0.1,100000,0.10234,0.000958470262449493,100000,0
+"null distribution","harrison_mccabe_greater","normal",400,"none","constant",0,0.01,100000,0.00998,0.000314331029330545,100000,0
+"null distribution","harrison_mccabe_greater","normal",400,"none","constant",0,0.05,100000,0.04978,0.000687764142711729,100000,0
+"null distribution","harrison_mccabe_greater","normal",400,"none","constant",0,0.1,100000,0.0998,0.000947839437879644,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",400,"none","constant",0,0.01,100000,0.01011,0.000316350879562552,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",400,"none","constant",0,0.05,100000,0.05104,0.000695951998344714,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",400,"none","constant",0,0.1,100000,0.10173,0.000955934135283389,100000,0
+"null distribution","regressor_free_less","normal",400,"none","constant",0,0.01,100000,0.01072,0.000325654442622851,100000,0
+"null distribution","regressor_free_less","normal",400,"none","constant",0,0.05,100000,0.05261,0.000705989999220952,100000,0
+"null distribution","regressor_free_less","normal",400,"none","constant",0,0.1,100000,0.10324,0.000962192820592629,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"exact","constant",0,0.01,100000,0.01037,0.000320350793662198,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"exact","constant",0,0.05,100000,0.05004,0.000689463547984953,100000,0
+"null distribution","harrison_mccabe_less","normal",100,"exact","constant",0,0.1,100000,0.09967,0.000947290299221944,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"exact","constant",0,0.01,100000,0.01007,0.000315730820478458,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"exact","constant",0,0.05,100000,0.04938,0.000685139515719244,100000,0
+"null distribution","harrison_mccabe_greater","normal",100,"exact","constant",0,0.1,100000,0.0994,0.000946148191352708,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"exact","constant",0,0.01,100000,0.01006,0.000315575607422373,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"exact","constant",0,0.05,100000,0.04926,0.00068434970884775,100000,0
+"null distribution","harrison_mccabe_two_sided","normal",100,"exact","constant",0,0.1,100000,0.09942,0.000946232865630866,100000,0
+"size","harrison_mccabe","normal",40,"none","constant",0,0.05,5000,0.0472,0.00299907185642492,5000,0
+"size","goldfeld_quandt","normal",40,"none","constant",0,0.05,5000,0.048,0.00302311098043059,5000,0
+"size","szroeter","normal",40,"none","constant",0,0.05,5000,0.0444,0.00291302729132427,5000,0
+"size","glejser_robust","normal",40,"none","constant",0,0.05,5000,0.045,0.00293172304285381,5000,0
+"size","harrison_mccabe","normal",100,"none","constant",0,0.05,5000,0.0434,0.00288154264240528,5000,0
+"size","goldfeld_quandt","normal",100,"none","constant",0,0.05,5000,0.0478,0.00301712313305241,5000,0
+"size","szroeter","normal",100,"none","constant",0,0.05,5000,0.0484,0.00303504332753257,5000,0
+"size","glejser_robust","normal",100,"none","constant",0,0.05,5000,0.0436,0.00288787257336608,5000,0
+"size","harrison_mccabe","normal",400,"none","constant",0,0.05,5000,0.0522,0.00314563697841947,5000,0
+"size","goldfeld_quandt","normal",400,"none","constant",0,0.05,5000,0.0516,0.00312849612433834,5000,0
+"size","szroeter","normal",400,"none","constant",0,0.05,5000,0.049,0.00305283474822991,5000,0
+"size","glejser_robust","normal",400,"none","constant",0,0.05,5000,0.0474,0.00300510365877785,5000,0
+"size","harrison_mccabe","t5",40,"none","constant",0,0.05,5000,0.1166,0.00453882011099801,5000,0
+"size","goldfeld_quandt","t5",40,"none","constant",0,0.05,5000,0.1102,0.00442845255139987,5000,0
+"size","szroeter","t5",40,"none","constant",0,0.05,5000,0.0956,0.00415838045397484,5000,0
+"size","glejser_robust","t5",40,"none","constant",0,0.05,5000,0.0492,0.00305873699425106,5000,0
+"size","harrison_mccabe","t5",100,"none","constant",0,0.05,5000,0.1422,0.0049392137026049,5000,0
+"size","goldfeld_quandt","t5",100,"none","constant",0,0.05,5000,0.1246,0.00467064963361629,5000,0
+"size","szroeter","t5",100,"none","constant",0,0.05,5000,0.1292,0.00474357165013874,5000,0
+"size","glejser_robust","t5",100,"none","constant",0,0.05,5000,0.0468,0.00298696367570816,5000,0
+"size","harrison_mccabe","t5",400,"none","constant",0,0.05,5000,0.1626,0.00521845264422319,5000,0
+"size","goldfeld_quandt","t5",400,"none","constant",0,0.05,5000,0.1576,0.00515290675250387,5000,0
+"size","szroeter","t5",400,"none","constant",0,0.05,5000,0.1534,0.00509643875662212,5000,0
+"size","glejser_robust","t5",400,"none","constant",0,0.05,5000,0.047,0.00299302522541993,5000,0
+"size, weighted fit","harrison_mccabe","normal",40,"exact","constant",0,0.05,5000,0.048,0.00302311098043059,5000,0
+"size, weighted fit","goldfeld_quandt","normal",40,"exact","constant",0,0.05,5000,0.0502,0.00308804015517933,5000,0
+"size, weighted fit","szroeter","normal",40,"exact","constant",0,0.05,5000,0.0666,0.00352603006226549,5000,0
+"size, weighted fit","glejser_robust","normal",40,"exact","constant",0,0.05,5000,0.0496,0.00307049963361014,5000,0
+"size, weighted fit","harrison_mccabe","normal",100,"exact","constant",0,0.05,5000,0.0502,0.00308804015517933,5000,0
+"size, weighted fit","goldfeld_quandt","normal",100,"exact","constant",0,0.05,5000,0.0484,0.00303504332753257,5000,0
+"size, weighted fit","szroeter","normal",100,"exact","constant",0,0.05,5000,0.056,0.00325158422926425,5000,0
+"size, weighted fit","glejser_robust","normal",100,"exact","constant",0,0.05,5000,0.0464,0.00297479545515318,5000,0
+"size, weighted fit","harrison_mccabe","normal",400,"exact","constant",0,0.05,5000,0.053,0.00316831185333767,5000,0
+"size, weighted fit","goldfeld_quandt","normal",400,"exact","constant",0,0.05,5000,0.0482,0.00302908435009658,5000,0
+"size, weighted fit","szroeter","normal",400,"exact","constant",0,0.05,5000,0.055,0.0032241277890307,5000,0
+"size, weighted fit","glejser_robust","normal",400,"exact","constant",0,0.05,5000,0.0536,0.00318518570887162,5000,0
+"power","harrison_mccabe","normal",40,"none","exp",0.4,0.05,5000,0.4682,0.00705675222747689,5000,0
+"power","goldfeld_quandt","normal",40,"none","exp",0.4,0.05,5000,0.4912,0.0070699725600599,5000,0
+"power","szroeter","normal",40,"none","exp",0.4,0.05,5000,0.5298,0.00705849785719313,5000,0
+"power","glejser_robust","normal",40,"none","exp",0.4,0.05,5000,0.3666,0.00681475516801594,5000,0
+"power","harrison_mccabe","normal",100,"none","exp",0.4,0.05,5000,0.8484,0.00507183280481524,5000,0
+"power","goldfeld_quandt","normal",100,"none","exp",0.4,0.05,5000,0.8812,0.00457573076131015,5000,0
+"power","szroeter","normal",100,"none","exp",0.4,0.05,5000,0.9154,0.00393555180375002,5000,0
+"power","glejser_robust","normal",100,"none","exp",0.4,0.05,5000,0.8052,0.00560094563444424,5000,0
+"power","harrison_mccabe","normal",40,"none","quad",0.15,0.05,5000,0.4222,0.006984943235274,5000,0
+"power","goldfeld_quandt","normal",40,"none","quad",0.15,0.05,5000,0.4466,0.00703062500777847,5000,0
+"power","szroeter","normal",40,"none","quad",0.15,0.05,5000,0.4766,0.0070633198993108,5000,0
+"power","glejser_robust","normal",40,"none","quad",0.15,0.05,5000,0.3106,0.00654412163701134,5000,0
+"power","harrison_mccabe","normal",100,"none","quad",0.15,0.05,5000,0.7866,0.00579414255951646,5000,0
+"power","goldfeld_quandt","normal",100,"none","quad",0.15,0.05,5000,0.8348,0.00525183701194163,5000,0
+"power","szroeter","normal",100,"none","quad",0.15,0.05,5000,0.8658,0.00482058834583498,5000,0
+"power","glejser_robust","normal",100,"none","quad",0.15,0.05,5000,0.7304,0.00627560100707494,5000,0

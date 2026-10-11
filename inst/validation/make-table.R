@@ -568,3 +568,192 @@ if (file.exists(csv_m)) {
   }
   cat(sprintf("\nThe other %d are above it.\n", sum(!inside & !below)))
 }
+
+# --- Harrison-McCabe ------------------------------------------------------------
+
+csv_h <- file.path("inst", "validation", "harrison-mccabe-size-power.csv")
+if (!file.exists(csv_h)) csv_h <- "harrison-mccabe-size-power.csv"
+if (file.exists(csv_h)) {
+  hm <- utils::read.csv(csv_h, stringsAsFactors = FALSE)
+  tests <- c(
+    harrison_mccabe = "`performHarrisonMcCabeTest()`",
+    goldfeld_quandt = "`performGQTest()`",
+    szroeter = "`performSzroeterTest()`",
+    glejser_robust = "`performGlejserTest(robust = TRUE)`, two-sided"
+  )
+  rate_of <- function(rows, ...) {
+    keys <- list(...)
+    hit <- rep(TRUE, nrow(rows))
+    for (key in names(keys)) hit <- hit & rows[[key]] == keys[[key]]
+    if (any(hit)) rows$rejection_rate[hit][1L] else NA_real_
+  }
+  fmt <- function(x) ifelse(is.na(x), "--", sprintf("%.3f", x))
+
+  # Block 1: the exact p-value on samples drawn given the design.
+  nd <- hm[hm$block == "null distribution", , drop = FALSE]
+  null_tests <- c(
+    harrison_mccabe_less = "`alternative = \"less\"`",
+    harrison_mccabe_greater = "`alternative = \"greater\"`",
+    harrison_mccabe_two_sided = "`alternative = \"two.sided\"`",
+    regressor_free_less = "Null of `lmtest::hmctest()`, regressors ignored"
+  )
+  levels <- sort(unique(nd$level))
+  cat("\n### Harrison-McCabe test, the p-value on samples drawn given the design\n\n")
+  cat("| Design | P-value | ", paste(sprintf("%g%%", 100 * levels), collapse = " | "), " |\n",
+      sep = "")
+  cat("| --- | --- | ", paste(rep("---:", length(levels)), collapse = " | "), " |\n", sep = "")
+  designs <- unique(nd[, c("n", "weights")])
+  for (i in seq_len(nrow(designs))) {
+    label <- sprintf("n = %d%s", designs$n[i],
+                     if (designs$weights[i] == "exact") ", weighted" else "")
+    for (test in intersect(names(null_tests), nd$test)) {
+      cells <- vapply(levels, function(level) {
+        fmt(rate_of(nd, n = designs$n[i], weights = designs$weights[i], test = test,
+                    level = level))
+      }, character(1))
+      if (all(cells == "--")) next
+      cat("| ", label, " | ", null_tests[[test]], " | ", paste(cells, collapse = " | "), " |\n",
+          sep = "")
+    }
+  }
+  cat(sprintf(
+    "\nSamples per design: %d. Monte Carlo standard error at the 5%% level: %.4f.\n",
+    nd$replications[1], sqrt(0.05 * 0.95 / nd$replications[1])))
+
+  # Blocks 2 to 4: size; block 5: power.
+  mc <- hm[hm$block != "null distribution", , drop = FALSE]
+  size_blocks <- list(
+    list(block = "size", errors = "normal", label = "Gaussian"),
+    list(block = "size", errors = "t5", label = "t5"),
+    list(block = "size, weighted fit", errors = "normal", label = "Gaussian, weighted fit")
+  )
+  sizes <- sort(unique(mc$n[mc$block != "power"]))
+  cat("\n### Harrison-McCabe test, size\n\n")
+  cat("| Errors | Test | ", paste(sprintf("n = %d", sizes), collapse = " | "), " |\n", sep = "")
+  cat("| --- | --- | ", paste(rep("---:", length(sizes)), collapse = " | "), " |\n", sep = "")
+  for (b in size_blocks) {
+    for (test in names(tests)) {
+      cells <- vapply(sizes, function(n) {
+        fmt(rate_of(mc, block = b$block, errors = b$errors, test = test, n = n))
+      }, character(1))
+      cat("| ", b$label, " | ", tests[[test]], " | ", paste(cells, collapse = " | "), " |\n",
+          sep = "")
+    }
+  }
+
+  power <- mc[mc$block == "power", , drop = FALSE]
+  power_sizes <- sort(unique(power$n))
+  variances <- c(exp = "`sigma^2 = exp(0.4 x1)`", quad = "`sigma^2 = 1 + 0.15 x1^2`")
+  cat("\n### Harrison-McCabe test, power\n\n")
+  cat("| Variance | Test | ", paste(sprintf("n = %d", power_sizes), collapse = " | "), " |\n",
+      sep = "")
+  cat("| --- | --- | ", paste(rep("---:", length(power_sizes)), collapse = " | "), " |\n",
+      sep = "")
+  for (variance in intersect(names(variances), power$variance)) {
+    for (test in names(tests)) {
+      cells <- vapply(power_sizes, function(n) {
+        fmt(rate_of(power, variance = variance, test = test, n = n))
+      }, character(1))
+      cat("| ", variances[[variance]], " | ", tests[[test]], " | ", paste(cells, collapse = " | "),
+          " |\n", sep = "")
+    }
+  }
+  cat(sprintf(
+    "\nReplications: %d. Nominal level: 0.05. Monte Carlo standard error at the nominal level: %.4f.\n",
+    mc$replications[1], sqrt(0.05 * 0.95 / mc$replications[1])))
+
+  # The generated summary, for the same reason the full sweep has one. The gate
+  # is the 99% interval around the nominal level at the number of samples.
+  z_of <- function(rows) {
+    (rows$rejection_rate - rows$level) / sqrt(rows$level * (1 - rows$level) / rows$effective)
+  }
+  in_gate <- function(rows) abs(z_of(rows)) <= stats::qnorm(0.995)
+  span <- function(x) sprintf("%.3f to %.3f", min(x), max(x))
+  exact_rows <- nd[nd$test != "regressor_free_less", , drop = FALSE]
+  free_rows <- nd[nd$test == "regressor_free_less" & nd$level == 0.05, , drop = FALSE]
+  gaussian_null <- mc[mc$test == "harrison_mccabe" & mc$errors == "normal" &
+                        mc$block != "power", , drop = FALSE]
+  t5 <- mc[mc$block == "size" & mc$errors == "t5", , drop = FALSE]
+  cat("\n<!-- generated by make-table.R; do not edit the numbers by hand -->\n\n")
+  cat(sprintf(
+    paste0(
+      "On samples drawn given the design, %d of the %d rejection rates of the p-value fall ",
+      "inside the 99%% interval around their level"
+    ),
+    sum(in_gate(exact_rows)), nrow(exact_rows)))
+  outside <- which(!in_gate(exact_rows))
+  if (length(outside)) {
+    cat(sprintf(
+      ". Outside it: %s.",
+      paste(sprintf(
+        "n = %d%s, `alternative = \"%s\"`, %g%% level, %.4f (%.1f standard errors)",
+        exact_rows$n[outside],
+        ifelse(exact_rows$weights[outside] == "exact", ", weighted", ""),
+        sub("_", ".", sub("^harrison_mccabe_", "", exact_rows$test[outside])),
+        100 * exact_rows$level[outside], exact_rows$rejection_rate[outside],
+        z_of(exact_rows)[outside]
+      ), collapse = "; ")))
+  } else {
+    cat(".")
+  }
+  cat(sprintf(
+    " The null of `lmtest::hmctest()` rejects %s of the time at the 5%% level in the same samples (n = %s).\n\n",
+    paste(sprintf("%.3f", free_rows$rejection_rate), collapse = ", "),
+    paste(free_rows$n, collapse = ", ")))
+  cat(sprintf(
+    paste0(
+      "Of the %d null cells of `performHarrisonMcCabeTest()` with Gaussian errors, with and ",
+      "without weights, %d fall inside the release-gate interval [%.4f, %.4f], at %s"
+    ),
+    nrow(gaussian_null), sum(in_gate(gaussian_null)),
+    0.05 - stats::qnorm(0.995) * sqrt(0.05 * 0.95 / gaussian_null$effective[1]),
+    0.05 + stats::qnorm(0.995) * sqrt(0.05 * 0.95 / gaussian_null$effective[1]),
+    span(gaussian_null$rejection_rate)))
+  outside <- which(!in_gate(gaussian_null))
+  if (length(outside)) {
+    cat(". Outside it:\n\n")
+    for (i in outside) {
+      cat(sprintf("- %s, n = %d: %.4f.\n", gaussian_null$block[i], gaussian_null$n[i],
+                  gaussian_null$rejection_rate[i]))
+    }
+    cat("\n")
+  } else {
+    cat(". ")
+  }
+  # The three ordered statistics are linear in the squared errors to first
+  # order, so their null variance is proportional to the kurtosis less 1, and
+  # each one-sided test at level alpha has asymptotic size
+  # pnorm(-qnorm(1 - alpha) / sqrt((kurtosis - 1) / 2)). The kurtosis of t5 is
+  # 3 + 6 / (5 - 4) = 9. Nothing here is simulated.
+  t5_kurtosis <- 3 + 6 / (5 - 4)
+  cat(sprintf(
+    paste0(
+      "Under t5 errors it rejects %s of the time, `performGQTest()` %s, ",
+      "`performSzroeterTest()` %s and `performGlejserTest(robust = TRUE)` %s. ",
+      "The asymptotic rate of the three one-sided tests under t5 errors is %.3f.\n"
+    ),
+    span(t5$rejection_rate[t5$test == "harrison_mccabe"]),
+    span(t5$rejection_rate[t5$test == "goldfeld_quandt"]),
+    span(t5$rejection_rate[t5$test == "szroeter"]),
+    span(t5$rejection_rate[t5$test == "glejser_robust"]),
+    stats::pnorm(-stats::qnorm(1 - 0.05) / sqrt((t5_kurtosis - 1) / 2))))
+
+  # Power, in percentage points, against the two one-sided tests on the same
+  # samples.
+  points <- function(other) {
+    cells <- unique(power[, c("variance", "n")])
+    vapply(seq_len(nrow(cells)), function(i) {
+      100 * (rate_of(power, variance = cells$variance[i], n = cells$n[i], test = other) -
+               rate_of(power, variance = cells$variance[i], n = cells$n[i],
+                       test = "harrison_mccabe"))
+    }, numeric(1))
+  }
+  gq <- points("goldfeld_quandt")
+  sz <- points("szroeter")
+  cat(sprintf(
+    paste0(
+      "\nIn the %d power cells, `performGQTest()` has %.1f to %.1f percentage points more ",
+      "power than `performHarrisonMcCabeTest()`, and `performSzroeterTest()` %.1f to %.1f.\n"
+    ),
+    length(gq), min(gq), max(gq), min(sz), max(sz)))
+}

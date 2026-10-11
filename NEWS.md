@@ -103,6 +103,29 @@
   to 25% of the time, and 3 of their 40 size cells fell inside the Monte Carlo
   band. They were not adopted.
 
+- `performHarrisonMcCabeTest()` adds the test of Harrison and McCabe (1979)
+  beside `performGQTest()` and `performSzroeterTest()`, the other two tests
+  along an ordering of the observations. The statistic is the share of the
+  residual sum of squares that falls in the first part of the sample ordered
+  by a variable, and it agrees with `lmtest::hmctest()` to `1e-8`. The p-value
+  is exact under normal errors given the regressors, by Imhof's (1961)
+  formula, and reproduces the exact critical values published by Harrison
+  (1981). The 1979 article was not read: the definition rests on Harrison
+  (1981), by its first author, and on `lmtest`. `lmtest::hmctest()`
+  simulates its p-value from a regression on a
+  constant alone, whatever the model, and `skedastic::harrison_mccabe()`
+  drops repeated eigenvalues before applying Imhof's formula, which changes
+  its p-value. Weighted fits are supported.
+
+  In `inst/validation/harrison-mccabe-size-power.R`, at the 5% level, the
+  test rejects a true null hypothesis 4.3% to 5.3% of the time under Gaussian
+  errors at 40 to 400 observations, with and without weights. Under `t5`
+  errors it rejects 11.7% to 16.3%, as the Goldfeld-Quandt and Szroeter tests
+  do, and the help page points to `performGlejserTest(robust = TRUE)` there.
+  Against the two alternatives of Pass A it has 2.3 to 4.8 percentage points
+  less power than the Goldfeld-Quandt test and 5.4 to 7.9 less than
+  Szroeter's. No value any other function returns changes.
+
 - `performGlejserTest()` gains `robust = TRUE`, the Glejser test of Im (2000)
   and of Machado and Santos Silva (2000), which keeps its level when the
   errors are skewed. No other R implementation of it was found.

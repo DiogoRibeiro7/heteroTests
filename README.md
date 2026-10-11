@@ -37,7 +37,9 @@ tests. Their simulated size and power are in
   level under skewed errors.
 - **Does the variance change with the fitted values or along an ordering?**
   Goldfeld--Quandt (`performGQTest()`), Szroeter (`performSzroeterTest()`),
-  Spearman's rank correlation (`performSpearmanTest()`), the spread--level test
+  Harrison--McCabe (`performHarrisonMcCabeTest()`, with a p-value that is exact
+  under normal errors given the regressors), Spearman's rank correlation
+  (`performSpearmanTest()`), the spread--level test
   (`performSpreadLevelTest()`) and Davidian--Carroll
   (`performDavidianCarrollTest()`).
 - **Do groups have equal variances?** Levene, Brown--Forsythe, Bartlett,

@@ -49,6 +49,8 @@ test that remains.
 | `glejser-skewed-errors.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `modified-wald-size-power.R` | The modified Wald test for groupwise heteroscedasticity of Stata's `xttest3`, which the package does not export, on fixed-effects panels. `Rscript inst/validation/modified-wald-size-power.R`, with `N_MC` and `MC_CORES` overridable. Checks the statistic against the example in Baum (2001) when `plm` is installed. |
 | `modified-wald-size-power.csv` | Its output, one row per block, reference distribution, error distribution and panel shape. |
+| `harrison-mccabe-size-power.R` | `performHarrisonMcCabeTest()` beside the Goldfeld-Quandt and Szroeter tests on the same ordering: its p-value on samples drawn given the design, its size under Gaussian and t5 errors and after a weighted fit, and its power. `Rscript inst/validation/harrison-mccabe-size-power.R`, with `N_MC`, `N_NULL` and `MC_CORES` overridable. |
+| `harrison-mccabe-size-power.csv` | Its output, one row per test, block, error distribution, sample size and level. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -382,8 +384,12 @@ column of the data.
 
 The White family is conservative here at 0.022, more so than its 0.032 on an
 unweighted fit in the full sweep, and Szroeter is at the high end at 0.077
-against 0.058. Both are inside three standard errors of what the same tests do
-without weights.
+against 0.058. At 400 replications both are inside three standard errors of
+what the same tests do without weights, so this table cannot tell them apart.
+For Szroeter a larger study does: at 5000 replications, on the weighted design
+of `harrison-mccabe-size-power.R`, it rejects 0.067 of the time at 40
+observations, outside the release gate, and 0.056 and 0.055 at 100 and 400.
+See the section on the Harrison-McCabe test.
 
 The three tests marked `refused` regenerate the response or refit under a
 different loss, and refit without the weights. They stop with an error on a
@@ -940,6 +946,199 @@ What follows from the tables:
   1.000 of the time.
 
 The test was not adopted. The roadmap records it under *Candidate tests*.
+
+### The Harrison-McCabe test
+
+`performHarrisonMcCabeTest()` orders the observations by a variable and takes
+the share of the residual sum of squares that falls in the first `m` of them,
+`b = sum(e[1:m]^2) / sum(e^2)`, with `m = floor(n / 2)` by default (Harrison
+and McCabe 1979). A variance that increases along the ordering makes `b`
+small. Under normal errors `b` is a ratio of quadratic forms in normal
+variables whose distribution depends on the regressors, and the test computes
+its p-value from that distribution exactly, by Imhof's (1961) formula.
+
+**The source.** Harrison and McCabe (1979) is not open access and was not
+read. The definition is taken from Harrison (1981), by its first author, in
+*The Economic and Social Review* 12(4), 235-252, which is open access at
+<https://hdl.handle.net/2262/68690>. Its equation (2) is the statistic above,
+with `m` the integer part of `n / 2` and the observations ordered so that the
+variance rises under the alternative, and the test rejects for small `b`. It
+computes the exact test by Imhof's method, and its Table 3 prints the exact 5%
+critical values for a constant and a linear trend: 0.147, 0.243, 0.289 and
+0.317 at 10, 20, 30 and 40 observations. The null distribution of this package
+gives 0.1467, 0.2429, 0.2890 and 0.3168, and
+`tests/testthat/test-harrison-mccabe.R` asserts each to within `5e-4`. The same
+file checks that the p-value lies between those of the two beta-distributed
+bounds that Harrison (1981) restates from the 1979 article.
+
+The design is the cross-sectional one of Pass A, ordered by `x1`. The
+Goldfeld-Quandt and Szroeter tests are run on the same samples with the same
+ordering, each with its default split and its one-sided alternative of a
+variance that increases with `x1`, which is `alternative = "less"` for this
+test and `"greater"` for those two. The Glejser test of the absolute residuals
+on `x1` with `robust = TRUE` is in the tables because the help page recommends
+it when the errors may be heavy-tailed. It is two-sided, so its rejection
+rates under the alternatives are not powers to rank against the others.
+
+The first of the three tables of the study holds one design of each size fixed
+and draws 100000 error vectors on it, so it measures the p-value itself. The
+other two redraw the design in every sample, as a user's data would vary.
+
+**Reference implementations.** The statistic is that of `lmtest::hmctest()`,
+and `tests/testthat/test-harrison-mccabe.R` asserts the agreement to `1e-8`.
+Neither reference computes this p-value.
+
+- `lmtest::hmctest()` (0.9-40) simulates its p-value from standard normal
+  vectors that are centred and scaled, which are the residuals of a regression
+  on a constant alone, whatever the model. With `simulate.p = FALSE` the
+  p-value is `NA`. The rows "Null of `lmtest::hmctest()`" in the first table
+  are that null computed exactly, on the same samples as the test's own.
+- `skedastic::harrison_mccabe()` (2.0.3) evaluates Imhof's formula through
+  `CompQuadForm::imhof()` (1.4.4), and its p-value differs from this one for
+  two reasons. It passes the eigenvalues through `almost.unique()` first,
+  which keeps one copy of eigenvalues that round to the same multiple of
+  `sqrt(.Machine$double.eps)`, about `1.5e-8`. Here they come in two large
+  groups, `1 - b` repeated `m - k` times and `-b` repeated `n - m - k` times,
+  so the p-value it reports is that of a quadratic form with at most `k + 2`
+  terms in place of `n - k`. And with `deflator` it orders
+  the residuals by that variable but computes the null distribution from the
+  design in the order of the rows. It also puts `round(m * n)` observations in
+  the first part where `lmtest` puts `floor(point * n)`.
+
+On four data sets, with skedastic given `m` as a count, R 4.5.1:
+
+| Data | n | m | Here | skedastic, rows sorted | skedastic, rows as given, `deflator` | skedastic's matrices, every eigenvalue kept | Simulated given the design | `lmtest::hmctest()`, `nsim = 100000` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `mtcars`, `mpg ~ wt + qsec`, by `wt` | 32 | 16 | 0.6929 | 0.6515 | 0.5589 | 0.6929 | 0.6923 | 0.6802 |
+| `cars`, `dist ~ speed`, by `speed` | 50 | 25 | 0.1320 | 0.3790 | 0.3790 | 0.1320 | 0.1311 | 0.1286 |
+| `trees`, `Volume ~ Girth + Height`, by `Height` | 31 | 15 | 0.4694 | 0.3988 | 0.4189 | 0.4694 | 0.4698 | 0.4770 |
+| A sample of the Pass A design, `y ~ x1 + x2`, by `x1` | 43 | 21 | 0.0351 | 0.1702 | 0.1023 | 0.0351 | 0.0350 | 0.0367 |
+
+These figures are not in the CSV, because skedastic is not a dependency of the
+package; they were computed with it installed in a separate library. The
+statistic agrees with both references to `7e-16` on every row. Keeping every
+eigenvalue of skedastic's own matrices, `CompQuadForm::imhof()` gives this
+package's p-value to `4e-15`, and 400000 error vectors drawn on each design
+are within 1.7 standard errors of it. `cars` is sorted by `speed`, so the two
+skedastic columns agree there. The computation for the first row:
+
+    fit <- lm(mpg ~ wt + qsec, data = mtcars[order(mtcars$wt), ])
+    X <- model.matrix(fit); n <- nrow(X); m <- 16
+    sk <- skedastic::harrison_mccabe(fit, m = m)           # p.value 0.6515
+    M <- diag(n) - X %*% solve(crossprod(X), t(X))
+    A <- diag(rep(c(1, 0), c(m, n - m)))
+    lambda <- eigen(M %*% A %*% M - sk$statistic * M, only.values = TRUE)$values
+    lambda <- lambda[abs(lambda) > .Machine$double.eps]
+    1 - CompQuadForm::imhof(0, lambda)$Qq                  # 0.6929
+
+**Harrison-McCabe test, the p-value on samples drawn given the design.**
+
+| Design | P-value | 1% | 5% | 10% |
+| --- | --- | ---: | ---: | ---: |
+| n = 40 | `alternative = "less"` | 0.011 | 0.051 | 0.101 |
+| n = 40 | `alternative = "greater"` | 0.010 | 0.049 | 0.100 |
+| n = 40 | `alternative = "two.sided"` | 0.010 | 0.050 | 0.100 |
+| n = 40 | Null of `lmtest::hmctest()`, regressors ignored | 0.012 | 0.054 | 0.105 |
+| n = 100 | `alternative = "less"` | 0.010 | 0.049 | 0.098 |
+| n = 100 | `alternative = "greater"` | 0.010 | 0.049 | 0.099 |
+| n = 100 | `alternative = "two.sided"` | 0.010 | 0.050 | 0.098 |
+| n = 100 | Null of `lmtest::hmctest()`, regressors ignored | 0.011 | 0.052 | 0.103 |
+| n = 400 | `alternative = "less"` | 0.011 | 0.052 | 0.102 |
+| n = 400 | `alternative = "greater"` | 0.010 | 0.050 | 0.100 |
+| n = 400 | `alternative = "two.sided"` | 0.010 | 0.051 | 0.102 |
+| n = 400 | Null of `lmtest::hmctest()`, regressors ignored | 0.011 | 0.053 | 0.103 |
+| n = 100, weighted | `alternative = "less"` | 0.010 | 0.050 | 0.100 |
+| n = 100, weighted | `alternative = "greater"` | 0.010 | 0.049 | 0.099 |
+| n = 100, weighted | `alternative = "two.sided"` | 0.010 | 0.049 | 0.099 |
+
+Samples per design: 100000. Monte Carlo standard error at the 5% level: 0.0007.
+
+**Harrison-McCabe test, size.**
+
+| Errors | Test | n = 40 | n = 100 | n = 400 |
+| --- | --- | ---: | ---: | ---: |
+| Gaussian | `performHarrisonMcCabeTest()` | 0.047 | 0.043 | 0.052 |
+| Gaussian | `performGQTest()` | 0.048 | 0.048 | 0.052 |
+| Gaussian | `performSzroeterTest()` | 0.044 | 0.048 | 0.049 |
+| Gaussian | `performGlejserTest(robust = TRUE)`, two-sided | 0.045 | 0.044 | 0.047 |
+| t5 | `performHarrisonMcCabeTest()` | 0.117 | 0.142 | 0.163 |
+| t5 | `performGQTest()` | 0.110 | 0.125 | 0.158 |
+| t5 | `performSzroeterTest()` | 0.096 | 0.129 | 0.153 |
+| t5 | `performGlejserTest(robust = TRUE)`, two-sided | 0.049 | 0.047 | 0.047 |
+| Gaussian, weighted fit | `performHarrisonMcCabeTest()` | 0.048 | 0.050 | 0.053 |
+| Gaussian, weighted fit | `performGQTest()` | 0.050 | 0.048 | 0.048 |
+| Gaussian, weighted fit | `performSzroeterTest()` | 0.067 | 0.056 | 0.055 |
+| Gaussian, weighted fit | `performGlejserTest(robust = TRUE)`, two-sided | 0.050 | 0.046 | 0.054 |
+
+**Harrison-McCabe test, power.**
+
+| Variance | Test | n = 40 | n = 100 |
+| --- | --- | ---: | ---: |
+| `sigma^2 = exp(0.4 x1)` | `performHarrisonMcCabeTest()` | 0.468 | 0.848 |
+| `sigma^2 = exp(0.4 x1)` | `performGQTest()` | 0.491 | 0.881 |
+| `sigma^2 = exp(0.4 x1)` | `performSzroeterTest()` | 0.530 | 0.915 |
+| `sigma^2 = exp(0.4 x1)` | `performGlejserTest(robust = TRUE)`, two-sided | 0.367 | 0.805 |
+| `sigma^2 = 1 + 0.15 x1^2` | `performHarrisonMcCabeTest()` | 0.422 | 0.787 |
+| `sigma^2 = 1 + 0.15 x1^2` | `performGQTest()` | 0.447 | 0.835 |
+| `sigma^2 = 1 + 0.15 x1^2` | `performSzroeterTest()` | 0.477 | 0.866 |
+| `sigma^2 = 1 + 0.15 x1^2` | `performGlejserTest(robust = TRUE)`, two-sided | 0.311 | 0.730 |
+
+Replications: 5000. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0031.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+On samples drawn given the design, 35 of the 36 rejection rates of the p-value fall inside the 99% interval around their level. Outside it: n = 400, `alternative = "less"`, 5% level, 0.0520 (2.8 standard errors). The null of `lmtest::hmctest()` rejects 0.054, 0.052, 0.053 of the time at the 5% level in the same samples (n = 40, 100, 400).
+
+Of the 6 null cells of `performHarrisonMcCabeTest()` with Gaussian errors, with and without weights, 6 fall inside the release-gate interval [0.0421, 0.0579], at 0.043 to 0.053. Under t5 errors it rejects 0.117 to 0.163 of the time, `performGQTest()` 0.110 to 0.158, `performSzroeterTest()` 0.096 to 0.153 and `performGlejserTest(robust = TRUE)` 0.047 to 0.049. The asymptotic rate of the three one-sided tests under t5 errors is 0.205.
+
+In the 4 power cells, `performGQTest()` has 2.3 to 4.8 percentage points more power than `performHarrisonMcCabeTest()`, and `performSzroeterTest()` 5.4 to 7.9.
+
+Five things follow.
+
+- **The p-value is the exact one.** On samples drawn given the design it
+  rejects at its level at 1%, 5% and 10%, in each direction, with and without
+  weights. One rate in 36 is outside its 99% interval, by 2.8 standard
+  errors; were the 36 independent, chance would put at least one outside about
+  30% of the time. In
+  `tests/testthat/test-harrison-mccabe.R` the p-value equals the beta
+  distribution function to `1e-10` in two designs where the statistic has
+  one, and a reconstruction from the full projection matrix to `1e-8`.
+- **The null of `lmtest::hmctest()` is close to the exact one in this
+  design, and it is not the same.** It rejects 5.2% to 5.4% of the time at
+  the 5% level on the samples above. On the four data sets of the previous
+  table its p-value differs from the exact one by 0.002 to 0.013, which
+  includes its own simulation error.
+- **The test holds its level under Gaussian errors, with and without
+  weights.** All six null cells are inside the release-gate interval, at
+  0.043 to 0.053.
+- **Under heavy tails it does not, and a larger sample makes it worse.** With
+  `t5` errors it rejects 0.117 of the time at 40 observations and 0.163 at
+  400, and the Goldfeld-Quandt and Szroeter tests do the same: 0.125 and
+  0.129 at 100 observations, beside 0.131 and 0.126 in Pass A. All three
+  statistics are linear in the squared errors to first order, so their
+  variance under the null is proportional to the kurtosis of the errors less
+  1, which is 8 for `t5` against 2 for normal errors, and each one-sided test
+  at the 5% level tends to `pnorm(-qnorm(0.95) / 2)`, 0.205. The robust
+  Glejser test on `x1` rejects 0.047 to 0.049 of the time under the same
+  errors, and the help page sends the reader to it.
+- **It is the least powerful of the three ordered tests here.** In each of
+  the four power cells the Goldfeld-Quandt test has 2.3 to 4.8 percentage
+  points more power and the Szroeter test 5.4 to 7.9. The statistic weights
+  every observation in each half equally, where Szroeter's weights each by its
+  rank, and the variance in these alternatives rises smoothly along `x1`. What
+  the test adds to the interface is a p-value that is exact for any design and
+  any split under normal errors.
+
+One further result concerns `performSzroeterTest()` rather than this test. On
+the weighted fit at 40 observations it rejects 0.067 of the time, outside the
+release-gate interval, and 0.056 and 0.055 at 100 and 400. Its null
+distribution does not depend on the design. In the weighted design the rows at
+the start of the ordering, where `x1` is small, carry the largest weights and
+have the largest leverages, so their residuals are the smallest and the
+variance appears to rise along the ordering. The Harrison-McCabe and
+Goldfeld-Quandt tests, whose null distributions use the weighted design, are
+at 0.048 to 0.053 in the same cells. The finding is an open item in
+`ROADMAP.md`.
 
 ## History
 
