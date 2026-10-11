@@ -56,7 +56,8 @@
 #' offset was given as an argument, `lm(..., offset = o)`, or written in the
 #' formula, `offset(o)`. Its coefficients, fitted values and residuals are
 #' those `lm()` returns for the same call with the estimated weights added.
-#' Weights `model` was fitted with are replaced by the estimated ones.
+#' On a model fitted with weights, the refit uses the estimated weights in
+#' their place, and `weights()` of the result returns them.
 #'
 #' @param model A fitted model of class `lm`.
 #' @param data Optional [base::data.frame] holding the variables named in

@@ -91,7 +91,8 @@ The weighted fit keeps the design and the offset of \code{model}, whether the
 offset was given as an argument, \code{lm(..., offset = o)}, or written in the
 formula, \code{offset(o)}. Its coefficients, fitted values and residuals are
 those \code{lm()} returns for the same call with the estimated weights added.
-Weights \code{model} was fitted with are replaced by the estimated ones.
+On a model fitted with weights, the refit uses the estimated weights in
+their place, and \code{weights()} of the result returns them.
 }
 
 \examples{
