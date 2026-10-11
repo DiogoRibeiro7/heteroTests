@@ -52,6 +52,11 @@ on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under
 \eqn{H_0} this controls size even for heavy-tailed errors; under the alternative
 the observed statistic is extreme relative to the homoscedastic reference, giving
 power.
+
+Each replicate is refitted on the design matrix of the fit, with its
+offset, whether that was given as an argument or written in the formula.
+The formula is not evaluated again, so a transformed regressor such as
+\code{log(x)}, or a transformed response, is refitted on the scale of the fit.
 }
 \section{Weighted fits}{
 

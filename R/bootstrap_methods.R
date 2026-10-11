@@ -46,13 +46,19 @@ NULL
 #' centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
 #' it to \eqn{\hat y_i}{yhat_i}.
 #' Pairs resampling draws each row with its weight. Either way each replicate
-#' is refitted with the weights, and with an offset the model was given as an
-#' argument, so `test_function` sees a weighted fit, as it did on the original
-#' data. The rows of `data` are matched to those of the fit by row name, and a
-#' weighted fit whose rows `data` does not hold, once each, is refused. An
-#' unweighted fit is resampled as before, and the same seed gives the same
-#' result. The weights are held fixed; when they were estimated from the same
-#' data, see the section on weighted fits in [performWildBootstrapTest()].
+#' is refitted with the weights, so `test_function` sees a weighted fit, as it
+#' did on the original data. The weights are held fixed; when they were
+#' estimated from the same data, see the section on weighted fits in
+#' [performWildBootstrapTest()].
+#'
+#' Weighted or not, each replicate is refitted with an offset the model was
+#' given as an argument, `lm(..., offset = o)`; an offset written in the
+#' formula, `offset(o)`, is evaluated again from the data of the replicate.
+#' The rows of `data` are matched to those of the fit by row name, so that
+#' each row is regenerated, or drawn, with its own fitted value, weight and
+#' offset, and `data` that does not hold the rows the model was fitted to,
+#' once each, is refused. When the fit dropped rows with missing values, pass
+#' the rows it kept.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -66,7 +72,8 @@ NULL
 #' @param model A fitted model of class `lm`, with or without weights. A `glm`
 #'   is rejected: each replicate is refitted with least squares, which would
 #'   discard its family and link.
-#' @param data Data frame used when fitting `model`.
+#' @param data Data frame used when fitting `model`, holding the rows it was
+#'   fitted to, once each, under their row names. See Details.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
 #' @param parallel Logical, compute replicates in parallel when possible?
 #' @param ci_level Confidence level for the percentile interval.
@@ -193,7 +200,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # null hypothesis: its residuals are the Pearson residuals, and hatvalues()
   # of a weighted fit are its leverages. Each draw is returned to the scale of
   # the observation it is added to by dividing by sqrt(w), and the refit
-  # carries the weights and an offset the model was given as an argument.
+  # carries the weights. Weighted or not, the refit carries an offset the
+  # model was given as an argument, which the formula does not hold.
   response_col <- all.vars(formula)[1L]
   fitted_vals <- stats::fitted(model)
   null_residuals <- NULL
@@ -230,26 +238,28 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       )
     }
   }
-  # A weighted fit has one weight per fitted row, and one value of an offset
-  # given as an argument. They and the fitted values are put in the row order
-  # of `data`, matched by row name, so that each row is regenerated or drawn
-  # with its own. An unweighted fit uses the fitted values by position, as it
-  # always has.
-  offset_argument <- NULL
-  if (!is.null(prior_weights)) {
-    fit_rows <- names(fitted_vals)
-    row_index <- if (is.null(fit_rows)) seq_len(n) else match(rownames(data), fit_rows)
-    if (length(prior_weights) != n || anyNA(row_index) || anyDuplicated(row_index) > 0L) {
-      stop(
-        "Resampling a weighted fit needs `data` to hold the rows the model was ",
-        "fitted to, once each, under the same row names. Refit on `data`.",
-        call. = FALSE
-      )
-    }
-    prior_weights <- prior_weights[row_index]
-    fitted_vals <- fitted_vals[row_index]
-    offset_argument <- roffset_argument(model)[row_index]
+  # The fitted values, the weights of a weighted fit and an offset given as an
+  # argument have one value per fitted row. They are put in the row order of
+  # `data`, matched by row name, so that each row is regenerated or drawn with
+  # its own, and data that does not hold the fitted rows once each is refused.
+  # Data in the order of the fit takes them as they are, so the same seed gives
+  # the same result as before. Until the unweighted fit followed this rule it
+  # took the fitted values by position: data holding the same rows in another
+  # order added each row's draw to another row's fitted value, and a refit
+  # dropped an offset given as an argument.
+  fit_rows <- names(fitted_vals)
+  row_index <- if (is.null(fit_rows)) seq_len(n) else match(rownames(data), fit_rows)
+  if (length(model$residuals) != n || anyNA(row_index) || anyDuplicated(row_index) > 0L) {
+    stop(
+      "Resampling needs `data` to hold the rows the model was fitted to, once ",
+      "each, under the same row names. Refit on `data`, or pass the rows of ",
+      "the fit.",
+      call. = FALSE
+    )
   }
+  prior_weights <- prior_weights[row_index]
+  fitted_vals <- fitted_vals[row_index]
+  offset_argument <- roffset_argument(model)[row_index]
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
@@ -268,10 +278,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       boot_offset <- offset_argument[sampled_idx]
     }
     boot_model <- tryCatch(
-      if (is.null(boot_weights)) {
+      if (is.null(boot_weights) && is.null(boot_offset)) {
         safe_lm(formula, data = boot_data)
       } else {
-        rrefit_weighted(formula, boot_data, boot_weights, boot_offset)
+        rrefit_lm(formula, boot_data, boot_weights, boot_offset)
       },
       error = function(e) NULL
     )

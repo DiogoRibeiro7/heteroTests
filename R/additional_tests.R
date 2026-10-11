@@ -388,16 +388,21 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
   # constant column, so its residuals need not average zero, while those of an
   # unweighted fit with an intercept do. Without an intercept neither path
   # centres, so equal weights resample exactly as no weights. The refit
-  # carries the weights, and an offset given as an argument, so
-  # performWhiteTest() computes the statistic of each replicate as it computed
-  # the observed one, from the Pearson residuals.
+  # carries the weights, so performWhiteTest() computes the statistic of each
+  # replicate as it computed the observed one, from the Pearson residuals.
+  #
+  # Weighted or not, the refit carries an offset the model was given as an
+  # argument, lm(..., offset = o), which the formula does not hold; one written
+  # in the formula, offset(o), is evaluated again from the data. working_data
+  # holds the fitted rows in the order of the fit, so the offset, the weights
+  # and the fitted values are taken as they are.
   prior_weights <- rprior_weights(model)
+  offset_argument <- roffset_argument(model)
   if (!is.null(prior_weights)) {
     pool <- rpearson_residuals(model)
     if (attr(stats::terms(model), "intercept") == 1L) {
       pool <- pool - mean(pool)
     }
-    offset_argument <- roffset_argument(model)
   }
 
   bootstrap_stat <- function() {
@@ -414,10 +419,10 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
     response_name <- as.character(stats::formula(model))[2]
     boot_data[[response_name]] <- boot_y
 
-    boot_model <- if (is.null(prior_weights)) {
+    boot_model <- if (is.null(prior_weights) && is.null(offset_argument)) {
       safe_lm(stats::formula(model), data = boot_data)
     } else {
-      rrefit_weighted(stats::formula(model), boot_data, prior_weights, offset_argument)
+      rrefit_lm(stats::formula(model), boot_data, prior_weights, offset_argument)
     }
     unname(performWhiteTest(boot_model, boot_data)$statistic[1])
   }

@@ -368,7 +368,7 @@ rpearson_residuals <- function(model) {
 #' different loss. On a weighted fit that describes a different model from the
 #' one supplied, so they refuse it, as `rbootstrap_test_statistic()` refuses a
 #' `glm`. The resampling tests refit with the weights instead; see
-#' `rrefit_weighted()`.
+#' `rrefit_lm()`.
 #'
 #' @param model A fitted model.
 #' @param what Character scalar naming the calling procedure.
@@ -389,10 +389,10 @@ rrefuse_weighted_fit <- function(model, what) {
   )
 }
 
-#' Refit a weighted least-squares model to a regenerated sample
+#' Refit a linear model to a regenerated sample
 #'
 #' The resampling tests regenerate the response, or the rows, and refit the
-#' model. On a weighted fit the refit has to carry the weights, and the offset
+#' model. The refit has to carry the weights of a weighted fit, and the offset
 #' when the model was given one as an argument; an offset written in the
 #' formula is evaluated again from `data`. `lm()` looks a name passed as
 #' `weights` or `offset` up in `data` and then in the environment of the
@@ -401,16 +401,18 @@ rrefuse_weighted_fit <- function(model, what) {
 #'
 #' @param formula The model formula.
 #' @param data Data frame holding the regenerated sample.
-#' @param weights Prior weights, one per row of `data`.
+#' @param weights Prior weights, one per row of `data`, or `NULL` for an
+#'   unweighted fit.
 #' @param offset Offset given to the model as an argument, one value per row of
 #'   `data`, or `NULL`.
-#' @return The weighted `lm` fit.
+#' @return The `lm` fit.
 #' @keywords internal
 #' @noRd
-rrefit_weighted <- function(formula, data, weights, offset = NULL) {
-  fit_call <- as.call(list(
-    quote(stats::lm), formula = quote(formula), data = quote(data), weights = weights
-  ))
+rrefit_lm <- function(formula, data, weights = NULL, offset = NULL) {
+  fit_call <- as.call(list(quote(stats::lm), formula = quote(formula), data = quote(data)))
+  if (!is.null(weights)) {
+    fit_call$weights <- weights
+  }
   if (!is.null(offset)) {
     fit_call$offset <- offset
   }

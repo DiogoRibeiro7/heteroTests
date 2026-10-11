@@ -50,13 +50,19 @@ on \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. Null-imposed resampling draws the
 centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
 it to \eqn{\hat y_i}{yhat_i}.
 Pairs resampling draws each row with its weight. Either way each replicate
-is refitted with the weights, and with an offset the model was given as an
-argument, so \code{test_function} sees a weighted fit, as it did on the original
-data. The rows of \code{data} are matched to those of the fit by row name, and a
-weighted fit whose rows \code{data} does not hold, once each, is refused. An
-unweighted fit is resampled as before, and the same seed gives the same
-result. The weights are held fixed; when they were estimated from the same
-data, see the section on weighted fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
+is refitted with the weights, so \code{test_function} sees a weighted fit, as it
+did on the original data. The weights are held fixed; when they were
+estimated from the same data, see the section on weighted fits in
+\code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
+
+Weighted or not, each replicate is refitted with an offset the model was
+given as an argument, \code{lm(..., offset = o)}; an offset written in the
+formula, \code{offset(o)}, is evaluated again from the data of the replicate.
+The rows of \code{data} are matched to those of the fit by row name, so that
+each row is regenerated, or drawn, with its own fitted value, weight and
+offset, and \code{data} that does not hold the rows the model was fitted to,
+once each, is refused. When the fit dropped rows with missing values, pass
+the rows it kept.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while
@@ -74,7 +80,8 @@ returns an object with a numeric \code{statistic} element (typically an
 is rejected: each replicate is refitted with least squares, which would
 discard its family and link.}
 
-\item{data}{Data frame used when fitting \code{model}.}
+\item{data}{Data frame used when fitting \code{model}, holding the rows it was
+fitted to, once each, under their row names. See Details.}
 
 \item{B}{Integer, number of bootstrap replications. Defaults to 1000.}
 
