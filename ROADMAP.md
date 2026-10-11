@@ -511,9 +511,9 @@ the README and on the pkgdown site.
 
 Full `--as-cran` on every CI flavour, plus win-builder, then submit.
 
-Update the R Journal manuscript in `paper/` to the 1.0 API and submit
-it. Submitting on the frozen API avoids publishing function names that
-are about to be deprecated.
+Update the R Journal manuscript, kept in its own repository, to the 1.0
+API and submit it. Submitting on the frozen API avoids publishing
+function names that are about to be deprecated.
 
 ## After 1.0.0
 

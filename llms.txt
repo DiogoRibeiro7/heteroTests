@@ -266,7 +266,6 @@ man/               roxygen-generated documentation
 tests/testthat/    unit, property-based, and reference-comparison tests
 inst/tutorials/    six-part Jupyter notebook course
 vignettes/         long-form guides
-paper/             R Journal manuscript and reproducible figures
 scripts/           setup, checks, benchmarks, and notebook/figure builders
 ```
 
