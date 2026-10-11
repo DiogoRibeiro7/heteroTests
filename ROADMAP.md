@@ -93,13 +93,16 @@ weighted fits and closed it again, so the API is next.
   (R-devel). `release.yml` now runs `--as-cran --run-donttest` on the tarball
   it is about to tag and creates no tag if the check warns or errors;
   win-builder stays a manual step (`cran-comments.md`).
-- [ ] The gate fails today. The weekly `--as-cran` job stopped with an error
+- [x] The gate failed. The weekly `--as-cran` job stopped with an error
   on 2026-09-28 and on 2026-10-05: the `\donttest{}` example of
   `performWhiteTestBootstrap(parallel = TRUE)` starts `detectCores() - 1`
   processes, three on the runner, and `--as-cran` allows two. The example is
-  skipped on Windows, so a local check there does not see it. Either the
-  example or the number of cores the function uses has to change before the
-  next release can be tagged.
+  skipped on Windows, so a local check there does not see it. Fixed after
+  0.12.0 in the example, which now runs the call only where it starts at most
+  two processes; the "CRAN submission checks" job passed on the branch on
+  2026-10-11. The function still uses `detectCores() - 1` workers; capping
+  them changes how the draws are split, and belongs with reproducibility
+  under `parallel = TRUE` in 0.14.0.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
