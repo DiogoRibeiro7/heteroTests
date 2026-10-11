@@ -42,6 +42,8 @@ white_terms <- ~ x + z + I(x^2) + I(z^2) + I(x * z)
 # --- an offset given as an argument -----------------------------------------
 
 test_that("an unweighted refit keeps an offset given as an argument", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   obj <- make_offset_fit()
   d <- obj$data
   m <- obj$model
@@ -100,6 +102,8 @@ test_that("an unweighted refit keeps an offset given as an argument", {
 })
 
 test_that("an offset resamples alike as an argument and in the formula", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   # The formula route always kept the offset in rbootstrap_test_statistic()
   # and the White bootstrap, because a refit evaluates offset(o) again from
   # the data. The wild bootstrap failed on both, evaluating the call of the
@@ -132,6 +136,8 @@ test_that("an offset resamples alike as an argument and in the formula", {
 # --- the rows of the data -----------------------------------------------------
 
 test_that("null resampling of an unweighted fit follows the rows of the data", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   # Data holding the fitted rows sorted by z. Taken by position, each row was
   # regenerated from another row's fitted value, and the replicates described
   # a regression whose mean has nothing to do with its regressors.
@@ -167,6 +173,8 @@ test_that("null resampling of an unweighted fit follows the rows of the data", {
 })
 
 test_that("an offset argument follows the rows of the data in pairs resampling", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   obj <- make_offset_fit()
   sorted <- obj$data[order(obj$data$z), ]
   n <- nrow(sorted)
@@ -185,6 +193,8 @@ test_that("an offset argument follows the rows of the data in pairs resampling",
 })
 
 test_that("resampling an unweighted fit needs the rows the model was fitted to", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   set.seed(9)
   n <- 60
   d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
@@ -229,11 +239,114 @@ test_that("resampling an unweighted fit needs the rows the model was fitted to",
   out <- rbootstrap_test_statistic(by_position, m_missing, kept, B = 5,
                                    resample = "pairs", progress = FALSE)
   expect_true(all(is.finite(out$replicates)))
+
+  # Part of the fitted rows, each under its own name, is not all of them.
+  expect_error(
+    rbootstrap_test_statistic(by_position, m, d[1:50, ], B = 5,
+                              resample = "pairs", progress = FALSE),
+    "rows the model was fitted to"
+  )
+})
+
+test_that("data without row names of its own must be in the order of the fit", {
+  # A tibble or a data.table numbers its rows 1 to n whatever their order, so
+  # a match by name pairs them by position. So does a data frame whose row
+  # names were reset, which is how this is checked without a new dependency.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  obj <- make_offset_fit()
+  d <- obj$data
+  rownames(d) <- NULL
+  m <- lm(y ~ x + z, data = d, offset = o)
+  shuffled <- d[order(d$z), ]
+  rownames(shuffled) <- NULL
+
+  for (strategy in c("null", "pairs")) {
+    expect_error(
+      rbootstrap_test_statistic(performKoenkerTest, m, shuffled, B = 5,
+                                resample = strategy, progress = FALSE),
+      "does not hold the values the model was fitted to"
+    )
+    out <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5,
+                                     resample = strategy, progress = FALSE)
+    expect_true(all(is.finite(out$replicates)))
+  }
+
+  # The reordered data.table is built from the reordered data frame, so that
+  # its rows are numbered afresh whether or not `[` dispatches to
+  # data.table's own method here.
+  skip_if_not_installed("data.table")
+  dt <- data.table::as.data.table(d)
+  m_dt <- lm(y ~ x + z, data = dt, offset = o)
+  expect_error(
+    rbootstrap_test_statistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
+                              B = 5, progress = FALSE),
+    "does not hold the values the model was fitted to"
+  )
+  set.seed(91)
+  in_order <- rbootstrap_test_statistic(performKoenkerTest, m_dt, dt, B = 5, progress = FALSE)
+  set.seed(91)
+  as_frame <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5, progress = FALSE)
+  expect_equal(in_order$replicates, as_frame$replicates, tolerance = 1e-8)
+})
+
+test_that("an offset in the formula that is not a column of the data cannot be resampled", {
+  # offset(shift) with shift in the environment of the formula is evaluated
+  # again in every refit, in the order of the fit, whatever rows the replicate
+  # holds. Null resampling of the data in the order of the fit is right, and
+  # is checked against the same model with the offset as a column. The
+  # package's tests refuse a variable of the formula that is not a column of
+  # the data, so only a test function of the caller's own reaches this; here
+  # it is Koenker's statistic computed from the model alone.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  koenker_of_fit <- function(model, data) {
+    e2 <- residuals(model)^2
+    X <- model.matrix(model)[, -1]
+    list(statistic = length(e2) * summary(lm(e2 ~ X))$r.squared)
+  }
+  obj <- make_offset_fit()
+  d <- obj$data
+  shift <- d$o
+  m <- lm(y ~ x + z + offset(shift), data = d)
+
+  expect_error(
+    rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
+                              progress = FALSE),
+    "offset\\(shift\\) in the model frame do not come from `data`"
+  )
+  expect_error(
+    rbootstrap_test_statistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
+                              progress = FALSE),
+    "row by row \\(offset\\(shift\\)\\)"
+  )
+  set.seed(92)
+  ours <- rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
+  set.seed(92)
+  column <- rbootstrap_test_statistic(koenker_of_fit, lm(y ~ x + z + offset(o), data = d),
+                                      d, B = 5, progress = FALSE)
+  expect_true(all(is.finite(ours$replicates)))
+  expect_equal(ours$replicates, column$replicates, tolerance = 1e-8)
+
+  # Given as an argument, the same offset is taken from the fit and follows
+  # the rows.
+  m_argument <- lm(y ~ x + z, data = d, offset = shift)
+  set.seed(93)
+  pairs <- rbootstrap_test_statistic(koenker_of_fit, m_argument, d, B = 5,
+                                     resample = "pairs", progress = FALSE)
+  set.seed(93)
+  expected <- vapply(seq_len(5), function(b) {
+    db <- d[sample.int(nrow(d), replace = TRUE), , drop = FALSE]
+    squared_residual_r2(residuals(lm(y ~ x + z, data = db, offset = o)), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(pairs$replicates, expected, tolerance = 1e-8)
 })
 
 # --- the design of the wild bootstrap ------------------------------------------
 
 test_that("the wild bootstrap refits an unweighted fit with transformed terms", {
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
   # The model frame holds log(x) and log(y), not x and y, so evaluating the
   # call of the fit again in it failed with "object 'x' not found".
   set.seed(10)

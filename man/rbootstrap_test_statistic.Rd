@@ -62,7 +62,12 @@ The rows of \code{data} are matched to those of the fit by row name, so that
 each row is regenerated, or drawn, with its own fitted value, weight and
 offset, and \code{data} that does not hold the rows the model was fitted to,
 once each, is refused. When the fit dropped rows with missing values, pass
-the rows it kept.
+the rows it kept. Data without row names of its own, such as a tibble or a
+data.table, is matched by position, so it has to hold the rows in the
+order of the fit: \code{data} whose model frame differs from that of the fit,
+row by row, is refused. So is pairs resampling of a model with a variable
+the formula finds outside \code{data}, such as \code{offset(o)} with \code{o} in the
+environment of the formula; give such an offset as an argument instead.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while

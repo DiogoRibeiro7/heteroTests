@@ -86,8 +86,8 @@
 #' the auxiliary regressors on their original scale; the residuals that are
 #' resampled are the Pearson residuals divided by
 #' \eqn{\sqrt{1 - h_{ii}}}{sqrt(1 - h_ii)}, with the leverages of that
-#' regression, and centred; and each replicate refits it. An unweighted fit is
-#' resampled as before, and the same seed gives the same result.
+#' regression, and centred; and each replicate refits it. With equal weights
+#' the result is that of the unweighted fit.
 #'
 #' The weights are held fixed in every replicate. When they were estimated
 #' from the same data, as by [fitWLS()], the replicates leave that estimation

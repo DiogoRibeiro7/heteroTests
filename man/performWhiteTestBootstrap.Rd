@@ -64,11 +64,13 @@ When the model has an intercept they are centred, as the residuals of an
 unweighted fit with an intercept are, because the weighted regression has
 no constant column. Each draw is divided by \eqn{\sqrt{w_i}}{sqrt(w_i)} to
 return it to the scale of the observation it is added to, and each
-replicate is refitted with the weights, and with an offset the model was
-given as an argument, so \code{\link[=performWhiteTest]{performWhiteTest()}} computes its statistic from
-the Pearson residuals as it does for the fit supplied. An unweighted fit is
-resampled as before, and the same seed gives the same result; with equal
-weights the result is that of the unweighted fit.
+replicate is refitted with the weights, so \code{\link[=performWhiteTest]{performWhiteTest()}} computes
+its statistic from the Pearson residuals as it does for the fit supplied.
+With equal weights the result is that of the unweighted fit.
+
+Weighted or not, each replicate is refitted with an offset the model was
+given as an argument, \code{lm(..., offset = o)}; an offset written in the
+formula, \code{offset(o)}, is evaluated again from the data of the replicate.
 
 The weights are held fixed in every replicate. When they were estimated
 from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
