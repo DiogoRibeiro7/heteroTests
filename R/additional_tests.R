@@ -276,7 +276,10 @@ performStudentizedBPTest <- function(model, data) {
 #'   \item Refit the model to each bootstrap sample and recompute White's
 #'     statistic \eqn{T^{*(b)}} using the same auxiliary specification.
 #'   \item Estimate the bootstrap p-value as
-#'     \eqn{\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}}.
+#'     \eqn{\hat{p} = (1 + \sum_{b} I\{T^{*(b)} \ge T_{\text{obs}}\}) /
+#'     (B_{\text{eff}} + 1)}{p = (1 + number of b with T*(b) >= T_obs) / (B_eff + 1)},
+#'     where \eqn{b} runs over the \eqn{B_{\text{eff}}}{B_eff} replicates whose
+#'     statistic is finite, so the p-value is never zero.
 #' }
 #'
 #' The bootstrap distribution offers improved size control for moderate sample
@@ -332,8 +335,10 @@ performStudentizedBPTest <- function(model, data) {
 #' # More replications give a smoother p-value estimate
 #' performWhiteTestBootstrap(mod, sim, B = 499)
 #'
-#' # Enable parallel processing when supported by the operating system
-#' if (.Platform$OS.type != "windows") {
+#' # parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows
+#' # does not support. The call runs only where that is at most two workers,
+#' # the most R CMD check --as-cran allows.
+#' if (.Platform$OS.type != "windows" && isTRUE(parallel::detectCores() <= 3L)) {
 #'   performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
 #' }
 #' }
