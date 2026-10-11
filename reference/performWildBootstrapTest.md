@@ -68,9 +68,32 @@ T\\)/(B + 1)\\. Under \\H_0\\ this controls size even for heavy-tailed
 errors; under the alternative the observed statistic is extreme relative
 to the homoscedastic reference, giving power.
 
-Weighted fits are refused. Each bootstrap sample is refitted by ordinary
-least squares, which would drop the weights and test a different model
-from the one supplied.
+## Weighted fits
+
+A fit with weights \\w_i\\ is ordinary least squares on \\\sqrt{w_i}\\
+y_i\\ and \\\sqrt{w_i}\\ x_i\\, whose errors have constant variance
+under the null hypothesis, and the bootstrap works in that regression.
+The statistic is computed from its residuals, the Pearson residuals
+\\\sqrt{w_i}\\ e_i\\, with the auxiliary regressors on their original
+scale; the residuals that are resampled are the Pearson residuals
+divided by \\\sqrt{1 - h\_{ii}}\\, with the leverages of that
+regression, and centred; and each replicate refits it. An unweighted fit
+is resampled as before, and the same seed gives the same result.
+
+The weights are held fixed in every replicate. When they were estimated
+from the same data, as by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
+the replicates leave that estimation out, and the test inherits the
+error of the tests that take the weights as known. In
+`inst/validation/weighted-fits-size.R`, on data whose standard deviation
+is \\\exp(0.3 x)\\, with the variance function correctly specified,
+normal errors and `B = 499`, its rejection rate at the 5% level was
+0.086 with 150 observations and 0.105 with 600. In the same design with
+the true weights it was 0.054 and 0.048, and with the weights estimated
+again in each replicate, which this function does not do, 0.060 and
+0.051.
+[`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
+allows for the estimation.
 
 ## References
 

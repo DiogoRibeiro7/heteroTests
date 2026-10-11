@@ -49,9 +49,21 @@ Neither strategy accepts a `glm`: each replicate is refitted with least
 squares, so the family and link would be discarded and the replicates
 would describe a different model from the one supplied.
 
-Weighted fits are refused under either strategy, as `glm` fits are: each
-replicate is refitted by ordinary least squares, so the replicates would
-come from the unweighted model.
+A weighted `lm` is resampled on the scale where its null hypothesis is
+constant variance, the regression of \\\sqrt{w_i}\\ y_i\\ on
+\\\sqrt{w_i}\\ x_i\\. Null-imposed resampling draws the \\e^\*\_i\\ from
+the Pearson residuals \\\sqrt{w_i}\\ e_i\\, divided by \\\sqrt{1 -
+h_i}\\ with the leverages of that regression and centred, and divides
+each draw by \\\sqrt{w_i}\\ before adding it to \\\hat y_i\\. Pairs
+resampling draws each row with its weight. Either way each replicate is
+refitted with the weights, and with an offset the model was given as an
+argument, so `test_function` sees a weighted fit, as it did on the
+original data. The rows of `data` are matched to those of the fit by row
+name, and a weighted fit whose rows `data` does not hold, once each, is
+refused. An unweighted fit is resampled as before, and the same seed
+gives the same result. The weights are held fixed; when they were
+estimated from the same data, see the section on weighted fits in
+[`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md).
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For `log(y) ~ x` the fitted values are on the log scale while
@@ -68,8 +80,9 @@ refitting would take the logarithm twice. That case raises an error;
 
 - model:
 
-  A fitted model of class `lm`. A `glm` is rejected: each replicate is
-  refitted with least squares, which would discard its family and link.
+  A fitted model of class `lm`, with or without weights. A `glm` is
+  rejected: each replicate is refitted with least squares, which would
+  discard its family and link.
 
 - data:
 

@@ -133,7 +133,8 @@ Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
   that interprets a diagnostic run.
 - **Weighted fits** — on an `lm` fitted with weights the tests are
   computed from the standardized residuals, so they ask whether the
-  weights are adequate. For weights estimated by
+  weights are adequate, and the bootstrap tests resample on the same
+  scale. For weights estimated by
   [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
   [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
   is the test that allows for the estimation.
