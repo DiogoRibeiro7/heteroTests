@@ -141,6 +141,9 @@
 - [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md)
   : Perform Glejser test for heteroscedasticity
 
+- [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
+  : Harrison-McCabe test for heteroscedasticity
+
 - [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md)
   : Perform Hartley's Fmax test
 

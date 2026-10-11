@@ -52,7 +52,10 @@ Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
   ([`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)),
   Szroeter
   ([`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md)),
-  Spearman’s rank correlation
+  Harrison–McCabe
+  ([`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md),
+  with a p-value that is exact under normal errors given the
+  regressors), Spearman’s rank correlation
   ([`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md)),
   the spread–level test
   ([`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md))
@@ -450,6 +453,9 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 
 - [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md)
   : Perform Glejser test for heteroscedasticity
+
+- [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
+  : Harrison-McCabe test for heteroscedasticity
 
 - [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md)
   : Perform Hartley's Fmax test
