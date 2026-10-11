@@ -52,26 +52,5 @@ renv/
 .Rprofile
 tests/testthat/testthat-problems.rds
 
-# SyncTeX navigation data, regenerated on every LaTeX build
-paper/*.synctex.gz
-
-# R Journal / LaTeX build artefacts generated from paper/heteroTests.Rmd
-paper/*.aux
-paper/*.bbl
-paper/*.blg
-paper/*.brf
-paper/*.fdb_latexmk
-paper/*.fls
-paper/*.log
-paper/*.out
-paper/*.synctex.gz
-paper/*_files/
-paper/*_cache/
-
-# Local R Journal render products. These are generated for inspection/submission
-# but are not source-controlled. The generated paper/heteroTests.tex and
-# paper/RJwrapper.tex are committed: re-render with paper/scripts/render.R and
-# commit them together with any change to paper/heteroTests.Rmd.
-paper/heteroTests.pdf
-paper/heteroTests.html
-paper/heteroTests.R
+# The R Journal article lives in its own repository; keep it out of this one.
+paper/
