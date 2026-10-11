@@ -372,7 +372,8 @@ after it.
   the README and on the pkgdown site.
 - [ ] `NEWS.md` for 1.0.0 with the complete old → new migration table.
 - [ ] Full `--as-cran` on every CI flavour, plus win-builder, then submit.
-- [ ] Update the R Journal manuscript in `paper/` to the 1.0 API and submit it.
+- [ ] Update the R Journal manuscript, kept in its own repository, to the 1.0
+  API and submit it.
   Submitting on the frozen API avoids publishing function names that are about
   to be deprecated.
 
