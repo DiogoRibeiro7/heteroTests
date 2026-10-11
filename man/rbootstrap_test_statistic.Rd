@@ -41,9 +41,22 @@ Neither strategy accepts a \code{glm}: each replicate is refitted with least
 squares, so the family and link would be discarded and the replicates would
 describe a different model from the one supplied.
 
-Weighted fits are refused under either strategy, as \code{glm} fits are: each
-replicate is refitted by ordinary least squares, so the replicates would
-come from the unweighted model.
+A weighted \code{lm} is resampled on the scale where its null hypothesis is
+constant variance, the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i}
+on \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. Null-imposed resampling draws the
+\eqn{e^*_i}{e*_i} from the Pearson residuals
+\eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}, divided by
+\eqn{\sqrt{1 - h_i}}{sqrt(1 - h_i)} with the leverages of that regression and
+centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
+it to \eqn{\hat y_i}{yhat_i}.
+Pairs resampling draws each row with its weight. Either way each replicate
+is refitted with the weights, and with an offset the model was given as an
+argument, so \code{test_function} sees a weighted fit, as it did on the original
+data. The rows of \code{data} are matched to those of the fit by row name, and a
+weighted fit whose rows \code{data} does not hold, once each, is refused. An
+unweighted fit is resampled as before, and the same seed gives the same
+result. The weights are held fixed; when they were estimated from the same
+data, see the section on weighted fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while
@@ -57,9 +70,9 @@ refitting would take the logarithm twice. That case raises an error;
 returns an object with a numeric \code{statistic} element (typically an
 \code{htest} result).}
 
-\item{model}{A fitted model of class \code{lm}. A \code{glm} is rejected:
-each replicate is refitted with least squares, which would discard its family
-and link.}
+\item{model}{A fitted model of class \code{lm}, with or without weights. A \code{glm}
+is rejected: each replicate is refitted with least squares, which would
+discard its family and link.}
 
 \item{data}{Data frame used when fitting \code{model}.}
 

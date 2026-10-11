@@ -121,11 +121,22 @@ by one.
 
 Found on the way and left for their own changes:
 
-- [ ] **Resampling on weighted fits.** `performWildBootstrapTest()`,
+- [x] **Resampling on weighted fits.** `performWildBootstrapTest()`,
   `performWhiteTestBootstrap()`, `rbootstrap_test_statistic()` and
-  `performQuantileRegressionTest()` refuse a weighted fit, because they refit
-  without the weights. Resampling the Pearson residuals and refitting with the
-  weights would lift the refusal for the first three.
+  `performQuantileRegressionTest()` refused a weighted fit, because they
+  refitted without the weights. Resolved after 0.12.0 for the first three:
+  they resample the Pearson residuals, return each draw to the scale of its
+  observation and refit with the weights, and an unweighted fit gives
+  bit-identical values. In `inst/validation/weighted-fits-size.R`, at 2000
+  replications with `B = 499`, they reject a correctly weighted fit 0.045 to
+  0.054 of the time in two designs. `performQuantileRegressionTest()` still
+  refuses one: on the weighted scale its slopes differ across quantiles under
+  the null hypothesis, and a version for weighted fits needs its own
+  construction. A
+  lead: the quantile regressions of `sqrt(w) y` on `sqrt(w) X` with a column
+  of ones added have equal slopes under the null hypothesis, which is the
+  location-shift form the test assumes. It needs a derivation of the
+  reference distribution and a size study before it can ship.
 - [x] **`runSurveyHeteroTests()` did not use the survey weights.** It called
   `stats::lm(formula, data = data, weights = weights)`, where `weights` was a
   local variable. `lm()` looks the name up in `data` and then in the
@@ -171,6 +182,20 @@ Found on the way and left for their own changes:
   `performVarianceFormTest()` is the calibrated alternative, but a correction
   for the estimation step would let `compareModelDiagnostics()` report
   calibrated p-values for a weighted remedy.
+
+  The bootstrap tests hold the weights fixed and share the error: the wild
+  bootstrap rejects 0.086 with 150 observations and 0.105 with 600, where it
+  rejects 0.054 and 0.048 with the true weights in the same design. A
+  bootstrap that runs `fitWLS()` again on every replicate is such a
+  correction. In the same designs it rejects 0.042 to 0.060 with 150
+  observations for the wild bootstrap, the White bootstrap and
+  `rbootstrap_test_statistic()` with Koenker's statistic, and 0.051 with 600
+  for the wild bootstrap (`inst/validation/weighted-fits-size.R`). Proposal,
+  not implemented: an argument to the three functions that refits the
+  variance function `fitWLS()` recorded on the model, with the same
+  `var_formula` and `form`, in each replicate. It applies only to a fit that
+  carries that record; weights the user supplied are known and stay fixed. See
+  *Decisions needed*.
 
 ### 0.13.0: review the public surface (deprecate, remove nothing)
 
@@ -550,5 +575,6 @@ which is also what a reader of the article asks of it. Within that group:
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.14.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.14.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.15.0 |
+| Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `rbootstrap_test_statistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. 0.12.0 refuses a weighted fit in these functions (0.11.2 accepted one and refitted without the weights), so a default chosen before the next release changes no value 0.12.0 returned | Next release |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.15.0 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.15.0 |

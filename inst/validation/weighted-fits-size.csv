@@ -31,8 +31,6 @@
 "performRESETTest","known","heteroscedastic data, exact weights","normal",150,400,0.055,0.011399013115178,400,0
 "performBPRandomEffectsTest","known","heteroscedastic data, exact weights","normal",150,400,0.055,0.011399013115178,400,0
 "performPesaranTest","known","heteroscedastic data, exact weights","normal",150,400,0.0725,0.0129656999425407,400,0
-"performWildBootstrapTest","known","heteroscedastic data, exact weights","normal",150,400,NA,NA,0,400
-"performWhiteTestBootstrap","known","heteroscedastic data, exact weights","normal",150,400,NA,NA,0,400
 "performQuantileRegressionTest","known","heteroscedastic data, exact weights","normal",150,400,NA,NA,0,400
 "performKoenkerTest","estimated","fitWLS(), exponential variance correctly specified","normal",150,2000,0.077,0.00596116599332714,2000,0
 "performBPTest","estimated","fitWLS(), exponential variance correctly specified","normal",150,2000,0.106,0.00688345843308435,2000,0
@@ -70,3 +68,21 @@
 "performNCVTest","misspecified","fitWLS(), exponential fitted to sigma^2 = x^3","normal",600,2000,0.0555,0.00511955808639769,2000,0
 "performHarveyTest","misspecified","fitWLS(), exponential fitted to sigma^2 = x^3","normal",600,2000,0.0035,0.0013205585939291,2000,0
 "performVarianceFormTest","misspecified","fitWLS(), exponential fitted to sigma^2 = x^3","normal",600,2000,0.929,0.0057427780733718,2000,0
+"performWildBootstrapTest","exact","sd = x^2 fitted with weights 1 / x^4","normal",150,2000,0.053,0.0050095408971282,2000,0
+"performWhiteTestBootstrap","exact","sd = x^2 fitted with weights 1 / x^4","normal",150,2000,0.052,0.00496467521596328,2000,0
+"rbootstrap_test_statistic","exact","sd = x^2 fitted with weights 1 / x^4","normal",150,2000,0.05,0.00487339717240448,2000,0
+"performWildBootstrapTest","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.0865,0.00628560856242258,2000,0
+"performWhiteTestBootstrap","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.064,0.00547284204047586,2000,0
+"rbootstrap_test_statistic","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.0825,0.0061519813881383,2000,0
+"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",150,2000,0.0605,0.0053310294503032,2000,0
+"performWhiteTestBootstrap","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",150,2000,0.0415,0.00445969449626317,2000,0
+"rbootstrap_test_statistic","estimated, re-estimated","fitWLS(), exponential variance correctly specified; the test function calls fitWLS() again","normal",150,2000,0.045,0.00463546114210873,2000,0
+"performWildBootstrapTest","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",600,2000,0.105,0.00685474288358068,2000,0
+"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",600,2000,0.0515,0.00494205169944629,2000,0
+"performWildBootstrapTest","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
+"performWhiteTestBootstrap","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
+"rbootstrap_test_statistic","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
+"performWildBootstrapTest","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.054,0.00505390937789747,2000,0
+"performWhiteTestBootstrap","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.054,0.00505390937789747,2000,0
+"rbootstrap_test_statistic","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",150,2000,0.0455,0.00465992220965114,2000,0
+"performWildBootstrapTest","true","sd = exp(0.3 x), the fitWLS() design, fitted with the true weights exp(-0.6 x)","normal",600,2000,0.048,0.00477995815881269,2000,0

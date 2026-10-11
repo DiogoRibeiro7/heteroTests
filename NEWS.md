@@ -2,6 +2,33 @@
 
 ## Development version
 
+- `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and
+  `rbootstrap_test_statistic()` accept a weighted fit. In 0.12.0 they refused
+  one, because each replicate was refitted without the weights. A weighted fit
+  is ordinary least squares on `sqrt(w) y` and `sqrt(w) X`, where the null
+  hypothesis is constant variance, and the three now resample there: they
+  draw from the Pearson residuals, divide each draw by `sqrt(w)` to return it
+  to the scale of its observation, and refit with the weights.
+  `performWhiteTestRobust(bootstrap = TRUE)` and
+  `performBPTestRobust(bootstrap = TRUE)`, which resample through
+  `rbootstrap_test_statistic()`, accept a weighted fit too. Nothing changes
+  for an unweighted fit: the same seed gives the same values as before.
+
+  In `inst/validation/weighted-fits-size.R`, at 2000 replications with
+  `B = 499`, the three reject a correctly weighted fit 0.045 to 0.054 of the
+  time at the 5% level in two designs, and reject weights that are too weak
+  in every replication. With weights estimated by `fitWLS()` they hold the
+  weights fixed, as the asymptotic tests take them as known, and share their
+  error: in a design where the true weights give 0.054 with 150 observations and
+  0.048 with 600, the wild bootstrap rejects 0.086 and 0.105, and
+  `performKoenkerTest()` 0.077 and 0.110. Estimating the weights again in each
+  replicate, which the package does not do, brings the three to 0.042 to 0.060
+  with 150 observations and the wild bootstrap to 0.051 with 600. `ROADMAP.md`
+  proposes an argument for it.
+
+  `performQuantileRegressionTest()` still refuses a weighted fit, and its help
+  page says why.
+
 - **`runHeteroTests(tests = "szroeter")` changes value.** The registered
   Szroeter test ordered the observations by the second column of the data,
   whatever it was: the response, a regressor or a column the model does not

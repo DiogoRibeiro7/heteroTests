@@ -364,10 +364,11 @@ rpearson_residuals <- function(model) {
 
 #' Refuse a weighted fit in a procedure that refits without the weights
 #'
-#' Some procedures regenerate the response and refit the mean model by ordinary
-#' least squares, or refit it under a different loss. On a weighted fit that
-#' describes a different model from the one supplied, so they refuse it, as
-#' `rbootstrap_test_statistic()` refuses a `glm`.
+#' Some procedures refit the mean model without the weights, or under a
+#' different loss. On a weighted fit that describes a different model from the
+#' one supplied, so they refuse it, as `rbootstrap_test_statistic()` refuses a
+#' `glm`. The resampling tests refit with the weights instead; see
+#' `rrefit_weighted()`.
 #'
 #' @param model A fitted model.
 #' @param what Character scalar naming the calling procedure.
@@ -382,9 +383,56 @@ rrefuse_weighted_fit <- function(model, what) {
     what, " does not support weighted fits: it refits the mean model without ",
     "the weights, which would test a different model from the one supplied. ",
     "Use a test computed from the residuals, such as performKoenkerTest() or ",
-    "performWhiteTest(); on a weighted fit those use the Pearson residuals.",
+    "performWhiteTest(), or the wild bootstrap of performWildBootstrapTest(); ",
+    "on a weighted fit those use the Pearson residuals.",
     call. = FALSE
   )
+}
+
+#' Refit a weighted least-squares model to a regenerated sample
+#'
+#' The resampling tests regenerate the response, or the rows, and refit the
+#' model. On a weighted fit the refit has to carry the weights, and the offset
+#' when the model was given one as an argument; an offset written in the
+#' formula is evaluated again from `data`. `lm()` looks a name passed as
+#' `weights` or `offset` up in `data` and then in the environment of the
+#' formula, never in the function that calls it, so the vectors are put into
+#' the call itself, where no column of `data` can stand in for them.
+#'
+#' @param formula The model formula.
+#' @param data Data frame holding the regenerated sample.
+#' @param weights Prior weights, one per row of `data`.
+#' @param offset Offset given to the model as an argument, one value per row of
+#'   `data`, or `NULL`.
+#' @return The weighted `lm` fit.
+#' @keywords internal
+#' @noRd
+rrefit_weighted <- function(formula, data, weights, offset = NULL) {
+  fit_call <- as.call(list(
+    quote(stats::lm), formula = quote(formula), data = quote(data), weights = weights
+  ))
+  if (!is.null(offset)) {
+    fit_call$offset <- offset
+  }
+  eval(fit_call)
+}
+
+#' Offset a model was given as an argument
+#'
+#' `lm(..., offset = o)` keeps `o` in the model frame as `(offset)`. An offset
+#' written in the formula, `offset(o)`, is a term of the formula instead, and a
+#' refit from the formula evaluates it again.
+#'
+#' @param model A fitted model.
+#' @return Numeric vector, one value per fitted observation, or `NULL`.
+#' @keywords internal
+#' @noRd
+roffset_argument <- function(model) {
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.null(frame) || !"(offset)" %in% names(frame)) {
+    return(NULL)
+  }
+  as.vector(frame[["(offset)"]])
 }
 
 #' Refuse a model fitted to a survey design

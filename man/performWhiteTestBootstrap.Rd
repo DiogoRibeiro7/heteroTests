@@ -45,15 +45,40 @@ statistic \eqn{T^{*(b)}} using the same auxiliary specification.
 \eqn{\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}}.
 }
 
-Weighted fits are refused. Each bootstrap sample is refitted by ordinary
-least squares, which would drop the weights and test a different model from
-the one supplied.
-
 The bootstrap distribution offers improved size control for moderate sample
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When \code{parallel = TRUE} the resampling step exploits available CPU
 cores to reduce computation time.
 }
+\section{Weighted fits}{
+
+A fit with weights \eqn{w_i} is ordinary least squares on
+\eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} and \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i},
+whose errors have constant variance under the null hypothesis, and the
+bootstrap is carried out in that regression. What is resampled is its
+residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}.
+When the model has an intercept they are centred, as the residuals of an
+unweighted fit with an intercept are, because the weighted regression has
+no constant column. Each draw is divided by \eqn{\sqrt{w_i}}{sqrt(w_i)} to
+return it to the scale of the observation it is added to, and each
+replicate is refitted with the weights, and with an offset the model was
+given as an argument, so \code{\link[=performWhiteTest]{performWhiteTest()}} computes its statistic from
+the Pearson residuals as it does for the fit supplied. An unweighted fit is
+resampled as before, and the same seed gives the same result; with equal
+weights the result is that of the unweighted fit.
+
+The weights are held fixed in every replicate. When they were estimated
+from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
+out. In \code{inst/validation/weighted-fits-size.R}, on data whose standard
+deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
+correctly specified, normal errors, 150 observations and \code{B = 499}, the
+rejection rate at the 5\% level was 0.064. In the same design with the true
+weights it was 0.054, and with the weights estimated again in each
+replicate, which this function does not do, 0.042. The section on weighted
+fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}} has the larger error of Koenker's
+statistic.
+}
+
 \examples{
 # The bootstrap needs at least 50 observations, so mtcars (32) is too small.
 set.seed(42)

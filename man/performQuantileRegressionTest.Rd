@@ -32,9 +32,19 @@ Tests equality of regression slopes across two or more conditional quantiles usi
 \details{
 Under a pure location-shift model with homoskedastic errors, regression slopes are equal across quantiles. Rejection therefore provides evidence against that location-shift/homoskedastic specification. The result should not be interpreted as a universal test for every possible form of heteroscedasticity.
 
-Weighted fits are refused. The quantile regressions are fitted without the
-weights, so their slopes would describe a different model from the one
-supplied.
+Weighted fits are refused, although the resampling tests accept them. On a
+fit with weights \eqn{w_i} the null hypothesis is that the Pearson residuals
+\eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i} have constant variance, which is a
+statement about the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} on
+\eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i}. The quantile regressions this test
+fits are of \eqn{y} on \eqn{x}, where the errors have variance
+\eqn{\sigma^2 / w_i}{sigma^2 / w_i} by assumption, so their slopes differ across
+quantiles even when the weights are right. Fitting them on the weighted scale
+does not by itself repair that: there the conditional quantiles are the
+regression plus a constant, and the constant is not a column of the weighted
+regressors. Adding a column of ones would restore the location-shift form,
+but that version of the test needs its own derivation and its own size
+study, and has neither.
 }
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {
