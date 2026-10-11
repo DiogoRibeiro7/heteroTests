@@ -150,9 +150,43 @@ hmc_rates <- function(test_names, error_name) {
 }
 hmc_n <- range(hmc_size$n)
 
+# The modified Wald test for panels was measured, and not adopted, in a study
+# installed with versions of the package later than 0.12.0.
+wald_path <- system.file(
+  "validation", "modified-wald-size-power.csv",
+  package = "heteroTests"
+)
+if (!nzchar(wald_path)) {
+  stop(
+    "This article needs a version of heteroTests later than 0.12.0, which ",
+    "installs the validation results for the modified Wald test.",
+    call. = FALSE
+  )
+}
+# The test as Stata's xttest3 computes it, in the balanced panels with
+# Gaussian errors.
+wald_size <- subset(
+  utils::read.csv(wald_path, stringsAsFactors = FALSE),
+  block == "size" & test == "modified_wald" & errors == "normal" &
+    shape == "balanced"
+)
+wald_rates <- range(wald_size$rejection_rate)
+wald_units <- range(wald_size$units)
+wald_periods <- range(as.numeric(wald_size$periods))
+
 weighted_known <- subset(
   weighted_fits,
   weights == "known" & !is.na(rejection_rate)
+)
+# Three of the functions in that design do not test the error variance: the
+# RESET test of the mean function and the two panel tests.
+weighted_other <- c(
+  "performRESETTest", "performBPRandomEffectsTest", "performPesaranTest"
+)
+stopifnot(all(weighted_other %in% weighted_known$test))
+weighted_variance <- subset(weighted_known, !test %in% weighted_other)
+weighted_other_rates <- range(
+  weighted_known$rejection_rate[weighted_known$test %in% weighted_other]
 )
 # The resampling tests refit a weighted model with its weights, and are
 # measured in a design of their own.
@@ -431,6 +465,20 @@ observations by the fitted values, so its alternative is a variance that rises
 with the mean. Streaming versions of the White, Breusch--Pagan, and Koenker
 tests are provided in addition, as are diagnostics for the mean function,
 collinearity, and influential observations.
+
+The package also has two tests for panel data, which Table
+\@ref(tab:procedures) leaves out because neither asks about the error
+variance. `performBPRandomEffectsTest()` is the Breusch--Pagan Lagrange
+multiplier test for an individual effect, and `performPesaranTest()` is
+Pesaran's CD test for dependence between the units. Neither tests whether the
+error variance differs between units. For that hypothesis Stata has
+`xttest3`, the modified Wald test of @baum2001residual. We evaluated it for
+the package and did not adopt it: in the validation study installed with the
+package, in balanced panels of `r wald_units[1]` to `r wald_units[2]` units
+and `r wald_periods[1]` to `r wald_periods[2]` periods with Gaussian errors,
+it rejects a true null hypothesis between `r pct(wald_rates[1], 0)` and
+`r pct(wald_rates[2], 0)` of the time at the 5% level. We found no R
+implementation of it in a search of CRAN and GitHub on 10 October 2026.
 
 ```{r procedures, echo=FALSE}
 code_font <- function(x) {
@@ -741,10 +789,13 @@ fits can reveal it: before version 0.12.0 the heteroscedasticity diagnostics
 read the raw residuals of a weighted fit, agreed with their references on
 every unweighted comparison, and rejected a correctly weighted model in every
 replication of the package's validation design. In the current version
-`r nrow(weighted_known)` procedures reject between
-`r pct(min(weighted_known$rejection_rate), 0)` and
-`r pct(max(weighted_known$rejection_rate), 0)` of such models at the 5% level
-in that design, based on `r weighted_known$replications[1]` replications each.
+`r nrow(weighted_variance)` functions that test the error variance reject
+between `r pct(min(weighted_variance$rejection_rate), 0)` and
+`r pct(max(weighted_variance$rejection_rate), 0)` of such models at the 5%
+level in that design, based on `r weighted_variance$replications[1]`
+replications each, and `performRESETTest()`, a test of the mean function, and
+the two panel tests between `r pct(weighted_other_rates[1], 0)` and
+`r pct(weighted_other_rates[2], 0)`.
 The resampling tests, measured in a design of their own, reject between
 `r pct(min(weighted_resampling$rejection_rate))` and
 `r pct(max(weighted_resampling$rejection_rate))`, based on
@@ -1691,13 +1742,17 @@ between `r pct(glejser_rates("glejser_robust")[1])` and
 The test of @harrison1979test is a case where the implementations agree on the
 statistic and differ in the p-value. The statistic is the share of the
 residual sum of squares that falls in the first part of the sample, ordered by
-a chosen variable, and under normal errors its null distribution depends on
-the regressors. `lmtest::hmctest()` simulates the p-value from a regression on
-a constant alone, whatever the model, and `skedastic::harrison_mccabe()`
-applies Imhof's formula [@imhof1961computing] after keeping one copy of each
-repeated eigenvalue. `performHarrisonMcCabeTest()` applies the formula to all
-of them, so its p-value is exact for normal errors given the regressors. In
-the validation study installed with the package it rejects a true null
+a chosen variable; the package takes its definition from
+@harrison1981comparison, a later article by the test's first author. Under
+normal errors its null distribution depends on the regressors.
+`lmtest::hmctest()` simulates the p-value from a regression on a constant
+alone, whatever the model, and `skedastic::harrison_mccabe()` applies Imhof's
+formula [@imhof1961computing] after keeping one copy of each repeated
+eigenvalue. `performHarrisonMcCabeTest()` applies the formula to all of them,
+so its p-value is exact for normal errors given the regressors, and it
+reproduces the exact 5% critical values that @harrison1981comparison
+tabulates for a constant and a linear trend to the three decimals printed
+there. In the validation study installed with the package it rejects a true null
 hypothesis between `r pct(hmc_rates("harrison_mccabe", "normal")[1])` and
 `r pct(hmc_rates("harrison_mccabe", "normal")[2])` of the time at the 5% level
 under Gaussian errors, with `r hmc_n[1]` to `r hmc_n[2]` observations, with
