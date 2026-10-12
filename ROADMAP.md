@@ -480,7 +480,27 @@ reference and simulated size.
 - **A consistent test of a variance function**: Dette, Neumeyer and Van
   Keilegom (2007), Wang and Zhou (2007), and Samarakoon and Song (2011).
   `performVarianceFormTest()` has power against the terms it is given; these
-  have it against any departure, at the cost of smoothing.
+  have it against any departure, at the cost of smoothing. **Stage 1 of the
+  first measured after 0.12.0, and not exported: as defined, it does not hold
+  its level.** The 2007 article could not be obtained; a prototype in plain R
+  follows the authors' submitted manuscript of 2005, whose Tables 4.1 and 4.5
+  it reproduces in level and to within a few points in power. In the designs
+  of `inst/validation/variance-form-size-power.R`, with the variance function
+  in one variable and the mean a linear model, the Cramér-von Mises statistic
+  is inside the release gate in 4 of its 12 Gaussian null cells at 5000
+  replications, all four with constant variance at 150 or 400 observations;
+  it rejects a true exponential or power variance function 0.019 to 0.036 of
+  the time at 50 to 400 observations. The bootstrap draws its data from the
+  least-squares fit of the variance function, on which the statistic's null
+  distribution depends: drawn from the true shape, on the same samples, three
+  of the four such cells come to 0.047 to 0.051. Against a departure the
+  added terms of `performVarianceFormTest()` do not span it has the power
+  that test lacks, 0.750 against 0.089 at 400 observations; against the other
+  alternatives it has less. Design note, prototype and evidence:
+  `inst/validation/variance-form-dnvk-design.md` and the
+  `variance-form-dnvk-*` files beside it. What to do next is under *Decisions
+  needed*. Wang and Zhou (2007) assume a parametric mean, which is this
+  package's setting; Samarakoon and Song (2011) could not be obtained.
 - **Bai, Pan and Yin (2018)**, a test of homoscedasticity when the number of
   regressors grows with the sample. Li–Yao, below, is a different test for the
   same setting.
@@ -541,7 +561,9 @@ which is also what a reader of the article asks of it. Within that group:
    Stata users look for under the name `xttest3`. Measured after 0.12.0 and
    not adopted, because it does not hold its level (above).
 2. The Dette, Neumeyer and Van Keilegom test. It removes the main limitation
-   of `performVarianceFormTest()`, and is the most work of the two.
+   of `performVarianceFormTest()`, and is the most work of the two. Stage 1
+   done after 0.12.0: as the manuscript defines it, it does not hold its level
+   when the variance is not constant (above).
 
 ### Done
 
@@ -581,4 +603,5 @@ which is also what a reader of the article asks of it. Within that group:
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `rbootstrap_test_statistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. 0.12.0 refuses a weighted fit in these functions (0.11.2 accepted one and refitted without the weights), so a default chosen before the next release changes no value 0.12.0 returned | Next release |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.15.0 |
+| A consistent test of the variance function after stage 1 | Do not ship the Dette, Neumeyer and Van Keilegom test as defined: its prototype rejects a true non-constant variance function 0.019 to 0.036 of the time. Choose between a new stage 1 for a modified procedure (a better estimate of the variance function for the bootstrap data, or a studentized statistic) and one for Wang and Zhou (2007), and compare the published article with the manuscript first. If a test ships, a function of its own rather than `performVarianceFormTest(against = "any")` | Before any stage 2 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.15.0 |
