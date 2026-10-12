@@ -187,6 +187,16 @@
   name it can return is a registered diagnostic, and that no function in the
   package has two different definitions.
 
+- The cache that keeps the result of each input validation, so that the same
+  model and data are not checked twice, now keeps the 1000 most recent
+  results. It kept every one, and a test on a new model, as in a simulation,
+  never reuses one, so it grew by three entries with each test: after 10^5
+  calls of `performWhiteTest()` on new models with 150 observations it held
+  300,001 entries and R's memory had grown by 655 MB, where it now holds 1000
+  and has grown by 3 MB. Simulation workers had reached 7.6 to 8.9 GB each. A
+  test repeated on the same model still reuses the result, and no value
+  changes.
+
 - The help page of `performStudentizedBPTest()` called `performKoenkerTest()`
   "the absolute-residual variant", which it has not been since 0.6.5. Both
   compute Koenker's studentized `n R^2` statistic from the regression of the

@@ -390,15 +390,56 @@ test_that("validation helpers leverage caching when digest is available", {
   skip_if_not_installed("digest")
   heteroTests:::clearValidationCache()
   on.exit(heteroTests:::clearValidationCache())
-  cache_env <- getFromNamespace(".validation_cache", "heteroTests")
-  expect_equal(length(ls(envir = cache_env)), 0L)
+  cache_size <- getFromNamespace(".validation_cache_size", "heteroTests")
+  expect_equal(cache_size(), 0L)
 
   assumptions <- list(normality = list(variables = "mpg", alpha = 0.05))
   res1 <- heteroTests:::rvalidateDistributionalAssumptions(mtcars, assumptions = assumptions)
-  size_after_first <- length(ls(envir = cache_env))
+  size_after_first <- cache_size()
   expect_true(size_after_first >= 1L)
 
   res2 <- heteroTests:::rvalidateDistributionalAssumptions(mtcars, assumptions = assumptions)
-  expect_equal(size_after_first, length(ls(envir = cache_env)))
+  expect_equal(size_after_first, cache_size())
   expect_identical(res1, res2)
+})
+
+test_that("the validation cache keeps a bounded number of results", {
+  skip_if_not_installed("digest")
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  heteroTests:::clearValidationCache()
+  on.exit(heteroTests:::clearValidationCache(), add = TRUE)
+  cache_env <- getFromNamespace(".validation_cache", "heteroTests")
+  cap <- getFromNamespace(".validation_cache_max", "heteroTests")
+  keys <- function() sort(cache_env$keys[nzchar(cache_env$keys)])
+
+  fit <- function(seed) {
+    set.seed(seed)
+    d <- data.frame(x = runif(40, 1, 5))
+    d$y <- 1 + d$x + rnorm(40)
+    list(model = stats::lm(y ~ x, data = d), data = d)
+  }
+  # A new model on every call, as in a simulation. Each call stores three
+  # results, so these calls store more than the cache holds; before it was
+  # bounded it kept all of them.
+  calls <- ceiling(1.2 * cap / 3)
+  for (i in seq_len(calls)) {
+    o <- fit(i)
+    performWhiteTest(o$model, o$data)
+  }
+  expect_length(keys(), cap)
+
+  # The oldest results were dropped and the newest kept: validating the last
+  # model again is answered from the cache, and the first is validated anew.
+  before <- keys()
+  o <- fit(calls)
+  performWhiteTest(o$model, o$data)
+  expect_identical(keys(), before)
+  o <- fit(1)
+  performWhiteTest(o$model, o$data)
+  expect_false(identical(keys(), before))
+  expect_length(keys(), cap)
+
+  heteroTests:::clearValidationCache()
+  expect_length(keys(), 0L)
 })

@@ -5,7 +5,28 @@
 # They centralize error messaging, reduce duplication, and make the
 # validation behaviour of new tests easier to reason about.
 
+# The cache keeps the result of each validation under a hash of its inputs, so
+# that validating the same model and data again skips the checks. A simulation
+# validates a new model on every call and never hits it, so the cache holds at
+# most `.validation_cache_max` results, in a ring of slots that overwrites the
+# oldest. The keys are kept in a character vector, not as the names of an
+# environment: R never frees a name once it has been used as one, so an
+# environment keyed by hash grows by every key it has held, removed or not.
+.validation_cache_max <- 1000L
 .validation_cache <- new.env(parent = emptyenv())
+
+.validation_cache_reset <- function() {
+  .validation_cache$keys <- character(.validation_cache_max)
+  .validation_cache$values <- vector("list", .validation_cache_max)
+  # The slot written most recently.
+  .validation_cache$last <- 0L
+  invisible(NULL)
+}
+.validation_cache_reset()
+
+.validation_cache_size <- function() {
+  sum(nzchar(.validation_cache$keys))
+}
 
 .validation_cache_enabled <- function() {
   requireNamespace("digest", quietly = TRUE)
@@ -19,16 +40,33 @@
 }
 
 .validation_cache_get <- function(key) {
-  if (is.null(key) || !exists(key, envir = .validation_cache, inherits = FALSE)) {
+  if (is.null(key)) {
     return(NULL)
   }
-  get(key, envir = .validation_cache, inherits = FALSE)
+  slot <- match(key, .validation_cache$keys)
+  if (is.na(slot)) {
+    return(NULL)
+  }
+  .validation_cache$values[[slot]]
 }
 
 .validation_cache_set <- function(key, value) {
-  if (!is.null(key)) {
-    assign(key, value, envir = .validation_cache)
+  if (is.null(key)) {
+    return(invisible(value))
   }
+  cache <- .validation_cache
+  slot <- match(key, cache$keys)
+  if (is.na(slot)) {
+    slot <- cache$last %% .validation_cache_max + 1L
+    cache$keys[[slot]] <- key
+    cache$last <- slot
+  }
+  # Taken out of the environment first, the list has a single reference and
+  # is changed in place rather than copied on every store.
+  values <- cache$values
+  cache$values <- NULL
+  values[slot] <- list(value)
+  cache$values <- values
   invisible(value)
 }
 
@@ -40,8 +78,7 @@
 #'
 #' @keywords internal
 clearValidationCache <- function() {
-  rm(list = ls(envir = .validation_cache), envir = .validation_cache)
-  invisible(NULL)
+  .validation_cache_reset()
 }
 
 new_validation_result <- function(scope, cache_key = NULL) {
@@ -351,7 +388,8 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs) {
     )
     return(.validation_cache_set(cache_key, result))
   }
-  result <- validation_add_detail(result, "residuals", resid)
+  # The residuals are not kept in the result: it is cached, and they would hold
+  # a vector as long as the data in every entry. Nothing read them.
 
   n_obs <- length(resid)
   result <- validation_add_detail(result, "n_obs", n_obs)
