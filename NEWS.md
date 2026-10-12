@@ -192,11 +192,11 @@ is unchanged.
 
 ### Measured and not adopted
 
-Two tests from the roadmap's list of candidates were measured and are not in
-the package, because they do not hold their level. The studies ship in
-`inst/validation/`, and `ROADMAP.md` says what either would need.
+Two of the candidate tests in `ROADMAP.md` were measured and are not in the
+package, because they do not hold their level. The studies ship in
+`inst/validation/`, and the roadmap says what either would need.
 
-- The modified Wald test for groupwise heteroscedasticity in a fixed-effects
+- The modified Wald test for group-wise heteroscedasticity in a fixed-effects
   panel, as Stata's `xttest3` computes it. In
   `inst/validation/modified-wald-size-power.R`, at 5000 replications, it
   rejects a true null hypothesis at the 5% level 10% to 100% of the time in
