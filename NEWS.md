@@ -75,9 +75,9 @@ Survey designs are no longer tested as if their sampling weights were
 precision weights, and `runSurveyHeteroTests()` says what it does.
 
 The help page of `runSurveyHeteroTests()` described a survey-weighted fit. The
-weights never reached `lm()`, which was given them as a local variable, where
-it does not look, and a `tryCatch()` refitted without them, so the function ran
-the ordinary tests on an ordinary least-squares fit. It still does, and apart
+weights never reached the fit: they were passed to `lm()` as a local variable,
+where `lm()` does not look, and a `tryCatch()` refitted without them, so the
+function ran the ordinary tests on an ordinary least-squares fit. It still does, and apart
 from the Szroeter test (above) its values are unchanged. The help page now says
 that the design is not used and when the tests hold their level regardless,
 and the function warns when the design has unequal weights or clusters.
