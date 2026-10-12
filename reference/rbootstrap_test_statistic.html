@@ -95,13 +95,28 @@ on \(\sqrt{w_i}\, x_i\). Null-imposed resampling draws the
 centred, and divides each draw by \(\sqrt{w_i}\) before adding
 it to \(\hat y_i\).
 Pairs resampling draws each row with its weight. Either way each replicate
-is refitted with the weights, and with an offset the model was given as an
-argument, so <code>test_function</code> sees a weighted fit, as it did on the original
-data. The rows of <code>data</code> are matched to those of the fit by row name, and a
-weighted fit whose rows <code>data</code> does not hold, once each, is refused. An
-unweighted fit is resampled as before, and the same seed gives the same
-result. The weights are held fixed; when they were estimated from the same
-data, see the section on weighted fits in <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code>.</p>
+is refitted with the weights, so <code>test_function</code> sees a weighted fit, as it
+did on the original data. The weights are held fixed; when they were
+estimated from the same data, see the section on weighted fits in
+<code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code>.</p>
+<p>Weighted or not, each replicate is refitted with an offset the model was
+given as an argument, <code>lm(..., offset = o)</code>; an offset written in the
+formula, <code>offset(o)</code>, is evaluated again from the data of the replicate.
+The rows of <code>data</code> are matched to those of the fit by row name, so that
+each row is regenerated, or drawn, with its own fitted value, weight and
+offset. Rows the model was not fitted to, such as those it dropped for
+missing values, are left out, for the observed statistic as for the
+replicates; the rows that stay keep the order of <code>data</code>. <code>data</code> that lacks
+a row the model was fitted to is refused. Data without row names of its
+own, such as a tibble or a data.table, that has as many rows as the fit is
+taken in the order of the fit. The model is then refitted to the rows of
+<code>data</code>, and <code>data</code> is refused when that refit does not give the residuals
+of the fit to a relative <code>1e-8</code>: rows in another order taken by position,
+values that differ from those the model was fitted to, or a variable the
+formula finds outside <code>data</code>, which keeps the order of the fit. Pairs
+resampling of a model with such a variable, for example <code>offset(o)</code> with
+<code>o</code> in the environment of the formula, is refused too; give such an offset
+as an argument instead.</p>
 <p>Null-imposed resampling additionally requires the response to be a plain
 variable. For <code>log(y) ~ x</code> the fitted values are on the log scale while
 the data column holds <code>y</code>, so regenerating one from the other and
@@ -125,7 +140,8 @@ discard its family and link.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Data frame used when fitting <code>model</code>.</p></dd>
+<dd><p>Data frame used when fitting <code>model</code>, holding the rows it was
+fitted to under their row names. Other rows are left out. See Details.</p></dd>
 
 
 <dt id="arg-b">B<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>

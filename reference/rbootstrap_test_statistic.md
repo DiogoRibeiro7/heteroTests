@@ -56,14 +56,29 @@ the Pearson residuals \\\sqrt{w_i}\\ e_i\\, divided by \\\sqrt{1 -
 h_i}\\ with the leverages of that regression and centred, and divides
 each draw by \\\sqrt{w_i}\\ before adding it to \\\hat y_i\\. Pairs
 resampling draws each row with its weight. Either way each replicate is
-refitted with the weights, and with an offset the model was given as an
-argument, so `test_function` sees a weighted fit, as it did on the
-original data. The rows of `data` are matched to those of the fit by row
-name, and a weighted fit whose rows `data` does not hold, once each, is
-refused. An unweighted fit is resampled as before, and the same seed
-gives the same result. The weights are held fixed; when they were
+refitted with the weights, so `test_function` sees a weighted fit, as it
+did on the original data. The weights are held fixed; when they were
 estimated from the same data, see the section on weighted fits in
 [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md).
+
+Weighted or not, each replicate is refitted with an offset the model was
+given as an argument, `lm(..., offset = o)`; an offset written in the
+formula, `offset(o)`, is evaluated again from the data of the replicate.
+The rows of `data` are matched to those of the fit by row name, so that
+each row is regenerated, or drawn, with its own fitted value, weight and
+offset. Rows the model was not fitted to, such as those it dropped for
+missing values, are left out, for the observed statistic as for the
+replicates; the rows that stay keep the order of `data`. `data` that
+lacks a row the model was fitted to is refused. Data without row names
+of its own, such as a tibble or a data.table, that has as many rows as
+the fit is taken in the order of the fit. The model is then refitted to
+the rows of `data`, and `data` is refused when that refit does not give
+the residuals of the fit to a relative `1e-8`: rows in another order
+taken by position, values that differ from those the model was fitted
+to, or a variable the formula finds outside `data`, which keeps the
+order of the fit. Pairs resampling of a model with such a variable, for
+example `offset(o)` with `o` in the environment of the formula, is
+refused too; give such an offset as an argument instead.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For `log(y) ~ x` the fitted values are on the log scale while
@@ -86,7 +101,8 @@ refitting would take the logarithm twice. That case raises an error;
 
 - data:
 
-  Data frame used when fitting `model`.
+  Data frame used when fitting `model`, holding the rows it was fitted
+  to under their row names. Other rows are left out. See Details.
 
 - B:
 
