@@ -64,12 +64,15 @@ offset. Rows the model was not fitted to, such as those it dropped for
 missing values, are left out, for the observed statistic as for the
 replicates; the rows that stay keep the order of \code{data}. \code{data} that lacks
 a row the model was fitted to is refused. Data without row names of its
-own, such as a tibble or a data.table, is matched by position, so it has
-to hold the rows in the order of the fit: \code{data} whose model frame differs
-from that of the fit, row by row, is refused. So is pairs resampling of a
-model with a variable the formula finds outside \code{data}, such as
-\code{offset(o)} with \code{o} in the environment of the formula; give such an
-offset as an argument instead.
+own, such as a tibble or a data.table, that has as many rows as the fit is
+taken in the order of the fit. The model is then refitted to the rows of
+\code{data}, and \code{data} is refused when that refit does not give the residuals
+of the fit to a relative \code{1e-8}: rows in another order taken by position,
+values that differ from those the model was fitted to, or a variable the
+formula finds outside \code{data}, which keeps the order of the fit. Pairs
+resampling of a model with such a variable, for example \code{offset(o)} with
+\code{o} in the environment of the formula, is refused too; give such an offset
+as an argument instead.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while

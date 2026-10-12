@@ -60,12 +60,15 @@ NULL
 #' missing values, are left out, for the observed statistic as for the
 #' replicates; the rows that stay keep the order of `data`. `data` that lacks
 #' a row the model was fitted to is refused. Data without row names of its
-#' own, such as a tibble or a data.table, is matched by position, so it has
-#' to hold the rows in the order of the fit: `data` whose model frame differs
-#' from that of the fit, row by row, is refused. So is pairs resampling of a
-#' model with a variable the formula finds outside `data`, such as
-#' `offset(o)` with `o` in the environment of the formula; give such an
-#' offset as an argument instead.
+#' own, such as a tibble or a data.table, that has as many rows as the fit is
+#' taken in the order of the fit. The model is then refitted to the rows of
+#' `data`, and `data` is refused when that refit does not give the residuals
+#' of the fit to a relative `1e-8`: rows in another order taken by position,
+#' values that differ from those the model was fitted to, or a variable the
+#' formula finds outside `data`, which keeps the order of the fit. Pairs
+#' resampling of a model with such a variable, for example `offset(o)` with
+#' `o` in the environment of the formula, is refused too; give such an offset
+#' as an argument instead.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -183,10 +186,22 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # resampling used to draw the rows the fit had dropped as well, so that each
   # replicate was refitted to a different number of rows. The rows that stay
   # keep the order of `data`, so data that holds exactly the fitted rows is
-  # used as it is.
+  # used as it is. row_index gives, for each row kept, the row of the fit it
+  # holds; it is found before the rows are left out, because a tibble numbers
+  # the rows of a subset afresh.
+  #
+  # Automatic row names, those of a tibble, a data.table or a data frame whose
+  # names were reset, number the rows 1 to n whatever they hold. When such data
+  # has as many rows as the fit, they are taken in the order of the fit, as
+  # the complete cases of the data would be; the check of the residuals below
+  # decides whether they are its rows.
   fit_rows <- names(model$residuals)
-  if (!is.null(fit_rows)) {
-    missing_rows <- setdiff(fit_rows, rownames(data))
+  automatic <- .row_names_info(data) < 0L && nrow(data) == length(model$residuals)
+  if (is.null(fit_rows) || automatic) {
+    row_index <- seq_len(nrow(data))
+  } else {
+    found <- match(rownames(data), fit_rows)
+    missing_rows <- fit_rows[!seq_along(fit_rows) %in% found]
     if (length(missing_rows) > 0L) {
       stop(
         "Resampling needs `data` to hold the rows the model was fitted to, ",
@@ -197,10 +212,19 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
         call. = FALSE
       )
     }
-    keep <- rownames(data) %in% fit_rows
+    keep <- !is.na(found)
     if (!all(keep)) {
       data <- data[keep, , drop = FALSE]
     }
+    row_index <- found[keep]
+  }
+  # The tests match `data` to the residuals of the model by row name. Rows
+  # taken by position, or a subset that a tibble or a data.table has numbered
+  # afresh, no longer carry the names of the rows they hold, so they are given
+  # them, in a data frame. Data whose rows already carry them is left as it is.
+  if (!is.null(fit_rows) && !identical(rownames(data), fit_rows[row_index])) {
+    data <- as.data.frame(data)
+    rownames(data) <- fit_rows[row_index]
   }
 
   original_result <- test_function(model, data, ...)
@@ -281,9 +305,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # and a refit dropped an offset given as an argument.
   #
   # `data` now holds the fitted rows once each, since the row names of a data
-  # frame are unique, so row_index is a permutation. A fit without row names
-  # takes the rows of `data` by position, and needs as many.
-  row_index <- if (is.null(fit_rows)) seq_len(n) else match(rownames(data), fit_rows)
+  # frame are unique, so row_index is a permutation. Data taken by position
+  # needs as many rows as the fit.
   if (length(model$residuals) != n || anyNA(row_index)) {
     stop(
       "Resampling needs `data` to hold the rows the model was fitted to, once ",
@@ -291,35 +314,34 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
       call. = FALSE
     )
   }
-  # A name says which row is which only when `data` has names of its own. A
-  # tibble or a data.table has none: its rows are numbered 1 to n whatever
-  # their order, so the match above pairs them by position. And a variable the
-  # formula finds outside `data`, such as offset(o) with o in the environment
-  # of the formula, keeps the order of the fit whatever the order of `data`.
-  # Both are caught by rebuilding the model frame from `data` and comparing
-  # it, row by row, with the frame of the fit. Pairs resampling draws rows of
-  # `data`, so every column of the frame has to follow them: the frame of
-  # `data` in reverse order must be the reverse of the frame of `data`.
-  unmatched <- rframe_mismatch(model, data, row_index)
-  if (length(unmatched) > 0L) {
+  # Row names say which row is which only when `data` has names of its own,
+  # and a variable the formula finds outside `data`, such as offset(o) with o
+  # in the environment of the formula, keeps the order of the fit whatever the
+  # order of `data`. Both are caught by refitting the model to the rows of
+  # `data` and comparing its residuals with those of the fit. Pairs resampling
+  # draws rows of `data`, so every variable has to follow them: the rows taken
+  # in a fixed other order must give the residuals of the fit in that order.
+  if (!rdata_reproduces_fit(model, data, row_index)) {
     stop(
-      "`data` does not hold the values the model was fitted to, row by row (",
-      paste(unmatched, collapse = ", "), "). Data without row names of its ",
-      "own, such as a tibble or a data.table, is matched to the fit by ",
-      "position, and a variable the formula finds outside `data` keeps the ",
-      "order of the fit. Pass the rows in the order of the fit, or add the ",
-      "variable to `data`.",
+      "`data` does not reproduce the fit: refitted to the rows of `data`, the ",
+      "model does not give the residuals it was fitted with. Data without row ",
+      "names of its own, such as a tibble or a data.table, is taken in the ",
+      "order of the fit; values that differ from those of the fit are refused; ",
+      "and a variable the formula finds outside `data` keeps the order of the ",
+      "fit. Pass the rows of the fit, in its order when they have no row ",
+      "names of their own, or add the variable to `data`.",
       call. = FALSE
     )
   }
   if (identical(resample, "pairs")) {
-    reversed <- rev(seq_len(n))
-    unmatched <- rframe_mismatch(model, data[reversed, , drop = FALSE], row_index[reversed])
-    if (length(unmatched) > 0L) {
+    # Even positions, then odd ones: fixed, so it draws no random number.
+    shuffled <- c(seq(2L, n, by = 2L), seq(1L, n, by = 2L))
+    if (!rdata_reproduces_fit(model, data[shuffled, , drop = FALSE], row_index[shuffled])) {
       stop(
-        "Pairs resampling draws rows of `data`, but ", paste(unmatched, collapse = ", "),
-        " in the model frame do not come from `data` and would not follow them. ",
-        "Add the variables to `data`, or give an offset as an argument.",
+        "Pairs resampling draws rows of `data`, but the model uses a variable ",
+        "that does not come from `data` and would not follow them, such as an ",
+        "offset in the environment of the formula. Add the variable to `data`, ",
+        "or give an offset as an argument.",
         call. = FALSE
       )
     }
@@ -454,46 +476,69 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   )
 }
 
-#' Columns of the model frame that `data` does not reproduce row by row
+#' Whether the rows of `data` reproduce a fit
 #'
-#' Rebuilds the model frame of `model` from `data` and compares each of its
-#' columns with the frame of the fit, taken in the order `row_index` gives.
-#' The weights and an offset given as arguments are not part of the formula
-#' and are not compared; the resampling takes them from the fit.
+#' Refits the model, by least squares on the design rebuilt from `data`, with
+#' the weights and an offset given as an argument taken from the fit in the
+#' order `row_index` gives, and compares the residuals with those of the fit
+#' in that order. The residuals do not depend on how the design is
+#' parametrised, so a term computed from all the data, such as
+#' `I(x - mean(x))`, does not count as a difference when `data` holds only
+#' some of its rows; values that do not belong to the rows they are matched
+#' to, or that differ from those of the fit, do.
 #'
 #' @param model A fitted `lm`.
 #' @param data Data frame holding the fitted rows.
 #' @param row_index For each row of `data`, the row of the fit it holds.
-#' @return The names of the columns that differ: empty when `data` reproduces
-#'   the fit, or when the frame cannot be rebuilt from it, in which case the
-#'   refits fail on their own.
+#' @return `TRUE` when the residuals agree to a relative `1e-8`, or when the
+#'   model frame cannot be rebuilt from `data`, in which case the refits fail
+#'   on their own; `FALSE` otherwise.
 #' @keywords internal
 #' @noRd
-rframe_mismatch <- function(model, data, row_index) {
-  fit_frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+rdata_reproduces_fit <- function(model, data, row_index) {
+  model_terms <- stats::terms(model)
   rebuilt <- tryCatch(
-    stats::model.frame(stats::terms(model), data = data, na.action = stats::na.pass,
+    stats::model.frame(model_terms, data = data, na.action = stats::na.pass,
                        xlev = model$xlevels),
     error = function(e) NULL
   )
-  if (is.null(fit_frame) || is.null(rebuilt) || nrow(rebuilt) != length(row_index)) {
-    return(character())
+  if (is.null(rebuilt)) {
+    return(TRUE)
   }
-  same <- function(fit_column, data_column) {
-    fit_column <- if (is.matrix(fit_column)) {
-      fit_column[row_index, , drop = FALSE]
+  if (nrow(rebuilt) != length(row_index)) {
+    return(FALSE)
+  }
+  y <- stats::model.response(rebuilt, "numeric")
+  X <- tryCatch(
+    stats::model.matrix(model_terms, rebuilt, contrasts.arg = model$contrasts),
+    error = function(e) NULL
+  )
+  if (is.null(y) || is.null(X)) {
+    return(TRUE)
+  }
+  offset <- stats::model.offset(rebuilt)
+  argument <- roffset_argument(model)
+  if (!is.null(argument)) {
+    offset <- (if (is.null(offset)) 0 else offset) + argument[row_index]
+  }
+  weights <- rprior_weights(model)
+  if (anyNA(y) || anyNA(X) || anyNA(offset)) {
+    return(FALSE)
+  }
+  refit <- tryCatch(
+    if (is.null(weights)) {
+      stats::lm.fit(X, y, offset = offset)
     } else {
-      fit_column[row_index]
-    }
-    if (is.factor(fit_column) || is.character(fit_column) || is.logical(fit_column)) {
-      return(identical(as.character(fit_column), as.character(data_column)))
-    }
-    a <- as.numeric(unclass(fit_column))
-    b <- as.numeric(unclass(data_column))
-    length(a) == length(b) && isTRUE(all.equal(a, b, tolerance = 1e-10))
+      stats::lm.wfit(X, y, weights[row_index], offset = offset)
+    },
+    error = function(e) NULL
+  )
+  if (is.null(refit)) {
+    return(FALSE)
   }
-  columns <- intersect(names(fit_frame), names(rebuilt))
-  columns[!vapply(columns, function(k) same(fit_frame[[k]], rebuilt[[k]]), logical(1))]
+  expected <- unname(model$residuals[row_index])
+  scale <- max(abs(y - mean(y)), .Machine$double.eps)
+  max(abs(unname(refit$residuals) - expected)) <= 1e-8 * scale
 }
 
 #' Estimate test power from observed effect size

@@ -272,7 +272,7 @@ test_that("data without row names of its own must be in the order of the fit", {
     expect_error(
       rbootstrap_test_statistic(performKoenkerTest, m, shuffled, B = 5,
                                 resample = strategy, progress = FALSE),
-      "does not hold the values the model was fitted to"
+      "does not reproduce the fit"
     )
     out <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5,
                                      resample = strategy, progress = FALSE)
@@ -288,13 +288,86 @@ test_that("data without row names of its own must be in the order of the fit", {
   expect_error(
     rbootstrap_test_statistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
                               B = 5, progress = FALSE),
-    "does not hold the values the model was fitted to"
+    "does not reproduce the fit"
   )
   set.seed(91)
   in_order <- rbootstrap_test_statistic(performKoenkerTest, m_dt, dt, B = 5, progress = FALSE)
   set.seed(91)
   as_frame <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5, progress = FALSE)
   expect_equal(in_order$replicates, as_frame$replicates, tolerance = 1e-8)
+})
+
+test_that("data without row names of its own is resampled when the fit dropped rows", {
+  # A fit to data with automatic row names that drops two rows for missing
+  # values. The full data are matched by name and the dropped rows left out;
+  # the complete cases, renumbered 1 to n as a tibble numbers any subset, have
+  # as many rows as the fit and are taken in its order. Both resample as the
+  # rows the fit kept.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  set.seed(23)
+  n <- 80
+  d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
+  d$y <- 1 + 2 * d$x + 0.5 * d$z + rnorm(n)
+  d$x[c(3, 7)] <- NA
+  rownames(d) <- NULL
+  m <- lm(y ~ x + z, data = d)
+  kept <- d[rownames(stats::model.frame(m)), ]
+  complete <- kept
+  rownames(complete) <- NULL
+  run <- function(data, strategy) {
+    set.seed(97)
+    rbootstrap_test_statistic(performKoenkerTest, m, data, B = 5, resample = strategy,
+                              progress = FALSE)$replicates
+  }
+  tables <- list(full = d, complete = complete)
+  if (requireNamespace("data.table", quietly = TRUE)) {
+    tables$full_data_table <- data.table::as.data.table(d)
+    tables$complete_data_table <- data.table::as.data.table(complete)
+  }
+  for (strategy in c("null", "pairs")) {
+    expected <- run(kept, strategy)
+    expect_true(all(is.finite(expected)))
+    for (nm in names(tables)) {
+      expect_equal(run(tables[[nm]], strategy), expected, tolerance = 1e-12,
+                   label = paste(nm, strategy))
+    }
+  }
+})
+
+test_that("a term computed from all the data does not make the rows of the fit differ", {
+  # I(x - mean(x)) takes the mean over the rows it is evaluated on. The fit
+  # took it over all the rows, before dropping the one with a missing
+  # response or those outside the subset; rebuilt from the rows of the fit
+  # it is shifted by a constant, which changes no residual.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  set.seed(24)
+  n <- 80
+  d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
+  d$y <- 1 + 2 * d$x + 0.5 * d$z + rnorm(n)
+  with_missing <- d
+  with_missing$y[5] <- NA
+  fits <- list(
+    missing = list(lm(y ~ I(x - mean(x)) + z, data = with_missing), with_missing),
+    subset = list(lm(y ~ I(x - mean(x)) + z, data = d, subset = z > 2), d)
+  )
+  for (nm in names(fits)) {
+    m <- fits[[nm]][[1]]
+    full <- fits[[nm]][[2]]
+    kept <- full[rownames(stats::model.frame(m)), ]
+    for (strategy in c("null", "pairs")) {
+      set.seed(98)
+      from_full <- rbootstrap_test_statistic(performKoenkerTest, m, full, B = 5,
+                                             resample = strategy, progress = FALSE)
+      set.seed(98)
+      from_kept <- rbootstrap_test_statistic(performKoenkerTest, m, kept, B = 5,
+                                             resample = strategy, progress = FALSE)
+      expect_true(all(is.finite(from_kept$replicates)), label = paste(nm, strategy))
+      expect_equal(from_full$replicates, from_kept$replicates, tolerance = 1e-12,
+                   label = paste(nm, strategy))
+    }
+  }
 })
 
 test_that("an offset in the formula that is not a column of the data cannot be resampled", {
@@ -320,12 +393,21 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   expect_error(
     rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
                               progress = FALSE),
-    "offset\\(shift\\) in the model frame do not come from `data`"
+    "does not come from `data`"
   )
   expect_error(
     rbootstrap_test_statistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
                               progress = FALSE),
-    "row by row \\(offset\\(shift\\)\\)"
+    "does not reproduce the fit"
+  )
+  # A variable that reads the same backwards would pass a check that only
+  # reversed the rows.
+  mirror <- c(seq_len(nrow(d) / 2), rev(seq_len(nrow(d) / 2)))
+  m_mirror <- lm(y ~ x + z + offset(mirror), data = d)
+  expect_error(
+    rbootstrap_test_statistic(koenker_of_fit, m_mirror, d, B = 5, resample = "pairs",
+                              progress = FALSE),
+    "does not come from `data`"
   )
   set.seed(92)
   ours <- rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
