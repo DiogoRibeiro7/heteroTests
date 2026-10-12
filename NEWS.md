@@ -129,13 +129,20 @@ an unweighted fit: the same seed gives the same values as before.
 In `inst/validation/weighted-fits-size.R`, at 2000 replications with
 `B = 499`, the three reject a correctly weighted fit 0.045 to 0.054 of the time
 at the 5% level in two designs, and reject weights that are too weak in every
-replication. With weights estimated by `fitWLS()` they hold the weights fixed,
-as the asymptotic tests take them as known, and share their error: in a design
-where the true weights give 0.054 with 150 observations and 0.048 with 600,
-the wild bootstrap rejects 0.086 and 0.105, and `performKoenkerTest()` 0.077
-and 0.110. Estimating the weights again in each replicate, which the package
-does not do, brings the three to 0.042 to 0.060 with 150 observations and the
-wild bootstrap to 0.051 with 600. `ROADMAP.md` proposes an argument for it.
+replication.
+
+On a `fitWLS()` fit they over-reject. They hold the estimated weights fixed in
+each replicate, as the asymptotic tests take them as known, and share their
+error. In a design where the variance function is correctly specified and the
+true weights give 0.054 with 150 observations and 0.048 with 600, the three
+reject 0.064 to 0.086 of the time at the 5% level with 150 observations, and
+the wild bootstrap 0.105 with 600; `performKoenkerTest()` rejects 0.077 and
+0.110. Estimating the weights again in each replicate, which the package does
+not do, brings the three to 0.042 to 0.060 with 150 observations and the wild
+bootstrap to 0.051 with 600. That is why the question is open: `ROADMAP.md`
+proposes an argument that does it, and leaves its default to 0.14.0. A default
+that estimates the weights again will change the values these tests return on
+a `fitWLS()` fit.
 
 `performQuantileRegressionTest()` still refuses a weighted fit, and its help
 page says why.
