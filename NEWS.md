@@ -197,6 +197,14 @@
   `performKoenkerTest()` uses the absolute residuals; it now gives each
   statistic as the package computes it. No value changes.
 
+- The help page of `performWhiteTestBootstrap()` gave its p-value as the
+  share of replicates whose statistic is at least the observed one. Since
+  0.7.0 the function has returned `(1 + #{T_b >= T_obs}) / (B_eff + 1)`,
+  where `B_eff` counts the replicates with a finite statistic, and the page
+  now says so. Its example of `parallel = TRUE` now runs only where that
+  starts at most two processes, the limit of `R CMD check --as-cran`. No
+  value changes.
+
 ## 0.12.0
 
 Tests on weighted fits change value, and the package gains a test of the shape
