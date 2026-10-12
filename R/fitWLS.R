@@ -52,6 +52,13 @@
 #' the function falls back to equal weights, which reduces the result to the
 #' original OLS fit.
 #'
+#' The weighted fit keeps the design and the offset of `model`, whether the
+#' offset was given as an argument, `lm(..., offset = o)`, or written in the
+#' formula, `offset(o)`. Its coefficients, fitted values and residuals are
+#' those `lm()` returns for the same call with the estimated weights added.
+#' On a model fitted with weights, the refit uses the estimated weights in
+#' their place, and `weights()` of the result returns them.
+#'
 #' @param model A fitted model of class `lm`.
 #' @param data Optional [base::data.frame] holding the variables named in
 #'   `var_formula`. It is needed only when they are not in the model frame, and
@@ -101,10 +108,21 @@ fitWLS <- function(model, data = NULL, var_formula = NULL,
 rweighted_refit <- function(model, variance) {
   mf <- stats::model.frame(model)
   response <- stats::model.response(mf)
-  design <- stats::model.matrix(model, data = mf)
+  # The design stored with the fit, and its offset, whether it was given as an
+  # argument or written in the formula, so that the weighted fit is the model
+  # supplied with weights added, as lm(weights = w) would fit it. The design
+  # was computed by model.matrix(model, data = mf), which evaluates the call
+  # of the fit again in the model frame: that frame holds log(x) and not x,
+  # and weights and an offset given as arguments as "(weights)" and
+  # "(offset)", so the call failed on a transformed regressor, on a weighted
+  # model and on most offsets. Where it did not fail, lm.wfit() was called
+  # without the offset, which it then dropped.
+  design <- stats::model.matrix(model)
+  offset <- stats::model.offset(mf)
   w <- variance$weights
 
-  fit <- stats::lm.wfit(design, response, w)
+  fit <- stats::lm.wfit(design, response, w, offset = offset)
+  fit$offset <- offset
   fit$call <- model$call
   fit$terms <- stats::terms(model)
   fit$model <- mf

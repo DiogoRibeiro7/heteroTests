@@ -2,6 +2,37 @@
 
 ## Development version
 
+- **`fitWLS()` keeps the offset of the model it refits, and changes value on
+  a model with one.** It refitted the model with the estimated weights
+  without the offset, whether that was given as an argument,
+  `lm(..., offset = o)`, or written in the formula, `offset(o)`, so the
+  weighted fit was that of a model without it. For
+  `lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)` it returned the
+  coefficients -13.996 and 3.685; it now returns -4.356 and 2.038, those
+  `lm()` gives for the same call with the estimated weights. The weights
+  themselves do not change: they come from the residuals of the model, which
+  carry its offset. `performVarianceFormTest()` refits through the same code
+  and changes with it: on that model F = 0.290 (p = 0.593) before and
+  F = 0.773 (p = 0.384) now. In the design of the guard added to
+  `tests/testthat/test-fitwls-offset.R`, an exponential variance function
+  that is correctly specified and the offset `2 x^2`, it rejected 70% of the
+  time at the 5% level when the offset was a variable of the calling
+  environment, which the old code could find, and rejects 4.8% now.
+  `autoCompareRemediations()` and `runHeteroTests(tests = "variance_form")`
+  change with them. Models without an offset give identical values.
+
+- `fitWLS()` and `performVarianceFormTest()` run on models they stopped on.
+  The weighted refit evaluated the call of the fit again in its model frame,
+  which holds `log(wt)` and not `wt`, and weights and an offset given as
+  arguments as `(weights)` and `(offset)`. So
+  `fitWLS(lm(mpg ~ log(wt), data = mtcars))` stopped with
+  `object 'wt' not found`, a model fitted with weights that are a column of
+  the data with `object 'w' not found`, and a model whose offset is a column
+  of the data with `object 'o' not found`. The refit now uses the design
+  stored with the fit. On a model fitted with weights, `fitWLS()` replaces
+  them with the estimated ones, as it did when the old refit could find
+  them; those calls give identical values.
+
 - `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and
   `rbootstrap_test_statistic()` accept a weighted fit. In 0.12.0 they refused
   one, because each replicate was refitted without the weights. A weighted fit
