@@ -70,7 +70,9 @@ With equal weights the result is that of the unweighted fit.
 
 Weighted or not, each replicate is refitted with an offset the model was
 given as an argument, \code{lm(..., offset = o)}; an offset written in the
-formula, \code{offset(o)}, is evaluated again from the data of the replicate.
+formula, \code{offset(o)}, is evaluated again from the data of the replicate. A
+transformed response, such as \code{log(y)} in \code{log(y) ~ x}, is regenerated on
+the scale the model uses, and the refit reads it in place of \code{log(y)}.
 
 The weights are held fixed in every replicate. When they were estimated
 from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation

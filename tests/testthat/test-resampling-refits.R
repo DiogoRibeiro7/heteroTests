@@ -470,3 +470,79 @@ test_that("the wild bootstrap refits an unweighted fit with transformed terms", 
     expect_equal(wild$bootstrap$replicates, expected, tolerance = 1e-8, label = distribution)
   }
 })
+
+# --- the White bootstrap on a transformed response -----------------------------
+
+make_log_response <- function(seed = 12, n = 80) {
+  set.seed(seed)
+  d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
+  d$y <- exp(1 + 0.3 * d$x + 0.1 * d$z + 0.3 * rnorm(n))
+  d$ly <- log(d$y)
+  d$w <- 1 / d$x
+  d
+}
+
+test_that("the White bootstrap regenerates a transformed response", {
+  # The response of log(y) ~ x + z is log(y), which is not a column of the
+  # data. The regenerated values were written into a column named "log(y)"
+  # that the refit did not read: it took log(y) from y again, every replicate
+  # was the data of the fit, and the p-value was 1.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  d <- make_log_response()
+  m <- lm(log(y) ~ x + z, data = d)
+
+  set.seed(101)
+  ours <- suppressWarnings(performWhiteTestBootstrap(m, d, B = 5))
+  set.seed(101)
+  expected <- vapply(seq_len(5), function(b) {
+    db <- d
+    db$ly <- fitted(m) + sample(residuals(m), replace = TRUE)
+    squared_residual_r2(residuals(lm(ly ~ x + z, data = db)), white_terms, d)
+  }, numeric(1))
+  observed <- squared_residual_r2(residuals(m), white_terms, d)
+
+  expect_equal(unname(ours$statistic), observed, tolerance = 1e-8)
+  expect_equal(ours$boot_statistics, expected, tolerance = 1e-8)
+  expect_false(any(abs(ours$boot_statistics - observed) < 1e-8))
+})
+
+test_that("a transformed response resamples as the same response held in a column", {
+  # Weighted or not, log(y) ~ x + z is the model ly ~ x + z with ly = log(y),
+  # and with the same draws the two give the same replicates.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  d <- make_log_response()
+  pairs <- list(
+    unweighted = list(lm(log(y) ~ x + z, data = d), lm(ly ~ x + z, data = d)),
+    weighted = list(lm(log(y) ~ x + z, data = d, weights = w),
+                    lm(ly ~ x + z, data = d, weights = w))
+  )
+  for (nm in names(pairs)) {
+    set.seed(102)
+    transformed <- suppressWarnings(performWhiteTestBootstrap(pairs[[nm]][[1]], d, B = 19))
+    set.seed(102)
+    column <- suppressWarnings(performWhiteTestBootstrap(pairs[[nm]][[2]], d, B = 19))
+    expect_equal(transformed$boot_statistics, column$boot_statistics, tolerance = 1e-8,
+                 label = nm)
+    expect_equal(transformed$p.value, column$p.value, label = nm)
+  }
+})
+
+test_that("the column of a regenerated response does not overwrite a regressor", {
+  # The regenerated response goes into a column named .ht_bootstrap_response,
+  # or into one with more dots in front while that name is taken.
+  previous_level <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous_level), add = TRUE)
+  d <- make_log_response()
+  d$.ht_bootstrap_response <- runif(nrow(d), 1, 5)
+  transformed <- lm(log(y) ~ x + .ht_bootstrap_response, data = d)
+  column <- lm(ly ~ x + .ht_bootstrap_response, data = d)
+
+  set.seed(103)
+  ours <- suppressWarnings(performWhiteTestBootstrap(transformed, d, B = 19))
+  set.seed(103)
+  expected <- suppressWarnings(performWhiteTestBootstrap(column, d, B = 19))
+  expect_equal(ours$boot_statistics, expected$boot_statistics, tolerance = 1e-8)
+  expect_equal(ours$p.value, expected$p.value)
+})

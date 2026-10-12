@@ -303,7 +303,9 @@ performStudentizedBPTest <- function(model, data) {
 #'
 #' Weighted or not, each replicate is refitted with an offset the model was
 #' given as an argument, `lm(..., offset = o)`; an offset written in the
-#' formula, `offset(o)`, is evaluated again from the data of the replicate.
+#' formula, `offset(o)`, is evaluated again from the data of the replicate. A
+#' transformed response, such as `log(y)` in `log(y) ~ x`, is regenerated on
+#' the scale the model uses, and the refit reads it in place of `log(y)`.
 #'
 #' The weights are held fixed in every replicate. When they were estimated
 #' from the same data, as by [fitWLS()], the replicates leave that estimation
@@ -407,6 +409,24 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
     }
   }
 
+  # The regenerated response is on the scale of the fitted values, which is
+  # that of the response the model uses. A plain response is overwritten in
+  # its column. A transformed one, such as log(y) in log(y) ~ x, is not a
+  # column of the data: written into a column named "log(y)", it was ignored
+  # by the refit, which computed log(y) from y again, so every replicate was
+  # the data of the fit, its statistic the observed one, and the p-value 1.
+  # It now goes into a column of its own, which the formula of the refit reads
+  # in place of the transformed response.
+  boot_formula <- stats::formula(model)
+  response_name <- as.character(boot_formula)[2]
+  if (!is.name(boot_formula[[2L]])) {
+    response_name <- ".ht_bootstrap_response"
+    while (response_name %in% names(working_data)) {
+      response_name <- paste0(".", response_name)
+    }
+    boot_formula[[2L]] <- as.name(response_name)
+  }
+
   bootstrap_stat <- function() {
     fitted_vals <- stats::fitted(model)
     if (is.null(prior_weights)) {
@@ -418,13 +438,12 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
     boot_y <- fitted_vals + boot_resid
 
     boot_data <- working_data
-    response_name <- as.character(stats::formula(model))[2]
     boot_data[[response_name]] <- boot_y
 
     boot_model <- if (is.null(prior_weights) && is.null(offset_argument)) {
-      safe_lm(stats::formula(model), data = boot_data)
+      safe_lm(boot_formula, data = boot_data)
     } else {
-      rrefit_lm(stats::formula(model), boot_data, prior_weights, offset_argument)
+      rrefit_lm(boot_formula, boot_data, prior_weights, offset_argument)
     }
     unname(performWhiteTest(boot_model, boot_data)$statistic[1])
   }
