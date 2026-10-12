@@ -69,6 +69,25 @@
   of the data, so only a test function of the caller's own could reach that
   case.
 
+- **`performWhiteTestBootstrap()` regenerates a transformed response, and
+  changes value on a model with one.** For a response such as `log(y)` in
+  `log(y) ~ x`, it wrote each regenerated response into a column named
+  `log(y)`, which the refit did not read: the refit computed `log(y)` from `y`
+  again, so every replicate was the data of the fit, every replicate
+  statistic was the observed one, and the p-value was 1 whatever the data.
+  For `lm(log(Ozone) ~ Solar.R + Wind + Temp, data = airquality)`, with
+  `set.seed(1)` and `B = 999`, all 999 replicate statistics were the
+  observed one, 34.715, and the p-value was 1; it is now 0.004, the value the
+  same model gives with `log(Ozone)` held in a column of its own, where
+  `performWhiteTest()` gives 0.00007. The regenerated response now goes into
+  a column of its own, which the refit reads in place of `log(y)`. In
+  `inst/validation/white-bootstrap-transformed-size.R`, with constant
+  variance on the log scale, the test rejects 0.047 of the time at the 5%
+  level at 5000 replications, inside the interval `[0.037, 0.053]` around
+  0.045, the rate at which a test whose level is exact gives `p < 0.05` with
+  `B = 199`, and 0.892 against a standard deviation that grows with a
+  regressor. Models with a plain response give identical values.
+
 - **`fitWLS()` keeps the offset of the model it refits, and changes value on
   a model with one.** It refitted the model with the estimated weights
   without the offset, whether that was given as an argument,
