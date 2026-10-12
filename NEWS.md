@@ -190,6 +190,25 @@ errors and 1 to 10 points more under exponential errors.
 The default is `robust = FALSE`, and every value the function returned before
 is unchanged.
 
+### Measured and not adopted
+
+Two tests from the roadmap's list of candidates were measured and are not in
+the package, because they do not hold their level. The studies ship in
+`inst/validation/`, and `ROADMAP.md` says what either would need.
+
+- The modified Wald test for groupwise heteroscedasticity in a fixed-effects
+  panel, as Stata's `xttest3` computes it. In
+  `inst/validation/modified-wald-size-power.R`, at 5000 replications, it
+  rejects a true null hypothesis at the 5% level 10% to 100% of the time in
+  balanced panels of 10 to 100 units and 5 to 100 periods, under Gaussian and
+  `t5` errors.
+- The consistent test of a variance function of Dette, Neumeyer and Van
+  Keilegom (2007), as a prototype that follows the authors' manuscript. In
+  `inst/validation/variance-form-dnvk-size-power.R`, at 5000 replications, its
+  Cramér-von Mises statistic rejects a true exponential or power variance
+  function that is not constant 1.9% to 3.6% of the time at the 5% level, at
+  50 to 400 observations under Gaussian and `t5` errors.
+
 ### Also
 
 - `listDiagnostics()` returns the names `runHeteroTests(tests = )` accepts,
@@ -268,6 +287,12 @@ is unchanged.
   now says so. Its example of `parallel = TRUE` now runs only where that
   starts at most two processes, the limit of `R CMD check --as-cran`. No
   value changes.
+
+- The release workflow runs `R CMD check --as-cran --run-donttest` on the
+  source tarball it is about to tag, and creates no tag or GitHub release if
+  that check warns or errors. The check used to run only weekly and on
+  demand, and it failed on the example above on 2026-09-28 and 2026-10-05
+  without holding up 0.12.0.
 
 ## 0.12.0
 
