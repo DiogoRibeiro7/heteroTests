@@ -2,6 +2,73 @@
 
 ## Development version
 
+- **`rbootstrap_test_statistic()`, `performWhiteTestBootstrap()` and
+  `performWildBootstrapTest()` keep an offset given as an argument, and
+  change value on an unweighted fit with one.** `lm(..., offset = o)` keeps
+  `o` in the model frame and not in the formula, and each replicate of an
+  unweighted fit was refitted from the formula alone, so the replicates were
+  those of a model without the offset. A weighted fit already kept it, and
+  an offset written in the formula, `offset(o)`, was always evaluated again
+  from the data. For `lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)`,
+  with `set.seed(1)` and `B = 999`, `rbootstrap_test_statistic()` with
+  `performKoenkerTest()` gave p = 0.095 and gives 0.106, and
+  `performWhiteTestBootstrap()` gave p = 0.222 and gives 0.201, the values
+  the same model gives with the offset in the formula.
+  `performWildBootstrapTest()` dropped such an offset too, where it ran at
+  all (below): for this model its replicates change and its p-value, 0.079,
+  does not. In `inst/validation/offset-refits-size.R`, where the offset is
+  `0.5 x^2`, the White bootstrap rejected 0.012 of the time at the 5% level
+  and now rejects 0.044. `rbootstrap_test_statistic()` with
+  `performKoenkerTest()` rejected 0.047, because Koenker's statistic happens
+  to miss what the dropped offset leaves in the residuals, and now rejects
+  0.040. That is inside the 99% interval around 0.045, `[0.037, 0.053]`,
+  the rate at which a test whose level is exact gives `p < 0.05` with
+  `B = 199`, which is what the cells with `B = 199` are judged against; read
+  against 0.05 it would be below the release gate, `[0.042, 0.058]`. With
+  `B = 999`, its default, whose exact rate is 0.049, it rejects 0.046,
+  inside the release gate and inside the interval around 0.049,
+  `[0.041, 0.057]`.
+
+- **`rbootstrap_test_statistic()` matches the rows of `data` to the fit by
+  name, and changes value when they are in another order or include rows
+  the fit does not have.** It took the fitted values of an unweighted fit by
+  position, so data holding the fitted rows in another order regenerated
+  each row from another row's fitted value, without an error. For
+  `lm(mpg ~ wt + qsec, data = mtcars)` with `mtcars` sorted by `hp`,
+  `set.seed(1)` and `B = 999`, the p-value with `performKoenkerTest()` was
+  0.004 and is 0.230; with `mtcars` as given it is 0.219. In
+  `inst/validation/offset-refits-size.R`, with the rows in a random order, it
+  rejected 0.257 of the time at the 5% level and now rejects 0.049.
+
+  Rows of `data` the model was not fitted to, such as rows it dropped for
+  missing values, are now left out, weighted or not, for the observed
+  statistic and the replicates alike; the rows that stay keep the order of
+  `data`, so data holding exactly the fitted rows gives the same values as
+  before. Pairs resampling drew those rows too, and each replicate was
+  refitted to a different number of rows. For
+  `lm(Ozone ~ Solar.R + Wind, data = airquality)`, whose fit drops 42 rows,
+  pairs resampling with `performKoenkerTest()`, `set.seed(1)` and `B = 999`
+  refitted replicates of 92 to 126 rows and gave the interval 2.884 to
+  18.904; every replicate now has the 111 rows of the fit, and the interval
+  is 3.134 to 19.599. Null resampling refused such data and now runs. Data
+  that lacks a row the model was fitted to is refused.
+
+  Matching by name cannot see two things. A tibble or a data.table has no
+  row names of its own; when it has as many rows as the fit, as the complete
+  cases do, they are taken in the order of the fit. And a variable the
+  formula finds outside `data`, such as `offset(o)` with `o` in the
+  environment of the formula, keeps the order of the fit, so it cannot follow
+  data in another order nor the rows that pairs resampling draws; given as
+  an argument, the same offset does. The model is therefore refitted to the
+  rows of `data`, and data whose refit does not give the residuals of the
+  fit, to a relative `1e-8`, is refused, weighted or not: rows in another
+  order taken by position, values that differ from those of the fit, or such
+  a variable. These gave wrong replicates without an error. A term computed
+  from all the data, such as `I(x - mean(x))`, does not count as a
+  difference. The package's own tests refuse a variable that is not a column
+  of the data, so only a test function of the caller's own could reach that
+  case.
+
 - **`fitWLS()` keeps the offset of the model it refits, and changes value on
   a model with one.** It refitted the model with the estimated weights
   without the offset, whether that was given as an argument,
@@ -20,6 +87,19 @@
   environment, which the old code could find, and rejects 4.8% now.
   `autoCompareRemediations()` and `runHeteroTests(tests = "variance_form")`
   change with them. Models without an offset give identical values.
+
+- `performWildBootstrapTest()` runs on unweighted fits it stopped on. It
+  evaluated the call of the fit again in the model frame, which holds
+  `log(wt)` and not `wt`, and `(offset)` in place of the name of an offset
+  given as an argument. So `lm(mpg ~ log(wt), data = mtcars)` stopped with
+  `object 'wt' not found`, and so did a transformed response, an offset
+  written in the formula and an offset given as an argument, unless the model
+  frame happened to hold the variables they are computed from. Each replicate
+  is now refitted on the design stored with the fit, with its offset. In
+  `inst/validation/offset-refits-size.R` it rejects 0.044 of the time at the
+  5% level with an offset given as an argument, and 0.048 with `log(x)` as
+  well. Calls that ran before give identical values, except with an offset
+  given as an argument (above).
 
 - `fitWLS()` and `performVarianceFormTest()` run on models they stopped on.
   The weighted refit evaluated the call of the fit again in its model frame,

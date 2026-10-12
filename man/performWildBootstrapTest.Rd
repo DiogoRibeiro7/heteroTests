@@ -52,6 +52,11 @@ on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under
 \eqn{H_0} this controls size even for heavy-tailed errors; under the alternative
 the observed statistic is extreme relative to the homoscedastic reference, giving
 power.
+
+Each replicate is refitted on the design matrix of the fit, with its
+offset, whether that was given as an argument or written in the formula.
+The formula is not evaluated again, so a transformed regressor such as
+\code{log(x)}, or a transformed response, is refitted on the scale of the fit.
 }
 \section{Weighted fits}{
 
@@ -63,8 +68,8 @@ residuals, the Pearson residuals \eqn{\sqrt{w_i}\, e_i}{sqrt(w_i) e_i}, with
 the auxiliary regressors on their original scale; the residuals that are
 resampled are the Pearson residuals divided by
 \eqn{\sqrt{1 - h_{ii}}}{sqrt(1 - h_ii)}, with the leverages of that
-regression, and centred; and each replicate refits it. An unweighted fit is
-resampled as before, and the same seed gives the same result.
+regression, and centred; and each replicate refits it. With equal weights
+the result is that of the unweighted fit.
 
 The weights are held fixed in every replicate. When they were estimated
 from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation

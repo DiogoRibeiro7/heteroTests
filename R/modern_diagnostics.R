@@ -72,6 +72,11 @@
 #' for heavy-tailed errors; under the alternative the observed statistic is
 #' extreme relative to the homoscedastic reference, giving power.
 #'
+#' Each replicate is refitted on the design matrix of the fit, with its
+#' offset, whether that was given as an argument or written in the formula.
+#' The formula is not evaluated again, so a transformed regressor such as
+#' `log(x)`, or a transformed response, is refitted on the scale of the fit.
+#'
 #' @section Weighted fits:
 #' A fit with weights \eqn{w_i} is ordinary least squares on
 #' \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i} and \eqn{\sqrt{w_i}\, x_i}{sqrt(w_i) x_i},
@@ -81,8 +86,8 @@
 #' the auxiliary regressors on their original scale; the residuals that are
 #' resampled are the Pearson residuals divided by
 #' \eqn{\sqrt{1 - h_{ii}}}{sqrt(1 - h_ii)}, with the leverages of that
-#' regression, and centred; and each replicate refits it. An unweighted fit is
-#' resampled as before, and the same seed gives the same result.
+#' regression, and centred; and each replicate refits it. With equal weights
+#' the result is that of the unweighted fit.
 #'
 #' The weights are held fixed in every replicate. When they were estimated
 #' from the same data, as by [fitWLS()], the replicates leave that estimation
@@ -164,15 +169,14 @@ performWildBootstrapTest <- function(model, data, B = 499,
     stop("Fitted values must align with residuals for wild bootstrap.", call. = FALSE)
   }
 
-  # model.matrix(model, data = model_frame) evaluates the call of the fit again
-  # in its model frame. A weighted fit keeps its weights there as "(weights)",
-  # under which the call cannot find them, so it uses its stored design.
+  # The design stored with the fit. model.matrix(model, data = model_frame)
+  # would evaluate the call of the fit again in its model frame, which holds
+  # the terms, log(wt), and not the variables they are computed from, wt, and
+  # holds weights and an offset given as arguments as "(weights)" and
+  # "(offset)", under which the call cannot find them.
   prior_weights <- rprior_weights(model)
-  design_matrix <- if (is.null(prior_weights)) {
-    stats::model.matrix(model, data = model_frame)
-  } else {
-    stats::model.matrix(model)
-  }
+  design_matrix <- stats::model.matrix(model)
+  model_offset <- stats::model.offset(model_frame)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]
   } else {
@@ -213,12 +217,15 @@ performWildBootstrapTest <- function(model, data, B = 499,
   # regenerated errors, refitted by least squares. The fitted values lie in
   # the span of sqrt(w) X, so the residuals of the refit are those of the
   # regenerated errors alone.
+  #
+  # An unweighted fit is refitted by lm.fit() on the same design, with the
+  # offset of the fit, which is the computation lm() makes from the formula
+  # without evaluating the formula again. A replicate of a fit whose formula
+  # lm() could evaluate in the model frame is the one it always was.
   if (!is.null(prior_weights)) {
     transformed_qr <- qr(sqrt(prior_weights) * design_matrix)
   }
 
-  response_col <- names(model_frame)[1]
-  base_frame <- model_frame
   progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Wild bootstrap replications")
   on.exit(progress_bar$close(), add = TRUE)
 
@@ -229,10 +236,9 @@ performWildBootstrapTest <- function(model, data, B = 499,
     boot_stat <- tryCatch(
       {
         if (is.null(prior_weights)) {
-          boot_frame <- base_frame
-          boot_frame[[response_col]] <- fitted_vals + boot_errors
-          boot_model <- safe_lm(stats::formula(model), data = boot_frame)
-          boot_res <- stats::residuals(boot_model)
+          boot_res <- stats::lm.fit(
+            design_matrix, fitted_vals + boot_errors, offset = model_offset
+          )$residuals
         } else {
           boot_res <- qr.resid(transformed_qr, boot_errors)
         }
