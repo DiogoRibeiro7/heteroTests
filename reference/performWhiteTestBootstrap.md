@@ -56,8 +56,10 @@ follows:
 3.  Refit the model to each bootstrap sample and recompute White's
     statistic \\T^{\*(b)}\\ using the same auxiliary specification.
 
-4.  Estimate the bootstrap p-value as \\\hat{p} = B^{-1} \sum\_{b = 1}^B
-    I\\T^{\*(b)} \ge T\_{\text{obs}}\\\\.
+4.  Estimate the bootstrap p-value as \\\hat{p} = (1 + \sum\_{b}
+    I\\T^{\*(b)} \ge T\_{\text{obs}}\\) / (B\_{\text{eff}} + 1)\\, where
+    \\b\\ runs over the \\B\_{\text{eff}}\\ replicates whose statistic
+    is finite, so the p-value is never zero.
 
 The bootstrap distribution offers improved size control for moderate
 sample sizes or high-dimensional designs where the chi-squared
@@ -1540,18 +1542,11 @@ performWhiteTestBootstrap(mod, sim, B = 499)
 #> X-squared = 13.801, B = 499, p-value = 0.002
 #> 
 
-# Enable parallel processing when supported by the operating system
-if (.Platform$OS.type != "windows") {
+# parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows
+# does not support. The call runs only where that is at most two workers,
+# the most R CMD check --as-cran allows.
+if (.Platform$OS.type != "windows" && isTRUE(parallel::detectCores() <= 3L)) {
   performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
 }
-#> [INFO] Running Bootstrap White test
-#> [INFO] Running White test
-#> [INFO] White test completed: statistic = 13.8014 df = 2 p = 0.001
-#> 
-#>  Bootstrap White test
-#> 
-#> data:  mod
-#> X-squared = 13.801, B = 199, p-value = 0.005
-#> 
 # }
 ```

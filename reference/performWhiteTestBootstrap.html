@@ -90,7 +90,10 @@ with replacement, forming \(y^{*(b)} = \hat{y} + \hat{e}^{*(b)}\).</p></li>
 <li><p>Refit the model to each bootstrap sample and recompute White's
 statistic \(T^{*(b)}\) using the same auxiliary specification.</p></li>
 <li><p>Estimate the bootstrap p-value as
-\(\hat{p} = B^{-1} \sum_{b = 1}^B I\{T^{*(b)} \ge T_{\text{obs}}\}\).</p></li>
+\(\hat{p} = (1 + \sum_{b} I\{T^{*(b)} \ge T_{\text{obs}}\}) /
+    (B_{\text{eff}} + 1)\),
+where \(b\) runs over the \(B_{\text{eff}}\) replicates whose
+statistic is finite, so the p-value is never zero.</p></li>
 </ol><p>The bootstrap distribution offers improved size control for moderate sample
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When <code>parallel = TRUE</code> the resampling step exploits available CPU
@@ -1567,19 +1570,12 @@ tests. <em>Journal of Econometrics, 133</em>(2), 421–441.
 <span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 13.801, B = 499, p-value = 0.002</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Enable parallel processing when supported by the operating system</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="va">.Platform</span><span class="op">$</span><span class="va">OS.type</span> <span class="op">!=</span> <span class="st">"windows"</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span><span class="co"># parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows</span></span></span>
+<span class="r-in"><span><span class="co"># does not support. The call runs only where that is at most two workers,</span></span></span>
+<span class="r-in"><span><span class="co"># the most R CMD check --as-cran allows.</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="va">.Platform</span><span class="op">$</span><span class="va">OS.type</span> <span class="op">!=</span> <span class="st">"windows"</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="fu">parallel</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">&lt;=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">performWhiteTestBootstrap</span><span class="op">(</span><span class="va">mod</span>, <span class="va">sim</span>, B <span class="op">=</span> <span class="fl">199</span>, parallel <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Bootstrap White test</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running White test</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] White test completed: statistic = 13.8014 df = 2 p = 0.001</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 	Bootstrap White test</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mod</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 13.801, B = 199, p-value = 0.005</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
