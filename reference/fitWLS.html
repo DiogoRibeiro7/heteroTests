@@ -134,6 +134,12 @@ the result to <code><a href="performVarianceFormTest.html">performVarianceFormTe
 <p>If the variance function cannot be fitted, or yields no usable variation,
 the function falls back to equal weights, which reduces the result to the
 original OLS fit.</p>
+<p>The weighted fit keeps the design and the offset of <code>model</code>, whether the
+offset was given as an argument, <code>lm(..., offset = o)</code>, or written in the
+formula, <code>offset(o)</code>. Its coefficients, fitted values and residuals are
+those <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> returns for the same call with the estimated weights added.
+On a model fitted with weights, the refit uses the estimated weights in
+their place, and <code><a href="https://rdrr.io/r/stats/weights.html" class="external-link">weights()</a></code> of the result returns them.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
