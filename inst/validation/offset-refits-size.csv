@@ -1,0 +1,10 @@
+"test","version","offset","terms","rows","errors","n","B","replications","rejection_rate","mc_se","effective","failures"
+"performWildBootstrapTest","corrected","argument","x + z","fitted order","normal",100,199,5000,0.0444,0.00291302729132427,5000,0
+"performWhiteTestBootstrap","corrected","argument","x + z","fitted order","normal",100,199,5000,0.0444,0.00291302729132427,5000,0
+"rbootstrap_test_statistic","corrected","argument","x + z","fitted order","normal",100,199,5000,0.0402,0.00277791144567281,5000,0
+"rbootstrap_test_statistic","corrected","argument","x + z","another order","normal",100,199,5000,0.0486,0.0030409879973456,5000,0
+"performWildBootstrapTest","corrected","argument","log(x) + z","fitted order","normal",100,199,5000,0.048,0.00302311098043059,5000,0
+"performWhiteTestBootstrap","before","argument","x + z","fitted order","normal",100,199,2000,0.0125,0.00248432586429397,2000,0
+"rbootstrap_test_statistic","before","argument","x + z","fitted order","normal",100,199,2000,0.047,0.00473238840333293,2000,0
+"rbootstrap_test_statistic","before","argument","x + z","another order","normal",100,199,2000,0.2565,0.00976493087533138,2000,0
+"rbootstrap_test_statistic","corrected","argument","x + z","fitted order","normal",100,999,5000,0.046,0.00296256645495084,5000,0
