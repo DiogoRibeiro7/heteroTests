@@ -56,14 +56,16 @@ NULL
 #' formula, `offset(o)`, is evaluated again from the data of the replicate.
 #' The rows of `data` are matched to those of the fit by row name, so that
 #' each row is regenerated, or drawn, with its own fitted value, weight and
-#' offset, and `data` that does not hold the rows the model was fitted to,
-#' once each, is refused. When the fit dropped rows with missing values, pass
-#' the rows it kept. Data without row names of its own, such as a tibble or a
-#' data.table, is matched by position, so it has to hold the rows in the
-#' order of the fit: `data` whose model frame differs from that of the fit,
-#' row by row, is refused. So is pairs resampling of a model with a variable
-#' the formula finds outside `data`, such as `offset(o)` with `o` in the
-#' environment of the formula; give such an offset as an argument instead.
+#' offset. Rows the model was not fitted to, such as those it dropped for
+#' missing values, are left out, for the observed statistic as for the
+#' replicates; the rows that stay keep the order of `data`. `data` that lacks
+#' a row the model was fitted to is refused. Data without row names of its
+#' own, such as a tibble or a data.table, is matched by position, so it has
+#' to hold the rows in the order of the fit: `data` whose model frame differs
+#' from that of the fit, row by row, is refused. So is pairs resampling of a
+#' model with a variable the formula finds outside `data`, such as
+#' `offset(o)` with `o` in the environment of the formula; give such an
+#' offset as an argument instead.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -78,7 +80,7 @@ NULL
 #'   is rejected: each replicate is refitted with least squares, which would
 #'   discard its family and link.
 #' @param data Data frame used when fitting `model`, holding the rows it was
-#'   fitted to, once each, under their row names. See Details.
+#'   fitted to under their row names. Other rows are left out. See Details.
 #' @param B Integer, number of bootstrap replications. Defaults to 1000.
 #' @param parallel Logical, compute replicates in parallel when possible?
 #' @param ci_level Confidence level for the percentile interval.
@@ -175,6 +177,32 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # always took.
   prior_weights <- rprior_weights(model)
 
+  # `data` is reduced to the rows the model was fitted to, matched by row
+  # name: rows it does not hold, such as those the fit dropped for missing
+  # values, are left out, and data that lacks a fitted row is refused. Pairs
+  # resampling used to draw the rows the fit had dropped as well, so that each
+  # replicate was refitted to a different number of rows. The rows that stay
+  # keep the order of `data`, so data that holds exactly the fitted rows is
+  # used as it is.
+  fit_rows <- names(model$residuals)
+  if (!is.null(fit_rows)) {
+    missing_rows <- setdiff(fit_rows, rownames(data))
+    if (length(missing_rows) > 0L) {
+      stop(
+        "Resampling needs `data` to hold the rows the model was fitted to, ",
+        "under their row names; it lacks ", length(missing_rows), " of them (",
+        paste(utils::head(missing_rows, 3L), collapse = ", "),
+        if (length(missing_rows) > 3L) ", ..." else "", "). Refit on `data`, ",
+        "or pass the rows of the fit.",
+        call. = FALSE
+      )
+    }
+    keep <- rownames(data) %in% fit_rows
+    if (!all(keep)) {
+      data <- data[keep, , drop = FALSE]
+    }
+  }
+
   original_result <- test_function(model, data, ...)
   statistic <- original_result$statistic
   if (is.null(statistic) || length(statistic) == 0L) {
@@ -246,22 +274,20 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # The fitted values, the weights of a weighted fit and an offset given as an
   # argument have one value per fitted row. They are put in the row order of
   # `data`, matched by row name, so that each row is regenerated or drawn with
-  # its own, and data that does not hold the fitted rows once each is refused.
-  # Data in the order of the fit takes them as they are, so the same seed gives
-  # the same result as before. Until the unweighted fit followed this rule it
-  # took the fitted values by position: data holding the same rows in another
-  # order added each row's draw to another row's fitted value, and a refit
-  # dropped an offset given as an argument.
+  # its own. Data in the order of the fit takes them as they are, so the same
+  # seed gives the same result as before. Until the unweighted fit followed
+  # this rule it took the fitted values by position: data holding the same
+  # rows in another order added each row's draw to another row's fitted value,
+  # and a refit dropped an offset given as an argument.
   #
-  # The row names of a data frame are unique, so when `data` has as many rows
-  # as the fit and each name is found, row_index is a permutation.
-  fit_rows <- names(fitted_vals)
+  # `data` now holds the fitted rows once each, since the row names of a data
+  # frame are unique, so row_index is a permutation. A fit without row names
+  # takes the rows of `data` by position, and needs as many.
   row_index <- if (is.null(fit_rows)) seq_len(n) else match(rownames(data), fit_rows)
   if (length(model$residuals) != n || anyNA(row_index)) {
     stop(
       "Resampling needs `data` to hold the rows the model was fitted to, once ",
-      "each, under the same row names. Refit on `data`, or pass the rows of ",
-      "the fit.",
+      "each. Refit on `data`, or pass the rows of the fit.",
       call. = FALSE
     )
   }

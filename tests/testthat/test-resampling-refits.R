@@ -192,7 +192,7 @@ test_that("an offset argument follows the rows of the data in pairs resampling",
   expect_equal(pairs$replicates, expected, tolerance = 1e-8)
 })
 
-test_that("resampling an unweighted fit needs the rows the model was fitted to", {
+test_that("resampling an unweighted fit uses the rows the model was fitted to", {
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
   set.seed(9)
@@ -200,52 +200,59 @@ test_that("resampling an unweighted fit needs the rows the model was fitted to",
   d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
   d$y <- 1 + 2 * d$x + 0.5 * d$z + rnorm(n)
   m <- lm(y ~ x + z, data = d)
+  run <- function(model, data, strategy, seed, fn = performKoenkerTest) {
+    set.seed(seed)
+    rbootstrap_test_statistic(fn, model, data, B = 5, resample = strategy, progress = FALSE)
+  }
+
+  # Rows the fit does not have are left out, for the observed statistic as
+  # for the replicates, so data with extra rows resamples as the data of the
+  # fit.
   longer <- rbind(d, d[1:5, ])
+  for (strategy in c("null", "pairs")) {
+    ours <- run(m, longer, strategy, 94)
+    expected <- run(m, d, strategy, 94)
+    expect_equal(ours$original_statistic, expected$original_statistic, tolerance = 1e-12)
+    expect_equal(ours$replicates, expected$replicates, tolerance = 1e-12)
+  }
+
+  # A row the fit dropped for a missing value is one of those rows. Pairs
+  # resampling used to draw it as well, and the refit dropped it again, so
+  # each replicate was fitted to a different number of rows; null resampling
+  # refused the data. Both now resample the rows the fit kept.
+  with_missing <- d
+  with_missing$x[3] <- NA
+  m_missing <- lm(y ~ x + z, data = with_missing)
+  kept <- with_missing[rownames(stats::model.frame(m_missing)), ]
+  rows_used <- function(model, data) list(statistic = stats::nobs(model))
+  for (strategy in c("null", "pairs")) {
+    ours <- run(m_missing, with_missing, strategy, 95)
+    expected <- run(m_missing, kept, strategy, 95)
+    expect_equal(ours$replicates, expected$replicates, tolerance = 1e-12)
+    expect_true(all(is.finite(ours$replicates)))
+    expect_equal(run(m_missing, with_missing, strategy, 96, rows_used)$replicates,
+                 rep(n - 1, 5))
+  }
+
+  # Data that lacks a fitted row is refused: rows under other names, or part
+  # of the rows. The package's tests refuse data whose row names do not match
+  # the fit, so the refusal is checked with a test function that does not
+  # look at them.
+  by_position <- function(model, data) list(statistic = sum(stats::residuals(model)^2))
   renamed <- d
   rownames(renamed) <- paste0("r", seq_len(n))
-
-  # Null resampling refuses data of another length first, as it always has.
-  expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, m, longer, B = 5, progress = FALSE),
-    "one fitted value and one residual per row"
-  )
-  expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, m, longer, B = 5,
-                              resample = "pairs", progress = FALSE),
-    "rows the model was fitted to"
-  )
-  # The package's tests refuse data whose row names do not match the fit, so
-  # the refusal is checked with a test function that does not look at them.
-  by_position <- function(model, data) list(statistic = sum(stats::residuals(model)^2))
   for (strategy in c("null", "pairs")) {
     expect_error(
       rbootstrap_test_statistic(by_position, m, renamed, B = 5,
                                 resample = strategy, progress = FALSE),
       "rows the model was fitted to"
     )
+    expect_error(
+      rbootstrap_test_statistic(by_position, m, d[1:50, ], B = 5,
+                                resample = strategy, progress = FALSE),
+      "it lacks 10 of them"
+    )
   }
-
-  # A row the fit dropped for a missing value is not one of its rows. The
-  # rows the fit kept are accepted.
-  with_missing <- d
-  with_missing$x[3] <- NA
-  m_missing <- lm(y ~ x + z, data = with_missing)
-  expect_error(
-    rbootstrap_test_statistic(by_position, m_missing, with_missing, B = 5,
-                              resample = "pairs", progress = FALSE),
-    "rows the model was fitted to"
-  )
-  kept <- with_missing[rownames(stats::model.frame(m_missing)), ]
-  out <- rbootstrap_test_statistic(by_position, m_missing, kept, B = 5,
-                                   resample = "pairs", progress = FALSE)
-  expect_true(all(is.finite(out$replicates)))
-
-  # Part of the fitted rows, each under its own name, is not all of them.
-  expect_error(
-    rbootstrap_test_statistic(by_position, m, d[1:50, ], B = 5,
-                              resample = "pairs", progress = FALSE),
-    "rows the model was fitted to"
-  )
 })
 
 test_that("data without row names of its own must be in the order of the fit", {

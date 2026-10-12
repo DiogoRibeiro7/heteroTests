@@ -222,18 +222,18 @@ test_that("resampling a weighted fit needs the rows the model was fitted to", {
   renamed <- d
   rownames(renamed) <- paste0("r", seq_len(nrow(d)))
 
-  # Null resampling refuses data of another length before the weights are
-  # looked at, as it does for an unweighted fit.
-  expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, obj$model, longer, B = 5,
-                              progress = FALSE),
-    "one fitted value and one residual per row"
-  )
-  expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, obj$model, longer, B = 5,
-                              resample = "pairs", progress = FALSE),
-    "rows the model was fitted to"
-  )
+  # Rows the fit does not have are left out, and each row keeps its weight.
+  for (strategy in c("null", "pairs")) {
+    set.seed(15)
+    ours <- suppressWarnings(rbootstrap_test_statistic(
+      performKoenkerTest, obj$model, longer, B = 5, resample = strategy, progress = FALSE
+    ))
+    set.seed(15)
+    expected <- suppressWarnings(rbootstrap_test_statistic(
+      performKoenkerTest, obj$model, d, B = 5, resample = strategy, progress = FALSE
+    ))
+    expect_equal(ours$replicates, expected$replicates, tolerance = 1e-12)
+  }
   # The package's tests refuse data whose row names do not match the fit, so
   # the refusal is checked with a test function that does not look at them.
   by_position <- function(model, data) list(statistic = sum(stats::residuals(model)^2))
