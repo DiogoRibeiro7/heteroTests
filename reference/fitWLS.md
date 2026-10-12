@@ -104,15 +104,6 @@ If the variance function cannot be fitted, or yields no usable
 variation, the function falls back to equal weights, which reduces the
 result to the original OLS fit.
 
-The weighted fit keeps the design and the offset of `model`, whether the
-offset was given as an argument, `lm(..., offset = o)`, or written in
-the formula, `offset(o)`. Its coefficients, fitted values and residuals
-are those [`lm()`](https://rdrr.io/r/stats/lm.html) returns for the same
-call with the estimated weights added. On a model fitted with weights,
-the refit uses the estimated weights in their place, and
-[`weights()`](https://rdrr.io/r/stats/weights.html) of the result
-returns them.
-
 ## References
 
 Harvey, A. C. (1976). Estimating regression models with multiplicative
