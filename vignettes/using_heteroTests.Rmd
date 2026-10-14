@@ -54,7 +54,7 @@ Several diagnostics can also be run together.
 # Alternatively run multiple tests at once
 runHeteroTests(model, quakes)
 # Choose a subset of diagnostics
-runHeteroTests(model, quakes, tests = c("white", "koenker", "ncv"))
+runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
 runDiagnostics(model, quakes)
 ```
 

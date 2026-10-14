@@ -14,7 +14,7 @@ test_that("runHeteroTests returns list with default tests", {
 test_that("runHeteroTests runs specified tests", {
   data(mtcars)
   m <- lm(mpg ~ wt + qsec, data = mtcars)
-  res <- runHeteroTests(m, mtcars, tests = c("white", "koenker", "ncv"))
-  expect_equal(names(res), c("white", "koenker", "ncv"))
+  res <- runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
+  expect_equal(names(res), c("white", "koenker", "cook_weisberg"))
   lapply(res, expect_s3_class, class = "htest")
 })
