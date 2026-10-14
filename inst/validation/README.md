@@ -460,6 +460,10 @@ Koenker rejects 0.069 at 600 observations, less than the 0.110 it rejects when
 the form is right. White and the variance-form test look at squares and
 products as well, and both find the misfit; only the second has a known level.
 
+These studies ran before 0.14.0 renamed `rbootstrap_test_statistic()` to
+`bootstrapTestStatistic()`; the tables keep the name it had, and the scripts
+call the new one.
+
 **The resampling tests.** `performWildBootstrapTest()`,
 `performWhiteTestBootstrap()` and `rbootstrap_test_statistic()`, the last with
 `performKoenkerTest()` as its test function, each with `B = 499`. On a
@@ -565,6 +569,10 @@ Four things follow.
   the heteroscedasticity.
 
 ### The resampling tests on a fit with an offset
+
+These studies ran before 0.14.0 renamed `rbootstrap_test_statistic()` to
+`bootstrapTestStatistic()`; the tables keep the name it had, and the scripts
+call the new one.
 
 `lm(..., offset = o)` keeps `o` in the model frame and not in the formula.
 Until the correction recorded in `NEWS.md`, the resampling tests refitted
