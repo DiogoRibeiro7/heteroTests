@@ -295,10 +295,6 @@ moving_out <- c(
   "run_benchmark_suite"
 )
 
-# 0.14.0 adds these names, each in place of a deprecated one. Until the pull
-# requests that add them are merged, the package exports the old names only.
-added_in_0_14 <- c("bootstrapTestStatistic", "simulate_size", "simulate_power")
-
 test_that("every export is planned for 1.0, deprecated in 0.14.0 or moving out", {
   exports <- getNamespaceExports("heteroTests")
   unexpected <- setdiff(exports, c(planned_1_0_exports, deprecated_in_0_14, moving_out))
@@ -310,7 +306,6 @@ test_that("every export is planned for 1.0, deprecated in 0.14.0 or moving out",
 
 test_that("every name planned for 1.0 is exported", {
   missing <- setdiff(planned_1_0_exports, getNamespaceExports("heteroTests"))
-  missing <- setdiff(missing, added_in_0_14)
   expect_identical(
     sort(missing), character(),
     info = paste("planned for 1.0 but not exported:", paste(missing, collapse = ", "))
@@ -320,5 +315,4 @@ test_that("every name planned for 1.0 is exported", {
 test_that("the planned, deprecated and moving lists do not overlap", {
   all_names <- c(planned_1_0_exports, deprecated_in_0_14, moving_out)
   expect_identical(all_names[duplicated(all_names)], character())
-  expect_true(all(added_in_0_14 %in% planned_1_0_exports))
 })
