@@ -59,7 +59,7 @@ test_that("Type I error rates near nominal", {
     fn <- function(model, data) {
       suppressMessages(factory$run_test(test_name, model, data))
     }
-    typeI <- simulate_type_I_errors(fn, n_sims = n_sims, n_obs = 50, alpha = alpha)
+    typeI <- simulate_size(fn, n_sims = n_sims, n_obs = 50, alpha = alpha)
     expect_true(abs(typeI$type_I_rate - alpha) < tolerance,
                 info = paste("Type I error rate for", test_name,
                                "is", typeI$type_I_rate,

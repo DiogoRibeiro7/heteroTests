@@ -41,5 +41,5 @@ results.
 
 ### Power Considerations
 Some tests have low power in small samples. Simulation via
-`simulate_power_analysis()` can help determine the best approach for a
+`simulate_power()` can help determine the best approach for a
 given situation.

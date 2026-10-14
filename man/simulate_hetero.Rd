@@ -73,6 +73,7 @@ peak location for \code{sigma_gaussian_peak}.}
 \item{p}{Exponent for \code{sigma_multiplicative} or \code{sigma_power}.}
 \item{a,b,c,A,B,omega,phi,L,k,x0,thr,low,high,center,base,height,sd,slope1,slope2,gamma0,gamma1}{Additional numeric parameters controlling the shape of the variance patterns.}
 }
+\section{Naming}{The simulation functions form one family and are named in snake_case on purpose: \code{simulate_hetero()}, \code{simulate_arch1()}, \code{\link{simulate_size}()} and \code{\link{simulate_power}()}, and the \code{sigma_*()} variance functions. The rest of the package uses camelCase. The family keeps these names after 1.0.0.}
 \value{For \code{simulate_hetero} a data frame with columns \code{x} and \code{y}. For \code{simulate_arch1} a data frame with columns \code{time}, \code{y} and \code{sigma}. The \code{sigma_*} helpers return numeric vectors of standard deviations.}
 \examples{
 set.seed(1)
