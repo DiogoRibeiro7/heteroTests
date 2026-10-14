@@ -18,7 +18,7 @@ test_that("std_error() and std_warning() warn and signal what the internal versi
   )
 })
 
-test_that("checkData() and validateTestInputs() warn and return what the internal versions return", {
+test_that("checkData() and validateTestInputs() warn and return what their internal versions do", {
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(out <- checkData(mtcars), internal_message, class = "deprecatedWarning")
   expect_identical(out, .check_data(mtcars))

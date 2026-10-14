@@ -138,7 +138,10 @@ ht_set_log_level <- function(level = c("INFO", "WARN", "ERROR", "SILENT")) {
 #' [ht_set_log_level()] stays exported after 1.0.0. They still work and warn.
 #' @export
 ht_enable_log_capture <- function(enabled = TRUE, max_entries = 1000L, sink = NULL) {
-  .Deprecated(old = "ht_enable_log_capture", msg = .ht_internal_deprecation("ht_enable_log_capture"))
+  .Deprecated(
+    old = "ht_enable_log_capture",
+    msg = .ht_internal_deprecation("ht_enable_log_capture")
+  )
   .ht_log_state$capture <- isTRUE(enabled)
   if (is.finite(max_entries) && max_entries <= 0L) {
     max_entries <- 1000L
