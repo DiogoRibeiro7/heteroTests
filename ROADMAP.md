@@ -300,6 +300,21 @@ Goal: every one of the 129 exports gets a verdict, which is one of
 **core API**, **renamed**, **internal** or **moved out**. Nothing is
 removed in this release. Everything that will go warns.
 
+The author accepted the four proposals for this release on 2026-10-14:
+the dashboard and the benchmark suite move to a companion package and
+the recommendation engine stays, with its return format frozen;
+[`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+stays, with an optional `var_formula`, and
+[`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
+is deprecated;
+[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
+is folded into
+[`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md);
+and `simulate_*()` and `sigma_*()` stay as a documented snake_case
+family while the one-offs are renamed. The companion package has no name
+yet, so the dashboard and benchmark functions are not deprecated until
+it has one.
+
 **Duplicate exports.**
 
 - [`performBreuschPaganTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
@@ -314,9 +329,12 @@ removed in this release. Everything that will go warns.
 - [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
   delegates to
   [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
-  with the fitted values as the variance regressor. Keep one entry point
-  for the Cook–Weisberg score test, with `var_formula` as an optional
-  argument.
+  with the fitted values as the variance regressor.
+  [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+  becomes the one entry point for the Cook–Weisberg score test, with
+  `var_formula` as an optional argument, and
+  [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
+  is deprecated (decided above).
 - `*Enhanced` pairs:
   [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)/[`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md),
   [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md)/[`plotResidualsFittedEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFittedEnhanced.md)
@@ -350,28 +368,27 @@ convention or unexport it.
 
 **[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
 is a generic with a very common name.** Attached after `devtools`, it
-masks `devtools::test()`. Replace it with a specific name or fold it
-into
-[`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md).
+masks `devtools::test()`. Fold it into
+[`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md)
+(decided above).
 
 **Naming convention.** camelCase dominates (`performXTest()`,
 [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
-`plotX()`). Either declare the simulation family
+`plotX()`). The simulation family
 ([`simulate_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md),
-`sigma_*()`) a deliberate snake_case family or move it to camelCase. The
-one-offs
+`sigma_*()`) is declared a deliberate snake_case family and documented
+as one (decided above). The one-offs
 ([`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md),
 [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md),
 [`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md),
 [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md))
-are renamed either way.
+are renamed.
 
-**Scope.** Decide what stays in the core package (see
-[Decisions](#decisions-needed)). The dashboard (`R/dashboard.R`, 698
-lines) and the benchmark suite (`R/benchmarking_system.R`, 798 lines)
-are the natural candidates for a companion package. Between them they
-account for most of the optional `Suggests` (`shiny`, `DT`, `plotly`,
-`htmlwidgets`, `bench`).
+**Scope.** The dashboard (`R/dashboard.R`, 698 lines) and the benchmark
+suite (`R/benchmarking_system.R`, 798 lines) move to a companion package
+(decided above), once it has a name. Between them they account for most
+of the optional `Suggests` (`shiny`, `DT`, `plotly`, `htmlwidgets`,
+`bench`).
 
 **Related model checks**
 ([`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md),
@@ -495,6 +512,46 @@ its null distribution from the weighted design, as
 [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
 does, or document the restriction on the help page.
 
+**Defects found during the 0.12.0 and 0.13.0 work**, left for this
+release so that 0.14.0 changes no value. Each fix that changes a value
+is announced in bold in `NEWS.md`.
+
+- [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  keeps the original weights in the model frame of its result, so
+  [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+  on a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit reads stale weights: 14.81, against 1.73 for the equivalent
+  `lm(weights = estimated)` fit. Suggested fix: `mf[["(weights)"]] <- w`
+  in `rweighted_refit()`. Changes a value.
+- [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
+  and
+  [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+  accept a non-Gaussian `glm` and return a meaningless result. They
+  should refuse it, as
+  [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  does. Such a call fails instead.
+- The single tests and
+  [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+  match a reordered tibble or `data.table` to the fit by position,
+  through `prepare_model_data_for_test()`. Changes a value for such
+  data.
+- The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
+  model) and
+  [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
+  (about 25 KB per call) grow without bound, as the validation cache did
+  before \#97. No value changes.
+- A multivariate `lm`, `cbind(y, y2) ~ ...`, fails with a coercion error
+  instead of a clear refusal. No value changes.
+- The unexported `performWhiteTestEnhanced(bootstrap = TRUE)`, through
+  [`bootstrap_white_test()`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_white_test.md),
+  takes the log of a log response twice, drops an offset given as an
+  argument and takes rows by position. Remove it or fix it. No exported
+  value changes.
+- About 0.8 KB per test call on a new model still persists after the
+  validation cache is cleared, as seen in long simulations. No value
+  changes.
+
 **Dependencies.**
 
 - Move `curl` to `Suggests`: only
@@ -583,7 +640,8 @@ function names that are about to be deprecated.
   moment, following the robust statistic of Wooldridge (1991).
 - A single parametrised accuracy-validation test, with reference
   coverage broadened to `skedastic` and `sandwich`.
-- The companion package, if the scope decision goes that way.
+- The companion package for the dashboard and the benchmark suite
+  (decided on 2026-10-14; not yet named).
 
 ## Candidate tests
 
@@ -701,7 +759,11 @@ reference and simulated size.
   `variance-form-dnvk-*` files beside it. What to do next is under
   *Decisions needed*. Wang and Zhou (2007) assume a parametric mean,
   which is this package’s setting; Samarakoon and Song (2011) could not
-  be obtained.
+  be obtained. **Stage 1 of Wang and Zhou (2007) is parked** on the
+  branch `feat/wang-zhou-stage1`, to be resumed after 1.0.0: pass 1 of
+  its size and power study is done, and the Gaussian null cells at 5000
+  replications that decide it have not been run. The branch’s
+  `wip/wang-zhou-stage1/README.md` says how to resume.
 
 - **Bai, Pan and Yin (2018)**, a test of homoscedasticity when the
   number of regressors grows with the sample. Li–Yao, below, is a
@@ -815,16 +877,12 @@ group:
 
 | Question | Proposal | Needed by |
 |----|----|----|
-| Does the dashboard/benchmark/recommendation layer stay in core? | Move the dashboard and benchmark suite to a companion package; keep the recommendation engine, with its return format frozen | 0.14.0 |
-| One name for the Cook–Weisberg score test | Keep [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) with optional `var_formula`; deprecate [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md) | 0.14.0 |
-| Replacement for the [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md) generic | Fold into [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) | 0.14.0 |
-| Naming of the simulation family | Keep `simulate_*()`/`sigma_*()` as a documented snake_case family; rename the one-offs | 0.14.0 |
 | `data` argument on every test | `data = NULL` in second position; [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) the documented exception | 0.15.0 |
 | Default battery | White + Koenker | 0.15.0 |
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
+| Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
-| Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release | 0.14.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | A consistent test of the variance function after stage 1 | Do not ship the Dette, Neumeyer and Van Keilegom test as defined: its prototype rejects a true non-constant variance function 0.019 to 0.036 of the time. Choose between a new stage 1 for a modified procedure (a better estimate of the variance function for the bootstrap data, or a studentized statistic) and one for Wang and Zhou (2007), and compare the published article with the manuscript first. If a test ships, a function of its own rather than `performVarianceFormTest(against = "any")` | Before any stage 2 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.16.0 |

@@ -160,7 +160,7 @@ if (requireNamespace("lmtest", quietly = TRUE) &&
 #> breusch_pagan.100          lmtest               0.000                0e+00
 #> koenker.100                lmtest               0.001                1e-05
 #> ncv.100               heteroTests               0.002                2e-05
-#> breusch_pagan.250          lmtest               0.001                4e-06
+#> breusch_pagan.250          lmtest               0.000                0e+00
 #> koenker.250                lmtest               0.001                4e-06
 #> ncv.250               heteroTests               0.002                8e-06
 #>                   memory_leader memory_median_mb
