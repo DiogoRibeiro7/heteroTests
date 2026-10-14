@@ -6,7 +6,7 @@ test_that("HeteroDiagnostic methods work", {
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   d <- HeteroDiagnostic(m, mtcars)
   expect_s3_class(d, "HeteroDiagnostic")
-  res <- test(d)
+  res <- runDiagnostics(d$model, d$data)
   expect_type(res, "list")
   plots <- plot(d)
   expect_true(is.list(plots))

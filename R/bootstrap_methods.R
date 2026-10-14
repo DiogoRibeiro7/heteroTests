@@ -122,14 +122,57 @@ NULL
 #' model <- lm(mpg ~ wt + cyl, data = mtcars)
 #' if (interactive()) {
 #'   set.seed(123)
-#'   boot <- rbootstrap_test_statistic(performWhiteTest, model, mtcars, B = 100)
+#'   boot <- bootstrapTestStatistic(performWhiteTest, model, mtcars, B = 100)
 #'   boot$ci
 #' }
+#' @export
+bootstrapTestStatistic <- function(test_function, model, data, B = 1000,
+                                   parallel = FALSE, ci_level = 0.95,
+                                   resample = c("null", "pairs"), n_cores = NULL,
+                                   progress = interactive(), ...) {
+  .bootstrap_test_statistic(
+    test_function, model, data,
+    B = B, parallel = parallel, ci_level = ci_level, resample = resample,
+    n_cores = n_cores, progress = progress, ..., .call = match.call()
+  )
+}
+
+#' @rdname bootstrapTestStatistic
+#' @section Deprecated name:
+#' `rbootstrap_test_statistic()` is deprecated since 0.14.0: use
+#' `bootstrapTestStatistic()`, the same function under the package's naming
+#' scheme. The old name still works, returns what it returned and warns.
 #' @export
 rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
                                       parallel = FALSE, ci_level = 0.95,
                                       resample = c("null", "pairs"), n_cores = NULL,
                                       progress = interactive(), ...) {
+  .Deprecated("bootstrapTestStatistic", old = "rbootstrap_test_statistic")
+  .bootstrap_test_statistic(
+    test_function, model, data,
+    B = B, parallel = parallel, ci_level = ci_level, resample = resample,
+    n_cores = n_cores, progress = progress, ..., .call = match.call()
+  )
+}
+
+# The message of the warning an r-prefixed helper that leaves the exports gives.
+.ht_r_prefixed_deprecation <- function(name) {
+  sprintf(
+    paste0(
+      "'%s' is deprecated: it is an internal helper of heteroTests and ",
+      "leaves the exports in 1.0.0.\nSee help(\"Deprecated\")"
+    ),
+    name
+  )
+}
+
+# The implementation behind bootstrapTestStatistic() and its deprecated name.
+# `.call` is the call each name records in its result, so that each reports
+# the call it was given.
+.bootstrap_test_statistic <- function(test_function, model, data, B = 1000,
+                                      parallel = FALSE, ci_level = 0.95,
+                                      resample = c("null", "pairs"), n_cores = NULL,
+                                      progress = interactive(), ..., .call = NULL) {
   if (!is.function(test_function)) {
     stop("`test_function` must be a function.", call. = FALSE)
   }
@@ -168,7 +211,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
   # replicates of something the caller did not ask about.
   if (inherits(model, "glm")) {
     stop(
-      "`rbootstrap_test_statistic()` supports Gaussian `lm` models only. Each ",
+      "`bootstrapTestStatistic()` supports Gaussian `lm` models only. Each ",
       "replicate is refitted with least squares, which would discard the ",
       "family and link of a `glm` and bootstrap a different model.",
       call. = FALSE
@@ -472,7 +515,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
     p_value = p_value,
     B = B,
     effective_samples = effective,
-    call = match.call()
+    call = if (is.null(.call)) match.call() else .call
   )
 }
 
@@ -560,9 +603,27 @@ rdata_reproduces_fit <- function(model, data, row_index) {
 #'   containing auxiliary information (degrees of freedom, non-centrality
 #'   parameter, and a power curve over a grid of effect sizes).
 #'
+#' @section Deprecated:
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #' @export
 restimate_test_power <- function(test_result, model, data, alpha = 0.05,
                                  target_power = 0.8, max_multiplier = 5) {
+  .Deprecated(old = "restimate_test_power", msg = .ht_r_prefixed_deprecation("restimate_test_power"))
+  .estimate_test_power(
+    test_result, model, data, alpha, target_power, max_multiplier,
+    .call = match.call()
+  )
+}
+
+# The implementation behind restimate_test_power(). The call it records keeps
+# the exported name, as it did before 0.14.0.
+.estimate_test_power <- function(test_result, model, data, alpha = 0.05,
+                                 target_power = 0.8, max_multiplier = 5, .call = NULL) {
+  if (is.null(.call)) {
+    .call <- match.call()
+    .call[[1L]] <- as.name("restimate_test_power")
+  }
   rvalidateModelInputs(model, test_name = "Power analysis", min_obs = 5L)
   rvalidateDataInputs(data, min_obs = 5L)
 
@@ -596,7 +657,7 @@ restimate_test_power <- function(test_result, model, data, alpha = 0.05,
   }
 
   n <- nrow(data)
-  effect <- rcalculateEffectSize(test_result, model, data, type = "cramers_v")
+  effect <- .calculate_effect_size(test_result, model, data, type = "cramers_v")
   effect_size <- effect$effect_size
 
   if (!is.finite(effect_size) || effect_size <= 0) {
@@ -607,7 +668,7 @@ restimate_test_power <- function(test_result, model, data, alpha = 0.05,
         message = "Effect size not available or non-positive; cannot estimate power.",
         df = df,
         sample_size = n,
-        call = match.call()
+        call = .call
       )
     ))
   }
@@ -670,7 +731,7 @@ restimate_test_power <- function(test_result, model, data, alpha = 0.05,
       ),
       alpha = alpha,
       target_power = target_power,
-      call = match.call()
+      call = .call
     )
   )
 }

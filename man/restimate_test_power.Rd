@@ -38,3 +38,9 @@ Uses the observed chi-squared statistic and effect size to approximate
 the achieved power of a heteroscedasticity test and to suggest an
 increased sample size required to attain the desired power threshold.
 }
+\section{Deprecated}{
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
+}
+

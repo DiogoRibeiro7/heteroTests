@@ -29,14 +29,14 @@ test_that("performWhiteTestBootstrap uses (1 + #) / (B + 1)", {
   expect_gte(res$p.value, 1 / (length(boot) + 1))
 })
 
-test_that("rbootstrap_test_statistic uses (1 + #) / (B_eff + 1)", {
+test_that("bootstrapTestStatistic uses (1 + #) / (B_eff + 1)", {
   set.seed(7)
   n <- 60
   df <- data.frame(x = runif(n, 1, 4))
   df$y <- 1 + 2 * df$x + rnorm(n, sd = 0.1 + 2 * df$x)
   model <- lm(y ~ x, data = df)
 
-  out <- heteroTests:::rbootstrap_test_statistic(
+  out <- heteroTests:::bootstrapTestStatistic(
     performBPTest, model, df,
     B = 40, progress = FALSE
   )
@@ -76,7 +76,7 @@ test_that("null-imposed resampling gives the bootstrap p-value power", {
   d <- data.frame(x = x, y = 1 + 2 * x + rnorm(n, sd = x^2))
   m <- lm(y ~ x, data = d)
 
-  out <- suppressWarnings(rbootstrap_test_statistic(
+  out <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = 199, progress = FALSE))
 
   expect_true(is.finite(out$p_value))
@@ -93,7 +93,7 @@ test_that("pairs resampling returns replicates but no p-value", {
   d <- data.frame(x = x, y = 1 + 2 * x + rnorm(n, sd = x))
   m <- lm(y ~ x, data = d)
 
-  out <- suppressWarnings(rbootstrap_test_statistic(
+  out <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = 50, resample = "pairs", progress = FALSE))
 
   expect_true(is.na(out$p_value))
@@ -132,7 +132,7 @@ test_that("null resampling refuses models it cannot regenerate", {
   # logarithm twice. This used to run and return p = 1.
   m_log <- lm(log(y) ~ x, data = d)
   expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, m_log, d, B = 5,
+    bootstrapTestStatistic(performKoenkerTest, m_log, d, B = 5,
                               progress = FALSE),
     "plain response variable"
   )
@@ -144,7 +144,7 @@ test_that("null resampling refuses models it cannot regenerate", {
   d2$cnt <- rpois(n, lambda = exp(0.5 + 0.4 * d2$x))
   g <- glm(cnt ~ x, data = d2, family = poisson)
   expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, g, d2, B = 5,
+    bootstrapTestStatistic(performKoenkerTest, g, d2, B = 5,
                               progress = FALSE),
     "Gaussian `lm` models only"
   )
@@ -154,7 +154,7 @@ test_that("null resampling refuses models it cannot regenerate", {
   # transformed response. `replicates` is preallocated to B and filled with NA
   # when a replicate fails, so its length alone would pass even if every
   # replicate had failed; assert the values instead.
-  out <- suppressWarnings(rbootstrap_test_statistic(
+  out <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m_log, d, B = 10, resample = "pairs", progress = FALSE))
   expect_length(out$replicates, 10L)
   expect_true(all(is.finite(out$replicates)))
@@ -173,7 +173,7 @@ test_that("a glm is refused by both resampling strategies", {
 
   for (strategy in c("null", "pairs")) {
     expect_error(
-      rbootstrap_test_statistic(performKoenkerTest, g, d, B = 5,
+      bootstrapTestStatistic(performKoenkerTest, g, d, B = 5,
                                 resample = strategy, progress = FALSE),
       "Gaussian `lm` models only"
     )

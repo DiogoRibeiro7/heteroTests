@@ -4,12 +4,12 @@ library(testthat)
 # The refits of the resampling tests on unweighted fits.
 #
 # performWildBootstrapTest(), performWhiteTestBootstrap() and
-# rbootstrap_test_statistic() regenerate the response, or the rows, and refit
+# bootstrapTestStatistic() regenerate the response, or the rows, and refit
 # the model. Three things the refit of an unweighted fit got wrong:
 #
 # - an offset given as an argument, lm(..., offset = o), is kept in the model
 #   frame and not in the formula, and a refit from the formula dropped it;
-# - rbootstrap_test_statistic() took the fitted values by position, so data
+# - bootstrapTestStatistic() took the fitted values by position, so data
 #   holding the fitted rows in another order added each row's draw to another
 #   row's fitted value;
 # - the wild bootstrap evaluated the call of the fit again in its model frame,
@@ -65,7 +65,7 @@ test_that("an unweighted refit keeps an offset given as an argument", {
   pool <- pool - mean(pool)
 
   set.seed(52)
-  null <- suppressWarnings(rbootstrap_test_statistic(
+  null <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = B, progress = FALSE
   ))
   set.seed(52)
@@ -77,7 +77,7 @@ test_that("an unweighted refit keeps an offset given as an argument", {
   expect_equal(null$replicates, expected, tolerance = 1e-8)
 
   set.seed(53)
-  pairs <- suppressWarnings(rbootstrap_test_statistic(
+  pairs <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = B, resample = "pairs", progress = FALSE
   ))
   set.seed(53)
@@ -104,7 +104,7 @@ test_that("an unweighted refit keeps an offset given as an argument", {
 test_that("an offset resamples alike as an argument and in the formula", {
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
-  # The formula route always kept the offset in rbootstrap_test_statistic()
+  # The formula route always kept the offset in bootstrapTestStatistic()
   # and the White bootstrap, because a refit evaluates offset(o) again from
   # the data. The wild bootstrap failed on both, evaluating the call of the
   # fit again in a model frame that holds offset(o) and not o.
@@ -116,11 +116,11 @@ test_that("an offset resamples alike as an argument and in the formula", {
     set.seed(61)
     white <- suppressWarnings(performWhiteTestBootstrap(model, d, B = 5))
     set.seed(62)
-    null <- suppressWarnings(rbootstrap_test_statistic(
+    null <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, model, d, B = 5, progress = FALSE
     ))
     set.seed(63)
-    pairs <- suppressWarnings(rbootstrap_test_statistic(
+    pairs <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, model, d, B = 5, resample = "pairs", progress = FALSE
     ))
     set.seed(64)
@@ -153,7 +153,7 @@ test_that("null resampling of an unweighted fit follows the rows of the data", {
   fit_sorted <- fitted(m)[rownames(sorted)]
 
   set.seed(71)
-  null <- suppressWarnings(rbootstrap_test_statistic(
+  null <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, sorted, B = 5, progress = FALSE
   ))
   set.seed(71)
@@ -168,7 +168,7 @@ test_that("null resampling of an unweighted fit follows the rows of the data", {
   # regenerated errors, so it stays near the fitted one, 2.
   slope <- function(model, data) list(statistic = stats::coef(model)[["x"]])
   set.seed(72)
-  slopes <- rbootstrap_test_statistic(slope, m, sorted, B = 20, progress = FALSE)
+  slopes <- bootstrapTestStatistic(slope, m, sorted, B = 20, progress = FALSE)
   expect_true(all(abs(slopes$replicates - stats::coef(m)[["x"]]) < 0.5))
 })
 
@@ -180,7 +180,7 @@ test_that("an offset argument follows the rows of the data in pairs resampling",
   n <- nrow(sorted)
 
   set.seed(73)
-  pairs <- suppressWarnings(rbootstrap_test_statistic(
+  pairs <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, obj$model, sorted, B = 5, resample = "pairs", progress = FALSE
   ))
   set.seed(73)
@@ -202,7 +202,7 @@ test_that("resampling an unweighted fit uses the rows the model was fitted to", 
   m <- lm(y ~ x + z, data = d)
   run <- function(model, data, strategy, seed, fn = performKoenkerTest) {
     set.seed(seed)
-    rbootstrap_test_statistic(fn, model, data, B = 5, resample = strategy, progress = FALSE)
+    bootstrapTestStatistic(fn, model, data, B = 5, resample = strategy, progress = FALSE)
   }
 
   # Rows the fit does not have are left out, for the observed statistic as
@@ -243,12 +243,12 @@ test_that("resampling an unweighted fit uses the rows the model was fitted to", 
   rownames(renamed) <- paste0("r", seq_len(n))
   for (strategy in c("null", "pairs")) {
     expect_error(
-      rbootstrap_test_statistic(by_position, m, renamed, B = 5,
+      bootstrapTestStatistic(by_position, m, renamed, B = 5,
                                 resample = strategy, progress = FALSE),
       "rows the model was fitted to"
     )
     expect_error(
-      rbootstrap_test_statistic(by_position, m, d[1:50, ], B = 5,
+      bootstrapTestStatistic(by_position, m, d[1:50, ], B = 5,
                                 resample = strategy, progress = FALSE),
       "it lacks 10 of them"
     )
@@ -270,11 +270,11 @@ test_that("data without row names of its own must be in the order of the fit", {
 
   for (strategy in c("null", "pairs")) {
     expect_error(
-      rbootstrap_test_statistic(performKoenkerTest, m, shuffled, B = 5,
+      bootstrapTestStatistic(performKoenkerTest, m, shuffled, B = 5,
                                 resample = strategy, progress = FALSE),
       "does not reproduce the fit"
     )
-    out <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5,
+    out <- bootstrapTestStatistic(performKoenkerTest, m, d, B = 5,
                                      resample = strategy, progress = FALSE)
     expect_true(all(is.finite(out$replicates)))
   }
@@ -286,14 +286,14 @@ test_that("data without row names of its own must be in the order of the fit", {
   dt <- data.table::as.data.table(d)
   m_dt <- lm(y ~ x + z, data = dt, offset = o)
   expect_error(
-    rbootstrap_test_statistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
+    bootstrapTestStatistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
                               B = 5, progress = FALSE),
     "does not reproduce the fit"
   )
   set.seed(91)
-  in_order <- rbootstrap_test_statistic(performKoenkerTest, m_dt, dt, B = 5, progress = FALSE)
+  in_order <- bootstrapTestStatistic(performKoenkerTest, m_dt, dt, B = 5, progress = FALSE)
   set.seed(91)
-  as_frame <- rbootstrap_test_statistic(performKoenkerTest, m, d, B = 5, progress = FALSE)
+  as_frame <- bootstrapTestStatistic(performKoenkerTest, m, d, B = 5, progress = FALSE)
   expect_equal(in_order$replicates, as_frame$replicates, tolerance = 1e-8)
 })
 
@@ -317,7 +317,7 @@ test_that("data without row names of its own is resampled when the fit dropped r
   rownames(complete) <- NULL
   run <- function(data, strategy) {
     set.seed(97)
-    rbootstrap_test_statistic(performKoenkerTest, m, data, B = 5, resample = strategy,
+    bootstrapTestStatistic(performKoenkerTest, m, data, B = 5, resample = strategy,
                               progress = FALSE)$replicates
   }
   tables <- list(full = d, complete = complete)
@@ -358,10 +358,10 @@ test_that("a term computed from all the data does not make the rows of the fit d
     kept <- full[rownames(stats::model.frame(m)), ]
     for (strategy in c("null", "pairs")) {
       set.seed(98)
-      from_full <- rbootstrap_test_statistic(performKoenkerTest, m, full, B = 5,
+      from_full <- bootstrapTestStatistic(performKoenkerTest, m, full, B = 5,
                                              resample = strategy, progress = FALSE)
       set.seed(98)
-      from_kept <- rbootstrap_test_statistic(performKoenkerTest, m, kept, B = 5,
+      from_kept <- bootstrapTestStatistic(performKoenkerTest, m, kept, B = 5,
                                              resample = strategy, progress = FALSE)
       expect_true(all(is.finite(from_kept$replicates)), label = paste(nm, strategy))
       expect_equal(from_full$replicates, from_kept$replicates, tolerance = 1e-12,
@@ -391,12 +391,12 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   m <- lm(y ~ x + z + offset(shift), data = d)
 
   expect_error(
-    rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
+    bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
                               progress = FALSE),
     "does not come from `data`"
   )
   expect_error(
-    rbootstrap_test_statistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
+    bootstrapTestStatistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
                               progress = FALSE),
     "does not reproduce the fit"
   )
@@ -405,14 +405,14 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   mirror <- c(seq_len(nrow(d) / 2), rev(seq_len(nrow(d) / 2)))
   m_mirror <- lm(y ~ x + z + offset(mirror), data = d)
   expect_error(
-    rbootstrap_test_statistic(koenker_of_fit, m_mirror, d, B = 5, resample = "pairs",
+    bootstrapTestStatistic(koenker_of_fit, m_mirror, d, B = 5, resample = "pairs",
                               progress = FALSE),
     "does not come from `data`"
   )
   set.seed(92)
-  ours <- rbootstrap_test_statistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
+  ours <- bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
   set.seed(92)
-  column <- rbootstrap_test_statistic(koenker_of_fit, lm(y ~ x + z + offset(o), data = d),
+  column <- bootstrapTestStatistic(koenker_of_fit, lm(y ~ x + z + offset(o), data = d),
                                       d, B = 5, progress = FALSE)
   expect_true(all(is.finite(ours$replicates)))
   expect_equal(ours$replicates, column$replicates, tolerance = 1e-8)
@@ -421,7 +421,7 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   # the rows.
   m_argument <- lm(y ~ x + z, data = d, offset = shift)
   set.seed(93)
-  pairs <- rbootstrap_test_statistic(koenker_of_fit, m_argument, d, B = 5,
+  pairs <- bootstrapTestStatistic(koenker_of_fit, m_argument, d, B = 5,
                                      resample = "pairs", progress = FALSE)
   set.seed(93)
   expected <- vapply(seq_len(5), function(b) {

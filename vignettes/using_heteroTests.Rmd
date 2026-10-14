@@ -97,12 +97,12 @@ This short example shows how to detect heteroscedasticity, choose a remedy and r
 
 ```{r step-by-step}
 hd <- HeteroDiagnostic(stations ~ mag + depth, quakes)
-test(hd)
+runDiagnostics(hd$model, hd$data)
 
 wls_model <- fitWLS(hd$model)
 
 # Re-test after remedy
-test(HeteroDiagnostic(wls_model, quakes))
+runDiagnostics(wls_model, quakes)
 ```
 
 The drop in test statistics or diagnostic plots indicates whether the remedy helped.

@@ -85,7 +85,7 @@ test_that("runHeteroTests switches to streaming when threshold is low", {
 
 test_that("bootstrap helper returns the requested number of replicates", {
   test_obj <- setup_test_model(n = 60, seed = 246)
-  boot <- rbootstrap_test_statistic(
+  boot <- bootstrapTestStatistic(
     performWhiteTest,
     test_obj$model,
     test_obj$data,
@@ -100,7 +100,7 @@ test_that("bootstrap helper returns the requested number of replicates", {
 test_that("bootstrap helper supports parallel execution", {
   skip_on_cran()
   test_obj <- setup_test_model(n = 50, seed = 135)
-  boot <- rbootstrap_test_statistic(
+  boot <- bootstrapTestStatistic(
     performWhiteTest,
     test_obj$model,
     test_obj$data,

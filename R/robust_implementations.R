@@ -132,7 +132,7 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
   )
 
   if (isTRUE(bootstrap)) {
-    boot <- rbootstrap_test_statistic(
+    boot <- bootstrapTestStatistic(
       performWhiteTest,
       model,
       working_data,
@@ -155,8 +155,8 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
     )
   }
 
-  effect <- rcalculateEffectSize(base_result, model, working_data)
-  power <- restimate_test_power(base_result, model, working_data, alpha = 1 - ci_level)
+  effect <- .calculate_effect_size(base_result, model, working_data)
+  power <- .estimate_test_power(base_result, model, working_data, alpha = 1 - ci_level)
 
   base_result$method <- paste(base_result$method, "(robust)")
   base_result$robust_details <- list(
@@ -267,7 +267,7 @@ performBPTestRobust <- function(model, data, studentized = TRUE,
   )
 
   if (isTRUE(bootstrap)) {
-    boot <- rbootstrap_test_statistic(
+    boot <- bootstrapTestStatistic(
       base_fun,
       model,
       working_data,
@@ -289,8 +289,8 @@ performBPTestRobust <- function(model, data, studentized = TRUE,
     )
   }
 
-  effect <- rcalculateEffectSize(base_result, model, working_data)
-  power <- restimate_test_power(base_result, model, working_data, alpha = 1 - ci_level)
+  effect <- .calculate_effect_size(base_result, model, working_data)
+  power <- .estimate_test_power(base_result, model, working_data, alpha = 1 - ci_level)
 
   descriptor <- if (studentized) "Studentized" else "Classical"
   base_result$method <- paste(base_result$method, "(robust", descriptor, ")")
@@ -402,8 +402,19 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
 #'   values `"ok"`, `"mismatch"`, or `"skipped"` when the reference package
 #'   is unavailable.
 #'
+#' @section Deprecated:
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #' @export
 rvalidate_against_reference <- function(test_name, model, data, tolerance = 1e-6) {
+  .Deprecated(
+    old = "rvalidate_against_reference",
+    msg = .ht_r_prefixed_deprecation("rvalidate_against_reference")
+  )
+  .validate_against_reference(test_name, model, data, tolerance)
+}
+
+.validate_against_reference <- function(test_name, model, data, tolerance = 1e-6) {
   if (missing(test_name) || length(test_name) != 1L || !is.character(test_name) || is.na(test_name)) {
     stop("`test_name` must be a single character string.", call. = FALSE)
   }
