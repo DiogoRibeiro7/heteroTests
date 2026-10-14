@@ -56,7 +56,7 @@ the variance by family, and the model checks (`performRESETTest()`,
 `performScatterDiagnostic()` and `checkModel()`) apart from them, so that they
 are not mistaken for heteroscedasticity tests. No function changes.
 
-### The planned 1.0 exports
+### The planned export list
 
 `tests/testthat/test-public-api.R` lists the exports planned for 1.0.0, the
 names deprecated in 0.14.0 and the three that move to a companion package,
