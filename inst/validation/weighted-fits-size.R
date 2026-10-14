@@ -135,6 +135,9 @@ KNOWN <- list(
   list("performSpreadLevelTest", make_xs, function(o) performSpreadLevelTest(o$model)),
   list("performBPTest", make_xs, function(o) performBPTest(o$model, o$data)),
   list("performKoenkerTest", make_xs, function(o) performKoenkerTest(o$model, o$data)),
+  # performStudentizedBPTest() is deprecated in 0.14.0 and keeps its own
+  # implementation. The row measures that function, whose warning the
+  # suppressWarnings() around each call silences.
   list("performStudentizedBPTest", make_xs, function(o) performStudentizedBPTest(o$model, o$data)),
   list("performWhiteTest", make_xs, function(o) performWhiteTest(o$model, o$data)),
   list("performWhiteTestRobust", make_xs, function(o) performWhiteTestRobust(o$model, o$data)),

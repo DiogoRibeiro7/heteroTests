@@ -19,7 +19,8 @@
 #' replaces the normality-based scaling factor \eqn{2\hat{\sigma}^4} with the
 #' empirical variance of the squared residuals. The resulting \eqn{n R^2}
 #' statistic therefore retains validity under general forms of non-normality
-#' (it is identical to [performStudentizedBPTest()]). This implementation
+#' (the deprecated [performStudentizedBPTest()] computes the same statistic,
+#' except on a fit returned by [fitWLS()]). This implementation
 #' integrates the validation helpers
 #' to ensure: (i) sufficient sample size and finite residuals via
 #' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) complete data through \link[=rvalidateDataInputs]{rvalidateDataInputs()}
@@ -76,7 +77,6 @@
 #'
 #' @seealso
 #' [performBPTest()] for the classical LM statistic using squared residuals,
-#' [performStudentizedBPTest()] for the alternative studentized implementation,
 #' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
 performKoenkerTest <- function(model, data) {
   test_label <- "Koenker studentized Breusch-Pagan test"

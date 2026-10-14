@@ -63,6 +63,6 @@ Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 \emph{Journal of Econometrics, 17}(1), 107–112.
 }
 \seealso{
-\code{\link[=performBPTest]{performBPTest()}} for the baseline test and \code{\link[=performStudentizedBPTest]{performStudentizedBPTest()}} for the
+\code{\link[=performBPTest]{performBPTest()}} for the baseline test and \code{\link[=performKoenkerTest]{performKoenkerTest()}} for the
 standalone studentised variant.
 }

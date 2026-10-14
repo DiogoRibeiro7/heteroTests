@@ -54,7 +54,16 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
   list(data = aligned_data, residuals = residuals)
 }
 
-#' Studentized Breusch–Pagan test
+#' Studentized Breusch–Pagan test (deprecated)
+#'
+#' `performStudentizedBPTest()` is deprecated since 0.14.0: use
+#' [performKoenkerTest()], which computes the same statistic. It still works,
+#' returns what it returned before and warns. On a fit returned by [fitWLS()]
+#' the two differ, and [performKoenkerTest()] is the correct one: the model
+#' frame of that fit still holds the weights of the model `fitWLS()` refitted
+#' (none, for an unweighted model), not the estimated weights, and
+#' `performStudentizedBPTest()` reads them from there. That is to be fixed in
+#' 0.16.0.
 #'
 #' Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
 #' multiplier statistic, \eqn{n R^2} from the regression of the squared
@@ -106,14 +115,9 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
-#' performStudentizedBPTest(mod, mtcars)
-#'
-#' # Detect heteroscedasticity driven by a single regressor
-#' set.seed(321)
-#' x <- runif(180)
-#' y <- 5 - 1.5 * x + rnorm(180, sd = 0.4 + 0.6 * x)
-#' df <- data.frame(y, x)
-#' performStudentizedBPTest(lm(y ~ x, data = df), df)
+#' # Deprecated: warns, and returns the statistic of performKoenkerTest()
+#' suppressWarnings(performStudentizedBPTest(mod, mtcars))
+#' performKoenkerTest(mod, mtcars)
 #'
 #' @seealso
 #' [performBPTest()] for the classical LM statistic, which assumes normal
@@ -123,6 +127,14 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' diagnostics.
 #' @export
 performStudentizedBPTest <- function(model, data) {
+  .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
+  .studentized_bp_test(model, data, data_name = deparse(substitute(model)))
+}
+
+# The implementation behind the deprecated performStudentizedBPTest(), the
+# "student_bp" registry name and performBPTestRobust(studentized = TRUE). It
+# is kept as it was, so that none of them changes value in 0.14.0.
+.studentized_bp_test <- function(model, data, data_name = deparse(substitute(model))) {
   test_label <- "Studentized BP"
 
   model_terms <- stats::terms(model)
@@ -241,7 +253,7 @@ performStudentizedBPTest <- function(model, data) {
       parameter = c(df = df),
       p.value = p_value,
       method = "Studentized Breusch-Pagan test",
-      data.name = deparse(substitute(model)),
+      data.name = data_name,
       alternative = "heteroscedasticity present"
     ),
     class = "htest"

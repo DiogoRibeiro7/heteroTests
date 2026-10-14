@@ -28,7 +28,7 @@ test_that("studentized BP matches lmtest::bptest with studentize", {
   set.seed(202)
   df <- data.frame(y = rnorm(150), x1 = rnorm(150), x2 = rnorm(150))
   model <- lm(y ~ x1 + x2, data = df)
-  ours <- performStudentizedBPTest(model, df)
+  ours <- without_deprecation(performStudentizedBPTest(model, df))
   ref <- lmtest::bptest(model, studentize = TRUE)
   expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 1e-6)
   expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-6)

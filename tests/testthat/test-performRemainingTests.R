@@ -198,12 +198,12 @@ test_that("performStudentizedBPTest honours validation framework", {
   set.seed(420)
   df <- data.frame(y = rnorm(120), x = runif(120))
   model <- lm(y ~ x, data = df)
-  expect_htest(performStudentizedBPTest(model, df))
+  expect_htest(without_deprecation(performStudentizedBPTest(model, df)))
 
   small_df <- df[seq_len(10), ]
   small_model <- lm(y ~ x, data = small_df)
   expect_error(
-    performStudentizedBPTest(small_model, small_df),
+    without_deprecation(performStudentizedBPTest(small_model, small_df)),
     "Studentized BP requires at least 15",
     fixed = FALSE
   )
