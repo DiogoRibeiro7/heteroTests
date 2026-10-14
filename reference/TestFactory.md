@@ -5,6 +5,17 @@ convenience methods to run them with input validation. This is an
 alternative to the older environment-based registry used by
 [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md).
 
+## Deprecated
+
+`TestFactory` and its shared instance `test_factory` are deprecated
+since 0.14.0: they are the package's internal machinery and leave the
+exports in 1.0.0. They are objects rather than functions, so they cannot
+warn when used; this page and `NEWS.md` are the notice. Use
+[`registerDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/registerDiagnostic.md)
+to add a test and
+[`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+to run one.
+
 ## Usage
 
 The shared instance `test_factory` can be used to register new tests and

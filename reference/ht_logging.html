@@ -82,6 +82,13 @@ Use <code>Inf</code> to keep all entries.</p></dd>
 <code>ht_enable_log_capture()</code> and <code>ht_clear_log_history()</code> return <code>NULL</code>.
 <code>ht_log_history()</code> returns a data frame with columns <code>timestamp</code>, <code>level</code> and <code>message</code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="deprecated">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated"></a></h2>
+    <p><code>ht_enable_log_capture()</code>, <code>ht_log_history()</code> and
+<code>ht_clear_log_history()</code> are deprecated since 0.14.0: of the logging
+functions only <code>ht_set_log_level()</code> stays exported after 1.0.0. They
+still work and warn.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

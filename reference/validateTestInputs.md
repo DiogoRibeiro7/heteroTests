@@ -1,10 +1,7 @@
-# Validate model and data inputs before running diagnostics
+# Validate model and data inputs before running diagnostics (deprecated)
 
-Provides the compatibility wrapper used by the public testing interface
-to ensure that fitted-model objects and their associated data satisfy
-minimal quality requirements. The helper guards against the most common
-issues that invalidate heteroscedasticity tests and produces actionable
-error messages that reference the calling diagnostic.
+Deprecated since 0.14.0: an internal helper of the package, which leaves
+the exports in 1.0.0. It still works and warns.
 
 ## Usage
 
@@ -40,6 +37,12 @@ Invisibly returns `TRUE` when validation succeeds. Execution stops with
 an informative error when any check fails.
 
 ## Details
+
+Provides the compatibility wrapper used by the public testing interface
+to ensure that fitted-model objects and their associated data satisfy
+minimal quality requirements. The helper guards against the most common
+issues that invalidate heteroscedasticity tests and produces actionable
+error messages that reference the calling diagnostic.
 
 The routine performs four layers of validation:
 
@@ -79,12 +82,16 @@ Wiley.
 data(mtcars)
 lm_fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
 validateTestInputs(lm_fit, mtcars, "white")
+#> Warning: 'validateTestInputs' is deprecated: it is an internal helper of heteroTests and leaves the exports in 1.0.0.
+#> See help("Deprecated")
 
 # \donttest{
 noisy <- mtcars
 noisy$mpg[1] <- 100
 outlier_fit <- stats::lm(mpg ~ wt + hp, data = noisy)
 validateTestInputs(outlier_fit, noisy, "white")
+#> Warning: 'validateTestInputs' is deprecated: it is an internal helper of heteroTests and leaves the exports in 1.0.0.
+#> See help("Deprecated")
 #> Warning: Residual outliers detected at rows 1 (|z| > 5). Inspect leverage before running white.
 # }
 ```

@@ -48,6 +48,16 @@ alternative to the older environment-based registry used by
 
 
     <div class="section level2">
+    <h2 id="deprecated">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated"></a></h2>
+
+
+<p><code>TestFactory</code> and its shared instance <code>test_factory</code> are deprecated since
+0.14.0: they are the package's internal machinery and leave the exports in
+1.0.0. They are objects rather than functions, so they cannot warn when
+used; this page and <code>NEWS.md</code> are the notice. Use <code><a href="registerDiagnostic.html">registerDiagnostic()</a></code> to
+add a test and <code><a href="runHeteroTests.html">runHeteroTests()</a></code> to run one.</p>
+    </div>
+    <div class="section level2">
     <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h2>
 
 

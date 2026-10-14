@@ -31,7 +31,7 @@
   : Cache results of a heteroscedasticity test
 
 - [`checkData()`](https://diogoribeiro7.github.io/heteroTests/reference/checkData.md)
-  : Validate data argument
+  : Validate data argument (deprecated)
 
 - [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)
   : Validate model argument
@@ -347,10 +347,10 @@
   : Advanced simulation framework for test validation
 
 - [`std_error()`](https://diogoribeiro7.github.io/heteroTests/reference/std_error.md)
-  : Generate standardized error message
+  : Generate standardized error message (deprecated)
 
 - [`std_warning()`](https://diogoribeiro7.github.io/heteroTests/reference/std_warning.md)
-  : Generate standardized warning message
+  : Generate standardized warning message (deprecated)
 
 - [`suggestRemediation()`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md)
   [`print(`*`<remediation_suggestions>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md)
@@ -379,3 +379,4 @@
 
 - [`validateTestInputs()`](https://diogoribeiro7.github.io/heteroTests/reference/validateTestInputs.md)
   : Validate model and data inputs before running diagnostics
+  (deprecated)

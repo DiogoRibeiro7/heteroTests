@@ -43,3 +43,10 @@ ht_clear_log_history()
 `ht_enable_log_capture()` and `ht_clear_log_history()` return `NULL`.
 `ht_log_history()` returns a data frame with columns `timestamp`,
 `level` and `message`.
+
+## Deprecated
+
+`ht_enable_log_capture()`, `ht_log_history()` and
+`ht_clear_log_history()` are deprecated since 0.14.0: of the logging
+functions only `ht_set_log_level()` stays exported after 1.0.0. They
+still work and warn.

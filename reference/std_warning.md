@@ -1,6 +1,7 @@
-# Generate standardized warning message
+# Generate standardized warning message (deprecated)
 
-Generate standardized warning message
+Deprecated since 0.14.0: an internal helper of the package, which leaves
+the exports in 1.0.0. It still works and warns.
 
 ## Usage
 
