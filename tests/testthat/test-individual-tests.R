@@ -298,7 +298,7 @@ test_that("performSpreadLevelTest works correctly", {
 test_that("performNCVTest works correctly", {
   test_obj <- create_test_model()
   
-  result <- performNCVTest(test_obj$model)
+  result <- without_deprecation(performNCVTest(test_obj$model))
   expect_htest(result)
   expect_equal(result$method, "Cook-Weisberg score test for non-constant variance")
 })

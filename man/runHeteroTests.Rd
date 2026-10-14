@@ -35,7 +35,7 @@ m <- lm(mpg ~ wt + qsec, data = mtcars)
 # Default: White and Breusch-Pagan
 runHeteroTests(m, mtcars)
 # Specify additional diagnostics
-runHeteroTests(m, mtcars, tests = c("white", "koenker", "ncv"))
+runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 custom <- function(model, data) list(stat = 1)
 registerDiagnostic("custom", custom)
 runHeteroTests(m, mtcars, tests = c("white", "custom"))

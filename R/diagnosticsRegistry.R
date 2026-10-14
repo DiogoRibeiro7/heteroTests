@@ -62,7 +62,7 @@ registerPlot <- function(name, fun) {
 # Registry names deprecated in 0.14.0, each with the name its warning points
 # to. A deprecated name keeps calling what it called before, so its results do
 # not change, and runHeteroTests() warns once per call, not once per group.
-.ht_deprecated_tests <- c(student_bp = "koenker")
+.ht_deprecated_tests <- c(student_bp = "koenker", ncv = "cook_weisberg")
 
 .ht_deprecated_test_message <- function(old) {
   sprintf(
@@ -76,7 +76,7 @@ registerDiagnostic("white", function(model, data) performWhiteTest(model, data))
 registerDiagnostic("breusch_pagan", function(model, data) performBPTest(model, data))
 registerDiagnostic("koenker", function(model, data) performKoenkerTest(model, data))
 registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model))
-registerDiagnostic("ncv", function(model, data) performNCVTest(model))
+registerDiagnostic("ncv", function(model, data) .ncv_test(model))
 registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model))
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
 registerDiagnostic("student_bp", function(model, data) .studentized_bp_test(model, data))

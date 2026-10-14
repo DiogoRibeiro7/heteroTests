@@ -262,7 +262,7 @@ test_that("NCV test detects slope", {
   y <- 1 + 2 * x + rnorm(n, sd = x)
   df <- data.frame(x = x, y = y)
   model <- lm(y ~ x, data = df)
-  res <- performNCVTest(model)
+  res <- without_deprecation(performNCVTest(model))
   expect_lt(res$p.value, 0.05)
 })
 

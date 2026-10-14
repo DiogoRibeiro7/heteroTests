@@ -31,8 +31,8 @@ tests. Their simulated size and power are in
   and Koenker's studentized form of it (`performKoenkerTest()`), Harvey
   (`performHarveyTest()`), Park (`performParkTest()`), Glejser
   (`performGlejserTest()`) and the Cook--Weisberg score test
-  (`performNCVTest()`, or `performCookWeisbergTest()` with the fitted values as
-  the variance regressor). `performGlejserTest(robust = TRUE)` is the Glejser
+  (`performCookWeisbergTest()`, with the fitted values as the variance
+  regressor or a variance model of your own in `var_formula`). `performGlejserTest(robust = TRUE)` is the Glejser
   test of Im (2000) and of Machado and Santos Silva (2000), which keeps its
   level under skewed errors.
 - **Does the variance change with the fitted values or along an ordering?**

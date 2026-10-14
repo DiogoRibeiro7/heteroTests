@@ -21,7 +21,7 @@ make_hetero_model <- function(seed = 42, n = 120) {
 test_that("performNCVTest reproduces car::ncvTest with the default variance model", {
   skip_if_not_installed("car")
   obj <- make_hetero_model()
-  ours <- performNCVTest(obj$model)
+  ours <- without_deprecation(performNCVTest(obj$model))
   ref <- car::ncvTest(obj$model)
 
   expect_equal(unname(ours$statistic), ref$ChiSquare, tolerance = 1e-8)
@@ -34,7 +34,7 @@ test_that("performNCVTest reproduces car::ncvTest for an explicit variance model
   obj <- make_hetero_model()
 
   for (fml in list(~x1, ~x2, ~ x1 + x2)) {
-    ours <- performNCVTest(obj$model, var_formula = fml)
+    ours <- without_deprecation(performNCVTest(obj$model, var_formula = fml))
     ref <- car::ncvTest(obj$model, var.formula = fml)
     expect_equal(unname(ours$statistic), ref$ChiSquare, tolerance = 1e-8)
     expect_equal(unname(ours$parameter), ref$Df, tolerance = 0)
@@ -53,7 +53,7 @@ test_that("performNCVTest matches a direct reconstruction of Cook-Weisberg (1983
   aux <- lm(u ~ fitted(obj$model))
   ess_half <- sum((fitted(aux) - mean(fitted(aux)))^2) / 2
 
-  ours <- performNCVTest(obj$model)
+  ours <- without_deprecation(performNCVTest(obj$model))
   expect_equal(unname(ours$statistic), ess_half, tolerance = 1e-10)
   expect_equal(ours$p.value, pchisq(ess_half, 1, lower.tail = FALSE), tolerance = 1e-10)
 })
@@ -68,7 +68,7 @@ test_that("performCookWeisbergTest is the fitted-value case of the score test", 
   expect_equal(ours$p.value, ref$p, tolerance = 1e-8)
 
   # The two exports must not drift apart.
-  ncv <- performNCVTest(obj$model)
+  ncv <- without_deprecation(performNCVTest(obj$model))
   expect_equal(unname(ours$statistic), unname(ncv$statistic), tolerance = 0)
   expect_equal(ours$p.value, ncv$p.value, tolerance = 0)
 })
@@ -126,11 +126,11 @@ test_that("performNCVTest takes degrees of freedom from the auxiliary rank", {
   # I(2 * x1) is an exact multiple of x1, so the variance model supplies two
   # columns but only one of them survives lm()'s pivoting. Crediting the test
   # with df = 2 here would make it conservative for the wrong reason.
-  deficient <- performNCVTest(model, var_formula = ~ x1 + I(2 * x1))
+  deficient <- without_deprecation(performNCVTest(model, var_formula = ~ x1 + I(2 * x1)))
   expect_equal(unname(deficient$parameter), 1, tolerance = 0)
 
   # Same statistic as the non-redundant variance model, on 1 df.
-  plain <- performNCVTest(model, var_formula = ~x1)
+  plain <- without_deprecation(performNCVTest(model, var_formula = ~x1))
   expect_equal(unname(deficient$statistic), unname(plain$statistic), tolerance = 1e-10)
   expect_equal(deficient$p.value, plain$p.value, tolerance = 1e-10)
 })
@@ -242,7 +242,7 @@ test_that("Pass A tests report named degrees of freedom", {
   obj <- make_hetero_model()
   results <- list(
     harvey = performHarveyTest(obj$model),
-    ncv = performNCVTest(obj$model),
+    ncv = without_deprecation(performNCVTest(obj$model)),
     cook_weisberg = performCookWeisbergTest(obj$model),
     park = performParkTest(obj$model, obj$data, "x1"),
     glejser = performGlejserTest(obj$model, obj$data, "x1"),

@@ -181,13 +181,13 @@ test_that("performNCVTest reproduces car::ncvTest on a weighted fit", {
   on.exit(rm("weighted_fit_data", envir = globalenv()), add = TRUE)
   m <- lm(y ~ x + z, data = weighted_fit_data, weights = w)
 
-  ours <- performNCVTest(m)
+  ours <- without_deprecation(performNCVTest(m))
   ref <- car::ncvTest(m)
   expect_equal(unname(ours$statistic), ref$ChiSquare, tolerance = 1e-8)
   expect_equal(unname(ours$parameter), ref$Df, tolerance = 0)
   expect_equal(ours$p.value, ref$p, tolerance = 1e-8)
 
-  ours_x <- performNCVTest(m, var_formula = ~x)
+  ours_x <- without_deprecation(performNCVTest(m, var_formula = ~x))
   ref_x <- car::ncvTest(m, var.formula = ~x)
   expect_equal(unname(ours_x$statistic), ref_x$ChiSquare, tolerance = 1e-8)
   expect_equal(ours_x$p.value, ref_x$p, tolerance = 1e-8)
@@ -286,7 +286,7 @@ test_that("the tests hold their level on a correctly weighted fit", {
     koenker = function(o) performKoenkerTest(o$weighted, o$data),
     white = function(o) performWhiteTest(o$weighted, o$data),
     breusch_pagan = function(o) performBPTest(o$weighted, o$data),
-    ncv = function(o) performNCVTest(o$weighted),
+    ncv = function(o) without_deprecation(performNCVTest(o$weighted)),
     harvey = function(o) performHarveyTest(o$weighted),
     davidian_carroll = function(o) performDavidianCarrollTest(o$weighted),
     spread_level = function(o) performSpreadLevelTest(o$weighted),

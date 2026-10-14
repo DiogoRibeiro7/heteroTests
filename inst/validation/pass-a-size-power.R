@@ -84,7 +84,7 @@ CS_TESTS <- list(
   `Glejser`               = function(m, d) p_or_na(performGlejserTest(m, d, "x1")),
   `Szroeter`              = function(m, d) p_or_na(performSzroeterTest(m, d, order_by = "x1")),
   `Cook-Weisberg`         = function(m, d) p_or_na(performCookWeisbergTest(m)),
-  `NCV`                   = function(m, d) p_or_na(performNCVTest(m))
+  `NCV`                   = function(m, d) p_or_na(performCookWeisbergTest(m))
 )
 
 TS_TESTS <- list(

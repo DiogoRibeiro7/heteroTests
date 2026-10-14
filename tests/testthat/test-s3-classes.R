@@ -94,7 +94,7 @@ test_that("HeteroDiagnostic test method works with custom tests", {
   expect_valid_diagnostic_result(result_single, "white")
   
   # Test with many tests
-  many_tests <- c("white", "breusch_pagan", "koenker", "cook_weisberg", "ncv")
+  many_tests <- c("white", "breusch_pagan", "koenker", "cook_weisberg")
   result_many <- test(hd, tests = many_tests)
   expect_valid_diagnostic_result(result_many, many_tests)
 })
@@ -187,11 +187,11 @@ test_that("HeteroDiagnostic summary method works with custom tests", {
   hd <- HeteroDiagnostic(test_obj$model, test_obj$data)
   
   # Test with custom tests
-  summ <- summary(hd, tests = c("white", "koenker", "ncv"))
+  summ <- summary(hd, tests = c("white", "koenker", "cook_weisberg"))
   expect_type(summ, "double")
   expect_true(any(grepl("^white", names(summ))))
   expect_true(any(grepl("^koenker", names(summ))))
-  expect_true(any(grepl("^ncv", names(summ))))
+  expect_true(any(grepl("^cook_weisberg", names(summ))))
 })
 
 test_that("HeteroDiagnostic summary handles missing statistics gracefully", {

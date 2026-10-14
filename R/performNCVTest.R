@@ -74,7 +74,23 @@
 #' [performCookWeisbergTest()] for the fitted-value special case,
 #' [performKoenkerTest()] for the studentized variant, and [performBPTest()] for
 #' the Breusch–Pagan test against the full regressor set.
+#' @section Deprecated:
+#' `performNCVTest()` is deprecated since 0.14.0: use
+#' [performCookWeisbergTest()], which gained `var_formula` and is the one entry
+#' point for the Cook–Weisberg score test. `performNCVTest(model, var_formula)`
+#' with a variance formula returns what `performCookWeisbergTest(model,
+#' var_formula)` returns; without one the two return the same statistic,
+#' degrees of freedom and p-value, and `performCookWeisbergTest()` labels the
+#' result as the Cook–Weisberg test. The old name still works, returns what it
+#' returned and warns.
 performNCVTest <- function(model, var_formula = NULL) {
+  .Deprecated("performCookWeisbergTest", old = "performNCVTest")
+  .ncv_test(model, var_formula)
+}
+
+# The implementation behind the deprecated performNCVTest(), the "ncv"
+# registry name and performCookWeisbergTest(); unchanged in 0.14.0.
+.ncv_test <- function(model, var_formula = NULL) {
   rvalidateModelInputs(model, test_name = "NCV", min_obs = 10L)
 
   ht_log("INFO", "Running NCV score test")

@@ -130,7 +130,7 @@ KNOWN <- list(
   list("performCookWeisbergTest", make_xs, function(o) performCookWeisbergTest(o$model)),
   list("performDavidianCarrollTest", make_xs, function(o) performDavidianCarrollTest(o$model)),
   list("performHarveyTest", make_xs, function(o) performHarveyTest(o$model)),
-  list("performNCVTest", make_xs, function(o) performNCVTest(o$model)),
+  list("performNCVTest", make_xs, function(o) performCookWeisbergTest(o$model)),
   list("performSpearmanTest", make_xs, function(o) performSpearmanTest(o$model)),
   list("performSpreadLevelTest", make_xs, function(o) performSpreadLevelTest(o$model)),
   list("performBPTest", make_xs, function(o) performBPTest(o$model, o$data)),
@@ -196,7 +196,7 @@ ESTIMATED <- list(
   list("performKoenkerTest", function(o) performKoenkerTest(o$model, o$data)),
   list("performBPTest", function(o) performBPTest(o$model, o$data)),
   list("performWhiteTest", function(o) performWhiteTest(o$model, o$data)),
-  list("performNCVTest", function(o) performNCVTest(o$model)),
+  list("performNCVTest", function(o) performCookWeisbergTest(o$model)),
   list("performHarveyTest", function(o) performHarveyTest(o$model)),
   list("performVarianceFormTest", function(o) performVarianceFormTest(o$model))
 )
