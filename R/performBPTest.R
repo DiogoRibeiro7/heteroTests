@@ -233,6 +233,13 @@ performBPTest <- function(model, data) {
   )
 }
 
+#' @section Deprecated name: `performBreuschPaganTest()` is deprecated since
+#'   0.14.0. It was the same function as `performBPTest()` under a second name;
+#'   it still works, returns what `performBPTest()` returns and warns. Use
+#'   `performBPTest()`.
 #' @rdname performBPTest
 #' @export
-performBreuschPaganTest <- performBPTest
+performBreuschPaganTest <- function(model, data) {
+  .Deprecated("performBPTest", old = "performBreuschPaganTest")
+  performBPTest(model, data)
+}
