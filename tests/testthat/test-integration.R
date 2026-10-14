@@ -16,7 +16,10 @@ test_that("complete heteroscedasticity analysis workflow", {
   expect_s3_class(hd, "HeteroDiagnostic")
 
   # Step 3: Run comprehensive tests
-  test_results <- runDiagnostics(hd$model, hd$data, tests = c("white", "breusch_pagan", "koenker", "cook_weisberg"))
+  test_results <- runDiagnostics(
+    hd$model, hd$data,
+    tests = c("white", "breusch_pagan", "koenker", "cook_weisberg")
+  )
   expect_valid_diagnostic_result(test_results, c("white", "breusch_pagan", "koenker", "cook_weisberg", "vif", "reset", "influence"))
 
   # Step 4: Generate diagnostic plots

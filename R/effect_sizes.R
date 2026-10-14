@@ -27,7 +27,10 @@
 #' @export
 rcalculateEffectSize <- function(test_result, model, data,
                                  type = c("cramers_v", "phi", "eta_squared")) {
-  .Deprecated(old = "rcalculateEffectSize", msg = .ht_r_prefixed_deprecation("rcalculateEffectSize"))
+  .Deprecated(
+    old = "rcalculateEffectSize",
+    msg = .ht_r_prefixed_deprecation("rcalculateEffectSize")
+  )
   .calculate_effect_size(test_result, model, data, type)
 }
 

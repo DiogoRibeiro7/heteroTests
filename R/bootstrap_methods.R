@@ -609,7 +609,10 @@ rdata_reproduces_fit <- function(model, data, row_index) {
 #' @export
 restimate_test_power <- function(test_result, model, data, alpha = 0.05,
                                  target_power = 0.8, max_multiplier = 5) {
-  .Deprecated(old = "restimate_test_power", msg = .ht_r_prefixed_deprecation("restimate_test_power"))
+  .Deprecated(
+    old = "restimate_test_power",
+    msg = .ht_r_prefixed_deprecation("restimate_test_power")
+  )
   .estimate_test_power(
     test_result, model, data, alpha, target_power, max_multiplier,
     .call = match.call()
