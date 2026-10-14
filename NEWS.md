@@ -16,6 +16,9 @@ below still works, returns what it returned before and warns with
 | `performNCVTest(model, var_formula)` | `performCookWeisbergTest(model, var_formula)` | `performCookWeisbergTest()` gains `var_formula`; with one, it returns what `performNCVTest()` returned |
 | `performNCVTest(model)` | `performCookWeisbergTest(model)` | Same statistic, degrees of freedom and p-value; labelled as the Cook-Weisberg test |
 | `runHeteroTests(tests = "ncv")` | `tests = "cook_weisberg"` | Warns once per call of `runHeteroTests()` or `runDiagnostics()` |
+| `plotResidualsFittedEnhanced(model)` | `plotResidualsFitted(model, enhanced = TRUE)` | `enhanced = FALSE`, the default, keeps the plot the base name drew |
+| `plotDiagnosticSuiteEnhanced(model)` | `plotDiagnosticSuite(model, enhanced = TRUE)` | As above |
+| `checkModelEnhanced(model, data)` | `checkModel(model, data, enhanced = TRUE)` | `checkModel(model)` still checks the class only |
 
 `performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
 statistic, degrees of freedom and p-value in the designs of
