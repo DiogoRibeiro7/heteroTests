@@ -244,12 +244,12 @@ test_that("resampling an unweighted fit uses the rows the model was fitted to", 
   for (strategy in c("null", "pairs")) {
     expect_error(
       bootstrapTestStatistic(by_position, m, renamed, B = 5,
-                                resample = strategy, progress = FALSE),
+                             resample = strategy, progress = FALSE),
       "rows the model was fitted to"
     )
     expect_error(
       bootstrapTestStatistic(by_position, m, d[1:50, ], B = 5,
-                                resample = strategy, progress = FALSE),
+                             resample = strategy, progress = FALSE),
       "it lacks 10 of them"
     )
   }
@@ -271,11 +271,11 @@ test_that("data without row names of its own must be in the order of the fit", {
   for (strategy in c("null", "pairs")) {
     expect_error(
       bootstrapTestStatistic(performKoenkerTest, m, shuffled, B = 5,
-                                resample = strategy, progress = FALSE),
+                             resample = strategy, progress = FALSE),
       "does not reproduce the fit"
     )
     out <- bootstrapTestStatistic(performKoenkerTest, m, d, B = 5,
-                                     resample = strategy, progress = FALSE)
+                                  resample = strategy, progress = FALSE)
     expect_true(all(is.finite(out$replicates)))
   }
 
@@ -287,7 +287,7 @@ test_that("data without row names of its own must be in the order of the fit", {
   m_dt <- lm(y ~ x + z, data = dt, offset = o)
   expect_error(
     bootstrapTestStatistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
-                              B = 5, progress = FALSE),
+                           B = 5, progress = FALSE),
     "does not reproduce the fit"
   )
   set.seed(91)
@@ -318,7 +318,7 @@ test_that("data without row names of its own is resampled when the fit dropped r
   run <- function(data, strategy) {
     set.seed(97)
     bootstrapTestStatistic(performKoenkerTest, m, data, B = 5, resample = strategy,
-                              progress = FALSE)$replicates
+                           progress = FALSE)$replicates
   }
   tables <- list(full = d, complete = complete)
   if (requireNamespace("data.table", quietly = TRUE)) {
@@ -359,10 +359,10 @@ test_that("a term computed from all the data does not make the rows of the fit d
     for (strategy in c("null", "pairs")) {
       set.seed(98)
       from_full <- bootstrapTestStatistic(performKoenkerTest, m, full, B = 5,
-                                             resample = strategy, progress = FALSE)
+                                          resample = strategy, progress = FALSE)
       set.seed(98)
       from_kept <- bootstrapTestStatistic(performKoenkerTest, m, kept, B = 5,
-                                             resample = strategy, progress = FALSE)
+                                          resample = strategy, progress = FALSE)
       expect_true(all(is.finite(from_kept$replicates)), label = paste(nm, strategy))
       expect_equal(from_full$replicates, from_kept$replicates, tolerance = 1e-12,
                    label = paste(nm, strategy))
@@ -392,12 +392,12 @@ test_that("an offset in the formula that is not a column of the data cannot be r
 
   expect_error(
     bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
-                              progress = FALSE),
+                           progress = FALSE),
     "does not come from `data`"
   )
   expect_error(
     bootstrapTestStatistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
-                              progress = FALSE),
+                           progress = FALSE),
     "does not reproduce the fit"
   )
   # A variable that reads the same backwards would pass a check that only
@@ -406,14 +406,14 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   m_mirror <- lm(y ~ x + z + offset(mirror), data = d)
   expect_error(
     bootstrapTestStatistic(koenker_of_fit, m_mirror, d, B = 5, resample = "pairs",
-                              progress = FALSE),
+                           progress = FALSE),
     "does not come from `data`"
   )
   set.seed(92)
   ours <- bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
   set.seed(92)
   column <- bootstrapTestStatistic(koenker_of_fit, lm(y ~ x + z + offset(o), data = d),
-                                      d, B = 5, progress = FALSE)
+                                   d, B = 5, progress = FALSE)
   expect_true(all(is.finite(ours$replicates)))
   expect_equal(ours$replicates, column$replicates, tolerance = 1e-8)
 
@@ -422,7 +422,7 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   m_argument <- lm(y ~ x + z, data = d, offset = shift)
   set.seed(93)
   pairs <- bootstrapTestStatistic(koenker_of_fit, m_argument, d, B = 5,
-                                     resample = "pairs", progress = FALSE)
+                                  resample = "pairs", progress = FALSE)
   set.seed(93)
   expected <- vapply(seq_len(5), function(b) {
     db <- d[sample.int(nrow(d), replace = TRUE), , drop = FALSE]

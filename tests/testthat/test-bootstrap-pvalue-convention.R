@@ -133,7 +133,7 @@ test_that("null resampling refuses models it cannot regenerate", {
   m_log <- lm(log(y) ~ x, data = d)
   expect_error(
     bootstrapTestStatistic(performKoenkerTest, m_log, d, B = 5,
-                              progress = FALSE),
+                           progress = FALSE),
     "plain response variable"
   )
 
@@ -145,7 +145,7 @@ test_that("null resampling refuses models it cannot regenerate", {
   g <- glm(cnt ~ x, data = d2, family = poisson)
   expect_error(
     bootstrapTestStatistic(performKoenkerTest, g, d2, B = 5,
-                              progress = FALSE),
+                           progress = FALSE),
     "Gaussian `lm` models only"
   )
 
@@ -174,7 +174,7 @@ test_that("a glm is refused by both resampling strategies", {
   for (strategy in c("null", "pairs")) {
     expect_error(
       bootstrapTestStatistic(performKoenkerTest, g, d, B = 5,
-                                resample = strategy, progress = FALSE),
+                             resample = strategy, progress = FALSE),
       "Gaussian `lm` models only"
     )
   }

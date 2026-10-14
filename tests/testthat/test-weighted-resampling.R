@@ -170,7 +170,7 @@ check_equal_weights <- function(unweighted, equal, d, label) {
     },
     pairs = function(model) {
       r <- bootstrapTestStatistic(performKoenkerTest, model, d, B = 29,
-                                     resample = "pairs", progress = FALSE)
+                                  resample = "pairs", progress = FALSE)
       list(statistic = r$original_statistic, p = r$ci, replicates = r$replicates)
     }
   )
@@ -240,7 +240,7 @@ test_that("resampling a weighted fit needs the rows the model was fitted to", {
   for (strategy in c("null", "pairs")) {
     expect_error(
       bootstrapTestStatistic(by_position, obj$model, renamed, B = 5,
-                                resample = strategy, progress = FALSE),
+                             resample = strategy, progress = FALSE),
       "rows the model was fitted to"
     )
   }
@@ -402,7 +402,7 @@ test_that("the bootstrap tests hold their level on a correctly weighted fit", {
     }),
     rbootstrap = list(reps = 30, f = function(o) {
       bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = 49,
-                                progress = FALSE)$p_value
+                             progress = FALSE)$p_value
     })
   )
   for (nm in names(tests)) {
@@ -433,7 +433,7 @@ test_that("the bootstrap tests reject weights that are too weak", {
     white = function(o) performWhiteTestBootstrap(o$model, o$data, B = 49)$p.value,
     rbootstrap = function(o) {
       bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = 49,
-                                progress = FALSE)$p_value
+                             progress = FALSE)$p_value
     }
   )
   for (nm in names(tests)) {

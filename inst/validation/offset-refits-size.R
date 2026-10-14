@@ -264,7 +264,7 @@ p_value <- function(s, o) {
     performWhiteTestBootstrap = performWhiteTestBootstrap(o$model, o$data, B = s$B),
     rbootstrap_test_statistic = {
       r <- bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = s$B,
-                                     progress = FALSE)
+                                  progress = FALSE)
       list(p.value = r$p_value)
     }
   )
