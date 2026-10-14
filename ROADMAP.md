@@ -5,28 +5,34 @@ meaningful code changes. Milestones are ordered, not dated. The history
 of what changed and why lives in `NEWS.md`; the statistical evidence
 lives in `inst/validation/`.
 
-## Where things stand (0.12.0)
+## Where things stand (0.13.0)
 
 - **On CRAN.** 0.11.2 was accepted in September 2026, after one review
-  round on 0.11.1. 0.12.0 has not been submitted.
+  round on 0.11.1. 0.12.0 and 0.13.0 are GitHub releases: the next
+  submission is 1.0.0 (decided 2026-10-11).
 - **The validation matrix is complete** for every exported
   `perform*Test()`. The sweep found six broken procedures, all corrected
   or withdrawn, and twenty-five of the twenty-six heteroscedasticity
-  tests hold their nominal level (`inst/validation/README.md`).
+  tests hold their nominal level (`inst/validation/README.md`). The
+  tests added since have studies of their own:
+  `inst/validation/harrison-mccabe-size-power.R` and
+  `inst/validation/glejser-skewed-errors.R`.
 - **Weighted fits were outside that matrix, and wrong.** Every design in
   it fitted an unweighted model. On a weighted fit the tests read the
   raw residuals, whose variance differs across observations by
   assumption, and rejected a correctly weighted model every time. 0.12.0
   corrects that and adds weighted designs to the matrix
-  (`inst/validation/weighted-fits-size.R`).
+  (`inst/validation/weighted-fits-size.R`). In 0.13.0 the bootstrap
+  tests accept a weighted fit too, with designs of their own in the same
+  study.
 - **Reference equivalence** is asserted to `1e-8` against `lmtest`,
   `car` and `plm` wherever a reference implementation exists.
   [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) is
   not a reference for weighted fits: it tests the raw residuals.
 - **The public surface has not been reviewed as a whole.** The package
-  exports 127 objects. They accumulated feature by feature, and they
+  exports 129 objects. They accumulated feature by feature, and they
   include duplicates, internal helpers and several naming schemes. That
-  surface, not the statistics, is what stands between 0.12.0 and 1.0.0.
+  surface, not the statistics, is what stands between 0.13.0 and 1.0.0.
 
 ## What 1.0.0 means
 
@@ -49,8 +55,8 @@ major release breaks the API.
 Everything below exists to make that promise safe to give. The
 sequencing rule this file has always followed still holds: statistical
 correctness first, then the API, and never both in one release. 0.12.0
-reopened correctness for weighted fits and closed it again, so the API
-is next.
+reopened correctness for weighted fits and closed it again, and 0.13.0
+corrected what was found after it, so the API is next.
 
 ## Guiding principles
 
@@ -65,7 +71,7 @@ is next.
   would have frozen each of those faults rather than caught it.
 - **One consistent interface.** All diagnostics return base-R `htest`
   objects and follow the `perform*Test(model, data, ...)` convention.
-  (Nine exported tests do not yet; see 0.14.0.)
+  (Nine exported tests do not yet; see 0.15.0.)
 - **Scale and robustness as first-class concerns**: streaming
   implementations for large data, resampling and robust variants for
   small or non-normal samples.
@@ -113,12 +119,13 @@ The gate failed. The weekly `--as-cran` job stopped with an error on
 2026-09-28 and on 2026-10-05: the `\donttest{}` example of
 `performWhiteTestBootstrap(parallel = TRUE)` starts `detectCores() - 1`
 processes, three on the runner, and `--as-cran` allows two. The example
-is skipped on Windows, so a local check there does not see it. Fixed
-after 0.12.0 in the example, which now runs the call only where it
+is skipped on Windows, so a local check there does not see it. Fixed in
+0.13.0 by changing the example, which now runs the call only where it
 starts at most two processes; the “CRAN submission checks” job passed on
-the branch on 2026-10-11. The function still uses `detectCores() - 1`
-workers; capping them changes how the draws are split, and belongs with
-reproducibility under `parallel = TRUE` in 0.14.0.
+the branch on 2026-10-11 and on `main` on 2026-10-12. The function still
+uses `detectCores() - 1` workers; capping them changes how the draws are
+split, and belongs with reproducibility under `parallel = TRUE` in
+0.15.0.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
@@ -152,12 +159,13 @@ Found on the way and left for their own changes:
 and
 [`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)
 refused a weighted fit, because they refitted without the weights.
-Resolved after 0.12.0 for the first three: they resample the Pearson
+Resolved in 0.13.0 for the first three: they resample the Pearson
 residuals, return each draw to the scale of its observation and refit
-with the weights, and an unweighted fit gives bit-identical values. In
-`inst/validation/weighted-fits-size.R`, at 2000 replications with
-`B = 499`, they reject a correctly weighted fit 0.045 to 0.054 of the
-time in two designs.
+with the weights. That change leaves an unweighted fit as it was; the
+corrections 0.13.0 also makes to unweighted refits are listed under
+0.13.0 below. In `inst/validation/weighted-fits-size.R`, at 2000
+replications with `B = 499`, they reject a correctly weighted fit 0.045
+to 0.054 of the time in two designs.
 [`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md)
 still refuses one: on the weighted scale its slopes differ across
 quantiles under the null hypothesis, and a version for weighted fits
@@ -174,19 +182,19 @@ was a local variable. [`lm()`](https://rdrr.io/r/stats/lm.html) looks
 the name up in `data` and then in the environment of the formula, found
 [`stats::weights`](https://rdrr.io/r/stats/weights.html), failed, and
 the [`tryCatch()`](https://rdrr.io/r/base/conditions.html) refitted
-without weights. Resolved after 0.12.0 by making the function say what
-it does, because using the weights would have been worse: sampling
-weights are not inverse error variances, and a test on a fit that uses
-them rejected a homoscedastic model 97% to 100% of the time when the
-weights varied with the regressor. `runHeteroTests(formula, design)` did
-exactly that through a `svyglm()` fit, and now takes the unweighted
-route too. Evidence: `inst/validation/survey-designs-size.R`. A
-design-based test is under *Candidate tests*.
+without weights. Resolved in 0.13.0 by making the function say what it
+does, because using the weights would have been worse: sampling weights
+are not inverse error variances, and a test on a fit that uses them
+rejected a homoscedastic model 97% to 100% of the time when the weights
+varied with the regressor. `runHeteroTests(formula, design)` did exactly
+that through a `svyglm()` fit, and now takes the unweighted route too.
+Evidence: `inst/validation/survey-designs-size.R`. A design-based test
+is under *Candidate tests*.
 
 **`.ht_fit_from_formula()` had the same scoping fault** and always
 failed with `invalid type (closure) for variable '(weights)'`, so the
 per-group refits built from an `lm`, `glm` or parsnip fit could not run.
-Fixed after 0.12.0: each group is refitted by evaluating the model’s own
+Fixed in 0.13.0: each group is refitted by evaluating the model’s own
 call on it, which gives it its own rows of the weights and keeps the
 family of a `glm`.
 
@@ -194,8 +202,8 @@ family of a `glm`.
 parameters, such as the F test of
 [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
 or the wild bootstrap with its `df` and `B`, was tidied into two rows,
-and the grouped and suite methods stacked them. Fixed after 0.12.0: one
-row per test, with the second parameter in a column of its own,
+and the grouped and suite methods stacked them. Fixed in 0.13.0: one row
+per test, with the second parameter in a column of its own,
 `parameter2`.
 
 **`autoplot()` of a test suite did not show significant results.** The
@@ -204,7 +212,7 @@ bars were p-values on a linear axis from 0 to 1, so a test with p =
 rejected. The highlighting of p \< 0.05 never applied either: the
 condition was written `isTRUE(df$p.value < 0.05)`, which is `FALSE` for
 a suite of more than one test. The grouped method had the same condition
-and added a facet for the `suggestions` column. Fixed after 0.12.0: the
+and added a facet for the `suggestions` column. Fixed in 0.13.0: the
 bars are `-log10(p)` on an axis labelled with p-values, with a line at
 `alpha` and the p-value printed beside each bar.
 
@@ -247,9 +255,48 @@ recorded on the model, with the same `var_formula` and `form`, in each
 replicate. It applies only to a fit that carries that record; weights
 the user supplied are known and stay fixed. See *Decisions needed*.
 
-### 0.13.0: review the public surface (deprecate, remove nothing)
+### 0.13.0: what was found after 0.12.0 (done)
 
-Goal: every one of the 127 exports gets a verdict, which is one of
+This release was not on the roadmap either. It took the 0.13.0 number
+because it corrects statistics and adds functionality, and the
+milestones below moved up by one again.
+
+**Values that changed.** The bootstrap tests keep an offset given as an
+argument when they refit an unweighted model,
+[`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+matches the rows of the data to the fit by name and leaves out rows the
+fit dropped, and
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+regenerates a transformed response, where its p-value was 1.
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+keeps the offset of the model it refits, and
+[`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
+changes with it on a model with an offset. The Szroeter test that
+[`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+runs by name orders the observations by the fitted values instead of by
+the second column of the data.
+[`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+and
+[`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md)
+no longer test a survey design through a fit weighted by its sampling
+weights. `tidy()` returns one row per test.
+
+**What was found on the way to 0.12.0**: the resampling tests accept a
+weighted fit, and the survey designs, the grouped refits and
+`autoplot()` are fixed (above).
+
+**Two tests from the candidates**:
+[`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
+and `performGlejserTest(robust = TRUE)`. Two more were measured and not
+adopted, the modified Wald test and stage 1 of the Dette, Neumeyer and
+Van Keilegom test (*Candidate tests*).
+
+**[`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)**,
+and the release gate in `release.yml` (0.11.x, above).
+
+### 0.14.0: review the public surface (deprecate, remove nothing)
+
+Goal: every one of the 129 exports gets a verdict, which is one of
 **core API**, **renamed**, **internal** or **moved out**. Nothing is
 removed in this release. Everything that will go warns.
 
@@ -341,10 +388,10 @@ dependency is needed. Each call warns and names its replacement.
 `NEWS.md` carries an old → new mapping table.
 
 **Exit criterion.** An export inventory with a verdict for every one of
-the 127 exports, and `test-public-api.R` extended to assert the planned
+the 129 exports, and `test-public-api.R` extended to assert the planned
 1.0 export list, so that an accidental new export fails CI.
 
-### 0.14.0: make the interface match its description
+### 0.15.0: make the interface match its description
 
 These changes break existing calls. They have to happen before 1.0.0,
 not after it.
@@ -422,7 +469,7 @@ the old technical debt.
 **Uniform input validation** across all exported tests. The README lists
 its absence as a known limitation.
 
-### 0.15.0: statistics evidence, dependencies and internals (no API change)
+### 0.16.0: statistics evidence, dependencies and internals (no API change)
 
 **Re-run the full sweep at `N_MC = 5000`,** so that the release gate in
 `inst/validation/README.md` (`[0.042, 0.058]`) applies to every exported
@@ -488,7 +535,7 @@ Keep the CRAN test run short. Long simulations run under
 
 ### 1.0.0: freeze
 
-Remove everything deprecated in 0.13.0 and 0.14.0, or turn it into
+Remove everything deprecated in 0.14.0 and 0.15.0, or turn it into
 [`.Defunct()`](https://rdrr.io/r/base/Defunct.html) stubs that name the
 replacement.
 
@@ -565,11 +612,11 @@ reference and simulated size.
   variances across units. Reference implementation: Stata’s `xttest3`.
   The Python package `panelbox` (1.0.2) has a function of that name that
   computes a different statistic, a likelihood-ratio form. A second
-  search on 2026-10-10 found no R implementation either. **Measured
-  after 0.12.0 and not adopted: it does not hold its level.** In the
-  designs of `inst/validation/modified-wald-size-power.R`, at 5000
-  replications, the test as `xttest3` computes it rejects a true null
-  hypothesis at the 5% level this often:
+  search on 2026-10-10 found no R implementation either. **Measured for
+  0.13.0 and not adopted: it does not hold its level.** In the designs
+  of `inst/validation/modified-wald-size-power.R`, at 5000 replications,
+  the test as `xttest3` computes it rejects a true null hypothesis at
+  the 5% level this often:
 
   | Errors   | Units | T = 5 | T = 10 | T = 30 | T = 100 |
   |----------|------:|------:|-------:|-------:|--------:|
@@ -631,7 +678,7 @@ reference and simulated size.
   [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
   has power against the terms it is given; these have it against any
   departure, at the cost of smoothing. **Stage 1 of the first measured
-  after 0.12.0, and not exported: as defined, it does not hold its
+  for 0.13.0, and not exported: as defined, it does not hold its
   level.** The 2007 article could not be obtained; a prototype in plain
   R follows the authors’ submitted manuscript of 2005, whose Tables 4.1
   and 4.5 it reproduces in level and to within a few points in power. In
@@ -726,19 +773,19 @@ have, which is also what a reader of the article asks of it. Within that
 group:
 
 1.  The modified Wald test. The panel functions exist, and it is the
-    test Stata users look for under the name `xttest3`. Measured after
-    0.12.0 and not adopted, because it does not hold its level (above).
+    test Stata users look for under the name `xttest3`. Measured for
+    0.13.0 and not adopted, because it does not hold its level (above).
 2.  The Dette, Neumeyer and Van Keilegom test. It removes the main
     limitation of
     [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md),
-    and is the most work of the two. Stage 1 done after 0.12.0: as the
+    and is the most work of the two. Stage 1 done for 0.13.0: as the
     manuscript defines it, it does not hold its level when the variance
     is not constant (above).
 
 ### Done
 
 - **A Glejser test that is valid under skewed errors** (Im 2000; Machado
-  and Santos Silva 2000), after 0.12.0, as
+  and Santos Silva 2000), in 0.13.0, as
   `performGlejserTest(robust = TRUE)`. In the designs of
   `inst/validation/glejser-skewed-errors.R` the uncorrected statistic
   rejects a true null hypothesis 9% to 18% of the time at the 5% level
@@ -746,7 +793,7 @@ group:
   `skedastic::glejser()` uses the uncorrected absolute residuals as
   well. The default is still Glejser’s statistic; whether it should be
   is under *Decisions needed*.
-- **Harrison–McCabe (1979)**, after 0.12.0, as
+- **Harrison–McCabe (1979)**, in 0.13.0, as
   [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md),
   beside Goldfeld–Quandt and Szroeter. The 1979 article was not read;
   the definition rests on Harrison (1981), by its first author, whose
@@ -768,16 +815,16 @@ group:
 
 | Question | Proposal | Needed by |
 |----|----|----|
-| Does the dashboard/benchmark/recommendation layer stay in core? | Move the dashboard and benchmark suite to a companion package; keep the recommendation engine, with its return format frozen | 0.13.0 |
-| One name for the Cook–Weisberg score test | Keep [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) with optional `var_formula`; deprecate [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md) | 0.13.0 |
-| Replacement for the [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md) generic | Fold into [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) | 0.13.0 |
-| Naming of the simulation family | Keep `simulate_*()`/`sigma_*()` as a documented snake_case family; rename the one-offs | 0.13.0 |
-| `data` argument on every test | `data = NULL` in second position; [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) the documented exception | 0.14.0 |
-| Default battery | White + Koenker | 0.14.0 |
-| Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.14.0 |
-| Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.14.0 |
-| Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.15.0 |
-| Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. 0.12.0 refuses a weighted fit in these functions (0.11.2 accepted one and refitted without the weights), so a default chosen before the next release changes no value 0.12.0 returned | Next release |
-| Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.15.0 |
+| Does the dashboard/benchmark/recommendation layer stay in core? | Move the dashboard and benchmark suite to a companion package; keep the recommendation engine, with its return format frozen | 0.14.0 |
+| One name for the Cook–Weisberg score test | Keep [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) with optional `var_formula`; deprecate [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md) | 0.14.0 |
+| Replacement for the [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md) generic | Fold into [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) | 0.14.0 |
+| Naming of the simulation family | Keep `simulate_*()`/`sigma_*()` as a documented snake_case family; rename the one-offs | 0.14.0 |
+| `data` argument on every test | `data = NULL` in second position; [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) the documented exception | 0.15.0 |
+| Default battery | White + Koenker | 0.15.0 |
+| Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
+| Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
+| Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
+| Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release | 0.14.0 |
+| Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | A consistent test of the variance function after stage 1 | Do not ship the Dette, Neumeyer and Van Keilegom test as defined: its prototype rejects a true non-constant variance function 0.019 to 0.036 of the time. Choose between a new stage 1 for a modified procedure (a better estimate of the variance function for the bootstrap data, or a studentized statistic) and one for Wang and Zhou (2007), and compare the published article with the manuscript first. If a test ships, a function of its own rather than `performVarianceFormTest(against = "any")` | Before any stage 2 |
-| `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.15.0 |
+| `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.16.0 |
