@@ -7,6 +7,11 @@
 #'
 #' @param model A fitted [stats::lm] object whose residuals will be analysed for
 #'   variance patterns.
+#' @param var_formula Optional one-sided formula giving the variance model,
+#'   evaluated in the model frame of `model`, for example `~ x1 + x2`. When
+#'   `NULL`, the default, the fitted values are the variance regressor and the
+#'   result is what this function returned before 0.14.0; otherwise it is
+#'   what the deprecated `performNCVTest(model, var_formula)` returned.
 #'
 #' @return An object of class \code{htest} containing the score
 #'   statistic, its single degree of freedom, and the p-value for the null
@@ -58,15 +63,21 @@
 #' [performNCVTest()] for the same score test against an arbitrary variance
 #' model, [performBPTest()] for the general Breusch–Pagan regression, and
 #' [performWhiteTest()] for a higher-order omnibus alternative.
-performCookWeisbergTest <- function(model) {
+performCookWeisbergTest <- function(model, var_formula = NULL) {
   rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L)
 
   ht_log("INFO", "Running Cook-Weisberg test")
 
+  # With a variance model of its own the test is the score test that the
+  # deprecated performNCVTest() computed, returned as it returned it.
+  if (!is.null(var_formula)) {
+    return(.ncv_test(model, var_formula))
+  }
+
   # The Cook-Weisberg statistic is the score test of performNCVTest() with the
-  # fitted values as the sole variance regressor; delegate so the two exports
-  # cannot drift apart.
-  result <- performNCVTest(model)
+  # fitted values as the sole variance regressor; delegate so the two cannot
+  # drift apart.
+  result <- .ncv_test(model)
   result$method <- "Cook-Weisberg test for heteroscedasticity"
   result$data.name <- deparse(stats::formula(model))
   result$alternative <- "error variance depends on the fitted values"

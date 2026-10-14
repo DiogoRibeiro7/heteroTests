@@ -365,7 +365,7 @@ ht_default_benchmark_tests <- function() {
       hetero = list(
         package = "heteroTests",
         method = "performNCVTest",
-        fun = function(model, data) performNCVTest(model)
+        fun = function(model, data) .ncv_test(model)
       ),
       baselines = list(
         car = list(

@@ -1,6 +1,6 @@
 \name{performNCVTest}
 \alias{performNCVTest}
-\title{Perform the non-constant variance (NCV) score test}
+\title{Perform the non-constant variance (NCV) score test (deprecated)}
 \description{The Cook-Weisberg score test for non-constant error variance, the diagnostic returned by \code{car::ncvTest()}.}
 \details{
 Let \eqn{\hat{e}_i} denote the OLS residuals and \eqn{\hat{\sigma}^2 = \sum_i \hat{e}_i^2 / n} the maximum-likelihood variance estimate. The test regresses the scaled squared residuals \eqn{u_i = \hat{e}_i^2 / \hat{\sigma}^2} on the variance regressors \eqn{Z} and computes half the explained sum of squares of that auxiliary regression. Under homoscedasticity and normal errors the statistic is asymptotically chi-square with degrees of freedom equal to the number of variance regressors.
@@ -9,6 +9,7 @@ With \code{var_formula = NULL} the fitted values are the sole variance regressor
 
 Because the divisor 2 is the null variance of \eqn{\hat{e}^2 / \sigma^2} under normality, the test is sensitive to non-normal errors; \code{\link{performKoenkerTest}} provides the studentized variant, which is robust to non-normal kurtosis.
 }
+\section{Deprecated}{\code{performNCVTest()} is deprecated since 0.14.0: use \code{\link{performCookWeisbergTest}}, which gained \code{var_formula} and is the one entry point for the Cook-Weisberg score test. With a variance formula, \code{performNCVTest(model, var_formula)} returns what \code{performCookWeisbergTest(model, var_formula)} returns; without one the two return the same statistic, degrees of freedom and p-value, and \code{performCookWeisbergTest()} labels the result as the Cook-Weisberg test. The old name still works, returns what it returned and warns.}
 \section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}
 \usage{performNCVTest(model, var_formula = NULL)}
 \arguments{
@@ -22,10 +23,9 @@ Reproduces \code{car::ncvTest()} to within \code{1e-8} for both the default and 
 \examples{
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)
- performNCVTest(m)
-
- # Score test against a specific variance model rather than the fitted values
- performNCVTest(m, var_formula = ~wt)
+ # Deprecated: use performCookWeisbergTest(m) and
+ # performCookWeisbergTest(m, var_formula = ~wt)
+ suppressWarnings(performNCVTest(m, var_formula = ~wt))
 }
 \references{
 Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in regression. \emph{Biometrika}, 70(1), 1--10. \doi{10.1093/biomet/70.1.1}
