@@ -525,8 +525,8 @@ outside `R/`, and the package’s own calls of a name that will warn.
 | [`sigma_exp_decay()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
 | [`sigma_gaussian_peak()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
 | [`sigma_piecewise_linear()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
-| [`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: `simulate_size()` (decided) | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. |
-| [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: `simulate_power()` (decided) | R/: none. Vignettes: named in the prose of `troubleshooting.Rmd:44`. inst/validation/: none. Tests: 3 lines. |
+| [`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: [`simulate_size()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) (decided) | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. |
+| [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: [`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) (decided) | R/: none. Vignettes: named in the prose of `troubleshooting.Rmd:44`. inst/validation/: none. Tests: 3 lines. |
 | [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md) | plotting | core API |  |
 | [`plotSpreadLevel()`](https://diogoribeiro7.github.io/heteroTests/reference/plotSpreadLevel.md) | plotting | core API |  |
 | [`plotResidualDensity()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualDensity.md) | plotting | core API |  |
@@ -600,7 +600,10 @@ Notes on the verdicts:
   stay core API. The name of
   [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
   is still open under the item on the `r`-prefixed exports.
-- **The simulation renames.** `simulate_size()` and `simulate_power()`
+- **The simulation renames.**
+  [`simulate_size()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
+  and
+  [`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
   join the documented snake_case family, since both simulate under the
   `sigma_*()` functions.
 - **[`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)**

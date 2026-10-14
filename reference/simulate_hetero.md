@@ -104,6 +104,16 @@ sigma_piecewise_linear(x, thr = 5, slope1 = 0.1, slope2 = 0.3)
   Additional numeric parameters controlling the shape of the variance
   patterns.
 
+## Naming
+
+The simulation functions form one family and are named in snake_case on
+purpose: `simulate_hetero()`, `simulate_arch1()`,
+[`simulate_size()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
+and
+[`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md),
+and the `sigma_*()` variance functions. The rest of the package uses
+camelCase. The family keeps these names after 1.0.0.
+
 ## Value
 
 For `simulate_hetero` a data frame with columns `x` and `y`. For

@@ -3,9 +3,32 @@
 Provides tools for validating heteroscedasticity tests under controlled
 scenarios and estimating statistical power.
 
+`simulate_type_I_errors()` and `simulate_power_analysis()` are
+deprecated since 0.14.0: use `simulate_size()` and `simulate_power()`,
+which return the same results and belong to the documented snake_case
+family of `simulate_*()` and `sigma_*()` functions. The old names still
+work and warn.
+
 ## Usage
 
 ``` r
+simulate_size(
+  test_function,
+  n_sims = 1000,
+  alpha = 0.05,
+  n_obs = 100,
+  seed = 123
+)
+
+simulate_power(
+  test_function,
+  sigma_functions = list(sigma_linear),
+  effect_sizes = c(0.1, 0.2, 0.5, 1),
+  n_sims = 500,
+  n_obs = 100,
+  alpha = 0.05
+)
+
 simulate_type_I_errors(
   test_function,
   n_sims = 1000,

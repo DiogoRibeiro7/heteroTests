@@ -14,7 +14,7 @@ plot(x, ...)
 - x:
 
   Object returned by
-  [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md).
+  [`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md).
 
 - ...:
 

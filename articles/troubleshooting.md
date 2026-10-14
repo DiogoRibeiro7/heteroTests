@@ -41,5 +41,5 @@ results.
 ### Power Considerations
 
 Some tests have low power in small samples. Simulation via
-[`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
+[`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
 can help determine the best approach for a given situation.
