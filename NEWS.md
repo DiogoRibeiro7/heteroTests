@@ -56,6 +56,13 @@ the variance by family, and the model checks (`performRESETTest()`,
 `performScatterDiagnostic()` and `checkModel()`) apart from them, so that they
 are not mistaken for heteroscedasticity tests. No function changes.
 
+### The planned 1.0 exports
+
+`tests/testthat/test-public-api.R` lists the exports planned for 1.0.0, the
+names deprecated in 0.14.0 and the three that move to a companion package,
+from the export inventory in `ROADMAP.md`. An export in none of these lists
+fails the test, so a new export has to be added to the plan on purpose.
+
 ## 0.13.0
 
 The bootstrap tests change value in three cases where their replicates were
