@@ -162,7 +162,9 @@ TESTS <- list(
   list("performCookWeisbergTest", "hetero", function(o) performCookWeisbergTest(o$model)),
   list("performDavidianCarrollTest", "hetero", function(o) performDavidianCarrollTest(o$model)),
   list("performHarveyTest", "hetero", function(o) performHarveyTest(o$model)),
-  list("performNCVTest", "hetero", function(o) performNCVTest(o$model)),
+  # performNCVTest() is deprecated in 0.14.0; performCookWeisbergTest()
+  # returns the same statistic and p-value, so the row keeps its numbers.
+  list("performNCVTest", "hetero", function(o) performCookWeisbergTest(o$model)),
   list("performSpearmanTest", "hetero", function(o) performSpearmanTest(o$model)),
   list("performSpreadLevelTest", "hetero", function(o) performSpreadLevelTest(o$model)),
   list("performBPTest", "hetero", function(o) performBPTest(o$model, o$data)),
