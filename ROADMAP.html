@@ -714,6 +714,7 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <li>A multivariate <code>lm</code>, <code>cbind(y, y2) ~ ...</code>, fails with a coercion error instead of a clear refusal. No value changes.</li>
 <li>The unexported <code>performWhiteTestEnhanced(bootstrap = TRUE)</code>, through <code><a href="reference/bootstrap_white_test.html">bootstrap_white_test()</a></code>, takes the log of a log response twice, drops an offset given as an argument and takes rows by position. Remove it or fix it. No exported value changes.</li>
 <li>About 0.8 KB per test call on a new model still persists after the validation cache is cleared, as seen in long simulations. No value changes.</li>
+<li>On a rank-deficient fit (<code>z2 = 2 * z</code>, the design in <code>tests/testthat/test-koenker-studentized.R</code>) both <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> and <code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> refuse with “Model coefficients must be finite…”, where <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code> returns a statistic (20.87, df 2). Decide whether to compute on the estimable subspace or keep the refusal with a clearer message.</li>
 </ul></li>
 <li>
 <label><input type="checkbox"><strong>Dependencies.</strong></label>

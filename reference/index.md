@@ -202,7 +202,7 @@
   : Perform Spread-Level test
 
 - [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
-  : Studentized Breusch–Pagan test
+  : Studentized Breusch–Pagan test (deprecated)
 
 - [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md)
   : Szroeter test for ordered alternatives

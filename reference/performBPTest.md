@@ -21,9 +21,7 @@ follows a chi-square distribution with degrees of freedom equal to the
 number of regressors, matching
 `lmtest::bptest(..., studentize = FALSE)`. For the studentized \\n R^2\\
 form that drops the normality assumption use
-[`performKoenkerTest`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-or
-[`performStudentizedBPTest`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md).
+[`performKoenkerTest`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md).
 
 ## Deprecated name
 

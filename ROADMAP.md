@@ -761,6 +761,15 @@ is announced in bold in `NEWS.md`.
 - About 0.8 KB per test call on a new model still persists after the
   validation cache is cleared, as seen in long simulations. No value
   changes.
+- On a rank-deficient fit (`z2 = 2 * z`, the design in
+  `tests/testthat/test-koenker-studentized.R`) both
+  [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+  and
+  [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+  refuse with “Model coefficients must be finite…”, where
+  [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html)
+  returns a statistic (20.87, df 2). Decide whether to compute on the
+  estimable subspace or keep the refusal with a clearer message.
 
 **Dependencies.**
 

@@ -1,11 +1,18 @@
-# Studentized Breusch–Pagan test
+# Studentized Breusch–Pagan test (deprecated)
 
-Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
-multiplier statistic, \\n R^2\\ from the regression of the squared
-residuals on the regressors. The classical Breusch–Pagan statistic
-assumes normal errors and this one does not: in the simulations of
-`inst/validation/` it holds its level under \\t_5\\ errors, where the
-classical statistic rejects far too often.
+`performStudentizedBPTest()` is deprecated since 0.14.0: use
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md),
+which computes the same statistic. It still works, returns what it
+returned before and warns. On a fit returned by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+the two differ, and
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+is the correct one: the model frame of that fit still holds the weights
+of the model
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+refitted (none, for an unweighted model), not the estimated weights, and
+`performStudentizedBPTest()` reads them from there. That is to be fixed
+in 0.16.0.
 
 ## Usage
 
@@ -32,6 +39,13 @@ An object of class `htest` reporting the chi-squared statistic and
 p-value for the null hypothesis of constant error variance.
 
 ## Details
+
+Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
+multiplier statistic, \\n R^2\\ from the regression of the squared
+residuals on the regressors. The classical Breusch–Pagan statistic
+assumes normal errors and this one does not: in the simulations of
+`inst/validation/` it holds its level under \\t_5\\ errors, where the
+classical statistic rejects far too often.
 
 Following Koenker (1981) and the implementation in
 [lmtest::bptest()](https://rdrr.io/pkg/lmtest/man/bptest.html), the
@@ -88,7 +102,8 @@ augments the studentized statistic with bootstrap diagnostics.
 ``` r
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)
-performStudentizedBPTest(mod, mtcars)
+# Deprecated: warns, and returns the statistic of performKoenkerTest()
+suppressWarnings(performStudentizedBPTest(mod, mtcars))
 #> [INFO] Running Studentized Breusch-Pagan test
 #> 
 #>  Studentized Breusch-Pagan test
@@ -97,19 +112,12 @@ performStudentizedBPTest(mod, mtcars)
 #> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> alternative hypothesis: heteroscedasticity present
 #> 
-
-# Detect heteroscedasticity driven by a single regressor
-set.seed(321)
-x <- runif(180)
-y <- 5 - 1.5 * x + rnorm(180, sd = 0.4 + 0.6 * x)
-df <- data.frame(y, x)
-performStudentizedBPTest(lm(y ~ x, data = df), df)
-#> [INFO] Running Studentized Breusch-Pagan test
+performKoenkerTest(mod, mtcars)
+#> [INFO] Running Koenker test
 #> 
-#>  Studentized Breusch-Pagan test
+#>  Koenker studentized Breusch-Pagan test
 #> 
-#> data:  lm(y ~ x, data = df)
-#> X-squared = 9.6094, df = 1, p-value = 0.001936
-#> alternative hypothesis: heteroscedasticity present
+#> data:  mpg ~ wt + qsec
+#> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> 
 ```

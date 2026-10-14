@@ -81,7 +81,7 @@ heteroscedasticity. *Journal of Econometrics, 17*(1), 107–112.
 
 [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md)
 for the baseline test and
-[`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
 for the standalone studentised variant.
 
 ## Examples
