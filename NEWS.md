@@ -1,5 +1,17 @@
 # heteroTests News
 
+## Development version
+
+### Deprecated names
+
+0.14.0 reviews the exported names before 1.0.0. Nothing is removed: each name
+below still works, returns what it returned before and warns with
+`.Deprecated()`, naming its replacement. The names go in 1.0.0.
+
+| Deprecated | Use instead | Note |
+| --- | --- | --- |
+| `performBreuschPaganTest()` | `performBPTest()` | The same function under a second name |
+
 ## 0.13.0
 
 The bootstrap tests change value in three cases where their replicates were
