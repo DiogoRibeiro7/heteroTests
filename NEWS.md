@@ -11,6 +11,21 @@ below still works, returns what it returned before and warns with
 | Deprecated | Use instead | Note |
 | --- | --- | --- |
 | `performBreuschPaganTest()` | `performBPTest()` | The same function under a second name |
+| `performStudentizedBPTest()` | `performKoenkerTest()` | Same statistic, except on a `fitWLS()` fit (below) |
+| `runHeteroTests(tests = "student_bp")` | `tests = "koenker"` | Warns once per call of `runHeteroTests()` or `runDiagnostics()` |
+
+`performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
+statistic, degrees of freedom and p-value in the designs of
+`tests/testthat/test-koenker-studentized.R`: a Gaussian null, `sd = x^2` and a
+`t5` null at 150 observations, a factor regressor and a weighted fit. Both
+refuse a rank-deficient fit. On a fit returned by `fitWLS()` they do not
+agree: the model frame of that fit still holds the weights of the model
+`fitWLS()` refitted, not the estimated ones, and `performStudentizedBPTest()`
+reads them from there. On the `fitWLS()` design of the same file it returns
+42.60, where `performKoenkerTest()` and an `lm()` fitted with the estimated
+weights return 1.75. `performKoenkerTest()` is the correct one. The deprecated
+name and `"student_bp"` keep their old implementation in 0.14.0, so no value
+changes; the model frame is to be corrected in 0.16.0.
 
 ## 0.13.0
 
