@@ -19,7 +19,7 @@ autoCompareRemediations <- function(model, data = NULL) {
     if (is.null(data)) {
       stop("`data` must be supplied when `model` is a formula")
     }
-    checkData(data)
+    .check_data(data)
     lm_model <- lm(model, data = data)
   } else {
     checkModel(model)
@@ -27,7 +27,7 @@ autoCompareRemediations <- function(model, data = NULL) {
     if (is.null(data)) {
       data <- model.frame(model)
     } else {
-      checkData(data)
+      .check_data(data)
     }
   }
 

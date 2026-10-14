@@ -2,7 +2,7 @@
 % Please edit documentation in R/validation.R
 \name{validateTestInputs}
 \alias{validateTestInputs}
-\title{Validate model and data inputs before running diagnostics}
+\title{Validate model and data inputs before running diagnostics (deprecated)}
 \usage{
 validateTestInputs(model, data, test_name, min_obs = 10)
 }
@@ -22,13 +22,16 @@ Invisibly returns \code{TRUE} when validation succeeds. Execution stops
 with an informative error when any check fails.
 }
 \description{
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
+}
+\details{
 Provides the compatibility wrapper used by the public testing interface to
 ensure that fitted-model objects and their associated data satisfy minimal
 quality requirements. The helper guards against the most common issues that
 invalidate heteroscedasticity tests and produces actionable error messages
 that reference the calling diagnostic.
-}
-\details{
+
 The routine performs four layers of validation:
 \enumerate{
 \item confirm that \code{model} inherits from \code{lm} or \code{glm} and that its

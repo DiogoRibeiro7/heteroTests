@@ -5,6 +5,13 @@
 #' alternative to the older environment-based registry used by
 #' `runHeteroTests()`.
 #'
+#' @section Deprecated:
+#' `TestFactory` and its shared instance `test_factory` are deprecated since
+#' 0.14.0: they are the package's internal machinery and leave the exports in
+#' 1.0.0. They are objects rather than functions, so they cannot warn when
+#' used; this page and `NEWS.md` are the notice. Use [registerDiagnostic()] to
+#' add a test and [runHeteroTests()] to run one.
+#'
 #' @section Usage:
 #' The shared instance `test_factory` can be used to register new tests
 #' and execute them. See \code{register} and \code{run_test} methods
@@ -77,7 +84,7 @@ TestFactory <- R6::R6Class(
         stop("Unknown test: ", test_name)
       }
       meta <- private$.metadata[[test_name]]
-      validateTestInputs(model, data, test_name, meta$min_observations)
+      .validate_test_inputs(model, data, test_name, meta$min_observations)
       result <- private$.tests[[test_name]](model, data, ...)
       if (inherits(result, "htest")) {
         result$test_metadata <- meta
@@ -91,6 +98,10 @@ TestFactory <- R6::R6Class(
 #'
 #' Users can register new tests via this object. Built-in tests are
 #' pre-registered at package load time.
+#'
+#' Deprecated since 0.14.0, with [TestFactory]: it leaves the exports in
+#' 1.0.0, and as an object it cannot warn when used. Use
+#' [registerDiagnostic()] and [runHeteroTests()] instead.
 #' @export
 #' @name test_factory
 NULL

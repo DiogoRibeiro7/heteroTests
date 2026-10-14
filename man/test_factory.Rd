@@ -7,3 +7,8 @@
 Users can register new tests via this object. Built-in tests are
 pre-registered at package load time.
 }
+\details{
+Deprecated since 0.14.0, with \link{TestFactory}: it leaves the exports in
+1.0.0, and as an object it cannot warn when used. Use
+\code{\link[=registerDiagnostic]{registerDiagnostic()}} and \code{\link[=runHeteroTests]{runHeteroTests()}} instead.
+}

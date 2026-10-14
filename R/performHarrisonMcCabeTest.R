@@ -182,7 +182,7 @@ performHarrisonMcCabeTest <- function(model, data, order_by, point = 0.5,
   rprocessValidationResult(requirements)
 
   if (!order_by %in% names(working_data)) {
-    std_error("missing_variable", variable = order_by)
+    .std_error("missing_variable", variable = order_by)
   }
 
   ht_log("INFO", "Running Harrison-McCabe test")
@@ -233,7 +233,7 @@ performHarrisonMcCabeTest <- function(model, data, order_by, point = 0.5,
   # against a zero denominator.
   total <- sum(e^2)
   if (!is.finite(total) || total <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Harrison-McCabe test requires residuals that are not all zero"
     )
@@ -293,7 +293,7 @@ rhmc_spectrum <- function(basis, m) {
   multiplicity <- c(m - k, rep(1, length(s2)), n - m - k)
   present <- values[multiplicity > 0]
   if (diff(range(present)) <= sqrt(.Machine$double.eps)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = paste0(
         "Harrison-McCabe test needs a statistic that can vary: with this design ",

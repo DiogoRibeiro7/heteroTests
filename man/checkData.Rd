@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{checkData}
 \alias{checkData}
-\title{Validate data argument}
+\title{Validate data argument (deprecated)}
 \usage{
 checkData(data)
 }
@@ -15,4 +15,8 @@ Invisible \code{data} if valid, otherwise an error is thrown.
 \description{
 Ensures that \code{data} is a data.frame. Used internally for input
 validation across the package.
+}
+\details{
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
 }

@@ -178,7 +178,7 @@ white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10
 
     if (cross_products && ncol(X) > 1) {
       if (ncol(X) > max_interactions) {
-        std_warning("cross_products_omitted")
+        .std_warning("cross_products_omitted")
       } else {
         for (i in seq_len(ncol(X) - 1L)) {
           for (j in seq.int(i + 1L, ncol(X))) {
@@ -295,7 +295,7 @@ performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
   )
 
   if (isTRUE(stats$rank_deficient)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = paste(
         "Auxiliary regression became rank deficient; consider disabling cross-product terms",
@@ -305,7 +305,7 @@ performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
   }
 
   if (isTRUE(stats$zero_variation)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "White test requires variation in squared residuals"
     )
@@ -369,7 +369,7 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
 
   residual_variance <- stats::var(residuals)
   if (is.na(residual_variance) || residual_variance <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan test requires residual variation greater than numerical precision"
     )
@@ -387,14 +387,14 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
   )
 
   if (isTRUE(stats$rank_deficient)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan auxiliary regression became rank deficient"
     )
   }
 
   if (isTRUE(stats$zero_variation)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan test requires variation in squared residuals"
     )
@@ -474,14 +474,14 @@ performKoenkerTestStreaming <- function(model, data, chunk_size = 10000,
   )
 
   if (isTRUE(stats$rank_deficient)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Koenker auxiliary regression became rank deficient"
     )
   }
 
   if (isTRUE(stats$zero_variation)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Koenker test requires variation in squared residuals"
     )

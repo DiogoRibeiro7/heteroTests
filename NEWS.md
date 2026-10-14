@@ -19,6 +19,10 @@ below still works, returns what it returned before and warns with
 | `plotResidualsFittedEnhanced(model)` | `plotResidualsFitted(model, enhanced = TRUE)` | `enhanced = FALSE`, the default, keeps the plot the base name drew |
 | `plotDiagnosticSuiteEnhanced(model)` | `plotDiagnosticSuite(model, enhanced = TRUE)` | As above |
 | `checkModelEnhanced(model, data)` | `checkModel(model, data, enhanced = TRUE)` | `checkModel(model)` still checks the class only |
+| `std_error()`, `std_warning()` | None | Internal helpers |
+| `checkData()`, `validateTestInputs()` | None | Internal helpers |
+| `ht_enable_log_capture()`, `ht_log_history()`, `ht_clear_log_history()` | None | `ht_set_log_level()` stays |
+| `TestFactory`, `test_factory` | `registerDiagnostic()`, `runHeteroTests()` | Objects cannot warn: deprecated on their help page and here only |
 
 `performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
 statistic, degrees of freedom and p-value in the designs of

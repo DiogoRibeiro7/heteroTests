@@ -1,8 +1,9 @@
 #' Standardized error and warning messages
 #'
 #' Provides a central location for common error and warning strings used
-#' across the package. Use `std_error()` and `std_warning()` to signal
-#' problems consistently.
+#' across the package. The package signals problems through internal
+#' versions of `std_error()` and `std_warning()`; the exported names are
+#' deprecated since 0.14.0.
 #'
 #' @name messages
 #' @keywords internal
@@ -25,13 +26,32 @@ error_messages <- list(
   normality_assumption = "Severe non-normality detected in {variable}. Consider robust alternatives."
 )
 
-#' Generate standardized error message
+#' Generate standardized error message (deprecated)
+#'
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #'
 #' @param type Error message type.
 #' @param ... Named arguments to replace in the template.
 #' @return Stops execution with a formatted message.
 #' @export
 std_error <- function(type, ...) {
+  .Deprecated(old = "std_error", msg = .ht_internal_deprecation("std_error"))
+  .std_error(type, ...)
+}
+
+# The message of the warning an exported internal helper gives from 0.14.0.
+.ht_internal_deprecation <- function(name) {
+  sprintf(
+    paste0(
+      "'%s' is deprecated: it is an internal helper of heteroTests and ",
+      "leaves the exports in 1.0.0.\nSee help(\"Deprecated\")"
+    ),
+    name
+  )
+}
+
+.std_error <- function(type, ...) {
   template <- error_messages[[type]]
   if (is.null(template)) {
     stop("Unknown error type: ", type, call. = FALSE)
@@ -48,13 +68,21 @@ warning_messages <- list(
   missing_values_removed = "Removed {n_removed} observations due to missing values in {var_names}"
 )
 
-#' Generate standardized warning message
+#' Generate standardized warning message (deprecated)
+#'
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #'
 #' @param type Warning message type.
 #' @param ... Named arguments for the template.
 #' @return Issues a warning with a formatted message.
 #' @export
 std_warning <- function(type, ...) {
+  .Deprecated(old = "std_warning", msg = .ht_internal_deprecation("std_warning"))
+  .std_warning(type, ...)
+}
+
+.std_warning <- function(type, ...) {
   template <- warning_messages[[type]]
   if (is.null(template)) {
     stop("Unknown warning type: ", type, call. = FALSE)

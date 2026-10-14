@@ -102,7 +102,7 @@ performNCVTest <- function(model, var_formula = NULL) {
   # than RSS / (n - p); car::ncvTest() does the same.
   sigma2_ml <- sum(e^2) / n
   if (!is.finite(sigma2_ml) || sigma2_ml <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "NCV test requires a positive residual variance"
     )
@@ -144,7 +144,7 @@ performNCVTest <- function(model, var_formula = NULL) {
   }
 
   if (all(apply(Z, 2, stats::var) <= .Machine$double.eps)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "NCV test requires variability in the variance regressors"
     )
@@ -162,7 +162,7 @@ performNCVTest <- function(model, var_formula = NULL) {
   # with degrees of freedom for columns that lm() aliased away.
   df <- aux_model$rank - 1L
   if (df < 1L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "NCV auxiliary regression retained no variance regressors after rank reduction"
     )

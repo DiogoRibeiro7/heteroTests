@@ -2,7 +2,7 @@
 % Please edit documentation in R/messages.R
 \name{std_warning}
 \alias{std_warning}
-\title{Generate standardized warning message}
+\title{Generate standardized warning message (deprecated)}
 \usage{
 std_warning(type, ...)
 }
@@ -15,5 +15,6 @@ std_warning(type, ...)
 Issues a warning with a formatted message.
 }
 \description{
-Generate standardized warning message
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
 }

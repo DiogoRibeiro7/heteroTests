@@ -131,7 +131,7 @@ performBartlettTest <- function(model, data, group) {
   working_data <- cleaned$data
 
   if (length(residuals) == 0 || nrow(working_data) == 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Bartlett test requires observations after removing missing data"
     )
@@ -185,7 +185,7 @@ performBartlettTest <- function(model, data, group) {
   }
 
   if (length(levels(grp)) < 2L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Bartlett test requires at least two groups"
     )
@@ -193,7 +193,7 @@ performBartlettTest <- function(model, data, group) {
 
   residual_variance <- stats::var(residuals)
   if (is.na(residual_variance) || residual_variance <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Bartlett test requires residual variation greater than numerical precision"
     )

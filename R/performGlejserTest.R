@@ -170,21 +170,21 @@ performGlejserTest <- function(model, data, variable,
 
   x <- working_data[[variable]]
   if (!is.numeric(x)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Variable '%s' must be numeric to evaluate the Glejser test", variable)
     )
   }
 
   if (transformation %in% c("sqrt", "inverse_sqrt") && any(x < 0, na.rm = TRUE)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Transformation '%s' requires non-negative values in '%s'", transformation, variable)
     )
   }
 
   if (transformation %in% c("inverse", "inverse_sqrt") && any(abs(x) <= .Machine$double.eps, na.rm = TRUE)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Transformation '%s' is undefined when '%s' is zero", transformation, variable)
     )
@@ -198,7 +198,7 @@ performGlejserTest <- function(model, data, variable,
   )
 
   if (any(!is.finite(z))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Transformation '%s' produced non-finite values", transformation)
     )
@@ -224,7 +224,7 @@ performGlejserTest <- function(model, data, variable,
     method <- paste(method, "(robust to asymmetric errors)")
   }
   if (stats::var(abs_res) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Glejser test requires variability in absolute residuals"
     )

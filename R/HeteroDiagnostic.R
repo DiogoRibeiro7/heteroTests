@@ -16,14 +16,14 @@
 HeteroDiagnostic <- function(model, data = NULL) {
   if (inherits(model, "formula")) {
     if (is.null(data)) stop("`data` must be supplied when `model` is a formula")
-    checkData(data)
+    .check_data(data)
     model <- lm(model, data = data)
   } else {
     checkModel(model)
     if (is.null(data)) {
       data <- model.frame(model)
     } else {
-      checkData(data)
+      .check_data(data)
     }
   }
   structure(list(model = model, data = data), class = "HeteroDiagnostic")

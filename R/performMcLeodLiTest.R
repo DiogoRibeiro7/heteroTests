@@ -76,7 +76,7 @@ performMcLeodLiTest <- function(model, lags = 10) {
 
   res2 <- rpearson_residuals(model)^2
   if (stats::var(res2) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "McLeod-Li test requires variability in squared residuals"
     )
@@ -88,7 +88,7 @@ performMcLeodLiTest <- function(model, lags = 10) {
 
   lb <- stats::Box.test(res2, lag = lags, type = "Ljung-Box")
   if (anyNA(c(lb$statistic, lb$parameter, lb$p.value))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "McLeod-Li test could not compute the Ljung-Box statistic"
     )

@@ -23,7 +23,7 @@
 runPanelTests <- function(model, data, id, time = NULL,
                           tests = c("bp_random", "pesaran")) {
   checkModel(model)
-  checkData(data)
+  .check_data(data)
   if (!id %in% names(data)) {
     stop("`id` must be a column in `data`.")
   }

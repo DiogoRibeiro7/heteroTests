@@ -126,7 +126,7 @@ performFlignerKilleenTest <- function(model, data, group) {
   working_data <- cleaned$data
 
   if (length(residuals) == 0 || nrow(working_data) == 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Fligner-Killeen test requires observations after removing missing data"
     )
@@ -174,7 +174,7 @@ performFlignerKilleenTest <- function(model, data, group) {
   }
 
   if (length(levels(grp)) < 2L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Fligner-Killeen test requires at least two groups"
     )
@@ -198,7 +198,7 @@ performFlignerKilleenTest <- function(model, data, group) {
   )
 
   if (insufficient_variation) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Fligner-Killeen test requires variation in residuals for ranking"
     )

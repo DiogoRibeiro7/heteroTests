@@ -174,7 +174,7 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # invariant to.
   r <- weighted$weights * weighted$residuals^2
   if (!all(is.finite(r)) || stats::var(r) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Variance form test requires variation in the squared standardized residuals"
     )
@@ -321,7 +321,7 @@ radded_terms_f_test <- function(r, restricted, added) {
     )
   }
   if (df2 < 1L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = paste(
         "Variance form test requires more observations than terms; name fewer",
@@ -333,7 +333,7 @@ radded_terms_f_test <- function(r, restricted, added) {
   rss0 <- sum(fit0$residuals^2)
   rss1 <- sum(fit1$residuals^2)
   if (!is.finite(rss1) || rss1 <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Variance form test requires residual variation in its auxiliary regression"
     )

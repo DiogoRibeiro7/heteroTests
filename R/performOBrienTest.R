@@ -124,7 +124,7 @@ performOBrienTest <- function(model, data, group) {
 
   grp_raw <- working_data[[group]]
   if (!is.factor(grp_raw) && !is.character(grp_raw)) {
-    std_error("invalid_group_variable", group_var = group, min_groups = 2L)
+    .std_error("invalid_group_variable", group_var = group, min_groups = 2L)
   }
   grp <- base::droplevels(factor(grp_raw))
 
@@ -144,7 +144,7 @@ performOBrienTest <- function(model, data, group) {
   k <- length(levels_grp)
   n_total <- length(residuals)
   if (k < 2L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "O'Brien test requires at least two groups"
     )
@@ -155,13 +155,13 @@ performOBrienTest <- function(model, data, group) {
   vars_i <- tapply(residuals, grp, stats::var)
 
   if (any(n_i <= 2L)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "O'Brien test requires at least three observations per group"
     )
   }
   if (any(!is.finite(vars_i))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "O'Brien test requires finite variance within each group"
     )
@@ -188,7 +188,7 @@ performOBrienTest <- function(model, data, group) {
   p_value <- unname(tab$`Pr(>F)`[1L])
 
   if (!is.finite(statistic) || !is.finite(p_value)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "O'Brien transformed-residual ANOVA failed to produce finite inference"
     )

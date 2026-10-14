@@ -157,7 +157,7 @@ performStudentizedBPTest <- function(model, data) {
 
   model_frame <- stats::model.frame(model)
   if (nrow(model_frame) == 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Studentized BP test requires observations in the model frame"
     )
@@ -192,7 +192,7 @@ performStudentizedBPTest <- function(model, data) {
   positive_weights <- weights > 0
   effective_n <- sum(positive_weights)
   if (effective_n <= ncol(design_matrix)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Studentized BP test requires more positive-weight observations than regressors"
     )
@@ -213,7 +213,7 @@ performStudentizedBPTest <- function(model, data) {
 
   sigma2 <- sum(residuals^2) / effective_n
   if (!is.finite(sigma2) || sigma2 <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Studentized BP test requires residual variance to be positive"
     )
@@ -221,7 +221,7 @@ performStudentizedBPTest <- function(model, data) {
 
   centered_sq <- residuals^2 - sigma2
   if (!any(abs(centered_sq) > .Machine$double.eps)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Studentized BP test requires variability in centred squared residuals"
     )
@@ -238,7 +238,7 @@ performStudentizedBPTest <- function(model, data) {
   numerator <- sum(aux_fit$fitted.values^2)
   denominator <- sum(centered_sq^2)
   if (!is.finite(numerator) || !is.finite(denominator) || denominator <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Studentized BP auxiliary regression produced non-finite values"
     )
@@ -478,7 +478,7 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
   finite_stats <- boot_stats[is.finite(boot_stats)]
   effective <- length(finite_stats)
   if (effective == 0L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Bootstrap White test produced no usable replicates"
     )
@@ -618,7 +618,7 @@ performSzroeterTest <- function(model, data, order_by,
   rprocessValidationResult(requirements)
 
   if (!order_by %in% names(working_data)) {
-    std_error("missing_variable", variable = order_by)
+    .std_error("missing_variable", variable = order_by)
   }
 
   ht_log("INFO", "Running Szroeter test")
@@ -628,7 +628,7 @@ performSzroeterTest <- function(model, data, order_by,
   n <- length(e_ordered)
 
   if (n <= 1) {
-    std_error(
+    .std_error(
       "rinsufficient_sample_size",
       test_name = test_label,
       min_obs = 2L,
@@ -637,7 +637,7 @@ performSzroeterTest <- function(model, data, order_by,
   }
 
   if (stats::var(e_ordered) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Szroeter test requires variability in ordered residuals"
     )

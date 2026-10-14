@@ -25,7 +25,7 @@
   }
   response <- residuals^2
   if (stats::var(response) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Auxiliary regression requires variation in squared residuals"
     )
@@ -347,7 +347,7 @@ performRankPermutationTest <- function(model, data, order_by = NULL, B = 999, pr
     predictor <- as.numeric(predictor)
   }
   if (stats::var(predictor) <= .Machine$double.eps) {
-    std_error("rassumption_violation", assumption = "Ordering variable must vary across observations")
+    .std_error("rassumption_violation", assumption = "Ordering variable must vary across observations")
   }
   valid <- is.finite(predictor) & is.finite(residuals)
   predictor <- predictor[valid]
@@ -357,7 +357,7 @@ performRankPermutationTest <- function(model, data, order_by = NULL, B = 999, pr
   }
   observed <- stats::cor(residuals, predictor, method = "spearman")
   if (is.na(observed)) {
-    std_error("rassumption_violation", assumption = "Correlation could not be computed for permutation test")
+    .std_error("rassumption_violation", assumption = "Correlation could not be computed for permutation test")
   }
 
   progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Rank permutations")

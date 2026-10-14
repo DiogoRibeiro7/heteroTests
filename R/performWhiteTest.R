@@ -151,7 +151,7 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
   handle_validation_result(requirements)
 
   if (!is.logical(cross_products) || length(cross_products) != 1) {
-    std_error("invalid_logical", arg = "cross_products")
+    .std_error("invalid_logical", arg = "cross_products")
   }
 
   # Memory and performance warnings
@@ -229,7 +229,7 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
 
     # Check if we should include cross-products based on dimensionality
     if (p > max_interactions) {
-      std_warning("cross_products_omitted")
+      .std_warning("cross_products_omitted")
       message("Cross-products omitted due to high dimensionality (p = ", p,
               " > max_interactions = ", max_interactions, ")")
     } else {
@@ -265,7 +265,7 @@ performWhiteTest <- function(model, data, cross_products = TRUE, max_interaction
     ))
   }
   if (ncol(aux_matrix) == 0L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Auxiliary regression has no independent regressors after removing collinear terms"
     )

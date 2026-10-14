@@ -133,7 +133,7 @@ performLeveneTest <- function(model, data, group) {
   working_data <- cleaned$data
 
   if (length(residuals) == 0 || nrow(working_data) == 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Levene test requires observations after removing missing data"
     )
@@ -182,7 +182,7 @@ performLeveneTest <- function(model, data, group) {
 
   means <- tapply(residuals, grp, mean)
   if (any(!is.finite(means))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Levene test requires finite group means of residuals"
     )
@@ -190,7 +190,7 @@ performLeveneTest <- function(model, data, group) {
 
   centered <- means[grp]
   if (any(!is.finite(centered))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Levene test could not evaluate group means for all observations"
     )
@@ -199,7 +199,7 @@ performLeveneTest <- function(model, data, group) {
   z <- abs(residuals - centered)
 
   if (length(z) <= length(levels(grp))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Levene test requires observations to exceed the number of groups"
     )
@@ -215,7 +215,7 @@ performLeveneTest <- function(model, data, group) {
   p_value <- aov_table$`Pr(>F)`[1]
 
   if (!is.finite(F_stat) || !is.finite(df_num) || !is.finite(df_den)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Levene test auxiliary regression failed to produce finite statistics"
     )
