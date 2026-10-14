@@ -17,7 +17,7 @@ citation("heteroTests")
     ##   Ribeiro D (2026). _heteroTests: Heteroscedasticity Diagnostics for
     ##   Linear Models_. doi:10.32614/CRAN.package.heteroTests
     ##   <https://doi.org/10.32614/CRAN.package.heteroTests>. R package
-    ##   version 0.13.0, <https://CRAN.R-project.org/package=heteroTests>.
+    ##   version 0.14.0, <https://CRAN.R-project.org/package=heteroTests>.
     ## 
     ##   See the vignette for a detailed introduction to all diagnostics.
     ## 
