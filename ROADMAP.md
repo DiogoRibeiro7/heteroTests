@@ -579,6 +579,12 @@ after it.
     it. No exported value changes.
   - About 0.8 KB per test call on a new model still persists after the
     validation cache is cleared, as seen in long simulations. No value changes.
+  - On a rank-deficient fit (`z2 = 2 * z`, the design in
+    `tests/testthat/test-koenker-studentized.R`) both `performKoenkerTest()`
+    and `performStudentizedBPTest()` refuse with "Model coefficients must be
+    finite…", where `lmtest::bptest()` returns a statistic (20.87, df 2).
+    Decide whether to compute on the estimable subspace or keep the refusal
+    with a clearer message.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
