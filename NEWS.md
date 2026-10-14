@@ -48,6 +48,14 @@ The simulation functions, `simulate_*()` and `sigma_*()`, keep their
 snake_case names on purpose, as a documented family; the rest of the package
 uses camelCase.
 
+### Reference index
+
+The reference index of the pkgdown site groups the functions: the tests of
+the variance by family, and the model checks (`performRESETTest()`,
+`performVIFDiagnostic()`, `performInfluenceDiagnostics()`,
+`performScatterDiagnostic()` and `checkModel()`) apart from them, so that they
+are not mistaken for heteroscedasticity tests. No function changes.
+
 ## 0.13.0
 
 The bootstrap tests change value in three cases where their replicates were
