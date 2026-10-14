@@ -232,3 +232,93 @@ test_that("every test the README and the vignettes name is exported", {
     info = paste("named but not exported:", paste(not_exported, collapse = ", "))
   )
 })
+
+# The planned 1.0 export list. 0.14.0 reviewed every export and gave each a
+# verdict (the export inventory in ROADMAP.md, decided on 2026-10-14): core API,
+# renamed, internal or moved out. The names planned for 1.0 are the core API
+# plus the three names 0.14.0 adds; the renamed and internal names warn in
+# 0.14.x and go in 1.0.0; the dashboard and the benchmark suite move to a
+# companion package. An export in none of these lists is an accidental one.
+
+planned_1_0_exports <- c(
+  "analyseDatasetCharacteristics", "analyzeMLResiduals",
+  "autoCompareRemediations", "autoTransform", "bootstrapTestStatistic",
+  "buildDiagnosticDecisionTree", "cachedTest", "checkModel",
+  "clearAnalysisCache", "clearTestCache", "compareModelDiagnostics",
+  "compareTestResults", "composeDiagnosticNarrative", "downloadTeachingData",
+  "fitRobust", "fitWLS", "generateDiagnosticReport",
+  "generateHeteroRecommendations", "HeteroDiagnostic", "ht_set_log_level",
+  "interpretHeteroTestResults", "listDiagnostics", "performArchLMTest",
+  "performBartlettTest", "performBoxMTest", "performBPRandomEffectsTest",
+  "performBPTest", "performBPTestRobust", "performBPTestStreaming",
+  "performBrownForsytheTest", "performCookWeisbergTest",
+  "performDavidianCarrollTest", "performFlignerKilleenTest",
+  "performGlejserTest", "performGQTest", "performHarrisonMcCabeTest",
+  "performHartleyFmaxTest", "performHarveyTest", "performHighDimensionalTest",
+  "performInfluenceDiagnostics", "performKoenkerTest",
+  "performKoenkerTestStreaming", "performLeveneTest", "performMcLeodLiTest",
+  "performOBrienTest", "performParkTest", "performPesaranTest",
+  "performQuantileRegressionTest", "performRankPermutationTest",
+  "performRESETTest", "performScatterDiagnostic", "performSpatialHeteroTest",
+  "performSpearmanTest", "performSpreadLevelTest", "performSzroeterTest",
+  "performVarianceFormTest", "performVIFDiagnostic", "performWhiteTest",
+  "performWhiteTestBootstrap", "performWhiteTestRobust",
+  "performWhiteTestStreaming", "performWildBootstrapTest", "plotBeforeAfter",
+  "plotBubbleVariance", "plotDiagnosticSuite", "plotResidualDensity",
+  "plotResidualQQ", "plotResidualsFitted", "plotSpreadLevel",
+  "recommendRemediationStrategies", "registerDiagnostic", "registerPlot",
+  "rrunAdvancedDiagnostics", "runDiagnosticPlots", "runDiagnostics",
+  "runHeteroTests", "runHeteroTestsParallel", "runMultivariateTests",
+  "runPanelTests", "runSurveyHeteroTests", "runTimeSeriesTests",
+  "scale_colour_hetero_diagnostic", "scale_fill_hetero_diagnostic",
+  "sigma_exp_decay", "sigma_exponential", "sigma_gaussian_peak", "sigma_group",
+  "sigma_inverse", "sigma_linear", "sigma_logistic", "sigma_multiplicative",
+  "sigma_piecewise", "sigma_piecewise_linear", "sigma_poly", "sigma_power",
+  "sigma_sin", "sigma_spatial", "sigma_step", "sigma_u_shape", "simulate_arch1",
+  "simulate_hetero", "simulate_power", "simulate_size",
+  "suggestDiagnosticsForProfile", "suggestRemediation", "theme_hetero",
+  "warnDiagnosticAssumptions"
+)
+
+deprecated_in_0_14 <- c(
+  "checkData", "checkModelEnhanced", "ht_clear_log_history",
+  "ht_enable_log_capture", "ht_log_history", "performBreuschPaganTest",
+  "performNCVTest", "performStudentizedBPTest", "plotDiagnosticSuiteEnhanced",
+  "plotResidualsFittedEnhanced", "rbootstrap_test_statistic",
+  "rcalculateEffectSize", "restimate_test_power", "rvalidate_against_reference",
+  "simulate_power_analysis", "simulate_type_I_errors", "std_error",
+  "std_warning", "test", "test_factory", "TestFactory", "validateTestInputs"
+)
+
+moving_out <- c(
+  "generate_benchmark_report", "launchDiagnosticDashboard",
+  "run_benchmark_suite"
+)
+
+# 0.14.0 adds these names, each in place of a deprecated one. Until the pull
+# requests that add them are merged, the package exports the old names only.
+added_in_0_14 <- c("bootstrapTestStatistic", "simulate_size", "simulate_power")
+
+test_that("every export is planned for 1.0, deprecated in 0.14.0 or moving out", {
+  exports <- getNamespaceExports("heteroTests")
+  unexpected <- setdiff(exports, c(planned_1_0_exports, deprecated_in_0_14, moving_out))
+  expect_identical(
+    sort(unexpected), character(),
+    info = paste("exported but in no list:", paste(unexpected, collapse = ", "))
+  )
+})
+
+test_that("every name planned for 1.0 is exported", {
+  missing <- setdiff(planned_1_0_exports, getNamespaceExports("heteroTests"))
+  missing <- setdiff(missing, added_in_0_14)
+  expect_identical(
+    sort(missing), character(),
+    info = paste("planned for 1.0 but not exported:", paste(missing, collapse = ", "))
+  )
+})
+
+test_that("the planned, deprecated and moving lists do not overlap", {
+  all_names <- c(planned_1_0_exports, deprecated_in_0_14, moving_out)
+  expect_identical(all_names[duplicated(all_names)], character())
+  expect_true(all(added_in_0_14 %in% planned_1_0_exports))
+})
