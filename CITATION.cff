@@ -4,7 +4,7 @@ message: |
   See the help topic ?algorithms_bibliography for references on diagnostic
   tests.
 title: "heteroTests"
-version: "0.13.0"
+version: "0.14.0"
 doi: "10.32614/CRAN.package.heteroTests"
 type: software
 authors:
@@ -43,7 +43,7 @@ preferred-citation:
   year: "2026"
   doi: "10.32614/CRAN.package.heteroTests"
   url: "https://CRAN.R-project.org/package=heteroTests"
-  version: "0.13.0"
+  version: "0.14.0"
 references:
   - type: article
     authors:
