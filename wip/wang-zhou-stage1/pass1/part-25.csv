@@ -1,0 +1,9 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_bootstrap",0.1,"epanechnikov",1000,199,0.048,0.00675988165576883,1000,0,0
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.053,0.00708456067798138,1000,0,0
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_bootstrap",0.25,"epanechnikov",1000,199,0.053,0.00708456067798138,1000,0,0
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_asymptotic",0.1,"epanechnikov",1000,NA,0.012,0.00344325427466517,1000,0,NA
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.006,0.00244213021765835,1000,0,NA
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"wz_asymptotic",0.25,"epanechnikov",1000,NA,0.002,0.00141279864099595,1000,0,NA
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"form_test_x",NA,NA,1000,NA,0.04,0.00619677335393187,1000,0,NA
+25,"exponential","constant","sigma^2 = 1","null","normal",150,"form_test_default",NA,NA,1000,NA,0.052,0.00702111102319284,1000,0,NA

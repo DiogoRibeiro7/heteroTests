@@ -1,0 +1,9 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_bootstrap",0.1,"epanechnikov",1000,199,0.082,0.00867617427210865,1000,0,139
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.098,0.00940191469861326,1000,0,139
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_bootstrap",0.25,"epanechnikov",1000,199,0.085,0.00881901355027874,1000,0,139
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_asymptotic",0.1,"epanechnikov",1000,NA,0.026,0.00503229569878401,1000,0,NA
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.017,0.00408790900094413,1000,0,NA
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"wz_asymptotic",0.25,"epanechnikov",1000,NA,0.005,0.00223047080231955,1000,0,NA
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"form_test_x",NA,NA,1000,NA,0.043,0.00641490451994416,1000,0,NA
+24,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","t5",50,"form_test_default",NA,NA,1000,NA,0.043,0.00641490451994416,1000,0,NA

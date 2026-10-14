@@ -1,0 +1,5 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+61,"exponential","constant","sigma^2 = 1","null","t5",400,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.039,0.00612200947402076,1000,0,0
+61,"exponential","constant","sigma^2 = 1","null","t5",400,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.006,0.00244213021765835,1000,0,NA
+61,"exponential","constant","sigma^2 = 1","null","t5",400,"form_test_x",NA,NA,1000,NA,0.047,0.00669260786241059,1000,0,NA
+61,"exponential","constant","sigma^2 = 1","null","t5",400,"form_test_default",NA,NA,1000,NA,0.048,0.00675988165576883,1000,0,NA

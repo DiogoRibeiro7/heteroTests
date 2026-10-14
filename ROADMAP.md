@@ -328,6 +328,20 @@ after it.
   leverages. Either take its null distribution from the weighted design, as
   `performHarrisonMcCabeTest()` does, or document the restriction on the help
   page.
+- [ ] **`performVarianceFormTest()` in a second run of its designs.** The
+  study of the Dette, Neumeyer and Van Keilegom prototype ran the function on
+  new samples of the designs of `inst/validation/variance-form-size-power.R`,
+  at 5000 replications in its twelve Gaussian null cells
+  (`inst/validation/variance-form-dnvk-size-power.csv`). At its defaults ten
+  of the twelve are inside the release-gate interval. Just outside are the
+  exponential form under constant variance at 50 observations, 0.0420, and
+  the power form under constant variance at 150, 0.0596, where
+  `variance-form-size-power.csv` has 0.048 and 0.052. With
+  `var_formula = ~ x`, a configuration no earlier study measured, the power
+  form under `sigma^2 = x^3` rejects 0.0348 of the time at 50 observations and
+  0.0416 at 150. Not decided: whether this is chance in twelve cells, which a
+  larger run would settle, or a small-sample bias of the power form with one
+  variance regressor that the help page should state.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
@@ -483,8 +497,9 @@ reference and simulated size.
   have it against any departure, at the cost of smoothing. **Stage 1 of the
   first measured after 0.12.0, and not exported: as defined, it does not hold
   its level.** The 2007 article could not be obtained; a prototype in plain R
-  follows the authors' submitted manuscript of 2005, whose Tables 4.1 and 4.5
-  it reproduces in level and to within a few points in power. In the designs
+  follows the authors' submitted manuscript of 2005, which the author accepted
+  as the source for stage 1 on 2026-10-12, and reproduces the level of its
+  Tables 4.1 and 4.5 and their power to within a few points. In the designs
   of `inst/validation/variance-form-size-power.R`, with the variance function
   in one variable and the mean a linear model, the Cramér-von Mises statistic
   is inside the release gate in 4 of its 12 Gaussian null cells at 5000

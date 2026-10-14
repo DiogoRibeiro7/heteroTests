@@ -1,0 +1,9 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_bootstrap",0.1,"epanechnikov",1000,199,0.051,0.00695693898205238,1000,0,5
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.054,0.00714730718522718,1000,0,5
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_bootstrap",0.25,"epanechnikov",1000,199,0.053,0.00708456067798138,1000,0,5
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_asymptotic",0.1,"epanechnikov",1000,NA,0.022,0.00463853425124791,1000,0,NA
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.02,0.00442718872423573,1000,0,NA
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"wz_asymptotic",0.25,"epanechnikov",1000,NA,0.014,0.00371537346709587,1000,0,NA
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"form_test_x",NA,NA,1000,NA,0.05,0.00689202437604511,1000,0,NA
+39,"exponential","exponential","sigma^2 = exp(0.6 x)","null","t5",150,"form_test_default",NA,NA,1000,NA,0.057,0.00733150734842433,1000,0,NA

@@ -1,0 +1,9 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_bootstrap",0.1,"epanechnikov",1000,199,0.632135306553911,0.0156784638640144,946,54,8
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.701902748414376,0.014872086037631,946,54,8
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_bootstrap",0.25,"epanechnikov",1000,199,0.780126849894292,0.0134655204497001,946,54,8
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_asymptotic",0.1,"epanechnikov",1000,NA,0.419661733615222,0.0160451847101543,946,54,NA
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.453488372093023,0.0161859134221112,946,54,NA
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"wz_asymptotic",0.25,"epanechnikov",1000,NA,0.450317124735729,0.0161759489170592,946,54,NA
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"form_test_x",NA,NA,1000,NA,0.888,0.00997276290703835,1000,0,NA
+45,"exponential","quadratic","sigma^2 = exp(0.5 (x - 3)^2)","alternative","t5",150,"form_test_default",NA,NA,1000,NA,0.803,0.0125774003673255,1000,0,NA

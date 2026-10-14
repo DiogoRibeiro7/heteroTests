@@ -1,0 +1,5 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+60,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","normal",400,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.949,0.00695693898205238,1000,0,0
+60,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","normal",400,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.903,0.00935900635751467,1000,0,NA
+60,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","normal",400,"form_test_x",NA,NA,1000,NA,0.124,0.0104222838188182,1000,0,NA
+60,"power","wave","sigma^2 = exp(0.6 x + 0.8 sin(pi (x - 1) / 2))","alternative","normal",400,"form_test_default",NA,NA,1000,NA,0.086,0.00886588969026798,1000,0,NA

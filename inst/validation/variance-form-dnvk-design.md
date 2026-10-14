@@ -47,6 +47,8 @@ statistic and the resampling scheme appear to be unchanged. What could not be
 checked is the article's simulation tables, the conditions of its bootstrap
 theorem (for instance on `v`), and any change to the simulation settings.
 **The author should compare the manuscript with the article before stage 2.**
+The author accepted the manuscript as the source for this stage 1 on
+2026-10-12; that comparison is still to be made before any stage 2.
 
 The other two papers the roadmap names:
 

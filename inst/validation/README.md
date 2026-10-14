@@ -59,6 +59,12 @@ test that remains.
 | `variance-form-dnvk-size-power.csv` | Its output, one row per test, block, bandwidth, form, truth, error distribution and sample size. |
 | `variance-form-dnvk-bootstrap-check.R` | The null cells of that study bootstrapped twice on the same samples, from the fitted and from the true variance function. `Rscript inst/validation/variance-form-dnvk-bootstrap-check.R`, with `N_MC`, `N_BOOT`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. Does not load the package. |
 | `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
+| `variance-form-wz-design.md` | Design note for the test of Wang and Zhou (2007), which the package does not export, the second candidate for a consistent test of the variance function. |
+| `variance-form-wz-prototype.R` | A prototype of that test in plain R, sourced by the next two scripts. It defines functions only. |
+| `variance-form-wz-reproduction.R` | Table 1 of the authors' working paper, reproduced with the prototype. `Rscript inst/validation/variance-form-wz-reproduction.R`, with `N_MC`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. Does not load the package. |
+| `variance-form-wz-reproduction.csv` | Its output, one row per kernel, model, sample size and test, with the paper's rate beside each. |
+| `variance-form-wz-size-power.R` | The prototype in the designs of `variance-form-dnvk-size-power.R`, beside `performVarianceFormTest()`. `Rscript inst/validation/variance-form-wz-size-power.R`, with `N_MC`, `N_MC_GATE`, `N_BOOT`, `KERNEL`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. |
+| `variance-form-wz-size-power.csv` | Its output, one row per test, bandwidth, form, truth, error distribution and sample size. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in

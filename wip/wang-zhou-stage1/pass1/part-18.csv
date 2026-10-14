@@ -1,0 +1,9 @@
+"scenario","form","truth","truth_label","hypothesis","errors","n","test","bandwidth","kernel","replications","bootstrap","rejection_rate","mc_se","effective","failures","bootstrap_failures"
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_bootstrap",0.1,"epanechnikov",1000,199,0.0321285140562249,0.00558758957600173,996,4,151
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_bootstrap",0.15,"epanechnikov",1000,199,0.0291164658634538,0.00532749717820774,996,4,151
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_bootstrap",0.25,"epanechnikov",1000,199,0.0491967871485944,0.00685305191612545,996,4,151
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_asymptotic",0.1,"epanechnikov",1000,NA,0.070281124497992,0.00809963606930028,996,4,NA
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_asymptotic",0.15,"epanechnikov",1000,NA,0.070281124497992,0.00809963606930028,996,4,NA
+18,"power","power","sigma^2 = x^3","null","t5",50,"wz_asymptotic",0.25,"epanechnikov",1000,NA,0.0522088353413655,0.00704853176582749,996,4,NA
+18,"power","power","sigma^2 = x^3","null","t5",50,"form_test_x",NA,NA,1000,NA,0.031,0.00548078461536302,1000,0,NA
+18,"power","power","sigma^2 = x^3","null","t5",50,"form_test_default",NA,NA,1000,NA,0.056,0.00727076337120113,1000,0,NA
