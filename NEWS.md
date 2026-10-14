@@ -1,185 +1,338 @@
 # heteroTests News
 
-## Development version
+## 0.13.0
 
-- **`rbootstrap_test_statistic()`, `performWhiteTestBootstrap()` and
-  `performWildBootstrapTest()` keep an offset given as an argument, and
-  change value on an unweighted fit with one.** `lm(..., offset = o)` keeps
-  `o` in the model frame and not in the formula, and each replicate of an
-  unweighted fit was refitted from the formula alone, so the replicates were
-  those of a model without the offset. A weighted fit already kept it, and
-  an offset written in the formula, `offset(o)`, was always evaluated again
-  from the data. For `lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)`,
-  with `set.seed(1)` and `B = 999`, `rbootstrap_test_statistic()` with
-  `performKoenkerTest()` gave p = 0.095 and gives 0.106, and
-  `performWhiteTestBootstrap()` gave p = 0.222 and gives 0.201, the values
-  the same model gives with the offset in the formula.
-  `performWildBootstrapTest()` dropped such an offset too, where it ran at
-  all (below): for this model its replicates change and its p-value, 0.079,
-  does not. In `inst/validation/offset-refits-size.R`, where the offset is
-  `0.5 x^2`, the White bootstrap rejected 0.012 of the time at the 5% level
-  and now rejects 0.044. `rbootstrap_test_statistic()` with
-  `performKoenkerTest()` rejected 0.047, because Koenker's statistic happens
-  to miss what the dropped offset leaves in the residuals, and now rejects
-  0.040. That is inside the 99% interval around 0.045, `[0.037, 0.053]`,
-  the rate at which a test whose level is exact gives `p < 0.05` with
-  `B = 199`, which is what the cells with `B = 199` are judged against; read
-  against 0.05 it would be below the release gate, `[0.042, 0.058]`. With
-  `B = 999`, its default, whose exact rate is 0.049, it rejects 0.046,
-  inside the release gate and inside the interval around 0.049,
-  `[0.041, 0.057]`.
+The bootstrap tests change value in three cases where their replicates were
+wrong: on an unweighted fit with an offset given as an argument, which all
+three dropped; in `rbootstrap_test_statistic()`, on data whose rows are in
+another order than the fit's or include rows the fit dropped; and in
+`performWhiteTestBootstrap()`, on a transformed response such as `log(y)`,
+where the p-value was 1 whatever the data. Four more results change value:
+`fitWLS()` keeps the offset of the model it refits, and
+`performVarianceFormTest()` changes with it; the Szroeter test registered for
+`runHeteroTests(tests = "szroeter")`, and so for the functions built on it,
+orders the observations by the fitted values; `runHeteroTests()` and
+`runDiagnostics()` given a survey design no longer test a fit weighted by its
+sampling weights; and `tidy()` returns one row per test. Apart from these, no
+exported test returns a different value for a call that ran in 0.12.0, though
+`rbootstrap_test_statistic()` now refuses data it cannot match to the fit. The
+bootstrap tests also accept a weighted fit, holding the weights of a
+`fitWLS()` fit fixed, and the package gains the Harrison-McCabe test and, as
+`performGlejserTest(robust = TRUE)`, a Glejser test that keeps its level under
+skewed errors.
 
-- **`rbootstrap_test_statistic()` matches the rows of `data` to the fit by
-  name, and changes value when they are in another order or include rows
-  the fit does not have.** It took the fitted values of an unweighted fit by
-  position, so data holding the fitted rows in another order regenerated
-  each row from another row's fitted value, without an error. For
-  `lm(mpg ~ wt + qsec, data = mtcars)` with `mtcars` sorted by `hp`,
-  `set.seed(1)` and `B = 999`, the p-value with `performKoenkerTest()` was
-  0.004 and is 0.230; with `mtcars` as given it is 0.219. In
-  `inst/validation/offset-refits-size.R`, with the rows in a random order, it
-  rejected 0.257 of the time at the 5% level and now rejects 0.049.
+### Bootstrap tests on a fit with an offset
 
-  Rows of `data` the model was not fitted to, such as rows it dropped for
-  missing values, are now left out, weighted or not, for the observed
-  statistic and the replicates alike; the rows that stay keep the order of
-  `data`, so data holding exactly the fitted rows gives the same values as
-  before. Pairs resampling drew those rows too, and each replicate was
-  refitted to a different number of rows. For
-  `lm(Ozone ~ Solar.R + Wind, data = airquality)`, whose fit drops 42 rows,
-  pairs resampling with `performKoenkerTest()`, `set.seed(1)` and `B = 999`
-  refitted replicates of 92 to 126 rows and gave the interval 2.884 to
-  18.904; every replicate now has the 111 rows of the fit, and the interval
-  is 3.134 to 19.599. Null resampling refused such data and now runs. Data
-  that lacks a row the model was fitted to is refused.
+**`rbootstrap_test_statistic()`, `performWhiteTestBootstrap()` and
+`performWildBootstrapTest()` keep an offset given as an argument, and change
+value on an unweighted fit with one.** `lm(..., offset = o)` keeps `o` in the
+model frame and not in the formula, and each replicate of an unweighted fit
+was refitted from the formula alone, so the replicates were those of a model
+without the offset. A weighted fit already kept it, and an offset written in
+the formula, `offset(o)`, was always evaluated again from the data. For
+`lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)`, with `set.seed(1)`
+and `B = 999`, `rbootstrap_test_statistic()` with `performKoenkerTest()` gave
+p = 0.095 and gives 0.106, and `performWhiteTestBootstrap()` gave p = 0.222
+and gives 0.201, the values the same model gives with the offset in the
+formula. `performWildBootstrapTest()` dropped such an offset too, where it ran
+at all (below): for this model its replicates change and its p-value, 0.079,
+does not. In `inst/validation/offset-refits-size.R`, where the offset is
+`0.5 x^2`, the White bootstrap rejected 0.012 of the time at the 5% level and
+now rejects 0.044. `rbootstrap_test_statistic()` with `performKoenkerTest()`
+rejected 0.047, because Koenker's statistic happens to miss what the dropped
+offset leaves in the residuals, and now rejects 0.040. That is inside the 99%
+interval around 0.045, `[0.037, 0.053]`, the rate at which a test whose level
+is exact gives `p < 0.05` with `B = 199`, which is what the cells with
+`B = 199` are judged against; read against 0.05 it would be below the release
+gate, `[0.042, 0.058]`. With `B = 999`, its default, whose exact rate is
+0.049, it rejects 0.046, inside the release gate and inside the interval
+around 0.049, `[0.041, 0.057]`.
 
-  Matching by name cannot see two things. A tibble or a data.table has no
-  row names of its own; when it has as many rows as the fit, as the complete
-  cases do, they are taken in the order of the fit. And a variable the
-  formula finds outside `data`, such as `offset(o)` with `o` in the
-  environment of the formula, keeps the order of the fit, so it cannot follow
-  data in another order nor the rows that pairs resampling draws; given as
-  an argument, the same offset does. The model is therefore refitted to the
-  rows of `data`, and data whose refit does not give the residuals of the
-  fit, to a relative `1e-8`, is refused, weighted or not: rows in another
-  order taken by position, values that differ from those of the fit, or such
-  a variable. These gave wrong replicates without an error. A term computed
-  from all the data, such as `I(x - mean(x))`, does not count as a
-  difference. The package's own tests refuse a variable that is not a column
-  of the data, so only a test function of the caller's own could reach that
-  case.
+`performWildBootstrapTest()` runs on unweighted fits it stopped on. It
+evaluated the call of the fit again in the model frame, which holds `log(wt)`
+and not `wt`, and `(offset)` in place of the name of an offset given as an
+argument. So `lm(mpg ~ log(wt), data = mtcars)` stopped with
+`object 'wt' not found`, and so did a transformed response, an offset written
+in the formula and an offset given as an argument, unless the model frame
+happened to hold the variables they are computed from. Each replicate is now
+refitted on the design stored with the fit, with its offset. In
+`inst/validation/offset-refits-size.R` it rejects 0.044 of the time at the 5%
+level with an offset given as an argument, and 0.048 with `log(x)` as well.
+Calls that ran before give identical values, except with an offset given as an
+argument (above).
 
-- **`performWhiteTestBootstrap()` regenerates a transformed response, and
-  changes value on a model with one.** For a response such as `log(y)` in
-  `log(y) ~ x`, it wrote each regenerated response into a column named
-  `log(y)`, which the refit did not read: the refit computed `log(y)` from `y`
-  again, so every replicate was the data of the fit, every replicate
-  statistic was the observed one, and the p-value was 1 whatever the data.
-  For `lm(log(Ozone) ~ Solar.R + Wind + Temp, data = airquality)`, with
-  `set.seed(1)` and `B = 999`, all 999 replicate statistics were the
-  observed one, 34.715, and the p-value was 1; it is now 0.004, the value the
-  same model gives with `log(Ozone)` held in a column of its own, where
-  `performWhiteTest()` gives 0.00007. The regenerated response now goes into
-  a column of its own, which the refit reads in place of `log(y)`. In
-  `inst/validation/white-bootstrap-transformed-size.R`, with constant
-  variance on the log scale, the test rejects 0.047 of the time at the 5%
-  level at 5000 replications, inside the interval `[0.037, 0.053]` around
-  0.045, the rate at which a test whose level is exact gives `p < 0.05` with
-  `B = 199`, and 0.892 against a standard deviation that grows with a
-  regressor. Models with a plain response give identical values.
+### `rbootstrap_test_statistic()` on reordered data and dropped rows
 
-- **`fitWLS()` keeps the offset of the model it refits, and changes value on
-  a model with one.** It refitted the model with the estimated weights
-  without the offset, whether that was given as an argument,
-  `lm(..., offset = o)`, or written in the formula, `offset(o)`, so the
-  weighted fit was that of a model without it. For
-  `lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)` it returned the
-  coefficients -13.996 and 3.685; it now returns -4.356 and 2.038, those
-  `lm()` gives for the same call with the estimated weights. The weights
-  themselves do not change: they come from the residuals of the model, which
-  carry its offset. `performVarianceFormTest()` refits through the same code
-  and changes with it: on that model F = 0.290 (p = 0.593) before and
-  F = 0.773 (p = 0.384) now. In the design of the guard added to
-  `tests/testthat/test-fitwls-offset.R`, an exponential variance function
-  that is correctly specified and the offset `2 x^2`, it rejected 70% of the
-  time at the 5% level when the offset was a variable of the calling
-  environment, which the old code could find, and rejects 4.8% now.
-  `autoCompareRemediations()` and `runHeteroTests(tests = "variance_form")`
-  change with them. Models without an offset give identical values.
+**`rbootstrap_test_statistic()` matches the rows of `data` to the fit by name,
+and changes value when they are in another order or include rows the fit does
+not have.** It took the fitted values of an unweighted fit by position, so
+data holding the fitted rows in another order regenerated each row from
+another row's fitted value, without an error. For
+`lm(mpg ~ wt + qsec, data = mtcars)` with `mtcars` sorted by `hp`,
+`set.seed(1)` and `B = 999`, the p-value with `performKoenkerTest()` was 0.004
+and is 0.230; with `mtcars` as given it is 0.219. In
+`inst/validation/offset-refits-size.R`, with the rows in a random order, it
+rejected 0.257 of the time at the 5% level and now rejects 0.049.
 
-- `performWildBootstrapTest()` runs on unweighted fits it stopped on. It
-  evaluated the call of the fit again in the model frame, which holds
-  `log(wt)` and not `wt`, and `(offset)` in place of the name of an offset
-  given as an argument. So `lm(mpg ~ log(wt), data = mtcars)` stopped with
-  `object 'wt' not found`, and so did a transformed response, an offset
-  written in the formula and an offset given as an argument, unless the model
-  frame happened to hold the variables they are computed from. Each replicate
-  is now refitted on the design stored with the fit, with its offset. In
-  `inst/validation/offset-refits-size.R` it rejects 0.044 of the time at the
-  5% level with an offset given as an argument, and 0.048 with `log(x)` as
-  well. Calls that ran before give identical values, except with an offset
-  given as an argument (above).
+Rows of `data` the model was not fitted to, such as rows it dropped for
+missing values, are now left out, weighted or not, for the observed statistic
+and the replicates alike; the rows that stay keep the order of `data`, so data
+holding exactly the fitted rows gives the same values as before. Pairs
+resampling drew those rows too, and each replicate was refitted to a different
+number of rows. For `lm(Ozone ~ Solar.R + Wind, data = airquality)`, whose fit
+drops 42 rows, pairs resampling with `performKoenkerTest()`, `set.seed(1)` and
+`B = 999` refitted replicates of 92 to 126 rows and gave the interval 2.884 to
+18.904; every replicate now has the 111 rows of the fit, and the interval is
+3.134 to 19.599. Null resampling refused such data and now runs. Data that
+lacks a row the model was fitted to is refused.
 
-- `fitWLS()` and `performVarianceFormTest()` run on models they stopped on.
-  The weighted refit evaluated the call of the fit again in its model frame,
-  which holds `log(wt)` and not `wt`, and weights and an offset given as
-  arguments as `(weights)` and `(offset)`. So
-  `fitWLS(lm(mpg ~ log(wt), data = mtcars))` stopped with
-  `object 'wt' not found`, a model fitted with weights that are a column of
-  the data with `object 'w' not found`, and a model whose offset is a column
-  of the data with `object 'o' not found`. The refit now uses the design
-  stored with the fit. On a model fitted with weights, `fitWLS()` replaces
-  them with the estimated ones, as it did when the old refit could find
-  them; those calls give identical values.
+Matching by name cannot see two things. A tibble or a data.table has no row
+names of its own; when it has as many rows as the fit, as the complete cases
+do, they are taken in the order of the fit. And a variable the formula finds
+outside `data`, such as `offset(o)` with `o` in the environment of the
+formula, keeps the order of the fit, so it cannot follow data in another order
+nor the rows that pairs resampling draws; given as an argument, the same
+offset does. The model is therefore refitted to the rows of `data`, and data
+whose refit does not give the residuals of the fit, to a relative `1e-8`, is
+refused, weighted or not: rows in another order taken by position, values that
+differ from those of the fit, or such a variable. These gave wrong replicates
+without an error. A term computed from all the data, such as
+`I(x - mean(x))`, does not count as a difference. The package's own tests
+refuse a variable that is not a column of the data, so only a test function of
+the caller's own could reach that case.
 
-- `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and
-  `rbootstrap_test_statistic()` accept a weighted fit. In 0.12.0 they refused
-  one, because each replicate was refitted without the weights. A weighted fit
-  is ordinary least squares on `sqrt(w) y` and `sqrt(w) X`, where the null
-  hypothesis is constant variance, and the three now resample there: they
-  draw from the Pearson residuals, divide each draw by `sqrt(w)` to return it
-  to the scale of its observation, and refit with the weights.
-  `performWhiteTestRobust(bootstrap = TRUE)` and
-  `performBPTestRobust(bootstrap = TRUE)`, which resample through
-  `rbootstrap_test_statistic()`, accept a weighted fit too. Nothing changes
-  for an unweighted fit: the same seed gives the same values as before.
+`performWhiteTestRobust(bootstrap = TRUE)` and
+`performBPTestRobust(bootstrap = TRUE)` resample through
+`rbootstrap_test_statistic()`, so their bootstrap p-values change with it,
+here and with an offset (above).
 
-  In `inst/validation/weighted-fits-size.R`, at 2000 replications with
-  `B = 499`, the three reject a correctly weighted fit 0.045 to 0.054 of the
-  time at the 5% level in two designs, and reject weights that are too weak
-  in every replication. With weights estimated by `fitWLS()` they hold the
-  weights fixed, as the asymptotic tests take them as known, and share their
-  error: in a design where the true weights give 0.054 with 150 observations and
-  0.048 with 600, the wild bootstrap rejects 0.086 and 0.105, and
-  `performKoenkerTest()` 0.077 and 0.110. Estimating the weights again in each
-  replicate, which the package does not do, brings the three to 0.042 to 0.060
-  with 150 observations and the wild bootstrap to 0.051 with 600. `ROADMAP.md`
-  proposes an argument for it.
+### The White bootstrap on a transformed response
 
-  `performQuantileRegressionTest()` still refuses a weighted fit, and its help
-  page says why.
+**`performWhiteTestBootstrap()` regenerates a transformed response, and
+changes value on a model with one.** For a response such as `log(y)` in
+`log(y) ~ x`, it wrote each regenerated response into a column named
+`log(y)`, which the refit did not read: the refit computed `log(y)` from `y`
+again, so every replicate was the data of the fit, every replicate statistic
+was the observed one, and the p-value was 1 whatever the data. For
+`lm(log(Ozone) ~ Solar.R + Wind + Temp, data = airquality)`, with
+`set.seed(1)` and `B = 999`, all 999 replicate statistics were the observed
+one, 34.715, and the p-value was 1; it is now 0.004, the value the same model
+gives with `log(Ozone)` held in a column of its own, where
+`performWhiteTest()` gives 0.00007. The regenerated response now goes into a
+column of its own, which the refit reads in place of `log(y)`. In
+`inst/validation/white-bootstrap-transformed-size.R`, with constant variance
+on the log scale, the test rejects 0.047 of the time at the 5% level at 5000
+replications, inside the interval `[0.037, 0.053]` around 0.045, the rate at
+which a test whose level is exact gives `p < 0.05` with `B = 199`, and 0.892
+against a standard deviation that grows with a regressor. Models with a plain
+response give identical values.
 
-- **`runHeteroTests(tests = "szroeter")` changes value.** The registered
-  Szroeter test ordered the observations by the second column of the data,
-  whatever it was: the response, a regressor or a column the model does not
-  use, so the result depended on the order of the columns. For
-  `lm(mpg ~ wt + hp, data = mtcars)` with `mtcars` as given it ordered by
-  `cyl`, which the model does not use, and gave Q = -0.709 (p = 0.761);
-  depending on which column came second, Q ran from -1.419 to 1.333. It now
-  orders by the fitted values, so the alternative is that the variance rises
-  with the mean, and gives Q = 1.099 (p = 0.136) whatever the order of the
-  columns. With a single regressor that is the order of the regressor when
-  its slope is positive and the reverse order when it is negative. The fitted
-  values are computed from the coefficients, so observations with the same
-  regressors tie exactly, and ties keep the order of the rows the model was
-  fitted to.
+### `fitWLS()` on a model with an offset
 
-  Everything that runs the registered test changes with it: `runDiagnostics()`,
-  `test()` and `summary()` on a `HeteroDiagnostic`, `compareModelDiagnostics()`,
-  `compareTestResults()`, `runSurveyHeteroTests()`, `runHeteroTestsParallel()`,
-  `cachedTest()` and the dashboard, when given `"szroeter"`.
-  `performSzroeterTest()` does not change, and no number recorded in
-  `inst/validation/` moves: the studies call it with an explicit ordering.
+**`fitWLS()` keeps the offset of the model it refits, and changes value on a
+model with one.** It refitted the model with the estimated weights without the
+offset, whether that was given as an argument, `lm(..., offset = o)`, or
+written in the formula, `offset(o)`, so the weighted fit was that of a model
+without it. For `lm(dist ~ speed, data = cars, offset = 0.06 * speed^2)` it
+returned the coefficients -13.996 and 3.685; it now returns -4.356 and 2.038,
+those `lm()` gives for the same call with the estimated weights. The weights
+themselves do not change: they come from the residuals of the model, which
+carry its offset. `performVarianceFormTest()` refits through the same code and
+changes with it: on that model F = 0.290 (p = 0.593) before and F = 0.773
+(p = 0.384) now. In the design of the guard added to
+`tests/testthat/test-fitwls-offset.R`, an exponential variance function that
+is correctly specified and the offset `2 x^2`, it rejected 70% of the time at
+the 5% level when the offset was a variable of the calling environment, which
+the old code could find, and rejects 4.8% now. `autoCompareRemediations()` and
+`runHeteroTests(tests = "variance_form")` change with them. Models without an
+offset give identical values.
+
+`fitWLS()` and `performVarianceFormTest()` also run on models they stopped on.
+The weighted refit evaluated the call of the fit again in its model frame,
+which holds `log(wt)` and not `wt`, and weights and an offset given as
+arguments as `(weights)` and `(offset)`. So
+`fitWLS(lm(mpg ~ log(wt), data = mtcars))` stopped with
+`object 'wt' not found`, a model fitted with weights that are a column of the
+data with `object 'w' not found`, and a model whose offset is a column of the
+data with `object 'o' not found`. The refit now uses the design stored with
+the fit. On a model fitted with weights, `fitWLS()` replaces them with the
+estimated ones, as it did when the old refit could find them; those calls give
+identical values.
+
+### The Szroeter test run by name
+
+**`runHeteroTests(tests = "szroeter")` changes value.** The registered
+Szroeter test ordered the observations by the second column of the data,
+whatever it was: the response, a regressor or a column the model does not use,
+so the result depended on the order of the columns. For
+`lm(mpg ~ wt + hp, data = mtcars)` with `mtcars` as given it ordered by `cyl`,
+which the model does not use, and gave Q = -0.709 (p = 0.761); depending on
+which column came second, Q ran from -1.419 to 1.333. It now orders by the
+fitted values, so the alternative is that the variance rises with the mean,
+and gives Q = 1.099 (p = 0.136) whatever the order of the columns. With a
+single regressor that is the order of the regressor when its slope is positive
+and the reverse order when it is negative. The fitted values are computed from
+the coefficients, so observations with the same regressors tie exactly, and
+ties keep the order of the rows the model was fitted to.
+
+Everything that runs the registered test changes with it: `runDiagnostics()`,
+`test()` and `summary()` on a `HeteroDiagnostic`, `compareModelDiagnostics()`,
+`compareTestResults()`, `runSurveyHeteroTests()`, `runHeteroTestsParallel()`,
+`cachedTest()` and the dashboard, when given `"szroeter"`.
+`performSzroeterTest()` does not change, and no number recorded in
+`inst/validation/` moves: the studies call it with an explicit ordering.
+
+### Survey designs and their sampling weights
+
+Survey designs are no longer tested as if their sampling weights were
+precision weights, and `runSurveyHeteroTests()` says what it does.
+
+The help page of `runSurveyHeteroTests()` described a survey-weighted fit. The
+weights never reached the fit: they were passed to `lm()` as a local variable,
+where `lm()` does not look, and a `tryCatch()` refitted without them, so the
+function ran the ordinary tests on an ordinary least-squares fit. It still does, and apart
+from the Szroeter test (above) its values are unchanged. The help page now says
+that the design is not used and when the tests hold their level regardless,
+and the function warns when the design has unequal weights or clusters.
+
+`runHeteroTests(formula, design)` and `runDiagnostics(formula, design)` took a
+different route. They fitted the model with `survey::svyglm()` and tested that
+fit, whose residuals are multiplied by the square roots of the sampling
+weights. Sampling weights say how many population units an observation stands
+for, not how variable its error is. In `inst/validation/survey-designs-size.R`,
+on homoscedastic data sampled with probabilities that depend on the regressor,
+that statistic rejected 97% to 100% of the time; on heteroscedastic data it
+rejected 6% to 12% of the time where the unweighted test rejected 98% to 100%.
+**These two calls change value**: they now do what `runSurveyHeteroTests()`
+does, with the same warning. A `svyglm` fit passed to a test directly is
+refused.
+
+The package has no design-based test of constant variance. The same study
+tried two, a Wald and a score test on the regression of the squared residuals
+on the regressors, estimated with the design. They are the only procedures
+near their level when selection depends on the response or the sample is
+clustered, where the function itself rejects 37% to 100% of the time. In the
+designs the ordinary tests handle correctly they rejected 6% to 25% of the
+time, and 3 of their 40 size cells fell inside the Monte Carlo band. They were
+not adopted.
+
+### `tidy()` of a test with two parameters
+
+**`tidy()` returns one row per test.** A result with two parameters, such as
+the F statistic of `performVarianceFormTest()` or the wild bootstrap with its
+degrees of freedom and number of replications, came back as two rows, and
+every table and plot built from the tidy output counted the test twice. The
+second parameter is now in a new column, `parameter2`, and `estimate` is given
+when a test reports exactly one. `glance()` follows.
+
+### Bootstrap tests on a weighted fit
+
+`performWildBootstrapTest()`, `performWhiteTestBootstrap()` and
+`rbootstrap_test_statistic()` accept a weighted fit. In 0.12.0 they refused
+one, because each replicate was refitted without the weights. A weighted fit
+is ordinary least squares on `sqrt(w) y` and `sqrt(w) X`, where the null
+hypothesis is constant variance, and the three now resample there: they draw
+from the Pearson residuals, divide each draw by `sqrt(w)` to return it to the
+scale of its observation, and refit with the weights.
+`performWhiteTestRobust(bootstrap = TRUE)` and
+`performBPTestRobust(bootstrap = TRUE)`, which resample through
+`rbootstrap_test_statistic()`, accept a weighted fit too. Accepting a weighted
+fit changes nothing for an unweighted one; there the same seed gives the same
+values as before, except in the three cases corrected above: an offset given
+as an argument, data in another order or with rows the fit dropped, and a
+transformed response in the White bootstrap.
+
+In `inst/validation/weighted-fits-size.R`, at 2000 replications with
+`B = 499`, the three reject a correctly weighted fit 0.045 to 0.054 of the time
+at the 5% level in two designs, and reject weights that are too weak in every
+replication.
+
+On a `fitWLS()` fit they over-reject. They hold the estimated weights fixed in
+each replicate, as the asymptotic tests take them as known, and share their
+error. In a design where the variance function is correctly specified and the
+true weights give 0.054 with 150 observations and 0.048 with 600, the three
+reject 0.064 to 0.086 of the time at the 5% level with 150 observations, and
+the wild bootstrap 0.105 with 600; `performKoenkerTest()` rejects 0.077 and
+0.110. Estimating the weights again in each replicate, which the package does
+not do, brings the three to 0.042 to 0.060 with 150 observations and the wild
+bootstrap to 0.051 with 600. That is why the question is open: `ROADMAP.md`
+proposes an argument that does it, and leaves its default to 0.14.0. A default
+that estimates the weights again will change the values these tests return on
+a `fitWLS()` fit.
+
+`performQuantileRegressionTest()` still refuses a weighted fit, and its help
+page says why.
+
+### The Harrison-McCabe test
+
+`performHarrisonMcCabeTest()` adds the test of Harrison and McCabe (1979)
+beside `performGQTest()` and `performSzroeterTest()`, the other two tests
+along an ordering of the observations. The statistic is the share of the
+residual sum of squares that falls in the first part of the sample ordered by
+a variable, and it agrees with `lmtest::hmctest()` to `1e-8`. The p-value is
+exact under normal errors given the regressors, by Imhof's (1961) formula, and
+reproduces the exact critical values published by Harrison (1981). The 1979
+article was not read: the definition rests on Harrison (1981), by its first
+author, and on `lmtest`. `lmtest::hmctest()` simulates its p-value from a
+regression on a constant alone, whatever the model, and
+`skedastic::harrison_mccabe()` drops repeated eigenvalues before applying
+Imhof's formula, which changes its p-value. Weighted fits are supported.
+
+In `inst/validation/harrison-mccabe-size-power.R`, at the 5% level, the test
+rejects a true null hypothesis 4.3% to 5.3% of the time under Gaussian errors
+at 40 to 400 observations, with and without weights. Under `t5` errors it
+rejects 11.7% to 16.3%, as the Goldfeld-Quandt and Szroeter tests do, and the
+help page points to `performGlejserTest(robust = TRUE)` there. Against the two
+alternatives of Pass A it has 2.3 to 4.8 percentage points less power than the
+Goldfeld-Quandt test and 5.4 to 7.9 less than Szroeter's. No value any other
+function returns changes.
+
+### A Glejser test for skewed errors
+
+`performGlejserTest()` gains `robust = TRUE`, the Glejser test of Im (2000)
+and of Machado and Santos Silva (2000), which keeps its level when the errors
+are skewed. No other R implementation of it was found.
+
+Glejser's statistic has its nominal level when positive and negative errors
+are equally likely. When they are not, and the variable tested is correlated
+with the regressors, it does not in general, and a larger sample does not
+help. In `inst/validation/glejser-skewed-errors.R`, at the 5% level and with
+50 to 1000 observations, it rejected a true null hypothesis 12% to 14% of the
+time under exponential errors and 15% to 18% under lognormal errors, which is
+what the asymptotic theory gives for those designs. The help page said the
+test was not valid there and pointed to Koenker's test.
+
+With `robust = TRUE` the auxiliary regression is run on `|e| - m e`, where `m`
+is the proportion of positive residuals less the proportion of negative ones.
+In the same study it rejected 4.4% to 5.7% of the time from 150 observations
+on, and 5.7% to 6.6% at 50 under skewed errors. Under Gaussian errors it gives
+up one or two percentage points of power at 50 observations. Against Koenker's
+statistic on the same regressor it has 1 to 4 points less power under Gaussian
+errors and 1 to 10 points more under exponential errors.
+
+The default is `robust = FALSE`, and every value the function returned before
+is unchanged.
+
+### Measured and not adopted
+
+Two of the candidate tests in `ROADMAP.md` were measured and are not in the
+package, because they do not hold their level. The studies ship in
+`inst/validation/`, and the roadmap says what either would need.
+
+- The modified Wald test for group-wise heteroscedasticity in a fixed-effects
+  panel, as Stata's `xttest3` computes it. In
+  `inst/validation/modified-wald-size-power.R`, at 5000 replications, it
+  rejects a true null hypothesis at the 5% level 10% to 100% of the time in
+  balanced panels of 10 to 100 units and 5 to 100 periods, under Gaussian and
+  `t5` errors.
+- The consistent test of a variance function of Dette, Neumeyer and Van
+  Keilegom (2007), as a prototype that follows the authors' manuscript. In
+  `inst/validation/variance-form-dnvk-size-power.R`, at 5000 replications, its
+  Cramér-von Mises statistic rejects a true exponential or power variance
+  function that is not constant 1.9% to 3.6% of the time at the 5% level, at
+  50 to 400 observations under Gaussian and `t5` errors.
+
+### Also
 
 - `listDiagnostics()` returns the names `runHeteroTests(tests = )` accepts,
   sorted: the diagnostics the package registers and any added with
@@ -188,34 +341,6 @@
   `Unknown tests: <name>. listDiagnostics() returns the registered names.`
   It used to say only `Unknown tests: <name>`, in an error raised from the
   internal `.run_hetero_core()`.
-
-- `autoplot()` of a test suite showed nothing when the tests rejected. The
-  bars were the p-values on a linear axis from 0 to 1, so a test with
-  p = 0.002 had no visible bar, and the colouring of significant tests was
-  decided by `isTRUE(p < 0.05)`, which is `FALSE` for a suite of more than one
-  test. The plot now draws one horizontal bar per test whose length is
-  `-log10(p)`, on an axis labelled with p-values, with a dashed line at a new
-  `alpha` argument (default 0.05) and the p-value printed beside each bar. The
-  grouped method draws one panel per group; it used to add a panel variable
-  for the `suggestions` column as well.
-
-- `tidy()` returns one row per test. A result with two parameters, such as the
-  F statistic of `performVarianceFormTest()` or the wild bootstrap with its
-  degrees of freedom and number of replications, came back as two rows, and
-  every table and plot built from the tidy output counted the test twice. The
-  second parameter is now in a new column, `parameter2`, and `estimate` is
-  given when a test reports exactly one. `glance()` follows.
-
-- `plotBeforeAfter()` draws the two models in two panels, each with its own
-  axes, where it used to overlay them in one panel in two similar blues.
-  Weighted residuals and the residuals of a transformed response are not in
-  the units of the original ones, so a common axis could flatten one of them.
-
-- `print()` on the result of `suggestRemediation()` now uses its print method.
-  The method existed but was not registered in `NAMESPACE`, so results printed
-  as a bare list with an `attr(,"class")` line. This also affects the
-  dashboard's suggestions panel and the remediation section of generated
-  reports, which print the same object.
 
 - `runHeteroTests()` with a fitted model and grouped data now runs. The
   per-group refit passed the weights to `lm()` as a local variable, where
@@ -228,85 +353,26 @@
   subset are vectors in the workspace cannot be split by group and is refused
   with a message that says so.
 
-- Survey designs are no longer tested as if their sampling weights were
-  precision weights, and `runSurveyHeteroTests()` says what it does.
+- `autoplot()` of a test suite showed nothing when the tests rejected. The
+  bars were the p-values on a linear axis from 0 to 1, so a test with
+  p = 0.002 had no visible bar, and the colouring of significant tests was
+  decided by `isTRUE(p < 0.05)`, which is `FALSE` for a suite of more than one
+  test. The plot now draws one horizontal bar per test whose length is
+  `-log10(p)`, on an axis labelled with p-values, with a dashed line at a new
+  `alpha` argument (default 0.05) and the p-value printed beside each bar. The
+  grouped method draws one panel per group; it used to add a panel variable
+  for the `suggestions` column as well.
 
-  The help page of `runSurveyHeteroTests()` described a survey-weighted fit.
-  The weights never reached `lm()`, for the scoping reason above, and a
-  `tryCatch()` refitted without them, so the function ran the ordinary tests
-  on an ordinary least-squares fit. It still does, and its values are
-  unchanged. The help page now says that the design is not used and when the
-  tests hold their level regardless, and the function warns when the design
-  has unequal weights or clusters.
+- `plotBeforeAfter()` draws the two models in two panels, each with its own
+  axes, where it used to overlay them in one panel in two similar blues.
+  Weighted residuals and the residuals of a transformed response are not in
+  the units of the original ones, so a common axis could flatten one of them.
 
-  `runHeteroTests(formula, design)` and `runDiagnostics(formula, design)` took
-  a different route. They fitted the model with `survey::svyglm()` and tested
-  that fit, whose residuals are multiplied by the square roots of the sampling
-  weights. Sampling weights say how many population units an observation
-  stands for, not how variable its error is. In
-  `inst/validation/survey-designs-size.R`, on homoscedastic data sampled with
-  probabilities that depend on the regressor, that statistic rejected 97% to
-  100% of the time; on heteroscedastic data it rejected 6% to 12% of the time
-  where the unweighted test rejected 98% to 100%. **These two calls change
-  value**: they now do what `runSurveyHeteroTests()` does, with the same
-  warning. A `svyglm` fit passed to a test directly is refused.
-
-  The package has no design-based test of constant variance. The same study
-  tried two, a Wald and a score test on the regression of the squared
-  residuals on the regressors, estimated with the design. They are the only
-  procedures near their level when selection depends on the response or the
-  sample is clustered, where the function itself rejects 37% to 100% of the
-  time. In the designs the ordinary tests handle correctly they rejected 6%
-  to 25% of the time, and 3 of their 40 size cells fell inside the Monte Carlo
-  band. They were not adopted.
-
-- `performHarrisonMcCabeTest()` adds the test of Harrison and McCabe (1979)
-  beside `performGQTest()` and `performSzroeterTest()`, the other two tests
-  along an ordering of the observations. The statistic is the share of the
-  residual sum of squares that falls in the first part of the sample ordered
-  by a variable, and it agrees with `lmtest::hmctest()` to `1e-8`. The p-value
-  is exact under normal errors given the regressors, by Imhof's (1961)
-  formula, and reproduces the exact critical values published by Harrison
-  (1981). The 1979 article was not read: the definition rests on Harrison
-  (1981), by its first author, and on `lmtest`. `lmtest::hmctest()`
-  simulates its p-value from a regression on a
-  constant alone, whatever the model, and `skedastic::harrison_mccabe()`
-  drops repeated eigenvalues before applying Imhof's formula, which changes
-  its p-value. Weighted fits are supported.
-
-  In `inst/validation/harrison-mccabe-size-power.R`, at the 5% level, the
-  test rejects a true null hypothesis 4.3% to 5.3% of the time under Gaussian
-  errors at 40 to 400 observations, with and without weights. Under `t5`
-  errors it rejects 11.7% to 16.3%, as the Goldfeld-Quandt and Szroeter tests
-  do, and the help page points to `performGlejserTest(robust = TRUE)` there.
-  Against the two alternatives of Pass A it has 2.3 to 4.8 percentage points
-  less power than the Goldfeld-Quandt test and 5.4 to 7.9 less than
-  Szroeter's. No value any other function returns changes.
-
-- `performGlejserTest()` gains `robust = TRUE`, the Glejser test of Im (2000)
-  and of Machado and Santos Silva (2000), which keeps its level when the
-  errors are skewed. No other R implementation of it was found.
-
-  Glejser's statistic has its nominal level when positive and negative errors
-  are equally likely. When they are not, and the variable tested is correlated
-  with the regressors, it does not in general, and a larger sample does not help. In
-  `inst/validation/glejser-skewed-errors.R`, at the 5% level and with 50 to
-  1000 observations, it rejected a true null hypothesis 12% to 14% of the time
-  under exponential errors and 15% to 18% under lognormal errors, which is
-  what the asymptotic theory gives for those designs. The help page said the
-  test was not valid there and pointed to Koenker's test.
-
-  With `robust = TRUE` the auxiliary regression is run on `|e| - m e`, where
-  `m` is the proportion of positive residuals less the proportion of negative
-  ones. In the same study it rejected 4.4% to 5.7% of the time from 150
-  observations on, and 5.7% to 6.6% at 50 under skewed errors. Under Gaussian
-  errors it gives up one or two percentage points of power at 50 observations.
-  Against Koenker's statistic on the same regressor it has 1 to 4 points less
-  power under Gaussian errors and 1 to 10 points more under exponential
-  errors.
-
-  The default is `robust = FALSE`, and every value the function returned
-  before is unchanged.
+- `print()` on the result of `suggestRemediation()` now uses its print method.
+  The method existed but was not registered in `NAMESPACE`, so results printed
+  as a bare list with an `attr(,"class")` line. This also affects the
+  dashboard's suggestions panel and the remediation section of generated
+  reports, which print the same object.
 
 - `suggestDiagnosticsForProfile()` had two definitions, and only the one
   loaded last ever ran. The other still recommended `"hc_covariance"`, a
@@ -344,6 +410,12 @@
   now says so. Its example of `parallel = TRUE` now runs only where that
   starts at most two processes, the limit of `R CMD check --as-cran`. No
   value changes.
+
+- The release workflow runs `R CMD check --as-cran --run-donttest` on the
+  source tarball it is about to tag, and creates no tag or GitHub release if
+  that check warns or errors. The check used to run only weekly and on
+  demand, and it failed on the example above on 2026-09-28 and 2026-10-05
+  without holding up 0.12.0.
 
 ## 0.12.0
 
