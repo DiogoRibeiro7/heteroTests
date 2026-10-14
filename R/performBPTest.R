@@ -38,8 +38,8 @@
 #'
 #' A significant statistic indicates that the error variance varies with the
 #' regressors. Because the classical statistic assumes normal disturbances,
-#' consider the studentized \eqn{n R^2} variant [performStudentizedBPTest()] or
-#' the equivalent [performKoenkerTest()] when normality is in doubt.
+#' consider the studentized \eqn{n R^2} variant [performKoenkerTest()] when
+#' normality is in doubt.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
@@ -75,7 +75,7 @@
 #' performBPTest(lm(y ~ x, data = df_het), df_het)
 #'
 #' @seealso
-#' [performStudentizedBPTest()] and [performKoenkerTest()] for the studentized
+#' [performKoenkerTest()] for the studentized
 #' \eqn{n R^2} LM statistic that drops the normality assumption, and
 #' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
 performBPTest <- function(model, data) {
@@ -211,8 +211,7 @@ performBPTest <- function(model, data) {
   # g_i = e_i^2 / sigma^2 - 1 (with sigma^2 the ML variance estimate) on the
   # regressors and take half the explained sum of squares. The statistic is
   # chi-squared(df) under homoskedasticity *and* normal disturbances. For the
-  # studentized form that drops the normality assumption use performKoenkerTest()
-  # or performStudentizedBPTest().
+  # studentized form that drops the normality assumption use performKoenkerTest().
   sigma2 <- sum(residuals^2) / n
   scaled_sq <- residuals^2 / sigma2 - 1
   aux_model <- safe_lm(scaled_sq ~ ., data = aux_data)

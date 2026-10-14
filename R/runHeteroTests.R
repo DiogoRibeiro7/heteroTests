@@ -49,6 +49,9 @@ runHeteroTests <- function(model, data = NULL,
                            chunk_size = 10000,
                            progress = interactive()) {
   rrefuse_survey_fit(model)
+  for (old in intersect(names(.ht_deprecated_tests), tests)) {
+    .Deprecated(old = old, msg = .ht_deprecated_test_message(old))
+  }
   prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests()")
 
   if (prepared$grouped && length(prepared$group_splits) > 0) {

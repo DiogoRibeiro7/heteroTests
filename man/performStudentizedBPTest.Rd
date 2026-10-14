@@ -2,7 +2,7 @@
 % Please edit documentation in R/additional_tests.R
 \name{performStudentizedBPTest}
 \alias{performStudentizedBPTest}
-\title{Studentized Breusch–Pagan test}
+\title{Studentized Breusch–Pagan test (deprecated)}
 \usage{
 performStudentizedBPTest(model, data)
 }
@@ -18,14 +18,23 @@ An object of class \code{htest} reporting the chi-squared statistic
 and p-value for the null hypothesis of constant error variance.
 }
 \description{
+\code{performStudentizedBPTest()} is deprecated since 0.14.0: use
+\code{\link[=performKoenkerTest]{performKoenkerTest()}}, which computes the same statistic. It still works,
+returns what it returned before and warns. On a fit returned by \code{\link[=fitWLS]{fitWLS()}}
+the two differ, and \code{\link[=performKoenkerTest]{performKoenkerTest()}} is the correct one: the model
+frame of that fit still holds the weights of the model \code{fitWLS()} refitted
+(none, for an unweighted model), not the estimated weights, and
+\code{performStudentizedBPTest()} reads them from there. That is to be fixed in
+0.16.0.
+}
+\details{
 Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
 multiplier statistic, \eqn{n R^2} from the regression of the squared
 residuals on the regressors. The classical Breusch–Pagan statistic assumes
 normal errors and this one does not: in the simulations of
 \verb{inst/validation/} it holds its level under \eqn{t_5} errors, where the
 classical statistic rejects far too often.
-}
-\details{
+
 Following Koenker (1981) and the implementation in
 \link[lmtest:bptest]{lmtest::bptest()}, the procedure fits an auxiliary
 regression of \eqn{e_i^2 - \hat{\sigma}^2} on the regressors from the
@@ -51,14 +60,9 @@ requirements registered for this test in
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)
-performStudentizedBPTest(mod, mtcars)
-
-# Detect heteroscedasticity driven by a single regressor
-set.seed(321)
-x <- runif(180)
-y <- 5 - 1.5 * x + rnorm(180, sd = 0.4 + 0.6 * x)
-df <- data.frame(y, x)
-performStudentizedBPTest(lm(y ~ x, data = df), df)
+# Deprecated: warns, and returns the statistic of performKoenkerTest()
+suppressWarnings(performStudentizedBPTest(mod, mtcars))
+performKoenkerTest(mod, mtcars)
 
 }
 \references{

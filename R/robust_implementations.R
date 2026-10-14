@@ -202,7 +202,7 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #' performBPTestRobust(mod, mtcars, bootstrap = TRUE, B = 200)
 #'
 #' @seealso
-#' [performBPTest()] for the baseline test and [performStudentizedBPTest()] for the
+#' [performBPTest()] for the baseline test and [performKoenkerTest()] for the
 #' standalone studentised variant.
 #'
 #' @export
@@ -246,7 +246,7 @@ performBPTestRobust <- function(model, data, studentized = TRUE,
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  base_fun <- if (studentized) performStudentizedBPTest else performBPTest
+  base_fun <- if (studentized) .studentized_bp_test else performBPTest
   base_result <- base_fun(model, working_data)
 
   df <- .extract_df(base_result, model)
@@ -452,7 +452,7 @@ rvalidate_against_reference <- function(test_name, model, data, tolerance = 1e-6
       return(list(status = "skipped", message = "Package 'lmtest' not installed."))
     }
     reference <- lmtest::bptest(model, studentize = TRUE)
-    ours <- performStudentizedBPTest(model, data)
+    ours <- .studentized_bp_test(model, data)
     return(compare_results(ours, unname(reference$statistic), reference$p.value))
   }
 

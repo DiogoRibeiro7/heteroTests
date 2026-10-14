@@ -9,7 +9,7 @@ test_that("Studentized BP detects heteroscedasticity", {
   y <- 1 + 2 * x + rnorm(n, sd = 1 + 3 * x)
   df <- data.frame(x = x, y = y)
   model <- lm(y ~ x, data = df)
-  res <- performStudentizedBPTest(model, df)
+  res <- without_deprecation(performStudentizedBPTest(model, df))
   expect_lt(res$p.value, 0.05)
 })
 
