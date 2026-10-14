@@ -26,6 +26,8 @@ below still works, returns what it returned before and warns with
 | `rbootstrap_test_statistic()` | `bootstrapTestStatistic()` | The same function; each name records its own call in the result |
 | `rcalculateEffectSize()`, `restimate_test_power()`, `rvalidate_against_reference()` | None | Internal helpers |
 | `test(x, tests)` | `runDiagnostics(x$model, x$data, tests)` | Its name masks `devtools::test()`; `summary()` of a `HeteroDiagnostic` object is unchanged |
+| `simulate_type_I_errors()` | `simulate_size()` | Joins the snake_case simulation family |
+| `simulate_power_analysis()` | `simulate_power()` | As above |
 
 `performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
 statistic, degrees of freedom and p-value in the designs of
@@ -41,6 +43,10 @@ name and `"student_bp"` keep their old implementation in 0.14.0, so no value
 changes; the model frame is to be corrected in 0.16.0.
 
 `rrunAdvancedDiagnostics()` stays exported; its name is still under review.
+
+The simulation functions, `simulate_*()` and `sigma_*()`, keep their
+snake_case names on purpose, as a documented family; the rest of the package
+uses camelCase.
 
 ## 0.13.0
 
