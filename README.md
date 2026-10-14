@@ -140,7 +140,7 @@ model <- lm(stations ~ mag + depth, quakes)
 
 # Inspect heteroscedasticity
 hd <- HeteroDiagnostic(model, quakes)
-test(hd)
+runDiagnostics(hd$model, hd$data)
 plot(hd)
 
 # Choose the tests by name; listDiagnostics() returns the names
