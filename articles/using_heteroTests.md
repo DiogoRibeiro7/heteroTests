@@ -1839,7 +1839,7 @@ data(mtcars)
 model <- lm(mpg ~ wt + hp, data = mtcars)
 
 # Our implementation
-our_result <- performBreuschPaganTest(model, mtcars)
+our_result <- performBPTest(model, mtcars)
 # [INFO] Running Breusch-Pagan test
 
 # Reference implementation

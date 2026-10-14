@@ -25,6 +25,12 @@ form that drops the normality assumption use
 or
 [`performStudentizedBPTest`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md).
 
+## Deprecated name
+
+`performBreuschPaganTest()` is deprecated since 0.14.0. It was the same
+function as `performBPTest()` under a second name; it still works,
+returns what `performBPTest()` returns and warns. Use `performBPTest()`.
+
 ## Weighted fits
 
 On a fit with weights the test is computed from the Pearson residuals
