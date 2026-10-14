@@ -117,7 +117,9 @@ its statistic from the Pearson residuals as it does for the fit supplied.
 With equal weights the result is that of the unweighted fit.</p>
 <p>Weighted or not, each replicate is refitted with an offset the model was
 given as an argument, <code>lm(..., offset = o)</code>; an offset written in the
-formula, <code>offset(o)</code>, is evaluated again from the data of the replicate.</p>
+formula, <code>offset(o)</code>, is evaluated again from the data of the replicate. A
+transformed response, such as <code>log(y)</code> in <code>log(y) ~ x</code>, is regenerated on
+the scale the model uses, and the refit reads it in place of <code>log(y)</code>.</p>
 <p>The weights are held fixed in every replicate. When they were estimated
 from the same data, as by <code><a href="fitWLS.html">fitWLS()</a></code>, the replicates leave that estimation
 out. In <code>inst/validation/weighted-fits-size.R</code>, on data whose standard
