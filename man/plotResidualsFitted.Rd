@@ -4,10 +4,13 @@
 \alias{plotResidualsFitted}
 \title{Plot residuals vs fitted values}
 \usage{
-plotResidualsFitted(model)
+plotResidualsFitted(model, enhanced = FALSE)
 }
 \arguments{
 \item{model}{A fitted model of class \code{lm}.}
+
+\item{enhanced}{Logical. \code{FALSE}, the default, draws the simple plot;
+\code{TRUE} the plot with influential observations marked.}
 }
 \value{
 A \code{ggplot} object.
@@ -20,9 +23,15 @@ linear model. A horizontal reference line at zero is added.
 For a weighted fit the Pearson residuals \eqn{\sqrt{w_i}\, e_i} are plotted,
 as in \code{plot.lm()}: those are the residuals that have constant variance when
 the weights are right. The other residual plots in the package do the same.
+
+With \code{enhanced = TRUE} the plot marks influential observations (Cook's
+distance above \eqn{4/n}) in red, sizes the points by the absolute
+residual and adds the standard-error band of the LOESS smooth. This is what
+the deprecated \code{plotResidualsFittedEnhanced()} drew.
 }
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
 plotResidualsFitted(m)
+plotResidualsFitted(m, enhanced = TRUE)
 }

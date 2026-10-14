@@ -7,15 +7,26 @@
 #' as in `plot.lm()`: those are the residuals that have constant variance when
 #' the weights are right. The other residual plots in the package do the same.
 #'
+#' With `enhanced = TRUE` the plot marks influential observations (Cook's
+#' distance above \eqn{4/n}) in red, sizes the points by the absolute
+#' residual and adds the standard-error band of the LOESS smooth. This is what
+#' the deprecated `plotResidualsFittedEnhanced()` drew.
+#'
 #' @param model A fitted model of class `lm`.
+#' @param enhanced Logical. `FALSE`, the default, draws the simple plot;
+#'   `TRUE` the plot with influential observations marked.
 #'
 #' @return A \code{ggplot} object.
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' plotResidualsFitted(m)
-plotResidualsFitted <- function(model) {
+#' plotResidualsFitted(m, enhanced = TRUE)
+plotResidualsFitted <- function(model, enhanced = FALSE) {
   checkModel(model)
+  if (isTRUE(enhanced)) {
+    return(.plot_residuals_fitted_enhanced(model))
+  }
   df <- data.frame(fitted = fitted(model), resid = rpearson_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
     ggplot2::geom_point() +
@@ -62,6 +73,8 @@ plotSpreadLevel <- function(model) {
 #' to help visually assess heteroscedastic patterns.
 #'
 #' @param model A fitted model of class `lm`.
+#' @param enhanced Logical, passed to [plotResidualsFitted()]. `TRUE` returns
+#'   what the deprecated `plotDiagnosticSuiteEnhanced()` returned.
 #'
 #' @return A list with elements `residuals_fitted` and `spread_level`, each a
 #'   \code{ggplot} object.
@@ -70,10 +83,10 @@ plotSpreadLevel <- function(model) {
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' plots <- plotDiagnosticSuite(m)
 #' plots$residuals_fitted
-plotDiagnosticSuite <- function(model) {
+plotDiagnosticSuite <- function(model, enhanced = FALSE) {
   checkModel(model)
   list(
-    residuals_fitted = plotResidualsFitted(model),
+    residuals_fitted = plotResidualsFitted(model, enhanced = enhanced),
     spread_level = plotSpreadLevel(model),
     density = plotResidualDensity(model),
     qq = plotResidualQQ(model),
@@ -233,16 +246,22 @@ plotBubbleVariance <- function(model, variable = NULL) {
     theme_hetero()
 }
 
-#' Enhanced residuals vs fitted plot
+#' Enhanced residuals vs fitted plot (deprecated)
 #'
-#' Highlights influential observations and includes a LOESS smooth with
-#' confidence bands.
+#' Deprecated since 0.14.0: use `plotResidualsFitted(model, enhanced = TRUE)`,
+#' which draws the same plot. This name still works and warns.
 #'
-#' @inheritParams plotResidualsFitted
+#' @param model A fitted model of class `lm`.
 #' @return A \code{ggplot} object.
 #' @export
 plotResidualsFittedEnhanced <- function(model) {
-  checkModel(model)
+  .Deprecated("plotResidualsFitted(model, enhanced = TRUE)", old = "plotResidualsFittedEnhanced")
+  plotResidualsFitted(model, enhanced = TRUE)
+}
+
+# The plot behind plotResidualsFitted(enhanced = TRUE): influential points in
+# red, point size by the absolute residual, and the LOESS standard-error band.
+.plot_residuals_fitted_enhanced <- function(model) {
   df <- data.frame(
     fitted = fitted(model),
     resid = rpearson_residuals(model),
@@ -266,20 +285,15 @@ plotResidualsFittedEnhanced <- function(model) {
     theme_hetero()
 }
 
-#' Enhanced diagnostic plot suite
+#' Enhanced diagnostic plot suite (deprecated)
 #'
-#' Returns a list of improved diagnostic plots with statistical overlays.
+#' Deprecated since 0.14.0: use `plotDiagnosticSuite(model, enhanced = TRUE)`,
+#' which returns the same list. This name still works and warns.
 #'
-#' @inheritParams plotDiagnosticSuite
+#' @param model A fitted model of class `lm`.
 #' @return A list of ggplot objects.
 #' @export
 plotDiagnosticSuiteEnhanced <- function(model) {
-  checkModel(model)
-  list(
-    residuals_fitted = plotResidualsFittedEnhanced(model),
-    spread_level = plotSpreadLevel(model),
-    density = plotResidualDensity(model),
-    qq = plotResidualQQ(model),
-    bubble_variance = plotBubbleVariance(model)
-  )
+  .Deprecated("plotDiagnosticSuite(model, enhanced = TRUE)", old = "plotDiagnosticSuiteEnhanced")
+  plotDiagnosticSuite(model, enhanced = TRUE)
 }

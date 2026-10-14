@@ -226,7 +226,7 @@ model_signature <- function(model) {
 #' validateTestInputs(outlier_fit, noisy, "white")
 #' }
 #'
-#' @seealso [checkModel()], [checkModelEnhanced()], [rvalidateModelInputs()],
+#' @seealso [checkModel()], [rvalidateModelInputs()],
 #'   [rvalidateTestRequirements()]
 #' @export
 validateTestInputs <- function(model, data, test_name, min_obs = 10) {
@@ -260,7 +260,10 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
   invisible(TRUE)
 }
 
-#' Enhanced model diagnostics
+#' Enhanced model diagnostics (deprecated)
+#'
+#' Deprecated since 0.14.0: use `checkModel(model, data, enhanced = TRUE)`,
+#' which runs the same checks. This name still works and warns.
 #'
 #' Extends [checkModel()] with additional soft checks that flag potential
 #' numerical issues before computationally expensive diagnostics are executed.
@@ -286,12 +289,17 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
 #' @examples
 #' data(mtcars)
 #' fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
-#' checkModelEnhanced(fit)
+#' checkModel(fit, enhanced = TRUE)
 #'
 #' @seealso [checkModel()], [performVIFDiagnostic()], [validateTestInputs()]
 #' @export
 checkModelEnhanced <- function(model, data = NULL) {
-  checkModel(model)
+  .Deprecated("checkModel(model, data, enhanced = TRUE)", old = "checkModelEnhanced")
+  checkModel(model, data, enhanced = TRUE)
+}
+
+# The soft checks behind checkModel(enhanced = TRUE).
+.check_model_soft <- function(model, data = NULL) {
 
   df_resid <- tryCatch(model$df.residual, error = function(e) NA_real_)
   if (is.finite(df_resid) && df_resid <= 5) {

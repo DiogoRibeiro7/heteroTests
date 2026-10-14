@@ -155,18 +155,18 @@ test_that("validateTestInputs warns about potential issues", {
   )
 })
 
-test_that("checkModelEnhanced provides additional diagnostics", {
+test_that("checkModel(enhanced = TRUE) provides additional diagnostics", {
   test_obj <- create_test_model()
   
   # Should pass without warning for normal model
-  expect_invisible(checkModelEnhanced(test_obj$model))
+  expect_invisible(checkModel(test_obj$model, enhanced = TRUE))
   
   # Test warning for few degrees of freedom
   small_data <- generate_test_data(n = 8)  # Will have few df
   small_model <- lm(y ~ x1 + x2, data = small_data)
   
   expect_warning(
-    checkModelEnhanced(small_model),
+    checkModel(small_model, enhanced = TRUE),
     "Very few residual degrees of freedom"
   )
   
@@ -175,7 +175,7 @@ test_that("checkModelEnhanced provides additional diagnostics", {
   perfect_model <- lm(y ~ x, data = perfect_data)
   
   expect_warning(
-    checkModelEnhanced(perfect_model),
+    checkModel(perfect_model, enhanced = TRUE),
     "Near-perfect fit detected"
   )
 })
@@ -276,7 +276,7 @@ test_that("validateTestInputs enforces test name and min_obs arguments", {
   )
 })
 
-test_that("checkModelEnhanced warns when multicollinearity is extreme", {
+test_that("checkModel(enhanced = TRUE) warns when multicollinearity is extreme", {
   set.seed(99)
   n <- 30
   df <- data.frame(
@@ -286,7 +286,7 @@ test_that("checkModelEnhanced warns when multicollinearity is extreme", {
   df$x2 <- df$x1 * 0.99 + rnorm(n, sd = 1e-3)
   model <- lm(y ~ x1 + x2, data = df)
   expect_warning(
-    checkModelEnhanced(model, df),
+    checkModel(model, df, enhanced = TRUE),
     "High multicollinearity detected (VIF > 10)",
     fixed = TRUE
   )

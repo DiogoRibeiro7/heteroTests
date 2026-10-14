@@ -4,10 +4,13 @@
 \alias{plotDiagnosticSuite}
 \title{Generate a suite of diagnostic plots}
 \usage{
-plotDiagnosticSuite(model)
+plotDiagnosticSuite(model, enhanced = FALSE)
 }
 \arguments{
 \item{model}{A fitted model of class \code{lm}.}
+
+\item{enhanced}{Logical, passed to \code{\link[=plotResidualsFitted]{plotResidualsFitted()}}. \code{TRUE} returns
+what the deprecated \code{plotDiagnosticSuiteEnhanced()} returned.}
 }
 \value{
 A list with elements \code{residuals_fitted} and \code{spread_level}, each a

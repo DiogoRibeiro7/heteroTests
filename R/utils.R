@@ -2,14 +2,28 @@
 
 #' Validate model argument
 #'
-#' Checks that `model` is of class `lm` or `glm`.
+#' Checks that `model` is of class `lm` or `glm`. With `enhanced = TRUE` it
+#' also runs the soft checks of the deprecated `checkModelEnhanced()`: it warns
+#' when the residual degrees of freedom fall below six, when a near-perfect fit
+#' is detected (R\eqn{^2 > 0.999}), or, when `data` is given, when a variance
+#' inflation factor exceeds 10 (Belsley et al., 1980).
 #'
 #' @param model An object to check.
+#' @param data Optional `data.frame` used when fitting `model`. With
+#'   `enhanced = TRUE` it enables the multicollinearity check through
+#'   [performVIFDiagnostic()].
+#' @param enhanced Logical. `FALSE`, the default, checks the class only.
 #' @return Invisible `model` if valid, otherwise an error is thrown.
+#' @references
+#' Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). *Regression Diagnostics:
+#' Identifying Influential Data and Sources of Collinearity*. Wiley.
 #' @export
-checkModel <- function(model) {
+checkModel <- function(model, data = NULL, enhanced = FALSE) {
   if (!inherits(model, c("lm", "glm"))) {
     std_error("invalid_model")
+  }
+  if (isTRUE(enhanced)) {
+    .check_model_soft(model, data)
   }
   invisible(model)
 }

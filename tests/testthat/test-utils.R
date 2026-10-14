@@ -31,10 +31,10 @@ test_that("validateTestInputs detects small datasets", {
   )
 })
 
-test_that("checkModelEnhanced warns on near-perfect fit", {
+test_that("checkModel(enhanced = TRUE) warns on near-perfect fit", {
   df <- data.frame(x = 1:10, y = 1:10)
   model <- lm(y ~ x, data = df)
-  expect_warning(heteroTests:::checkModelEnhanced(model), "Near-perfect fit")
+  expect_warning(heteroTests:::checkModel(model, enhanced = TRUE), "Near-perfect fit")
 })
 
 test_that("safe_var handles near-zero variance with warning", {

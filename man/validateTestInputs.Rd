@@ -64,6 +64,6 @@ Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:
 Identifying Influential Data and Sources of Collinearity}. Wiley.
 }
 \seealso{
-\code{\link[=checkModel]{checkModel()}}, \code{\link[=checkModelEnhanced]{checkModelEnhanced()}}, \code{\link[=rvalidateModelInputs]{rvalidateModelInputs()}},
+\code{\link[=checkModel]{checkModel()}}, \code{\link[=rvalidateModelInputs]{rvalidateModelInputs()}},
 \code{\link[=rvalidateTestRequirements]{rvalidateTestRequirements()}}
 }
