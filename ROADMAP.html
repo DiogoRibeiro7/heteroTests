@@ -133,7 +133,554 @@
 <li><label><input type="checkbox"><strong>Related model checks</strong> (<code><a href="reference/performRESETTest.html">performRESETTest()</a></code>, <code><a href="reference/performVIFDiagnostic.html">performVIFDiagnostic()</a></code>, <code><a href="reference/performInfluenceDiagnostics.html">performInfluenceDiagnostics()</a></code>, <code><a href="reference/performScatterDiagnostic.html">performScatterDiagnostic()</a></code>) are not heteroscedasticity tests. Keep them, grouped in the reference index as model checks, so they are not mistaken for tests of the variance.</label></li>
 <li><label><input type="checkbox"><strong>Mechanism.</strong> Use base <code><a href="https://rdrr.io/r/base/Deprecated.html" class="external-link">.Deprecated()</a></code>, so no new dependency is needed. Each call warns and names its replacement. <code>NEWS.md</code> carries an old → new mapping table.</label></li>
 <li><label><input type="checkbox"><strong>Exit criterion.</strong> An export inventory with a verdict for every one of the 129 exports, and <code>test-public-api.R</code> extended to assert the planned 1.0 export list, so that an accidental new export fails CI.</label></li>
+</ul><div class="section level4">
+<h4 id="export-inventory">Export inventory<a class="anchor" aria-label="anchor" href="#export-inventory"></a></h4>
+<p>Every export in <code>NAMESPACE</code> on 2026-10-14, with a verdict. Of the 129, 104 are core API, 10 are renamed, 12 become internal and 3 move out. The S3 methods registered in <code>NAMESPACE</code> are not exports and are not listed; <code>S3method(test, HeteroDiagnostic)</code> goes with <code><a href="reference/test.HeteroDiagnostic.html">test()</a></code>. The verdicts apply the decisions of 2026-10-14 as written, and the author’s decisions on this inventory, taken the same day, are marked “decided”.</p>
+<p>For each renamed or internal export, the last column lists every caller found by a search of <code>R/</code> (code, not comments or the definition), <code>vignettes/</code> and <code>inst/validation/</code>, adds <code>README.md</code> where it names the export, and counts the lines in <code>tests/</code> that call it. The notebooks in <code>inst/tutorials/</code> call none of these exports. The article was not searched: it moves to the 1.0 API after 1.0.0. An export that becomes internal keeps working for its callers in <code>R/</code>, and for the tests, which run inside the namespace; a renamed export keeps working under its old name and warns. What has to change in each pull request are the callers outside <code>R/</code>, and the package’s own calls of a name that will warn.</p>
+<table class="table"><colgroup><col width="25%"><col width="25%"><col width="25%"><col width="25%"></colgroup><thead><tr><th>Export</th>
+<th>Area</th>
+<th>Verdict</th>
+<th>Evidence that the change is safe</th>
+</tr></thead><tbody><tr><td><code><a href="reference/performWhiteTest.html">performWhiteTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performWhiteTestStreaming.html">performWhiteTestStreaming()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performWhiteTestRobust.html">performWhiteTestRobust()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performWhiteTestBootstrap.html">performWhiteTestBootstrap()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBPTest.html">performBPTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBPTestStreaming.html">performBPTestStreaming()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBPTest.html">performBreuschPaganTest()</a></code></td>
+<td>test</td>
+<td>renamed: <code><a href="reference/performBPTest.html">performBPTest()</a></code>, the same object</td>
+<td>R/: none (an alias, assigned in <code>performBPTest.R</code>). Vignettes: <code>using_heteroTests.Rmd:128</code>. inst/validation/: <code>full-sweep-size-power.R:169</code>; 2 lines of <code>README.md</code>. Tests: 3 lines.</td>
+</tr><tr><td><code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performKoenkerTestStreaming.html">performKoenkerTestStreaming()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code></td>
+<td>test</td>
+<td>renamed: <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code>, once item 2 shows they agree to <code>1e-8</code> (provisional, decided)</td>
+<td>R/: registry name <code>"student_bp"</code> (<code>diagnosticsRegistry.R:70</code>, <code>test_factory.R:105</code>); <code>performBPTestRobust(studentized = TRUE)</code> (<code>robust_implementations.R:249</code>); <code><a href="reference/rvalidate_against_reference.html">rvalidate_against_reference()</a></code> (<code>:455</code>). Vignettes: none. inst/validation/: <code>full-sweep-size-power.R:171</code>, <code>weighted-fits-size.R:138</code>; 4 lines of <code>README.md</code>. Tests: 8 lines.</td>
+</tr><tr><td><code><a href="reference/performGQTest.html">performGQTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performParkTest.html">performParkTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performSzroeterTest.html">performSzroeterTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performHarrisonMcCabeTest.html">performHarrisonMcCabeTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performWildBootstrapTest.html">performWildBootstrapTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performQuantileRegressionTest.html">performQuantileRegressionTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performRankPermutationTest.html">performRankPermutationTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performHighDimensionalTest.html">performHighDimensionalTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performSpatialHeteroTest.html">performSpatialHeteroTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performSpearmanTest.html">performSpearmanTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performLeveneTest.html">performLeveneTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performGlejserTest.html">performGlejserTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBrownForsytheTest.html">performBrownForsytheTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performFlignerKilleenTest.html">performFlignerKilleenTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBartlettTest.html">performBartlettTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performHarveyTest.html">performHarveyTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performArchLMTest.html">performArchLMTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performMcLeodLiTest.html">performMcLeodLiTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performHartleyFmaxTest.html">performHartleyFmaxTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performOBrienTest.html">performOBrienTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performNCVTest.html">performNCVTest()</a></code></td>
+<td>test</td>
+<td>renamed: <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code>, which gains an optional <code>var_formula</code> (decided)</td>
+<td>R/: registry name <code>"ncv"</code> (<code>diagnosticsRegistry.R:67</code>); <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code> delegates to it (<code>performCookWeisbergTest.R:69</code>); the benchmark suite (<code>benchmarking_system.R:368</code>). Vignettes: none. inst/validation/: <code>full-sweep-size-power.R:165</code>, <code>pass-a-size-power.R:87</code>, <code>weighted-fits-size.R:133,196</code>; 6 lines of <code>README.md</code>. Also <code>README.md:34</code>. Tests: 20 lines.</td>
+</tr><tr><td><code><a href="reference/performSpreadLevelTest.html">performSpreadLevelTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performPesaranTest.html">performPesaranTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performVarianceFormTest.html">performVarianceFormTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code></td>
+<td>test</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code></td>
+<td>test</td>
+<td>renamed: <code>bootstrapTestStatistic()</code> (decided)</td>
+<td>R/: <code><a href="reference/performWhiteTestRobust.html">performWhiteTestRobust()</a></code> and <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> (<code>robust_implementations.R:135,270</code>). Vignettes: none. inst/validation/: <code>offset-refits-size.R</code>, <code>weighted-fits-size.R</code>, labels in <code>make-table.R</code>; 22 lines of <code>README.md</code>. Also the <em>Decisions needed</em> row on <code><a href="reference/fitWLS.html">fitWLS()</a></code> fits. Tests: 60 lines.</td>
+</tr><tr><td><code><a href="reference/performScatterDiagnostic.html">performScatterDiagnostic()</a></code></td>
+<td>model check</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performVIFDiagnostic.html">performVIFDiagnostic()</a></code></td>
+<td>model check</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performRESETTest.html">performRESETTest()</a></code></td>
+<td>model check</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/performInfluenceDiagnostics.html">performInfluenceDiagnostics()</a></code></td>
+<td>model check</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/checkModel.html">checkModel()</a></code></td>
+<td>model check</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/checkModelEnhanced.html">checkModelEnhanced()</a></code></td>
+<td>model check</td>
+<td>renamed: merged into <code><a href="reference/checkModel.html">checkModel()</a></code>
+</td>
+<td>R/: <code><a href="reference/performWhiteTestStreaming.html">performWhiteTestStreaming()</a></code> (<code>performance.R:267</code>). Vignettes: none. inst/validation/: none. Tests: 8 lines.</td>
+</tr><tr><td><code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runHeteroTestsParallel.html">runHeteroTestsParallel()</a></code></td>
+<td>runner</td>
+<td>core API (decided)</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runDiagnostics.html">runDiagnostics()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runDiagnosticPlots.html">runDiagnosticPlots()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/registerDiagnostic.html">registerDiagnostic()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/listDiagnostics.html">listDiagnostics()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/registerPlot.html">registerPlot()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runMultivariateTests.html">runMultivariateTests()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runTimeSeriesTests.html">runTimeSeriesTests()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runPanelTests.html">runPanelTests()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/runSurveyHeteroTests.html">runSurveyHeteroTests()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/compareModelDiagnostics.html">compareModelDiagnostics()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/compareTestResults.html">compareTestResults()</a></code></td>
+<td>runner</td>
+<td>core API (decided)</td>
+<td></td>
+</tr><tr><td><code><a href="reference/analyzeMLResiduals.html">analyzeMLResiduals()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/HeteroDiagnostic.html">HeteroDiagnostic()</a></code></td>
+<td>runner</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/test.HeteroDiagnostic.html">test()</a></code></td>
+<td>runner</td>
+<td>renamed: its warning names <code>runDiagnostics(x$model, x$data, tests)</code>; <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> is unchanged (decided)</td>
+<td>R/: <code><a href="reference/summary.HeteroDiagnostic.html">summary.HeteroDiagnostic()</a></code> calls it (<code>HeteroDiagnostic.R:59</code>). Vignettes: <code>real_world_case_studies.Rmd:110</code>, <code>tutorial.Rmd:32</code>, <code>using_heteroTests.Rmd:100,105</code>. inst/validation/: none. Also <code>README.md:143</code>. Tests: 19 lines. <code><a href="reference/summary.HeteroDiagnostic.html">summary.HeteroDiagnostic()</a></code> will call <code><a href="reference/runDiagnostics.html">runDiagnostics()</a></code> directly.</td>
+</tr><tr><td><code><a href="reference/fitWLS.html">fitWLS()</a></code></td>
+<td>remediation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/fitRobust.html">fitRobust()</a></code></td>
+<td>remediation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/autoTransform.html">autoTransform()</a></code></td>
+<td>remediation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/suggestRemediation.html">suggestRemediation()</a></code></td>
+<td>remediation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/autoCompareRemediations.html">autoCompareRemediations()</a></code></td>
+<td>remediation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">analyseDatasetCharacteristics()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">suggestDiagnosticsForProfile()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">interpretHeteroTestResults()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">recommendRemediationStrategies()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">warnDiagnosticAssumptions()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">buildDiagnosticDecisionTree()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">composeDiagnosticNarrative()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateHeteroRecommendations.html">generateHeteroRecommendations()</a></code></td>
+<td>recommendation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">simulate_hetero()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">simulate_arch1()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_linear()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_exponential()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_group()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_piecewise()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_poly()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_sin()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_multiplicative()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_spatial()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_logistic()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_inverse()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_power()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_step()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_u_shape()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_exp_decay()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_gaussian_peak()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulate_hetero.html">sigma_piecewise_linear()</a></code></td>
+<td>simulation</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/simulation_framework.html">simulate_type_I_errors()</a></code></td>
+<td>simulation</td>
+<td>renamed: <code>simulate_size()</code> (decided)</td>
+<td>R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines.</td>
+</tr><tr><td><code><a href="reference/simulation_framework.html">simulate_power_analysis()</a></code></td>
+<td>simulation</td>
+<td>renamed: <code>simulate_power()</code> (decided)</td>
+<td>R/: none. Vignettes: named in the prose of <code>troubleshooting.Rmd:44</code>. inst/validation/: none. Tests: 3 lines.</td>
+</tr><tr><td><code><a href="reference/plotResidualsFitted.html">plotResidualsFitted()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotSpreadLevel.html">plotSpreadLevel()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotResidualDensity.html">plotResidualDensity()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotResidualQQ.html">plotResidualQQ()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotBubbleVariance.html">plotBubbleVariance()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotDiagnosticSuite.html">plotDiagnosticSuite()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotBeforeAfter.html">plotBeforeAfter()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/plotResidualsFittedEnhanced.html">plotResidualsFittedEnhanced()</a></code></td>
+<td>plotting</td>
+<td>renamed: merged into <code><a href="reference/plotResidualsFitted.html">plotResidualsFitted()</a></code>
+</td>
+<td>R/: <code><a href="reference/plotDiagnosticSuiteEnhanced.html">plotDiagnosticSuiteEnhanced()</a></code> (<code>plotDiagnostics.R:279</code>). Vignettes: none. inst/validation/: none. Tests: 5 lines.</td>
+</tr><tr><td><code><a href="reference/plotDiagnosticSuiteEnhanced.html">plotDiagnosticSuiteEnhanced()</a></code></td>
+<td>plotting</td>
+<td>renamed: merged into <code><a href="reference/plotDiagnosticSuite.html">plotDiagnosticSuite()</a></code>
+</td>
+<td>R/: <code><a href="reference/generateDiagnosticReport.html">generateDiagnosticReport()</a></code> (<code>reporting.R:53</code>); the dashboard (<code>dashboard.R:536</code>). Vignettes: none. inst/validation/: none. Tests: 4 lines.</td>
+</tr><tr><td><code><a href="reference/theme_hetero.html">theme_hetero()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/scale_colour_hetero_diagnostic.html">scale_colour_hetero_diagnostic()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/scale_colour_hetero_diagnostic.html">scale_fill_hetero_diagnostic()</a></code></td>
+<td>plotting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/generateDiagnosticReport.html">generateDiagnosticReport()</a></code></td>
+<td>reporting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/downloadTeachingData.html">downloadTeachingData()</a></code></td>
+<td>reporting</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/ht_logging.html">ht_set_log_level()</a></code></td>
+<td>infrastructure</td>
+<td>core API</td>
+<td></td>
+</tr><tr><td><code><a href="reference/std_error.html">std_error()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: 92 lines in 24 files, all internal callers, which keep working. Vignettes: none. inst/validation/: none. Tests: 9 lines.</td>
+</tr><tr><td><code><a href="reference/std_warning.html">std_warning()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: <code>performance.R:181</code>, <code>performWhiteTest.R:232</code>, <code>validation.R:675</code>. Vignettes: none. inst/validation/: none. Tests: none.</td>
+</tr><tr><td><code><a href="reference/validateTestInputs.html">validateTestInputs()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: <code><a href="reference/generateHeteroRecommendations.html">generateHeteroRecommendations()</a></code> (<code>intelligent_recommendations.R:686</code>), the test factory (<code>test_factory.R:80</code>). Vignettes: none. inst/validation/: none. Tests: 21 lines.</td>
+</tr><tr><td><code><a href="reference/checkData.html">checkData()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: 16 lines in 7 files (<code>advancedDiagnostics.R</code>, <code>advancedRemediation.R</code>, <code>fitWLS.R</code>, <code>HeteroDiagnostic.R</code>, <code>intelligent_recommendations.R</code>, <code>reporting.R</code>, <code>runPanelTests.R</code>). Vignettes: none. inst/validation/: none. Tests: 9 lines.</td>
+</tr><tr><td><code>TestFactory</code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: only <code>test_factory.R:98</code>, which builds <code>test_factory</code>. Vignettes: none. inst/validation/: none. Tests: 2 lines.</td>
+</tr><tr><td><code>test_factory</code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: through its alias <code>.test_factory</code>, in <code>.run_registered_diagnostic()</code> (<code>performance.R:610-612</code>) and the dashboard (<code>dashboard.R:53</code>). Vignettes: none. inst/validation/: none. Tests: 10 lines.</td>
+</tr><tr><td><code><a href="reference/cachedTest.html">cachedTest()</a></code></td>
+<td>infrastructure</td>
+<td>core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches</td>
+<td></td>
+</tr><tr><td><code><a href="reference/clearTestCache.html">clearTestCache()</a></code></td>
+<td>infrastructure</td>
+<td>core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches</td>
+<td></td>
+</tr><tr><td><code><a href="reference/clearAnalysisCache.html">clearAnalysisCache()</a></code></td>
+<td>infrastructure</td>
+<td>core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches</td>
+<td></td>
+</tr><tr><td><code><a href="reference/ht_logging.html">ht_enable_log_capture()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: none. Vignettes: none. inst/validation/: none. Tests: none.</td>
+</tr><tr><td><code><a href="reference/ht_logging.html">ht_log_history()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: none. Vignettes: none. inst/validation/: none. Tests: none.</td>
+</tr><tr><td><code><a href="reference/ht_logging.html">ht_clear_log_history()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: none. Vignettes: none. inst/validation/: none. Tests: none.</td>
+</tr><tr><td><code><a href="reference/rcalculateEffectSize.html">rcalculateEffectSize()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: <code><a href="reference/performWhiteTestRobust.html">performWhiteTestRobust()</a></code>, <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> (<code>robust_implementations.R:158,292</code>), <code><a href="reference/restimate_test_power.html">restimate_test_power()</a></code> (<code>bootstrap_methods.R:599</code>). Vignettes: none. inst/validation/: none. Tests: 4 lines.</td>
+</tr><tr><td><code><a href="reference/restimate_test_power.html">restimate_test_power()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: <code><a href="reference/performWhiteTestRobust.html">performWhiteTestRobust()</a></code>, <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> (<code>robust_implementations.R:159,293</code>). Vignettes: none. inst/validation/: none. Tests: 3 lines.</td>
+</tr><tr><td><code><a href="reference/rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code></td>
+<td>runner</td>
+<td>core API (decided); its name is still open, see the item on the <code>r</code>-prefixed exports</td>
+<td></td>
+</tr><tr><td><code><a href="reference/rvalidate_against_reference.html">rvalidate_against_reference()</a></code></td>
+<td>infrastructure</td>
+<td>internal</td>
+<td>R/: none. Vignettes: none. inst/validation/: none. Tests: 2 lines. The reference comparisons live in <code>tests/testthat/</code>.</td>
+</tr><tr><td><code><a href="reference/launchDiagnosticDashboard.html">launchDiagnosticDashboard()</a></code></td>
+<td>dashboard and benchmarks</td>
+<td>moved out (companion package not named yet; not deprecated in 0.14.0)</td>
+<td>R/: none outside <code>dashboard.R</code>. Vignettes: none. inst/validation/: none.</td>
+</tr><tr><td><code><a href="reference/run_benchmark_suite.html">run_benchmark_suite()</a></code></td>
+<td>dashboard and benchmarks</td>
+<td>moved out (companion package not named yet; not deprecated in 0.14.0)</td>
+<td>R/: none outside <code>benchmarking_system.R</code>. Vignettes: none. inst/validation/: none.</td>
+</tr><tr><td><code><a href="reference/run_benchmark_suite.html">generate_benchmark_report()</a></code></td>
+<td>dashboard and benchmarks</td>
+<td>moved out (companion package not named yet; not deprecated in 0.14.0)</td>
+<td>R/: none outside <code>benchmarking_system.R</code>. Vignettes: none. inst/validation/: none.</td>
+</tr></tbody></table><p>Notes on the verdicts:</p>
+<ul><li>
+<strong><code><a href="reference/performStudentizedBPTest.html">performStudentizedBPTest()</a></code> is provisional.</strong> Item 2 first asserts that it agrees with <code><a href="reference/performKoenkerTest.html">performKoenkerTest()</a></code> to <code>1e-8</code> over the designs of the full sweep, weighted, rank-deficient and <code><a href="reference/fitWLS.html">fitWLS()</a></code> fits included. Disagreement anywhere is a finding, not a rename, and is reported before anything else.</li>
+<li>
+<strong><code><a href="reference/test.HeteroDiagnostic.html">test()</a></code></strong> warns and names <code>runDiagnostics(x$model, x$data, tests)</code>, which returns what <code><a href="reference/test.HeteroDiagnostic.html">test()</a></code> returns. <code><a href="reference/summary.HeteroDiagnostic.html">summary.HeteroDiagnostic()</a></code> keeps its return value, so no value changes in 0.14.0.</li>
+<li>
+<strong>Registry names.</strong> <code>"student_bp"</code> and <code>"ncv"</code> stay registered and keep calling what they call now, so their output does not change. Each warns once per call of <code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code> or <code><a href="reference/runDiagnostics.html">runDiagnostics()</a></code>, not once per group or bootstrap replicate, and goes in 1.0.0 with the function behind it.</li>
+<li>
+<strong>The cache functions</strong> (<code><a href="reference/cachedTest.html">cachedTest()</a></code>, <code><a href="reference/clearTestCache.html">clearTestCache()</a></code>, <code><a href="reference/clearAnalysisCache.html">clearAnalysisCache()</a></code>) stay exported and are not deprecated in 0.14.0. They are revisited at 1.0.0, once 0.16.0 bounds the caches.</li>
+<li>
+<strong><code><a href="reference/rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code>, <code><a href="reference/runHeteroTestsParallel.html">runHeteroTestsParallel()</a></code> and <code><a href="reference/compareTestResults.html">compareTestResults()</a></code></strong> stay core API. The name of <code><a href="reference/rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code> is still open under the item on the <code>r</code>-prefixed exports.</li>
+<li>
+<strong>The simulation renames.</strong> <code>simulate_size()</code> and <code>simulate_power()</code> join the documented snake_case family, since both simulate under the <code>sigma_*()</code> functions.</li>
+<li>
+<strong><code>bootstrapTestStatistic()</code></strong> takes a test function as its first argument, so it is not a <code>perform*Test(model, data, ...)</code>; the new name says what it does in the house camelCase.</li>
+<li>
+<strong>The dashboard and the benchmark suite</strong> are not deprecated in 0.14.0, because the companion package has no name yet. They call <code><a href="reference/plotDiagnosticSuiteEnhanced.html">plotDiagnosticSuiteEnhanced()</a></code>, the test factory and <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>, which change before the code moves.</li>
+<li>
+<code><a href="reference/analyzeMLResiduals.html">analyzeMLResiduals()</a></code> and <code><a href="reference/generateHeteroRecommendations.html">analyseDatasetCharacteristics()</a></code> spell the verb two ways. Both are core API; the roadmap names no change for them.</li>
 </ul></div>
+</div>
 <div class="section level3">
 <h3 id="id_0150-make-the-interface-match-its-description">0.15.0: make the interface match its description<a class="anchor" aria-label="anchor" href="#id_0150-make-the-interface-match-its-description"></a></h3>
 <p>These changes break existing calls. They have to happen before 1.0.0, not after it.</p>

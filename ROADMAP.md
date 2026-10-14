@@ -408,6 +408,216 @@ dependency is needed. Each call warns and names its replacement.
 the 129 exports, and `test-public-api.R` extended to assert the planned
 1.0 export list, so that an accidental new export fails CI.
 
+#### Export inventory
+
+Every export in `NAMESPACE` on 2026-10-14, with a verdict. Of the 129,
+104 are core API, 10 are renamed, 12 become internal and 3 move out. The
+S3 methods registered in `NAMESPACE` are not exports and are not listed;
+`S3method(test, HeteroDiagnostic)` goes with
+[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md).
+The verdicts apply the decisions of 2026-10-14 as written, and the
+author’s decisions on this inventory, taken the same day, are marked
+“decided”.
+
+For each renamed or internal export, the last column lists every caller
+found by a search of `R/` (code, not comments or the definition),
+`vignettes/` and `inst/validation/`, adds `README.md` where it names the
+export, and counts the lines in `tests/` that call it. The notebooks in
+`inst/tutorials/` call none of these exports. The article was not
+searched: it moves to the 1.0 API after 1.0.0. An export that becomes
+internal keeps working for its callers in `R/`, and for the tests, which
+run inside the namespace; a renamed export keeps working under its old
+name and warns. What has to change in each pull request are the callers
+outside `R/`, and the package’s own calls of a name that will warn.
+
+| Export | Area | Verdict | Evidence that the change is safe |
+|----|----|----|----|
+| [`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md) | test | core API |  |
+| [`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md) | test | core API |  |
+| [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md) | test | core API |  |
+| [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) | test | core API |  |
+| [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md) | test | core API |  |
+| [`performBPTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestStreaming.md) | test | core API |  |
+| [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) | test | core API |  |
+| [`performBreuschPaganTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md) | test | renamed: [`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md), the same object | R/: none (an alias, assigned in `performBPTest.R`). Vignettes: `using_heteroTests.Rmd:128`. inst/validation/: `full-sweep-size-power.R:169`; 2 lines of `README.md`. Tests: 3 lines. |
+| [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md) | test | core API |  |
+| [`performKoenkerTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTestStreaming.md) | test | core API |  |
+| [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md) | test | renamed: [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md), once item 2 shows they agree to `1e-8` (provisional, decided) | R/: registry name `"student_bp"` (`diagnosticsRegistry.R:70`, `test_factory.R:105`); `performBPTestRobust(studentized = TRUE)` (`robust_implementations.R:249`); [`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md) (`:455`). Vignettes: none. inst/validation/: `full-sweep-size-power.R:171`, `weighted-fits-size.R:138`; 4 lines of `README.md`. Tests: 8 lines. |
+| [`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md) | test | core API |  |
+| [`performParkTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performParkTest.md) | test | core API |  |
+| [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | test | core API |  |
+| [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md) | test | core API |  |
+| [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md) | test | core API |  |
+| [`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md) | test | core API |  |
+| [`performRankPermutationTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRankPermutationTest.md) | test | core API |  |
+| [`performHighDimensionalTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHighDimensionalTest.md) | test | core API |  |
+| [`performSpatialHeteroTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpatialHeteroTest.md) | test | core API |  |
+| [`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md) | test | core API |  |
+| [`performLeveneTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performLeveneTest.md) | test | core API |  |
+| [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | test | core API |  |
+| [`performBrownForsytheTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBrownForsytheTest.md) | test | core API |  |
+| [`performFlignerKilleenTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performFlignerKilleenTest.md) | test | core API |  |
+| [`performBartlettTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBartlettTest.md) | test | core API |  |
+| [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md) | test | core API |  |
+| [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md) | test | core API |  |
+| [`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md) | test | core API |  |
+| [`performHartleyFmaxTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHartleyFmaxTest.md) | test | core API |  |
+| [`performOBrienTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOBrienTest.md) | test | core API |  |
+| [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) | test | core API |  |
+| [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md) | test | renamed: [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md), which gains an optional `var_formula` (decided) | R/: registry name `"ncv"` (`diagnosticsRegistry.R:67`); [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md) delegates to it (`performCookWeisbergTest.R:69`); the benchmark suite (`benchmarking_system.R:368`). Vignettes: none. inst/validation/: `full-sweep-size-power.R:165`, `pass-a-size-power.R:87`, `weighted-fits-size.R:133,196`; 6 lines of `README.md`. Also `README.md:34`. Tests: 20 lines. |
+| [`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md) | test | core API |  |
+| [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md) | test | core API |  |
+| [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md) | test | core API |  |
+| [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md) | test | core API |  |
+| [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md) | test | core API |  |
+| [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) | test | core API |  |
+| [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) | test | renamed: `bootstrapTestStatistic()` (decided) | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md) and [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:135,270`). Vignettes: none. inst/validation/: `offset-refits-size.R`, `weighted-fits-size.R`, labels in `make-table.R`; 22 lines of `README.md`. Also the *Decisions needed* row on [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fits. Tests: 60 lines. |
+| [`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md) | model check | core API |  |
+| [`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md) | model check | core API |  |
+| [`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md) | model check | core API |  |
+| [`performInfluenceDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/performInfluenceDiagnostics.md) | model check | core API |  |
+| [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md) | model check | core API |  |
+| [`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md) | model check | renamed: merged into [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md) | R/: [`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md) (`performance.R:267`). Vignettes: none. inst/validation/: none. Tests: 8 lines. |
+| [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md) | runner | core API |  |
+| [`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md) | runner | core API (decided) |  |
+| [`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md) | runner | core API |  |
+| [`runDiagnosticPlots()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnosticPlots.md) | runner | core API |  |
+| [`registerDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/registerDiagnostic.md) | runner | core API |  |
+| [`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md) | runner | core API |  |
+| [`registerPlot()`](https://diogoribeiro7.github.io/heteroTests/reference/registerPlot.md) | runner | core API |  |
+| [`runMultivariateTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runMultivariateTests.md) | runner | core API |  |
+| [`runTimeSeriesTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runTimeSeriesTests.md) | runner | core API |  |
+| [`runPanelTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runPanelTests.md) | runner | core API |  |
+| [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md) | runner | core API |  |
+| [`compareModelDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/compareModelDiagnostics.md) | runner | core API |  |
+| [`compareTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/compareTestResults.md) | runner | core API (decided) |  |
+| [`analyzeMLResiduals()`](https://diogoribeiro7.github.io/heteroTests/reference/analyzeMLResiduals.md) | runner | core API |  |
+| [`HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/HeteroDiagnostic.md) | runner | core API |  |
+| [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md) | runner | renamed: its warning names `runDiagnostics(x$model, x$data, tests)`; [`summary()`](https://rdrr.io/r/base/summary.html) is unchanged (decided) | R/: [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) calls it (`HeteroDiagnostic.R:59`). Vignettes: `real_world_case_studies.Rmd:110`, `tutorial.Rmd:32`, `using_heteroTests.Rmd:100,105`. inst/validation/: none. Also `README.md:143`. Tests: 19 lines. [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md) will call [`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md) directly. |
+| [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) | remediation | core API |  |
+| [`fitRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/fitRobust.md) | remediation | core API |  |
+| [`autoTransform()`](https://diogoribeiro7.github.io/heteroTests/reference/autoTransform.md) | remediation | core API |  |
+| [`suggestRemediation()`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md) | remediation | core API |  |
+| [`autoCompareRemediations()`](https://diogoribeiro7.github.io/heteroTests/reference/autoCompareRemediations.md) | remediation | core API |  |
+| [`analyseDatasetCharacteristics()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`suggestDiagnosticsForProfile()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`interpretHeteroTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`recommendRemediationStrategies()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`warnDiagnosticAssumptions()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`buildDiagnosticDecisionTree()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`composeDiagnosticNarrative()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`generateHeteroRecommendations()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) | recommendation | core API |  |
+| [`simulate_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`simulate_arch1()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_linear()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_exponential()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_group()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_piecewise()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_poly()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_sin()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_multiplicative()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_spatial()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_logistic()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_inverse()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_step()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_u_shape()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_exp_decay()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_gaussian_peak()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`sigma_piecewise_linear()`](https://diogoribeiro7.github.io/heteroTests/reference/simulate_hetero.md) | simulation | core API |  |
+| [`simulate_type_I_errors()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: `simulate_size()` (decided) | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. |
+| [`simulate_power_analysis()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md) | simulation | renamed: `simulate_power()` (decided) | R/: none. Vignettes: named in the prose of `troubleshooting.Rmd:44`. inst/validation/: none. Tests: 3 lines. |
+| [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md) | plotting | core API |  |
+| [`plotSpreadLevel()`](https://diogoribeiro7.github.io/heteroTests/reference/plotSpreadLevel.md) | plotting | core API |  |
+| [`plotResidualDensity()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualDensity.md) | plotting | core API |  |
+| [`plotResidualQQ()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualQQ.md) | plotting | core API |  |
+| [`plotBubbleVariance()`](https://diogoribeiro7.github.io/heteroTests/reference/plotBubbleVariance.md) | plotting | core API |  |
+| [`plotDiagnosticSuite()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuite.md) | plotting | core API |  |
+| [`plotBeforeAfter()`](https://diogoribeiro7.github.io/heteroTests/reference/plotBeforeAfter.md) | plotting | core API |  |
+| [`plotResidualsFittedEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFittedEnhanced.md) | plotting | renamed: merged into [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md) | R/: [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md) (`plotDiagnostics.R:279`). Vignettes: none. inst/validation/: none. Tests: 5 lines. |
+| [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md) | plotting | renamed: merged into [`plotDiagnosticSuite()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuite.md) | R/: [`generateDiagnosticReport()`](https://diogoribeiro7.github.io/heteroTests/reference/generateDiagnosticReport.md) (`reporting.R:53`); the dashboard (`dashboard.R:536`). Vignettes: none. inst/validation/: none. Tests: 4 lines. |
+| [`theme_hetero()`](https://diogoribeiro7.github.io/heteroTests/reference/theme_hetero.md) | plotting | core API |  |
+| [`scale_colour_hetero_diagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/scale_colour_hetero_diagnostic.md) | plotting | core API |  |
+| [`scale_fill_hetero_diagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/scale_colour_hetero_diagnostic.md) | plotting | core API |  |
+| [`generateDiagnosticReport()`](https://diogoribeiro7.github.io/heteroTests/reference/generateDiagnosticReport.md) | reporting | core API |  |
+| [`downloadTeachingData()`](https://diogoribeiro7.github.io/heteroTests/reference/downloadTeachingData.md) | reporting | core API |  |
+| [`ht_set_log_level()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md) | infrastructure | core API |  |
+| [`std_error()`](https://diogoribeiro7.github.io/heteroTests/reference/std_error.md) | infrastructure | internal | R/: 92 lines in 24 files, all internal callers, which keep working. Vignettes: none. inst/validation/: none. Tests: 9 lines. |
+| [`std_warning()`](https://diogoribeiro7.github.io/heteroTests/reference/std_warning.md) | infrastructure | internal | R/: `performance.R:181`, `performWhiteTest.R:232`, `validation.R:675`. Vignettes: none. inst/validation/: none. Tests: none. |
+| [`validateTestInputs()`](https://diogoribeiro7.github.io/heteroTests/reference/validateTestInputs.md) | infrastructure | internal | R/: [`generateHeteroRecommendations()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md) (`intelligent_recommendations.R:686`), the test factory (`test_factory.R:80`). Vignettes: none. inst/validation/: none. Tests: 21 lines. |
+| [`checkData()`](https://diogoribeiro7.github.io/heteroTests/reference/checkData.md) | infrastructure | internal | R/: 16 lines in 7 files (`advancedDiagnostics.R`, `advancedRemediation.R`, `fitWLS.R`, `HeteroDiagnostic.R`, `intelligent_recommendations.R`, `reporting.R`, `runPanelTests.R`). Vignettes: none. inst/validation/: none. Tests: 9 lines. |
+| `TestFactory` | infrastructure | internal | R/: only `test_factory.R:98`, which builds `test_factory`. Vignettes: none. inst/validation/: none. Tests: 2 lines. |
+| `test_factory` | infrastructure | internal | R/: through its alias `.test_factory`, in `.run_registered_diagnostic()` (`performance.R:610-612`) and the dashboard (`dashboard.R:53`). Vignettes: none. inst/validation/: none. Tests: 10 lines. |
+| [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md) | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
+| [`clearTestCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearTestCache.md) | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
+| [`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md) | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
+| [`ht_enable_log_capture()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
+| [`ht_log_history()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
+| [`ht_clear_log_history()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
+| [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md) | infrastructure | internal | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md), [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:158,292`), [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md) (`bootstrap_methods.R:599`). Vignettes: none. inst/validation/: none. Tests: 4 lines. |
+| [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md) | infrastructure | internal | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md), [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:159,293`). Vignettes: none. inst/validation/: none. Tests: 3 lines. |
+| [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md) | runner | core API (decided); its name is still open, see the item on the `r`-prefixed exports |  |
+| [`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: 2 lines. The reference comparisons live in `tests/testthat/`. |
+| [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md) | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `dashboard.R`. Vignettes: none. inst/validation/: none. |
+| [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `benchmarking_system.R`. Vignettes: none. inst/validation/: none. |
+| [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `benchmarking_system.R`. Vignettes: none. inst/validation/: none. |
+
+Notes on the verdicts:
+
+- **[`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+  is provisional.** Item 2 first asserts that it agrees with
+  [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+  to `1e-8` over the designs of the full sweep, weighted, rank-deficient
+  and
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fits included. Disagreement anywhere is a finding, not a rename, and
+  is reported before anything else.
+- **[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)**
+  warns and names `runDiagnostics(x$model, x$data, tests)`, which
+  returns what
+  [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
+  returns.
+  [`summary.HeteroDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/summary.HeteroDiagnostic.md)
+  keeps its return value, so no value changes in 0.14.0.
+- **Registry names.** `"student_bp"` and `"ncv"` stay registered and
+  keep calling what they call now, so their output does not change. Each
+  warns once per call of
+  [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
+  or
+  [`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md),
+  not once per group or bootstrap replicate, and goes in 1.0.0 with the
+  function behind it.
+- **The cache functions**
+  ([`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md),
+  [`clearTestCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearTestCache.md),
+  [`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md))
+  stay exported and are not deprecated in 0.14.0. They are revisited at
+  1.0.0, once 0.16.0 bounds the caches.
+- **[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md),
+  [`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md)
+  and
+  [`compareTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/compareTestResults.md)**
+  stay core API. The name of
+  [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+  is still open under the item on the `r`-prefixed exports.
+- **The simulation renames.** `simulate_size()` and `simulate_power()`
+  join the documented snake_case family, since both simulate under the
+  `sigma_*()` functions.
+- **`bootstrapTestStatistic()`** takes a test function as its first
+  argument, so it is not a `perform*Test(model, data, ...)`; the new
+  name says what it does in the house camelCase.
+- **The dashboard and the benchmark suite** are not deprecated in
+  0.14.0, because the companion package has no name yet. They call
+  [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md),
+  the test factory and
+  [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md),
+  which change before the code moves.
+- [`analyzeMLResiduals()`](https://diogoribeiro7.github.io/heteroTests/reference/analyzeMLResiduals.md)
+  and
+  [`analyseDatasetCharacteristics()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+  spell the verb two ways. Both are core API; the roadmap names no
+  change for them.
+
 ### 0.15.0: make the interface match its description
 
 These changes break existing calls. They have to happen before 1.0.0,
