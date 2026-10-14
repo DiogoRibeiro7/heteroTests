@@ -49,7 +49,7 @@ summary(base_model)
 ``` r
 
 hd <- HeteroDiagnostic(base_model, quakes)
-test(hd)
+runDiagnostics(hd$model, hd$data)
 ```
 
     ## [INFO] Running White test

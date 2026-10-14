@@ -205,7 +205,7 @@ model <- lm(stations ~ mag + depth, quakes)
 
 # Inspect heteroscedasticity
 hd <- HeteroDiagnostic(model, quakes)
-test(hd)
+runDiagnostics(hd$model, hd$data)
 plot(hd)
 
 # Choose the tests by name; listDiagnostics() returns the names
@@ -575,7 +575,8 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 - [`print(`*`<htest_enhanced>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/print.htest_enhanced.md)
   : Print method for enhanced White test results
 
-- [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+- [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
   : Bootstrap a test statistic
 
 - [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md)

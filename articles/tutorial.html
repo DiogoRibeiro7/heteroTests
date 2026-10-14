@@ -101,7 +101,7 @@ R’s built-in <code>quakes</code> dataset.</p>
 </h2>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">base_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">hd</span><span class="op">$</span><span class="va">model</span>, <span class="va">hd</span><span class="op">$</span><span class="va">data</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [INFO] Running White test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>

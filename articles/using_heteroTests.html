@@ -1077,7 +1077,7 @@ heteroscedasticity and let us visualise the residual spread.</p>
 remedy and re-test the model.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">stations</span> <span class="op">~</span> <span class="va">mag</span> <span class="op">+</span> <span class="va">depth</span>, <span class="va">quakes</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="va">hd</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">hd</span><span class="op">$</span><span class="va">model</span>, <span class="va">hd</span><span class="op">$</span><span class="va">data</span><span class="op">)</span></span>
 <span><span class="co"># $white</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co">#   White's test for heteroscedasticity</span></span>
@@ -1460,7 +1460,7 @@ remedy and re-test the model.</p>
 <span><span class="va">wls_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fitWLS.html">fitWLS</a></span><span class="op">(</span><span class="va">hd</span><span class="op">$</span><span class="va">model</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Re-test after remedy</span></span>
-<span><span class="fu"><a href="../reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="fu"><a href="../reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">wls_model</span>, <span class="va">quakes</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">wls_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co"># [INFO] Running White test</span></span>
 <span><span class="co"># [INFO] White test completed: statistic = 42.1531 df = 5 p = 0</span></span>
 <span><span class="co"># [INFO] Running Breusch-Pagan test</span></span>

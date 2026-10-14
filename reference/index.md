@@ -264,7 +264,8 @@
 - [`print(`*`<htest_enhanced>`*`)`](https://diogoribeiro7.github.io/heteroTests/reference/print.htest_enhanced.md)
   : Print method for enhanced White test results
 
-- [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+- [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
   : Bootstrap a test statistic
 
 - [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md)

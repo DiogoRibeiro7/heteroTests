@@ -9,6 +9,19 @@ percentile interval, and—for null-imposed resampling—a p-value.
 ## Usage
 
 ``` r
+bootstrapTestStatistic(
+  test_function,
+  model,
+  data,
+  B = 1000,
+  parallel = FALSE,
+  ci_level = 0.95,
+  resample = c("null", "pairs"),
+  n_cores = NULL,
+  progress = interactive(),
+  ...
+)
+
 rbootstrap_test_statistic(
   test_function,
   model,
@@ -178,6 +191,12 @@ A list with components:
 
   Matched call for reproducibility.
 
+## Deprecated name
+
+`rbootstrap_test_statistic()` is deprecated since 0.14.0: use
+`bootstrapTestStatistic()`, the same function under the package's naming
+scheme. The old name still works, returns what it returned and warns.
+
 ## Examples
 
 ``` r
@@ -185,7 +204,7 @@ data(mtcars)
 model <- lm(mpg ~ wt + cyl, data = mtcars)
 if (interactive()) {
   set.seed(123)
-  boot <- rbootstrap_test_statistic(performWhiteTest, model, mtcars, B = 100)
+  boot <- bootstrapTestStatistic(performWhiteTest, model, mtcars, B = 100)
   boot$ci
 }
 ```

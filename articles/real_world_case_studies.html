@@ -208,7 +208,7 @@ variance inflation driven by the regressor <code>x</code>.</p>
 visualisations.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">survey_diag</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/HeteroDiagnostic.html">HeteroDiagnostic</a></span><span class="op">(</span><span class="va">survey_model</span>, <span class="va">hetero_data</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/test.HeteroDiagnostic.html">test</a></span><span class="op">(</span><span class="va">survey_diag</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"breusch_pagan"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">survey_diag</span><span class="op">$</span><span class="va">model</span>, <span class="va">survey_diag</span><span class="op">$</span><span class="va">data</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"breusch_pagan"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [INFO] Running White test</span></span>
 <span><span class="co">#&gt; [INFO] White test completed: statistic = 11.7509 df = 2 p = 0.0028</span></span>
 <span><span class="co">#&gt; [INFO] Running Breusch-Pagan test</span></span>

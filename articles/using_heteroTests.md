@@ -1047,7 +1047,7 @@ remedy and re-test the model.
 ``` r
 
 hd <- HeteroDiagnostic(stations ~ mag + depth, quakes)
-test(hd)
+runDiagnostics(hd$model, hd$data)
 # $white
 # 
 #   White's test for heteroscedasticity
@@ -1430,7 +1430,7 @@ test(hd)
 wls_model <- fitWLS(hd$model)
 
 # Re-test after remedy
-test(HeteroDiagnostic(wls_model, quakes))
+runDiagnostics(wls_model, quakes)
 # [INFO] Running White test
 # [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
 # [INFO] Running Breusch-Pagan test

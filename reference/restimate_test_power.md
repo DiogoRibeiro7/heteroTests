@@ -50,3 +50,8 @@ restimate_test_power(
 A list with elements `power`, `recommended_n`, and `details` containing
 auxiliary information (degrees of freedom, non-centrality parameter, and
 a power curve over a grid of effect sizes).
+
+## Deprecated
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves
+the exports in 1.0.0. It still works and warns.

@@ -32,7 +32,7 @@ An object of class `HeteroDiagnostic`.
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  d <- HeteroDiagnostic(m, mtcars)
- test(d)
+ runDiagnostics(d$model, d$data)
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373
 #> [INFO] Running Breusch-Pagan test

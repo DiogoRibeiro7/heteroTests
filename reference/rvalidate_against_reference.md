@@ -39,3 +39,8 @@ rvalidate_against_reference(test_name, model, data, tolerance = 1e-06)
 A list describing the comparison, including a status field with values
 `"ok"`, `"mismatch"`, or `"skipped"` when the reference package is
 unavailable.
+
+## Deprecated
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves
+the exports in 1.0.0. It still works and warns.

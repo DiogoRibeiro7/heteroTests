@@ -471,7 +471,7 @@ outside `R/`, and the package’s own calls of a name that will warn.
 | [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md) | test | core API |  |
 | [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md) | test | core API |  |
 | [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) | test | core API |  |
-| [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) | test | renamed: `bootstrapTestStatistic()` (decided) | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md) and [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:135,270`). Vignettes: none. inst/validation/: `offset-refits-size.R`, `weighted-fits-size.R`, labels in `make-table.R`; 22 lines of `README.md`. Also the *Decisions needed* row on [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fits. Tests: 60 lines. |
+| [`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) | test | renamed: [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) (decided) | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md) and [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:135,270`). Vignettes: none. inst/validation/: `offset-refits-size.R`, `weighted-fits-size.R`, labels in `make-table.R`; 22 lines of `README.md`. Also the *Decisions needed* row on [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fits. Tests: 60 lines. |
 | [`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md) | model check | core API |  |
 | [`performVIFDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performVIFDiagnostic.md) | model check | core API |  |
 | [`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md) | model check | core API |  |
@@ -603,9 +603,10 @@ Notes on the verdicts:
 - **The simulation renames.** `simulate_size()` and `simulate_power()`
   join the documented snake_case family, since both simulate under the
   `sigma_*()` functions.
-- **`bootstrapTestStatistic()`** takes a test function as its first
-  argument, so it is not a `perform*Test(model, data, ...)`; the new
-  name says what it does in the house camelCase.
+- **[`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)**
+  takes a test function as its first argument, so it is not a
+  `perform*Test(model, data, ...)`; the new name says what it does in
+  the house camelCase.
 - **The dashboard and the benchmark suite** are not deprecated in
   0.14.0, because the companion package has no name yet. They call
   [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md),

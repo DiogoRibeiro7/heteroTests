@@ -299,7 +299,7 @@
 <td></td>
 </tr><tr><td><code><a href="reference/rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code></td>
 <td>test</td>
-<td>renamed: <code>bootstrapTestStatistic()</code> (decided)</td>
+<td>renamed: <code><a href="reference/rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code> (decided)</td>
 <td>R/: <code><a href="reference/performWhiteTestRobust.html">performWhiteTestRobust()</a></code> and <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> (<code>robust_implementations.R:135,270</code>). Vignettes: none. inst/validation/: <code>offset-refits-size.R</code>, <code>weighted-fits-size.R</code>, labels in <code>make-table.R</code>; 22 lines of <code>README.md</code>. Also the <em>Decisions needed</em> row on <code><a href="reference/fitWLS.html">fitWLS()</a></code> fits. Tests: 60 lines.</td>
 </tr><tr><td><code><a href="reference/performScatterDiagnostic.html">performScatterDiagnostic()</a></code></td>
 <td>model check</td>
@@ -674,7 +674,7 @@
 <li>
 <strong>The simulation renames.</strong> <code>simulate_size()</code> and <code>simulate_power()</code> join the documented snake_case family, since both simulate under the <code>sigma_*()</code> functions.</li>
 <li>
-<strong><code>bootstrapTestStatistic()</code></strong> takes a test function as its first argument, so it is not a <code>perform*Test(model, data, ...)</code>; the new name says what it does in the house camelCase.</li>
+<strong><code><a href="reference/rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code></strong> takes a test function as its first argument, so it is not a <code>perform*Test(model, data, ...)</code>; the new name says what it does in the house camelCase.</li>
 <li>
 <strong>The dashboard and the benchmark suite</strong> are not deprecated in 0.14.0, because the companion package has no name yet. They call <code><a href="reference/plotDiagnosticSuiteEnhanced.html">plotDiagnosticSuiteEnhanced()</a></code>, the test factory and <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>, which change before the code moves.</li>
 <li>

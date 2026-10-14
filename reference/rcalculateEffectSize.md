@@ -42,6 +42,11 @@ rcalculateEffectSize(
 A named list with elements `effect_size`, `magnitude`,
 `practical_significance`, `interpretation`, and `type`.
 
+## Deprecated
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves
+the exports in 1.0.0. It still works and warns.
+
 ## Examples
 
 ``` r
@@ -51,6 +56,8 @@ result <- performWhiteTest(model, mtcars)
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 8.0275 df = 5 p = 0.1547
 rcalculateEffectSize(result, model, mtcars)
+#> Warning: 'rcalculateEffectSize' is deprecated: it is an internal helper of heteroTests and leaves the exports in 1.0.0.
+#> See help("Deprecated")
 #> $effect_size
 #> [1] 0.2239913
 #> 

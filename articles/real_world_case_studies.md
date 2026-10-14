@@ -170,7 +170,7 @@ orchestrates multiple tests and visualisations.
 ``` r
 
 survey_diag <- HeteroDiagnostic(survey_model, hetero_data)
-test(survey_diag, tests = c("white", "breusch_pagan"))
+runDiagnostics(survey_diag$model, survey_diag$data, tests = c("white", "breusch_pagan"))
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.7509 df = 2 p = 0.0028
 #> [INFO] Running Breusch-Pagan test
