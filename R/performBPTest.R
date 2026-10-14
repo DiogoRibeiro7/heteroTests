@@ -168,7 +168,7 @@ performBPTest <- function(model, data) {
 
   residual_variance <- stats::var(residuals)
   if (is.na(residual_variance) || residual_variance <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan test requires residual variation greater than numerical precision"
     )
@@ -201,7 +201,7 @@ performBPTest <- function(model, data) {
   n <- length(residuals)
 
   if (n <= (ncol(aux_data) + 1L)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan auxiliary regression requires observations to exceed predictors plus intercept"
     )

@@ -91,7 +91,7 @@ performHartleyFmaxTest <- function(model, data, group) {
 
   grp <- working_data[[group]]
   if (!is.factor(grp) && !is.character(grp)) {
-    std_error(
+    .std_error(
       "invalid_group_variable",
       group_var = group,
       min_groups = 2L
@@ -115,13 +115,13 @@ performHartleyFmaxTest <- function(model, data, group) {
   n_i <- tapply(residuals, grp, length)
 
   if (any(!is.finite(vars))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Hartley's Fmax test requires finite group variances"
     )
   }
   if (min(vars) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Hartley's Fmax test requires positive variance within each group"
     )
@@ -129,7 +129,7 @@ performHartleyFmaxTest <- function(model, data, group) {
 
   k <- length(vars)
   if (k < 2L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Hartley's Fmax test requires at least two groups"
     )
@@ -153,7 +153,7 @@ performHartleyFmaxTest <- function(model, data, group) {
   }
 
   if (!is.finite(df) || df <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Hartley's Fmax test requires positive variance degrees of freedom"
     )
@@ -163,7 +163,7 @@ performHartleyFmaxTest <- function(model, data, group) {
   p_value <- SuppDists::pmaxFratio(F_stat, df = df, k = k, lower.tail = FALSE)
 
   if (!is.finite(p_value) || p_value < 0 || p_value > 1) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Hartley's Fmax reference distribution failed to produce a valid p-value"
     )

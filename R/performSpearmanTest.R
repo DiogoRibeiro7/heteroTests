@@ -57,14 +57,14 @@ performSpearmanTest <- function(model) {
   }
 
   if (stats::var(abs_res) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Spearman test requires variability in absolute residuals"
     )
   }
 
   if (stats::var(fit) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Spearman test requires variability in fitted values"
     )
@@ -72,7 +72,7 @@ performSpearmanTest <- function(model) {
 
   rho <- stats::cor(abs_res, fit, method = "spearman")
   if (is.na(rho) || abs(rho) >= 1) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Spearman correlation could not be computed due to degeneracy"
     )

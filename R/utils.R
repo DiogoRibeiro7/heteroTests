@@ -20,7 +20,7 @@
 #' @export
 checkModel <- function(model, data = NULL, enhanced = FALSE) {
   if (!inherits(model, c("lm", "glm"))) {
-    std_error("invalid_model")
+    .std_error("invalid_model")
   }
   if (isTRUE(enhanced)) {
     .check_model_soft(model, data)
@@ -132,8 +132,13 @@ ht_set_log_level <- function(level = c("INFO", "WARN", "ERROR", "SILENT")) {
 #'   entries are discarded first. Use `Inf` to keep all entries.
 #' @param sink Optional file path or connection to mirror log output.
 #' @return Invisibly returns `NULL`.
+#' @section Deprecated:
+#' Deprecated since 0.14.0, with [ht_log_history()] and
+#' [ht_clear_log_history()]: of the logging functions only
+#' [ht_set_log_level()] stays exported after 1.0.0. They still work and warn.
 #' @export
 ht_enable_log_capture <- function(enabled = TRUE, max_entries = 1000L, sink = NULL) {
+  .Deprecated(old = "ht_enable_log_capture", msg = .ht_internal_deprecation("ht_enable_log_capture"))
   .ht_log_state$capture <- isTRUE(enabled)
   if (is.finite(max_entries) && max_entries <= 0L) {
     max_entries <- 1000L
@@ -152,8 +157,12 @@ ht_enable_log_capture <- function(enabled = TRUE, max_entries = 1000L, sink = NU
 #' log entries captured via [ht_enable_log_capture()].
 #'
 #' @return A data frame with columns `timestamp`, `level` and `message`.
+#' @section Deprecated:
+#' Deprecated since 0.14.0; see [ht_enable_log_capture()]. It still works and
+#' warns.
 #' @export
 ht_log_history <- function() {
+  .Deprecated(old = "ht_log_history", msg = .ht_internal_deprecation("ht_log_history"))
   .ht_log_state$history
 }
 
@@ -162,8 +171,12 @@ ht_log_history <- function() {
 #' Removes all stored log entries accumulated via [ht_enable_log_capture()].
 #'
 #' @return Invisibly returns `NULL`.
+#' @section Deprecated:
+#' Deprecated since 0.14.0; see [ht_enable_log_capture()]. It still works and
+#' warns.
 #' @export
 ht_clear_log_history <- function() {
+  .Deprecated(old = "ht_clear_log_history", msg = .ht_internal_deprecation("ht_clear_log_history"))
   .ht_log_state$history <- .ht_log_state$history[0, , drop = FALSE]
   invisible(NULL)
 }
@@ -198,17 +211,25 @@ safe_lm <- function(formula, data, ..., .recover = TRUE) {
   )
 }
 
-#' Validate data argument
+#' Validate data argument (deprecated)
 #'
 #' Ensures that `data` is a data.frame. Used internally for input
 #' validation across the package.
+#'
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #'
 #' @param data Object to check.
 #' @return Invisible `data` if valid, otherwise an error is thrown.
 #' @export
 checkData <- function(data) {
+  .Deprecated(old = "checkData", msg = .ht_internal_deprecation("checkData"))
+  .check_data(data)
+}
+
+.check_data <- function(data) {
   if (!is.data.frame(data)) {
-    std_error("invalid_data")
+    .std_error("invalid_data")
   }
   invisible(data)
 }

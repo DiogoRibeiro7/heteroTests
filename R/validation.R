@@ -174,7 +174,10 @@ model_signature <- function(model) {
   )
 }
 
-#' Validate model and data inputs before running diagnostics
+#' Validate model and data inputs before running diagnostics (deprecated)
+#'
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #'
 #' Provides the compatibility wrapper used by the public testing interface to
 #' ensure that fitted-model objects and their associated data satisfy minimal
@@ -230,6 +233,11 @@ model_signature <- function(model) {
 #'   [rvalidateTestRequirements()]
 #' @export
 validateTestInputs <- function(model, data, test_name, min_obs = 10) {
+  .Deprecated(old = "validateTestInputs", msg = .ht_internal_deprecation("validateTestInputs"))
+  .validate_test_inputs(model, data, test_name, min_obs)
+}
+
+.validate_test_inputs <- function(model, data, test_name, min_obs = 10) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"white\"")
   min_obs <- enforce_integer_scalar(min_obs, "min_obs", lower = 0L)
 
@@ -624,7 +632,7 @@ rvalidateDataInputs <- function(data, required_vars = NULL, min_obs = 10) {
 #' @keywords internal
 rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
   if (!is.data.frame(data)) {
-    std_error("invalid_data")
+    .std_error("invalid_data")
   }
 
   if (missing(variables) || is.null(variables) || length(variables) == 0) {
@@ -634,7 +642,7 @@ rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
 
   missing_vars <- setdiff(variables, names(data))
   if (length(missing_vars) > 0) {
-    std_error("missing_variable", variable = paste(missing_vars, collapse = ", "))
+    .std_error("missing_variable", variable = paste(missing_vars, collapse = ", "))
   }
 
   strategy <- match.arg(strategy, c("complete_cases", "fail", "warn"))
@@ -663,7 +671,7 @@ rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
   }
 
   if (strategy == "fail") {
-    std_error("missing_values_detected", var_names = var_names, n_removed = n_removed)
+    .std_error("missing_values_detected", var_names = var_names, n_removed = n_removed)
   }
 
   cleaned <- data[complete_mask, , drop = FALSE]
@@ -680,7 +688,7 @@ rhandleMissingValues <- function(data, variables, strategy = "complete_cases") {
     n_removed = n_removed
   )
 
-  std_warning("missing_values_removed", var_names = var_names, n_removed = n_removed)
+  .std_warning("missing_values_removed", var_names = var_names, n_removed = n_removed)
 
   list(
     data = cleaned,
@@ -943,7 +951,7 @@ check_outlier_assumption <- function(data, config, numeric_columns) {
 #' @keywords internal
 rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
   if (!is.data.frame(data)) {
-    std_error("invalid_data")
+    .std_error("invalid_data")
   }
 
   if (is.null(assumptions)) {
@@ -1009,7 +1017,7 @@ rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
 #' @keywords internal
 rvalidateGroupingVariable <- function(data, group_var, min_group_size = 3, min_groups = 2) {
   if (!is.data.frame(data)) {
-    std_error("invalid_data")
+    .std_error("invalid_data")
   }
 
   if (missing(group_var) || length(group_var) != 1L) {
@@ -1019,7 +1027,7 @@ rvalidateGroupingVariable <- function(data, group_var, min_group_size = 3, min_g
   group_var <- as.character(group_var)
 
   if (!group_var %in% names(data)) {
-    std_error("missing_variable", variable = group_var)
+    .std_error("missing_variable", variable = group_var)
   }
 
   min_group_size <- enforce_integer_scalar(min_group_size, "min_group_size", lower = 1L)
@@ -1315,7 +1323,7 @@ rvalidateSampleSize <- function(test_name, model = NULL, data = NULL, groups = N
 rvalidateTestRequirements <- function(test_name, model, data, ...) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"Bartlett\"")
   if (!is.data.frame(data)) {
-    std_error("invalid_data")
+    .std_error("invalid_data")
   }
 
   extra <- list(...)

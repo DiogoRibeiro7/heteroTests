@@ -88,7 +88,7 @@ performGQTest <- function(model, data, order_by, fraction = 0.2,
   rprocessValidationResult(requirements)
 
   if (!order_by %in% names(working_data)) {
-    std_error("missing_variable", variable = order_by)
+    .std_error("missing_variable", variable = order_by)
   }
 
   check_memory_usage(working_data, threshold_mb = 50)
@@ -165,7 +165,7 @@ performGQTest <- function(model, data, order_by, fraction = 0.2,
   }
 
   if (df_segment1 <= 0 || df_segment2 <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Goldfeld-Quandt auxiliary regressions require positive residual degrees of freedom"
     )

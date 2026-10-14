@@ -9,6 +9,15 @@ convenience methods to run them with input validation. This is an
 alternative to the older environment-based registry used by
 \code{runHeteroTests()}.
 }
+\section{Deprecated}{
+
+\code{TestFactory} and its shared instance \code{test_factory} are deprecated since
+0.14.0: they are the package's internal machinery and leave the exports in
+1.0.0. They are objects rather than functions, so they cannot warn when
+used; this page and \code{NEWS.md} are the notice. Use \code{\link[=registerDiagnostic]{registerDiagnostic()}} to
+add a test and \code{\link[=runHeteroTests]{runHeteroTests()}} to run one.
+}
+
 \section{Usage}{
 
 The shared instance \code{test_factory} can be used to register new tests

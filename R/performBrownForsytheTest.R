@@ -124,7 +124,7 @@ performBrownForsytheTest <- function(model, data, group) {
   working_data <- cleaned$data
 
   if (length(residuals) == 0 || nrow(working_data) == 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Brown-Forsythe test requires observations after removing missing data"
     )
@@ -173,7 +173,7 @@ performBrownForsytheTest <- function(model, data, group) {
 
   medians <- tapply(residuals, grp, stats::median)
   if (any(!is.finite(medians))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Brown-Forsythe test requires finite group medians of residuals"
     )
@@ -181,7 +181,7 @@ performBrownForsytheTest <- function(model, data, group) {
 
   centered <- medians[grp]
   if (any(!is.finite(centered))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Brown-Forsythe test could not evaluate group medians for all observations"
     )
@@ -190,7 +190,7 @@ performBrownForsytheTest <- function(model, data, group) {
   z <- abs(residuals - centered)
 
   if (length(z) <= length(levels(grp))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Brown-Forsythe test requires observations to exceed the number of groups"
     )
@@ -206,7 +206,7 @@ performBrownForsytheTest <- function(model, data, group) {
   p_value <- aov_table$`Pr(>F)`[1]
 
   if (!is.finite(F_stat) || !is.finite(df_num) || !is.finite(df_den)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Brown-Forsythe auxiliary regression failed to produce finite statistics"
     )

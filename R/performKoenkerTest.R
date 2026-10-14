@@ -150,7 +150,7 @@ performKoenkerTest <- function(model, data) {
 
   n <- length(residuals)
   if (n <= (ncol(predictors) + 1L)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Koenker auxiliary regression requires observations to exceed predictors plus intercept"
     )
@@ -158,7 +158,7 @@ performKoenkerTest <- function(model, data) {
 
   e_squared <- residuals^2
   if (all(e_squared == e_squared[1])) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Koenker test requires variation in squared residuals"
     )

@@ -24,7 +24,7 @@ NULL
 #'   factors (e.g. high dimensionality, spatial columns).
 #' @export
 analyseDatasetCharacteristics <- function(data, response = NULL) {
-  checkData(data)
+  .check_data(data)
 
   response <- if (is.null(response)) NA_character_ else response
 
@@ -672,18 +672,18 @@ generateHeteroRecommendations <- function(model, data = NULL, test_results = NUL
                                           alpha = 0.05, include_report = TRUE) {
   if (inherits(model, "formula")) {
     if (is.null(data)) stop("`data` must be supplied when `model` is a formula", call. = FALSE)
-    checkData(data)
+    .check_data(data)
     model <- stats::lm(model, data = data)
   } else {
     checkModel(model)
     if (is.null(data)) {
       data <- model.frame(model)
     } else {
-      checkData(data)
+      .check_data(data)
     }
   }
 
-  validateTestInputs(model, data, test_name = "recommendation_engine", min_obs = 10)
+  .validate_test_inputs(model, data, test_name = "recommendation_engine", min_obs = 10)
 
   response <- tryCatch(as.character(stats::formula(model))[2], error = function(e) NA_character_)
   profile <- analyseDatasetCharacteristics(data, response = response)

@@ -90,7 +90,7 @@ performParkTest <- function(model, data, variable) {
 
   var_vals <- working_data[[variable]]
   if (!is.numeric(var_vals)) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Variable '%s' must be numeric to evaluate the Park test", variable)
     )
@@ -100,7 +100,7 @@ performParkTest <- function(model, data, variable) {
   indep <- log(var_vals)
 
   if (any(!is.finite(indep))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = sprintf("Log transformation of '%s' produced non-finite values", variable)
     )

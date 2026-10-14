@@ -22,7 +22,7 @@ analyzeMLResiduals <- function(model, data = NULL) {
   }
   if (inherits(model, "formula")) {
     if (is.null(data)) stop("`data` must be supplied when `model` is a formula")
-    checkData(data)
+    .check_data(data)
     lm_model <- lm(model, data = data)
   } else {
     checkModel(model)
@@ -30,7 +30,7 @@ analyzeMLResiduals <- function(model, data = NULL) {
     if (is.null(data)) {
       data <- model.frame(model)
     } else {
-      checkData(data)
+      .check_data(data)
     }
   }
   gam_model <- mgcv::gam(formula(lm_model), data = data)
@@ -79,7 +79,7 @@ compareModelDiagnostics <- function(models, data = NULL,
 
     if (inherits(m, "formula")) {
       if (is.null(data)) stop("`data` must be supplied when models include formulas")
-      checkData(data)
+      .check_data(data)
       m <- lm(m, data = data)
     } else {
       checkModel(m)
@@ -151,11 +151,11 @@ compareTestResults <- function(model, data = NULL,
                                tests = c("white", "breusch_pagan")) {
   if (inherits(model, "formula")) {
     if (is.null(data)) stop("`data` must be supplied when `model` is a formula")
-    checkData(data)
+    .check_data(data)
     model <- lm(model, data = data)
   } else {
     checkModel(model)
-    if (!is.null(data)) checkData(data)
+    if (!is.null(data)) .check_data(data)
   }
   res <- runHeteroTests(model, data, tests)
   df <- data.frame(

@@ -36,3 +36,9 @@ These helpers manage the package-level logging subsystem used to debug complex
 diagnostic workflows. Users can adjust verbosity, enable log capture, inspect
 recent log entries and clear the stored history when finished.
 }
+\section{Deprecated}{
+\code{ht_enable_log_capture()}, \code{ht_log_history()} and
+\code{ht_clear_log_history()} are deprecated since 0.14.0: of the logging
+functions only \code{ht_set_log_level()} stays exported after 1.0.0. They
+still work and warn.
+}

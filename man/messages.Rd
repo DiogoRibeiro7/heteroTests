@@ -5,7 +5,8 @@
 \title{Standardized error and warning messages}
 \description{
 Provides a central location for common error and warning strings used
-across the package. Use \code{std_error()} and \code{std_warning()} to signal
-problems consistently.
+across the package. The package signals problems through internal
+versions of \code{std_error()} and \code{std_warning()}; the exported names are
+deprecated since 0.14.0.
 }
 \keyword{internal}

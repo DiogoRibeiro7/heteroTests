@@ -96,7 +96,7 @@ performArchLMTest <- function(model, lags = 1) {
 
   res2 <- rpearson_residuals(model)^2
   if (stats::var(res2) <= .Machine$double.eps) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "ARCH LM test requires variability in squared residuals"
     )
@@ -118,7 +118,7 @@ performArchLMTest <- function(model, lags = 1) {
   test_statistic <- length(y) * r2
   df <- lags
   if (df <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "ARCH LM auxiliary regression requires positive degrees of freedom"
     )

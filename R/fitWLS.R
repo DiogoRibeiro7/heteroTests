@@ -154,7 +154,7 @@ rvariance_frame <- function(model, data) {
     attr(plain, "terms") <- NULL
     return(plain)
   }
-  checkData(data)
+  .check_data(data)
   idx <- match(rownames(mf), rownames(data))
   if (anyNA(idx)) {
     if (nrow(data) != nrow(mf)) {

@@ -2,7 +2,7 @@
 % Please edit documentation in R/messages.R
 \name{std_error}
 \alias{std_error}
-\title{Generate standardized error message}
+\title{Generate standardized error message (deprecated)}
 \usage{
 std_error(type, ...)
 }
@@ -15,5 +15,6 @@ std_error(type, ...)
 Stops execution with a formatted message.
 }
 \description{
-Generate standardized error message
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
 }

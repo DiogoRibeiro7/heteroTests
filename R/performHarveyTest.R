@@ -99,7 +99,7 @@ performHarveyTest <- function(model,
   if (auxiliary == "fitted") {
     yhat <- stats::fitted(model)
     if (stats::var(yhat) <= .Machine$double.eps) {
-      std_error(
+      .std_error(
         "rassumption_violation",
         assumption = "Harvey test requires variability in fitted values"
       )
@@ -109,13 +109,13 @@ performHarveyTest <- function(model,
     X <- stats::model.matrix(model)
     Z <- X[, colnames(X) != "(Intercept)", drop = FALSE]
     if (ncol(Z) == 0L) {
-      std_error(
+      .std_error(
         "rassumption_violation",
         assumption = "Harvey test requires at least one regressor beyond the intercept"
       )
     }
     if (all(apply(Z, 2, stats::var) <= .Machine$double.eps)) {
-      std_error(
+      .std_error(
         "rassumption_violation",
         assumption = "Harvey test requires variability in the variance regressors"
       )
@@ -124,7 +124,7 @@ performHarveyTest <- function(model,
 
   e <- rpearson_residuals(model)
   if (any(!is.finite(e))) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Harvey test requires finite residuals"
     )
@@ -141,14 +141,14 @@ performHarveyTest <- function(model,
   df_den <- aux_model$df.residual
 
   if (df_num < 1L) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Harvey auxiliary regression retained no variance regressors after rank reduction"
     )
   }
 
   if (df_den <= 0) {
-    std_error(
+    .std_error(
       "rassumption_violation",
       assumption = "Harvey auxiliary regression requires positive residual degrees of freedom"
     )
