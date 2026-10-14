@@ -171,6 +171,9 @@ TESTS <- list(
   # and calls the function the old name now forwards to.
   list("performBreuschPaganTest", "hetero", function(o) performBPTest(o$model, o$data)),
   list("performKoenkerTest", "hetero", function(o) performKoenkerTest(o$model, o$data)),
+  # performStudentizedBPTest() is deprecated in 0.14.0 and keeps its own
+  # implementation. The row measures that function, whose warning the
+  # suppressWarnings() around each call silences.
   list("performStudentizedBPTest", "hetero", function(o) performStudentizedBPTest(o$model, o$data)),
   list("performWhiteTest", "hetero", function(o) performWhiteTest(o$model, o$data)),
   list("performQuantileRegressionTest", "hetero", function(o) performQuantileRegressionTest(o$model, o$data)),
