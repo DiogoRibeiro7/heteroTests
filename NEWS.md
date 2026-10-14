@@ -13,6 +13,9 @@ below still works, returns what it returned before and warns with
 | `performBreuschPaganTest()` | `performBPTest()` | The same function under a second name |
 | `performStudentizedBPTest()` | `performKoenkerTest()` | Same statistic, except on a `fitWLS()` fit (below) |
 | `runHeteroTests(tests = "student_bp")` | `tests = "koenker"` | Warns once per call of `runHeteroTests()` or `runDiagnostics()` |
+| `performNCVTest(model, var_formula)` | `performCookWeisbergTest(model, var_formula)` | `performCookWeisbergTest()` gains `var_formula`; with one, it returns what `performNCVTest()` returned |
+| `performNCVTest(model)` | `performCookWeisbergTest(model)` | Same statistic, degrees of freedom and p-value; labelled as the Cook-Weisberg test |
+| `runHeteroTests(tests = "ncv")` | `tests = "cook_weisberg"` | Warns once per call of `runHeteroTests()` or `runDiagnostics()` |
 
 `performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
 statistic, degrees of freedom and p-value in the designs of
