@@ -1,12 +1,15 @@
 # Perform Cook-Weisberg test for heteroscedasticity
 
-The Cook-Weisberg (1983) score test with the fitted values as the sole
-variance regressor.
+The Cook-Weisberg (1983) score test, with the fitted values as the sole
+variance regressor by default, or against a variance model given by
+`var_formula`. Since 0.14.0 it is the one entry point for the test;
+[`performNCVTest`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
+is deprecated.
 
 ## Usage
 
 ``` r
-performCookWeisbergTest(model)
+performCookWeisbergTest(model, var_formula = NULL)
 ```
 
 ## Details
@@ -30,6 +33,15 @@ that assumption is doubtful, prefer
 - model:
 
   an object of class `lm`.
+
+- var_formula:
+
+  optional one-sided formula giving the variance model, evaluated in the
+  model frame of `model` (for example `~ x1 + x2`). When `NULL`, the
+  default, the fitted values are the variance regressor and the result
+  is what this function returned before 0.14.0; otherwise it is what the
+  deprecated `performNCVTest(model, var_formula)` returned, labels
+  included.
 
 ## Value
 
@@ -70,5 +82,17 @@ in regression. *Biometrika*, 70(1), 1–10.
 #> data:  mpg ~ wt + qsec
 #> X-squared = 0.59099, df = 1, p-value = 0.442
 #> alternative hypothesis: error variance depends on the fitted values
+#> 
+
+ # Score test against a specific variance model rather than the fitted values
+ performCookWeisbergTest(m, var_formula = ~wt)
+#> [INFO] Running Cook-Weisberg test
+#> [INFO] Running NCV score test
+#> 
+#>  Cook-Weisberg score test for non-constant variance
+#> 
+#> data:  mpg ~ wt + qsec; variance model: wt
+#> X-squared = 0.066469, df = 1, p-value = 0.7965
+#> alternative hypothesis: error variance depends on the variance model
 #> 
 ```

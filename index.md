@@ -40,13 +40,11 @@ Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
   Glejser
   ([`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md))
   and the Cook–Weisberg score test
-  ([`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md),
-  or
-  [`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
-  with the fitted values as the variance regressor).
-  `performGlejserTest(robust = TRUE)` is the Glejser test of Im (2000)
-  and of Machado and Santos Silva (2000), which keeps its level under
-  skewed errors.
+  ([`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md),
+  with the fitted values as the variance regressor or a variance model
+  of your own in `var_formula`). `performGlejserTest(robust = TRUE)` is
+  the Glejser test of Im (2000) and of Machado and Santos Silva (2000),
+  which keeps its level under skewed errors.
 - **Does the variance change with the fitted values or along an
   ordering?** Goldfeld–Quandt
   ([`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)),

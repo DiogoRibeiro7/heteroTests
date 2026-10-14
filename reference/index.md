@@ -169,7 +169,7 @@
   : Perform McLeod-Li test
 
 - [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
-  : Perform the non-constant variance (NCV) score test
+  : Perform the non-constant variance (NCV) score test (deprecated)
 
 - [`performOBrienTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performOBrienTest.md)
   : Perform O'Brien test for equality of variances

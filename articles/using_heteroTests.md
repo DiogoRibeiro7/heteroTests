@@ -121,8 +121,9 @@ runHeteroTests(model, quakes)
 # attr(,"data_source")
 # [1] "data.frame"
 # Choose a subset of diagnostics
-runHeteroTests(model, quakes, tests = c("white", "koenker", "ncv"))
+runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
 # [INFO] Running Koenker test
+# [INFO] Running Cook-Weisberg test
 # [INFO] Running NCV score test
 # $white
 # 
@@ -141,19 +142,19 @@ runHeteroTests(model, quakes, tests = c("white", "koenker", "ncv"))
 # X-squared = 111.31, df = 2, p-value < 2.2e-16
 # 
 # 
-# $ncv
+# $cook_weisberg
 # 
-#   Cook-Weisberg score test for non-constant variance
+#   Cook-Weisberg test for heteroscedasticity
 # 
-# data:  stations ~ mag + depth; variance model: fitted values
+# data:  stations ~ mag + depth
 # X-squared = 187.98, df = 1, p-value < 2.2e-16
-# alternative hypothesis: error variance depends on the variance model
+# alternative hypothesis: error variance depends on the fitted values
 # 
 # 
 # attr(,"class")
 # [1] "hetero_test_suite" "list"             
 # attr(,"tests")
-# [1] "white"   "koenker" "ncv"    
+# [1] "white"         "koenker"       "cook_weisberg"
 # attr(,"model")
 # 
 # Call:

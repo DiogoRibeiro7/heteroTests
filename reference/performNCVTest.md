@@ -1,4 +1,4 @@
-# Perform the non-constant variance (NCV) score test
+# Perform the non-constant variance (NCV) score test (deprecated)
 
 The Cook-Weisberg score test for non-constant error variance, the
 diagnostic returned by
@@ -31,6 +31,19 @@ under normality, the test is sensitive to non-normal errors;
 [`performKoenkerTest`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
 provides the studentized variant, which is robust to non-normal
 kurtosis.
+
+## Deprecated
+
+`performNCVTest()` is deprecated since 0.14.0: use
+[`performCookWeisbergTest`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md),
+which gained `var_formula` and is the one entry point for the
+Cook-Weisberg score test. With a variance formula,
+`performNCVTest(model, var_formula)` returns what
+`performCookWeisbergTest(model, var_formula)` returns; without one the
+two return the same statistic, degrees of freedom and p-value, and
+[`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md)
+labels the result as the Cook-Weisberg test. The old name still works,
+returns what it returned and warns.
 
 ## Weighted fits
 
@@ -87,18 +100,9 @@ Fox, J., & Weisberg, S. (2019). *An R Companion to Applied Regression*
 ``` r
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)
- performNCVTest(m)
-#> [INFO] Running NCV score test
-#> 
-#>  Cook-Weisberg score test for non-constant variance
-#> 
-#> data:  mpg ~ wt + qsec; variance model: fitted values
-#> X-squared = 0.59099, df = 1, p-value = 0.442
-#> alternative hypothesis: error variance depends on the variance model
-#> 
-
- # Score test against a specific variance model rather than the fitted values
- performNCVTest(m, var_formula = ~wt)
+ # Deprecated: use performCookWeisbergTest(m) and
+ # performCookWeisbergTest(m, var_formula = ~wt)
+ suppressWarnings(performNCVTest(m, var_formula = ~wt))
 #> [INFO] Running NCV score test
 #> 
 #>  Cook-Weisberg score test for non-constant variance

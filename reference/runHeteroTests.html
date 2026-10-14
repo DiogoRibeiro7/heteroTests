@@ -133,7 +133,8 @@ Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity 
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"data_source")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "data.frame"</span>
 <span class="r-in"><span><span class="co"># Specify additional diagnostics</span></span></span>
-<span class="r-in"><span><span class="fu">runHeteroTests</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span>, <span class="st">"ncv"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">runHeteroTests</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span>, <span class="st">"cook_weisberg"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Cook-Weisberg test</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running NCV score test</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $white</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -152,19 +153,19 @@ Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity 
 <span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 3.0858, df = 2, p-value = 0.2138</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $ncv</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $cook_weisberg</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 	Cook-Weisberg score test for non-constant variance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 	Cook-Weisberg test for heteroscedasticity</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec; variance model: fitted values</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 0.59099, df = 1, p-value = 0.442</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: error variance depends on the variance model</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: error variance depends on the fitted values</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "hetero_test_suite" "list"             </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"tests")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "white"   "koenker" "ncv"    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "white"         "koenker"       "cook_weisberg"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"model")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>

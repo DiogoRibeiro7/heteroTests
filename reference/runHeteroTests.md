@@ -119,7 +119,8 @@ runHeteroTests(m, mtcars)
 #> attr(,"data_source")
 #> [1] "data.frame"
 # Specify additional diagnostics
-runHeteroTests(m, mtcars, tests = c("white", "koenker", "ncv"))
+runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
+#> [INFO] Running Cook-Weisberg test
 #> [INFO] Running NCV score test
 #> $white
 #> 
@@ -138,19 +139,19 @@ runHeteroTests(m, mtcars, tests = c("white", "koenker", "ncv"))
 #> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> 
 #> 
-#> $ncv
+#> $cook_weisberg
 #> 
-#>  Cook-Weisberg score test for non-constant variance
+#>  Cook-Weisberg test for heteroscedasticity
 #> 
-#> data:  mpg ~ wt + qsec; variance model: fitted values
+#> data:  mpg ~ wt + qsec
 #> X-squared = 0.59099, df = 1, p-value = 0.442
-#> alternative hypothesis: error variance depends on the variance model
+#> alternative hypothesis: error variance depends on the fitted values
 #> 
 #> 
 #> attr(,"class")
 #> [1] "hetero_test_suite" "list"             
 #> attr(,"tests")
-#> [1] "white"   "koenker" "ncv"    
+#> [1] "white"         "koenker"       "cook_weisberg"
 #> attr(,"model")
 #> 
 #> Call:
