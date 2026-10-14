@@ -4,7 +4,7 @@
 # keep their implementation, and performCookWeisbergTest() without var_formula
 # returns what it returned.
 
-test_that("performCookWeisbergTest(var_formula) returns what performNCVTest(var_formula) returned", {
+test_that("performCookWeisbergTest(var_formula) returns what performNCVTest(var_formula) did", {
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   for (f in list(~wt, ~ wt + qsec, ~ I(wt^2))) {
     old <- without_deprecation(performNCVTest(m, var_formula = f))
