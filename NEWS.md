@@ -1,12 +1,32 @@
 # heteroTests News
 
-## Development version
+## 0.14.0
+
+0.14.0 reviews the exported names before 1.0.0: it deprecates 22 exports and
+the registry names `"student_bp"` and `"ncv"`, and removes nothing.
+`performBreuschPaganTest()`, `performStudentizedBPTest()` and
+`performNCVTest()` give way to `performBPTest()`, `performKoenkerTest()` and
+`performCookWeisbergTest()`, which gains `var_formula`; the three `*Enhanced`
+functions to `enhanced = TRUE` on their base names;
+`rbootstrap_test_statistic()`, `test()`, `simulate_type_I_errors()` and
+`simulate_power_analysis()` to
+`bootstrapTestStatistic()`, `runDiagnostics()`, `simulate_size()` and
+`simulate_power()`; and twelve internal helpers are to leave the exports (the
+table under *Deprecated names* gives each old name and what to use instead).
+No exported function returns a different value: each deprecated function
+returns what it returned in 0.13.0 and warns, and `performStudentizedBPTest()`
+keeps its own implementation, which disagrees with `performKoenkerTest()` on a
+`fitWLS()` fit until the model frame of such a fit is corrected in 0.16.0. The
+dashboard and benchmark functions, which move to a companion package, are not
+deprecated yet because that package has no name, and the deprecated names are
+removed in 1.0.0.
 
 ### Deprecated names
 
 0.14.0 reviews the exported names before 1.0.0. Nothing is removed: each name
 below still works, returns what it returned before and warns with
-`.Deprecated()`, naming its replacement. The names go in 1.0.0.
+`.Deprecated()`, naming its replacement where it has one. The names go in
+1.0.0.
 
 | Deprecated | Use instead | Note |
 | --- | --- | --- |
