@@ -26,6 +26,6 @@ test_that("functions work without internet dependency", {
   model <- lm(mpg ~ wt, data = mtcars)
 
   expect_no_error(performWhiteTest(model, mtcars))
-  expect_no_error(performBreuschPaganTest(model, mtcars))
+  expect_no_error(performBPTest(model, mtcars))
   # Add tests for other core functions
 })

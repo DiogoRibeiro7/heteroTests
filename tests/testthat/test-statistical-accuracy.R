@@ -20,7 +20,7 @@ test_that("Breusch-Pagan test matches R's bptest", {
   data(mtcars)
   model <- lm(mpg ~ wt + hp, data = mtcars)
 
-  our_result <- performBreuschPaganTest(model, mtcars)
+  our_result <- performBPTest(model, mtcars)
   reference_result <- lmtest::bptest(model, studentize = FALSE)
 
   expect_equal(as.numeric(our_result$statistic),

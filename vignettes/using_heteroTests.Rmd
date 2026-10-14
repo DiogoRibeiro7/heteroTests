@@ -125,7 +125,7 @@ data(mtcars)
 model <- lm(mpg ~ wt + hp, data = mtcars)
 
 # Our implementation
-our_result <- performBreuschPaganTest(model, mtcars)
+our_result <- performBPTest(model, mtcars)
 
 # Reference implementation
 ref_result <- bptest(model)

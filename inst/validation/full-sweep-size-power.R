@@ -166,7 +166,10 @@ TESTS <- list(
   list("performSpearmanTest", "hetero", function(o) performSpearmanTest(o$model)),
   list("performSpreadLevelTest", "hetero", function(o) performSpreadLevelTest(o$model)),
   list("performBPTest", "hetero", function(o) performBPTest(o$model, o$data)),
-  list("performBreuschPaganTest", "hetero", function(o) performBreuschPaganTest(o$model, o$data)),
+  # performBreuschPaganTest() was performBPTest() under a second name, and
+  # 0.14.0 deprecated it. The row keeps the shape of the CSV and the tables,
+  # and calls the function the old name now forwards to.
+  list("performBreuschPaganTest", "hetero", function(o) performBPTest(o$model, o$data)),
   list("performKoenkerTest", "hetero", function(o) performKoenkerTest(o$model, o$data)),
   list("performStudentizedBPTest", "hetero", function(o) performStudentizedBPTest(o$model, o$data)),
   list("performWhiteTest", "hetero", function(o) performWhiteTest(o$model, o$data)),

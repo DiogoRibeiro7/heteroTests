@@ -29,7 +29,7 @@ test_that("functions handle large datasets without crashing", {
   model <- lm(y ~ x1 + x2, data = large_data)
 
   expect_no_error(suppressWarnings(performWhiteTest(model, large_data)))
-  expect_no_error(suppressWarnings(performBreuschPaganTest(model, large_data)))
+  expect_no_error(suppressWarnings(performBPTest(model, large_data)))
 })
 
 test_that("memory usage is reasonable for typical datasets", {
