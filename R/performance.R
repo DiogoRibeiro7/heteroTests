@@ -264,7 +264,7 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
                                       cross_products = TRUE, max_interactions = 10,
                                       progress = interactive()) {
-  checkModelEnhanced(model, data)
+  checkModel(model, data, enhanced = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))

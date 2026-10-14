@@ -2,7 +2,7 @@
 % Please edit documentation in R/validation.R
 \name{checkModelEnhanced}
 \alias{checkModelEnhanced}
-\title{Enhanced model diagnostics}
+\title{Enhanced model diagnostics (deprecated)}
 \usage{
 checkModelEnhanced(model, data = NULL)
 }
@@ -16,12 +16,15 @@ enables multicollinearity checks via \code{\link[=performVIFDiagnostic]{performV
 Invisibly returns \code{model} after issuing any relevant warnings.
 }
 \description{
+Deprecated since 0.14.0: use \code{checkModel(model, data, enhanced = TRUE)},
+which runs the same checks. This name still works and warns.
+}
+\details{
 Extends \code{\link[=checkModel]{checkModel()}} with additional soft checks that flag potential
 numerical issues before computationally expensive diagnostics are executed.
 The helper mirrors the warnings used throughout the package and retains the
 original return semantics for backward compatibility.
-}
-\details{
+
 The function warns when residual degrees of freedom fall below six, when a
 near-perfect fit is detected (R\eqn{^2 > 0.999}), or when variance inflation
 factors (VIFs) exceed 10. The latter threshold follows the regression
@@ -30,7 +33,7 @@ diagnostics literature (Belsley et al., 1980).
 \examples{
 data(mtcars)
 fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
-checkModelEnhanced(fit)
+checkModel(fit, enhanced = TRUE)
 
 }
 \references{

@@ -533,7 +533,7 @@ launchDiagnosticDashboard <- function(model, data) {
 
     diagnostic_plots <- shiny::reactive({
       shiny::req(model_store())
-      plotDiagnosticSuiteEnhanced(model_store())
+      plotDiagnosticSuite(model_store(), enhanced = TRUE)
     })
 
     lapply(names(plot_labels), function(name) {

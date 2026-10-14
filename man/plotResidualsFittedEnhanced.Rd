@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotDiagnostics.R
 \name{plotResidualsFittedEnhanced}
 \alias{plotResidualsFittedEnhanced}
-\title{Enhanced residuals vs fitted plot}
+\title{Enhanced residuals vs fitted plot (deprecated)}
 \usage{
 plotResidualsFittedEnhanced(model)
 }
@@ -13,6 +13,6 @@ plotResidualsFittedEnhanced(model)
 A \code{ggplot} object.
 }
 \description{
-Highlights influential observations and includes a LOESS smooth with
-confidence bands.
+Deprecated since 0.14.0: use \code{plotResidualsFitted(model, enhanced = TRUE)},
+which draws the same plot. This name still works and warns.
 }

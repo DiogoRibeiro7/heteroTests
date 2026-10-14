@@ -50,7 +50,7 @@ generateDiagnosticReport <- function(model, data = NULL,
   writeLines(report_template, temp_rmd)
 
   test_results <- runHeteroTests(model, data)
-  plots <- plotDiagnosticSuiteEnhanced(model)
+  plots <- plotDiagnosticSuite(model, enhanced = TRUE)
 
   if (include_remediation) {
     remediation <- suggestRemediation(test_results)

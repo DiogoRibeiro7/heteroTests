@@ -4,14 +4,28 @@
 \alias{checkModel}
 \title{Validate model argument}
 \usage{
-checkModel(model)
+checkModel(model, data = NULL, enhanced = FALSE)
 }
 \arguments{
 \item{model}{An object to check.}
+
+\item{data}{Optional \code{data.frame} used when fitting \code{model}. With
+\code{enhanced = TRUE} it enables the multicollinearity check through
+\code{\link[=performVIFDiagnostic]{performVIFDiagnostic()}}.}
+
+\item{enhanced}{Logical. \code{FALSE}, the default, checks the class only.}
 }
 \value{
 Invisible \code{model} if valid, otherwise an error is thrown.
 }
 \description{
-Checks that \code{model} is of class \code{lm} or \code{glm}.
+Checks that \code{model} is of class \code{lm} or \code{glm}. With \code{enhanced = TRUE} it
+also runs the soft checks of the deprecated \code{checkModelEnhanced()}: it warns
+when the residual degrees of freedom fall below six, when a near-perfect fit
+is detected (R\eqn{^2 > 0.999}), or, when \code{data} is given, when a variance
+inflation factor exceeds 10 (Belsley et al., 1980).
+}
+\references{
+Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:
+Identifying Influential Data and Sources of Collinearity}. Wiley.
 }

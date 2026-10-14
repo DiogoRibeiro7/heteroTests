@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotDiagnostics.R
 \name{plotDiagnosticSuiteEnhanced}
 \alias{plotDiagnosticSuiteEnhanced}
-\title{Enhanced diagnostic plot suite}
+\title{Enhanced diagnostic plot suite (deprecated)}
 \usage{
 plotDiagnosticSuiteEnhanced(model)
 }
@@ -13,5 +13,6 @@ plotDiagnosticSuiteEnhanced(model)
 A list of ggplot objects.
 }
 \description{
-Returns a list of improved diagnostic plots with statistical overlays.
+Deprecated since 0.14.0: use \code{plotDiagnosticSuite(model, enhanced = TRUE)},
+which returns the same list. This name still works and warns.
 }
