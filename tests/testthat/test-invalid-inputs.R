@@ -32,7 +32,7 @@ test_that("HeteroDiagnostic uses runDiagnostics", {
   data(mtcars)
   res1 <- runDiagnostics(mpg ~ wt + qsec, mtcars)
   d <- HeteroDiagnostic(mpg ~ wt + qsec, mtcars)
-  res2 <- test(d)
+  res2 <- runDiagnostics(d$model, d$data)
   expect_equal(names(res1), names(res2))
 })
 

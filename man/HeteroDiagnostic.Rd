@@ -12,5 +12,5 @@
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)
  d <- HeteroDiagnostic(m, mtcars)
- test(d)
+ runDiagnostics(d$model, d$data)
 }

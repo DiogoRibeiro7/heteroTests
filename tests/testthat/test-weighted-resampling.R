@@ -6,7 +6,7 @@ library(testthat)
 # A weighted lm is ordinary least squares on sqrt(w) y and sqrt(w) X, and its
 # errors have constant variance there under the null hypothesis. On a weighted
 # fit performWildBootstrapTest(), performWhiteTestBootstrap() and
-# rbootstrap_test_statistic() resample in that regression. The wild bootstrap
+# bootstrapTestStatistic() resample in that regression. The wild bootstrap
 # refits it directly; the other two hand a model to a test function, so they
 # refit on the original scale with the weights. Each check below rebuilds the
 # replicates of one function along the other route, from the same random
@@ -94,7 +94,7 @@ test_that("the bootstrap White test of a weighted fit is the transformed regress
   expect_equal(ours$p.value, bootstrap_p_value(expected, observed), tolerance = 1e-12)
 })
 
-test_that("null resampling in rbootstrap_test_statistic() follows the transformed regression", {
+test_that("null resampling in bootstrapTestStatistic() follows the transformed regression", {
   obj <- make_weighted_fit()
   d <- obj$data
   m <- obj$model
@@ -103,7 +103,7 @@ test_that("null resampling in rbootstrap_test_statistic() follows the transforme
 
   set.seed(13)
   ours <- suppressWarnings(
-    rbootstrap_test_statistic(performKoenkerTest, m, d, B = B, progress = FALSE)
+    bootstrapTestStatistic(performKoenkerTest, m, d, B = B, progress = FALSE)
   )
 
   s <- sqrt(d$w)
@@ -130,7 +130,7 @@ test_that("pairs resampling draws each row with its weight", {
   B <- 5L
 
   set.seed(14)
-  ours <- suppressWarnings(rbootstrap_test_statistic(
+  ours <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = B, resample = "pairs", progress = FALSE
   ))
 
@@ -165,12 +165,12 @@ check_equal_weights <- function(unweighted, equal, d, label) {
       list(statistic = r$statistic, p = r$p.value, replicates = r$boot_statistics)
     },
     null = function(model) {
-      r <- rbootstrap_test_statistic(performWhiteTest, model, d, B = 29, progress = FALSE)
+      r <- bootstrapTestStatistic(performWhiteTest, model, d, B = 29, progress = FALSE)
       list(statistic = r$original_statistic, p = r$p_value, replicates = r$replicates)
     },
     pairs = function(model) {
-      r <- rbootstrap_test_statistic(performKoenkerTest, model, d, B = 29,
-                                     resample = "pairs", progress = FALSE)
+      r <- bootstrapTestStatistic(performKoenkerTest, model, d, B = 29,
+                                  resample = "pairs", progress = FALSE)
       list(statistic = r$original_statistic, p = r$ci, replicates = r$replicates)
     }
   )
@@ -197,7 +197,7 @@ test_that("a fit with equal weights resamples as the fit without weights", {
   }
 })
 
-test_that("the robust wrappers bootstrap a weighted fit through rbootstrap_test_statistic()", {
+test_that("the robust wrappers bootstrap a weighted fit through bootstrapTestStatistic()", {
   obj <- make_weighted_fit()
   d <- obj$data
   m <- obj$model
@@ -205,7 +205,7 @@ test_that("the robust wrappers bootstrap a weighted fit through rbootstrap_test_
   set.seed(31)
   wrapped <- suppressWarnings(performWhiteTestRobust(m, d, bootstrap = TRUE, B = 19))
   set.seed(31)
-  direct <- suppressWarnings(rbootstrap_test_statistic(
+  direct <- suppressWarnings(bootstrapTestStatistic(
     performWhiteTest, m, d, B = 19, cross_products = TRUE, progress = FALSE
   ))
 
@@ -225,11 +225,11 @@ test_that("resampling a weighted fit needs the rows the model was fitted to", {
   # Rows the fit does not have are left out, and each row keeps its weight.
   for (strategy in c("null", "pairs")) {
     set.seed(15)
-    ours <- suppressWarnings(rbootstrap_test_statistic(
+    ours <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, obj$model, longer, B = 5, resample = strategy, progress = FALSE
     ))
     set.seed(15)
-    expected <- suppressWarnings(rbootstrap_test_statistic(
+    expected <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, obj$model, d, B = 5, resample = strategy, progress = FALSE
     ))
     expect_equal(ours$replicates, expected$replicates, tolerance = 1e-12)
@@ -239,8 +239,8 @@ test_that("resampling a weighted fit needs the rows the model was fitted to", {
   by_position <- function(model, data) list(statistic = sum(stats::residuals(model)^2))
   for (strategy in c("null", "pairs")) {
     expect_error(
-      rbootstrap_test_statistic(by_position, obj$model, renamed, B = 5,
-                                resample = strategy, progress = FALSE),
+      bootstrapTestStatistic(by_position, obj$model, renamed, B = 5,
+                             resample = strategy, progress = FALSE),
       "rows the model was fitted to"
     )
   }
@@ -259,7 +259,7 @@ test_that("weighted resampling follows the rows of the data, in any order", {
   n <- nrow(sorted)
 
   set.seed(41)
-  pairs <- suppressWarnings(rbootstrap_test_statistic(
+  pairs <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, sorted, B = 5, resample = "pairs", progress = FALSE
   ))
   set.seed(41)
@@ -271,7 +271,7 @@ test_that("weighted resampling follows the rows of the data, in any order", {
   expect_equal(pairs$replicates, expected, tolerance = 1e-8)
 
   set.seed(42)
-  null <- suppressWarnings(rbootstrap_test_statistic(
+  null <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, sorted, B = 5, progress = FALSE
   ))
   s <- sqrt(sorted$w)
@@ -314,7 +314,7 @@ test_that("a weighted refit keeps an offset given as an argument", {
   expect_equal(white$boot_statistics, expected, tolerance = 1e-8)
 
   set.seed(52)
-  null <- suppressWarnings(rbootstrap_test_statistic(
+  null <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = 5, progress = FALSE
   ))
   pool <- s * residuals(m) / sqrt(1 - hatvalues(m))
@@ -326,7 +326,7 @@ test_that("a weighted refit keeps an offset given as an argument", {
   expect_equal(null$replicates, expected, tolerance = 1e-8)
 
   set.seed(53)
-  pairs <- suppressWarnings(rbootstrap_test_statistic(
+  pairs <- suppressWarnings(bootstrapTestStatistic(
     performKoenkerTest, m, d, B = 5, resample = "pairs", progress = FALSE
   ))
   set.seed(53)
@@ -366,11 +366,11 @@ test_that("a column of the data cannot stand in for the weights of a refit", {
     set.seed(61)
     white <- suppressWarnings(performWhiteTestBootstrap(obj$model, data, B = 5))
     set.seed(62)
-    null <- suppressWarnings(rbootstrap_test_statistic(
+    null <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, obj$model, data, B = 5, progress = FALSE
     ))
     set.seed(63)
-    pairs <- suppressWarnings(rbootstrap_test_statistic(
+    pairs <- suppressWarnings(bootstrapTestStatistic(
       performKoenkerTest, obj$model, data, B = 5, resample = "pairs", progress = FALSE
     ))
     c(white$boot_statistics, null$replicates, pairs$replicates)
@@ -401,8 +401,8 @@ test_that("the bootstrap tests hold their level on a correctly weighted fit", {
       performWhiteTestBootstrap(o$model, o$data, B = 49)$p.value
     }),
     rbootstrap = list(reps = 30, f = function(o) {
-      rbootstrap_test_statistic(performKoenkerTest, o$model, o$data, B = 49,
-                                progress = FALSE)$p_value
+      bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = 49,
+                             progress = FALSE)$p_value
     })
   )
   for (nm in names(tests)) {
@@ -432,8 +432,8 @@ test_that("the bootstrap tests reject weights that are too weak", {
     },
     white = function(o) performWhiteTestBootstrap(o$model, o$data, B = 49)$p.value,
     rbootstrap = function(o) {
-      rbootstrap_test_statistic(performKoenkerTest, o$model, o$data, B = 49,
-                                progress = FALSE)$p_value
+      bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = 49,
+                             progress = FALSE)$p_value
     }
   )
   for (nm in names(tests)) {

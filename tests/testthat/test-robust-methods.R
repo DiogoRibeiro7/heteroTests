@@ -43,19 +43,19 @@ test_that("rcalculateEffectSize supports multiple metrics", {
   model <- stats::lm(mpg ~ wt + cyl, data = mtcars)
   base_result <- performWhiteTest(model, mtcars)
 
-  cramers <- rcalculateEffectSize(base_result, model, mtcars, type = "cramers_v")
-  phi <- rcalculateEffectSize(base_result, model, mtcars, type = "phi")
-  eta <- rcalculateEffectSize(base_result, model, mtcars, type = "eta_squared")
+  cramers <- .calculate_effect_size(base_result, model, mtcars, type = "cramers_v")
+  phi <- .calculate_effect_size(base_result, model, mtcars, type = "phi")
+  eta <- .calculate_effect_size(base_result, model, mtcars, type = "eta_squared")
 
   expect_true(cramers$effect_size >= 0)
   expect_equal(phi$type, "phi")
   expect_equal(eta$type, "eta_squared")
 })
 
-test_that("rbootstrap_test_statistic returns replicates and intervals", {
+test_that("bootstrapTestStatistic returns replicates and intervals", {
   model <- stats::lm(mpg ~ wt + cyl, data = mtcars)
   set.seed(321)
-  boot <- rbootstrap_test_statistic(performWhiteTest, model, mtcars, B = 10)
+  boot <- bootstrapTestStatistic(performWhiteTest, model, mtcars, B = 10)
 
   expect_length(boot$replicates, 10)
   expect_named(boot$ci, c("lower", "upper"))
@@ -65,7 +65,7 @@ test_that("rbootstrap_test_statistic returns replicates and intervals", {
 test_that("restimate_test_power returns power diagnostics", {
   model <- stats::lm(mpg ~ wt + cyl, data = mtcars)
   base_result <- performWhiteTest(model, mtcars)
-  power <- restimate_test_power(base_result, model, mtcars)
+  power <- .estimate_test_power(base_result, model, mtcars)
 
   expect_true(is.numeric(power$power))
   expect_true(is.list(power$details))
@@ -94,7 +94,7 @@ test_that("rrunAdvancedDiagnostics auto-enhances small samples", {
 
 test_that("rvalidate_against_reference reports comparison status", {
   model <- stats::lm(mpg ~ wt + cyl, data = mtcars)
-  comparison <- rvalidate_against_reference("breusch_pagan", model, mtcars)
+  comparison <- .validate_against_reference("breusch_pagan", model, mtcars)
 
   expect_true("status" %in% names(comparison))
   expect_true(comparison$status %in% c("ok", "mismatch", "skipped"))
@@ -109,9 +109,9 @@ test_that("bootstrap helper converges as replication count grows", {
     structure(list(statistic = c(mean_resid_sq = mean(res^2))), class = "htest")
   }
   set.seed(123)
-  boot_small <- rbootstrap_test_statistic(stat_fun, model, df, B = 40)
+  boot_small <- bootstrapTestStatistic(stat_fun, model, df, B = 40)
   set.seed(123)
-  boot_large <- rbootstrap_test_statistic(stat_fun, model, df, B = 400)
+  boot_large <- bootstrapTestStatistic(stat_fun, model, df, B = 400)
   err_small <- abs(mean(boot_small$replicates) - boot_small$original_statistic)
   err_large <- abs(mean(boot_large$replicates) - boot_large$original_statistic)
   expect_true(err_large <= err_small + 1e-6)
@@ -124,7 +124,7 @@ test_that("power estimator recommends at least the observed sample size", {
   df <- data.frame(y = rnorm(50), x = rnorm(50))
   model <- lm(y ~ x, data = df)
   base <- performWhiteTest(model, df)
-  power <- restimate_test_power(base, model, df, target_power = 0.9)
+  power <- .estimate_test_power(base, model, df, target_power = 0.9)
   expect_gte(power$recommended_n, nrow(df))
   expect_true(power$power < 1)
 })

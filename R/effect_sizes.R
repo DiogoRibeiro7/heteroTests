@@ -21,9 +21,21 @@
 #' result <- performWhiteTest(model, mtcars)
 #' rcalculateEffectSize(result, model, mtcars)
 #'
+#' @section Deprecated:
+#' Deprecated since 0.14.0: an internal helper of the package, which leaves the
+#' exports in 1.0.0. It still works and warns.
 #' @export
 rcalculateEffectSize <- function(test_result, model, data,
                                  type = c("cramers_v", "phi", "eta_squared")) {
+  .Deprecated(
+    old = "rcalculateEffectSize",
+    msg = .ht_r_prefixed_deprecation("rcalculateEffectSize")
+  )
+  .calculate_effect_size(test_result, model, data, type)
+}
+
+.calculate_effect_size <- function(test_result, model, data,
+                                   type = c("cramers_v", "phi", "eta_squared")) {
   rvalidateModelInputs(model, test_name = "Effect size", min_obs = 5L)
   rvalidateDataInputs(data, min_obs = 5L)
 

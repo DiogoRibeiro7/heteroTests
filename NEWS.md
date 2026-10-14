@@ -23,6 +23,9 @@ below still works, returns what it returned before and warns with
 | `checkData()`, `validateTestInputs()` | None | Internal helpers |
 | `ht_enable_log_capture()`, `ht_log_history()`, `ht_clear_log_history()` | None | `ht_set_log_level()` stays |
 | `TestFactory`, `test_factory` | `registerDiagnostic()`, `runHeteroTests()` | Objects cannot warn: deprecated on their help page and here only |
+| `rbootstrap_test_statistic()` | `bootstrapTestStatistic()` | The same function; each name records its own call in the result |
+| `rcalculateEffectSize()`, `restimate_test_power()`, `rvalidate_against_reference()` | None | Internal helpers |
+| `test(x, tests)` | `runDiagnostics(x$model, x$data, tests)` | Its name masks `devtools::test()`; `summary()` of a `HeteroDiagnostic` object is unchanged |
 
 `performStudentizedBPTest()` and `performKoenkerTest()` agree to `1e-8` in
 statistic, degrees of freedom and p-value in the designs of
@@ -36,6 +39,8 @@ reads them from there. On the `fitWLS()` design of the same file it returns
 weights return 1.75. `performKoenkerTest()` is the correct one. The deprecated
 name and `"student_bp"` keep their old implementation in 0.14.0, so no value
 changes; the model frame is to be corrected in 0.16.0.
+
+`rrunAdvancedDiagnostics()` stays exported; its name is still under review.
 
 ## 0.13.0
 

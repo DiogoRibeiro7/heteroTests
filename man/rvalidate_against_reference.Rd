@@ -30,3 +30,9 @@ Compares the package's test results with established implementations
 from other packages (currently \code{lmtest} and \code{car}). Differences exceeding
 the supplied tolerance are flagged.
 }
+\section{Deprecated}{
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
+}
+

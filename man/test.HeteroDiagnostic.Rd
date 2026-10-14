@@ -9,3 +9,4 @@
 }
 \value{List of test results.}
 \description{Run the registered diagnostics on the model.}
+\section{Deprecated}{\code{test()} is deprecated since 0.14.0: its name masks \code{devtools::test()}. Use \code{runDiagnostics(x$model, x$data, tests)}, which returns what \code{test(x, tests)} returns. It still works and warns; \code{summary()} of a \code{HeteroDiagnostic} object is unchanged.}

@@ -201,13 +201,13 @@ check_repetition <- function() {
       list(p.value = r$p.value, replicates = r$boot_statistics)
     }),
     list(o, "null", function(x) {
-      r <- suppressWarnings(rbootstrap_test_statistic(
+      r <- suppressWarnings(bootstrapTestStatistic(
         performKoenkerTest, x$model, x$data, B = 25L, progress = FALSE
       ))
       list(p.value = r$p_value, replicates = r$replicates)
     }),
     list(shuffled, "null", function(x) {
-      r <- suppressWarnings(rbootstrap_test_statistic(
+      r <- suppressWarnings(bootstrapTestStatistic(
         performKoenkerTest, x$model, x$data, B = 25L, progress = FALSE
       ))
       list(p.value = r$p_value, replicates = r$replicates)
@@ -263,8 +263,8 @@ p_value <- function(s, o) {
                                                         progress = FALSE),
     performWhiteTestBootstrap = performWhiteTestBootstrap(o$model, o$data, B = s$B),
     rbootstrap_test_statistic = {
-      r <- rbootstrap_test_statistic(performKoenkerTest, o$model, o$data, B = s$B,
-                                     progress = FALSE)
+      r <- bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = s$B,
+                                  progress = FALSE)
       list(p.value = r$p_value)
     }
   )

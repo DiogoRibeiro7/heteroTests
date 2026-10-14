@@ -346,7 +346,7 @@ boot_p_value <- function(test, weights, o) {
     },
     rbootstrap_test_statistic = {
       fn <- if (reestimate) koenker_reestimated else performKoenkerTest
-      r <- rbootstrap_test_statistic(fn, o$model, o$data, B = n_boot, progress = FALSE)
+      r <- bootstrapTestStatistic(fn, o$model, o$data, B = n_boot, progress = FALSE)
       list(p.value = r$p_value)
     }
   )

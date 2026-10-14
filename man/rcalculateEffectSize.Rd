@@ -32,6 +32,12 @@ interpretable effect sizes such as Cramer's V, the phi coefficient, or an
 eta-squared analogue. The helper also provides qualitative magnitude
 descriptors and a brief interpretation string that can be surfaced to users.
 }
+\section{Deprecated}{
+
+Deprecated since 0.14.0: an internal helper of the package, which leaves the
+exports in 1.0.0. It still works and warns.
+}
+
 \examples{
 data(mtcars)
 model <- lm(mpg ~ wt + cyl, data = mtcars)
