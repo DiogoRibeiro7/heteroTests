@@ -1,7 +1,8 @@
-# Enhanced residuals vs fitted plot
+# Enhanced residuals vs fitted plot (deprecated)
 
-Highlights influential observations and includes a LOESS smooth with
-confidence bands.
+Deprecated since 0.14.0: use
+`plotResidualsFitted(model, enhanced = TRUE)`, which draws the same
+plot. This name still works and warns.
 
 ## Usage
 

@@ -1,6 +1,8 @@
-# Enhanced diagnostic plot suite
+# Enhanced diagnostic plot suite (deprecated)
 
-Returns a list of improved diagnostic plots with statistical overlays.
+Deprecated since 0.14.0: use
+`plotDiagnosticSuite(model, enhanced = TRUE)`, which returns the same
+list. This name still works and warns.
 
 ## Usage
 

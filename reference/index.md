@@ -37,7 +37,7 @@
   : Validate model argument
 
 - [`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md)
-  : Enhanced model diagnostics
+  : Enhanced model diagnostics (deprecated)
 
 - [`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md)
   : Clear cached diagnostic run results
@@ -244,7 +244,7 @@
   : Generate a suite of diagnostic plots
 
 - [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md)
-  : Enhanced diagnostic plot suite
+  : Enhanced diagnostic plot suite (deprecated)
 
 - [`plotResidualDensity()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualDensity.md)
   : Density plot of residuals
@@ -256,7 +256,7 @@
   : Plot residuals vs fitted values
 
 - [`plotResidualsFittedEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFittedEnhanced.md)
-  : Enhanced residuals vs fitted plot
+  : Enhanced residuals vs fitted plot (deprecated)
 
 - [`plotSpreadLevel()`](https://diogoribeiro7.github.io/heteroTests/reference/plotSpreadLevel.md)
   : Spread-Level plot for variance diagnostics

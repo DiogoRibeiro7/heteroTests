@@ -70,7 +70,6 @@ Wiley.
 ## See also
 
 [`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md),
-[`checkModelEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModelEnhanced.md),
 [`rvalidateModelInputs()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateModelInputs.md),
 [`rvalidateTestRequirements()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidateTestRequirements.md)
 

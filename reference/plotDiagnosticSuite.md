@@ -6,7 +6,7 @@ plots to help visually assess heteroscedastic patterns.
 ## Usage
 
 ``` r
-plotDiagnosticSuite(model)
+plotDiagnosticSuite(model, enhanced = FALSE)
 ```
 
 ## Arguments
@@ -14,6 +14,14 @@ plotDiagnosticSuite(model)
 - model:
 
   A fitted model of class `lm`.
+
+- enhanced:
+
+  Logical, passed to
+  [`plotResidualsFitted()`](https://diogoribeiro7.github.io/heteroTests/reference/plotResidualsFitted.md).
+  `TRUE` returns what the deprecated
+  [`plotDiagnosticSuiteEnhanced()`](https://diogoribeiro7.github.io/heteroTests/reference/plotDiagnosticSuiteEnhanced.md)
+  returned.
 
 ## Value
 

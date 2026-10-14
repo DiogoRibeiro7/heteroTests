@@ -1,11 +1,7 @@
-# Enhanced model diagnostics
+# Enhanced model diagnostics (deprecated)
 
-Extends
-[`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)
-with additional soft checks that flag potential numerical issues before
-computationally expensive diagnostics are executed. The helper mirrors
-the warnings used throughout the package and retains the original return
-semantics for backward compatibility.
+Deprecated since 0.14.0: use `checkModel(model, data, enhanced = TRUE)`,
+which runs the same checks. This name still works and warns.
 
 ## Usage
 
@@ -31,6 +27,13 @@ Invisibly returns `model` after issuing any relevant warnings.
 
 ## Details
 
+Extends
+[`checkModel()`](https://diogoribeiro7.github.io/heteroTests/reference/checkModel.md)
+with additional soft checks that flag potential numerical issues before
+computationally expensive diagnostics are executed. The helper mirrors
+the warnings used throughout the package and retains the original return
+semantics for backward compatibility.
+
 The function warns when residual degrees of freedom fall below six, when
 a near-perfect fit is detected (R\\^2 \> 0.999\\), or when variance
 inflation factors (VIFs) exceed 10. The latter threshold follows the
@@ -53,5 +56,5 @@ Wiley.
 ``` r
 data(mtcars)
 fit <- stats::lm(mpg ~ wt + hp, data = mtcars)
-checkModelEnhanced(fit)
+checkModel(fit, enhanced = TRUE)
 ```
