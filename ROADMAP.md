@@ -299,11 +299,12 @@ deprecated until it has one.
 
 #### Export inventory
 
-Every export in `NAMESPACE` on 2026-10-14, with a verdict. Of the 129, 100 are
-core API, 10 are renamed, 16 become internal and 3 move out. The S3 methods
+Every export in `NAMESPACE` on 2026-10-14, with a verdict. Of the 129, 104 are
+core API, 10 are renamed, 12 become internal and 3 move out. The S3 methods
 registered in `NAMESPACE` are not exports and are not listed;
 `S3method(test, HeteroDiagnostic)` goes with `test()`. The verdicts apply the
-decisions of 2026-10-14 as written.
+decisions of 2026-10-14 as written, and the author's decisions on this
+inventory, taken the same day, are marked "decided".
 
 For each renamed or internal export, the last column lists every caller found
 by a search of `R/` (code, not comments or the definition), `vignettes/` and
@@ -328,7 +329,7 @@ warn.
 | `performBreuschPaganTest()` | test | renamed: `performBPTest()`, the same object | R/: none (an alias, assigned in `performBPTest.R`). Vignettes: `using_heteroTests.Rmd:128`. inst/validation/: `full-sweep-size-power.R:169`; 2 lines of `README.md`. Tests: 3 lines. |
 | `performKoenkerTest()` | test | core API |  |
 | `performKoenkerTestStreaming()` | test | core API |  |
-| `performStudentizedBPTest()` | test | renamed: `performKoenkerTest()`, once item 2 shows they agree to `1e-8` | R/: registry name `"student_bp"` (`diagnosticsRegistry.R:70`, `test_factory.R:105`); `performBPTestRobust(studentized = TRUE)` (`robust_implementations.R:249`); `rvalidate_against_reference()` (`:455`). Vignettes: none. inst/validation/: `full-sweep-size-power.R:171`, `weighted-fits-size.R:138`; 4 lines of `README.md`. Tests: 8 lines. |
+| `performStudentizedBPTest()` | test | renamed: `performKoenkerTest()`, once item 2 shows they agree to `1e-8` (provisional, decided) | R/: registry name `"student_bp"` (`diagnosticsRegistry.R:70`, `test_factory.R:105`); `performBPTestRobust(studentized = TRUE)` (`robust_implementations.R:249`); `rvalidate_against_reference()` (`:455`). Vignettes: none. inst/validation/: `full-sweep-size-power.R:171`, `weighted-fits-size.R:138`; 4 lines of `README.md`. Tests: 8 lines. |
 | `performGQTest()` | test | core API |  |
 | `performParkTest()` | test | core API |  |
 | `performSzroeterTest()` | test | core API |  |
@@ -357,7 +358,7 @@ warn.
 | `performDavidianCarrollTest()` | test | core API |  |
 | `performVarianceFormTest()` | test | core API |  |
 | `performBoxMTest()` | test | core API |  |
-| `rbootstrap_test_statistic()` | test | renamed: `bootstrapTestStatistic()` | R/: `performWhiteTestRobust()` and `performBPTestRobust()` (`robust_implementations.R:135,270`). Vignettes: none. inst/validation/: `offset-refits-size.R`, `weighted-fits-size.R`, labels in `make-table.R`; 22 lines of `README.md`. Also the *Decisions needed* row on `fitWLS()` fits. Tests: 60 lines. |
+| `rbootstrap_test_statistic()` | test | renamed: `bootstrapTestStatistic()` (decided) | R/: `performWhiteTestRobust()` and `performBPTestRobust()` (`robust_implementations.R:135,270`). Vignettes: none. inst/validation/: `offset-refits-size.R`, `weighted-fits-size.R`, labels in `make-table.R`; 22 lines of `README.md`. Also the *Decisions needed* row on `fitWLS()` fits. Tests: 60 lines. |
 | `performScatterDiagnostic()` | model check | core API |  |
 | `performVIFDiagnostic()` | model check | core API |  |
 | `performRESETTest()` | model check | core API |  |
@@ -365,7 +366,7 @@ warn.
 | `checkModel()` | model check | core API |  |
 | `checkModelEnhanced()` | model check | renamed: merged into `checkModel()` | R/: `performWhiteTestStreaming()` (`performance.R:267`). Vignettes: none. inst/validation/: none. Tests: 8 lines. |
 | `runHeteroTests()` | runner | core API |  |
-| `runHeteroTestsParallel()` | runner | core API |  |
+| `runHeteroTestsParallel()` | runner | core API (decided) |  |
 | `runDiagnostics()` | runner | core API |  |
 | `runDiagnosticPlots()` | runner | core API |  |
 | `registerDiagnostic()` | runner | core API |  |
@@ -376,10 +377,10 @@ warn.
 | `runPanelTests()` | runner | core API |  |
 | `runSurveyHeteroTests()` | runner | core API |  |
 | `compareModelDiagnostics()` | runner | core API |  |
-| `compareTestResults()` | runner | core API |  |
+| `compareTestResults()` | runner | core API (decided) |  |
 | `analyzeMLResiduals()` | runner | core API |  |
 | `HeteroDiagnostic()` | runner | core API |  |
-| `test()` | runner | renamed: folded into `summary.HeteroDiagnostic()` (decided) | R/: `summary.HeteroDiagnostic()` calls it (`HeteroDiagnostic.R:59`). Vignettes: `real_world_case_studies.Rmd:110`, `tutorial.Rmd:32`, `using_heteroTests.Rmd:100,105`. inst/validation/: none. Also `README.md:143`. Tests: 19 lines. `summary()` returns only the statistics, `test()` the full results: see the note below the table. |
+| `test()` | runner | renamed: its warning names `runDiagnostics(x$model, x$data, tests)`; `summary()` is unchanged (decided) | R/: `summary.HeteroDiagnostic()` calls it (`HeteroDiagnostic.R:59`). Vignettes: `real_world_case_studies.Rmd:110`, `tutorial.Rmd:32`, `using_heteroTests.Rmd:100,105`. inst/validation/: none. Also `README.md:143`. Tests: 19 lines. `summary.HeteroDiagnostic()` will call `runDiagnostics()` directly. |
 | `fitWLS()` | remediation | core API |  |
 | `fitRobust()` | remediation | core API |  |
 | `autoTransform()` | remediation | core API |  |
@@ -411,8 +412,8 @@ warn.
 | `sigma_exp_decay()` | simulation | core API |  |
 | `sigma_gaussian_peak()` | simulation | core API |  |
 | `sigma_piecewise_linear()` | simulation | core API |  |
-| `simulate_type_I_errors()` | simulation | renamed: `simulate_size()` | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. |
-| `simulate_power_analysis()` | simulation | renamed: `simulate_power()` | R/: none. Vignettes: named in the prose of `troubleshooting.Rmd:44`. inst/validation/: none. Tests: 3 lines. |
+| `simulate_type_I_errors()` | simulation | renamed: `simulate_size()` (decided) | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. |
+| `simulate_power_analysis()` | simulation | renamed: `simulate_power()` (decided) | R/: none. Vignettes: named in the prose of `troubleshooting.Rmd:44`. inst/validation/: none. Tests: 3 lines. |
 | `plotResidualsFitted()` | plotting | core API |  |
 | `plotSpreadLevel()` | plotting | core API |  |
 | `plotResidualDensity()` | plotting | core API |  |
@@ -434,15 +435,15 @@ warn.
 | `checkData()` | infrastructure | internal | R/: 16 lines in 7 files (`advancedDiagnostics.R`, `advancedRemediation.R`, `fitWLS.R`, `HeteroDiagnostic.R`, `intelligent_recommendations.R`, `reporting.R`, `runPanelTests.R`). Vignettes: none. inst/validation/: none. Tests: 9 lines. |
 | `TestFactory` | infrastructure | internal | R/: only `test_factory.R:98`, which builds `test_factory`. Vignettes: none. inst/validation/: none. Tests: 2 lines. |
 | `test_factory` | infrastructure | internal | R/: through its alias `.test_factory`, in `.run_registered_diagnostic()` (`performance.R:610-612`) and the dashboard (`dashboard.R:53`). Vignettes: none. inst/validation/: none. Tests: 10 lines. |
-| `cachedTest()` | infrastructure | internal | R/: `runHeteroTests()` (`runHeteroTests.R:174`). Vignettes: none. inst/validation/: none. Tests: 18 lines. |
-| `clearTestCache()` | infrastructure | internal, once 0.16.0 bounds the caches | R/: none. Vignettes: none. inst/validation/: none. Tests: 10 lines. |
-| `clearAnalysisCache()` | infrastructure | internal, once 0.16.0 bounds the caches | R/: none. Vignettes: none. inst/validation/: none. Tests: 2 lines. |
+| `cachedTest()` | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
+| `clearTestCache()` | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
+| `clearAnalysisCache()` | infrastructure | core API for now (decided); revisited at 1.0.0, once 0.16.0 bounds the caches |  |
 | `ht_enable_log_capture()` | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
 | `ht_log_history()` | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
 | `ht_clear_log_history()` | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
 | `rcalculateEffectSize()` | infrastructure | internal | R/: `performWhiteTestRobust()`, `performBPTestRobust()` (`robust_implementations.R:158,292`), `restimate_test_power()` (`bootstrap_methods.R:599`). Vignettes: none. inst/validation/: none. Tests: 4 lines. |
 | `restimate_test_power()` | infrastructure | internal | R/: `performWhiteTestRobust()`, `performBPTestRobust()` (`robust_implementations.R:159,293`). Vignettes: none. inst/validation/: none. Tests: 3 lines. |
-| `rrunAdvancedDiagnostics()` | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: 3 lines. It overlaps `runHeteroTests()` and `runDiagnostics()`. |
+| `rrunAdvancedDiagnostics()` | runner | core API (decided); its name is still open, see the item on the `r`-prefixed exports |  |
 | `rvalidate_against_reference()` | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: 2 lines. The reference comparisons live in `tests/testthat/`. |
 | `launchDiagnosticDashboard()` | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `dashboard.R`. Vignettes: none. inst/validation/: none. |
 | `run_benchmark_suite()` | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `benchmarking_system.R`. Vignettes: none. inst/validation/: none. |
@@ -452,27 +453,25 @@ Notes on the verdicts:
 
 - **`performStudentizedBPTest()` is provisional.** Item 2 first asserts that it
   agrees with `performKoenkerTest()` to `1e-8` over the designs of the full
-  sweep, a weighted fit and a rank-deficient one included. Disagreement
-  anywhere is a finding, and the verdict is reopened.
-- **`test()` and `summary()`.** `summary.HeteroDiagnostic()` calls `test()` and
-  returns only the statistics; `test()` returns the full results of
-  `runDiagnostics()`. Folding one into the other keeps every value only if
-  `summary()` comes to return what `test()` returns, which changes what
-  `summary()` returns, or if the deprecation of `test()` names
-  `runDiagnostics(x$model, x$data, tests)` for the full results. To be decided
-  before item 4.
-- **Registry names** (proposal). `"student_bp"` and `"ncv"` stay registered
-  and keep calling what they call now, so their output does not change. Each
-  warns once per call of `runHeteroTests()` or `runDiagnostics()`, not once per
-  group or bootstrap replicate, and goes in 1.0.0 with the function behind it.
-- **The cache functions** become internal on the condition that 0.16.0 bounds
-  both caches. Until then `clearTestCache()` and `clearAnalysisCache()` are the
-  only way to free the memory that `runHeteroTests()` and `runDiagnostics()`,
-  which cache by default, hold. Deprecated in 0.14.0, they still work.
+  sweep, weighted, rank-deficient and `fitWLS()` fits included. Disagreement
+  anywhere is a finding, not a rename, and is reported before anything else.
+- **`test()`** warns and names `runDiagnostics(x$model, x$data, tests)`, which
+  returns what `test()` returns. `summary.HeteroDiagnostic()` keeps its return
+  value, so no value changes in 0.14.0.
+- **Registry names.** `"student_bp"` and `"ncv"` stay registered and keep
+  calling what they call now, so their output does not change. Each warns once
+  per call of `runHeteroTests()` or `runDiagnostics()`, not once per group or
+  bootstrap replicate, and goes in 1.0.0 with the function behind it.
+- **The cache functions** (`cachedTest()`, `clearTestCache()`,
+  `clearAnalysisCache()`) stay exported and are not deprecated in 0.14.0. They
+  are revisited at 1.0.0, once 0.16.0 bounds the caches.
+- **`rrunAdvancedDiagnostics()`, `runHeteroTestsParallel()` and
+  `compareTestResults()`** stay core API. The name of
+  `rrunAdvancedDiagnostics()` is still open under the item on the `r`-prefixed
+  exports.
 - **The simulation renames.** `simulate_size()` and `simulate_power()` join the
   documented snake_case family, since both simulate under the `sigma_*()`
-  functions. The camelCase alternative is `simulateSize()` and
-  `simulatePower()`.
+  functions.
 - **`bootstrapTestStatistic()`** takes a test function as its first argument,
   so it is not a `perform*Test(model, data, ...)`; the new name says what it
   does in the house camelCase.
@@ -480,10 +479,8 @@ Notes on the verdicts:
   because the companion package has no name yet. They call
   `plotDiagnosticSuiteEnhanced()`, the test factory and `performNCVTest()`,
   which change before the code moves.
-- **Kept as core API, with no caller in `R/`, the vignettes or
-  `inst/validation/`:** `runHeteroTestsParallel()` and `compareTestResults()`.
-  The roadmap names no change for them. `analyzeMLResiduals()` and
-  `analyseDatasetCharacteristics()` spell the verb two ways.
+- `analyzeMLResiduals()` and `analyseDatasetCharacteristics()` spell the verb
+  two ways. Both are core API; the roadmap names no change for them.
 
 ### 0.15.0: make the interface match its description
 
