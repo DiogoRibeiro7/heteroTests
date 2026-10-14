@@ -135,8 +135,9 @@ Found on the way and left for their own changes:
   `performQuantileRegressionTest()` refused a weighted fit, because they
   refitted without the weights. Resolved in 0.13.0 for the first three:
   they resample the Pearson residuals, return each draw to the scale of its
-  observation and refit with the weights, and an unweighted fit gives
-  bit-identical values. In `inst/validation/weighted-fits-size.R`, at 2000
+  observation and refit with the weights. That change leaves an unweighted
+  fit as it was; the corrections 0.13.0 also makes to unweighted refits are
+  listed under 0.13.0 below. In `inst/validation/weighted-fits-size.R`, at 2000
   replications with `B = 499`, they reject a correctly weighted fit 0.045 to
   0.054 of the time in two designs. `performQuantileRegressionTest()` still
   refuses one: on the weighted scale its slopes differ across quantiles under
@@ -212,8 +213,12 @@ This release was not on the roadmap either. It took the 0.13.0 number because
 it corrects statistics and adds functionality, and the milestones below moved
 up by one again.
 
-- [x] **Values that changed.** `fitWLS()` keeps the offset of the model it
-  refits, and `performVarianceFormTest()` changes with it on a model with an
+- [x] **Values that changed.** The bootstrap tests keep an offset given as an
+  argument when they refit an unweighted model, `rbootstrap_test_statistic()`
+  matches the rows of the data to the fit by name and leaves out rows the fit
+  dropped, and `performWhiteTestBootstrap()` regenerates a transformed
+  response, where its p-value was 1. `fitWLS()` keeps the offset of the model
+  it refits, and `performVarianceFormTest()` changes with it on a model with an
   offset. The Szroeter test that `runHeteroTests()` runs by name orders the
   observations by the fitted values instead of by the second column of the
   data. `runHeteroTests()` and `runDiagnostics()` no longer test a survey
