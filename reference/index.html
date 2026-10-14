@@ -32,8 +32,13 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="tests-of-the-variance">Tests of the variance<a class="anchor" aria-label="anchor" href="#tests-of-the-variance"></a></h2>
 
+      <div class="section-desc"><p>Each test returns an <code>htest</code> object. The tests are grouped by the family they belong to.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+      <h3 id="auxiliary-regression-tests">Auxiliary-regression tests<a class="anchor" aria-label="anchor" href="#auxiliary-regression-tests"></a></h3>
 
 
       <dl></dl></div><div class="section level2">
@@ -43,220 +48,24 @@
 
       <dl><dt>
 
-          <code><a href="HeteroDiagnostic.html">HeteroDiagnostic()</a></code>
+          <code><a href="performWhiteTest.html">performWhiteTest()</a></code>
 
         </dt>
-        <dd>Create a diagnostic object</dd>
+        <dd>Perform White's test for heteroscedasticity</dd>
 
         <dt>
 
-          <code><a href="TestFactory.html">TestFactory</a></code>
+          <code><a href="performWhiteTestRobust.html">performWhiteTestRobust()</a></code>
 
         </dt>
-        <dd>Heteroscedasticity Test Factory</dd>
+        <dd>Robust White test with bootstrap and effect sizes</dd>
 
         <dt>
 
-          <code><a href="additional_tests.html">additional_tests</a></code>
+          <code><a href="performWhiteTestStreaming.html">performWhiteTestStreaming()</a></code>
 
         </dt>
-        <dd>Additional heteroscedasticity tests</dd>
-
-        <dt>
-
-          <code><a href="analyzeMLResiduals.html">analyzeMLResiduals()</a></code>
-
-        </dt>
-        <dd>Machine-learning residual analysis</dd>
-
-        <dt>
-
-          <code><a href="autoCompareRemediations.html">autoCompareRemediations()</a></code>
-
-        </dt>
-        <dd>Automatically compare remedial models</dd>
-
-        <dt>
-
-          <code><a href="autoTransform.html">autoTransform()</a></code>
-
-        </dt>
-        <dd>Automatic transformation helper</dd>
-
-        <dt>
-
-          <code><a href="autoplot.hetero_test_suite.html">autoplot(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="autoplot.hetero_test_suite.html">autoplot(<i>&lt;hetero_grouped_suite&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Autoplot heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="bootstrap_methods.html">bootstrap_methods</a></code>
-
-        </dt>
-        <dd>Bootstrap utilities for heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="cachedTest.html">cachedTest()</a></code>
-
-        </dt>
-        <dd>Cache results of a heteroscedasticity test</dd>
-
-        <dt>
-
-          <code><a href="checkData.html">checkData()</a></code>
-
-        </dt>
-        <dd>Validate data argument (deprecated)</dd>
-
-        <dt>
-
-          <code><a href="checkModel.html">checkModel()</a></code>
-
-        </dt>
-        <dd>Validate model argument</dd>
-
-        <dt>
-
-          <code><a href="checkModelEnhanced.html">checkModelEnhanced()</a></code>
-
-        </dt>
-        <dd>Enhanced model diagnostics (deprecated)</dd>
-
-        <dt>
-
-          <code><a href="clearAnalysisCache.html">clearAnalysisCache()</a></code>
-
-        </dt>
-        <dd>Clear cached diagnostic run results</dd>
-
-        <dt>
-
-          <code><a href="clearTestCache.html">clearTestCache()</a></code>
-
-        </dt>
-        <dd>Clear cached test results</dd>
-
-        <dt>
-
-          <code><a href="compareModelDiagnostics.html">compareModelDiagnostics()</a></code>
-
-        </dt>
-        <dd>Compare diagnostics across models</dd>
-
-        <dt>
-
-          <code><a href="compareTestResults.html">compareTestResults()</a></code>
-
-        </dt>
-        <dd>Summarise heteroscedasticity test results</dd>
-
-        <dt>
-
-          <code><a href="diagnostic_data.html">diagnostic_data</a></code>
-
-        </dt>
-        <dd>Simulated dataset with collinearity and mild nonlinearity</dd>
-
-        <dt>
-
-          <code><a href="dot-diagnostic_registry.html">.diagnostic_registry</a></code>
-
-        </dt>
-        <dd>Diagnostics registry</dd>
-
-        <dt>
-
-          <code><a href="downloadTeachingData.html">downloadTeachingData()</a></code>
-
-        </dt>
-        <dd>Download example teaching dataset</dd>
-
-        <dt>
-
-          <code><a href="fitRobust.html">fitRobust()</a></code>
-
-        </dt>
-        <dd>Robust regression wrapper</dd>
-
-        <dt>
-
-          <code><a href="fitWLS.html">fitWLS()</a></code>
-
-        </dt>
-        <dd>Weighted Least Squares wrapper</dd>
-
-        <dt>
-
-          <code><a href="generateDiagnosticReport.html">generateDiagnosticReport()</a></code>
-
-        </dt>
-        <dd>Automated diagnostic report generation</dd>
-
-        <dt>
-
-          <code><a href="generateHeteroRecommendations.html">analyseDatasetCharacteristics()</a></code> <code><a href="generateHeteroRecommendations.html">suggestDiagnosticsForProfile()</a></code> <code><a href="generateHeteroRecommendations.html">interpretHeteroTestResults()</a></code> <code><a href="generateHeteroRecommendations.html">recommendRemediationStrategies()</a></code> <code><a href="generateHeteroRecommendations.html">warnDiagnosticAssumptions()</a></code> <code><a href="generateHeteroRecommendations.html">buildDiagnosticDecisionTree()</a></code> <code><a href="generateHeteroRecommendations.html">composeDiagnosticNarrative()</a></code> <code><a href="generateHeteroRecommendations.html">generateHeteroRecommendations()</a></code>
-
-        </dt>
-        <dd>Intelligent recommendations for heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="hetero_data.html">hetero_data</a></code>
-
-        </dt>
-        <dd>Simulated dataset with heteroscedastic errors</dd>
-
-        <dt>
-
-          <code><a href="hetero_test_suite.html">hetero_test_suite</a></code> <code><a href="hetero_test_suite.html">hetero_grouped_suite</a></code>
-
-        </dt>
-        <dd>S3 containers for heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="ht_logging.html">ht_set_log_level()</a></code> <code><a href="ht_logging.html">ht_enable_log_capture()</a></code> <code><a href="ht_logging.html">ht_log_history()</a></code> <code><a href="ht_logging.html">ht_clear_log_history()</a></code>
-
-        </dt>
-        <dd>Control logging for heteroTests diagnostics</dd>
-
-        <dt>
-
-          <code><a href="launchDiagnosticDashboard.html">launchDiagnosticDashboard()</a></code>
-
-        </dt>
-        <dd>Interactive diagnostic dashboard</dd>
-
-        <dt>
-
-          <code><a href="listDiagnostics.html">listDiagnostics()</a></code>
-
-        </dt>
-        <dd>List the registered diagnostics</dd>
-
-        <dt>
-
-          <code><a href="modern_diagnostics.html">modern_diagnostics</a></code>
-
-        </dt>
-        <dd>Modern heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="performArchLMTest.html">performArchLMTest()</a></code>
-
-        </dt>
-        <dd>Perform Engle's ARCH LM test</dd>
-
-        <dt>
-
-          <code><a href="performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code>
-
-        </dt>
-        <dd>Breusch-Pagan LM test for random effects</dd>
+        <dd>Memory-efficient White test for large datasets</dd>
 
         <dt>
 
@@ -281,97 +90,6 @@
 
         <dt>
 
-          <code><a href="performBartlettTest.html">performBartlettTest()</a></code>
-
-        </dt>
-        <dd>Perform Bartlett's test for equality of variances</dd>
-
-        <dt>
-
-          <code><a href="performBoxMTest.html">performBoxMTest()</a></code>
-
-        </dt>
-        <dd>Box's M Test for Equality of Covariance Matrices</dd>
-
-        <dt>
-
-          <code><a href="performBrownForsytheTest.html">performBrownForsytheTest()</a></code>
-
-        </dt>
-        <dd>Perform Brown-Forsythe test for equality of variances</dd>
-
-        <dt>
-
-          <code><a href="performCookWeisbergTest.html">performCookWeisbergTest()</a></code>
-
-        </dt>
-        <dd>Perform Cook-Weisberg test for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code>
-
-        </dt>
-        <dd>Perform Davidian-Carroll test</dd>
-
-        <dt>
-
-          <code><a href="performFlignerKilleenTest.html">performFlignerKilleenTest()</a></code>
-
-        </dt>
-        <dd>Perform Fligner-Killeen test for homogeneity of variances</dd>
-
-        <dt>
-
-          <code><a href="performGQTest.html">performGQTest()</a></code>
-
-        </dt>
-        <dd>Perform Goldfeld-Quandt test for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performGlejserTest.html">performGlejserTest()</a></code>
-
-        </dt>
-        <dd>Perform Glejser test for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performHarrisonMcCabeTest.html">performHarrisonMcCabeTest()</a></code>
-
-        </dt>
-        <dd>Harrison-McCabe test for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performHartleyFmaxTest.html">performHartleyFmaxTest()</a></code>
-
-        </dt>
-        <dd>Perform Hartley's Fmax test</dd>
-
-        <dt>
-
-          <code><a href="performHarveyTest.html">performHarveyTest()</a></code>
-
-        </dt>
-        <dd>Perform Harvey test for multiplicative heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performHighDimensionalTest.html">performHighDimensionalTest()</a></code>
-
-        </dt>
-        <dd>High-dimensional projection heteroscedasticity test</dd>
-
-        <dt>
-
-          <code><a href="performInfluenceDiagnostics.html">performInfluenceDiagnostics()</a></code>
-
-        </dt>
-        <dd>Identify influential observations</dd>
-
-        <dt>
-
           <code><a href="performKoenkerTest.html">performKoenkerTest()</a></code>
 
         </dt>
@@ -386,17 +104,17 @@
 
         <dt>
 
-          <code><a href="performLeveneTest.html">performLeveneTest()</a></code>
+          <code><a href="performStudentizedBPTest.html">performStudentizedBPTest()</a></code>
 
         </dt>
-        <dd>Perform Levene's test for equality of variances</dd>
+        <dd>Studentized Breusch–Pagan test (deprecated)</dd>
 
         <dt>
 
-          <code><a href="performMcLeodLiTest.html">performMcLeodLiTest()</a></code>
+          <code><a href="performCookWeisbergTest.html">performCookWeisbergTest()</a></code>
 
         </dt>
-        <dd>Perform McLeod-Li test</dd>
+        <dd>Perform Cook-Weisberg test for heteroscedasticity</dd>
 
         <dt>
 
@@ -407,10 +125,17 @@
 
         <dt>
 
-          <code><a href="performOBrienTest.html">performOBrienTest()</a></code>
+          <code><a href="performHarveyTest.html">performHarveyTest()</a></code>
 
         </dt>
-        <dd>Perform O'Brien test for equality of variances</dd>
+        <dd>Perform Harvey test for multiplicative heteroscedasticity</dd>
+
+        <dt>
+
+          <code><a href="performGlejserTest.html">performGlejserTest()</a></code>
+
+        </dt>
+        <dd>Perform Glejser test for heteroscedasticity</dd>
 
         <dt>
 
@@ -421,45 +146,17 @@
 
         <dt>
 
-          <code><a href="performPesaranTest.html">performPesaranTest()</a></code>
+          <code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code>
 
         </dt>
-        <dd>Perform Pesaran CD test</dd>
+        <dd>Test the functional form of the error variance</dd>
 
         <dt>
 
-          <code><a href="performQuantileRegressionTest.html">performQuantileRegressionTest()</a></code>
+          <code><a href="performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code>
 
         </dt>
-        <dd>Quantile regression heteroscedasticity test</dd>
-
-        <dt>
-
-          <code><a href="performRESETTest.html">performRESETTest()</a></code>
-
-        </dt>
-        <dd>Ramsey's RESET test for nonlinearity</dd>
-
-        <dt>
-
-          <code><a href="performRankPermutationTest.html">performRankPermutationTest()</a></code>
-
-        </dt>
-        <dd>Rank-based permutation heteroscedasticity test</dd>
-
-        <dt>
-
-          <code><a href="performScatterDiagnostic.html">performScatterDiagnostic()</a></code>
-
-        </dt>
-        <dd>Scatter-plot diagnostics for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="performSpatialHeteroTest.html">performSpatialHeteroTest()</a></code>
-
-        </dt>
-        <dd>Spatial heteroscedasticity test</dd>
+        <dd>Perform Davidian-Carroll test</dd>
 
         <dt>
 
@@ -477,10 +174,26 @@
 
         <dt>
 
-          <code><a href="performStudentizedBPTest.html">performStudentizedBPTest()</a></code>
+          <code><a href="performHighDimensionalTest.html">performHighDimensionalTest()</a></code>
 
         </dt>
-        <dd>Studentized Breusch–Pagan test (deprecated)</dd>
+        <dd>High-dimensional projection heteroscedasticity test</dd>
+      </dl></div><div class="section level2">
+
+      <h3 id="tests-on-ordered-observations">Tests on ordered observations<a class="anchor" aria-label="anchor" href="#tests-on-ordered-observations"></a></h3>
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="performGQTest.html">performGQTest()</a></code>
+
+        </dt>
+        <dd>Perform Goldfeld-Quandt test for heteroscedasticity</dd>
 
         <dt>
 
@@ -491,45 +204,128 @@
 
         <dt>
 
-          <code><a href="performVIFDiagnostic.html">performVIFDiagnostic()</a></code>
+          <code><a href="performHarrisonMcCabeTest.html">performHarrisonMcCabeTest()</a></code>
 
         </dt>
-        <dd>Variance inflation factors</dd>
+        <dd>Harrison-McCabe test for heteroscedasticity</dd>
+      </dl></div><div class="section level2">
+
+      <h3 id="group-wise-tests">Group-wise tests<a class="anchor" aria-label="anchor" href="#group-wise-tests"></a></h3>
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="performLeveneTest.html">performLeveneTest()</a></code>
+
+        </dt>
+        <dd>Perform Levene's test for equality of variances</dd>
 
         <dt>
 
-          <code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code>
+          <code><a href="performBrownForsytheTest.html">performBrownForsytheTest()</a></code>
 
         </dt>
-        <dd>Test the functional form of the error variance</dd>
+        <dd>Perform Brown-Forsythe test for equality of variances</dd>
 
         <dt>
 
-          <code><a href="performWhiteTest.html">performWhiteTest()</a></code>
+          <code><a href="performFlignerKilleenTest.html">performFlignerKilleenTest()</a></code>
 
         </dt>
-        <dd>Perform White's test for heteroscedasticity</dd>
+        <dd>Perform Fligner-Killeen test for homogeneity of variances</dd>
 
         <dt>
+
+          <code><a href="performBartlettTest.html">performBartlettTest()</a></code>
+
+        </dt>
+        <dd>Perform Bartlett's test for equality of variances</dd>
+
+        <dt>
+
+          <code><a href="performHartleyFmaxTest.html">performHartleyFmaxTest()</a></code>
+
+        </dt>
+        <dd>Perform Hartley's Fmax test</dd>
+
+        <dt>
+
+          <code><a href="performOBrienTest.html">performOBrienTest()</a></code>
+
+        </dt>
+        <dd>Perform O'Brien test for equality of variances</dd>
+
+        <dt>
+
+          <code><a href="performBoxMTest.html">performBoxMTest()</a></code>
+
+        </dt>
+        <dd>Box's M Test for Equality of Covariance Matrices</dd>
+      </dl></div><div class="section level2">
+
+      <h3 id="time-series-panel-and-spatial-tests">Time series, panel and spatial tests<a class="anchor" aria-label="anchor" href="#time-series-panel-and-spatial-tests"></a></h3>
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="performArchLMTest.html">performArchLMTest()</a></code>
+
+        </dt>
+        <dd>Perform Engle's ARCH LM test</dd>
+
+        <dt>
+
+          <code><a href="performMcLeodLiTest.html">performMcLeodLiTest()</a></code>
+
+        </dt>
+        <dd>Perform McLeod-Li test</dd>
+
+        <dt>
+
+          <code><a href="performBPRandomEffectsTest.html">performBPRandomEffectsTest()</a></code>
+
+        </dt>
+        <dd>Breusch-Pagan LM test for random effects</dd>
+
+        <dt>
+
+          <code><a href="performPesaranTest.html">performPesaranTest()</a></code>
+
+        </dt>
+        <dd>Perform Pesaran CD test</dd>
+
+        <dt>
+
+          <code><a href="performSpatialHeteroTest.html">performSpatialHeteroTest()</a></code>
+
+        </dt>
+        <dd>Spatial heteroscedasticity test</dd>
+      </dl></div><div class="section level2">
+
+      <h3 id="resampling-and-robust-tests">Resampling and robust tests<a class="anchor" aria-label="anchor" href="#resampling-and-robust-tests"></a></h3>
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
 
           <code><a href="performWhiteTestBootstrap.html">performWhiteTestBootstrap()</a></code>
 
         </dt>
         <dd>Bootstrap White test</dd>
-
-        <dt>
-
-          <code><a href="performWhiteTestRobust.html">performWhiteTestRobust()</a></code>
-
-        </dt>
-        <dd>Robust White test with bootstrap and effect sizes</dd>
-
-        <dt>
-
-          <code><a href="performWhiteTestStreaming.html">performWhiteTestStreaming()</a></code>
-
-        </dt>
-        <dd>Memory-efficient White test for large datasets</dd>
 
         <dt>
 
@@ -540,6 +336,241 @@
 
         <dt>
 
+          <code><a href="performRankPermutationTest.html">performRankPermutationTest()</a></code>
+
+        </dt>
+        <dd>Rank-based permutation heteroscedasticity test</dd>
+
+        <dt>
+
+          <code><a href="performQuantileRegressionTest.html">performQuantileRegressionTest()</a></code>
+
+        </dt>
+        <dd>Quantile regression heteroscedasticity test</dd>
+
+        <dt>
+
+          <code><a href="rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code> <code><a href="rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code>
+
+        </dt>
+        <dd>Bootstrap a test statistic</dd>
+
+        <dt>
+
+          <code><a href="bootstrap_methods.html">bootstrap_methods</a></code>
+
+        </dt>
+        <dd>Bootstrap utilities for heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="robust_implementations.html">robust_implementations</a></code>
+
+        </dt>
+        <dd>Robust heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="modern_diagnostics.html">modern_diagnostics</a></code>
+
+        </dt>
+        <dd>Modern heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="additional_tests.html">additional_tests</a></code>
+
+        </dt>
+        <dd>Additional heteroscedasticity tests</dd>
+      </dl></div><div class="section level2">
+      <h2 id="model-checks">Model checks<a class="anchor" aria-label="anchor" href="#model-checks"></a></h2>
+
+      <div class="section-desc"><p>Checks of the fitted model that are not tests of the variance: the functional form, collinearity, influence and the fit itself. They are listed apart so that they are not mistaken for heteroscedasticity tests.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="performRESETTest.html">performRESETTest()</a></code>
+
+        </dt>
+        <dd>Ramsey's RESET test for nonlinearity</dd>
+
+        <dt>
+
+          <code><a href="performVIFDiagnostic.html">performVIFDiagnostic()</a></code>
+
+        </dt>
+        <dd>Variance inflation factors</dd>
+
+        <dt>
+
+          <code><a href="performInfluenceDiagnostics.html">performInfluenceDiagnostics()</a></code>
+
+        </dt>
+        <dd>Identify influential observations</dd>
+
+        <dt>
+
+          <code><a href="performScatterDiagnostic.html">performScatterDiagnostic()</a></code>
+
+        </dt>
+        <dd>Scatter-plot diagnostics for heteroscedasticity</dd>
+
+        <dt>
+
+          <code><a href="checkModel.html">checkModel()</a></code>
+
+        </dt>
+        <dd>Validate model argument</dd>
+
+        <dt>
+
+          <code><a href="checkModelEnhanced.html">checkModelEnhanced()</a></code>
+
+        </dt>
+        <dd>Enhanced model diagnostics (deprecated)</dd>
+      </dl></div><div class="section level2">
+      <h2 id="running-several-diagnostics">Running several diagnostics<a class="anchor" aria-label="anchor" href="#running-several-diagnostics"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="runHeteroTests.html">runHeteroTests()</a></code>
+
+        </dt>
+        <dd>Run multiple heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="runHeteroTestsParallel.html">runHeteroTestsParallel()</a></code>
+
+        </dt>
+        <dd>Parallel test execution helper</dd>
+
+        <dt>
+
+          <code><a href="runDiagnostics.html">runDiagnostics()</a></code>
+
+        </dt>
+        <dd>Run a suite of model diagnostics</dd>
+
+        <dt>
+
+          <code><a href="runDiagnosticPlots.html">runDiagnosticPlots()</a></code>
+
+        </dt>
+        <dd>Run registered diagnostic plots</dd>
+
+        <dt>
+
+          <code><a href="runMultivariateTests.html">runMultivariateTests()</a></code>
+
+        </dt>
+        <dd>Run multivariate heteroscedasticity tests</dd>
+
+        <dt>
+
+          <code><a href="runTimeSeriesTests.html">runTimeSeriesTests()</a></code>
+
+        </dt>
+        <dd>Run time-series heteroscedasticity tests</dd>
+
+        <dt>
+
+          <code><a href="runPanelTests.html">runPanelTests()</a></code>
+
+        </dt>
+        <dd>Run panel-data heteroscedasticity tests</dd>
+
+        <dt>
+
+          <code><a href="runSurveyHeteroTests.html">runSurveyHeteroTests()</a></code>
+
+        </dt>
+        <dd>Run heteroscedasticity diagnostics on the data of a survey design</dd>
+
+        <dt>
+
+          <code><a href="rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code>
+
+        </dt>
+        <dd>Run enhanced heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="compareModelDiagnostics.html">compareModelDiagnostics()</a></code>
+
+        </dt>
+        <dd>Compare diagnostics across models</dd>
+
+        <dt>
+
+          <code><a href="compareTestResults.html">compareTestResults()</a></code>
+
+        </dt>
+        <dd>Summarise heteroscedasticity test results</dd>
+
+        <dt>
+
+          <code><a href="analyzeMLResiduals.html">analyzeMLResiduals()</a></code>
+
+        </dt>
+        <dd>Machine-learning residual analysis</dd>
+
+        <dt>
+
+          <code><a href="registerDiagnostic.html">registerDiagnostic()</a></code>
+
+        </dt>
+        <dd>Register a custom diagnostic</dd>
+
+        <dt>
+
+          <code><a href="registerPlot.html">registerPlot()</a></code>
+
+        </dt>
+        <dd>Register a diagnostic plot</dd>
+
+        <dt>
+
+          <code><a href="listDiagnostics.html">listDiagnostics()</a></code>
+
+        </dt>
+        <dd>List the registered diagnostics</dd>
+
+        <dt>
+
+          <code><a href="HeteroDiagnostic.html">HeteroDiagnostic()</a></code>
+
+        </dt>
+        <dd>Create a diagnostic object</dd>
+
+        <dt>
+
+          <code><a href="test.HeteroDiagnostic.html">test()</a></code>
+
+        </dt>
+        <dd>Run diagnostic tests</dd>
+
+        <dt>
+
+          <code><a href="summary.HeteroDiagnostic.html">summary(<i>&lt;HeteroDiagnostic&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summarize diagnostics</dd>
+
+        <dt>
+
           <code><a href="plot.HeteroDiagnostic.html">plot(<i>&lt;HeteroDiagnostic&gt;</i>)</a></code>
 
         </dt>
@@ -547,17 +578,186 @@
 
         <dt>
 
+          <code><a href="hetero_test_suite.html">hetero_test_suite</a></code> <code><a href="hetero_test_suite.html">hetero_grouped_suite</a></code>
+
+        </dt>
+        <dd>S3 containers for heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">glance(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">augment(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">glance(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">augment(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_grouped_suite&gt;</i>)</a></code>
+
+        </dt>
+        <dd>broom methods for heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="cachedTest.html">cachedTest()</a></code>
+
+        </dt>
+        <dd>Cache results of a heteroscedasticity test</dd>
+
+        <dt>
+
+          <code><a href="clearTestCache.html">clearTestCache()</a></code>
+
+        </dt>
+        <dd>Clear cached test results</dd>
+
+        <dt>
+
+          <code><a href="clearAnalysisCache.html">clearAnalysisCache()</a></code>
+
+        </dt>
+        <dd>Clear cached diagnostic run results</dd>
+
+        <dt>
+
+          <code><a href="TestFactory.html">TestFactory</a></code>
+
+        </dt>
+        <dd>Heteroscedasticity Test Factory</dd>
+
+        <dt>
+
+          <code><a href="test_factory.html">test_factory</a></code>
+
+        </dt>
+        <dd>Shared instance of the test factory</dd>
+      </dl></div><div class="section level2">
+      <h2 id="remediation">Remediation<a class="anchor" aria-label="anchor" href="#remediation"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fitWLS.html">fitWLS()</a></code>
+
+        </dt>
+        <dd>Weighted Least Squares wrapper</dd>
+
+        <dt>
+
+          <code><a href="fitRobust.html">fitRobust()</a></code>
+
+        </dt>
+        <dd>Robust regression wrapper</dd>
+
+        <dt>
+
+          <code><a href="autoTransform.html">autoTransform()</a></code>
+
+        </dt>
+        <dd>Automatic transformation helper</dd>
+
+        <dt>
+
+          <code><a href="suggestRemediation.html">suggestRemediation()</a></code> <code><a href="suggestRemediation.html">print(<i>&lt;remediation_suggestions&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Suggest remediation actions for heteroscedasticity</dd>
+
+        <dt>
+
+          <code><a href="autoCompareRemediations.html">autoCompareRemediations()</a></code>
+
+        </dt>
+        <dd>Automatically compare remedial models</dd>
+      </dl></div><div class="section level2">
+      <h2 id="recommendations">Recommendations<a class="anchor" aria-label="anchor" href="#recommendations"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="generateHeteroRecommendations.html">analyseDatasetCharacteristics()</a></code> <code><a href="generateHeteroRecommendations.html">suggestDiagnosticsForProfile()</a></code> <code><a href="generateHeteroRecommendations.html">interpretHeteroTestResults()</a></code> <code><a href="generateHeteroRecommendations.html">recommendRemediationStrategies()</a></code> <code><a href="generateHeteroRecommendations.html">warnDiagnosticAssumptions()</a></code> <code><a href="generateHeteroRecommendations.html">buildDiagnosticDecisionTree()</a></code> <code><a href="generateHeteroRecommendations.html">composeDiagnosticNarrative()</a></code> <code><a href="generateHeteroRecommendations.html">generateHeteroRecommendations()</a></code>
+
+        </dt>
+        <dd>Intelligent recommendations for heteroscedasticity diagnostics</dd>
+      </dl></div><div class="section level2">
+      <h2 id="simulation">Simulation<a class="anchor" aria-label="anchor" href="#simulation"></a></h2>
+
+      <div class="section-desc"><p>The simulation functions are named in snake_case on purpose; the rest of the package uses camelCase.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="simulate_hetero.html">simulate_hetero()</a></code> <code><a href="simulate_hetero.html">simulate_arch1()</a></code> <code><a href="simulate_hetero.html">sigma_linear()</a></code> <code><a href="simulate_hetero.html">sigma_exponential()</a></code> <code><a href="simulate_hetero.html">sigma_group()</a></code> <code><a href="simulate_hetero.html">sigma_piecewise()</a></code> <code><a href="simulate_hetero.html">sigma_poly()</a></code> <code><a href="simulate_hetero.html">sigma_sin()</a></code> <code><a href="simulate_hetero.html">sigma_multiplicative()</a></code> <code><a href="simulate_hetero.html">sigma_spatial()</a></code> <code><a href="simulate_hetero.html">sigma_logistic()</a></code> <code><a href="simulate_hetero.html">sigma_inverse()</a></code> <code><a href="simulate_hetero.html">sigma_power()</a></code> <code><a href="simulate_hetero.html">sigma_step()</a></code> <code><a href="simulate_hetero.html">sigma_u_shape()</a></code> <code><a href="simulate_hetero.html">sigma_exp_decay()</a></code> <code><a href="simulate_hetero.html">sigma_gaussian_peak()</a></code> <code><a href="simulate_hetero.html">sigma_piecewise_linear()</a></code>
+
+        </dt>
+        <dd>Simulate heteroscedastic data</dd>
+
+        <dt>
+
+          <code><a href="simulation_framework.html">simulate_size()</a></code> <code><a href="simulation_framework.html">simulate_power()</a></code> <code><a href="simulation_framework.html">simulate_type_I_errors()</a></code> <code><a href="simulation_framework.html">simulate_power_analysis()</a></code>
+
+        </dt>
+        <dd>Advanced simulation framework for test validation</dd>
+
+        <dt>
+
           <code><a href="plot.power_analysis.html">plot(<i>&lt;power_analysis&gt;</i>)</a></code>
 
         </dt>
         <dd>Plot method for power analysis results</dd>
+      </dl></div><div class="section level2">
+      <h2 id="plotting">Plotting<a class="anchor" aria-label="anchor" href="#plotting"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="plotResidualsFitted.html">plotResidualsFitted()</a></code>
+
+        </dt>
+        <dd>Plot residuals vs fitted values</dd>
 
         <dt>
 
-          <code><a href="plotBeforeAfter.html">plotBeforeAfter()</a></code>
+          <code><a href="plotResidualsFittedEnhanced.html">plotResidualsFittedEnhanced()</a></code>
 
         </dt>
-        <dd>Compare residuals before and after remediation</dd>
+        <dd>Enhanced residuals vs fitted plot (deprecated)</dd>
+
+        <dt>
+
+          <code><a href="plotSpreadLevel.html">plotSpreadLevel()</a></code>
+
+        </dt>
+        <dd>Spread-Level plot for variance diagnostics</dd>
+
+        <dt>
+
+          <code><a href="plotResidualDensity.html">plotResidualDensity()</a></code>
+
+        </dt>
+        <dd>Density plot of residuals</dd>
+
+        <dt>
+
+          <code><a href="plotResidualQQ.html">plotResidualQQ()</a></code>
+
+        </dt>
+        <dd>QQ plot of residuals</dd>
 
         <dt>
 
@@ -582,164 +782,24 @@
 
         <dt>
 
-          <code><a href="plotResidualDensity.html">plotResidualDensity()</a></code>
+          <code><a href="plotBeforeAfter.html">plotBeforeAfter()</a></code>
 
         </dt>
-        <dd>Density plot of residuals</dd>
+        <dd>Compare residuals before and after remediation</dd>
 
         <dt>
 
-          <code><a href="plotResidualQQ.html">plotResidualQQ()</a></code>
+          <code><a href="autoplot.hetero_test_suite.html">autoplot(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="autoplot.hetero_test_suite.html">autoplot(<i>&lt;hetero_grouped_suite&gt;</i>)</a></code>
 
         </dt>
-        <dd>QQ plot of residuals</dd>
+        <dd>Autoplot heteroscedasticity diagnostics</dd>
 
         <dt>
 
-          <code><a href="plotResidualsFitted.html">plotResidualsFitted()</a></code>
+          <code><a href="theme_hetero.html">theme_hetero()</a></code>
 
         </dt>
-        <dd>Plot residuals vs fitted values</dd>
-
-        <dt>
-
-          <code><a href="plotResidualsFittedEnhanced.html">plotResidualsFittedEnhanced()</a></code>
-
-        </dt>
-        <dd>Enhanced residuals vs fitted plot (deprecated)</dd>
-
-        <dt>
-
-          <code><a href="plotSpreadLevel.html">plotSpreadLevel()</a></code>
-
-        </dt>
-        <dd>Spread-Level plot for variance diagnostics</dd>
-
-        <dt>
-
-          <code><a href="print.htest_enhanced.html">print(<i>&lt;htest_enhanced&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for enhanced White test results</dd>
-
-        <dt>
-
-          <code><a href="rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code> <code><a href="rbootstrap_test_statistic.html">rbootstrap_test_statistic()</a></code>
-
-        </dt>
-        <dd>Bootstrap a test statistic</dd>
-
-        <dt>
-
-          <code><a href="rcalculateEffectSize.html">rcalculateEffectSize()</a></code>
-
-        </dt>
-        <dd>Effect size calculations for heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="registerDiagnostic.html">registerDiagnostic()</a></code>
-
-        </dt>
-        <dd>Register a custom diagnostic</dd>
-
-        <dt>
-
-          <code><a href="registerPlot.html">registerPlot()</a></code>
-
-        </dt>
-        <dd>Register a diagnostic plot</dd>
-
-        <dt>
-
-          <code><a href="restimate_test_power.html">restimate_test_power()</a></code>
-
-        </dt>
-        <dd>Estimate test power from observed effect size</dd>
-
-        <dt>
-
-          <code><a href="robust_implementations.html">robust_implementations</a></code>
-
-        </dt>
-        <dd>Robust heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="rrunAdvancedDiagnostics.html">rrunAdvancedDiagnostics()</a></code>
-
-        </dt>
-        <dd>Run enhanced heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="runDiagnosticPlots.html">runDiagnosticPlots()</a></code>
-
-        </dt>
-        <dd>Run registered diagnostic plots</dd>
-
-        <dt>
-
-          <code><a href="runDiagnostics.html">runDiagnostics()</a></code>
-
-        </dt>
-        <dd>Run a suite of model diagnostics</dd>
-
-        <dt>
-
-          <code><a href="runHeteroTests.html">runHeteroTests()</a></code>
-
-        </dt>
-        <dd>Run multiple heteroscedasticity diagnostics</dd>
-
-        <dt>
-
-          <code><a href="runHeteroTestsParallel.html">runHeteroTestsParallel()</a></code>
-
-        </dt>
-        <dd>Parallel test execution helper</dd>
-
-        <dt>
-
-          <code><a href="runMultivariateTests.html">runMultivariateTests()</a></code>
-
-        </dt>
-        <dd>Run multivariate heteroscedasticity tests</dd>
-
-        <dt>
-
-          <code><a href="runPanelTests.html">runPanelTests()</a></code>
-
-        </dt>
-        <dd>Run panel-data heteroscedasticity tests</dd>
-
-        <dt>
-
-          <code><a href="runSurveyHeteroTests.html">runSurveyHeteroTests()</a></code>
-
-        </dt>
-        <dd>Run heteroscedasticity diagnostics on the data of a survey design</dd>
-
-        <dt>
-
-          <code><a href="runTimeSeriesTests.html">runTimeSeriesTests()</a></code>
-
-        </dt>
-        <dd>Run time-series heteroscedasticity tests</dd>
-
-        <dt>
-
-          <code><a href="run_benchmark_suite.html">run_benchmark_suite()</a></code> <code><a href="run_benchmark_suite.html">generate_benchmark_report()</a></code>
-
-        </dt>
-        <dd>Benchmark <span class="pkg">heteroTests</span> against reference implementations</dd>
-
-        <dt>
-
-          <code><a href="rvalidate_against_reference.html">rvalidate_against_reference()</a></code>
-
-        </dt>
-        <dd>Validate diagnostics against reference implementations</dd>
+        <dd>Heteroscedasticity diagnostic theme</dd>
 
         <dt>
 
@@ -747,20 +807,89 @@
 
         </dt>
         <dd>Colour scale for heteroscedasticity diagnostics</dd>
+      </dl></div><div class="section level2">
+      <h2 id="reporting-and-data">Reporting and data<a class="anchor" aria-label="anchor" href="#reporting-and-data"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="generateDiagnosticReport.html">generateDiagnosticReport()</a></code>
+
+        </dt>
+        <dd>Automated diagnostic report generation</dd>
 
         <dt>
 
-          <code><a href="simulate_hetero.html">simulate_hetero()</a></code> <code><a href="simulate_hetero.html">simulate_arch1()</a></code> <code><a href="simulate_hetero.html">sigma_linear()</a></code> <code><a href="simulate_hetero.html">sigma_exponential()</a></code> <code><a href="simulate_hetero.html">sigma_group()</a></code> <code><a href="simulate_hetero.html">sigma_piecewise()</a></code> <code><a href="simulate_hetero.html">sigma_poly()</a></code> <code><a href="simulate_hetero.html">sigma_sin()</a></code> <code><a href="simulate_hetero.html">sigma_multiplicative()</a></code> <code><a href="simulate_hetero.html">sigma_spatial()</a></code> <code><a href="simulate_hetero.html">sigma_logistic()</a></code> <code><a href="simulate_hetero.html">sigma_inverse()</a></code> <code><a href="simulate_hetero.html">sigma_power()</a></code> <code><a href="simulate_hetero.html">sigma_step()</a></code> <code><a href="simulate_hetero.html">sigma_u_shape()</a></code> <code><a href="simulate_hetero.html">sigma_exp_decay()</a></code> <code><a href="simulate_hetero.html">sigma_gaussian_peak()</a></code> <code><a href="simulate_hetero.html">sigma_piecewise_linear()</a></code>
+          <code><a href="downloadTeachingData.html">downloadTeachingData()</a></code>
 
         </dt>
-        <dd>Simulate heteroscedastic data</dd>
+        <dd>Download example teaching dataset</dd>
 
         <dt>
 
-          <code><a href="simulation_framework.html">simulate_size()</a></code> <code><a href="simulation_framework.html">simulate_power()</a></code> <code><a href="simulation_framework.html">simulate_type_I_errors()</a></code> <code><a href="simulation_framework.html">simulate_power_analysis()</a></code>
+          <code><a href="diagnostic_data.html">diagnostic_data</a></code>
 
         </dt>
-        <dd>Advanced simulation framework for test validation</dd>
+        <dd>Simulated dataset with collinearity and mild nonlinearity</dd>
+
+        <dt>
+
+          <code><a href="hetero_data.html">hetero_data</a></code>
+
+        </dt>
+        <dd>Simulated dataset with heteroscedastic errors</dd>
+
+        <dt>
+
+          <code><a href="print.htest_enhanced.html">print(<i>&lt;htest_enhanced&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for enhanced White test results</dd>
+      </dl></div><div class="section level2">
+      <h2 id="dashboard-and-benchmarks">Dashboard and benchmarks<a class="anchor" aria-label="anchor" href="#dashboard-and-benchmarks"></a></h2>
+
+      <div class="section-desc"><p>To move to a companion package, once it has a name.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="launchDiagnosticDashboard.html">launchDiagnosticDashboard()</a></code>
+
+        </dt>
+        <dd>Interactive diagnostic dashboard</dd>
+
+        <dt>
+
+          <code><a href="run_benchmark_suite.html">run_benchmark_suite()</a></code> <code><a href="run_benchmark_suite.html">generate_benchmark_report()</a></code>
+
+        </dt>
+        <dd>Benchmark <span class="pkg">heteroTests</span> against reference implementations</dd>
+      </dl></div><div class="section level2">
+      <h2 id="package-infrastructure">Package infrastructure<a class="anchor" aria-label="anchor" href="#package-infrastructure"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ht_logging.html">ht_set_log_level()</a></code> <code><a href="ht_logging.html">ht_enable_log_capture()</a></code> <code><a href="ht_logging.html">ht_log_history()</a></code> <code><a href="ht_logging.html">ht_clear_log_history()</a></code>
+
+        </dt>
+        <dd>Control logging for heteroTests diagnostics</dd>
 
         <dt>
 
@@ -778,54 +907,197 @@
 
         <dt>
 
-          <code><a href="suggestRemediation.html">suggestRemediation()</a></code> <code><a href="suggestRemediation.html">print(<i>&lt;remediation_suggestions&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Suggest remediation actions for heteroscedasticity</dd>
-
-        <dt>
-
-          <code><a href="summary.HeteroDiagnostic.html">summary(<i>&lt;HeteroDiagnostic&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summarize diagnostics</dd>
-
-        <dt>
-
-          <code><a href="test.HeteroDiagnostic.html">test()</a></code>
-
-        </dt>
-        <dd>Run diagnostic tests</dd>
-
-        <dt>
-
-          <code><a href="test_factory.html">test_factory</a></code>
-
-        </dt>
-        <dd>Shared instance of the test factory</dd>
-
-        <dt>
-
-          <code><a href="theme_hetero.html">theme_hetero()</a></code>
-
-        </dt>
-        <dd>Heteroscedasticity diagnostic theme</dd>
-
-        <dt>
-
-          <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">glance(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">augment(<i>&lt;hetero_test&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">glance(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">augment(<i>&lt;hetero_test_suite&gt;</i>)</a></code> <code><a href="tidy.hetero_test.html">tidy(<i>&lt;hetero_grouped_suite&gt;</i>)</a></code>
-
-        </dt>
-        <dd>broom methods for heteroscedasticity diagnostics</dd>
-
-        <dt>
-
           <code><a href="validateTestInputs.html">validateTestInputs()</a></code>
 
         </dt>
         <dd>Validate model and data inputs before running diagnostics (deprecated)</dd>
+
+        <dt>
+
+          <code><a href="checkData.html">checkData()</a></code>
+
+        </dt>
+        <dd>Validate data argument (deprecated)</dd>
+
+        <dt>
+
+          <code><a href="rcalculateEffectSize.html">rcalculateEffectSize()</a></code>
+
+        </dt>
+        <dd>Effect size calculations for heteroscedasticity diagnostics</dd>
+
+        <dt>
+
+          <code><a href="restimate_test_power.html">restimate_test_power()</a></code>
+
+        </dt>
+        <dd>Estimate test power from observed effect size</dd>
+
+        <dt>
+
+          <code><a href="rvalidate_against_reference.html">rvalidate_against_reference()</a></code>
+
+        </dt>
+        <dd>Validate diagnostics against reference implementations</dd>
+      </dl></div><div class="section level2">
+      <h2 id="internal">Internal<a class="anchor" aria-label="anchor" href="#internal"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="dot-diagnostic_registry.html">.diagnostic_registry</a></code>
+
+        </dt>
+        <dd>Diagnostics registry</dd>
+
+        <dt>
+
+          <code><a href="algorithms_bibliography.html">algorithms_bibliography</a></code>
+
+        </dt>
+        <dd>Bibliography of Diagnostic Algorithms</dd>
+
+        <dt>
+
+          <code><a href="bootstrap_white_test.html">bootstrap_white_test()</a></code>
+
+        </dt>
+        <dd>Bootstrap implementation for White test</dd>
+
+        <dt>
+
+          <code><a href="checkNumericVector.html">checkNumericVector()</a></code>
+
+        </dt>
+        <dd>Validate numeric vector</dd>
+
+        <dt>
+
+          <code><a href="check_memory_usage.html">check_memory_usage()</a></code>
+
+        </dt>
+        <dd>Check memory usage and warn for large datasets</dd>
+
+        <dt>
+
+          <code><a href="clearValidationCache.html">clearValidationCache()</a></code>
+
+        </dt>
+        <dd>Reset cached validation results</dd>
+
+        <dt>
+
+          <code><a href="dot-ht_null.html">.ht_null</a></code>
+
+        </dt>
+        <dd>Ecosystem integration helpers</dd>
+
+        <dt>
+
+          <code><a href="ht_log.html">ht_log()</a></code>
+
+        </dt>
+        <dd>Log a formatted message</dd>
+
+        <dt>
+
+          <code><a href="interpret_white_test.html">interpret_white_test()</a></code>
+
+        </dt>
+        <dd>Interpret White test results</dd>
+
+        <dt>
+
+          <code><a href="messages.html">messages</a></code>
+
+        </dt>
+        <dd>Standardized error and warning messages</dd>
+
+        <dt>
+
+          <code><a href="rTEST_REQUIREMENTS.html">rTEST_REQUIREMENTS</a></code>
+
+        </dt>
+        <dd>Test-specific sample size requirements</dd>
+
+        <dt>
+
+          <code><a href="rhandleMissingValues.html">rhandleMissingValues()</a></code>
+
+        </dt>
+        <dd>Handle missing values according to a specified strategy</dd>
+
+        <dt>
+
+          <code><a href="rprocessValidationResult.html">rprocessValidationResult()</a></code>
+
+        </dt>
+        <dd>Process validation helper outputs</dd>
+
+        <dt>
+
+          <code><a href="rvalidateDataInputs.html">rvalidateDataInputs()</a></code>
+
+        </dt>
+        <dd>Validate data inputs for heteroscedasticity tests</dd>
+
+        <dt>
+
+          <code><a href="rvalidateDistributionalAssumptions.html">rvalidateDistributionalAssumptions()</a></code>
+
+        </dt>
+        <dd>Validate distributional assumptions</dd>
+
+        <dt>
+
+          <code><a href="rvalidateGroupingVariable.html">rvalidateGroupingVariable()</a></code>
+
+        </dt>
+        <dd>Validate grouping variable structure</dd>
+
+        <dt>
+
+          <code><a href="rvalidateModelInputs.html">rvalidateModelInputs()</a></code>
+
+        </dt>
+        <dd>Validate regression model inputs</dd>
+
+        <dt>
+
+          <code><a href="rvalidateSampleSize.html">rvalidateSampleSize()</a></code>
+
+        </dt>
+        <dd>Validate test-specific sample size requirements</dd>
+
+        <dt>
+
+          <code><a href="rvalidateTestRequirements.html">rvalidateTestRequirements()</a></code>
+
+        </dt>
+        <dd>Validate test-specific requirements</dd>
+
+        <dt>
+
+          <code><a href="safe_lm.html">safe_lm()</a></code>
+
+        </dt>
+        <dd>Safely fit a linear model</dd>
+
+        <dt>
+
+          <code><a href="safe_var.html">safe_var()</a></code>
+
+        </dt>
+        <dd>Safe variance calculation</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
