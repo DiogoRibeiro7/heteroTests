@@ -18,7 +18,8 @@
 #'   When `NULL`, the default, the model frame of `model` is used, so `id` must
 #'   then be a variable of the model. The model frame holds the terms of the
 #'   model rather than its variables (`log(x)` rather than `x`), so a model that
-#'   transforms a variable needs `data`.
+#'   transforms a variable needs `data`, as does a
+#'   model with an `offset()` term.
 #' @param id Character scalar naming the column in `data` that indexes individuals
 #'   (or panels). The column must align with the row ordering used to fit `model`.
 #'

@@ -17,10 +17,14 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072]
 
 Every test returns a base-R `htest` object, so results print, subset and
 compose like those of `lmtest::bptest()` and slot directly into automated
-pipelines. Every test takes `(model, data, ...)`, where `data` may be omitted
-and the model frame is then used, except Box's M test
+pipelines. Every test takes `(model, data, ...)`, except Box's M test
 (`performBoxMTest(data, group)`), which tests the data rather than the
-residuals of a model. Where an established implementation exists, the
+residuals of a model. `data` may be omitted, and the model frame is then
+used. The tests that read variables from `data` still need it for a model
+that transforms a variable (`log(x)`) or has an `offset()` term, and for a
+column the model does not use (the `group` of Levene's test); eight of them
+also need it for a fit whose `weights` or `offset` argument is a column of
+the data. Where an established implementation exists, the
 test reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for
 Breusch--Pagan, Koenker and Goldfeld--Quandt, `car` for the Cook--Weisberg
 score test, Levene and Brown--Forsythe, `stats` for Bartlett and
@@ -200,7 +204,8 @@ The development direction, completed work and known technical debt are tracked i
 [ROADMAP.md](ROADMAP.md). Since 0.15.0 every test refuses the same bad inputs
 with the same message: a `glm` that is not a least-squares fit (a Gaussian
 `glm` with the identity link is accepted, unweighted or with positive
-weights, and gives the result of the `lm`), a model with an `NA`
+weights, and gives the result of the `lm`, except by the three tests that
+refuse every `glm`), a model with an `NA`
 coefficient, and data that lack rows or variables of the model
 (`?test_results`).
 

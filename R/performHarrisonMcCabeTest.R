@@ -11,7 +11,8 @@
 #'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
 #'   must then be a variable of the model. The model frame holds the terms of
 #'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`.
+#'   that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term.
 #' @param order_by Character scalar naming the column of `data` that orders the
 #'   observations. Tied values keep the order the observations have in the
 #'   fitted model.

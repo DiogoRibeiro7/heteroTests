@@ -152,6 +152,16 @@ stops with "Model residuals must be finite". It is recorded under 0.16.0.
 `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
 `performVarianceFormTest()` refuse every `glm`, as before.
 
+The registry names deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call
+the implementations behind `performNCVTest()` and
+`performStudentizedBPTest()`, not the functions, and do not refuse a `glm`
+of another family yet. `runHeteroTests()` falls back on `"ncv"` when White's,
+Koenker's or the classical test stops, so `runHeteroTests(<binomial glm>,
+data)` does not stop: it returns the Cook-Weisberg statistic under the names
+`white` and `koenker`, tagged as a fallback, where 0.14.0 returned White's
+and the classical test. `runDiagnostics()` stops, through
+`performRESETTest()`. It is recorded under 0.16.0.
+
 **`performGQTest()`, `performRESETTest()`, `performWhiteTestBootstrap()` and
 `performWildBootstrapTest()` now read the prior weights of a Gaussian `glm`,
 and `performQuantileRegressionTest()` refuses a weighted one, as it refuses a
@@ -277,12 +287,19 @@ be called without it: `data = NULL` stands for the model frame of `model`, so
 `runHeteroTests(model)` passes them. A call that gives `data` returns what it
 returned. The model frame holds the terms of the model rather than its
 variables (`log(x)` rather than `x`), so a model that transforms a variable
-still needs `data`, as does a test on a column that is not a variable of the
-model, such as the `group` of `performLeveneTest()`. On a weighted fit whose
-weights are a column of the data (`weights = w`), the tests that rebuild the
-design from `data`, such as `performWhiteTest()` and `performBPTest()`, stop
-with "object 'w' not found" without it, as they do when given the model
-frame. One call returns another value: `performRESETTest(model, NULL)`, which
+or has an `offset()` term still needs `data`, as does a test on a column that
+is not a variable of the model, such as the `group` of `performLeveneTest()`.
+On a weighted fit whose weights are a column of the data (`weights = w`), the
+eight tests that rebuild the design from `data`, `performWhiteTest()`,
+`performWhiteTestRobust()`, `performWhiteTestBootstrap()`, `performBPTest()`
+and `performBreuschPaganTest()`, `performKoenkerTest()`,
+`performRankPermutationTest()` and `performHighDimensionalTest()`, stop with
+"object 'w' not found" without it, as they do when given the model frame, and
+so do they on a fit with `offset = o`. `runHeteroTests()` and
+`runDiagnostics()` then return the Cook-Weisberg test, which they fall back
+on when a test stops, under the names `white` and `koenker` (in 0.14.0 under
+`white` and `breusch_pagan`), so pass `data` for such a fit. One call returns
+another value: `performRESETTest(model, NULL)`, which
 read `NULL` as `power` and returned `NaN`, now computes the test with the
 default powers, and a data frame given second, which was read as one power
 per column, is now read as `data`. In a seeded comparison of 30 tests in 39

@@ -646,7 +646,59 @@ after it.
   `model.matrix(model, data = data)` (`performWhiteTest()`, `performBPTest()`,
   `performKoenkerTest()` and others) stop with "object 'w' not found" when
   `data` is omitted, as they do when given the model frame, which holds the
-  weights as `(weights)`. Found on 2026-10-15; no value changes.
+  weights as `(weights)`. Found on 2026-10-15; no value changes. The eight
+  are `performWhiteTest()`, `performWhiteTestRobust()`,
+  `performWhiteTestBootstrap()`, `performBPTest()` and
+  `performBreuschPaganTest()`, `performKoenkerTest()`,
+  `performRankPermutationTest()` and `performHighDimensionalTest()`, and a fit
+  with `offset = o`, held as `(offset)`, stops them the same way (found in the
+  0.15.0 release audit). Through `runHeteroTests()` and `runDiagnostics()`
+  such a fit does not stop: White's and Koenker's tests fail and both names
+  hold the Cook-Weisberg test the runner falls back on (below). A fix changes
+  what those runner calls return.
+- [ ] **The fallback of `runHeteroTests()`.** When a test stops, the runner
+  runs the substitute registered for it in `.ht_fallback_registry` (for
+  `"white"`: White's test without cross products, then the classical
+  Breusch-Pagan, Koenker and Cook-Weisberg tests) and returns it under the
+  name asked for, tagged by `attr(, "diagnostic")` and
+  `attr(, "extras")$status == "fallback"` and announced in a `WARN` log line.
+  `$white` can then hold another test. Documented on `?runHeteroTests` since
+  the 0.15.0 release audit; whether a failed test should rather be returned
+  as failed is an interface decision for 1.0.0. Removing the fallback changes
+  what such calls return.
+- [ ] **A `glm` of another family through the registry.** The registry names
+  deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call `.ncv_test()` and
+  `.studentized_bp_test()` directly, and the refusal of a `glm` that is not a
+  least-squares fit is in `performNCVTest()` and `performStudentizedBPTest()`
+  only. So `runHeteroTests(m, d, tests = "ncv")`, `cachedTest("ncv", m, d)`
+  and `runHeteroTestsParallel()` return a value for
+  `m <- glm(high ~ x1 + x2, family = binomial)`, and, because `"ncv"` is the
+  last fallback of `"white"`, `"koenker"` and `"breusch_pagan"`,
+  `runHeteroTests(m, d)` with its default battery returns the Cook-Weisberg
+  statistic under the names `white` and `koenker`, tagged as a fallback,
+  where 0.14.0 returned White's test and the classical one. Found in the
+  0.15.0 release audit and not fixed there, since a fix
+  changes what those calls return; it is one call of
+  `rrefuse_non_gaussian_glm()` in each of the two registry entries, and could
+  go in 0.15.0 if the author prefers.
+- [ ] **The panel tests on a fit that dropped rows.** On
+  `lm(y ~ x1 + x2, data = d)` with `NA` in three rows of `x2`,
+  `performPesaranTest(m, d, "id", "time")` stops with "arguments imply
+  differing number of rows: 120, 117", and with only the complete rows with
+  "number of items to replace is not a multiple of replacement length";
+  `performBPRandomEffectsTest(m, d, "id")` refuses the full data with
+  "requires `data` with 117 observations to match the fitted model, got 120",
+  where the other tests match the rows by name. As in 0.14.0; found in the
+  0.15.0 release audit. A fix makes such calls return a value.
+- [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
+  that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
+  `performStudentizedBPTest()`, the three `*Enhanced` functions,
+  `rbootstrap_test_statistic()`, `test()`, `simulate_type_I_errors()`,
+  `simulate_power_analysis()`, and `"student_bp"` and `"ncv"` in
+  `runHeteroTests()`) warn with the default text of `.Deprecated()`, which
+  does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
+  forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
+  audit; no value changes.
 - [ ] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
   depends on rounding when the number of residuals is even: the two in the
   middle tie at exactly half their difference from the median, and which

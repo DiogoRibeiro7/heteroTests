@@ -7,7 +7,7 @@
 \usage{performWhiteTest(model, data = NULL, cross_products = TRUE, max_interactions = 10)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{Data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, and so may a weighted fit whose weights are a column of the data, which the model frame holds as \code{(weights)}.}
+  \item{data}{Data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset} argument is a column of the data, which the model frame holds as \code{(weights)} or \code{(offset)}.}
   \item{cross_products}{Logical. Include cross-product terms in the auxiliary regression?}
   \item{max_interactions}{Maximum number of cross-product terms admitted to the auxiliary
     regression. Guards the auxiliary design against growing quadratically with the number

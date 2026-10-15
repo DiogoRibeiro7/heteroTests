@@ -5,7 +5,7 @@
 \usage{performHartleyFmaxTest(model, data = NULL, group)}
 \arguments{
   \item{model}{A fitted \code{lm} object.}
-  \item{data}{Data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{group} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
+  \item{data}{Data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{group} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term.}
   \item{group}{Name of the grouping variable.}
 }
 \details{The statistic is \eqn{F_{max}=\max_j s_j^2/\min_j s_j^2}. Under normality and equal group sizes its null distribution is the maximum F-ratio distribution for \eqn{k} independent mean squares with common degrees of freedom, evaluated with \code{SuppDists::pmaxFratio()}. If group sizes differ, the function warns and rounds the mean group size, then subtracts one, to obtain an approximate common integer degrees of freedom.}

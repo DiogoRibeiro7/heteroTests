@@ -22,9 +22,10 @@ variables referenced by \code{model}. It must include the observations used to
 fit \code{model} and will be checked for missing values.
 When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
 terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, and so may a weighted fit
-whose weights are a column of the data, which the model frame holds as
-\code{(weights)}.}
+a model that transforms a variable needs \code{data}, as does a
+model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
+argument is a column of the data, which the model frame holds as
+\code{(weights)} or \code{(offset)}.}
 
 \item{chunk_size}{Positive integer specifying the number of observations per
 chunk. Smaller values reduce memory usage at the expense of additional

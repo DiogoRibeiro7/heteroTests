@@ -18,9 +18,10 @@ performQuantileRegressionTest(
 \item{data}{A \link[base:data.frame]{base::data.frame} containing the variables referenced in \code{model}.
 When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
 terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, and so may a weighted fit
-whose weights are a column of the data, which the model frame holds as
-\code{(weights)}.}
+a model that transforms a variable needs \code{data}, as does a
+model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
+argument is a column of the data, which the model frame holds as
+\code{(weights)} or \code{(offset)}.}
 
 \item{taus}{Numeric vector containing at least two distinct quantiles strictly between zero and one.}
 

@@ -11,7 +11,15 @@ statistic of \code{\link{performBPTest}}. That statistic divides by \eqn{2 \hat\
 the squared errors only when they are normal. In the full sweep of \code{inst/validation/}, with 150 observations and
 400 replications, it rejected a true null hypothesis 28.75\% of the time at the 5\% level when the errors had a
 \eqn{t_5}{t5} distribution, against 4.75\% for Koenker's statistic. The classical test is still run by name,
-\code{tests = "breusch_pagan"}.}
+\code{tests = "breusch_pagan"}.
+
+When a test stops with an error, the substitute registered for it is run, if one is and it succeeds, and its result
+is returned under the name of the test asked for: \code{"white"} falls back on White's test without cross products,
+the classical Breusch-Pagan, Koenker and Cook-Weisberg tests, \code{"koenker"} on the Cook-Weisberg test. The
+\code{method} of the result names the test that ran, \code{attr(result, "diagnostic")} its registry name and
+\code{attr(result, "extras")$status} is \code{"fallback"}. A weighted fit whose weights are a column of the data,
+called without \code{data}, is such a case: White's and Koenker's tests stop, and both names hold the Cook-Weisberg
+test. Pass \code{data} for such a fit.}
 \usage{
 runHeteroTests(
   model,
@@ -26,8 +34,10 @@ runHeteroTests(
 \arguments{
   \item{model}{a fitted \code{lm}, or a \code{glm} with the Gaussian family and the identity link, a model
   formula, a tidymodels workflow or a parsnip model fit. The tests refuse a \code{glm} of any other family or link
-  since 0.15.0.}
-  \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used. With
+  since 0.15.0, but the deprecated registry names \code{"ncv"} and \code{"student_bp"} do not yet, so the fallback
+  (Details) returns the Cook-Weisberg test for such a fit rather than stopping.}
+  \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used, which
+  serves only the tests that find what they need there (see their \code{data} argument). With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
   group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}.}
   \item{tests}{character vector of test names to run: any of the names \code{\link{listDiagnostics}()} returns, which

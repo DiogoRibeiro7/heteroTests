@@ -78,9 +78,10 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #'   `model`. It must include all observations referenced by the model object.
 #'   When `NULL`, the default, the model frame of `model` is used. It holds the
 #'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, and so may a weighted fit
-#'   whose weights are a column of the data, which the model frame holds as
-#'   `(weights)`.
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #'
 #' @return An object of class \code{htest} reporting the chi-squared statistic
 #'   and p-value for the null hypothesis of constant error variance.
@@ -555,7 +556,8 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
 #'   must then be a variable of the model. The model frame holds the terms of
 #'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`.
+#'   that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term.
 #' @param order_by Character scalar naming the column that defines the ordering of
 #'   observations prior to computing the statistic. The column must be numeric or
 #'   coercible to an orderable vector.
