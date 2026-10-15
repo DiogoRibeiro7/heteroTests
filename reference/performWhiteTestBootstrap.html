@@ -45,7 +45,13 @@ test statistic across many bootstrap replications.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performWhiteTestBootstrap</span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="cn">NULL</span>, B <span class="op">=</span> <span class="fl">999</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performWhiteTestBootstrap</span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  B <span class="op">=</span> <span class="fl">999</span>,</span>
+<span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  n_cores <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,9 +84,16 @@ levels, and with 1000, the default before 0.15.0, at neither.</p></dd>
 
 
 <dt id="arg-parallel">parallel<a class="anchor" aria-label="anchor" href="#arg-parallel"></a></dt>
-<dd><p>Logical scalar; if <code>TRUE</code> the bootstrap loop is executed with
-<code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> when the <code>parallel</code> package and forked processing are
-available.</p></dd>
+<dd><p>Logical scalar; if <code>TRUE</code> the replicates are computed in
+parallel, by forked workers (<code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code>) where the platform
+can fork and on a socket cluster (<code><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">parallel::makeCluster()</a></code>) elsewhere.
+See <em>Parallel replicates</em>.</p></dd>
+
+
+<dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
+<dd><p>Optional integer number of worker processes when
+<code>parallel = TRUE</code>. Defaults to <code>parallel::detectCores() - 1</code>. The result
+does not depend on it.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -107,6 +120,22 @@ statistic is finite, so the p-value is never zero.</p></li>
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When <code>parallel = TRUE</code> the resampling step exploits available CPU
 cores to reduce computation time.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="parallel-replicates">Parallel replicates<a class="anchor" aria-label="anchor" href="#parallel-replicates"></a></h2>
+
+
+<p>With <code>parallel = TRUE</code> replicate <code>i</code> draws its random numbers from stream
+<code>i</code> of a L'Ecuyer-CMRG generator (<code><a href="https://rdrr.io/r/parallel/RngStream.html" class="external-link">parallel::nextRNGStream()</a></code>), seeded by
+one number drawn from the session's generator. A call made after
+<code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> therefore returns the same result each time, whatever the
+number of workers and whether they are forked or run on a socket cluster.
+It does not return the result of the same call with <code>parallel = FALSE</code>,
+which draws every replicate from the session's generator, as it did before
+0.15.0: the two are bootstraps of the same data with different draws, and
+each is valid. Before 0.15.0 a seeded call with <code>parallel = TRUE</code> gave a
+different result each time, and on Windows more than one worker was an
+error.</p>
     </div>
     <div class="section level2">
     <h2 id="weighted-fits">Weighted fits<a class="anchor" aria-label="anchor" href="#weighted-fits"></a></h2>
@@ -1582,12 +1611,20 @@ tests. <em>Journal of Econometrics, 133</em>(2), 421–441.
 <span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 13.801, B = 499, p-value = 0.002</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows</span></span></span>
-<span class="r-in"><span><span class="co"># does not support. The call runs only where that is at most two workers,</span></span></span>
-<span class="r-in"><span><span class="co"># the most R CMD check --as-cran allows.</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="va">.Platform</span><span class="op">$</span><span class="va">OS.type</span> <span class="op">!=</span> <span class="st">"windows"</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="fu">parallel</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">&lt;=</span> <span class="fl">3L</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu">performWhiteTestBootstrap</span><span class="op">(</span><span class="va">mod</span>, <span class="va">sim</span>, B <span class="op">=</span> <span class="fl">199</span>, parallel <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="co"># parallel = TRUE runs the replicates on n_cores workers, forked where the</span></span></span>
+<span class="r-in"><span><span class="co"># platform can fork and on a socket cluster elsewhere. Two is the most</span></span></span>
+<span class="r-in"><span><span class="co"># R CMD check --as-cran allows, and the result does not depend on it.</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">performWhiteTestBootstrap</span><span class="op">(</span><span class="va">mod</span>, <span class="va">sim</span>, B <span class="op">=</span> <span class="fl">199</span>, parallel <span class="op">=</span> <span class="cn">TRUE</span>, n_cores <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Bootstrap White test</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running White test</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] White test completed: statistic = 13.8014 df = 2 p = 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 	Bootstrap White test</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mod</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 13.801, B = 199, p-value = 0.01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

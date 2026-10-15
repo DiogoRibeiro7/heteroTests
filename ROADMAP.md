@@ -131,9 +131,8 @@ is skipped on Windows, so a local check there does not see it. Fixed in
 0.13.0 by changing the example, which now runs the call only where it
 starts at most two processes; the “CRAN submission checks” job passed on
 the branch on 2026-10-11 and on `main` on 2026-10-12. The function still
-uses `detectCores() - 1` workers; capping them changes how the draws are
-split, and belongs with reproducibility under `parallel = TRUE` in
-0.15.0.
+uses `detectCores() - 1` workers by default; since 0.15.0 `n_cores` sets
+them, and the result no longer depends on how the draws are split.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
@@ -737,8 +736,21 @@ size study at small `n` with skewed errors, and record the result in
 `clusterSetRNGStream()` and no L’Ecuyer set-up on the `mclapply()` and
 `parLapply()` paths, so
 [`set.seed()`](https://rdrr.io/r/base/Random.html) does not make
-parallel resampling results reproducible. Fix that, and add a test that
-compares two seeded parallel runs.
+parallel resampling results reproducible. Done: replicate `i` draws from
+stream `i` of a L’Ecuyer-CMRG generator seeded by one draw from the
+session’s, on both paths, in
+[`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md),
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+and
+[`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md),
+so the value does not depend on the number of workers. Serial calls are
+unchanged; parallel and serial values differ and are each valid
+(`test-parallel-reproducibility.R`).
+[`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md)
+with one worker runs in the session on the same streams, so its value
+does not depend on `n_cores` either, and changes. The White bootstrap
+runs on a socket cluster on Windows, where it stopped, and gains
+`n_cores`. The forked path is exercised by CI on Linux and macOS only.
 
 **The default battery.**
 [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md),

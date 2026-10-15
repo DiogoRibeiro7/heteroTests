@@ -7,7 +7,13 @@ the test statistic across many bootstrap replications.
 ## Usage
 
 ``` r
-performWhiteTestBootstrap(model, data = NULL, B = 999, parallel = FALSE)
+performWhiteTestBootstrap(
+  model,
+  data = NULL,
+  B = 999,
+  parallel = FALSE,
+  n_cores = NULL
+)
 ```
 
 ## Arguments
@@ -39,9 +45,18 @@ performWhiteTestBootstrap(model, data = NULL, B = 999, parallel = FALSE)
 
 - parallel:
 
-  Logical scalar; if `TRUE` the bootstrap loop is executed with
-  [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html)
-  when the `parallel` package and forked processing are available.
+  Logical scalar; if `TRUE` the replicates are computed in parallel, by
+  forked workers
+  ([`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html))
+  where the platform can fork and on a socket cluster
+  ([`parallel::makeCluster()`](https://rdrr.io/r/parallel/makeCluster.html))
+  elsewhere. See *Parallel replicates*.
+
+- n_cores:
+
+  Optional integer number of worker processes when `parallel = TRUE`.
+  Defaults to `parallel::detectCores() - 1`. The result does not depend
+  on it.
 
 ## Value
 
@@ -72,6 +87,21 @@ The bootstrap distribution offers improved size control for moderate
 sample sizes or high-dimensional designs where the chi-squared
 approximation may be inaccurate. When `parallel = TRUE` the resampling
 step exploits available CPU cores to reduce computation time.
+
+## Parallel replicates
+
+With `parallel = TRUE` replicate `i` draws its random numbers from
+stream `i` of a L'Ecuyer-CMRG generator
+([`parallel::nextRNGStream()`](https://rdrr.io/r/parallel/RngStream.html)),
+seeded by one number drawn from the session's generator. A call made
+after [`set.seed()`](https://rdrr.io/r/base/Random.html) therefore
+returns the same result each time, whatever the number of workers and
+whether they are forked or run on a socket cluster. It does not return
+the result of the same call with `parallel = FALSE`, which draws every
+replicate from the session's generator, as it did before 0.15.0: the two
+are bootstraps of the same data with different draws, and each is valid.
+Before 0.15.0 a seeded call with `parallel = TRUE` gave a different
+result each time, and on Windows more than one worker was an error.
 
 ## Weighted fits
 
@@ -1553,11 +1583,19 @@ performWhiteTestBootstrap(mod, sim, B = 499)
 #> X-squared = 13.801, B = 499, p-value = 0.002
 #> 
 
-# parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows
-# does not support. The call runs only where that is at most two workers,
-# the most R CMD check --as-cran allows.
-if (.Platform$OS.type != "windows" && isTRUE(parallel::detectCores() <= 3L)) {
-  performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
-}
+# parallel = TRUE runs the replicates on n_cores workers, forked where the
+# platform can fork and on a socket cluster elsewhere. Two is the most
+# R CMD check --as-cran allows, and the result does not depend on it.
+set.seed(42)
+performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE, n_cores = 2)
+#> [INFO] Running Bootstrap White test
+#> [INFO] Running White test
+#> [INFO] White test completed: statistic = 13.8014 df = 2 p = 0.001
+#> 
+#>  Bootstrap White test
+#> 
+#> data:  mod
+#> X-squared = 13.801, B = 199, p-value = 0.01
+#> 
 # }
 ```

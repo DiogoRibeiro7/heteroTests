@@ -165,7 +165,8 @@ only when <code>alpha * (B + 1)</code> is an integer: with 999 it is at the 5% a
 
 
 <dt id="arg-parallel">parallel<a class="anchor" aria-label="anchor" href="#arg-parallel"></a></dt>
-<dd><p>Logical, compute replicates in parallel when possible?</p></dd>
+<dd><p>Logical, compute replicates in parallel when possible? See
+<em>Parallel replicates</em>.</p></dd>
 
 
 <dt id="arg-ci-level">ci_level<a class="anchor" aria-label="anchor" href="#arg-ci-level"></a></dt>
@@ -181,7 +182,8 @@ replicates and an interval but no p-value. See Details.</p></dd>
 
 <dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
 <dd><p>Optional integer specifying the number of worker processes to
-use when <code>parallel = TRUE</code>. Defaults to <code>parallel::detectCores() - 1</code>.</p></dd>
+use when <code>parallel = TRUE</code>. Defaults to <code>parallel::detectCores() - 1</code>.
+The result does not depend on it.</p></dd>
 
 
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
@@ -229,6 +231,22 @@ replications.</p></dd>
 
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="parallel-replicates">Parallel replicates<a class="anchor" aria-label="anchor" href="#parallel-replicates"></a></h2>
+
+
+<p>With <code>parallel = TRUE</code> replicate <code>i</code> draws its random numbers from stream
+<code>i</code> of a L'Ecuyer-CMRG generator (<code><a href="https://rdrr.io/r/parallel/RngStream.html" class="external-link">parallel::nextRNGStream()</a></code>), seeded by
+one number drawn from the session's generator. A call made after
+<code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> therefore returns the same result each time, whatever
+<code>n_cores</code> and whether the workers are forked (<code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code>) or
+run on a socket cluster (<code><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">parallel::makeCluster()</a></code>, where the platform
+cannot fork). It does not return the result of the same call with
+<code>parallel = FALSE</code>, which draws every replicate from the session's
+generator, as it did before 0.15.0: the two are bootstraps of the same data
+with different draws, and each is valid. Before 0.15.0 a seeded call with
+<code>parallel = TRUE</code> gave a different result each time.</p>
+    </div>
     <div class="section level2">
     <h2 id="deprecated-name">Deprecated name<a class="anchor" aria-label="anchor" href="#deprecated-name"></a></h2>
 

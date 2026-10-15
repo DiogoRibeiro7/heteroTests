@@ -65,7 +65,9 @@ performBPTestRobust(
 - parallel:
 
   Logical, allow parallel bootstrap evaluation when the `parallel`
-  package is available.
+  package is available. A seeded call gives the same result each time;
+  see *Parallel replicates* in
+  [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md).
 
 - studentized:
 

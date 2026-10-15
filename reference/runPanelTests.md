@@ -51,7 +51,7 @@ A named list of `htest` objects.
 #>  Breusch-Pagan LM test for random effects
 #> 
 #> data:  y ~ x
-#> LM = 1.1931, df = 1, p-value = 0.2747
+#> LM = 1.3595, df = 1, p-value = 0.2436
 #> 
 #> 
 #> $pesaran
@@ -59,7 +59,7 @@ A named list of `htest` objects.
 #>  Pesaran CD test for cross-sectional dependence
 #> 
 #> data:  y ~ x
-#> z = -1.6673, p-value = 0.09545
+#> z = -0.92754, p-value = 0.3536
 #> 
 #> 
 ```

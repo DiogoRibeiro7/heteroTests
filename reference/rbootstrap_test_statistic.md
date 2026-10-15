@@ -127,7 +127,8 @@ refitting would take the logarithm twice. That case raises an error;
 
 - parallel:
 
-  Logical, compute replicates in parallel when possible?
+  Logical, compute replicates in parallel when possible? See *Parallel
+  replicates*.
 
 - ci_level:
 
@@ -143,7 +144,8 @@ refitting would take the logarithm twice. That case raises an error;
 - n_cores:
 
   Optional integer specifying the number of worker processes to use when
-  `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`.
+  `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`. The
+  result does not depend on it.
 
 - progress:
 
@@ -194,6 +196,24 @@ A list with components:
 - `call`:
 
   Matched call for reproducibility.
+
+## Parallel replicates
+
+With `parallel = TRUE` replicate `i` draws its random numbers from
+stream `i` of a L'Ecuyer-CMRG generator
+([`parallel::nextRNGStream()`](https://rdrr.io/r/parallel/RngStream.html)),
+seeded by one number drawn from the session's generator. A call made
+after [`set.seed()`](https://rdrr.io/r/base/Random.html) therefore
+returns the same result each time, whatever `n_cores` and whether the
+workers are forked
+([`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html)) or
+run on a socket cluster
+([`parallel::makeCluster()`](https://rdrr.io/r/parallel/makeCluster.html),
+where the platform cannot fork). It does not return the result of the
+same call with `parallel = FALSE`, which draws every replicate from the
+session's generator, as it did before 0.15.0: the two are bootstraps of
+the same data with different draws, and each is valid. Before 0.15.0 a
+seeded call with `parallel = TRUE` gave a different result each time.
 
 ## Deprecated name
 

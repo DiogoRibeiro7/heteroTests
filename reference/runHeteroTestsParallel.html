@@ -73,10 +73,18 @@ to spawn. Defaults to <code>parallel::detectCores() - 1</code>, with a lower bou
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>When <code>n_cores</code> exceeds one and the <code>parallel</code> package is available, the helper
-evaluates the diagnostics via <code><a href="https://rdrr.io/r/parallel/clusterApply.html" class="external-link">parallel::parLapply()</a></code> after exporting the
-model and data to the worker environment. On systems without fork support the
-function gracefully reverts to sequential execution.</p>
+    <p>When <code>n_cores</code> exceeds one the diagnostics run on a socket cluster of that
+many workers (<code><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">parallel::makeCluster()</a></code>), started for the call, each of which
+loads the installed heteroTests. The model and the data travel to the
+workers with each task. With <code>n_cores = 1</code>, or when the default comes to one
+worker, the diagnostics run in the session.</p>
+<p>Test <code>i</code> draws its random numbers from stream <code>i</code> of a L'Ecuyer-CMRG
+generator seeded by one draw from the session's generator, on the workers
+and in the session alike. A seeded call that runs a resampling test, such as
+<code>"wild_bootstrap"</code>, therefore returns the same value each time and whatever
+<code>n_cores</code>, <code>n_cores = 1</code> included. It is not the value that test returns
+when called directly from the same seed, which draws from the session's
+generator; both are bootstraps of the same data.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

@@ -36,12 +36,21 @@ Named list of test results in the order provided by `tests`.
 
 ## Details
 
-When `n_cores` exceeds one and the `parallel` package is available, the
-helper evaluates the diagnostics via
-[`parallel::parLapply()`](https://rdrr.io/r/parallel/clusterApply.html)
-after exporting the model and data to the worker environment. On systems
-without fork support the function gracefully reverts to sequential
-execution.
+When `n_cores` exceeds one the diagnostics run on a socket cluster of
+that many workers
+([`parallel::makeCluster()`](https://rdrr.io/r/parallel/makeCluster.html)),
+started for the call, each of which loads the installed heteroTests. The
+model and the data travel to the workers with each task. With
+`n_cores = 1`, or when the default comes to one worker, the diagnostics
+run in the session.
+
+Test `i` draws its random numbers from stream `i` of a L'Ecuyer-CMRG
+generator seeded by one draw from the session's generator, on the
+workers and in the session alike. A seeded call that runs a resampling
+test, such as `"wild_bootstrap"`, therefore returns the same value each
+time and whatever `n_cores`, `n_cores = 1` included. It is not the value
+that test returns when called directly from the same seed, which draws
+from the session's generator; both are bootstraps of the same data.
 
 ## See also
 
