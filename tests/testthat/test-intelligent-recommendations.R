@@ -39,6 +39,27 @@ test_that("diagnostic suggestions reflect profile", {
   expect_true("spatial_hetero" %in% recs$test)
 })
 
+test_that("a very large profile lists Koenker's test once, with the baseline rationale", {
+  profile <- list(
+    size_bucket = "very_large",
+    high_dimensional = FALSE,
+    detected_spatial_fields = FALSE,
+    missingness = list(overall_rate = 0),
+    numeric_distribution = data.frame(variable = character(), shape = character())
+  )
+
+  recs <- suggestDiagnosticsForProfile(profile)
+  expect_setequal(recs$test, c("koenker", "white", "quantile_regression"))
+  expect_identical(anyDuplicated(recs$test), 0L)
+  expect_identical(
+    recs$rationale[recs$test == "koenker"],
+    paste(
+      "Baseline regression-based heteroscedasticity check, studentized so",
+      "that it does not assume normal errors."
+    )
+  )
+})
+
 test_that("interpretation produces confidence labels", {
   toy_test <- structure(
     list(

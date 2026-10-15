@@ -45,6 +45,16 @@ test_that("the default battery is White and Koenker, and Breusch-Pagan runs by n
   }
 })
 
+test_that("the dashboard's default battery is White and Koenker", {
+  # launchDiagnosticDashboard() needs shiny to run, so the default is read
+  # from the body of the function.
+  src <- deparse(body(launchDiagnosticDashboard), width.cutoff = 500L)
+  defaults <- grep("default_tests <- intersect(", src, fixed = TRUE, value = TRUE)
+  expect_length(defaults, 1L)
+  expect_match(defaults, 'c("white", "koenker")', fixed = TRUE)
+  expect_false(grepl("breusch_pagan", defaults, fixed = TRUE))
+})
+
 test_that("runHeteroTests runs specified tests", {
   data(mtcars)
   m <- lm(mpg ~ wt + qsec, data = mtcars)

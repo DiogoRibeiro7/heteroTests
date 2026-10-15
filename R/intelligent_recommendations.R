@@ -185,18 +185,13 @@ suggestDiagnosticsForProfile <- function(profile) {
     ))
   }
 
+  # Koenker's test is in the baseline for every profile, so a very large
+  # sample does not add it a second time.
   if (identical(profile$size_bucket, "very_large")) {
     recommendations <- c(recommendations, list(
       list(
         test = "quantile_regression",
         rationale = "Quantile-based checks can reveal distributional heterogeneity."
-      ),
-      list(
-        test = "koenker",
-        rationale = paste(
-          "Studentized Breusch-Pagan inference avoids the classical normality",
-          "scaling assumption."
-        )
       )
     ))
   }
