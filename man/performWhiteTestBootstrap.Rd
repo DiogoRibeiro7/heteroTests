@@ -4,7 +4,7 @@
 \alias{performWhiteTestBootstrap}
 \title{Bootstrap White test}
 \usage{
-performWhiteTestBootstrap(model, data = NULL, B = 1000, parallel = FALSE)
+performWhiteTestBootstrap(model, data = NULL, B = 999, parallel = FALSE)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
@@ -19,8 +19,12 @@ a model that transforms a variable needs \code{data}, and so may a weighted fit
 whose weights are a column of the data, which the model frame holds as
 \code{(weights)}.}
 
-\item{B}{Integer scalar giving the number of bootstrap replications. Larger
-values yield smoother p-value estimates at the cost of additional runtime.}
+\item{B}{Integer scalar giving the number of bootstrap replications.
+Defaults to 999. The p-value is \verb{(1 + #) / (B_eff + 1)}, where \code{B_eff} is
+the number of replicates whose statistic is finite (\code{B} when every
+replicate succeeds), so a test at level \code{alpha} is exact only when
+\code{alpha * (B_eff + 1)} is an integer: with 999 it is at the 5\% and 1\%
+levels, and with 1000, the default before 0.15.0, at neither.}
 
 \item{parallel}{Logical scalar; if \code{TRUE} the bootstrap loop is executed with
 \code{\link[parallel:mclapply]{parallel::mclapply()}} when the \code{parallel} package and forked processing are

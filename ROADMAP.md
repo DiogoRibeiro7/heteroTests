@@ -537,12 +537,17 @@ after it.
   `runAdvancedDiagnostics()` (decided 2026-10-15), the house convention for
   a runner. The old name warns with `.Deprecated()` in 0.15.x and goes in
   1.0.0 with the names deprecated in 0.14.0. No value changes.
-- [ ] **Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
-  permutation, and 1000 for the White bootstrap and
+- [x] **Resampling defaults.** `B` was 499 for the wild bootstrap, 999 for
+  rank permutation, and 1000 for the White bootstrap and
   `bootstrapTestStatistic()`. Under the `(1 + #) / (B + 1)` convention, a
   test at level `alpha` is exact only when `alpha * (B + 1)` is an integer, and
-  1000 fails that at 5%. Standardise on 999, or on 499 where cost matters, and
-  never use 1000.
+  1000 fails that at 5%. Done (decided 2026-10-15: `B = 999`): every
+  resampling function draws 999 by default, the robust tests with
+  `bootstrap = TRUE` and `runAdvancedDiagnostics()` (500 before) and
+  `performSpatialHeteroTest()` (499 permutations before) included. Default
+  p-values change; `NEWS.md` has an example for each. Of the recorded
+  evidence only the spatial row of the full sweep used a default, and it was
+  regenerated: size 0.045 to 0.050, power 0.362 to 0.350.
 - [ ] **Wild bootstrap multiplier** (Rademacher or Mammen). Settle it by a size
   study at small `n` with skewed errors, and record the result in
   `inst/validation/`.
@@ -912,7 +917,7 @@ which is also what a reader of the article asks of it. Within that group:
 | --- | --- | --- |
 | Default battery | White + Koenker | 0.15.0 |
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
-| Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
+| Wild bootstrap multiplier | Decide by simulation (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Bad inputs that some tests accept | None recorded. Measured on 2026-10-15 by `test-input-validation.R`: 36 of the 39 tests on a model return a value for a `glm`, Poisson included, and only `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and `performVarianceFormTest()` refuse it; `performSpreadLevelTest()`, `performDavidianCarrollTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()` and `performRESETTest()` return a value for a model with an `NA` coefficient; `performVarianceFormTest()` and `performPesaranTest()` for data that lack rows of the fit, and they and `performBPRandomEffectsTest()` for data that lack a variable of the model. Refusing any of these changes what the call returns, so each belongs in a minor release that says so | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |

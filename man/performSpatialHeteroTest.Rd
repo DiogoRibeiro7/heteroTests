@@ -8,7 +8,7 @@ performSpatialHeteroTest(
   model,
   data = NULL,
   listw,
-  permutations = 499,
+  permutations = 999,
   zero.policy = NULL
 )
 }
@@ -29,7 +29,8 @@ whose weights are a column of the data, which the model frame holds as
 matrix coercible via \code{spdep::mat2listw()}.}
 
 \item{permutations}{Number of Monte Carlo permutations used to compute the
-reference distribution.}
+reference distribution. Defaults to 999, the default of every resampling
+test in the package since 0.15.0; it was 499 before.}
 
 \item{zero.policy}{Logical flag forwarded to the spatial diagnostic to permit
 islands with no neighbours.}

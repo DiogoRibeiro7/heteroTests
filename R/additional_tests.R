@@ -273,8 +273,12 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' test statistic across many bootstrap replications.
 #'
 #' @inheritParams performWhiteTest
-#' @param B Integer scalar giving the number of bootstrap replications. Larger
-#'   values yield smoother p-value estimates at the cost of additional runtime.
+#' @param B Integer scalar giving the number of bootstrap replications.
+#'   Defaults to 999. The p-value is `(1 + #) / (B_eff + 1)`, where `B_eff` is
+#'   the number of replicates whose statistic is finite (`B` when every
+#'   replicate succeeds), so a test at level `alpha` is exact only when
+#'   `alpha * (B_eff + 1)` is an integer: with 999 it is at the 5% and 1%
+#'   levels, and with 1000, the default before 0.15.0, at neither.
 #' @param parallel Logical scalar; if `TRUE` the bootstrap loop is executed with
 #'   [parallel::mclapply()] when the `parallel` package and forked processing are
 #'   available.
@@ -369,7 +373,7 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' [performWhiteTest()] for the classical statistic and
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
-performWhiteTestBootstrap <- function(model, data = NULL, B = 1000, parallel = FALSE) {
+performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE) {
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
 

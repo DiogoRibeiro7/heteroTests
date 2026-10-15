@@ -101,7 +101,11 @@
 #' and 0.051. [performVarianceFormTest()] allows for the estimation.
 #'
 #' @inheritParams performBPTest
-#' @param B Integer number of bootstrap replications. Defaults to `499`.
+#' @param B Integer number of bootstrap replications. Defaults to `999`, which
+#'   is the default of every resampling test in the package since 0.15.0; it
+#'   was `499` before. The p-value is `(1 + #) / (B_eff + 1)`, so a test at
+#'   level `alpha` is exact only when `alpha * (B + 1)` is an integer, which
+#'   999 is at the 5% and 1% levels.
 #' @param distribution Multiplier distribution used for the wild perturbation.
 #'   Supported options are "rademacher" and "mammen".
 #' @param progress Logical flag controlling whether progress should be reported
@@ -130,7 +134,7 @@
 #' }
 #'
 #' @export
-performWildBootstrapTest <- function(model, data = NULL, B = 499,
+performWildBootstrapTest <- function(model, data = NULL, B = 999,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
   data <- rdata_or_model_frame(model, data)
@@ -287,7 +291,8 @@ performWildBootstrapTest <- function(model, data = NULL, B = 499,
 #' @param order_by Optional name of a predictor variable used to rank the
 #'   observations. Defaults to the first non-intercept term in the model matrix.
 #' @param B Number of permutation replications used to approximate the null
-#'   distribution.
+#'   distribution. Defaults to 999, the default of every resampling test in
+#'   the package.
 #' @param progress Logical toggle for progress reporting during permutations.
 #'
 #' @return An \code{htest} object containing the observed Spearman
@@ -501,7 +506,8 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' @param listw Spatial weights in `spdep` \code{listw} format or a numeric
 #'   matrix coercible via \code{spdep::mat2listw()}.
 #' @param permutations Number of Monte Carlo permutations used to compute the
-#'   reference distribution.
+#'   reference distribution. Defaults to 999, the default of every resampling
+#'   test in the package since 0.15.0; it was 499 before.
 #' @param zero.policy Logical flag forwarded to the spatial diagnostic to permit
 #'   islands with no neighbours.
 #'
@@ -525,7 +531,7 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' }
 #'
 #' @export
-performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 499,
+performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 999,
                                      zero.policy = NULL) {
   data <- rdata_or_model_frame(model, data)
   if (!requireNamespace("spdep", quietly = TRUE)) {

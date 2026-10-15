@@ -331,7 +331,7 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
 }
 
 performWhiteTestEnhanced <- function(model, data, cross_products = TRUE, 
-                                   bootstrap = FALSE, B = 1000, 
+                                   bootstrap = FALSE, B = 999, 
                                    parallel = FALSE, alpha = 0.05) {
   
   # Run standard White test
