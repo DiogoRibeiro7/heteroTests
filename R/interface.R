@@ -121,7 +121,8 @@ rstop_data_rows <- function(residuals, data, test_label) {
 #' Three tests refuse every `glm` with this message. The others refuse a `glm`
 #' that is not a least-squares fit with the same message, through
 #' [rrefuse_non_gaussian_glm()], so that the refusal reads the same
-#' everywhere.
+#' everywhere. A `survey::svyglm()` fit is refused with the message of
+#' [rrefuse_survey_fit()] instead, as by every other test.
 #'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.
@@ -130,6 +131,7 @@ rstop_data_rows <- function(residuals, data, test_label) {
 #' @keywords internal
 #' @noRd
 rrefuse_glm <- function(model, fn, reason = NULL) {
+  rrefuse_survey_fit(model)
   if (inherits(model, "lm") && !inherits(model, "glm")) {
     return(invisible(NULL))
   }
@@ -150,24 +152,26 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
 #' a value for it that tested nothing. Such a fit is refused, decided on
 #' 2026-10-15, with the message of [rrefuse_glm()].
 #'
-#' A few tests read the weights of an `lm`, to refit with them or to refuse a
-#' weighted fit, and `rprior_weights()` returns none for a `glm`, so they took
-#' a weighted Gaussian `glm` for an unweighted fit. They pass
-#' `weights_used = TRUE`, which refuses a `glm` with prior weights other than
-#' 1 as well.
+#' The tests that read the weights of an `lm`, to refit with them or to
+#' refuse a weighted fit, read those of such a `glm` through
+#' [rleast_squares_weights()], and give for a weighted Gaussian `glm` what they
+#' give for the `lm` with the same weights.
+#'
+#' A `survey::svyglm()` fit is refused here too, with the message of
+#' [rrefuse_survey_fit()], which says why its weights are not precision
+#' weights. The tests call this first, so one that has no later check of its
+#' own cannot return a value for such a fit, as `performRESETTest()` did
+#' before 0.15.0.
 #'
 #' @param model A fitted model. Anything that is not a `glm` is left to the
 #'   checks of the calling test.
 #' @param fn Character scalar naming the calling test.
-#' @param weights_used Logical: does the calling test read the weights of an
-#'   `lm`?
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
-rrefuse_non_gaussian_glm <- function(model, fn, weights_used = FALSE) {
-  # A survey::svyglm() fit is refused by rrefuse_survey_fit(), whose message
-  # says why its weights are not precision weights.
-  if (!inherits(model, "glm") || inherits(model, "svyglm")) {
+rrefuse_non_gaussian_glm <- function(model, fn) {
+  rrefuse_survey_fit(model)
+  if (!inherits(model, "glm")) {
     return(invisible(NULL))
   }
   fam <- tryCatch(stats::family(model), error = function(e) NULL)
@@ -182,13 +186,6 @@ rrefuse_non_gaussian_glm <- function(model, fn, weights_used = FALSE) {
     rrefuse_glm(model, fn, paste0(
       described, " is not a least-squares fit. A glm with the gaussian family ",
       "and the identity link is accepted."
-    ))
-  }
-  prior <- model$prior.weights
-  if (isTRUE(weights_used) && !is.null(prior) && any(prior != 1)) {
-    rrefuse_glm(model, fn, paste0(
-      "it reads the weights of an lm and would take a weighted glm for an ",
-      "unweighted fit. Fit a weighted model with stats::lm(weights = )."
     ))
   }
   invisible(NULL)

@@ -137,7 +137,7 @@
 performWildBootstrapTest <- function(model, data = NULL, B = 999,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
-  rrefuse_non_gaussian_glm(model, "performWildBootstrapTest", weights_used = TRUE)
+  rrefuse_non_gaussian_glm(model, "performWildBootstrapTest")
   data <- rdata_or_model_frame(model, data)
   distribution <- match.arg(distribution)
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
@@ -180,7 +180,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # the terms, log(wt), and not the variables they are computed from, wt, and
   # holds weights and an offset given as arguments as "(weights)" and
   # "(offset)", under which the call cannot find them.
-  prior_weights <- rprior_weights(model)
+  prior_weights <- rleast_squares_weights(model)
   design_matrix <- stats::model.matrix(model)
   model_offset <- stats::model.offset(model_frame)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {

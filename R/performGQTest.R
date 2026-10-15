@@ -62,7 +62,7 @@
 #' @export
 performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
                           alternative = c("greater", "two.sided", "less")) {
-  rrefuse_non_gaussian_glm(model, "performGQTest", weights_used = TRUE)
+  rrefuse_non_gaussian_glm(model, "performGQTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Goldfeld-Quandt test"
   alternative <- match.arg(alternative)
@@ -124,7 +124,7 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
   g1_index <- seq_len(point1)
   g2_index <- seq.int(point2, n)
 
-  prior_weights <- rprior_weights(model)
+  prior_weights <- rleast_squares_weights(model)
   if (is.null(prior_weights)) {
     model1 <- safe_lm(stats::formula(model), data = ordered_data[g1_index, , drop = FALSE])
     model2 <- safe_lm(stats::formula(model), data = ordered_data[g2_index, , drop = FALSE])
