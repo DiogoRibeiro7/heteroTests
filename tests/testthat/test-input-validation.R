@@ -109,7 +109,8 @@ test_that("a Gaussian glm with the identity link gives the result of the lm", {
       info <- paste(fn, "on the", case, "Gaussian glm")
       if (case == "weighted" && fn %in% validation_weighted_glm_refused) {
         expect_s3_class(out$b, "refused")
-        expect_match(out$b, "needs a model fitted by stats::lm\\(\\): it reads the weights of an lm",
+        expect_match(out$b,
+                     "needs a model fitted by stats::lm\\(\\): it reads the weights of an lm",
                      info = info)
         next
       }
