@@ -145,7 +145,8 @@ listed apart so that they are not mistaken for heteroscedasticity tests.
   : Run panel-data heteroscedasticity tests
 - [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)
   : Run heteroscedasticity diagnostics on the data of a survey design
-- [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+- [`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+  [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
   : Run enhanced heteroscedasticity diagnostics
 - [`compareModelDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/compareModelDiagnostics.md)
   : Compare diagnostics across models

@@ -379,7 +379,7 @@ functions, which stay for now (decided), and
 ([`rbootstrap_test_statistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md),
 [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md),
 [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md),
-[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
 and
 [`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md))
 follow no naming scheme in the package. Rename each to the house
@@ -388,8 +388,10 @@ convention or unexport it. Four are done in 0.14.0:
 is renamed
 [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
 and the other three are deprecated as internal helpers.
-[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
-stays core API (decided), and its name is under *Decisions needed*.
+[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+stays core API (decided), and is renamed
+[`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+in 0.15.0.
 
 **[`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)
 is a generic with a very common name.** Attached after `devtools`, it
@@ -591,7 +593,7 @@ outside `R/`, and the package’s own calls of a name that will warn.
 | [`ht_clear_log_history()`](https://diogoribeiro7.github.io/heteroTests/reference/ht_logging.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: none. |
 | [`rcalculateEffectSize()`](https://diogoribeiro7.github.io/heteroTests/reference/rcalculateEffectSize.md) | infrastructure | internal | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md), [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:158,292`), [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md) (`bootstrap_methods.R:599`). Vignettes: none. inst/validation/: none. Tests: 4 lines. |
 | [`restimate_test_power()`](https://diogoribeiro7.github.io/heteroTests/reference/restimate_test_power.md) | infrastructure | internal | R/: [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md), [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md) (`robust_implementations.R:159,293`). Vignettes: none. inst/validation/: none. Tests: 3 lines. |
-| [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md) | runner | core API (decided); its name is still open, see the item on the `r`-prefixed exports |  |
+| [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md) | runner | core API (decided); its name is still open, see the item on the `r`-prefixed exports |  |
 | [`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md) | infrastructure | internal | R/: none. Vignettes: none. inst/validation/: none. Tests: 2 lines. The reference comparisons live in `tests/testthat/`. |
 | [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md) | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `dashboard.R`. Vignettes: none. inst/validation/: none. |
 | [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) | dashboard and benchmarks | moved out (companion package not named yet; not deprecated in 0.14.0) | R/: none outside `benchmarking_system.R`. Vignettes: none. inst/validation/: none. |
@@ -628,12 +630,12 @@ Notes on the verdicts:
   [`clearAnalysisCache()`](https://diogoribeiro7.github.io/heteroTests/reference/clearAnalysisCache.md))
   stay exported and are not deprecated in 0.14.0. They are revisited at
   1.0.0, once 0.16.0 bounds the caches.
-- **[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md),
+- **[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md),
   [`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md)
   and
   [`compareTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/compareTestResults.md)**
   stay core API. The name of
-  [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md)
+  [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
   is still open under the item on the `r`-prefixed exports.
 - **The simulation renames.**
   [`simulate_size()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
@@ -696,6 +698,15 @@ changes: every old and new form returns what the old form returned in
 `studentized` is accepted with a deprecation warning in 0.15.0, and the
 `robust_details$studentized` field of the result keeps its name. No
 value changes.
+
+**The name of
+[`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md).**
+Renamed
+[`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+(decided 2026-10-15), the house convention for a runner. The old name
+warns with [`.Deprecated()`](https://rdrr.io/r/base/Deprecated.html) in
+0.15.x and goes in 1.0.0 with the names deprecated in 0.14.0. No value
+changes.
 
 **Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
 permutation, and 1000 for the White bootstrap and
@@ -1139,7 +1150,6 @@ group:
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
 | Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
-| The name of [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/rrunAdvancedDiagnostics.md) | None recorded. It stays core API (decided 2026-10-14); a camelCase name without the `r` prefix would follow the house convention, with the old name warning for a minor release before 1.0.0 | 0.15.0 |
 | Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md), [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) and [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) warn here for a minor release, naming it, and the code moves | 0.16.0 |

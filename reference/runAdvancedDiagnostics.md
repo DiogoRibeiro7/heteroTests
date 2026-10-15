@@ -6,6 +6,16 @@ small samples and optional studentisation.
 ## Usage
 
 ``` r
+runAdvancedDiagnostics(
+  model,
+  data,
+  tests = "all",
+  auto_enhance = TRUE,
+  bootstrap_B = 500,
+  parallel = FALSE,
+  ci_level = 0.95
+)
+
 rrunAdvancedDiagnostics(
   model,
   data,
@@ -60,3 +70,9 @@ rrunAdvancedDiagnostics(
 
 A list with the executed results and metadata describing the
 enhancements that were applied.
+
+## Deprecated name
+
+`rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
+`runAdvancedDiagnostics()`, the same function under the package's naming
+scheme. The old name still works, returns what it returned and warns.
