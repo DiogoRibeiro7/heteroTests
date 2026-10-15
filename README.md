@@ -199,9 +199,10 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders
 The development direction, completed work and known technical debt are tracked in
 [ROADMAP.md](ROADMAP.md). Since 0.15.0 every test refuses the same bad inputs
 with the same message: a `glm` that is not a least-squares fit (a Gaussian
-`glm` with the identity link is accepted, with or without prior weights, and
-gives the result of the `lm`), a model with an `NA` coefficient, and data
-that lack rows or variables of the model (`?test_results`).
+`glm` with the identity link is accepted, unweighted or with positive
+weights, and gives the result of the `lm`), a model with an `NA`
+coefficient, and data that lack rows or variables of the model
+(`?test_results`).
 
 ## Contributing
 

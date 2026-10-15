@@ -44,7 +44,7 @@ coefficients must be finite"); \code{data} that lack rows the model was fitted t
 variable of the model ("The following variables are missing from"). The model frame is accepted as \code{data} as it
 is. A \code{glm} with the Gaussian family and the identity link is accepted and gives the result of the \code{lm} up
 to rounding error, except that \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
-\code{\link{performVarianceFormTest}()} refuse every \code{glm}. With prior weights it gives the result of
+\code{\link{performVarianceFormTest}()} refuse every \code{glm}. With positive prior weights it gives the result of
 \code{lm(..., weights = w)}: \code{\link{performGQTest}()}, \code{\link{performRESETTest}()},
 \code{\link{performWhiteTestBootstrap}()} and \code{\link{performWildBootstrapTest}()}, which read the weights of an
 \code{lm}, read the prior weights of the \code{glm}, and \code{\link{performQuantileRegressionTest}()}, which refuses

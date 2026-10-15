@@ -137,13 +137,18 @@ tried, and now names the rows, as the others do. In
 value for a binomial and for a Poisson `glm` before 0.15.0.
 
 A `glm` with the Gaussian family and the identity link is a least-squares fit
-and is still accepted. With or without prior weights, every test that accepts
-it gives the result of the `lm` in that design to `1e-8`, the five tests below
-since they read its weights. The exception is the Fligner-Killeen statistic, which moves by
-about `1e-6` of its value: with an even number of residuals the two in the
-middle tie at exactly half their difference from the median, and rounding,
-which differs between the two fits by about `1e-15`, decides which ranks
-first. `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
+and is still accepted. Without prior weights, and with positive ones, every
+test that accepts it gives the result of the `lm` in that design to `1e-8`,
+the five tests below since they read its weights. The exception is the
+Fligner-Killeen statistic, which moves by about `1e-6` of its value: with an
+even number of residuals the two in the middle tie at exactly half their
+difference from the median, and rounding, which differs between the two fits
+by about `1e-15`, decides which ranks first. A Gaussian `glm` with a zero
+prior weight is not yet refused as the same `lm` is: the tests that read the
+Pearson residuals, such as the Koenker, White, Glejser, Spearman, GQ and wild
+bootstrap tests, return a value for it, and `performWhiteTestBootstrap()`
+stops with "Model residuals must be finite". It is recorded under 0.16.0.
+`performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
 `performVarianceFormTest()` refuse every `glm`, as before.
 
 **`performGQTest()`, `performRESETTest()`, `performWhiteTestBootstrap()` and

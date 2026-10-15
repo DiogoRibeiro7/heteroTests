@@ -645,6 +645,19 @@ after it.
   ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
   comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
   tied to within a tolerance. Changes a value, by that much.
+- [ ] **A Gaussian `glm` with a zero prior weight.** The tests that read the
+  Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
+  weight, whose Pearson residual is an artificial zero, but not the same
+  `glm`: `rpearson_residuals()` reads `rprior_weights()`, which returns no
+  weights for a `glm`. The Koenker, White, Glejser, Spearman, GQ and wild
+  bootstrap tests return a value for it, and `performWhiteTestBootstrap()`
+  stops with "Model residuals must be finite". Suggested fix: have
+  `rpearson_residuals()` read `rleast_squares_weights()` instead of
+  `rprior_weights()`. Two related gaps: `plotDiagnostics()` reads
+  `rprior_weights()` too, so a weighted Gaussian `glm` is not labelled
+  "(weighted residuals)", and `performRESETTest()` does not refuse a zero
+  weight, even on an `lm`. Found on 2026-10-15 and recorded, not fixed, in
+  0.15.0, as decided that day. A fix changes what such fits return.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
   release so that 0.14.0 changes no value. Each fix that changes a value is
   announced in bold in `NEWS.md`.
