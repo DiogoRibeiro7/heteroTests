@@ -84,6 +84,7 @@
 #' \eqn{n R^2} LM statistic that drops the normality assumption, and
 #' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
 performBPTest <- function(model, data = NULL) {
+  rrefuse_non_gaussian_glm(model, "performBPTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan test"
   rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L)

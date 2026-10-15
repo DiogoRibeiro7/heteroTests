@@ -59,6 +59,7 @@
 #' [performLeveneTest()] and [performBrownForsytheTest()] for more robust
 #' group-variance comparisons.
 performHartleyFmaxTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performHartleyFmaxTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Hartley's Fmax test"
 

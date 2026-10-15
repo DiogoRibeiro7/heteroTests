@@ -91,6 +91,7 @@
 performHarveyTest <- function(model, data = NULL,
                               auxiliary = c("regressors", "fitted"),
                               studentize = FALSE) {
+  rrefuse_non_gaussian_glm(model, "performHarveyTest")
   if (is.character(data) && is.null(dim(data))) {
     # performHarveyTest(m, "fitted") and performHarveyTest(m, "fitted", TRUE),
     # the positional calls of the signature before 0.15.0.

@@ -2,7 +2,9 @@
 #'
 #' Create a diagnostic object that can run tests and plots via a unified API.
 #'
-#' @param model A fitted `lm`/`glm` model or a formula.
+#' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
+#'   identity link, or a formula. The tests refuse a `glm` of any other
+#'   family or link since 0.15.0.
 #' @param data Data used to fit the model. Required when `model` is a formula.
 #' @return An object of class `HeteroDiagnostic`.
 #' @examples

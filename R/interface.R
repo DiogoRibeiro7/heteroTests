@@ -118,9 +118,11 @@ rstop_data_rows <- function(residuals, data, test_label) {
 
 #' Refuse a glm in a test that needs least-squares residuals
 #'
-#' Most tests accept a `glm` today; the ones that cannot use it refuse it with
-#' this message, so that the refusal reads the same everywhere. Whether every
-#' test should refuse a `glm` is a decision of its own (`ROADMAP.md`).
+#' Three tests refuse every `glm` with this message. The others refuse a `glm`
+#' that is not a least-squares fit with the same message, through
+#' [rrefuse_non_gaussian_glm()], so that the refusal reads the same
+#' everywhere. A `survey::svyglm()` fit is refused with the message of
+#' [rrefuse_survey_fit()] instead, as by every other test.
 #'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.
@@ -129,12 +131,87 @@ rstop_data_rows <- function(residuals, data, test_label) {
 #' @keywords internal
 #' @noRd
 rrefuse_glm <- function(model, fn, reason = NULL) {
+  rrefuse_survey_fit(model)
   if (inherits(model, "lm") && !inherits(model, "glm")) {
     return(invisible(NULL))
   }
   stop(
     sprintf("%s() needs a model fitted by stats::lm()", fn),
     if (is.null(reason)) "." else paste0(": ", reason),
+    call. = FALSE
+  )
+}
+
+#' Refuse a glm that is not a least-squares fit
+#'
+#' A `glm` with the Gaussian family and the identity link is a least-squares
+#' fit: its coefficients, fitted values and residuals are those of `lm()` up to
+#' rounding, and the tests return for it what they return for the `lm`
+#' (`test-input-validation.R`). Any other `glm` has residuals whose variance
+#' depends on the mean by construction, and before 0.15.0 most tests returned
+#' a value for it that tested nothing. Such a fit is refused, decided on
+#' 2026-10-15, with the message of [rrefuse_glm()].
+#'
+#' The tests that read the weights of an `lm`, to refit with them or to
+#' refuse a weighted fit, read those of such a `glm` through
+#' [rleast_squares_weights()], and give for a weighted Gaussian `glm` what they
+#' give for the `lm` with the same weights.
+#'
+#' A `survey::svyglm()` fit is refused here too, with the message of
+#' [rrefuse_survey_fit()], which says why its weights are not precision
+#' weights. The tests call this first, so one that has no later check of its
+#' own cannot return a value for such a fit, as `performRESETTest()` did
+#' before 0.15.0.
+#'
+#' @param model A fitted model. Anything that is not a `glm` is left to the
+#'   checks of the calling test.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_non_gaussian_glm <- function(model, fn) {
+  rrefuse_survey_fit(model)
+  if (!inherits(model, "glm")) {
+    return(invisible(NULL))
+  }
+  fam <- tryCatch(stats::family(model), error = function(e) NULL)
+  least_squares <- !is.null(fam) && identical(fam$family, "gaussian") &&
+    identical(fam$link, "identity")
+  if (!least_squares) {
+    described <- if (is.null(fam)) {
+      "a glm whose family cannot be read"
+    } else {
+      sprintf("a glm with the %s family and the %s link", fam$family, fam$link)
+    }
+    rrefuse_glm(model, fn, paste0(
+      described, " is not a least-squares fit. A glm with the gaussian family ",
+      "and the identity link is accepted."
+    ))
+  }
+  invisible(NULL)
+}
+
+#' Refuse a model with coefficients that are not finite
+#'
+#' An aliased term, such as `x2 = 2 * x1`, leaves an `NA` coefficient. The
+#' tests that validate the model refuse such a fit with this message; the
+#' five that did not, and returned a value, refuse it since 0.15.0.
+#'
+#' @param model A fitted model.
+#' @param test_label Character scalar naming the test in the message.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_nonfinite_coefficients <- function(model, test_label) {
+  coefs <- tryCatch(stats::coef(model), error = function(e) NULL)
+  if (is.null(coefs) || all(is.finite(coefs))) {
+    return(invisible(NULL))
+  }
+  stop(
+    sprintf(
+      "Model coefficients must be finite before running %s. Check for NA or infinite estimates.",
+      test_label
+    ),
     call. = FALSE
   )
 }

@@ -15,8 +15,10 @@
 #' distribution, against 4.75% for Koenker's statistic. The classical test is
 #' still run by name, `tests = "breusch_pagan"`.
 #'
-#' @param model A fitted model of class `lm`/`glm`, a model formula, a
-#'   tidymodels [workflows::workflow] or a [parsnip::model_fit] object.
+#' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
+#'   identity link, a model formula, a tidymodels [workflows::workflow] or a
+#'   [parsnip::model_fit] object. The tests refuse a `glm` of any other
+#'   family or link since 0.15.0.
 #' @param data Optional data source used to fit `model`. Accepts base data
 #'   frames, tibbles, `data.table`s, `dtplyr_step`s and grouped data produced by
 #'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.

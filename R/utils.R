@@ -360,6 +360,40 @@ rprior_weights <- function(model) {
   model$weights
 }
 
+#' Prior weights of a least-squares fit, lm or Gaussian glm
+#'
+#' A `glm` with the Gaussian family and the identity link is a least-squares
+#' fit, and its prior weights are the weights of the equivalent
+#' `lm(..., weights = w)`: inverse error variances up to a constant. The tests
+#' that refit with the weights, or refuse a weighted fit, read them here, so
+#' that such a `glm` gives what that `lm` gives (decided on 2026-10-15).
+#' Before 0.15.0 they read [rprior_weights()], which returns none for a `glm`,
+#' and took a weighted `glm` for an unweighted fit.
+#'
+#' A `glm` whose prior weights are all 1 is an unweighted fit, as
+#' `glm()` records no weights as weights of 1. A `glm` of another family or
+#' link, and a `survey::svyglm()` fit, are refused before this is called; for
+#' them it returns `NULL`, as [rprior_weights()] does.
+#'
+#' @param model A fitted model.
+#' @return Numeric vector of weights, or `NULL`.
+#' @keywords internal
+#' @noRd
+rleast_squares_weights <- function(model) {
+  if (!inherits(model, "glm")) {
+    return(rprior_weights(model))
+  }
+  fam <- tryCatch(stats::family(model), error = function(e) NULL)
+  least_squares <- !inherits(model, "svyglm") && !is.null(fam) &&
+    identical(fam$family, "gaussian") && identical(fam$link, "identity")
+  w <- model$prior.weights
+  if (!least_squares || is.null(w) || all(w == 1)) {
+    return(NULL)
+  }
+  # lm() keeps its weights without names, as.vector(model.weights(mf)).
+  as.vector(w)
+}
+
 #' Residuals on the scale a variance test should see
 #'
 #' `lm(..., weights = w)` states that \eqn{\mathrm{Var}(\varepsilon_i) =
@@ -406,7 +440,8 @@ rpearson_residuals <- function(model) {
 #' different loss. On a weighted fit that describes a different model from the
 #' one supplied, so they refuse it, as `rbootstrap_test_statistic()` refuses a
 #' `glm`. The resampling tests refit with the weights instead; see
-#' `rrefit_lm()`.
+#' `rrefit_lm()`. A Gaussian `glm` with prior weights is a weighted fit too,
+#' and is refused with the same message, through [rleast_squares_weights()].
 #'
 #' @param model A fitted model.
 #' @param what Character scalar naming the calling procedure.
@@ -414,7 +449,7 @@ rpearson_residuals <- function(model) {
 #' @keywords internal
 #' @noRd
 rrefuse_weighted_fit <- function(model, what) {
-  if (is.null(rprior_weights(model))) {
+  if (is.null(rleast_squares_weights(model))) {
     return(invisible(NULL))
   }
   stop(

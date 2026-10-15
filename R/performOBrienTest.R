@@ -55,6 +55,7 @@
 #' deviation-based tests, and [performBartlettTest()] for the normal-theory
 #' likelihood-ratio test.
 performOBrienTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performOBrienTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "O'Brien test"
 

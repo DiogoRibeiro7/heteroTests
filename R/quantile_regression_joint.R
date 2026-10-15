@@ -55,6 +55,7 @@ performQuantileRegressionTest <- function(model, data = NULL,
                                           taus = c(0.25, 0.75),
                                           se_type = c("nid", "ker"),
                                           iid = TRUE) {
+  rrefuse_non_gaussian_glm(model, "performQuantileRegressionTest")
   data <- rdata_or_model_frame(model, data)
   if (!requireNamespace("quantreg", quietly = TRUE)) {
     stop("Package 'quantreg' is required for the quantile regression test.", call. = FALSE)

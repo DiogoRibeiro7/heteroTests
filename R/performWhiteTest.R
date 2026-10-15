@@ -93,6 +93,7 @@
 #' lower-dimensional Lagrange Multiplier alternative.
 #' @export
 performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_interactions = 10) {
+  rrefuse_non_gaussian_glm(model, "performWhiteTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "White test"
   rvalidateModelInputs(model, test_name = "White", min_obs = 20L)

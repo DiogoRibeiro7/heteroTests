@@ -41,6 +41,7 @@
 #' [performLeveneTest()] and [performBrownForsytheTest()] for other robust
 #' variance-equality diagnostics.
 performFlignerKilleenTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performFlignerKilleenTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Fligner-Killeen test"
 

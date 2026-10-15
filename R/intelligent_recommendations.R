@@ -656,7 +656,9 @@ composeDiagnosticNarrative <- function(profile, interpretations, remediation, as
 
 #' Generate comprehensive heteroscedasticity recommendations
 #'
-#' @param model Fitted `lm`/`glm` model or a formula.
+#' @param model Fitted `lm`, or `glm` with the Gaussian family and the
+#'   identity link, or a model formula. The tests refuse a `glm` of any other
+#'   family or link since 0.15.0.
 #' @param data Optional data frame used when `model` is a formula or to
 #'   override the data stored in the model object.
 #' @param test_results Optional pre-computed diagnostics from

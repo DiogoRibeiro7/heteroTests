@@ -129,6 +129,7 @@
 performGlejserTest <- function(model, data = NULL, variable,
                                transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
                                robust = FALSE) {
+  rrefuse_non_gaussian_glm(model, "performGlejserTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Glejser test"
 

@@ -36,6 +36,21 @@ Every exported \code{perform*Test()} function returns a base-R \code{htest} obje
 \section{Attributes}{
 \code{\link{performWhiteTest}()} and \code{\link{performWhiteTestRobust}()} attach the attributes \code{auxiliary_regressors}, \code{original_regressors}, \code{cross_products_included} and \code{r_squared_auxiliary}, which describe the auxiliary regression. \code{\link{runHeteroTests}()} adds attributes of its own to each result it returns.
 }
+\section{Inputs every test refuses}{
+Since 0.15.0 every test on a model refuses four inputs, each with one message: a \code{glm} that is not a least-squares
+fit, that is, of any family but \code{gaussian} or with any link but the identity ("needs a model fitted by
+stats::lm()"); a model with a coefficient that is not finite, such as the \code{NA} of an aliased term ("Model
+coefficients must be finite"); \code{data} that lack rows the model was fitted to; and \code{data} that lack a
+variable of the model ("The following variables are missing from"). The model frame is accepted as \code{data} as it
+is. A \code{glm} with the Gaussian family and the identity link is accepted and gives the result of the \code{lm} up
+to rounding error, except that \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
+\code{\link{performVarianceFormTest}()} refuse every \code{glm}. With positive prior weights it gives the result of
+\code{lm(..., weights = w)}: \code{\link{performGQTest}()}, \code{\link{performRESETTest}()},
+\code{\link{performWhiteTestBootstrap}()} and \code{\link{performWildBootstrapTest}()}, which read the weights of an
+\code{lm}, read the prior weights of the \code{glm}, and \code{\link{performQuantileRegressionTest}()}, which refuses
+a weighted \code{lm}, refuses it with the same message. A \code{survey::svyglm()} fit is refused by every test ("The
+model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R} gives every test these inputs.
+}
 \seealso{
 \code{\link{runHeteroTests}}, \code{\link[stats]{t.test}} for the \code{htest} class
 }

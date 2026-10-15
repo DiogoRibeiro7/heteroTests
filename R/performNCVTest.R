@@ -90,6 +90,7 @@
 #' result as the Cook–Weisberg test. The old name still works, returns what it
 #' returned and warns.
 performNCVTest <- function(model, data = NULL, var_formula = NULL) {
+  rrefuse_non_gaussian_glm(model, "performNCVTest")
   .Deprecated("performCookWeisbergTest", old = "performNCVTest")
   if (inherits(data, "formula") && missing(var_formula)) {
     rwarn_positional_call(

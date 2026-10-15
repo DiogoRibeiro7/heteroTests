@@ -6,8 +6,9 @@
 break calls, not values: each old form still works in 0.15.x, returns what it
 returned in 0.14.0 and warns with the call to use instead, and it stops
 working in 1.0.0. The changes in bold change values: every resampling test
-draws 999 replicates by default, and the default battery of
-`runHeteroTests()` is White and Koenker.
+draws 999 replicates by default, the default battery of `runHeteroTests()` is
+White and Koenker, and the tests refuse four inputs that most or some of them
+returned a value for.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -101,6 +102,87 @@ studentized statistic, but `auto_enhance = FALSE` turns the studentization
 off with the bootstrap and runs the classical test, which is listed under
 0.16.0. None of the recorded evidence calls these functions
 with their default battery, so no recorded number moves.
+
+### Inputs every test refuses
+
+**Calls that returned a value for a `glm` that is not a least-squares fit,
+for a model with an `NA` coefficient, or for data that cannot be matched to
+the fit now stop with an error.** `tests/testthat/test-input-validation.R`
+gives every test these inputs, and each is refused with one message
+(`?test_results`). Before 0.15.0 these calls returned a value:
+
+| Input | Tests that returned a value and now stop | Message |
+| --- | --- | --- |
+| A `glm` of a family other than `gaussian`, or with a link other than the identity, such as `glm(am ~ wt, family = binomial)` | `performWhiteTest()`, `performWhiteTestRobust()`, `performWhiteTestBootstrap()`, `performBPTest()` and `performBreuschPaganTest()`, `performBPTestStreaming()`, `performBPTestRobust()`, `performKoenkerTest()`, `performKoenkerTestStreaming()`, `performStudentizedBPTest()`, `performGQTest()`, `performParkTest()`, `performSzroeterTest()`, `performWildBootstrapTest()`, `performQuantileRegressionTest()`, `performRankPermutationTest()`, `performHighDimensionalTest()`, `performSpatialHeteroTest()`, `performSpearmanTest()`, `performLeveneTest()`, `performGlejserTest()`, `performBrownForsytheTest()`, `performFlignerKilleenTest()`, `performBartlettTest()`, `performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`, `performHartleyFmaxTest()`, `performOBrienTest()`, `performCookWeisbergTest()`, `performNCVTest()`, `performSpreadLevelTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()`, `performDavidianCarrollTest()`, `performRESETTest()`: 36 names, all but the three tests that already refused every `glm` | "`<test>()` needs a model fitted by stats::lm(): a glm with the binomial family and the logit link is not a least-squares fit." |
+| A model with an `NA` coefficient, such as `lm(mpg ~ wt + I(2 * wt), data = mtcars)` | `performSpreadLevelTest()`, `performDavidianCarrollTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()`, `performRESETTest()` | "Model coefficients must be finite before running ..." |
+| `data` that lack rows the model was fitted to | `performVarianceFormTest()` | "... requires `data` to contain the rows used to fit the model. Missing rows: ..." |
+| `data` that lack a variable of the model | `performVarianceFormTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()` | "The following variables are missing from input data: ..." |
+| A `survey::svyglm()` fit, of any family | `performRESETTest()`, the only test that did not refuse one | "The model is a `survey::svyglm()` fit, whose residuals are scaled by the sampling weights. ..." |
+
+The values these calls returned tested nothing the help pages describe. A
+binomial or Poisson fit has residuals whose variance depends on the mean by
+construction: `performKoenkerTest(glm(am ~ wt + hp, data = mtcars, family =
+binomial), mtcars)` returned 0.963 (p = 0.618), and `performRESETTest()` on
+the same fit F = 86.1 (p < 0.0001). The residuals of a `survey::svyglm()`
+fit are scaled by the sampling weights, which are not precision weights, and
+every other test refused one already. A model with an
+aliased term was computed by the five tests as if the term were not there,
+and refused by the others. The variance-form test returned a value for data
+that lack rows of the fit or a variable of the model, and the Pesaran and
+random-effects tests for data that lack a variable, which they did not look
+for. `performPesaranTest()` on data that lack rows stopped with "number of
+items to replace is not a multiple of replacement length" in the designs
+tried, and now names the rows, as the others do. In
+`test-input-validation.R`, on the design it uses, all 36 names returned a
+value for a binomial and for a Poisson `glm` before 0.15.0.
+
+A `glm` with the Gaussian family and the identity link is a least-squares fit
+and is still accepted. Without prior weights, and with positive ones, every
+test that accepts it gives the result of the `lm` in that design to `1e-8`,
+the five tests below since they read its weights. The exception is the
+Fligner-Killeen statistic, which moves by about `1e-6` of its value: with an
+even number of residuals the two in the middle tie at exactly half their
+difference from the median, and rounding, which differs between the two fits
+by about `1e-15`, decides which ranks first. A Gaussian `glm` with a zero
+prior weight is not yet refused as the same `lm` is: the tests that read the
+Pearson residuals, such as the Koenker, White, Glejser, Spearman, GQ and wild
+bootstrap tests, return a value for it, and `performWhiteTestBootstrap()`
+stops with "Model residuals must be finite". It is recorded under 0.16.0.
+`performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
+`performVarianceFormTest()` refuse every `glm`, as before.
+
+**`performGQTest()`, `performRESETTest()`, `performWhiteTestBootstrap()` and
+`performWildBootstrapTest()` now read the prior weights of a Gaussian `glm`,
+and `performQuantileRegressionTest()` refuses a weighted one, as it refuses a
+weighted `lm`.** These five read the weights of an `lm`, to refit with them or
+to refuse a weighted fit, and found none on a `glm`, so they took a weighted
+Gaussian `glm` for an unweighted fit. Decided on 2026-10-15: they read its
+prior weights, and give what they give for the same model fitted by
+`lm(..., weights = w)`. `test-input-validation.R` asserts it to `1e-8`, for
+the statistic and the p-value, on four seeded designs, the resampling tests
+from the same seed and the same `B`; the largest differences there are
+`6e-14` in a statistic and `1e-14` in a p-value. On
+`glm(dist ~ speed, data = cars, weights = 1 / speed)`, the two bootstraps
+after `set.seed(1)`:
+
+| Call | 0.14.0 | Now, as for the `lm` |
+| --- | --- | --- |
+| `performGQTest(order_by = "speed")` | 5.42 (p = 0.0004) | 2.65 (p = 0.023) |
+| `performRESETTest()` | F = -21.5 (p = 1.000) | F = 1.37 (p = 0.264) |
+| `performWhiteTestBootstrap(B = 999)` | p = 0.695 | p = 0.701 |
+| `performWildBootstrapTest(B = 999)` | p = 0.378 | p = 0.373 |
+| `performQuantileRegressionTest()` | 2.05 (p = 0.155) | Error: "`performQuantileRegressionTest()` does not support weighted fits: ...", the message for the weighted `lm` |
+
+The observed statistics of the two bootstraps, 0.819 and 0.766, were already
+those of the `lm`; their replicates were drawn as for an unweighted fit. On
+`glm(mpg ~ wt + hp, data = mtcars, weights = 1 / wt)` RESET returned
+F = -6.13 (p = 1.000), and returns 6.11 (p = 0.0065), the value of the `lm`.
+
+No recorded evidence fits a `glm`, a model with an `NA` coefficient or data
+that do not match the fit: the rows of the full sweep for the six tests whose
+checks changed besides the `glm` one, the Pesaran, random-effects,
+variance-form, RESET, spread-level and Davidian-Carroll tests, run again from
+their seeds, are identical.
 
 ### Calls that changed
 
@@ -219,15 +301,8 @@ Where a test already stopped, it now stops with the message the others give:
 No value changes: over the 217 calls of the `(model, data, ...)` comparison
 and the 156 results of the return-contract comparison, every result is
 `identical()` to 0.14.0, apart from the `df` names and the `data.name` above.
-Some tests still return a value for one of the four inputs, and refusing it
-would change what those calls return, so they are left as they are until the
-author decides (*Decisions needed* in `ROADMAP.md`): 36 of the 39 tests on a
-model accept a `glm`; `performSpreadLevelTest()`,
-`performDavidianCarrollTest()`, `performPesaranTest()`,
-`performBPRandomEffectsTest()` and `performRESETTest()` accept a model with an
-`NA` coefficient; `performVarianceFormTest()` and `performPesaranTest()` accept
-data that lack rows of the fit, and they and `performBPRandomEffectsTest()`
-data that lack a variable of the model.
+The tests that returned a value for one of the four inputs refuse it too, which
+changes what those calls return (*Inputs every test refuses*, above).
 
 ## 0.14.0
 

@@ -106,26 +106,30 @@ test_that("with one regressor the order follows the sign of its slope", {
   expect_gt(res_down$p.value, 0.95)
 })
 
-test_that("for a glm the order is that of the fitted mean, not the linear predictor", {
-  # The Gamma family's default link is the inverse, so the linear predictor
-  # falls as the mean rises, and ordering on the link scale would reverse the
-  # sign of Q.
+test_that("a glm that is not a least-squares fit is refused, by name and registered", {
+  # Before 0.15.0 the registered test ordered a glm by its fitted mean rather
+  # than its linear predictor, which the Gamma family's inverse link reverses.
+  # Since 0.15.0 such a glm is refused, by the function and by the registered
+  # test alike; a Gaussian glm with the identity link, whose linear predictor
+  # is its mean, is ordered as the lm is.
   set.seed(4)
   n <- 80
   d <- data.frame(x = runif(n, 1, 3))
   d$y <- rgamma(n, shape = 5, rate = 5 * (0.3 + 0.2 * d$x))
   m <- glm(y ~ x, family = Gamma(), data = d)
   expect_lt(cor(fitted(m), predict(m)), 0)
+  refused <- paste0(
+    "performSzroeterTest\\(\\) needs a model fitted by stats::lm\\(\\): ",
+    "a glm with the Gamma family"
+  )
+  expect_error(performSzroeterTest(m, transform(d, mu = fitted(m)), order_by = "mu"), refused)
+  expect_error(run_szroeter(m, d), refused)
 
-  by_mean <- performSzroeterTest(m, transform(d, mu = fitted(m)), order_by = "mu")
-  by_link <- performSzroeterTest(m, transform(d, eta = predict(m)), order_by = "eta")
-  res <- run_szroeter(m, d)
-  expect_equal(unname(res$statistic), unname(by_mean$statistic), tolerance = 1e-10)
-  expect_equal(res$p.value, by_mean$p.value, tolerance = 1e-10)
-  # The two orders give opposite signs, and Q is far enough from zero (-0.75
-  # here) for the difference to show.
-  expect_equal(unname(by_link$statistic), -unname(by_mean$statistic), tolerance = 1e-10)
-  expect_gt(abs(unname(res$statistic)), 0.5)
+  g <- glm(y ~ x, data = d)
+  l <- lm(y ~ x, data = d)
+  expect_equal(unname(run_szroeter(g, d)$statistic), unname(run_szroeter(l, d)$statistic),
+               tolerance = 1e-10)
+  expect_equal(run_szroeter(g, d)$p.value, run_szroeter(l, d)$p.value, tolerance = 1e-10)
 })
 
 test_that("equal fitted values tie exactly, however the model is written", {

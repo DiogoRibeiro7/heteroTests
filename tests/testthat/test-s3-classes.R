@@ -231,16 +231,25 @@ test_that("test generic works with ellipsis arguments", {
 # =============================================================================
 
 test_that("HeteroDiagnostic works with glm objects", {
-  # Create a GLM model
-  glm_model <- glm(vs ~ wt + hp, data = mtcars, family = binomial)
-  
-  hd <- HeteroDiagnostic(glm_model, mtcars)
+  # A Gaussian glm with the identity link is a least-squares fit, and the
+  # diagnostics run on it.
+  gaussian_glm <- glm(mpg ~ wt + hp, data = mtcars)
+  hd <- HeteroDiagnostic(gaussian_glm, mtcars)
   expect_s3_class(hd, "HeteroDiagnostic")
   expect_s3_class(hd$model, "glm")
-  
-  # Basic functionality should work
-  result <- without_deprecation(test(hd, tests = "white"))  # Not all tests may work with GLM
+  result <- without_deprecation(test(hd, tests = "white"))
   expect_type(result, "list")
+
+  # A glm of another family can be stored, but since 0.15.0 the tests refuse
+  # it: its residuals have a variance that depends on the mean by
+  # construction.
+  glm_model <- glm(vs ~ wt + hp, data = mtcars, family = binomial)
+  hd_binomial <- HeteroDiagnostic(glm_model, mtcars)
+  expect_s3_class(hd_binomial, "HeteroDiagnostic")
+  expect_error(
+    without_deprecation(test(hd_binomial, tests = "white")),
+    "needs a model fitted by stats::lm\\(\\)"
+  )
 })
 
 test_that("HeteroDiagnostic preserves model attributes", {

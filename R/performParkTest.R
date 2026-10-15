@@ -59,6 +59,7 @@
 #' [performHarveyTest()] and [performGlejserTest()] offer related parametric
 #' tests based on alternative variance specifications.
 performParkTest <- function(model, data = NULL, variable) {
+  rrefuse_non_gaussian_glm(model, "performParkTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Park test"
 

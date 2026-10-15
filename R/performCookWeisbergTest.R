@@ -75,6 +75,7 @@
 #' model, [performBPTest()] for the general Breusch–Pagan regression, and
 #' [performWhiteTest()] for a higher-order omnibus alternative.
 performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
+  rrefuse_non_gaussian_glm(model, "performCookWeisbergTest")
   if (inherits(data, "formula") && missing(var_formula)) {
     rwarn_positional_call(
       "performCookWeisbergTest", substitute(model), list(var_formula = substitute(data))

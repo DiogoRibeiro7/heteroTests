@@ -64,6 +64,7 @@
 #' [performBPRandomEffectsTest()] for related random-effects diagnostics and
 #' [performSpatialHeteroTest()] when spatial dependence is suspected.
 performPesaranTest <- function(model, data = NULL, id, time) {
+  rrefuse_non_gaussian_glm(model, "performPesaranTest")
   data <- rdata_or_model_frame(model, data)
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
@@ -74,6 +75,13 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   if (!all(c(id, time) %in% names(data))) {
     stop("`id` and `time` must be columns in `data`.")
   }
+  rrefuse_nonfinite_coefficients(model, "Pesaran CD test")
+  # The rows of `data` are read in the order of the residuals, so data that
+  # lack rows of the fit or a variable of the model are refused, as by the
+  # tests that read `data`. Before 0.15.0 they returned a value: data.frame()
+  # below recycled data with half the rows, and a missing variable was never
+  # looked for.
+  rcheck_data_matches_model(model, data, "Pesaran CD test")
 
   res <- rpearson_residuals(model)
   df <- data.frame(id = data[[id]], time = data[[time]], res = res)

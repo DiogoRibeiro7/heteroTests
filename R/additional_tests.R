@@ -132,6 +132,7 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' diagnostics.
 #' @export
 performStudentizedBPTest <- function(model, data = NULL) {
+  rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
   data <- rdata_or_model_frame(model, data)
   .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
   .studentized_bp_test(model, data, data_name = deparse(substitute(model)))
@@ -374,6 +375,7 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
 performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE) {
+  rrefuse_non_gaussian_glm(model, "performWhiteTestBootstrap")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
 
@@ -423,7 +425,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   # in the formula, offset(o), is evaluated again from the data. working_data
   # holds the fitted rows in the order of the fit, so the offset, the weights
   # and the fitted values are taken as they are.
-  prior_weights <- rprior_weights(model)
+  prior_weights <- rleast_squares_weights(model)
   offset_argument <- roffset_argument(model)
   if (!is.null(prior_weights)) {
     pool <- rpearson_residuals(model)
@@ -607,6 +609,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' @export
 performSzroeterTest <- function(model, data = NULL, order_by,
                                 alternative = c("greater", "two.sided", "less")) {
+  rrefuse_non_gaussian_glm(model, "performSzroeterTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Szroeter test"
 
