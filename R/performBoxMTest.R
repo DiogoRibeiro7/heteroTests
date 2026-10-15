@@ -38,6 +38,10 @@
 #' including Box's M test.
 #' @export
 performBoxMTest <- function(data, group) {
+  data_name <- paste(
+    rexpression_label(substitute(data), "data"), "by",
+    rexpression_label(substitute(group), "group")
+  )
   if (!is.data.frame(data) && !is.matrix(data)) {
     stop("data must be a data.frame or matrix")
   }
@@ -61,7 +65,8 @@ performBoxMTest <- function(data, group) {
   structure(
     list(
       statistic = c(M = stat), parameter = c(df = df),
-      p.value = pval, method = "Box's M Test for Equality of Covariance Matrices"
+      p.value = pval, method = "Box's M Test for Equality of Covariance Matrices",
+      data.name = data_name
     ),
     class = "htest"
   )

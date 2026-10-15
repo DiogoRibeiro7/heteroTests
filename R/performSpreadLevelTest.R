@@ -57,7 +57,7 @@ performSpreadLevelTest <- function(model, data = NULL) {
   structure(
     list(
       statistic = c(t = t_value),
-      parameter = df,
+      parameter = c(df = df),
       p.value = p_value,
       method = "Spread-Level test",
       data.name = deparse(formula(model))
