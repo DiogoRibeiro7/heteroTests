@@ -25,10 +25,19 @@ Executes a set of registered diagnostics in parallel when multiple CPU cores
 are available, falling back to sequential execution otherwise.
 }
 \details{
-When \code{n_cores} exceeds one and the \code{parallel} package is available, the helper
-evaluates the diagnostics via \code{\link[parallel:clusterApply]{parallel::parLapply()}} after exporting the
-model and data to the worker environment. On systems without fork support the
-function gracefully reverts to sequential execution.
+When \code{n_cores} exceeds one the diagnostics run on a socket cluster of that
+many workers (\code{\link[parallel:makeCluster]{parallel::makeCluster()}}), started for the call, each of which
+loads the installed heteroTests. The model and the data travel to the
+workers with each task. With \code{n_cores = 1}, or when the default comes to one
+worker, the diagnostics run in the session.
+
+Test \code{i} draws its random numbers from stream \code{i} of a L'Ecuyer-CMRG
+generator seeded by one draw from the session's generator, on the workers
+and in the session alike. A seeded call that runs a resampling test, such as
+\code{"wild_bootstrap"}, therefore returns the same value each time and whatever
+\code{n_cores}, \code{n_cores = 1} included. It is not the value that test returns
+when called directly from the same seed, which draws from the session's
+generator; both are bootstraps of the same data.
 }
 \seealso{
 \code{\link[=cachedTest]{cachedTest()}} for memoised execution of individual diagnostics.

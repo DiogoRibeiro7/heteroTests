@@ -12,9 +12,35 @@
 # and the serial result differ; each is a bootstrap of the same data, and the
 # last test checks that their replicates have the same distribution.
 #
+# runHeteroTestsParallel() draws test i from stream i too when it runs in the
+# session, with n_cores = 1, so its value does not depend on n_cores either.
+#
 # On the socket path the workers load the installed heteroTests, so these
 # tests check the installed code there: under R CMD check that is this
-# version.
+# version. In a development run, such as devtools::test(), the installed copy
+# may be another version, and a test would check it without saying so; a test
+# that runs on a socket cluster is skipped then, unless the installed version
+# is the version of the source. Forked workers run the code of the session.
+skip_unless_workers_load_this_version <- function(forked = FALSE) {
+  if ((forked && .Platform$OS.type == "unix") || testthat::is_checking()) {
+    return(invisible(TRUE))
+  }
+  description <- file.path(.libPaths(), "heteroTests", "DESCRIPTION")
+  description <- description[file.exists(description)]
+  installed <- if (length(description) > 0L) {
+    unname(read.dcf(description[[1L]], fields = "Version")[1L, 1L])
+  } else {
+    "none"
+  }
+  source_version <- unname(as.character(getNamespaceVersion("heteroTests")))
+  if (!identical(installed, source_version)) {
+    skip(sprintf(
+      "the socket workers would load the installed heteroTests (%s), not the source (%s)",
+      installed, source_version
+    ))
+  }
+  invisible(TRUE)
+}
 
 parallel_data <- function() {
   set.seed(31)
@@ -26,6 +52,7 @@ parallel_data <- function() {
 
 test_that("a seeded parallel bootstrap repeats itself with any number of workers", {
   skip_on_cran()
+  skip_unless_workers_load_this_version(forked = TRUE)
   s <- parallel_data()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -50,6 +77,7 @@ test_that("a seeded parallel bootstrap repeats itself with any number of workers
 
 test_that("the White bootstrap is reproducible in parallel, and Windows can run it", {
   skip_on_cran()
+  skip_unless_workers_load_this_version(forked = TRUE)
   s <- parallel_data()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -69,6 +97,7 @@ test_that("the White bootstrap is reproducible in parallel, and Windows can run 
 
 test_that("runHeteroTestsParallel() is reproducible with a resampling test", {
   skip_on_cran()
+  skip_unless_workers_load_this_version()
   s <- parallel_data()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -84,6 +113,56 @@ test_that("runHeteroTestsParallel() is reproducible with a resampling test", {
   expect_identical(first$wild_bootstrap$bootstrap$replicates,
                    second$wild_bootstrap$bootstrap$replicates)
   expect_identical(first$koenker$statistic, performKoenkerTest(s$m, s$d)$statistic)
+})
+
+test_that("runHeteroTestsParallel() gives the same value whatever n_cores", {
+  skip_on_cran()
+  skip_unless_workers_load_this_version()
+  s <- parallel_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  run <- function(tests, cores) {
+    set.seed(99)
+    suppressWarnings(runHeteroTestsParallel(s$m, s$d, tests = tests, n_cores = cores))
+  }
+  # With n_cores = 1 the tests run in the session, on the streams the workers
+  # use. Before, they drew from the session's generator there, and the wild
+  # bootstrap p-value moved with n_cores.
+  two <- run(c("koenker", "wild_bootstrap"), 2)
+  one <- run(c("koenker", "wild_bootstrap"), 1)
+  expect_identical(one$wild_bootstrap$bootstrap$replicates,
+                   two$wild_bootstrap$bootstrap$replicates)
+  expect_identical(one$wild_bootstrap$p.value, two$wild_bootstrap$p.value)
+  # One test makes the default one worker; it takes stream 1, as the first of
+  # two tests does on two workers.
+  first_of_two <- run(c("wild_bootstrap", "koenker"), 2)
+  alone <- run("wild_bootstrap", NULL)
+  expect_identical(alone$wild_bootstrap$bootstrap$replicates,
+                   first_of_two$wild_bootstrap$bootstrap$replicates)
+})
+
+test_that("runHeteroTestsParallel() runs a model created at top level", {
+  skip_on_cran()
+  skip_unless_workers_load_this_version()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Called at top level, the task reached the socket workers with `model`
+  # still a promise to evaluate the name of the model in the global
+  # environment, and the workers, which have no such object, stopped with
+  # "object 'm1' not found". The arguments are forced in the session since.
+  assign(".ht_top_level_model", lm(mpg ~ wt + qsec, data = mtcars), envir = globalenv())
+  on.exit(rm(".ht_top_level_model", envir = globalenv()), add = TRUE)
+  set.seed(99)
+  top <- suppressWarnings(evalq(
+    runHeteroTestsParallel(.ht_top_level_model, mtcars, tests = c("koenker", "wild_bootstrap"),
+                           n_cores = 2),
+    globalenv()
+  ))
+  expect_true(is.finite(top$wild_bootstrap$p.value))
+  expect_identical(
+    top$koenker$statistic,
+    performKoenkerTest(get(".ht_top_level_model", envir = globalenv()), mtcars)$statistic
+  )
 })
 
 test_that("the streams take one draw from the session's generator and leave its kind", {
@@ -110,6 +189,7 @@ test_that("the streams take one draw from the session's generator and leave its 
 
 test_that("parallel and serial replicates have the same distribution", {
   skip_on_cran()
+  skip_unless_workers_load_this_version(forked = TRUE)
   s <- parallel_data()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)

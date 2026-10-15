@@ -531,39 +531,53 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @return Named list of test results in the order provided by `tests`.
 #'
 #' @details
-#' When `n_cores` exceeds one and the `parallel` package is available, the helper
-#' evaluates the diagnostics via [parallel::parLapply()] after exporting the
-#' model and data to the worker environment. On systems without fork support the
-#' function gracefully reverts to sequential execution.
+#' When `n_cores` exceeds one the diagnostics run on a socket cluster of that
+#' many workers ([parallel::makeCluster()]), started for the call, each of which
+#' loads the installed heteroTests. The model and the data travel to the
+#' workers with each task. With `n_cores = 1`, or when the default comes to one
+#' worker, the diagnostics run in the session.
+#'
+#' Test `i` draws its random numbers from stream `i` of a L'Ecuyer-CMRG
+#' generator seeded by one draw from the session's generator, on the workers
+#' and in the session alike. A seeded call that runs a resampling test, such as
+#' `"wild_bootstrap"`, therefore returns the same value each time and whatever
+#' `n_cores`, `n_cores = 1` included. It is not the value that test returns
+#' when called directly from the same seed, which draws from the session's
+#' generator; both are bootstraps of the same data.
 #'
 #' @seealso
 #' [cachedTest()] for memoised execution of individual diagnostics.
 #' @export
 runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
+  # Forced here, in the session. The task below travels to a socket worker
+  # with this frame, and an argument still a promise there is evaluated in
+  # the worker, which has no `m1` for runHeteroTestsParallel(m1, mtcars, ...)
+  # called at top level.
+  force(model)
+  force(data)
+  force(tests)
   if (is.null(n_cores)) {
     n_cores <- min(parallel::detectCores() - 1L, length(tests))
   }
 
-  if (n_cores > 1L && requireNamespace("parallel", quietly = TRUE)) {
+  # Test i draws from stream i of a L'Ecuyer-CMRG generator seeded by one
+  # draw from the session's, so a seeded call that runs a resampling test
+  # gives the same result each time, whatever n_cores: a call run in the
+  # session draws from the same streams as one run on workers. Before 0.15.0
+  # each worker drew from a generator set.seed() did not reach, and a call run
+  # in the session drew from the session's generator.
+  streams <- rtask_streams(length(tests))
+  task <- function(i) .run_registered_diagnostic(tests[[i]], model, data)
+  if (n_cores > 1L) {
     cl <- parallel::makeCluster(n_cores)
     on.exit(parallel::stopCluster(cl), add = TRUE)
 
     parallel::clusterEvalQ(cl, library(heteroTests))
-
-    # Test i draws from stream i of a L'Ecuyer-CMRG generator seeded by one
-    # draw from the session's, so a seeded call that runs a resampling test
-    # gives the same result each time, whatever n_cores. Before 0.15.0 each
-    # worker drew from a generator set.seed() did not reach.
-    results <- rparallel_tasks(
-      seq_along(tests),
-      function(i) .run_registered_diagnostic(tests[[i]], model, data),
-      rtask_streams(length(tests)), n_cores, cl
-    )
-    names(results) <- tests
+    results <- rparallel_tasks(seq_along(tests), task, streams, n_cores, cl)
   } else {
-    results <- lapply(tests, function(t) .run_registered_diagnostic(t, model, data))
-    names(results) <- tests
+    results <- lapply(seq_along(tests), function(i) rrun_on_stream(streams[[i]], task, i))
   }
+  names(results) <- tests
 
   results
 }
