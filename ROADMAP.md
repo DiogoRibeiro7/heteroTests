@@ -551,6 +551,22 @@ after it.
 - [ ] **Wild bootstrap multiplier** (Rademacher or Mammen). Settle it by a size
   study at small `n` with skewed errors, and record the result in
   `inst/validation/`.
+
+  Measured on 2026-10-15 in `inst/validation/wild-multiplier-size.R`: the
+  cross-sectional design of Pass A at 30, 50 and 100 observations, with
+  Gaussian, `t5` and centred exponential errors, 5000 replications and
+  `B = 999`, both multipliers on the same samples. Neither is better. Both
+  are inside the release gate in the same six of the nine size cells, those
+  with Gaussian and `t5` errors, and outside it in the same three, those with
+  exponential errors, where Rademacher's multiplier rejects 0.082, 0.073 and
+  0.061 of the time and Mammen's 0.078, 0.070 and 0.059. The interval around
+  0.049, the rate of an exact test with `B = 999`, gives the same split, and
+  no paired difference is outside its 99% interval. Against
+  `sigma^2 = exp(0.4 x1)` the power of the two differs by less than one
+  point at each `n`. Recommendation: keep `"rademacher"`, which changes no
+  value. The help page says the bootstrap controls the size for heavy-tailed
+  errors; that holds for the `t5` errors of the study and not for the skewed
+  ones, with either multiplier, and the page should say so.
 - [x] **Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
   `clusterSetRNGStream()` and no L'Ecuyer set-up on the `mclapply()` and
   `parLapply()` paths, so `set.seed()` does not make parallel resampling
@@ -1020,7 +1036,7 @@ which is also what a reader of the article asks of it. Within that group:
 | Question | Proposal | Needed by |
 | --- | --- | --- |
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
-| Wild bootstrap multiplier | Decide by simulation (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
+| Wild bootstrap multiplier | Keep `"rademacher"`: in `inst/validation/wild-multiplier-size.R` neither multiplier holds the level in more of the grid, and both are outside the gate under skewed errors at 30 to 100 observations (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
