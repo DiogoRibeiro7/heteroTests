@@ -105,7 +105,7 @@ performBPRandomEffectsTest <- function(model, data, id) {
   structure(
     list(
       statistic = c(LM = LM),
-      parameter = 1,
+      parameter = c(df = 1),
       p.value = p_value,
       method = "Breusch-Pagan LM test for random effects",
       data.name = deparse(formula(model))

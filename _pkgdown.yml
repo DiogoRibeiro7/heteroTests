@@ -12,8 +12,11 @@ navbar:
 reference:
   - title: Tests of the variance
     desc: >
-      Each test returns an `htest` object. The tests are grouped by the
-      family they belong to.
+      Each test returns an `htest` object, whose fields `test_results`
+      documents. The tests are grouped by the family they belong to.
+  - subtitle: What every test returns
+    contents:
+      - test_results
   - subtitle: Auxiliary-regression tests
     contents:
       - performWhiteTest

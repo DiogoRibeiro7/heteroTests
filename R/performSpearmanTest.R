@@ -90,7 +90,7 @@ performSpearmanTest <- function(model, data = NULL) {
   structure(
     list(
       statistic = c(t = t_statistic),
-      parameter = n - 2,
+      parameter = c(df = n - 2),
       p.value = p_value,
       method = "Spearman rank correlation test for heteroscedasticity",
       data.name = deparse(stats::formula(model)),

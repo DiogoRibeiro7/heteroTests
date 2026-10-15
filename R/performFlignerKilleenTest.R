@@ -209,7 +209,7 @@ performFlignerKilleenTest <- function(model, data, group) {
   structure(
     list(
       statistic = c("X-squared" = unname(fl_res$statistic)),
-      parameter = unname(fl_res$parameter),
+      parameter = c(df = unname(fl_res$parameter)),
       p.value = fl_res$p.value,
       method = "Fligner-Killeen test for homogeneity of variances",
       data.name = deparse(stats::formula(model))

@@ -204,7 +204,7 @@ performBartlettTest <- function(model, data, group) {
   structure(
     list(
       statistic = c("X-squared" = unname(bt$statistic)),
-      parameter = unname(bt$parameter),
+      parameter = c(df = unname(bt$parameter)),
       p.value = bt$p.value,
       method = "Bartlett's test for equality of variances",
       data.name = deparse(stats::formula(model))
