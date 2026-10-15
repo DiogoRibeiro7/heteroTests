@@ -27,16 +27,34 @@ test_that("performWhiteTestRobust produces bootstrap diagnostics when requested"
   expect_true("p.value_bootstrap" %in% names(result))
 })
 
-test_that("performBPTestRobust handles studentized toggle", {
+test_that("performBPTestRobust handles studentize toggle", {
   model <- stats::lm(mpg ~ wt + cyl, data = mtcars)
 
-  classic <- performBPTestRobust(model, mtcars, studentized = FALSE, bootstrap = FALSE)
-  student <- performBPTestRobust(model, mtcars, studentized = TRUE, bootstrap = FALSE)
+  classic <- performBPTestRobust(model, mtcars, studentize = FALSE, bootstrap = FALSE)
+  student <- performBPTestRobust(model, mtcars, studentize = TRUE, bootstrap = FALSE)
 
   expect_false(classic$robust_details$studentized)
   expect_true(student$robust_details$studentized)
   expect_false(classic$robust_details$bootstrap$enabled)
   expect_true(is.list(student$robust_details$effect_size))
+
+  # The old name `studentized` still works for one release, warns and returns
+  # what `studentize` returns.
+  for (value in c(FALSE, TRUE)) {
+    expect_warning(
+      old <- performBPTestRobust(model, mtcars, studentized = value, bootstrap = FALSE),
+      "`studentized` of performBPTestRobust\\(\\) is deprecated.*Use `studentize`",
+      class = "deprecatedWarning"
+    )
+    expect_identical(
+      old,
+      performBPTestRobust(model, mtcars, studentize = value, bootstrap = FALSE)
+    )
+  }
+  expect_error(
+    performBPTestRobust(model, mtcars, studentize = TRUE, studentized = TRUE),
+    "Supply `studentize` only"
+  )
 })
 
 test_that("rcalculateEffectSize supports multiple metrics", {

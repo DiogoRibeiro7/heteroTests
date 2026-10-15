@@ -18,6 +18,7 @@ returned in 0.14.0 and warns with the call to use instead.
 | `performHarveyTest(model, auxiliary, studentize)` | `performHarveyTest(model, data = NULL, auxiliary, studentize)` | Yes, with a warning, when `auxiliary` is a string given second by position, alone or followed by `studentize` |
 | `performSpearmanTest(model)` | `performSpearmanTest(model, data = NULL)` | Yes: `data` is optional |
 | `performSpreadLevelTest(model)` | `performSpreadLevelTest(model, data = NULL)` | Yes: `data` is optional |
+| `performBPTestRobust(model, data, studentized = TRUE)` | `performBPTestRobust(model, data, studentize = TRUE)` | Yes, with a warning |
 
 Calls that name their arguments, such as `performArchLMTest(model, lags = 3)`,
 are unchanged and do not warn.
@@ -37,6 +38,15 @@ covariance matrices of the data, not the residuals of a model.
 `tests/testthat/test-model-data-convention.R` checks the signatures, the
 warnings and that each old and new call returns the value of the old one.
 The registry entries `"cook_weisberg"` and `"spread_level"` pass the data on.
+
+### `studentize` everywhere
+
+The argument that chooses the studentized statistic is called `studentize`
+throughout, as in `lmtest::bptest()` and `performHarveyTest()`.
+`performBPTestRobust()` called it `studentized`; the old name is still
+accepted in 0.15.0, does what `studentize` does and warns. The field
+`robust_details$studentized` of the result keeps its name, so the returned
+object does not change.
 
 ## 0.14.0
 

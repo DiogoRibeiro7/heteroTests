@@ -132,7 +132,7 @@ performStudentizedBPTest <- function(model, data) {
 }
 
 # The implementation behind the deprecated performStudentizedBPTest(), the
-# "student_bp" registry name and performBPTestRobust(studentized = TRUE). It
+# "student_bp" registry name and performBPTestRobust(studentize = TRUE). It
 # is kept as it was, so that none of them changes value in 0.14.0.
 .studentized_bp_test <- function(model, data, data_name = deparse(substitute(model))) {
   test_label <- "Studentized BP"

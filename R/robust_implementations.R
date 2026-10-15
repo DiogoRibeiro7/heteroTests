@@ -177,17 +177,21 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #' diagnostics.
 #'
 #' @inheritParams performBPTest
-#' @param studentized Logical, use studentized residuals for the auxiliary
-#'   regression (Koenker variant)? Defaults to `TRUE`.
+#' @param studentize Logical, use studentized residuals for the auxiliary
+#'   regression (Koenker variant)? Defaults to `TRUE`. The name matches
+#'   `lmtest::bptest()` and [performHarveyTest()].
 #' @inheritParams performWhiteTestRobust
+#' @param studentized Deprecated since 0.15.0: use `studentize`. It is still
+#'   accepted, with a warning, and does what `studentize` does.
 #'
 #' @return An augmented \code{htest} object containing a
-#'   `robust_details` element describing the additional diagnostics.
+#'   `robust_details` element describing the additional diagnostics. Its
+#'   `studentized` field records the value of `studentize`.
 #'
 #' @details
 #' Offers expanded reporting for the Breusch–Pagan family of tests including
 #' bootstrap p-values and asymptotic confidence intervals. The optional
-#' `studentized` argument toggles between the classic and Koenker versions.
+#' `studentize` argument toggles between the classic and Koenker versions.
 #'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
@@ -206,11 +210,24 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #' standalone studentised variant.
 #'
 #' @export
-performBPTestRobust <- function(model, data, studentized = TRUE,
+performBPTestRobust <- function(model, data, studentize = TRUE,
                                 bootstrap = FALSE, B = 1000, ci_level = 0.95,
-                                parallel = FALSE) {
-  if (!is.logical(studentized) || length(studentized) != 1L || is.na(studentized)) {
-    stop("`studentized` must be a single logical value.", call. = FALSE)
+                                parallel = FALSE, studentized) {
+  if (!missing(studentized)) {
+    if (!missing(studentize)) {
+      stop("Supply `studentize` only; `studentized` is its deprecated name.", call. = FALSE)
+    }
+    .Deprecated(
+      old = "performBPTestRobust",
+      msg = paste0(
+        "The argument `studentized` of performBPTestRobust() is deprecated.\n",
+        "Use `studentize` instead, as in lmtest::bptest()."
+      )
+    )
+    studentize <- studentized
+  }
+  if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
+    stop("`studentize` must be a single logical value.", call. = FALSE)
   }
 
   if (!is.logical(bootstrap) || length(bootstrap) != 1L || is.na(bootstrap)) {
@@ -246,7 +263,7 @@ performBPTestRobust <- function(model, data, studentized = TRUE,
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  base_fun <- if (studentized) .studentized_bp_test else performBPTest
+  base_fun <- if (studentize) .studentized_bp_test else performBPTest
   base_result <- base_fun(model, working_data)
 
   df <- .extract_df(base_result, model)
@@ -292,10 +309,11 @@ performBPTestRobust <- function(model, data, studentized = TRUE,
   effect <- .calculate_effect_size(base_result, model, working_data)
   power <- .estimate_test_power(base_result, model, working_data, alpha = 1 - ci_level)
 
-  descriptor <- if (studentized) "Studentized" else "Classical"
+  descriptor <- if (studentize) "Studentized" else "Classical"
   base_result$method <- paste(base_result$method, "(robust", descriptor, ")")
+  # The field keeps its name, so that the returned object does not change.
   base_result$robust_details <- list(
-    studentized = studentized,
+    studentized = studentize,
     confidence_interval = ci_info,
     effect_size = effect,
     bootstrap = bootstrap_details,
@@ -367,7 +385,7 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
     results$breusch_pagan <- performBPTestRobust(
       model,
       data,
-      studentized = auto_enhance,
+      studentize = auto_enhance,
       bootstrap = use_boot,
       B = bootstrap_B,
       ci_level = ci_level,

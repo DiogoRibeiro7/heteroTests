@@ -523,9 +523,11 @@ after it.
   0.15.0 and warns with the new call; `NEWS.md` has the table. No value
   changes: every old and new form returns what the old form returned in
   0.14.0, checked with `identical()` against 0.14.0.
-- [ ] **Argument names.** Harvey uses `studentize` and `performBPTestRobust()`
-  uses `studentized`. Standardise on `studentize`, which matches
-  `lmtest::bptest()`.
+- [x] **Argument names.** Harvey used `studentize` and `performBPTestRobust()`
+  `studentized`. Standardised on `studentize`, which matches
+  `lmtest::bptest()`; `studentized` is accepted with a deprecation warning in
+  0.15.0, and the `robust_details$studentized` field of the result keeps its
+  name. No value changes.
 - [ ] **Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
   permutation, and 1000 for the White bootstrap and
   `bootstrapTestStatistic()`. Under the `(1 + #) / (B + 1)` convention, a
