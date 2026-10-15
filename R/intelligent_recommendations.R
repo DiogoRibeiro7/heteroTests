@@ -168,7 +168,13 @@ suggestDiagnosticsForProfile <- function(profile) {
   stopifnot(is.list(profile))
 
   recommendations <- list(
-    list(test = "breusch_pagan", rationale = "Baseline regression-based heteroscedasticity check."),
+    list(
+      test = "koenker",
+      rationale = paste(
+        "Baseline regression-based heteroscedasticity check, studentized so",
+        "that it does not assume normal errors."
+      )
+    ),
     list(test = "white", rationale = "Detects general forms of non-constant variance.")
   )
 

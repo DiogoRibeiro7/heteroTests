@@ -29,7 +29,11 @@ test_that("diagnostic suggestions reflect profile", {
   )
 
   recs <- suggestDiagnosticsForProfile(profile)
-  expect_true("breusch_pagan" %in% recs$test)
+  # The baseline is the default battery of runHeteroTests(), White and
+  # Koenker, since 0.15.0; the classical Breusch-Pagan test assumes normal
+  # errors.
+  expect_true(all(c("koenker", "white") %in% recs$test))
+  expect_false("breusch_pagan" %in% recs$test)
   expect_true("wild_bootstrap" %in% recs$test)
   expect_true("high_dimensional" %in% recs$test)
   expect_true("spatial_hetero" %in% recs$test)
