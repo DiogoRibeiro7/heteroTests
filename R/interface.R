@@ -53,8 +53,12 @@ rcheck_data_matches_model <- function(model, data, test_label) {
   }
   resid_names <- names(residuals)
   rows_known <- length(resid_names) > 0L && !is.null(rownames(data))
-  if ((rows_known && !all(resid_names %in% rownames(data))) ||
-      (!rows_known && nrow(data) != length(residuals))) {
+  mismatch <- if (rows_known) {
+    !all(resid_names %in% rownames(data))
+  } else {
+    nrow(data) != length(residuals)
+  }
+  if (mismatch) {
     rstop_data_rows(residuals, data, test_label)
   }
   invisible(NULL)
