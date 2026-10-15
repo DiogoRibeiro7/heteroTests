@@ -8,10 +8,10 @@
 
 The reference distribution takes the weights as known. When they were estimated from the same data, as by \code{\link{fitWLS}()}, it is only approximate, and not more accurate in larger samples. With a correctly specified variance function and normal errors, the Koenker test rejected 8\% of the time at the 5\% level with 150 observations and 11\% with 600, the White test 6\% and 8\%, and the Harvey test never, because it repeats the regression the weights were estimated from (\code{inst/validation/weighted-fits-size.csv}). \code{\link{performVarianceFormTest}()} accounts for the estimation, held its level in the same designs, and is the test to use on a \code{fitWLS()} fit.
 }
-\usage{performKoenkerTest(model, data)}
+\usage{performKoenkerTest(model, data = NULL)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, and so may a weighted fit whose weights are a column of the data, which the model frame holds as \code{(weights)}.}
 }
 \value{An object of class \code{htest} containing the test statistic, p-value and degrees of freedom.}
 \examples{

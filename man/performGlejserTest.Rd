@@ -7,12 +7,12 @@
 The default statistic has its nominal level when positive and negative errors are equally likely. Use \code{robust = TRUE} when the residuals are skewed or their shape is unknown.
 
 Either form conditions on one variable and one transformation. Scanning several transformations and reporting only the smallest p-value invalidates the nominal level. Simulated size and power are recorded in \code{inst/validation/pass-a-size-power.csv} for the default and in \code{inst/validation/glejser-skewed-errors.csv} for both.}
-\usage{performGlejserTest(model, data, variable,
+\usage{performGlejserTest(model, data = NULL, variable,
                    transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
                    robust = FALSE)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{variable} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
   \item{variable}{name of the suspected variable.}
   \item{transformation}{transformation applied to \code{variable}.}
   \item{robust}{logical. When \code{FALSE} (the default) the statistic is Glejser's (1969), which has its nominal level when positive and negative errors are equally likely, as they are for symmetric errors. When \code{TRUE} the absolute residuals are corrected for the asymmetry of the errors before the auxiliary regression. See the section on asymmetric errors.}

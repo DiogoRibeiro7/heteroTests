@@ -1122,6 +1122,9 @@ rvalidateGroupingVariable <- function(data, group_var, min_group_size = 3, min_g
 #'
 #' @inheritParams performWhiteTest
 #' @inheritParams rvalidateTestRequirements
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
 #' @param groups Optional grouping vector used for per-group requirements. If
 #'   omitted, the function attempts to derive the grouping variable from
 #'   `...` when `group_var` is supplied.

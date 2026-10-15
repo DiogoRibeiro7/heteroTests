@@ -6,11 +6,11 @@
 \details{The test statistic is half the explained sum of squares from regressing the scaled squared residuals \eqn{e_i^2/\hat{\sigma}^2 - 1} (with \eqn{\hat{\sigma}^2 = \sum e_i^2 / n}) on the explanatory variables. Under the null hypothesis of homoscedasticity \emph{and normal disturbances} it follows a chi-square distribution with degrees of freedom equal to the number of regressors, matching \code{lmtest::bptest(..., studentize = FALSE)}. For the studentized \eqn{n R^2} form that drops the normality assumption use \code{\link{performKoenkerTest}}.}
 \section{Deprecated name}{\code{performBreuschPaganTest()} is deprecated since 0.14.0. It was the same function as \code{performBPTest()} under a second name; it still works, returns what \code{performBPTest()} returns and warns. Use \code{performBPTest()}.}
 \section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}
-\usage{performBPTest(model, data)
-performBreuschPaganTest(model, data)}
+\usage{performBPTest(model, data = NULL)
+performBreuschPaganTest(model, data = NULL)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, and so may a weighted fit whose weights are a column of the data, which the model frame holds as \code{(weights)}.}
 }
 \value{An object of class \code{htest} containing the test statistic, p-value and degrees of freedom.}
 \examples{

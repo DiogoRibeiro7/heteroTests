@@ -44,7 +44,7 @@ contract_recipes <- list(
   performSpatialHeteroTest = function(m, d) {
     testthat::skip_if_not_installed("spdep")
     set.seed(1)
-    coords <- cbind(runif(nrow(d)), runif(nrow(d)))
+    coords <- cbind(runif(stats::nobs(m)), runif(stats::nobs(m)))
     lw <- suppressWarnings(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(coords, k = 4))))
     performSpatialHeteroTest(m, d, listw = lw, permutations = 19)
   },
@@ -66,6 +66,6 @@ contract_recipes <- list(
   performBPRandomEffectsTest = function(m, d) performBPRandomEffectsTest(m, d, "id"),
   performDavidianCarrollTest = function(m, d) performDavidianCarrollTest(m, d),
   performVarianceFormTest = function(m, d) performVarianceFormTest(m, d),
-  performRESETTest = function(m, d) performRESETTest(m),
+  performRESETTest = function(m, d) performRESETTest(m, d),
   performBoxMTest = function(m, d) performBoxMTest(d[, c("y", "x2")], d$group)
 )

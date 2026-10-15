@@ -3,14 +3,14 @@
 \alias{performKoenkerTestStreaming}
 \title{Streaming Koenker studentized Breusch\–Pagan test}
 \usage{
-performKoenkerTestStreaming(model, data, chunk_size = 10000, progress = interactive())
+performKoenkerTestStreaming(model, data = NULL, chunk_size = 10000, progress = interactive())
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object supplying residuals and fitted values for
 the diagnostic.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} containing the variables referenced in
-\code{model}. The data must align with the observations used to fit the model.}
+\code{model}. The data must align with the observations used to fit the model. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, and so may a weighted fit whose weights are a column of the data, which the model frame holds as \code{(weights)}.}
 
 \item{chunk_size}{Positive integer giving the number of observations processed per
 streaming chunk.}

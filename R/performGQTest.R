@@ -9,6 +9,10 @@
 #'   interest.
 #' @param data A [base::data.frame] containing the variables used to estimate
 #'   `model`. All rows used to fit the model must be present.
+#'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param order_by Character scalar giving the name of the variable that orders
 #'   the data prior to forming the two subsamples.
 #' @param fraction Numeric scalar in \((0, 1)\) specifying the fraction of central
@@ -56,8 +60,9 @@
 #' [lmtest::gqtest()] for the reference implementation, [performHarveyTest()]
 #' and [performParkTest()] for parametric alternatives.
 #' @export
-performGQTest <- function(model, data, order_by, fraction = 0.2,
+performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
                           alternative = c("greater", "two.sided", "less")) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Goldfeld-Quandt test"
   alternative <- match.arg(alternative)
 

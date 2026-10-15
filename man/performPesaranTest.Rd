@@ -3,10 +3,10 @@
 \title{Perform Pesaran CD test}
 \description{Checks for cross-sectional dependence in panel residuals.}
 \details{The statistic averages pairwise correlation coefficients of the residuals and is standardized to follow a normal distribution under the null of independence.}
-\usage{performPesaranTest(model, data, id, time)}
+\usage{performPesaranTest(model, data = NULL, id, time)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{id} and \code{time} must then be variables of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
   \item{id}{individual identifier column.}
   \item{time}{time column.}
 }

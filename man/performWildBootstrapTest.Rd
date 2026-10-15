@@ -6,7 +6,7 @@
 \usage{
 performWildBootstrapTest(
   model,
-  data,
+  data = NULL,
   B = 499,
   distribution = c("rademacher", "mammen"),
   progress = interactive()
@@ -18,7 +18,12 @@ residual variance is to be assessed.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} (or compatible object) containing the
 variables referenced in \code{model}. The data must include all observations used
-to fit \code{model} and should not contain unresolved missing values.}
+to fit \code{model} and should not contain unresolved missing values.
+When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
+terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
+a model that transforms a variable needs \code{data}, and so may a weighted fit
+whose weights are a column of the data, which the model frame holds as
+\code{(weights)}.}
 
 \item{B}{Integer number of bootstrap replications. Defaults to \code{499}.}
 

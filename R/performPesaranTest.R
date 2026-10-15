@@ -8,6 +8,10 @@
 #'   must be ordered consistently with `data`.
 #' @param data A [base::data.frame] containing the variables used in `model` and
 #'   the panel identifiers supplied via `id` and `time`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `id` and
+#'   `time` must then be variables of the model. The model frame holds the terms
+#'   of the model rather than its variables (`log(x)` rather than `x`), so a
+#'   model that transforms a variable needs `data`.
 #' @param id Character scalar naming the column that identifies individuals (the
 #'   cross-sectional dimension).
 #' @param time Character scalar naming the column that indexes time periods.
@@ -59,7 +63,8 @@
 #' @seealso
 #' [performBPRandomEffectsTest()] for related random-effects diagnostics and
 #' [performSpatialHeteroTest()] when spatial dependence is suspected.
-performPesaranTest <- function(model, data, id, time) {
+performPesaranTest <- function(model, data = NULL, id, time) {
+  data <- rdata_or_model_frame(model, data)
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }

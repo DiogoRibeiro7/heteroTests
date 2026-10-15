@@ -10,6 +10,11 @@
 #'   for the diagnostic.
 #' @param data A [base::data.frame] containing the variables referenced in
 #'   `model`. The data must align with the observations used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, and so may a weighted fit
+#'   whose weights are a column of the data, which the model frame holds as
+#'   `(weights)`.
 #'
 #' @return An object of class \code{htest} with the chi-squared statistic,
 #'   degrees of freedom, and p-value for the null hypothesis of homoskedasticity.
@@ -78,7 +83,8 @@
 #' @seealso
 #' [performBPTest()] for the classical LM statistic using squared residuals,
 #' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
-performKoenkerTest <- function(model, data) {
+performKoenkerTest <- function(model, data = NULL) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker studentized Breusch-Pagan test"
 
   rvalidateModelInputs(model, test_name = "Koenker", min_obs = 15L)

@@ -4,7 +4,7 @@
 \alias{performWhiteTestBootstrap}
 \title{Bootstrap White test}
 \usage{
-performWhiteTestBootstrap(model, data, B = 1000, parallel = FALSE)
+performWhiteTestBootstrap(model, data = NULL, B = 1000, parallel = FALSE)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
@@ -12,7 +12,12 @@ to be diagnosed.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
 variables referenced by \code{model}. It must include the observations used to
-fit \code{model} and will be checked for missing values.}
+fit \code{model} and will be checked for missing values.
+When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
+terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
+a model that transforms a variable needs \code{data}, and so may a weighted fit
+whose weights are a column of the data, which the model frame holds as
+\code{(weights)}.}
 
 \item{B}{Integer scalar giving the number of bootstrap replications. Larger
 values yield smoother p-value estimates at the cost of additional runtime.}

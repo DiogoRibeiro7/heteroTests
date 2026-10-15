@@ -8,6 +8,10 @@
 #' @param model A fitted [stats::lm] object, with or without weights.
 #' @param data A [base::data.frame] containing the variables used to fit
 #'   `model` and the ordering variable named by `order_by`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param order_by Character scalar naming the column of `data` that orders the
 #'   observations. Tied values keep the order the observations have in the
 #'   fitted model.
@@ -139,8 +143,9 @@
 #' ordering of the observations; [performGlejserTest()] when the errors may be
 #' heavy-tailed.
 #' @export
-performHarrisonMcCabeTest <- function(model, data, order_by, point = 0.5,
+performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
                                       alternative = c("less", "two.sided", "greater")) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Harrison-McCabe test"
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {

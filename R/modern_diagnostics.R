@@ -130,9 +130,10 @@
 #' }
 #'
 #' @export
-performWildBootstrapTest <- function(model, data, B = 499,
+performWildBootstrapTest <- function(model, data = NULL, B = 499,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
+  data <- rdata_or_model_frame(model, data)
   distribution <- match.arg(distribution)
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
     stop("`B` must be a positive integer.", call. = FALSE)
@@ -303,7 +304,9 @@ performWildBootstrapTest <- function(model, data, B = 499,
 #' performRankPermutationTest(model, mtcars, B = 199, progress = FALSE)
 #'
 #' @export
-performRankPermutationTest <- function(model, data, order_by = NULL, B = 999, progress = interactive()) {
+performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 999,
+                                       progress = interactive()) {
+  data <- rdata_or_model_frame(model, data)
   if (!is.null(order_by)) {
     order_by <- enforce_character_scalar(order_by, "order_by")
   }
@@ -419,7 +422,9 @@ performRankPermutationTest <- function(model, data, order_by = NULL, B = 999, pr
 #' performHighDimensionalTest(model, df)
 #'
 #' @export
-performHighDimensionalTest <- function(model, data, variance_threshold = 0.9, max_components = NULL) {
+performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 0.9,
+                                       max_components = NULL) {
+  data <- rdata_or_model_frame(model, data)
   if (!is.numeric(variance_threshold) || length(variance_threshold) != 1L ||
     is.na(variance_threshold) || variance_threshold <= 0 || variance_threshold > 1) {
     stop("`variance_threshold` must be in (0, 1].", call. = FALSE)
@@ -520,7 +525,9 @@ performHighDimensionalTest <- function(model, data, variance_threshold = 0.9, ma
 #' }
 #'
 #' @export
-performSpatialHeteroTest <- function(model, data, listw, permutations = 499, zero.policy = NULL) {
+performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 499,
+                                     zero.policy = NULL) {
+  data <- rdata_or_model_frame(model, data)
   if (!requireNamespace("spdep", quietly = TRUE)) {
     stop("Package 'spdep' is required for the spatial heteroscedasticity test.", call. = FALSE)
   }

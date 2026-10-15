@@ -8,6 +8,10 @@
 #' @param model A fitted [stats::lm] object for which heteroscedasticity is to be
 #'   assessed.
 #' @param data A [base::data.frame] containing the variables used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `variable`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param variable Character scalar naming the regressor suspected of driving the
 #'   heteroscedasticity. The column must be numeric and strictly positive when
 #'   using the log transformation.
@@ -54,7 +58,8 @@
 #' @seealso
 #' [performHarveyTest()] and [performGlejserTest()] offer related parametric
 #' tests based on alternative variance specifications.
-performParkTest <- function(model, data, variable) {
+performParkTest <- function(model, data = NULL, variable) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Park test"
 
   if (!is.character(variable) || length(variable) != 1L || is.na(variable) || !nzchar(variable)) {

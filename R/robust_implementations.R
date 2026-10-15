@@ -73,9 +73,10 @@ NULL
 #' [performWhiteTestBootstrap()] for a lighter-weight resampling option.
 #'
 #' @export
-performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"),
+performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "reduced"),
                                    bootstrap = FALSE, B = 1000, ci_level = 0.95,
                                    parallel = FALSE) {
+  data <- rdata_or_model_frame(model, data)
   method <- match.arg(method)
 
   if (!is.logical(bootstrap) || length(bootstrap) != 1L || is.na(bootstrap)) {
@@ -211,9 +212,10 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #' standalone studentised variant.
 #'
 #' @export
-performBPTestRobust <- function(model, data, studentize = TRUE,
+performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
                                 bootstrap = FALSE, B = 1000, ci_level = 0.95,
                                 parallel = FALSE, studentized) {
+  data <- rdata_or_model_frame(model, data)
   if (!missing(studentized)) {
     if (!missing(studentize)) {
       stop("Supply `studentize` only; `studentized` is its deprecated name.", call. = FALSE)
@@ -331,6 +333,9 @@ performBPTestRobust <- function(model, data, studentize = TRUE,
 #' small samples and optional studentisation.
 #'
 #' @inheritParams performWhiteTestRobust
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
 #' @param tests Character vector of tests to run. Use "all" (default) to
 #'   run the White and Breusch-Pagan diagnostics, or supply a subset such
 #'   as `c("white", "bp")`.
@@ -440,6 +445,9 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
 #' @param test_name Character scalar naming the diagnostic: "breusch_pagan",
 #'   "studentized_bp", or "white".
 #' @inheritParams performWhiteTestRobust
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
 #' @param tolerance Acceptable absolute difference between statistics and
 #'   p-values when comparing to the reference implementation.
 #'

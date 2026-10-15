@@ -10,6 +10,11 @@
 #' @param data A [base::data.frame] (or compatible object) containing the
 #'   variables referenced in `model`. The data must include all observations used
 #'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, and so may a weighted fit
+#'   whose weights are a column of the data, which the model frame holds as
+#'   `(weights)`.
 #'
 #' @return An object of class \code{htest} with the LM statistic, degrees of
 #'   freedom, and p-value for the null hypothesis of constant error variance.
@@ -78,7 +83,8 @@
 #' [performKoenkerTest()] for the studentized
 #' \eqn{n R^2} LM statistic that drops the normality assumption, and
 #' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
-performBPTest <- function(model, data) {
+performBPTest <- function(model, data = NULL) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan test"
   rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L)
 
@@ -238,7 +244,7 @@ performBPTest <- function(model, data) {
 #'   `performBPTest()`.
 #' @rdname performBPTest
 #' @export
-performBreuschPaganTest <- function(model, data) {
+performBreuschPaganTest <- function(model, data = NULL) {
   .Deprecated("performBPTest", old = "performBreuschPaganTest")
   performBPTest(model, data)
 }
