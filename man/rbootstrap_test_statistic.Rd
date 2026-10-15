@@ -112,7 +112,8 @@ p-value is \verb{(1 + #) / (B_eff + 1)}, so a test at level \code{alpha} is exac
 only when \code{alpha * (B + 1)} is an integer: with 999 it is at the 5\% and
 1\% levels, and with 1000, the default before 0.15.0, at neither.}
 
-\item{parallel}{Logical, compute replicates in parallel when possible?}
+\item{parallel}{Logical, compute replicates in parallel when possible? See
+\emph{Parallel replicates}.}
 
 \item{ci_level}{Confidence level for the percentile interval.}
 
@@ -122,7 +123,8 @@ the response under homoscedasticity and yields a testable \code{p_value};
 replicates and an interval but no p-value. See Details.}
 
 \item{n_cores}{Optional integer specifying the number of worker processes to
-use when \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}.}
+use when \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}.
+The result does not depend on it.}
 
 \item{progress}{Logical flag controlling whether a textual progress bar is
 displayed during bootstrap replication.}
@@ -156,6 +158,20 @@ statistics produced by heteroscedasticity diagnostics. The routine
 refits the supplied model on each bootstrap replicate and evaluates
 \code{test_function} on it, returning the bootstrap distribution, a
 percentile interval, and---for null-imposed resampling---a p-value.
+}
+\section{Parallel replicates}{
+
+With \code{parallel = TRUE} replicate \code{i} draws its random numbers from stream
+\code{i} of a L'Ecuyer-CMRG generator (\code{\link[parallel:RngStream]{parallel::nextRNGStream()}}), seeded by
+one number drawn from the session's generator. A call made after
+\code{set.seed()} therefore returns the same result each time, whatever
+\code{n_cores} and whether the workers are forked (\code{\link[parallel:mclapply]{parallel::mclapply()}}) or
+run on a socket cluster (\code{\link[parallel:makeCluster]{parallel::makeCluster()}}, where the platform
+cannot fork). It does not return the result of the same call with
+\code{parallel = FALSE}, which draws every replicate from the session's
+generator, as it did before 0.15.0: the two are bootstraps of the same data
+with different draws, and each is valid. Before 0.15.0 a seeded call with
+\code{parallel = TRUE} gave a different result each time.
 }
 \section{Deprecated name}{
 

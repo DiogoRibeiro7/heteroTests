@@ -4,7 +4,13 @@
 \alias{performWhiteTestBootstrap}
 \title{Bootstrap White test}
 \usage{
-performWhiteTestBootstrap(model, data = NULL, B = 999, parallel = FALSE)
+performWhiteTestBootstrap(
+  model,
+  data = NULL,
+  B = 999,
+  parallel = FALSE,
+  n_cores = NULL
+)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
@@ -26,9 +32,14 @@ replicate succeeds), so a test at level \code{alpha} is exact only when
 \code{alpha * (B_eff + 1)} is an integer: with 999 it is at the 5\% and 1\%
 levels, and with 1000, the default before 0.15.0, at neither.}
 
-\item{parallel}{Logical scalar; if \code{TRUE} the bootstrap loop is executed with
-\code{\link[parallel:mclapply]{parallel::mclapply()}} when the \code{parallel} package and forked processing are
-available.}
+\item{parallel}{Logical scalar; if \code{TRUE} the replicates are computed in
+parallel, by forked workers (\code{\link[parallel:mclapply]{parallel::mclapply()}}) where the platform
+can fork and on a socket cluster (\code{\link[parallel:makeCluster]{parallel::makeCluster()}}) elsewhere.
+See \emph{Parallel replicates}.}
+
+\item{n_cores}{Optional integer number of worker processes when
+\code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}. The result
+does not depend on it.}
 }
 \value{
 A \code{htest} object reporting both the asymptotic White statistic
@@ -61,6 +72,20 @@ The bootstrap distribution offers improved size control for moderate sample
 sizes or high-dimensional designs where the chi-squared approximation may be
 inaccurate. When \code{parallel = TRUE} the resampling step exploits available CPU
 cores to reduce computation time.
+}
+\section{Parallel replicates}{
+
+With \code{parallel = TRUE} replicate \code{i} draws its random numbers from stream
+\code{i} of a L'Ecuyer-CMRG generator (\code{\link[parallel:RngStream]{parallel::nextRNGStream()}}), seeded by
+one number drawn from the session's generator. A call made after
+\code{set.seed()} therefore returns the same result each time, whatever the
+number of workers and whether they are forked or run on a socket cluster.
+It does not return the result of the same call with \code{parallel = FALSE},
+which draws every replicate from the session's generator, as it did before
+0.15.0: the two are bootstraps of the same data with different draws, and
+each is valid. Before 0.15.0 a seeded call with \code{parallel = TRUE} gave a
+different result each time, and on Windows more than one worker was an
+error.
 }
 \section{Weighted fits}{
 
@@ -108,12 +133,11 @@ performWhiteTestBootstrap(mod, sim, B = 199)
 # More replications give a smoother p-value estimate
 performWhiteTestBootstrap(mod, sim, B = 499)
 
-# parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows
-# does not support. The call runs only where that is at most two workers,
-# the most R CMD check --as-cran allows.
-if (.Platform$OS.type != "windows" && isTRUE(parallel::detectCores() <= 3L)) {
-  performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
-}
+# parallel = TRUE runs the replicates on n_cores workers, forked where the
+# platform can fork and on a socket cluster elsewhere. Two is the most
+# R CMD check --as-cran allows, and the result does not depend on it.
+set.seed(42)
+performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE, n_cores = 2)
 }
 
 }

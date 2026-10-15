@@ -549,11 +549,16 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
     on.exit(parallel::stopCluster(cl), add = TRUE)
 
     parallel::clusterEvalQ(cl, library(heteroTests))
-    parallel::clusterExport(cl, c("model", "data"), envir = environment())
 
-    results <- parallel::parLapply(cl, tests, function(t) {
-      .run_registered_diagnostic(t, model, data)
-    })
+    # Test i draws from stream i of a L'Ecuyer-CMRG generator seeded by one
+    # draw from the session's, so a seeded call that runs a resampling test
+    # gives the same result each time, whatever n_cores. Before 0.15.0 each
+    # worker drew from a generator set.seed() did not reach.
+    results <- rparallel_tasks(
+      seq_along(tests),
+      function(i) .run_registered_diagnostic(tests[[i]], model, data),
+      rtask_streams(length(tests)), n_cores, cl
+    )
     names(results) <- tests
   } else {
     results <- lapply(tests, function(t) .run_registered_diagnostic(t, model, data))
