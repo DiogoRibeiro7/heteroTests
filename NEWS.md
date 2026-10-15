@@ -79,6 +79,35 @@ weighted fit, 132 are `identical()` to those of 0.14.0 and the other 24, of
 these six tests, are `identical()` once the added name or `data.name` is
 removed.
 
+### Input validation
+
+`tests/testthat/test-input-validation.R` gives every exported test the same
+four bad inputs: a `glm`, a model with an `NA` coefficient, data that lack
+rows the model was fitted to, and data that lack a variable of the model.
+Where a test already stopped, it now stops with the message the others give:
+
+- the eight tests that read everything from the model check the `data` they
+  are given since 0.15.0, with the messages of the tests that use `data`; the
+  model frame is accepted as it is;
+- `performBPRandomEffectsTest()` names the rows `data` lacks, where it stopped
+  with "arguments must have same length";
+- `performWhiteTestStreaming()` refuses a `glm`, where it stopped with
+  "missing value where TRUE/FALSE needed", and it, `performHarrisonMcCabeTest()`
+  and `performVarianceFormTest()` refuse it with one message.
+
+No value changes: over the 217 calls of the `(model, data, ...)` comparison
+and the 156 results of the return-contract comparison, every result is
+`identical()` to 0.14.0, apart from the `df` names and the `data.name` above.
+Some tests still return a value for one of the four inputs, and refusing it
+would change what those calls return, so they are left as they are until the
+author decides (*Decisions needed* in `ROADMAP.md`): 36 of the 39 tests on a
+model accept a `glm`; `performSpreadLevelTest()`,
+`performDavidianCarrollTest()`, `performPesaranTest()`,
+`performBPRandomEffectsTest()` and `performRESETTest()` accept a model with an
+`NA` coefficient; `performVarianceFormTest()` and `performPesaranTest()` accept
+data that lack rows of the fit, and they and `performBPRandomEffectsTest()`
+data that lack a variable of the model.
+
 ## 0.14.0
 
 0.14.0 reviews the exported names before 1.0.0: it deprecates 22 exports and
