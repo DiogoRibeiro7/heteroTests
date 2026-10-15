@@ -210,6 +210,17 @@ are bootstraps of the same data, and
 have the same distribution. The help pages say this under *Parallel
 replicates*.
 
+**`runHeteroTestsParallel()` with one worker returns a different value for a
+resampling test.** With `n_cores = 1`, and when the default comes to one
+worker, for one test or on a machine with two cores or fewer, it runs the
+tests in the session, where they drew from the session's generator. Test `i`
+draws from stream `i` there too now, so the value is the one the workers
+give, whatever `n_cores`. With `set.seed(99)`,
+`runHeteroTestsParallel(lm(mpg ~ wt + qsec, data = mtcars), mtcars, tests =
+c("koenker", "wild_bootstrap"), n_cores = 1)` gave a wild bootstrap p-value
+of 0.2120, that of `performWildBootstrapTest()` called from the same seed,
+and gives 0.2110, as with `n_cores = 2` or 3.
+
 `performWhiteTestBootstrap(parallel = TRUE)` forked its workers with
 `parallel::mclapply()` on every platform, so on Windows, which cannot fork,
 it stopped with `'mc.cores' > 1 is not supported on Windows` whenever the

@@ -559,7 +559,9 @@ after it.
   paths, in `bootstrapTestStatistic()`, `performWhiteTestBootstrap()` and
   `runHeteroTestsParallel()`, so the value does not depend on the number of
   workers. Serial calls are unchanged; parallel and serial values differ and
-  are each valid (`test-parallel-reproducibility.R`). The White bootstrap
+  are each valid (`test-parallel-reproducibility.R`). `runHeteroTestsParallel()`
+  with one worker runs in the session on the same streams, so its value does
+  not depend on `n_cores` either, and changes. The White bootstrap
   runs on a socket cluster on Windows, where it stopped, and gains
   `n_cores`. The forked path is exercised by CI on Linux and macOS only.
 - [x] **The default battery.** `runHeteroTests()`, `test()`/`summary()` on
