@@ -286,7 +286,7 @@ deprecated until it has one.
   unexport it. Four are done in 0.14.0: `rbootstrap_test_statistic()` is
   renamed `bootstrapTestStatistic()` and the other three are deprecated as
   internal helpers. `rrunAdvancedDiagnostics()` stays core API (decided), and
-  its name is under *Decisions needed*.
+  is renamed `runAdvancedDiagnostics()` in 0.15.0.
 - [x] **`test()` is a generic with a very common name.** Attached after
   `devtools`, it masks `devtools::test()`. Fold it into
   `summary.HeteroDiagnostic()` (decided above). Deprecated in 0.14.0, naming
@@ -528,6 +528,10 @@ after it.
   `lmtest::bptest()`; `studentized` is accepted with a deprecation warning in
   0.15.0, and the `robust_details$studentized` field of the result keeps its
   name. No value changes.
+- [x] **The name of `rrunAdvancedDiagnostics()`.** Renamed
+  `runAdvancedDiagnostics()` (decided 2026-10-15), the house convention for
+  a runner. The old name warns with `.Deprecated()` in 0.15.x and goes in
+  1.0.0 with the names deprecated in 0.14.0. No value changes.
 - [ ] **Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
   permutation, and 1000 for the White bootstrap and
   `bootstrapTestStatistic()`. Under the `(1 + #) / (B + 1)` convention, a
@@ -881,7 +885,6 @@ which is also what a reader of the article asks of it. Within that group:
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
-| The name of `rrunAdvancedDiagnostics()` | None recorded. It stays core API (decided 2026-10-14); a camelCase name without the `r` prefix would follow the house convention, with the old name warning for a minor release before 1.0.0 | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, `launchDiagnosticDashboard()`, `run_benchmark_suite()` and `generate_benchmark_report()` warn here for a minor release, naming it, and the code moves | 0.16.0 |
