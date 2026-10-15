@@ -70,9 +70,10 @@ variables referenced by <code>model</code>. It must include the observations use
 fit <code>model</code> and will be checked for missing values.
 When <code>NULL</code>, the default, the model frame of <code>model</code> is used. It holds the
 terms of the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so
-a model that transforms a variable needs <code>data</code>, and so may a weighted fit
-whose weights are a column of the data, which the model frame holds as
-<code>(weights)</code>.</p></dd>
+a model that transforms a variable needs <code>data</code>, as does a
+model with an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term, and so may a fit whose <code>weights</code> or <code>offset</code>
+argument is a column of the data, which the model frame holds as
+<code>(weights)</code> or <code>(offset)</code>.</p></dd>
 
 
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>

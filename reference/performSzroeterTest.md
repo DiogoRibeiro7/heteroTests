@@ -26,7 +26,8 @@ performSzroeterTest(model, data = NULL, order_by,
   default, the model frame of `model` is used, so `order_by` must then
   be a variable of the model. The model frame holds the terms of the
   model rather than its variables (`log(x)` rather than `x`), so a model
-  that transforms a variable needs `data`.
+  that transforms a variable needs `data`, as does a model with an
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term.
 
 - order_by:
 

@@ -33,8 +33,10 @@ performWildBootstrapTest(
   contain unresolved missing values. When `NULL`, the default, the model
   frame of `model` is used. It holds the terms of the model rather than
   its variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`, and so may a weighted fit whose weights are a
-  column of the data, which the model frame holds as `(weights)`.
+  variable needs `data`, as does a model with an
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term, and so may a
+  fit whose `weights` or `offset` argument is a column of the data,
+  which the model frame holds as `(weights)` or `(offset)`.
 
 - B:
 
@@ -72,9 +74,14 @@ residuals \\r_i = e_i/\sqrt{1-h\_{ii}}\\ (which have a common variance
 under \\H_0\\) resampled i.i.d. and perturbed by a wild multiplier
 \\v_i\\, so that \\y_i^\* = \hat y_i + r^\*\_i v_i\\. The statistic is
 recomputed on each refit and the p-value is \\(1 + \\\\T_b^\* \ge
-T\\)/(B + 1)\\. Under \\H_0\\ this controls size even for heavy-tailed
-errors; under the alternative the observed statistic is extreme relative
-to the homoscedastic reference, giving power.
+T\\)/(B + 1)\\. In the package's validation study of the multiplier,
+with `B = 999`, the test held its level under \\H_0\\ with heavy-tailed
+\\t_5\\ errors but not with skewed ones: with centred exponential errors
+and 30, 50 and 100 observations it rejected a true null hypothesis 8.2%,
+7.3% and 6.1% of the time at the 5% level with the Rademacher
+multiplier, and 7.8%, 7.0% and 5.9% with the Mammen multiplier. Under
+the alternative the observed statistic is extreme relative to the
+homoscedastic reference, giving power.
 
 Each replicate is refitted on the design matrix of the fit, with its
 offset, whether that was given as an argument or written in the formula.

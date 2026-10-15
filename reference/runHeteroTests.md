@@ -38,18 +38,33 @@ the errors had a \\t_5\\ distribution, against 4.75% for Koenker's
 statistic. The classical test is still run by name,
 `tests = "breusch_pagan"`.
 
+When a test stops with an error, the substitute registered for it is
+run, if one is and it succeeds, and its result is returned under the
+name of the test asked for: `"white"` falls back on White's test without
+cross products, the classical Breusch-Pagan, Koenker and Cook-Weisberg
+tests, `"koenker"` on the Cook-Weisberg test. The `method` of the result
+names the test that ran, `attr(result, "diagnostic")` its registry name
+and `attr(result, "extras")$status` is `"fallback"`. A weighted fit
+whose weights are a column of the data, called without `data`, is such a
+case: White's and Koenker's tests stop, and both names hold the
+Cook-Weisberg test. Pass `data` for such a fit.
+
 ## Arguments
 
 - model:
 
   a fitted `lm`, or a `glm` with the Gaussian family and the identity
   link, a model formula, a tidymodels workflow or a parsnip model fit.
-  The tests refuse a `glm` of any other family or link since 0.15.0.
+  The tests refuse a `glm` of any other family or link since 0.15.0, but
+  the deprecated registry names `"ncv"` and `"student_bp"` do not yet,
+  so the fallback (Details) returns the Cook-Weisberg test for such a
+  fit rather than stopping.
 
 - data:
 
   optional data frame used to fit `model`. If omitted,
-  `model.frame(model)` is used. With data grouped by
+  `model.frame(model)` is used, which serves only the tests that find
+  what they need there (see their `data` argument). With data grouped by
   [`dplyr::group_by()`](https://dplyr.tidyverse.org/reference/group_by.html)
   the model is refitted within each group by evaluating its own call on
   that group, so every variable it uses, including weights, offset and

@@ -34,8 +34,10 @@ performWhiteTestRobust(
   be checked for missing values. When `NULL`, the default, the model
   frame of `model` is used. It holds the terms of the model rather than
   its variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`, and so may a weighted fit whose weights are a
-  column of the data, which the model frame holds as `(weights)`.
+  variable needs `data`, as does a model with an
+  [`offset()`](https://rdrr.io/r/stats/offset.html) term, and so may a
+  fit whose `weights` or `offset` argument is a column of the data,
+  which the model frame holds as `(weights)` or `(offset)`.
 
 - method:
 

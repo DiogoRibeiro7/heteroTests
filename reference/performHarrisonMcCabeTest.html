@@ -71,7 +71,8 @@ exact under normal errors, given the regressors.</p>
 When <code>NULL</code>, the default, the model frame of <code>model</code> is used, so <code>order_by</code>
 must then be a variable of the model. The model frame holds the terms of
 the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so a model
-that transforms a variable needs <code>data</code>.</p></dd>
+that transforms a variable needs <code>data</code>, as does a
+model with an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term.</p></dd>
 
 
 <dt id="arg-order-by">order_by<a class="anchor" aria-label="anchor" href="#arg-order-by"></a></dt>

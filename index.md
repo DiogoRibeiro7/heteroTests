@@ -17,15 +17,20 @@ Every test returns a base-R `htest` object, so results print, subset and
 compose like those of
 [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) and
 slot directly into automated pipelines. Every test takes
-`(model, data, ...)`, where `data` may be omitted and the model frame is
-then used, except Box’s M test (`performBoxMTest(data, group)`), which
-tests the data rather than the residuals of a model. Where an
-established implementation exists, the test reproduces it and
-`tests/testthat/` asserts the agreement: `lmtest` for Breusch–Pagan,
-Koenker and Goldfeld–Quandt, `car` for the Cook–Weisberg score test,
-Levene and Brown–Forsythe, `stats` for Bartlett and Fligner–Killeen,
-`vartest` for Hartley and O’Brien, and `plm` for the panel tests. Their
-simulated size and power are in
+`(model, data, ...)`, except Box’s M test
+(`performBoxMTest(data, group)`), which tests the data rather than the
+residuals of a model. `data` may be omitted, and the model frame is then
+used. The tests that read variables from `data` still need it for a
+model that transforms a variable (`log(x)`) or has an
+[`offset()`](https://rdrr.io/r/stats/offset.html) term, and for a column
+the model does not use (the `group` of Levene’s test); eight of them
+also need it for a fit whose `weights` or `offset` argument is a column
+of the data. Where an established implementation exists, the test
+reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for
+Breusch–Pagan, Koenker and Goldfeld–Quandt, `car` for the Cook–Weisberg
+score test, Levene and Brown–Forsythe, `stats` for Bartlett and
+Fligner–Killeen, `vartest` for Hartley and O’Brien, and `plm` for the
+panel tests. Their simulated size and power are in
 [`inst/validation/`](https://diogoribeiro7.github.io/heteroTests/inst/validation/README.md).
 
 - **Does the variance depend on the regressors?** White
@@ -276,8 +281,9 @@ tracked in
 Since 0.15.0 every test refuses the same bad inputs with the same
 message: a `glm` that is not a least-squares fit (a Gaussian `glm` with
 the identity link is accepted, unweighted or with positive weights, and
-gives the result of the `lm`), a model with an `NA` coefficient, and
-data that lack rows or variables of the model
+gives the result of the `lm`, except by the three tests that refuse
+every `glm`), a model with an `NA` coefficient, and data that lack rows
+or variables of the model
 ([`?test_results`](https://diogoribeiro7.github.io/heteroTests/reference/test_results.md)).
 
 ## Contributing

@@ -53,7 +53,7 @@
 <dd><p>an object of class <code>lm</code>.</p></dd>
 
   <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>data frame used to fit <code>model</code>. When <code>NULL</code>, the default, the model frame of <code>model</code> is used, so <code>id</code> and <code>time</code> must then be variables of the model. The model frame holds the terms of the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so a model that transforms a variable needs <code>data</code>.</p></dd>
+<dd><p>data frame used to fit <code>model</code>. When <code>NULL</code>, the default, the model frame of <code>model</code> is used, so <code>id</code> and <code>time</code> must then be variables of the model. The model frame holds the terms of the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so a model that transforms a variable needs <code>data</code>, as does a model with an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> term.</p></dd>
 
   <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
 <dd><p>individual identifier column.</p></dd>
