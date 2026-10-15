@@ -3,58 +3,84 @@
 ## Development version
 
 0.15.0 makes the interface match its description. The changes below break
-calls, not values: each old form still works in 0.15.0, returns what it
-returned in 0.14.0 and warns with the call to use instead.
+calls, not values: each old form still works in 0.15.x, returns what it
+returned in 0.14.0 and warns with the call to use instead, and it stops
+working in 1.0.0.
 
 ### Calls that changed
 
 | Old form | New form | Old form still works |
 | --- | --- | --- |
-| `performArchLMTest(model, lags)` | `performArchLMTest(model, data = NULL, lags = 1)` | Yes, with a warning, when `lags` is a number given second by position |
+| `performArchLMTest(model, lags)` | `performArchLMTest(model, data = NULL, lags = 1)` | In 0.15.x, with a warning, when `lags` is a number given second by position; not in 1.0.0 |
 | `performMcLeodLiTest(model, lags)` | `performMcLeodLiTest(model, data = NULL, lags = 10)` | As above |
-| `performDavidianCarrollTest(model, degree)` | `performDavidianCarrollTest(model, data = NULL, degree = 2)` | Yes, with a warning, when `degree` is a number given second by position |
-| `performCookWeisbergTest(model, var_formula)` | `performCookWeisbergTest(model, data = NULL, var_formula = NULL)` | Yes, with a warning, when `var_formula` is a formula given second by position |
+| `performDavidianCarrollTest(model, degree)` | `performDavidianCarrollTest(model, data = NULL, degree = 2)` | In 0.15.x, with a warning, when `degree` is a number given second by position; not in 1.0.0 |
+| `performCookWeisbergTest(model, var_formula)` | `performCookWeisbergTest(model, data = NULL, var_formula = NULL)` | In 0.15.x, with a warning, when `var_formula` is a formula given second by position; not in 1.0.0 |
 | `performNCVTest(model, var_formula)` (deprecated) | `performNCVTest(model, data = NULL, var_formula = NULL)` | As above, with the deprecation warning of 0.14.0 as well |
-| `performHarveyTest(model, auxiliary, studentize)` | `performHarveyTest(model, data = NULL, auxiliary, studentize)` | Yes, with a warning, when `auxiliary` is a string given second by position, alone or followed by `studentize` |
+| `performHarveyTest(model, auxiliary, studentize)` | `performHarveyTest(model, data = NULL, auxiliary, studentize)` | In 0.15.x, with a warning, when `auxiliary` is a string given second by position, alone or followed by `studentize`; not in 1.0.0 |
+| `performRESETTest(model, power)` | `performRESETTest(model, data = NULL, power = 2:3)` | In 0.15.x, with a warning, when `power` is a number given second by position; not in 1.0.0 |
 | `performSpearmanTest(model)` | `performSpearmanTest(model, data = NULL)` | Yes: `data` is optional |
 | `performSpreadLevelTest(model)` | `performSpreadLevelTest(model, data = NULL)` | Yes: `data` is optional |
-| `performBPTestRobust(model, data, studentized = TRUE)` | `performBPTestRobust(model, data, studentize = TRUE)` | Yes, with a warning |
-| `rrunAdvancedDiagnostics(model, data, ...)` | `runAdvancedDiagnostics(model, data, ...)` | Yes, with a warning; the old name goes in 1.0.0 |
+| `performWhiteTest(model, data, ...)` and the 28 other tests that took `data` second | `performWhiteTest(model, data = NULL, ...)` | Yes: `data` is now optional |
+| `performBPTestRobust(model, data, studentized = TRUE)` | `performBPTestRobust(model, data, studentize = TRUE)` | In 0.15.x, with a warning; not in 1.0.0 |
+| `rrunAdvancedDiagnostics(model, data, ...)` | `runAdvancedDiagnostics(model, data, ...)` | In 0.15.x, with a warning; the old name goes in 1.0.0 |
 
 Calls that name their arguments, such as `performArchLMTest(model, lags = 3)`,
 are unchanged and do not warn.
 
 ### The `(model, data, ...)` convention
 
-Every test now takes `(model, data, ...)`. The eight tests above, which read
-everything they need from the model, take `data = NULL` in second position and
-use the model frame when it is omitted, as `performVarianceFormTest()` and
-`fitWLS()` have done since 0.12.0. Giving them the data does not change the
-result, except that `performCookWeisbergTest(model, data, var_formula)` and
-`performNCVTest()` evaluate `var_formula` in `data`, matched to the residuals
-by row name, so the variance model can use a variable the mean model does
-not; with `data = NULL` it is evaluated in the model frame, as before.
-`performBoxMTest(data, group)` is the documented exception: it tests the
-covariance matrices of the data, not the residuals of a model.
-`tests/testthat/test-model-data-convention.R` checks the signatures, the
-warnings and that each old and new call returns the value of the old one.
-The registry entries `"cook_weisberg"` and `"spread_level"` pass the data on.
+Every test now takes `(model, data, ...)`, with `data = NULL` in second
+position. The nine tests above that took no `data`, which read everything
+they need from the model, use the model frame when it is omitted, as
+`performVarianceFormTest()` and `fitWLS()` have done since 0.12.0. Giving them
+the data does not change the result, except that
+`performCookWeisbergTest(model, data, var_formula)` and `performNCVTest()`
+evaluate `var_formula` in `data`, matched to the residuals by row name, so the
+variance model can use a variable the mean model does not; with `data = NULL`
+it is evaluated in the model frame, as before. `performBoxMTest(data, group)`
+is the documented exception: it tests the covariance matrices of the data,
+not the residuals of a model. `tests/testthat/test-model-data-convention.R`
+checks the signatures, the warnings and that each old and new call returns
+the value of the old one. The registry entries `"cook_weisberg"` and
+`"spread_level"` pass the data on.
+
+The other 29 tests, which read variables from `data` and required it, can now
+be called without it: `data = NULL` stands for the model frame of `model`, so
+`performWhiteTest(model)` returns what
+`performWhiteTest(model, stats::model.frame(model))` returns, which is what
+`runHeteroTests(model)` passes them. A call that gives `data` returns what it
+returned. The model frame holds the terms of the model rather than its
+variables (`log(x)` rather than `x`), so a model that transforms a variable
+still needs `data`, as does a test on a column that is not a variable of the
+model, such as the `group` of `performLeveneTest()`. On a weighted fit whose
+weights are a column of the data (`weights = w`), the tests that rebuild the
+design from `data`, such as `performWhiteTest()` and `performBPTest()`, stop
+with "object 'w' not found" without it, as they do when given the model
+frame. One call returns another value: `performRESETTest(model, NULL)`, which
+read `NULL` as `power` and returned `NaN`, now computes the test with the
+default powers, and a data frame given second, which was read as one power
+per column, is now read as `data`. In a seeded comparison of 30 tests in 39
+settings on five designs, among them a weighted fit and a fit with `NA` rows,
+565 of the 571 calls that returned a value before return an `identical()`
+value, the other six being such `performRESETTest()` calls, and a call
+without `data` is `identical()` to one given the model frame in all 195
+cases.
 
 ### `studentize` everywhere
 
 The argument that chooses the studentized statistic is called `studentize`
 throughout, as in `lmtest::bptest()` and `performHarveyTest()`.
 `performBPTestRobust()` called it `studentized`; the old name is still
-accepted in 0.15.0, does what `studentize` does and warns. The field
-`robust_details$studentized` of the result keeps its name, so the returned
-object does not change.
+accepted in 0.15.x, does what `studentize` does and warns that it stops
+working in 1.0.0. The field `robust_details$studentized` of the result keeps
+its name, so the returned object does not change.
 
 ### `runAdvancedDiagnostics()`
 
 `rrunAdvancedDiagnostics()` is renamed `runAdvancedDiagnostics()`, the last of
 the `r`-prefixed exports 0.14.0 reviewed, so that it follows the camelCase
 names of the other runners. The old name still works, returns what it
-returned and warns with `.Deprecated()`; it goes in 1.0.0 with the names
+returned and warns with `.Deprecated()` that it goes in 1.0.0, with the names
 deprecated in 0.14.0.
 
 ### The return contract

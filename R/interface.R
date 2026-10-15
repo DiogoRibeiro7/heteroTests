@@ -33,6 +33,29 @@ rcheck_data_argument <- function(data, fn, model = NULL, test_label = fn) {
   invisible(data)
 }
 
+#' The data a test reads when `data` is omitted
+#'
+#' `data = NULL` stands for the model frame of `model`, as it does in
+#' runHeteroTests() and HeteroDiagnostic(), so that a test called as
+#' `f(model)` reads what `f(model, stats::model.frame(model))` reads. The model
+#' frame holds the variables of the model under the names of its terms
+#' (`log(x)` rather than `x`), so a test that needs another column, or the
+#' variables of a model that transforms them, still needs `data`. A model whose
+#' frame cannot be rebuilt leaves `data` as `NULL`, and the test refuses it as
+#' it did before 0.15.0.
+#'
+#' @param model The fitted model of the calling test.
+#' @param data The `data` argument of the calling test.
+#' @return `data`, or the model frame of `model` when `data` is `NULL`.
+#' @keywords internal
+#' @noRd
+rdata_or_model_frame <- function(model, data) {
+  if (!is.null(data)) {
+    return(data)
+  }
+  tryCatch(stats::model.frame(model), error = function(e) NULL)
+}
+
 # Does `data` hold the variables of `model` and the rows its fit used? A model
 # that is not an lm, or has no residuals, is left to the model checks that
 # follow. The model frame itself, whose columns are the terms rather than the
@@ -123,7 +146,7 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
 #' such a call by the type of its second argument, which a data frame never
 #' has, moves the value to the argument it was meant for, and calls this
 #' function, which warns and shows the call to use instead. The positional
-#' form works, with this warning, for one release.
+#' form works, with this warning, in 0.15.x and stops working in 1.0.0.
 #'
 #' @param fn Character scalar naming the calling test.
 #' @param model_expr The unevaluated `model` argument, from `substitute()`.
@@ -150,7 +173,8 @@ rwarn_positional_call <- function(fn, model_expr, moved) {
     msg = sprintf(
       paste0(
         "%s is deprecated: since heteroTests 0.15.0 the second argument ",
-        "of %s() is `data`.\nUse %s instead."
+        "of %s() is `data`, and this call stops working in 1.0.0.\n",
+        "Use %s instead."
       ),
       old, fn, new
     )

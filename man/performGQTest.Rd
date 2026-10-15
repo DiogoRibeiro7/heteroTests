@@ -4,11 +4,11 @@
 \description{Implements the Goldfeld-Quandt test on a fitted linear model with directional or two-sided alternatives.}
 \details{Observations are ordered by a suspected variance-driving variable. With the split point fixed at the sample midpoint, a central fraction is omitted and the original model is re-estimated on the lower and upper segments. The statistic is the residual mean square of segment 2 divided by the residual mean square of segment 1 and is therefore directional rather than being forced above one. Split arithmetic and p-value conventions match \code{lmtest::gqtest(..., point = 0.5)}.}
 \section{Weighted fits}{On a fit with weights each segment is refitted with its own weights and the segments are compared on the weighted residual sum of squares, \eqn{\sum w_i e_i^2}. That is the Goldfeld-Quandt statistic of the equivalent unweighted regression, so the test asks whether the weights are adequate. Releases before 0.12.0 refitted the segments without the weights.}
-\usage{performGQTest(model, data, order_by, fraction = 0.2,
+\usage{performGQTest(model, data = NULL, order_by, fraction = 0.2,
   alternative = c("greater", "two.sided", "less"))}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{order_by} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
   \item{order_by}{single column name used to order observations.}
   \item{fraction}{fraction of observations omitted from the middle; must lie strictly between zero and one.}
   \item{alternative}{alternative hypothesis: \code{"greater"} for increasing variance from segment 1 to segment 2, \code{"less"} for decreasing variance, or \code{"two.sided"} for either direction.}

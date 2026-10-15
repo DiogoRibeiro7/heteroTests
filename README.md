@@ -18,7 +18,7 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072]
 Every test returns a base-R `htest` object, so results print, subset and
 compose like those of `lmtest::bptest()` and slot directly into automated
 pipelines. Every test takes `(model, data, ...)`, where `data` may be omitted
-for the tests that need nothing beyond the model, except Box's M test
+and the model frame is then used, except Box's M test
 (`performBoxMTest(data, group)`), which tests the data rather than the
 residuals of a model. Where an established implementation exists, the
 test reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for

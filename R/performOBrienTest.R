@@ -6,6 +6,10 @@
 #'
 #' @param model A fitted [stats::lm] object.
 #' @param data A [base::data.frame] used to fit `model` and containing `group`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `group`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param group Character scalar specifying the grouping variable.
 #'
 #' @return An object of class \code{htest} with the F statistic, numerator and
@@ -50,7 +54,8 @@
 #' [performLeveneTest()] and [performBrownForsytheTest()] for robust
 #' deviation-based tests, and [performBartlettTest()] for the normal-theory
 #' likelihood-ratio test.
-performOBrienTest <- function(model, data, group) {
+performOBrienTest <- function(model, data = NULL, group) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "O'Brien test"
 
   if (!is.character(group) || length(group) != 1L || is.na(group) || !nzchar(group)) {

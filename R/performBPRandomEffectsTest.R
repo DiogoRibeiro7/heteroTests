@@ -15,6 +15,10 @@
 #'   individual but does not require an explicit panel model class.
 #' @param data A [base::data.frame] containing the variables used in `model`
 #'   together with the individual identifier supplied via `id`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `id` must
+#'   then be a variable of the model. The model frame holds the terms of the
+#'   model rather than its variables (`log(x)` rather than `x`), so a model that
+#'   transforms a variable needs `data`.
 #' @param id Character scalar naming the column in `data` that indexes individuals
 #'   (or panels). The column must align with the row ordering used to fit `model`.
 #'
@@ -65,7 +69,8 @@
 #' [performPesaranTest()] for cross-sectional dependence diagnostics and
 #' [performWhiteTest()] when heteroscedasticity is suspected within each time
 #' period.
-performBPRandomEffectsTest <- function(model, data, id) {
+performBPRandomEffectsTest <- function(model, data = NULL, id) {
+  data <- rdata_or_model_frame(model, data)
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }

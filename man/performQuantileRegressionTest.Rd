@@ -6,7 +6,7 @@
 \usage{
 performQuantileRegressionTest(
   model,
-  data,
+  data = NULL,
   taus = c(0.25, 0.75),
   se_type = c("nid", "ker"),
   iid = TRUE
@@ -15,7 +15,12 @@ performQuantileRegressionTest(
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object describing the mean structure whose conditional quantile slopes are to be compared.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} containing the variables referenced in \code{model}.}
+\item{data}{A \link[base:data.frame]{base::data.frame} containing the variables referenced in \code{model}.
+When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
+terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
+a model that transforms a variable needs \code{data}, and so may a weighted fit
+whose weights are a column of the data, which the model frame holds as
+\code{(weights)}.}
 
 \item{taus}{Numeric vector containing at least two distinct quantiles strictly between zero and one.}
 

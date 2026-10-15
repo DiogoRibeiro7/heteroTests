@@ -8,6 +8,10 @@
 #'
 #' @param model A fitted [stats::lm] object whose residuals are examined.
 #' @param data [base::data.frame] used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `variable`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param variable Character scalar giving the column suspected of driving the
 #'   heteroscedasticity.
 #' @param transformation Character scalar selecting the transformation applied to
@@ -122,9 +126,10 @@
 #' [performKoenkerTest()] for a test on the squared residuals that needs neither
 #' normal nor symmetric errors; [performParkTest()] and [performHarveyTest()]
 #' for related parametric tests of specific forms of heteroscedasticity.
-performGlejserTest <- function(model, data, variable,
+performGlejserTest <- function(model, data = NULL, variable,
                                transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
                                robust = FALSE) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Glejser test"
 
   if (!is.character(variable) || length(variable) != 1L || is.na(variable) || !nzchar(variable)) {

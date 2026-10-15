@@ -261,9 +261,10 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' [performWhiteTest()] for the exact computation and \link[=performWhiteTestRobust]{performWhiteTestRobust()} for
 #' enhanced reporting.
 #' @export
-performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
+performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                       cross_products = TRUE, max_interactions = 10,
                                       progress = interactive()) {
+  data <- rdata_or_model_frame(model, data)
   # checkModel(enhanced = TRUE) reads the R-squared of summary(), which a glm
   # does not have, and stopped with "missing value where TRUE/FALSE needed".
   if (inherits(model, "glm")) {
@@ -351,8 +352,9 @@ performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
 #'   metadata describing the chunking configuration.
 #'
 #' @export
-performBPTestStreaming <- function(model, data, chunk_size = 10000,
+performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                    progress = interactive()) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan"
 
   model_terms <- stats::terms(model)
@@ -446,8 +448,9 @@ performBPTestStreaming <- function(model, data, chunk_size = 10000,
 #'   additional metadata describing the streaming configuration.
 #'
 #' @export
-performKoenkerTestStreaming <- function(model, data, chunk_size = 10000,
+performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                         progress = interactive()) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker"
 
   model_terms <- stats::terms(model)

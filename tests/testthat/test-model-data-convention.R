@@ -1,9 +1,10 @@
 # 0.15.0 gives every test the (model, data, ...) convention: `data = NULL` in
 # second position, recovered from the model frame when omitted.
 # performBoxMTest(data, group) is the documented exception. A call that still
-# passes the old second argument by position works for one release, with a
-# warning that shows the new call. No value changes: the old and the new form
-# of each call return what the old form returned in 0.14.0.
+# passes the old second argument by position works in 0.15.x, with a warning
+# that shows the new call, and stops working in 1.0.0. No value changes: the
+# old and the new form of each call return what the old form returned in
+# 0.14.0.
 
 convention_model <- function() {
   set.seed(20261015)
@@ -25,14 +26,41 @@ quiet_test <- function(expr) {
   without_deprecation(expr)
 }
 
-test_that("the tests take data = NULL in second position", {
-  for (fn in convention_tests) {
+test_that("every test takes data = NULL in second position", {
+  # test-return-contract.R checks that every exported test has a recipe.
+  for (fn in setdiff(names(contract_recipes), "performBoxMTest")) {
     f <- formals(getExportedValue("heteroTests", fn))
     expect_identical(names(f)[1:2], c("model", "data"), info = fn)
-    expect_null(f$data, info = fn)
+    expect_true("data" %in% names(f) && is.null(f$data), info = fn)
   }
   # The documented exception tests the data, not a model.
   expect_identical(names(formals(performBoxMTest)), c("data", "group"))
+})
+
+test_that("a test called without data reads the model frame", {
+  s <- contract_data()
+  d <- s$d
+  # The tests on groups or panels read a column the model frame holds only
+  # when it is a variable of the model.
+  extended <- lm(y ~ x1 + x2 + group + id + time, data = d)
+  by_column <- c(
+    "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
+    "performBartlettTest", "performHartleyFmaxTest", "performOBrienTest",
+    "performPesaranTest", "performBPRandomEffectsTest"
+  )
+  for (fn in setdiff(names(contract_recipes), "performBoxMTest")) {
+    recipe <- contract_recipes[[fn]]
+    m <- if (fn %in% by_column) extended else s$m
+    run <- function(data) {
+      set.seed(20261015)
+      tryCatch(suppressWarnings(quiet_test(recipe(m, data))), skip = function(e) NULL)
+    }
+    omitted <- run(NULL)
+    if (is.null(omitted)) next
+    expect_s3_class(omitted, "htest")
+    expect_identical(omitted, run(stats::model.frame(m)), info = fn)
+    expect_identical(omitted, run(d), info = fn)
+  }
 })
 
 test_that("supplying the data does not change the result", {
@@ -52,7 +80,9 @@ test_that("supplying the data does not change the result", {
 
 test_that("a second argument that is not a data frame is refused", {
   m <- convention_model()$m
-  for (fn in c("performSpearmanTest", "performSpreadLevelTest", "performHarveyTest")) {
+  for (fn in c(
+    "performSpearmanTest", "performSpreadLevelTest", "performHarveyTest", "performRESETTest"
+  )) {
     f <- getExportedValue("heteroTests", fn)
     expect_error(
       quiet_test(f(m, list(a = 1))), "`data` in .* must be a data frame or NULL",
@@ -79,6 +109,20 @@ test_that("old positional calls warn, show the new call and keep their value", {
     class = "deprecatedWarning"
   )
   expect_identical(a, q(performArchLMTest(m, lags = 3)))
+  # The warning says when the old form goes.
+  expect_warning(
+    q(performArchLMTest(m, 3)), "stops working in 1\\.0\\.0",
+    class = "deprecatedWarning"
+  )
+
+  # performRESETTest() took `power` second.
+  expect_warning(
+    a <- q(performRESETTest(m, 2:4)),
+    "Use performRESETTest\\(m, power = 2:4\\)",
+    class = "deprecatedWarning"
+  )
+  expect_identical(a, q(performRESETTest(m, power = 2:4)))
+  expect_identical(q(performRESETTest(m, convention_model()$d, power = 2:4)), a)
 
   expect_warning(
     a <- q(performMcLeodLiTest(m, 4)),

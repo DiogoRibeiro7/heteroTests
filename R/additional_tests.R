@@ -76,6 +76,11 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #'   matrix for the auxiliary regression.
 #' @param data A [base::data.frame] containing the variables used to fit
 #'   `model`. It must include all observations referenced by the model object.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, and so may a weighted fit
+#'   whose weights are a column of the data, which the model frame holds as
+#'   `(weights)`.
 #'
 #' @return An object of class \code{htest} reporting the chi-squared statistic
 #'   and p-value for the null hypothesis of constant error variance.
@@ -126,7 +131,8 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' \link[=performBPTestRobust]{performBPTestRobust()} augments the studentized statistic with bootstrap
 #' diagnostics.
 #' @export
-performStudentizedBPTest <- function(model, data) {
+performStudentizedBPTest <- function(model, data = NULL) {
+  data <- rdata_or_model_frame(model, data)
   .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
   .studentized_bp_test(model, data, data_name = deparse(substitute(model)))
 }
@@ -363,7 +369,8 @@ performStudentizedBPTest <- function(model, data) {
 #' [performWhiteTest()] for the classical statistic and
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
-performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
+performWhiteTestBootstrap <- function(model, data = NULL, B = 1000, parallel = FALSE) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
 
   model_terms <- stats::terms(model)
@@ -508,6 +515,10 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' @param data A [base::data.frame] (or compatible tibble) containing the
 #'   variables used to fit `model` and the ordering variable supplied via
 #'   `order_by`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param order_by Character scalar naming the column that defines the ordering of
 #'   observations prior to computing the statistic. The column must be numeric or
 #'   coercible to an orderable vector.
@@ -590,8 +601,9 @@ performWhiteTestBootstrap <- function(model, data, B = 1000, parallel = FALSE) {
 #' [performKoenkerTest()] for the regressor-based alternative and
 #' [performGQTest()] for split-sample diagnostics on ordered data.
 #' @export
-performSzroeterTest <- function(model, data, order_by,
+performSzroeterTest <- function(model, data = NULL, order_by,
                                 alternative = c("greater", "two.sided", "less")) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Szroeter test"
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {

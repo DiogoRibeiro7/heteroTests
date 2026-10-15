@@ -17,6 +17,10 @@
 #' @param model A fitted [stats::lm] object supplying residuals for the test.
 #' @param data A [base::data.frame] containing the variables used in `model` and
 #'   the grouping factor.
+#'   When `NULL`, the default, the model frame of `model` is used, so `group`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param group Character scalar specifying the column in `data` that defines the
 #'   groups whose variances are compared.
 #'
@@ -43,7 +47,8 @@
 #' [performBrownForsytheTest()] for the median-based adaptation,
 #' [performFlignerKilleenTest()] for a rank-based alternative, and
 #' [performBartlettTest()] when normality can be assumed.
-performLeveneTest <- function(model, data, group) {
+performLeveneTest <- function(model, data = NULL, group) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Levene's test"
 
   rvalidateModelInputs(model, test_name = "Levene", min_obs = 15L)

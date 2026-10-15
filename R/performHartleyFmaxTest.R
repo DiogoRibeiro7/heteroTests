@@ -7,6 +7,10 @@
 #'
 #' @param model A fitted [stats::lm] object.
 #' @param data A [base::data.frame] used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `group`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param group Character scalar naming the grouping variable.
 #'
 #' @return An object of class \code{htest} with the Fmax statistic, the number of
@@ -54,7 +58,8 @@
 #' [performBartlettTest()] for a likelihood-based normal-theory test and
 #' [performLeveneTest()] and [performBrownForsytheTest()] for more robust
 #' group-variance comparisons.
-performHartleyFmaxTest <- function(model, data, group) {
+performHartleyFmaxTest <- function(model, data = NULL, group) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Hartley's Fmax test"
 
   if (!is.character(group) || length(group) != 1L || is.na(group) || !nzchar(group)) {

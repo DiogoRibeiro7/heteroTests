@@ -6,7 +6,7 @@
 \usage{
 performWhiteTestRobust(
   model,
-  data,
+  data = NULL,
   method = c("standard", "reduced"),
   bootstrap = FALSE,
   B = 1000,
@@ -20,7 +20,12 @@ to be diagnosed.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
 variables referenced by \code{model}. It must include the observations used to
-fit \code{model} and will be checked for missing values.}
+fit \code{model} and will be checked for missing values.
+When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
+terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
+a model that transforms a variable needs \code{data}, and so may a weighted fit
+whose weights are a column of the data, which the model frame holds as
+\code{(weights)}.}
 
 \item{method}{Character string selecting the auxiliary specification.
 "standard" retains squares and cross-products, while "reduced"

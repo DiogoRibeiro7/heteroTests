@@ -17,6 +17,10 @@
 #'
 #' @param model A fitted model of class `lm`.
 #' @param data Data frame used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `group`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param group Character. Name of the grouping variable.
 #'
 #' @return An object of class \code{htest} with the chi-squared statistic and p-value.
@@ -41,7 +45,8 @@
 #' @seealso
 #' [performLeveneTest()] and [performFlignerKilleenTest()] for robust
 #' alternatives when normality is questionable.
-performBartlettTest <- function(model, data, group) {
+performBartlettTest <- function(model, data = NULL, group) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Bartlett's test"
 
   rvalidateModelInputs(model, test_name = "Bartlett", min_obs = 4L)

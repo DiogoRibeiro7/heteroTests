@@ -11,6 +11,11 @@
 #' @param data A [base::data.frame] (or object coercible to one) containing the
 #'   variables referenced by `model`. It must include the observations used to
 #'   fit `model` and will be checked for missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, and so may a weighted fit
+#'   whose weights are a column of the data, which the model frame holds as
+#'   `(weights)`.
 #' @param cross_products Logical scalar indicating whether to include all
 #'   pairwise cross-products of the regressors in the auxiliary regression.
 #'   Defaults to `TRUE` and should remain enabled unless dimensionality makes
@@ -87,7 +92,8 @@
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched reporting, and [performBPTest()] for a
 #' lower-dimensional Lagrange Multiplier alternative.
 #' @export
-performWhiteTest <- function(model, data, cross_products = TRUE, max_interactions = 10) {
+performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_interactions = 10) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "White test"
   rvalidateModelInputs(model, test_name = "White", min_obs = 20L)
 

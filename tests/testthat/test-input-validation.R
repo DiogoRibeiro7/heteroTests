@@ -36,17 +36,15 @@ validation_glm_refused <- c(
   "performWhiteTestStreaming", "performHarrisonMcCabeTest", "performVarianceFormTest"
 )
 
-# Tests that return a value for the input today (pending), or that take no
-# data (not applicable).
+# Tests that return a value for the input today (pending).
 validation_pending <- list(
   na_coefficient = c(
     "performSpreadLevelTest", "performPesaranTest", "performBPRandomEffectsTest",
     "performDavidianCarrollTest", "performRESETTest"
   ),
-  rows_missing = c("performVarianceFormTest", "performPesaranTest", "performRESETTest"),
+  rows_missing = c("performVarianceFormTest", "performPesaranTest"),
   variable_missing = c(
-    "performPesaranTest", "performBPRandomEffectsTest", "performVarianceFormTest",
-    "performRESETTest"
+    "performPesaranTest", "performBPRandomEffectsTest", "performVarianceFormTest"
   )
 )
 

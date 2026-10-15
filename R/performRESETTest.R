@@ -8,13 +8,26 @@
 #' were not nested.
 #'
 #' @param model A fitted model of class `lm`.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the response, fitted values and model matrix of `model`, so `data`
+#'   does not change the result; it is accepted so that every test takes
+#'   `(model, data, ...)`. Before 0.15.0 the second argument was `power`: a
+#'   number passed there by position is still read as `power` in 0.15.x, with a
+#'   warning that shows the new call, and stops working in 1.0.0.
 #' @param power Numeric vector of powers to include. Defaults to `2:3`.
 #' @return An object of class `htest` with the test result.
 #' @examples
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' performRESETTest(m)
-performRESETTest <- function(model, power = 2:3) {
+performRESETTest <- function(model, data = NULL, power = 2:3) {
+  if (is.numeric(data) && is.null(dim(data)) && missing(power)) {
+    rwarn_positional_call("performRESETTest", substitute(model), list(power = substitute(data)))
+    power <- data
+    data <- NULL
+  }
+  rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)
   y <- model.response(model.frame(model))
   X0 <- model.matrix(model)

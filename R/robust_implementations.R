@@ -73,9 +73,10 @@ NULL
 #' [performWhiteTestBootstrap()] for a lighter-weight resampling option.
 #'
 #' @export
-performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"),
+performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "reduced"),
                                    bootstrap = FALSE, B = 1000, ci_level = 0.95,
                                    parallel = FALSE) {
+  data <- rdata_or_model_frame(model, data)
   method <- match.arg(method)
 
   if (!is.logical(bootstrap) || length(bootstrap) != 1L || is.na(bootstrap)) {
@@ -182,7 +183,8 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #'   `lmtest::bptest()` and [performHarveyTest()].
 #' @inheritParams performWhiteTestRobust
 #' @param studentized Deprecated since 0.15.0: use `studentize`. It is still
-#'   accepted, with a warning, and does what `studentize` does.
+#'   accepted, with a warning, and does what `studentize` does; it stops
+#'   working in 1.0.0.
 #'
 #' @return An augmented \code{htest} object containing a
 #'   `robust_details` element describing the additional diagnostics. Its
@@ -210,9 +212,10 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #' standalone studentised variant.
 #'
 #' @export
-performBPTestRobust <- function(model, data, studentize = TRUE,
+performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
                                 bootstrap = FALSE, B = 1000, ci_level = 0.95,
                                 parallel = FALSE, studentized) {
+  data <- rdata_or_model_frame(model, data)
   if (!missing(studentized)) {
     if (!missing(studentize)) {
       stop("Supply `studentize` only; `studentized` is its deprecated name.", call. = FALSE)
@@ -220,7 +223,8 @@ performBPTestRobust <- function(model, data, studentize = TRUE,
     .Deprecated(
       old = "performBPTestRobust",
       msg = paste0(
-        "The argument `studentized` of performBPTestRobust() is deprecated.\n",
+        "The argument `studentized` of performBPTestRobust() is deprecated ",
+        "and stops working in heteroTests 1.0.0.\n",
         "Use `studentize` instead, as in lmtest::bptest()."
       )
     )
@@ -329,6 +333,9 @@ performBPTestRobust <- function(model, data, studentize = TRUE,
 #' small samples and optional studentisation.
 #'
 #' @inheritParams performWhiteTestRobust
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
 #' @param tests Character vector of tests to run. Use "all" (default) to
 #'   run the White and Breusch-Pagan diagnostics, or supply a subset such
 #'   as `c("white", "bp")`.
@@ -408,12 +415,20 @@ runAdvancedDiagnostics <- function(model, data, tests = "all",
 #' @section Deprecated name:
 #' `rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
 #' `runAdvancedDiagnostics()`, the same function under the package's naming
-#' scheme. The old name still works, returns what it returned and warns.
+#' scheme. The old name still works, returns what it returned and warns; it
+#' leaves the exports in 1.0.0.
 #' @export
 rrunAdvancedDiagnostics <- function(model, data, tests = "all",
                                     auto_enhance = TRUE, bootstrap_B = 500,
                                     parallel = FALSE, ci_level = 0.95) {
-  .Deprecated("runAdvancedDiagnostics", old = "rrunAdvancedDiagnostics")
+  .Deprecated(
+    old = "rrunAdvancedDiagnostics",
+    msg = paste0(
+      "'rrunAdvancedDiagnostics' is deprecated and leaves the exports in ",
+      "heteroTests 1.0.0.\nUse 'runAdvancedDiagnostics' instead.\n",
+      "See help(\"Deprecated\")"
+    )
+  )
   runAdvancedDiagnostics(
     model, data,
     tests = tests, auto_enhance = auto_enhance, bootstrap_B = bootstrap_B,
@@ -430,6 +445,9 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
 #' @param test_name Character scalar naming the diagnostic: "breusch_pagan",
 #'   "studentized_bp", or "white".
 #' @inheritParams performWhiteTestRobust
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
 #' @param tolerance Acceptable absolute difference between statistics and
 #'   p-values when comparing to the reference implementation.
 #'

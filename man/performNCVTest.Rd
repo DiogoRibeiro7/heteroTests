@@ -15,7 +15,7 @@ Because the divisor 2 is the null variance of \eqn{\hat{e}^2 / \sigma^2} under n
 \arguments{
   \item{model}{an object of class \code{lm}.}
   \item{data}{optional data frame the model was fitted to, in which \code{var_formula} is evaluated, as in \code{\link{performCookWeisbergTest}}. When \code{NULL}, the default, the model frame of \code{model} is used.}
-  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in \code{data} (for example \code{~ x1 + x2}). When \code{NULL} the fitted values are used. Before 0.15.0 \code{var_formula} was the second argument: a formula passed there by position is still read as \code{var_formula}, with a warning.}
+  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in \code{data} (for example \code{~ x1 + x2}). When \code{NULL} the fitted values are used. Before 0.15.0 \code{var_formula} was the second argument: a formula passed there by position is still read as \code{var_formula}, with a warning; that form stops working in 1.0.0.}
 }
 \value{An object of class \code{htest} containing the chi-square score statistic, its degrees of freedom and the p-value.}
 \section{Validation}{

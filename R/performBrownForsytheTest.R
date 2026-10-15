@@ -6,6 +6,10 @@
 #'
 #' @param model A fitted [stats::lm] object.
 #' @param data A [base::data.frame] containing the variables used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used, so `group`
+#'   must then be a variable of the model. The model frame holds the terms of
+#'   the model rather than its variables (`log(x)` rather than `x`), so a model
+#'   that transforms a variable needs `data`.
 #' @param group Character scalar naming the grouping variable in `data`.
 #'
 #' @return An object of class \code{htest} with the F statistic and p-value.
@@ -34,7 +38,8 @@
 #' @seealso
 #' [performLeveneTest()] and [performFlignerKilleenTest()] for related
 #' group-variance diagnostics.
-performBrownForsytheTest <- function(model, data, group) {
+performBrownForsytheTest <- function(model, data = NULL, group) {
+  data <- rdata_or_model_frame(model, data)
   test_label <- "Brown-Forsythe test"
 
   rvalidateModelInputs(model, test_name = "Brown-Forsythe", min_obs = 10L)

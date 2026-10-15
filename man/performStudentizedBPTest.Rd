@@ -4,14 +4,19 @@
 \alias{performStudentizedBPTest}
 \title{Studentized Breusch–Pagan test (deprecated)}
 \usage{
-performStudentizedBPTest(model, data)
+performStudentizedBPTest(model, data = NULL)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object providing the residuals and design
 matrix for the auxiliary regression.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} containing the variables used to fit
-\code{model}. It must include all observations referenced by the model object.}
+\code{model}. It must include all observations referenced by the model object.
+When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
+terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
+a model that transforms a variable needs \code{data}, and so may a weighted fit
+whose weights are a column of the data, which the model frame holds as
+\code{(weights)}.}
 }
 \value{
 An object of class \code{htest} reporting the chi-squared statistic

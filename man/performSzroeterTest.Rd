@@ -4,7 +4,7 @@
 \alias{performSzroeterTest}
 \title{Szroeter test for ordered alternatives}
 \usage{
-performSzroeterTest(model, data, order_by,
+performSzroeterTest(model, data = NULL, order_by,
   alternative = c("greater", "two.sided", "less"))
 }
 \arguments{
@@ -13,7 +13,11 @@ study.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} (or compatible tibble) containing the
 variables used to fit \code{model} and the ordering variable supplied via
-\code{order_by}.}
+\code{order_by}.
+When \code{NULL}, the default, the model frame of \code{model} is used, so \code{order_by}
+must then be a variable of the model. The model frame holds the terms of
+the model rather than its variables (\code{log(x)} rather than \code{x}), so a model
+that transforms a variable needs \code{data}.}
 
 \item{order_by}{Character scalar naming the column that defines the ordering of
 observations prior to computing the statistic. The column must be numeric or

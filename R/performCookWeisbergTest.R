@@ -18,7 +18,8 @@
 #'   function returned before 0.14.0; otherwise it is what the deprecated
 #'   `performNCVTest(model, var_formula)` returned. In 0.14.0 `var_formula`
 #'   was the second argument: a formula passed there by position is still read
-#'   as `var_formula`, with a warning that shows the new call.
+#'   as `var_formula`, with a warning that shows the new call; that form stops
+#'   working in 1.0.0.
 #'
 #' @return An object of class \code{htest} containing the score
 #'   statistic, its single degree of freedom, and the p-value for the null
