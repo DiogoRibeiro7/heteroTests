@@ -2,10 +2,60 @@
 
 ## Development version
 
-0.15.0 makes the interface match its description. The changes below break
-calls, not values: each old form still works in 0.15.x, returns what it
+0.15.0 makes the interface match its description. Most of the changes below
+break calls, not values: each old form still works in 0.15.x, returns what it
 returned in 0.14.0 and warns with the call to use instead, and it stops
-working in 1.0.0.
+working in 1.0.0. The changes in bold change values: every resampling test
+draws 999 replicates by default.
+
+### Resampling tests draw 999 replicates by default
+
+**Every resampling function draws 999 replicates by default, so its default
+p-value changes.** A resampling p-value is `(1 + #) / (B + 1)`, the number of
+replicates at least as large as the observed statistic, plus one, over the
+number of replicates plus one. A test at level `alpha` that rejects when it is
+at most `alpha` is exact only when `alpha * (B + 1)` is an integer: 999 is at
+the 5% and 1% levels, and 1000 is at neither. The defaults were a mix:
+
+| Function | Default before | Default now |
+| --- | --- | --- |
+| `performWildBootstrapTest()` | `B = 499` | `B = 999` |
+| `performWhiteTestBootstrap()` | `B = 1000` | `B = 999` |
+| `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` | `B = 1000` | `B = 999` |
+| `performWhiteTestRobust()` and `performBPTestRobust()`, with `bootstrap = TRUE` | `B = 1000` | `B = 999` |
+| `runAdvancedDiagnostics()` and `rrunAdvancedDiagnostics()` | `bootstrap_B = 500` | `bootstrap_B = 999` |
+| `performSpatialHeteroTest()` | `permutations = 499` | `permutations = 999` |
+| `performRankPermutationTest()` | `B = 999` | unchanged |
+
+With `set.seed(1)` before each call, the default p-value was and is:
+
+| Call | Before | Now |
+| --- | ---: | ---: |
+| `performWildBootstrapTest(lm(mpg ~ wt + qsec, data = mtcars))` | 0.2400 | 0.2330 |
+| `performWhiteTestBootstrap(lm(dist ~ speed, data = cars))` | 0.1668 | 0.1670 |
+| `bootstrapTestStatistic(performKoenkerTest, lm(dist ~ speed, data = cars), cars)$p_value` | 0.0799 | 0.0800 |
+| `performWhiteTestRobust(lm(dist ~ speed, data = cars), bootstrap = TRUE)$p.value_bootstrap` | 0.1688 | 0.1690 |
+| `performBPTestRobust(lm(dist ~ speed, data = cars), bootstrap = TRUE)$p.value_bootstrap` | 0.0799 | 0.0800 |
+| `runAdvancedDiagnostics(lm(mpg ~ wt + qsec, data = mtcars), mtcars)`, White | 0.0259 | 0.0290 |
+| `runAdvancedDiagnostics(lm(mpg ~ wt + qsec, data = mtcars), mtcars)`, Breusch-Pagan | 0.2335 | 0.2420 |
+| `performSpatialHeteroTest(lm(mpg ~ wt + hp, data = mtcars), listw = lw)` | 0.5100 | 0.5080 |
+
+where `lw` joins each car to its four nearest neighbours in coordinates drawn
+by `set.seed(7); cbind(runif(32), runif(32))`. `runAdvancedDiagnostics()`
+bootstraps both tests because `mtcars` has fewer than 50 rows. The registered
+tests `"wild_bootstrap"`, `"white_bootstrap"` and `"spatial_hetero"`, and so
+`runHeteroTests()` and the functions built on it, change with them. The `B`
+in the `parameter` of the two bootstrap tests, `robust_details$bootstrap$B` of
+the robust tests, which is recorded even when `bootstrap = FALSE`, and
+`metadata$bootstrap_B` of `runAdvancedDiagnostics()` report the new default.
+Pass the old value to reproduce a result of 0.14.0.
+
+Of the recorded evidence, only the full sweep calls a resampling test with
+its default, `performSpatialHeteroTest()`. Its row was regenerated from the
+same seeds: under the null it rejected 0.045 of the time and rejects 0.050,
+and against the alternative 0.362 and 0.350
+(`inst/validation/full-sweep-size-power.csv`). The other studies give `B`
+explicitly.
 
 ### Calls that changed
 
