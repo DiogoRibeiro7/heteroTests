@@ -117,7 +117,7 @@ gives every test these inputs, and each is refused with one message
 | A model with an `NA` coefficient, such as `lm(mpg ~ wt + I(2 * wt), data = mtcars)` | `performSpreadLevelTest()`, `performDavidianCarrollTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()`, `performRESETTest()` | "Model coefficients must be finite before running ..." |
 | `data` that lack rows the model was fitted to | `performVarianceFormTest()` | "... requires `data` to contain the rows used to fit the model. Missing rows: ..." |
 | `data` that lack a variable of the model | `performVarianceFormTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()` | "The following variables are missing from input data: ..." |
-| A `survey::svyglm()` fit, of any family | `performRESETTest()`, the only test that did not refuse one | "The model is a survey::svyglm() fit, whose residuals are scaled by the sampling weights. ..." |
+| A `survey::svyglm()` fit, of any family | `performRESETTest()`, the only test that did not refuse one | "The model is a `survey::svyglm()` fit, whose residuals are scaled by the sampling weights. ..." |
 
 The values these calls returned tested nothing the help pages describe. A
 binomial or Poisson fit has residuals whose variance depends on the mean by
@@ -166,7 +166,7 @@ after `set.seed(1)`:
 | `performRESETTest()` | F = -21.5 (p = 1.000) | F = 1.37 (p = 0.264) |
 | `performWhiteTestBootstrap(B = 999)` | p = 0.695 | p = 0.701 |
 | `performWildBootstrapTest(B = 999)` | p = 0.378 | p = 0.373 |
-| `performQuantileRegressionTest()` | 2.05 (p = 0.155) | Error: "performQuantileRegressionTest() does not support weighted fits: ...", the message for the weighted `lm` |
+| `performQuantileRegressionTest()` | 2.05 (p = 0.155) | Error: "`performQuantileRegressionTest()` does not support weighted fits: ...", the message for the weighted `lm` |
 
 The observed statistics of the two bootstraps, 0.819 and 0.766, were already
 those of the `lm`; their replicates were drawn as for an unweighted fit. On

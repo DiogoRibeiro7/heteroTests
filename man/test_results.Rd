@@ -49,7 +49,7 @@ to rounding error, except that \code{\link{performWhiteTestStreaming}()}, \code{
 \code{\link{performWhiteTestBootstrap}()} and \code{\link{performWildBootstrapTest}()}, which read the weights of an
 \code{lm}, read the prior weights of the \code{glm}, and \code{\link{performQuantileRegressionTest}()}, which refuses
 a weighted \code{lm}, refuses it with the same message. A \code{survey::svyglm()} fit is refused by every test ("The
-model is a survey::svyglm() fit"). \code{tests/testthat/test-input-validation.R} gives every test these inputs.
+model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R} gives every test these inputs.
 }
 \seealso{
 \code{\link{runHeteroTests}}, \code{\link[stats]{t.test}} for the \code{htest} class
