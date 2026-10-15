@@ -45,7 +45,8 @@ enhancement triggers bootstrap. Defaults to 999, the default of every
 resampling test in the package since 0.15.0; it was 500 before.}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
-\code{parallel} package is available.}
+\code{parallel} package is available. A seeded call gives the same result
+each time; see \emph{Parallel replicates} in \code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}}.}
 
 \item{ci_level}{Confidence level for reported intervals.}
 }

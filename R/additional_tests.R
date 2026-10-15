@@ -280,9 +280,13 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #'   replicate succeeds), so a test at level `alpha` is exact only when
 #'   `alpha * (B_eff + 1)` is an integer: with 999 it is at the 5% and 1%
 #'   levels, and with 1000, the default before 0.15.0, at neither.
-#' @param parallel Logical scalar; if `TRUE` the bootstrap loop is executed with
-#'   [parallel::mclapply()] when the `parallel` package and forked processing are
-#'   available.
+#' @param parallel Logical scalar; if `TRUE` the replicates are computed in
+#'   parallel, by forked workers ([parallel::mclapply()]) where the platform
+#'   can fork and on a socket cluster ([parallel::makeCluster()]) elsewhere.
+#'   See *Parallel replicates*.
+#' @param n_cores Optional integer number of worker processes when
+#'   `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`. The result
+#'   does not depend on it.
 #'
 #' @return A \code{htest} object reporting both the asymptotic White statistic
 #'   and its bootstrap p-value. The returned object also stores the simulated test
@@ -309,6 +313,19 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' sizes or high-dimensional designs where the chi-squared approximation may be
 #' inaccurate. When `parallel = TRUE` the resampling step exploits available CPU
 #' cores to reduce computation time.
+#'
+#' @section Parallel replicates:
+#' With `parallel = TRUE` replicate `i` draws its random numbers from stream
+#' `i` of a L'Ecuyer-CMRG generator ([parallel::nextRNGStream()]), seeded by
+#' one number drawn from the session's generator. A call made after
+#' `set.seed()` therefore returns the same result each time, whatever the
+#' number of workers and whether they are forked or run on a socket cluster.
+#' It does not return the result of the same call with `parallel = FALSE`,
+#' which draws every replicate from the session's generator, as it did before
+#' 0.15.0: the two are bootstraps of the same data with different draws, and
+#' each is valid. Before 0.15.0 a seeded call with `parallel = TRUE` gave a
+#' different result each time, and on Windows more than one worker was an
+#' error.
 #'
 #' @section Weighted fits:
 #' A fit with weights \eqn{w_i} is ordinary least squares on
@@ -362,19 +379,19 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' # More replications give a smoother p-value estimate
 #' performWhiteTestBootstrap(mod, sim, B = 499)
 #'
-#' # parallel = TRUE forks parallel::detectCores() - 1 workers, which Windows
-#' # does not support. The call runs only where that is at most two workers,
-#' # the most R CMD check --as-cran allows.
-#' if (.Platform$OS.type != "windows" && isTRUE(parallel::detectCores() <= 3L)) {
-#'   performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE)
-#' }
+#' # parallel = TRUE runs the replicates on n_cores workers, forked where the
+#' # platform can fork and on a socket cluster elsewhere. Two is the most
+#' # R CMD check --as-cran allows, and the result does not depend on it.
+#' set.seed(42)
+#' performWhiteTestBootstrap(mod, sim, B = 199, parallel = TRUE, n_cores = 2)
 #' }
 #'
 #' @seealso
 #' [performWhiteTest()] for the classical statistic and
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
-performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE) {
+performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE,
+                                      n_cores = NULL) {
   rrefuse_non_gaussian_glm(model, "performWhiteTestBootstrap")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
@@ -402,6 +419,10 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 
   if (!is.logical(parallel) || length(parallel) != 1L || is.na(parallel)) {
     stop("`parallel` must be a single logical value.", call. = FALSE)
+  }
+  if (!is.null(n_cores) &&
+        (!is.numeric(n_cores) || length(n_cores) != 1L || is.na(n_cores) || n_cores < 1)) {
+    stop("`n_cores` must be NULL or a positive integer.", call. = FALSE)
   }
 
   ht_log("INFO", "Running Bootstrap White test")
@@ -474,12 +495,22 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   }
 
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {
-    boot_stats <- parallel::mclapply(
-      seq_len(B),
-      function(i) bootstrap_stat(),
-      mc.cores = max(1, parallel::detectCores() - 1)
+    # Replicate i draws from stream i of a L'Ecuyer-CMRG generator seeded by
+    # one draw from the session's, so a seeded call gives the same replicates
+    # each time, with any number of workers. Before 0.15.0 the forked workers
+    # drew from generators set.seed() did not reach, and on Windows, which
+    # cannot fork, more than one worker was an error; there the replicates now
+    # run on a socket cluster.
+    workers <- if (is.null(n_cores)) {
+      cores <- tryCatch(parallel::detectCores(), error = function(e) NA_integer_)
+      if (is.na(cores)) 1L else max(1L, cores - 1L)
+    } else {
+      as.integer(n_cores)
+    }
+    boot_stats <- rparallel_tasks(
+      seq_len(B), function(i) bootstrap_stat(), rtask_streams(B), workers
     )
-    boot_stats <- unlist(boot_stats, use.names = FALSE)
+    boot_stats <- as.numeric(unlist(boot_stats, use.names = FALSE))
   } else {
     boot_stats <- replicate(B, bootstrap_stat())
   }

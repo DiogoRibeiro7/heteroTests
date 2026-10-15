@@ -76,6 +76,19 @@ NULL
 #' would take the logarithm twice. That case raises an error;
 #' `resample = "pairs"` resamples rows and is unaffected by it.
 #'
+#' @section Parallel replicates:
+#' With `parallel = TRUE` replicate `i` draws its random numbers from stream
+#' `i` of a L'Ecuyer-CMRG generator ([parallel::nextRNGStream()]), seeded by
+#' one number drawn from the session's generator. A call made after
+#' `set.seed()` therefore returns the same result each time, whatever
+#' `n_cores` and whether the workers are forked ([parallel::mclapply()]) or
+#' run on a socket cluster ([parallel::makeCluster()], where the platform
+#' cannot fork). It does not return the result of the same call with
+#' `parallel = FALSE`, which draws every replicate from the session's
+#' generator, as it did before 0.15.0: the two are bootstraps of the same data
+#' with different draws, and each is valid. Before 0.15.0 a seeded call with
+#' `parallel = TRUE` gave a different result each time.
+#'
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
@@ -88,7 +101,8 @@ NULL
 #'   p-value is `(1 + #) / (B_eff + 1)`, so a test at level `alpha` is exact
 #'   only when `alpha * (B + 1)` is an integer: with 999 it is at the 5% and
 #'   1% levels, and with 1000, the default before 0.15.0, at neither.
-#' @param parallel Logical, compute replicates in parallel when possible?
+#' @param parallel Logical, compute replicates in parallel when possible? See
+#'   *Parallel replicates*.
 #' @param ci_level Confidence level for the percentile interval.
 #' @param resample Bootstrap strategy. `"null"` (the default) regenerates the
 #'   response under homoscedasticity and yields a testable `p_value`;
@@ -96,6 +110,7 @@ NULL
 #'   and an interval but no p-value. See Details.
 #' @param n_cores Optional integer specifying the number of worker processes to
 #'   use when `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`.
+#'   The result does not depend on it.
 #' @param progress Logical flag controlling whether a textual progress bar is
 #'   displayed during bootstrap replication.
 #' @param ... Additional arguments forwarded to `test_function`.
@@ -450,32 +465,22 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     chunk_plan <- chunk_indices(B, max(10L, worker_cores * 5L))
     processed <- 0L
 
-    if (.Platform$OS.type == "unix") {
-      for (chunk in chunk_plan) {
-        chunk_results <- parallel::mclapply(chunk, compute_bootstrap,
-          mc.cores = worker_cores,
-          mc.preschedule = FALSE
-        )
-        replicates[chunk] <- as.numeric(chunk_results)
-        processed <- processed + length(chunk)
-        progress_bar$update(processed)
-      }
-    } else {
+    # Replicate i draws from stream i of a L'Ecuyer-CMRG generator seeded by
+    # one draw from the session's, so a seeded call gives the same replicates
+    # each time, with any number of workers, forked or not. Before 0.15.0
+    # each worker drew from a generator set.seed() did not reach.
+    streams <- rtask_streams(B)
+    cl <- NULL
+    if (.Platform$OS.type != "unix") {
       cl <- parallel::makeCluster(worker_cores)
       on.exit(parallel::stopCluster(cl), add = TRUE)
       parallel::clusterEvalQ(cl, library(heteroTests))
-      parallel::clusterExport(cl,
-        varlist = c("compute_bootstrap", "data", "formula", "n", "extra_args", "test_function",
-                    "resample", "response_col", "fitted_vals", "null_residuals",
-                    "prior_weights", "offset_argument"),
-        envir = environment()
-      )
-      for (chunk in chunk_plan) {
-        chunk_results <- parallel::parLapply(cl, as.list(chunk), compute_bootstrap)
-        replicates[chunk] <- unlist(chunk_results, use.names = FALSE)
-        processed <- processed + length(chunk)
-        progress_bar$update(processed)
-      }
+    }
+    for (chunk in chunk_plan) {
+      chunk_results <- rparallel_tasks(chunk, compute_bootstrap, streams, worker_cores, cl)
+      replicates[chunk] <- as.numeric(unlist(chunk_results, use.names = FALSE))
+      processed <- processed + length(chunk)
+      progress_bar$update(processed)
     }
   } else {
     for (i in replicate_indices) {

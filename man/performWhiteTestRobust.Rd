@@ -43,7 +43,8 @@ whether or not the bootstrap runs.}
 \item{ci_level}{Confidence level for reported intervals.}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
-\code{parallel} package is available.}
+\code{parallel} package is available. A seeded call gives the same result
+each time; see \emph{Parallel replicates} in \code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}}.}
 }
 \value{
 An object of class \code{htest} augmented with a
