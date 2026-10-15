@@ -8,10 +8,15 @@
 #'
 #' @param model A fitted [stats::lm] object whose residuals will be tested for
 #'   heteroscedasticity.
+#' @param data Optional data frame the model was fitted to, in which
+#'   `var_formula` is evaluated, as in [performCookWeisbergTest()]. When
+#'   `NULL`, the default, the model frame of `model` is used.
 #' @param var_formula Optional one-sided [stats::formula] giving the variance
-#'   model, evaluated in the model frame of `model` (for example `~ x1 + x2`).
+#'   model, evaluated in `data` (for example `~ x1 + x2`).
 #'   When `NULL` (the default) the fitted values are used as the single variance
-#'   regressor, matching the default behaviour of `car::ncvTest()`.
+#'   regressor, matching the default behaviour of `car::ncvTest()`. Before
+#'   0.15.0 `var_formula` was the second argument: a formula passed there by
+#'   position is still read as `var_formula`, with a warning.
 #'
 #' @return An object of class \code{htest} containing the chi-squared
 #'   score statistic, its degrees of freedom, and the upper-tail p-value.
@@ -83,14 +88,24 @@
 #' degrees of freedom and p-value, and `performCookWeisbergTest()` labels the
 #' result as the Cook–Weisberg test. The old name still works, returns what it
 #' returned and warns.
-performNCVTest <- function(model, var_formula = NULL) {
+performNCVTest <- function(model, data = NULL, var_formula = NULL) {
   .Deprecated("performCookWeisbergTest", old = "performNCVTest")
-  .ncv_test(model, var_formula)
+  if (inherits(data, "formula") && missing(var_formula)) {
+    rwarn_positional_call(
+      "performNCVTest", substitute(model), list(var_formula = substitute(data))
+    )
+    var_formula <- data
+    data <- NULL
+  }
+  rcheck_data_argument(data, "performNCVTest")
+  .ncv_test(model, var_formula, data)
 }
 
 # The implementation behind the deprecated performNCVTest(), the "ncv"
-# registry name and performCookWeisbergTest(); unchanged in 0.14.0.
-.ncv_test <- function(model, var_formula = NULL) {
+# registry name and performCookWeisbergTest(); unchanged in 0.14.0. Since
+# 0.15.0 `var_formula` can be evaluated in `data` rather than in the model
+# frame; with `data = NULL` the computation is the one of 0.14.0.
+.ncv_test <- function(model, var_formula = NULL, data = NULL) {
   rvalidateModelInputs(model, test_name = "NCV", min_obs = 10L)
 
   ht_log("INFO", "Running NCV score test")
@@ -116,15 +131,31 @@ performNCVTest <- function(model, var_formula = NULL) {
     if (!inherits(var_formula, "formula") || length(var_formula) != 2L) {
       stop("`var_formula` must be a one-sided formula, e.g. ~ x1 + x2.", call. = FALSE)
     }
-    mf <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-    if (is.null(mf)) {
-      stop("`var_formula` requires a model frame, which could not be recovered from `model`.", call. = FALSE)
+    if (is.null(data)) {
+      mf <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+      if (is.null(mf)) {
+        stop(
+          "`var_formula` requires a model frame, which could not be recovered from `model`.",
+          call. = FALSE
+        )
+      }
+      # Drop the fitted model's terms attribute before rebuilding a model frame
+      # for the variance formula; model.matrix() otherwise validates the new
+      # formula against the mean model's terms and errors out.
+      plain <- as.data.frame(mf)
+      attr(plain, "terms") <- NULL
+    } else {
+      # The rows of `data` the model was fitted to, in the order of the
+      # residuals.
+      plain <- prepare_model_data_for_test(
+        model,
+        data,
+        required_vars = all.vars(var_formula),
+        test_label = "Cook-Weisberg test",
+        min_obs_model = 10L,
+        min_obs_data = 10L
+      )$data
     }
-    # Drop the fitted model's terms attribute before rebuilding a model frame
-    # for the variance formula; model.matrix() otherwise validates the new
-    # formula against the mean model's terms and errors out.
-    plain <- as.data.frame(mf)
-    attr(plain, "terms") <- NULL
     aux_frame <- stats::model.frame(var_formula, data = plain)
     Z <- stats::model.matrix(var_formula, data = aux_frame)
     Z <- Z[, colnames(Z) != "(Intercept)", drop = FALSE]

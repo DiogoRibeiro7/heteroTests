@@ -9,10 +9,11 @@ Setting \code{studentize = TRUE} replaces the fixed constant \eqn{\pi^2 / 2} wit
 
 Degrees of freedom are taken from the realised rank of the auxiliary design, so a rank-deficient variance model is not credited with degrees of freedom for aliased columns.
 }
-\usage{performHarveyTest(model, auxiliary = c("regressors", "fitted"),
+\usage{performHarveyTest(model, data = NULL, auxiliary = c("regressors", "fitted"),
                   studentize = FALSE)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
+  \item{data}{optional data frame the model was fitted to. When \code{NULL}, the default, the model frame of \code{model} is used. The statistic is computed from the residuals, fitted values and model matrix of \code{model}, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}. Before 0.15.0 the second argument was \code{auxiliary} and the third \code{studentize}: a string passed second by position, and a logical value after it, are still read as those two, with a warning that shows the new call.}
   \item{auxiliary}{character scalar choosing the variance regressors. \code{"regressors"} (the default) uses the model's own explanatory variables, the specification in Harvey (1976). \code{"fitted"} uses the fitted values and their square, which was the behaviour of releases before 0.7.0.}
   \item{studentize}{logical; if \code{FALSE} (the default) the chi-square statistic \eqn{\mathrm{ESS} / (\pi^2 / 2)} is reported, otherwise the auxiliary regression F statistic.}
 }

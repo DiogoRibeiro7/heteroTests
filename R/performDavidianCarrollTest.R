@@ -6,9 +6,15 @@
 #'
 #' @param model A fitted [stats::lm] object providing residuals and fitted values
 #'   for the auxiliary regression.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the residuals and fitted values of `model`, so `data` does not change
+#'   the result; it is accepted so that every test takes `(model, data, ...)`.
 #' @param degree Positive integer specifying the polynomial degree used for the
 #'   fitted values (default `2`). Higher degrees allow more flexible variance
-#'   functions but require larger samples.
+#'   functions but require larger samples. Before 0.15.0 `degree` was the
+#'   second argument: a number passed there by position is still read as
+#'   `degree`, with a warning that shows the new call.
 #'
 #' @return An object of class \code{htest} with the F statistic, numerator and
 #'   denominator degrees of freedom, and p-value for the joint null of constant
@@ -52,7 +58,15 @@
 #' @seealso
 #' [performHarveyTest()] and [performNCVTest()] for related
 #' variance-function diagnostics.
-performDavidianCarrollTest <- function(model, degree = 2) {
+performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
+  if (is.numeric(data) && is.null(dim(data)) && missing(degree)) {
+    rwarn_positional_call(
+      "performDavidianCarrollTest", substitute(model), list(degree = substitute(data))
+    )
+    degree <- data
+    data <- NULL
+  }
+  rcheck_data_argument(data, "performDavidianCarrollTest")
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }

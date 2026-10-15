@@ -5,6 +5,10 @@
 #' that the residual spread changes systematically with the mean.
 #'
 #' @param model A fitted [stats::lm] object whose residuals are to be assessed.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the residuals and fitted values of `model`, so `data` does not change
+#'   the result; it is accepted so that every test takes `(model, data, ...)`.
 #'
 #' @return An object of class \code{htest} containing the t statistic for the
 #'   slope parameter and its two-sided p-value.
@@ -35,7 +39,8 @@
 #' @seealso
 #' [performNCVTest()] and [performSpearmanTest()] target similar monotonic
 #' heteroscedasticity patterns.
-performSpreadLevelTest <- function(model) {
+performSpreadLevelTest <- function(model, data = NULL) {
+  rcheck_data_argument(data, "performSpreadLevelTest")
   checkModel(model)
 
   abs_res <- abs(rpearson_residuals(model))

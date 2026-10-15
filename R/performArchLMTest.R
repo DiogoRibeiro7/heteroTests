@@ -9,6 +9,12 @@
 #'   residual series \eqn{\hat{e}_t}. Objects must implement [stats::residuals]
 #'   and optionally [stats::model.frame] so that validation checks can align the
 #'   data with the stored residuals.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the residuals of `model`, so `data` does not change the result; it is
+#'   accepted so that every test takes `(model, data, ...)`. Before 0.15.0 the
+#'   second argument was `lags`: a number passed there by position is still
+#'   read as `lags`, with a warning that shows the new call.
 #' @param lags A single positive integer giving the number of lagged squared
 #'   residuals \eqn{\hat{e}_{t-1}^2, \ldots, \hat{e}_{t-q}^2} included in the
 #'   auxiliary regression. Typical choices range from 1 to 12 for monthly data.
@@ -69,7 +75,13 @@
 #' [performMcLeodLiTest()] for the portmanteau alternative based on squared
 #' residual autocorrelations and [performPesaranTest()] when cross-sectional
 #' dependence is of interest.
-performArchLMTest <- function(model, lags = 1) {
+performArchLMTest <- function(model, data = NULL, lags = 1) {
+  if (is.numeric(data) && is.null(dim(data)) && missing(lags)) {
+    rwarn_positional_call("performArchLMTest", substitute(model), list(lags = substitute(data)))
+    lags <- data
+    data <- NULL
+  }
+  rcheck_data_argument(data, "performArchLMTest")
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)
   }
