@@ -31,7 +31,9 @@ contract_recipes <- list(
   performWhiteTestBootstrap = function(m, d) performWhiteTestBootstrap(m, d, B = 19),
   performSzroeterTest = function(m, d) performSzroeterTest(m, d, order_by = "x1"),
   performHarrisonMcCabeTest = function(m, d) performHarrisonMcCabeTest(m, d, order_by = "x1"),
-  performWildBootstrapTest = function(m, d) performWildBootstrapTest(m, d, B = 19, progress = FALSE),
+  performWildBootstrapTest = function(m, d) {
+    performWildBootstrapTest(m, d, B = 19, progress = FALSE)
+  },
   performQuantileRegressionTest = function(m, d) {
     testthat::skip_if_not_installed("quantreg")
     performQuantileRegressionTest(m, d)
