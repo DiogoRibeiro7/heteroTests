@@ -11,11 +11,12 @@ bootstrap, and reporting effect sizes together with power diagnostics.
 performBPTestRobust(
   model,
   data,
-  studentized = TRUE,
+  studentize = TRUE,
   bootstrap = FALSE,
   B = 1000,
   ci_level = 0.95,
-  parallel = FALSE
+  parallel = FALSE,
+  studentized
 )
 ```
 
@@ -34,10 +35,12 @@ performBPTestRobust(
   data must include all observations used to fit `model` and should not
   contain unresolved missing values.
 
-- studentized:
+- studentize:
 
   Logical, use studentized residuals for the auxiliary regression
-  (Koenker variant)? Defaults to `TRUE`.
+  (Koenker variant)? Defaults to `TRUE`. The name matches
+  [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) and
+  [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md).
 
 - bootstrap:
 
@@ -56,16 +59,22 @@ performBPTestRobust(
   Logical, allow parallel bootstrap evaluation when the `parallel`
   package is available.
 
+- studentized:
+
+  Deprecated since 0.15.0: use `studentize`. It is still accepted, with
+  a warning, and does what `studentize` does.
+
 ## Value
 
 An augmented `htest` object containing a `robust_details` element
-describing the additional diagnostics.
+describing the additional diagnostics. Its `studentized` field records
+the value of `studentize`.
 
 ## Details
 
 Offers expanded reporting for the Breusch–Pagan family of tests
 including bootstrap p-values and asymptotic confidence intervals. The
-optional `studentized` argument toggles between the classic and Koenker
+optional `studentize` argument toggles between the classic and Koenker
 versions.
 
 ## References

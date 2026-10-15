@@ -689,10 +689,13 @@ changes: every old and new form returns what the old form returned in
 0.14.0, checked with
 [`identical()`](https://rdrr.io/r/base/identical.html) against 0.14.0.
 
-**Argument names.** Harvey uses `studentize` and
+**Argument names.** Harvey used `studentize` and
 [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
-uses `studentized`. Standardise on `studentize`, which matches
-[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html).
+`studentized`. Standardised on `studentize`, which matches
+[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html);
+`studentized` is accepted with a deprecation warning in 0.15.0, and the
+`robust_details$studentized` field of the result keeps its name. No
+value changes.
 
 **Resampling defaults.** `B` is 499 for the wild bootstrap, 999 for rank
 permutation, and 1000 for the White bootstrap and

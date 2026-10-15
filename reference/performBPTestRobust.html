@@ -48,11 +48,12 @@ diagnostics.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performBPTestRobust</span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
 <span>  <span class="va">data</span>,</span>
-<span>  studentized <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  studentize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  bootstrap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  B <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
-<span>  parallel <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  <span class="va">studentized</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -71,9 +72,10 @@ variables referenced in <code>model</code>. The data must include all observatio
 to fit <code>model</code> and should not contain unresolved missing values.</p></dd>
 
 
-<dt id="arg-studentized">studentized<a class="anchor" aria-label="anchor" href="#arg-studentized"></a></dt>
+<dt id="arg-studentize">studentize<a class="anchor" aria-label="anchor" href="#arg-studentize"></a></dt>
 <dd><p>Logical, use studentized residuals for the auxiliary
-regression (Koenker variant)? Defaults to <code>TRUE</code>.</p></dd>
+regression (Koenker variant)? Defaults to <code>TRUE</code>. The name matches
+<code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code> and <code><a href="performHarveyTest.html">performHarveyTest()</a></code>.</p></dd>
 
 
 <dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
@@ -93,17 +95,23 @@ statistic and p-value?</p></dd>
 <dd><p>Logical, allow parallel bootstrap evaluation when the
 <code>parallel</code> package is available.</p></dd>
 
+
+<dt id="arg-studentized">studentized<a class="anchor" aria-label="anchor" href="#arg-studentized"></a></dt>
+<dd><p>Deprecated since 0.15.0: use <code>studentize</code>. It is still
+accepted, with a warning, and does what <code>studentize</code> does.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An augmented <code>htest</code> object containing a
-<code>robust_details</code> element describing the additional diagnostics.</p>
+<code>robust_details</code> element describing the additional diagnostics. Its
+<code>studentized</code> field records the value of <code>studentize</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Offers expanded reporting for the Breusch–Pagan family of tests including
 bootstrap p-values and asymptotic confidence intervals. The optional
-<code>studentized</code> argument toggles between the classic and Koenker versions.</p>
+<code>studentize</code> argument toggles between the classic and Koenker versions.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
