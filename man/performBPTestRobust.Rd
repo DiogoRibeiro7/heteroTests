@@ -7,11 +7,12 @@
 performBPTestRobust(
   model,
   data,
-  studentized = TRUE,
+  studentize = TRUE,
   bootstrap = FALSE,
   B = 1000,
   ci_level = 0.95,
-  parallel = FALSE
+  parallel = FALSE,
+  studentized
 )
 }
 \arguments{
@@ -22,8 +23,9 @@ residual variance is to be assessed.}
 variables referenced in \code{model}. The data must include all observations used
 to fit \code{model} and should not contain unresolved missing values.}
 
-\item{studentized}{Logical, use studentized residuals for the auxiliary
-regression (Koenker variant)? Defaults to \code{TRUE}.}
+\item{studentize}{Logical, use studentized residuals for the auxiliary
+regression (Koenker variant)? Defaults to \code{TRUE}. The name matches
+\code{lmtest::bptest()} and \code{\link[=performHarveyTest]{performHarveyTest()}}.}
 
 \item{bootstrap}{Logical, compute bootstrap diagnostics for the
 statistic and p-value?}
@@ -34,10 +36,14 @@ statistic and p-value?}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
 \code{parallel} package is available.}
+
+\item{studentized}{Deprecated since 0.15.0: use \code{studentize}. It is still
+accepted, with a warning, and does what \code{studentize} does.}
 }
 \value{
 An augmented \code{htest} object containing a
-\code{robust_details} element describing the additional diagnostics.
+\code{robust_details} element describing the additional diagnostics. Its
+\code{studentized} field records the value of \code{studentize}.
 }
 \description{
 Enhances \code{\link[=performBPTest]{performBPTest()}} by optionally studentising residuals, resampling the
@@ -47,7 +53,7 @@ diagnostics.
 \details{
 Offers expanded reporting for the Breusch–Pagan family of tests including
 bootstrap p-values and asymptotic confidence intervals. The optional
-\code{studentized} argument toggles between the classic and Koenker versions.
+\code{studentize} argument toggles between the classic and Koenker versions.
 }
 \examples{
 data(mtcars)
