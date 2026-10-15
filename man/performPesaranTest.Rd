@@ -6,7 +6,7 @@
 \usage{performPesaranTest(model, data = NULL, id, time)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{id} and \code{time} must then be variables of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{id} and \code{time} must then be variables of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term.}
   \item{id}{individual identifier column.}
   \item{time}{time column.}
 }

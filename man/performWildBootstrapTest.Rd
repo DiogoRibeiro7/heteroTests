@@ -21,9 +21,10 @@ variables referenced in \code{model}. The data must include all observations use
 to fit \code{model} and should not contain unresolved missing values.
 When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
 terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, and so may a weighted fit
-whose weights are a column of the data, which the model frame holds as
-\code{(weights)}.}
+a model that transforms a variable needs \code{data}, as does a
+model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
+argument is a column of the data, which the model frame holds as
+\code{(weights)} or \code{(offset)}.}
 
 \item{B}{Integer number of bootstrap replications. Defaults to \code{999}, which
 is the default of every resampling test in the package since 0.15.0; it

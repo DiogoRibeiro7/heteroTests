@@ -6,7 +6,7 @@
 \usage{performParkTest(model, data = NULL, variable)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{variable} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used, so \code{variable} must then be a variable of the model. The model frame holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term.}
   \item{variable}{name of the suspected explanatory variable.}
 }
 \value{An object of class \code{htest} containing the t statistic, p-value and degrees of freedom.}

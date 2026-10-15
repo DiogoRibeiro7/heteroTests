@@ -10,7 +10,7 @@
 performBreuschPaganTest(model, data = NULL)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, and so may a weighted fit whose weights are a column of the data, which the model frame holds as \code{(weights)}.}
+  \item{data}{data frame used to fit \code{model}. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset} argument is a column of the data, which the model frame holds as \code{(weights)} or \code{(offset)}.}
 }
 \value{An object of class \code{htest} containing the test statistic, p-value and degrees of freedom.}
 \examples{

@@ -9,7 +9,8 @@
 #'   When `NULL`, the default, the model frame of `model` is used, so `group`
 #'   must then be a variable of the model. The model frame holds the terms of
 #'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`.
+#'   that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term.
 #' @param group Character scalar specifying the grouping variable.
 #'
 #' @return An object of class \code{htest} with the F statistic, numerator and

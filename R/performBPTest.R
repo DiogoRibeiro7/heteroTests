@@ -12,9 +12,10 @@
 #'   to fit `model` and should not contain unresolved missing values.
 #'   When `NULL`, the default, the model frame of `model` is used. It holds the
 #'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, and so may a weighted fit
-#'   whose weights are a column of the data, which the model frame holds as
-#'   `(weights)`.
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #'
 #' @return An object of class \code{htest} with the LM statistic, degrees of
 #'   freedom, and p-value for the null hypothesis of constant error variance.

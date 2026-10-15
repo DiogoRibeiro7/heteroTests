@@ -13,9 +13,10 @@
 #'   fit `model` and will be checked for missing values.
 #'   When `NULL`, the default, the model frame of `model` is used. It holds the
 #'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, and so may a weighted fit
-#'   whose weights are a column of the data, which the model frame holds as
-#'   `(weights)`.
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param cross_products Logical scalar indicating whether to include all
 #'   pairwise cross-products of the regressors in the auxiliary regression.
 #'   Defaults to `TRUE` and should remain enabled unless dimensionality makes

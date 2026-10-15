@@ -20,7 +20,8 @@ performHarrisonMcCabeTest(
 When \code{NULL}, the default, the model frame of \code{model} is used, so \code{order_by}
 must then be a variable of the model. The model frame holds the terms of
 the model rather than its variables (\code{log(x)} rather than \code{x}), so a model
-that transforms a variable needs \code{data}.}
+that transforms a variable needs \code{data}, as does a
+model with an \code{offset()} term.}
 
 \item{order_by}{Character scalar naming the column of \code{data} that orders the
 observations. Tied values keep the order the observations have in the
