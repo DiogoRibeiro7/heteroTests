@@ -57,6 +57,28 @@ names of the other runners. The old name still works, returns what it
 returned and warns with `.Deprecated()`; it goes in 1.0.0 with the names
 deprecated in 0.14.0.
 
+### The return contract
+
+A new help page, `?test_results`, documents every field a `perform*Test()`
+returns: the five every test returns (`statistic`, `parameter`, `p.value`,
+`method`, `data.name`), the optional `alternative` and `estimate`, and the
+fields a few tests add, such as `robust_details` or `bootstrap`.
+`tests/testthat/test-return-contract.R` runs every exported test, and the
+settings that add fields, and fails on a field the page does not document or
+one that breaks it. Six tests needed a change to comply, and no number
+changes in any of them:
+
+- the `parameter` of `performSpearmanTest()`, `performSpreadLevelTest()`,
+  `performBartlettTest()`, `performFlignerKilleenTest()` and
+  `performBPRandomEffectsTest()` gains its name, `df`; it had none, so
+  `print()` showed `t = -0.41855, = 30, p-value = 0.6785`;
+- `performBoxMTest()` gains the `data.name` every other test returns.
+
+Over 156 seeded results of every exported test on four designs, one of them a
+weighted fit, 132 are `identical()` to those of 0.14.0 and the other 24, of
+these six tests, are `identical()` once the added name or `data.name` is
+removed.
+
 ## 0.14.0
 
 0.14.0 reviews the exported names before 1.0.0: it deprecates 22 exports and
