@@ -108,9 +108,12 @@ rparallel_tasks <- function(indices, fun, streams, workers, cl = NULL) {
   }
   if (.Platform$OS.type == "unix") {
     # Each task sets its own stream, so the seeds mclapply() would set are not
-    # needed, and leaving them out leaves the session's generator alone.
+    # needed, and leaving them out leaves the session's generator alone. For
+    # the same reason the tasks can be split between the workers in advance,
+    # one fork per worker rather than one per task, without changing what any
+    # task draws.
     return(parallel::mclapply(indices, task,
-      mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE
+      mc.cores = workers, mc.preschedule = TRUE, mc.set.seed = FALSE
     ))
   }
   cl <- parallel::makeCluster(workers)
