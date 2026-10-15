@@ -1785,23 +1785,24 @@ errors have mean 0 and variance 1: Gaussian, `t5`, and a centred exponential,
 because skewness is what separates the two multipliers, and in the Glejser
 study above it is the error under which the corrected statistic was outside
 the gate at 50 observations; the lognormal of that study adds tails heavy
-enough to test the statistic rather than the multiplier. Each sample is tested with both
-multipliers, so the two rates are paired, and the difference between them is
-measured more precisely than either rate. The size cells run at 5000
-replications and the power cells, against `sigma^2 = exp(0.4 x1)` (the
-`power_exp` alternative of Pass A) with Gaussian errors, at 1000. Every test
-uses `B = 999`.
+enough to test the statistic rather than the multiplier. Each sample is
+tested with both multipliers, so the two rates are paired, and the
+difference between them is measured more precisely than either rate. The
+size cells run at 5000 replications and the power cells, against
+`sigma^2 = exp(0.4 x1)` (the `power_exp` alternative of Pass A) with
+Gaussian errors, at 1000. Every test uses `B = 999`.
 
 With `B = 999` a test whose level is exact gives `p < 0.05` with probability
 0.049. Each size cell is judged against the release gate, `[0.042, 0.058]`,
 and against the 99% interval around 0.049 at 5000 replications,
 `[0.041, 0.057]`; the author approved that second reference for these cells
-on 2026-10-15. The decision rule was fixed in the script before any result
-was seen: the default should be the multiplier inside the interval in more of
-the nine size cells, under each of the two intervals, provided that in at
-least one cell where only it is inside, the paired difference of the two
-rates is outside its 99% Monte Carlo interval. Otherwise neither is better
-within Monte Carlo error, and the default stays.
+on 2026-10-15. The decision rule was written into the script before the full
+run started; the script was first committed with its results. The default
+should be the multiplier inside the interval in more of the nine size cells,
+under each of the two intervals, provided that in at least one cell where
+only it is inside, the paired difference of the two rates is outside its 99%
+Monte Carlo interval. Otherwise neither is better within Monte Carlo error,
+and the default stays.
 
 **Wild bootstrap, size by multiplier.**
 
@@ -1841,11 +1842,14 @@ Against `sigma^2 = exp(0.4 x1)` the paired difference in power, Mammen less Rade
 
 Every one of the 96,000 tests returned a p-value. Five things follow.
 
-- **Neither multiplier is better, so the default stays Rademacher.** The two
-  are inside the release gate in the same six of the nine size cells and
-  outside it in the same three, the three with exponential errors; the
-  interval around 0.049 gives the same split. In all nine cells the paired
-  difference is inside its 99% Monte Carlo interval.
+- **Neither multiplier holds the level in more cells, and no paired
+  difference is outside its 99% interval, so by the rule the default stays
+  Rademacher.** The two are inside the release gate in the same six of the
+  nine size cells and outside it in the same three, the three with
+  exponential errors; the interval around 0.049 gives the same split. In all
+  nine cells the two are within Monte Carlo error of each other. Under
+  exponential errors Mammen's rate is lower in all three cells, each
+  difference inside its 99% interval (next bullet).
 - **Under symmetric errors both hold the level from 30 observations.** With
   Gaussian and `t5` errors Rademacher's multiplier rejects 0.0442 to 0.0492
   of the time and Mammen's 0.0430 to 0.0508, all twelve cells inside both
@@ -1857,7 +1861,7 @@ Every one of the 96,000 tests returned a p-value. Five things follow.
   third moment would suggest; but each difference is 1.6 to 2.4 of its
   standard errors, inside the 99% interval, and it brings no cell inside
   either interval. Both rates fall with `n` and are still outside at 100.
-- **The bootstrap does not bring the level under skewed errors closer to 5%
+- **Neither multiplier brings the level under skewed errors closer to 5%
   than the asymptotic test.** `performWildBootstrapTest()` computes Koenker's
   statistic, the one `performKoenkerTest()` refers to the chi-squared
   distribution. At 50 observations in the same design with the same
@@ -1865,9 +1869,9 @@ Every one of the 96,000 tests returned a p-value. Five things follow.
   at 0.0628, against 0.0734 and 0.0698 for the two multipliers here, on other
   samples: 2.1 and 1.4 standard errors of the difference above it. With
   Gaussian errors the three are at 0.0462, 0.0476 and 0.0508, and with `t5`
-  errors at 0.0450, 0.0444 and 0.0454. The help page says the bootstrap
+  errors at 0.0450, 0.0444 and 0.0454. The help page said the bootstrap
   controls the size for heavy-tailed errors. That holds for the `t5` errors
-  here and not for the skewed ones.
+  here and not for the skewed ones, and the page now says so.
 - **Power does not separate them either.** Against `sigma^2 = exp(0.4 x1)`
   the two reject 0.194 and 0.188 of the time at 30 observations, 0.361 and
   0.358 at 50, and 0.745 and 0.749 at 100. Each paired difference is inside

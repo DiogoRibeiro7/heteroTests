@@ -555,18 +555,22 @@ after it.
   Measured on 2026-10-15 in `inst/validation/wild-multiplier-size.R`: the
   cross-sectional design of Pass A at 30, 50 and 100 observations, with
   Gaussian, `t5` and centred exponential errors, 5000 replications and
-  `B = 999`, both multipliers on the same samples. Neither is better. Both
-  are inside the release gate in the same six of the nine size cells, those
-  with Gaussian and `t5` errors, and outside it in the same three, those with
-  exponential errors, where Rademacher's multiplier rejects 0.082, 0.073 and
-  0.061 of the time and Mammen's 0.078, 0.070 and 0.059. The interval around
-  0.049, the rate of an exact test with `B = 999`, gives the same split, and
-  no paired difference is outside its 99% interval. Against
-  `sigma^2 = exp(0.4 x1)` the power of the two differs by less than one
-  point at each `n`. Recommendation: keep `"rademacher"`, which changes no
-  value. The help page says the bootstrap controls the size for heavy-tailed
-  errors; that holds for the `t5` errors of the study and not for the skewed
-  ones, with either multiplier, and the page should say so.
+  `B = 999`, both multipliers on the same samples. The decision rule was
+  written into the script before the full run started; the script was first
+  committed with its results. Neither multiplier holds the level in more
+  cells, and no paired difference is outside its 99% interval (within Monte
+  Carlo error). Both are inside the release gate in the same six of the nine
+  size cells, those with Gaussian and `t5` errors, and outside it in the same
+  three, those with exponential errors, where Rademacher's multiplier rejects
+  0.082, 0.073 and 0.061 of the time and Mammen's 0.078, 0.070 and 0.059:
+  Mammen's rate is lower in all three cells, each difference inside its 99%
+  interval. The interval around 0.049, the rate of an exact test with
+  `B = 999`, gives the same split. Against `sigma^2 = exp(0.4 x1)` the power
+  of the two differs by less than one point at each `n`. Recommendation: keep
+  `"rademacher"`, which changes no value. The help page said the bootstrap
+  controls the size for heavy-tailed errors; that holds for the `t5` errors
+  of the study and not for the skewed ones, with either multiplier, and #125
+  corrects the page.
 - [x] **Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
   `clusterSetRNGStream()` and no L'Ecuyer set-up on the `mclapply()` and
   `parLapply()` paths, so `set.seed()` does not make parallel resampling
@@ -638,6 +642,26 @@ after it.
   leverages. Either take its null distribution from the weighted design, as
   `performHarrisonMcCabeTest()` does, or document the restriction on the help
   page.
+- [ ] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
+  already resamples the leverage-standardised residuals i.i.d., which imposes
+  the null hypothesis, and multiplies them by `v` on top. In
+  `inst/validation/wild-multiplier-size.R` it is outside the release gate
+  with centred exponential errors at 30, 50 and 100 observations with either
+  multiplier. An exploratory check by the reviewer of that study, on seeds of
+  its own and not to evidence grade, suggests that the excess comes from the
+  multiplier step: with no multiplier (`v = 1`, a plain residual bootstrap)
+  the rejection rates were 0.048, 0.053 and 0.062 where Rademacher's gave
+  0.064, 0.067 and 0.077 on the same samples, with exponential errors at 50
+  and 30 observations, paired differences of about -1.4 to -1.6 points with
+  standard errors of about 0.0018. Measure a no-multiplier option to evidence
+  grade in the design of that study. The option, and still more a default,
+  changes values the function returns, so it is the author's decision. The
+  help page's claim about heavy-tailed errors is corrected in #125.
+- [ ] **Provenance of a study run in chunks.** Commit the script before a
+  chunked run is launched, and record its md5 in the settings of each part,
+  so that `MERGE` refuses parts written by another version of the script.
+  `wild-multiplier-size.R` predates the convention: its parts carry no md5,
+  and adding one now would make `MERGE` refuse them.
 - [ ] **`runAdvancedDiagnostics(tests = "bp")`** stops with "Unsupported test
   requested: bp", although its help page offers `c("white", "bp")` as a
   subset. The check compares the names asked for with the values of its lookup

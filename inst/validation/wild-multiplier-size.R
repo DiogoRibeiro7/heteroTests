@@ -57,10 +57,11 @@
 # and a test whose level is exact gives p < 0.05 with probability
 # 49 / 1000 = 0.049. A size cell is judged against the release-gate interval,
 # the 99% interval around 0.05, and against the 99% interval around 0.049.
-# The decision rule, fixed before any result was seen: the default should be
-# the multiplier whose size is inside the interval in more of the nine size
-# cells, under each of the two intervals, provided that in at least one cell
-# where only it is inside, the paired difference of the two rates exceeds
+# The decision rule was written here before the full run started; the script
+# was first committed with its results. The default should be the multiplier
+# whose size is inside the interval in more of the nine size cells, under
+# each of the two intervals, provided that in at least one cell where only
+# it is inside, the paired difference of the two rates exceeds
 # 2.576 of its Monte Carlo standard errors. Otherwise neither is better within
 # Monte Carlo error, and the default, Rademacher, stays.
 #
@@ -140,6 +141,9 @@ units <- do.call(rbind, lapply(seq_len(nrow(scenarios)), function(i) {
   data.frame(scenario = i, chunk = seq_along(starts),
              size = pmin(chunk_size, total - starts + 1L))
 }))
+# The seed of a chunk, seed + 1000 x cell + chunk, is its own only while a cell
+# has fewer than 1000 chunks.
+stopifnot(max(units$chunk) < 1000L)
 
 # --- run ------------------------------------------------------------------------
 
