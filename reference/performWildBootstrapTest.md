@@ -10,7 +10,7 @@ asymptotic \\\chi^2\\ approximation.
 ``` r
 performWildBootstrapTest(
   model,
-  data,
+  data = NULL,
   B = 499,
   distribution = c("rademacher", "mammen"),
   progress = interactive()
@@ -30,7 +30,11 @@ performWildBootstrapTest(
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   compatible object) containing the variables referenced in `model`. The
   data must include all observations used to fit `model` and should not
-  contain unresolved missing values.
+  contain unresolved missing values. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 - B:
 

@@ -73,7 +73,7 @@ which also covers weights estimated by
   `data` (for example `~ x1 + x2`). When `NULL` the fitted values are
   used. Before 0.15.0 `var_formula` was the second argument: a formula
   passed there by position is still read as `var_formula`, with a
-  warning.
+  warning; that form stops working in 1.0.0.
 
 ## Value
 

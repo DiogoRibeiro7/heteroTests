@@ -28,7 +28,8 @@ with degrees of freedom equal to the number of lags.
   residuals of `model`, so `data` does not change the result; it is
   accepted so that every test takes `(model, data, ...)`. Before 0.15.0
   the second argument was `lags`: a number passed there by position is
-  still read as `lags`, with a warning that shows the new call.
+  still read as `lags`, with a warning that shows the new call; that
+  form stops working in 1.0.0.
 
 - lags:
 

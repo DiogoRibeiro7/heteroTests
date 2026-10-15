@@ -12,7 +12,7 @@ independent.
 ``` r
 performQuantileRegressionTest(
   model,
-  data,
+  data = NULL,
   taus = c(0.25, 0.75),
   se_type = c("nid", "ker"),
   iid = TRUE
@@ -30,7 +30,12 @@ performQuantileRegressionTest(
 - data:
 
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html)
-  containing the variables referenced in `model`.
+  containing the variables referenced in `model`. When `NULL`, the
+  default, the model frame of `model` is used. It holds the terms of the
+  model rather than its variables (`log(x)` rather than `x`), so a model
+  that transforms a variable needs `data`, and so may a weighted fit
+  whose weights are a column of the data, which the model frame holds as
+  `(weights)`.
 
 - taus:
 

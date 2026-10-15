@@ -6,7 +6,7 @@ model.
 ## Usage
 
 ``` r
-performLeveneTest(model, data, group)
+performLeveneTest(model, data = NULL, group)
 ```
 
 ## Details
@@ -23,7 +23,11 @@ under the null of equal variances.
 
 - data:
 
-  data frame used to fit `model`.
+  data frame used to fit `model`. When `NULL`, the default, the model
+  frame of `model` is used, so `group` must then be a variable of the
+  model. The model frame holds the terms of the model rather than its
+  variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`.
 
 - group:
 

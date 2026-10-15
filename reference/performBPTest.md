@@ -7,8 +7,8 @@ original regressors.
 ## Usage
 
 ``` r
-performBPTest(model, data)
-performBreuschPaganTest(model, data)
+performBPTest(model, data = NULL)
+performBreuschPaganTest(model, data = NULL)
 ```
 
 ## Details
@@ -46,7 +46,11 @@ which also covers weights estimated by
 
 - data:
 
-  data frame used to fit `model`.
+  data frame used to fit `model`. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 ## Value
 

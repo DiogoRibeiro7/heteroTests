@@ -45,7 +45,8 @@ of freedom for aliased columns.
   `(model, data, ...)`. Before 0.15.0 the second argument was
   `auxiliary` and the third `studentize`: a string passed second by
   position, and a logical value after it, are still read as those two,
-  with a warning that shows the new call.
+  with a warning that shows the new call; that form stops working in
+  1.0.0.
 
 - auxiliary:
 

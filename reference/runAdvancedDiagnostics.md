@@ -75,4 +75,5 @@ enhancements that were applied.
 
 `rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
 `runAdvancedDiagnostics()`, the same function under the package's naming
-scheme. The old name still works, returns what it returned and warns.
+scheme. The old name still works, returns what it returned and warns; it
+leaves the exports in 1.0.0.

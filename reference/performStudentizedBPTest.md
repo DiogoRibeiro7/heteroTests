@@ -17,7 +17,7 @@ in 0.16.0.
 ## Usage
 
 ``` r
-performStudentizedBPTest(model, data)
+performStudentizedBPTest(model, data = NULL)
 ```
 
 ## Arguments
@@ -31,7 +31,12 @@ performStudentizedBPTest(model, data)
 
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html)
   containing the variables used to fit `model`. It must include all
-  observations referenced by the model object.
+  observations referenced by the model object. When `NULL`, the default,
+  the model frame of `model` is used. It holds the terms of the model
+  rather than its variables (`log(x)` rather than `x`), so a model that
+  transforms a variable needs `data`, and so may a weighted fit whose
+  weights are a column of the data, which the model frame holds as
+  `(weights)`.
 
 ## Value
 

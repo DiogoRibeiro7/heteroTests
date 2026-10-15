@@ -17,15 +17,15 @@ Every test returns a base-R `htest` object, so results print, subset and
 compose like those of
 [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) and
 slot directly into automated pipelines. Every test takes
-`(model, data, ...)`, where `data` may be omitted for the tests that
-need nothing beyond the model, except Box’s M test
-(`performBoxMTest(data, group)`), which tests the data rather than the
-residuals of a model. Where an established implementation exists, the
-test reproduces it and `tests/testthat/` asserts the agreement: `lmtest`
-for Breusch–Pagan, Koenker and Goldfeld–Quandt, `car` for the
-Cook–Weisberg score test, Levene and Brown–Forsythe, `stats` for
-Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
-`plm` for the panel tests. Their simulated size and power are in
+`(model, data, ...)`, where `data` may be omitted and the model frame is
+then used, except Box’s M test (`performBoxMTest(data, group)`), which
+tests the data rather than the residuals of a model. Where an
+established implementation exists, the test reproduces it and
+`tests/testthat/` asserts the agreement: `lmtest` for Breusch–Pagan,
+Koenker and Goldfeld–Quandt, `car` for the Cook–Weisberg score test,
+Levene and Brown–Forsythe, `stats` for Bartlett and Fligner–Killeen,
+`vartest` for Hartley and O’Brien, and `plm` for the panel tests. Their
+simulated size and power are in
 [`inst/validation/`](https://diogoribeiro7.github.io/heteroTests/inst/validation/README.md).
 
 - **Does the variance depend on the regressors?** White
@@ -274,7 +274,9 @@ The development direction, completed work and known technical debt are
 tracked in
 [ROADMAP.md](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md).
 Current known limitations include: input validation is not yet uniform
-across every test.
+across every test. Most tests accept a `glm`, and a few accept a model
+with an `NA` coefficient or data that do not match the model; the
+roadmap lists them.
 
 ## Contributing
 
