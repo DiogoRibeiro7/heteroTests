@@ -56,6 +56,6 @@ heterogeneity of variance. *Biometrika*, 37(3/4), 308–312.
 #>  Bartlett's test for equality of variances
 #> 
 #> data:  mpg ~ wt
-#> X-squared = 4.1572, = 2, p-value = 0.1251
+#> X-squared = 4.1572, df = 2, p-value = 0.1251
 #> 
 ```

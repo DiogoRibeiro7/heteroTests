@@ -314,8 +314,13 @@ Scripts in `scripts/` also provide helpers such as `build-docker.sh`.
 
 ## Tests of the variance
 
-Each test returns an `htest` object. The tests are grouped by the family
-they belong to.
+Each test returns an `htest` object, whose fields `test_results`
+documents. The tests are grouped by the family they belong to.
+
+### What every test returns
+
+- [`test_results`](https://diogoribeiro7.github.io/heteroTests/reference/test_results.md)
+  : What every test returns
 
 ### Auxiliary-regression tests
 

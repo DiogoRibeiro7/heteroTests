@@ -46,6 +46,6 @@ Association*, 74(368), 829–836.
 #>  Spread-Level test
 #> 
 #> data:  mpg ~ wt + qsec
-#> t = 0.43832, = 30, p-value = 0.6643
+#> t = 0.43832, df = 30, p-value = 0.6643
 #> 
 ```

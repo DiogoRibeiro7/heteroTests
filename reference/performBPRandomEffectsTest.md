@@ -56,6 +56,6 @@ Economic Studies*, 47(1), 239–253.
 #>  Breusch-Pagan LM test for random effects
 #> 
 #> data:  y ~ x
-#> LM = 0.35413, = 1, p-value = 0.5518
+#> LM = 0.35413, df = 1, p-value = 0.5518
 #> 
 ```

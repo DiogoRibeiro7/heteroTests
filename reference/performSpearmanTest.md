@@ -47,7 +47,7 @@ two things. *American Journal of Psychology*, 15(1), 72–101.
 #>  Spearman rank correlation test for heteroscedasticity
 #> 
 #> data:  mpg ~ wt + qsec
-#> t = 1.4452, = 30, p-value = 0.1588
+#> t = 1.4452, df = 30, p-value = 0.1588
 #> sample estimates:
 #>      rho 
 #> 0.255132 

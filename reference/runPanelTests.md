@@ -51,7 +51,7 @@ A named list of `htest` objects.
 #>  Breusch-Pagan LM test for random effects
 #> 
 #> data:  y ~ x
-#> LM = 1.1931, = 1, p-value = 0.2747
+#> LM = 1.1931, df = 1, p-value = 0.2747
 #> 
 #> 
 #> $pesaran

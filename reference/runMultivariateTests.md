@@ -34,7 +34,7 @@ runMultivariateTests(iris[,1:4], iris$Species)
 #> 
 #>  Box's M Test for Equality of Covariance Matrices
 #> 
-#> data:  
+#> data:  data by group
 #> M = 135.22, df = 20, p-value < 2.2e-16
 #> 
 #> 

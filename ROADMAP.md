@@ -741,7 +741,12 @@ gets its own `NEWS.md` section.
 both the `htest` core and the package’s additions, on one help page.
 Check every exported test against it in a single parametrised test. This
 also retires the hand-maintained printer and metadata drift listed under
-the old technical debt.
+the old technical debt. Done:
+[`?test_results`](https://diogoribeiro7.github.io/heteroTests/reference/test_results.md)
+and `test-return-contract.R`. Five tests gained the name `df` of their
+`parameter` and
+[`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)
+its `data.name`; no number changed.
 
 **Uniform input validation** across all exported tests. The README lists
 its absence as a known limitation.
