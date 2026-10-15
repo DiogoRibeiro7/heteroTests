@@ -232,7 +232,7 @@ the time under the null at four groups. See `NEWS.md`.
 | `performRESETTest()` | omitted quadratic | 0.045 | -- | 1.000 |
 | `performBPRandomEffectsTest()` | random intercepts | 0.030 | -- | 1.000 |
 | `performPesaranTest()` | common time factor | 0.037 | -- | 1.000 |
-| `performSpatialHeteroTest()` | variance clustered in space | 0.045 | -- | 0.362 |
+| `performSpatialHeteroTest()` | variance clustered in space | 0.050 | -- | 0.350 |
 | `performVarianceFormTest()` | log-variance quadratic in x | 0.058 | -- | 0.978 |
 
 Replications: 400. Nominal level: 0.05. Monte Carlo standard error at the nominal level: 0.0109.
@@ -268,7 +268,8 @@ tests only within a family. The heteroscedasticity diagnostics face
 at this sample size and is why their power sits near 0.84. The spatial test
 faces error variance rising with distance from the centre of a 10 by 15 grid,
 which holds the same 150 observations as the rest of the sweep, and reaches
-0.36 against it.
+0.35 against it with its default of 999 permutations (0.36 with the 499 it
+used before 0.15.0).
 
 The `Size, t5` column is a second homoscedastic null with \eqn{t_5} errors
 scaled to unit variance, so only the tails differ. It applies to the
@@ -1771,6 +1772,12 @@ after; the before is the same script run against 0.11.2.
 Up to 0.12.0, `runHeteroTests(formula, design)` tested a `survey::svyglm()`
 fit and so read the sampling weights as precision weights. The second row of
 each survey table is that statistic.
+
+Up to 0.14.0, `performSpatialHeteroTest()` drew 499 permutations by default.
+The full sweep calls it with its default, so its row was regenerated in 0.15.0
+with 999, from the same seeds: with 499 it rejected 0.045 of the time under
+the null and 0.362 against the alternative, and with 999, 0.050 and 0.350. No
+other row of the sweep calls a resampling test with its default.
 
 The variance-form study once had a third form, an additive variance function
 `sigma^2 = a + z'b`, estimated by regressing the squared residuals on the
