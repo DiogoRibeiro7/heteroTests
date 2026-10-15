@@ -58,9 +58,13 @@ all power. Each bootstrap sample is therefore built from leverage-standardised,
 mean-centred residuals \eqn{r_i = e_i/\sqrt{1-h_{ii}}} (which have a common
 variance under \eqn{H_0}) resampled i.i.d. and perturbed by a wild multiplier
 \eqn{v_i}, so that \eqn{y_i^* = \hat y_i + r^*_i v_i}. The statistic is recomputed
-on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. Under
-\eqn{H_0} this controls size even for heavy-tailed errors; under the alternative
-the observed statistic is extreme relative to the homoscedastic reference, giving
+on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. In the package's validation study of
+the multiplier, with \code{B = 999}, the test held its level under \eqn{H_0} with
+heavy-tailed \eqn{t_5} errors but not with skewed ones: with centred
+exponential errors and 30, 50 and 100 observations it rejected a true null
+hypothesis 8.2\%, 7.3\% and 6.1\% of the time at the 5\% level with the
+Rademacher multiplier, and 7.8\%, 7.0\% and 5.9\% with the Mammen multiplier. Under the
+alternative the observed statistic is extreme relative to the homoscedastic reference, giving
 power.
 
 Each replicate is refitted on the design matrix of the fit, with its
