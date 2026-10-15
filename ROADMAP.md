@@ -111,8 +111,8 @@ it, so the API is next.
   by changing the example, which now runs the call only where it starts at
   most two processes; the "CRAN submission checks" job passed on the branch on
   2026-10-11 and on `main` on 2026-10-12. The function still uses
-  `detectCores() - 1` workers; capping them changes how the draws are split,
-  and belongs with reproducibility under `parallel = TRUE` in 0.15.0.
+  `detectCores() - 1` workers by default; since 0.15.0 `n_cores` sets them,
+  and the result no longer depends on how the draws are split.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
@@ -551,11 +551,17 @@ after it.
 - [ ] **Wild bootstrap multiplier** (Rademacher or Mammen). Settle it by a size
   study at small `n` with skewed errors, and record the result in
   `inst/validation/`.
-- [ ] **Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
+- [x] **Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
   `clusterSetRNGStream()` and no L'Ecuyer set-up on the `mclapply()` and
   `parLapply()` paths, so `set.seed()` does not make parallel resampling
-  results reproducible. Fix that, and add a test that compares two seeded
-  parallel runs.
+  results reproducible. Done: replicate `i` draws from stream `i` of a
+  L'Ecuyer-CMRG generator seeded by one draw from the session's, on both
+  paths, in `bootstrapTestStatistic()`, `performWhiteTestBootstrap()` and
+  `runHeteroTestsParallel()`, so the value does not depend on the number of
+  workers. Serial calls are unchanged; parallel and serial values differ and
+  are each valid (`test-parallel-reproducibility.R`). The White bootstrap
+  runs on a socket cluster on Windows, where it stopped, and gains
+  `n_cores`. The forked path is exercised by CI on Linux and macOS only.
 - [x] **The default battery.** `runHeteroTests()`, `test()`/`summary()` on
   `HeteroDiagnostic`, the advanced diagnostics and the dashboard all defaulted
   to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the classical

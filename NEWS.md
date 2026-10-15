@@ -7,8 +7,9 @@ break calls, not values: each old form still works in 0.15.x, returns what it
 returned in 0.14.0 and warns with the call to use instead, and it stops
 working in 1.0.0. The changes in bold change values: every resampling test
 draws 999 replicates by default, the default battery of `runHeteroTests()` is
-White and Koenker, and the tests refuse four inputs that most or some of them
-returned a value for.
+White and Koenker, the tests refuse four inputs that most or some of them
+returned a value for, and seeded resampling with `parallel = TRUE` is
+reproducible.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -183,6 +184,42 @@ that do not match the fit: the rows of the full sweep for the six tests whose
 checks changed besides the `glm` one, the Pesaran, random-effects,
 variance-form, RESET, spread-level and Davidian-Carroll tests, run again from
 their seeds, are identical.
+
+### Seeded resampling in parallel is reproducible
+
+**`bootstrapTestStatistic()`, `performWhiteTestBootstrap()`, the robust tests
+with `bootstrap = TRUE` and `runHeteroTestsParallel()` return the same value
+for the same seed with `parallel = TRUE`, and a different value from the one
+they returned in parallel before.** The replicates computed in worker
+processes drew from generators that `set.seed()` in the session did not
+reach, so a seeded call returned another p-value each time it ran. Replicate
+`i`, or test `i` in `runHeteroTestsParallel()`, now draws from stream `i` of
+a L'Ecuyer-CMRG generator (`parallel::nextRNGStream()`) seeded by one draw
+from the session's generator, on the forked path (`parallel::mclapply()`) and
+on the socket cluster alike, so the value depends on the seed and not on the
+number of workers or the path. With `set.seed(1)`,
+`bootstrapTestStatistic(performKoenkerTest, lm(dist ~ speed, data = cars),
+cars, parallel = TRUE, n_cores = 2)$p_value` gave 0.0740 and then 0.0760 on
+two runs, and gives 0.0830 on every run.
+
+A serial call draws every replicate from the session's generator, as before,
+and returns what it returned: 0.0800 for that call with `parallel = FALSE`.
+The parallel and the serial value differ because their draws differ; both
+are bootstraps of the same data, and
+`tests/testthat/test-parallel-reproducibility.R` checks that their replicates
+have the same distribution. The help pages say this under *Parallel
+replicates*.
+
+`performWhiteTestBootstrap(parallel = TRUE)` forked its workers with
+`parallel::mclapply()` on every platform, so on Windows, which cannot fork,
+it stopped with "'mc.cores' > 1 is not supported on Windows" whenever the
+machine had more than two cores. It runs its replicates on a socket cluster
+there, as `bootstrapTestStatistic()` does, and gains `n_cores`, the number of
+workers, which the result does not depend on: with `set.seed(1)`,
+`performWhiteTestBootstrap(lm(dist ~ speed, data = cars), parallel = TRUE,
+n_cores = 2)` gives 0.1750 on every run, against 0.1670 serially.
+
+No recorded evidence runs a resampling test with `parallel = TRUE`.
 
 ### Calls that changed
 
