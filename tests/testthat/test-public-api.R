@@ -267,7 +267,7 @@ planned_1_0_exports <- c(
   "plotBubbleVariance", "plotDiagnosticSuite", "plotResidualDensity",
   "plotResidualQQ", "plotResidualsFitted", "plotSpreadLevel",
   "recommendRemediationStrategies", "registerDiagnostic", "registerPlot",
-  "rrunAdvancedDiagnostics", "runDiagnosticPlots", "runDiagnostics",
+  "runAdvancedDiagnostics", "runDiagnosticPlots", "runDiagnostics",
   "runHeteroTests", "runHeteroTestsParallel", "runMultivariateTests",
   "runPanelTests", "runSurveyHeteroTests", "runTimeSeriesTests",
   "scale_colour_hetero_diagnostic", "scale_fill_hetero_diagnostic",
@@ -290,6 +290,9 @@ deprecated_in_0_14 <- c(
   "std_warning", "test", "test_factory", "TestFactory", "validateTestInputs"
 )
 
+# Renamed in 0.15.0 (decided 2026-10-15); the old name warns and goes in 1.0.0.
+deprecated_in_0_15 <- c("rrunAdvancedDiagnostics")
+
 moving_out <- c(
   "generate_benchmark_report", "launchDiagnosticDashboard",
   "run_benchmark_suite"
@@ -297,7 +300,10 @@ moving_out <- c(
 
 test_that("every export is planned for 1.0, deprecated in 0.14.0 or moving out", {
   exports <- getNamespaceExports("heteroTests")
-  unexpected <- setdiff(exports, c(planned_1_0_exports, deprecated_in_0_14, moving_out))
+  unexpected <- setdiff(
+    exports,
+    c(planned_1_0_exports, deprecated_in_0_14, deprecated_in_0_15, moving_out)
+  )
   expect_identical(
     sort(unexpected), character(),
     info = paste("exported but in no list:", paste(unexpected, collapse = ", "))
@@ -313,6 +319,6 @@ test_that("every name planned for 1.0 is exported", {
 })
 
 test_that("the planned, deprecated and moving lists do not overlap", {
-  all_names <- c(planned_1_0_exports, deprecated_in_0_14, moving_out)
+  all_names <- c(planned_1_0_exports, deprecated_in_0_14, deprecated_in_0_15, moving_out)
   expect_identical(all_names[duplicated(all_names)], character())
 })

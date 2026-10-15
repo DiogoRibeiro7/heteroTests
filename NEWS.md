@@ -19,6 +19,7 @@ returned in 0.14.0 and warns with the call to use instead.
 | `performSpearmanTest(model)` | `performSpearmanTest(model, data = NULL)` | Yes: `data` is optional |
 | `performSpreadLevelTest(model)` | `performSpreadLevelTest(model, data = NULL)` | Yes: `data` is optional |
 | `performBPTestRobust(model, data, studentized = TRUE)` | `performBPTestRobust(model, data, studentize = TRUE)` | Yes, with a warning |
+| `rrunAdvancedDiagnostics(model, data, ...)` | `runAdvancedDiagnostics(model, data, ...)` | Yes, with a warning; the old name goes in 1.0.0 |
 
 Calls that name their arguments, such as `performArchLMTest(model, lags = 3)`,
 are unchanged and do not warn.
@@ -47,6 +48,14 @@ throughout, as in `lmtest::bptest()` and `performHarveyTest()`.
 accepted in 0.15.0, does what `studentize` does and warns. The field
 `robust_details$studentized` of the result keeps its name, so the returned
 object does not change.
+
+### `runAdvancedDiagnostics()`
+
+`rrunAdvancedDiagnostics()` is renamed `runAdvancedDiagnostics()`, the last of
+the `r`-prefixed exports 0.14.0 reviewed, so that it follows the camelCase
+names of the other runners. The old name still works, returns what it
+returned and warns with `.Deprecated()`; it goes in 1.0.0 with the names
+deprecated in 0.14.0.
 
 ## 0.14.0
 
