@@ -586,9 +586,12 @@ after it.
   identity, five refuse an `NA` coefficient, and the variance-form, Pesaran
   and random-effects tests refuse data that cannot be matched to the fit
   (`NEWS.md` lists the calls). A Gaussian `glm` with the identity link is
-  accepted and gives the result of the `lm`, except that the GQ, RESET, White
-  bootstrap, wild bootstrap and quantile regression tests, which read the
-  weights of an `lm`, refuse a weighted `glm`. No recorded number moves.
+  accepted and gives the result of the `lm`. With prior weights the GQ,
+  RESET, White bootstrap and wild bootstrap tests, which read the weights of
+  an `lm`, read them since then, decided on 2026-10-15, where they took the
+  `glm` for an unweighted fit, and the quantile regression test refuses it
+  as it refuses a weighted `lm`; those calls change value. No recorded number
+  moves.
 
 ### 0.16.0: statistics evidence, dependencies and internals (no API change)
 
@@ -636,6 +639,12 @@ after it.
   `performKoenkerTest()` and others) stop with "object 'w' not found" when
   `data` is omitted, as they do when given the model frame, which holds the
   weights as `(weights)`. Found on 2026-10-15; no value changes.
+- [ ] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
+  depends on rounding when the number of residuals is even: the two in the
+  middle tie at exactly half their difference from the median, and which
+  ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
+  comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
+  tied to within a tolerance. Changes a value, by that much.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
   release so that 0.14.0 changes no value. Each fix that changes a value is
   announced in bold in `NEWS.md`.
@@ -645,13 +654,8 @@ after it.
     fix: `mf[["(weights)"]] <- w` in `rweighted_refit()`. Changes a value.
   - [x] `performWildBootstrapTest()` and `performWhiteTestBootstrap()` accepted
     a non-Gaussian `glm` and returned a meaningless result. Done in 0.15.0 with
-    the input validation: they refuse it, and a weighted `glm`.
-  - The Fligner-Killeen statistic depends on rounding when the number of
-    residuals is even: the two in the middle tie at exactly half their
-    difference from the median, and which ranks first decides about `1e-6` of
-    the statistic. Found on 2026-10-15 comparing a Gaussian `glm` with the
-    same `lm`. Average the ranks of values tied to within a tolerance. Changes
-    a value, by that much.
+    the input validation: they refuse it, and read the prior weights of a
+    Gaussian `glm`.
   - The single tests and `performWhiteTestBootstrap()` match a reordered tibble
     or `data.table` to the fit by position, through
     `prepare_model_data_for_test()`. Changes a value for such data.

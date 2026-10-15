@@ -44,10 +44,12 @@ coefficients must be finite"); \code{data} that lack rows the model was fitted t
 variable of the model ("The following variables are missing from"). The model frame is accepted as \code{data} as it
 is. A \code{glm} with the Gaussian family and the identity link is accepted and gives the result of the \code{lm} up
 to rounding error, except that \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
-\code{\link{performVarianceFormTest}()} refuse every \code{glm}, and \code{\link{performGQTest}()},
-\code{\link{performRESETTest}()}, \code{\link{performWhiteTestBootstrap}()}, \code{\link{performWildBootstrapTest}()}
-and \code{\link{performQuantileRegressionTest}()}, which read the weights of an \code{lm}, refuse a \code{glm} with
-prior weights. \code{tests/testthat/test-input-validation.R} gives every test these inputs.
+\code{\link{performVarianceFormTest}()} refuse every \code{glm}. With prior weights it gives the result of
+\code{lm(..., weights = w)}: \code{\link{performGQTest}()}, \code{\link{performRESETTest}()},
+\code{\link{performWhiteTestBootstrap}()} and \code{\link{performWildBootstrapTest}()}, which read the weights of an
+\code{lm}, read the prior weights of the \code{glm}, and \code{\link{performQuantileRegressionTest}()}, which refuses
+a weighted \code{lm}, refuses it with the same message. A \code{survey::svyglm()} fit is refused by every test ("The
+model is a survey::svyglm() fit"). \code{tests/testthat/test-input-validation.R} gives every test these inputs.
 }
 \seealso{
 \code{\link{runHeteroTests}}, \code{\link[stats]{t.test}} for the \code{htest} class

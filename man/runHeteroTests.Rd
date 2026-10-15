@@ -24,7 +24,9 @@ runHeteroTests(
 )
 }
 \arguments{
-  \item{model}{an object of class \code{lm}.}
+  \item{model}{a fitted \code{lm}, or a \code{glm} with the Gaussian family and the identity link, a model
+  formula, a tidymodels workflow or a parsnip model fit. The tests refuse a \code{glm} of any other family or link
+  since 0.15.0.}
   \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used. With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
   group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}.}

@@ -43,7 +43,8 @@ generateHeteroRecommendations(model, data = NULL, test_results = NULL,
   \item{test_results}{Named list of \code{htest} objects, typically returned by
     \code{runHeteroTests()}.}
   \item{alpha}{Significance level applied when interpreting p-values.}
-  \item{model}{Fitted \code{lm}/\code{glm} object or model formula.}
+  \item{model}{Fitted \code{lm}, or \code{glm} with the Gaussian family and the identity link, or model formula.
+  The tests refuse a \code{glm} of any other family or link since 0.15.0.}
   \item{interpretations}{Output from \code{interpretHeteroTestResults()}.}
   \item{recommendations}{Output from \code{suggestDiagnosticsForProfile()},
     used to build the decision tree.}

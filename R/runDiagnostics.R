@@ -3,8 +3,10 @@
 #' This convenience wrapper extends `runHeteroTests()` by including checks for
 #' multicollinearity, nonlinearity and influential observations.
 #'
-#' @param model A fitted `lm`/`glm`, a formula, tidymodels workflow or parsnip
-#'   model fit compatible with [runHeteroTests()].
+#' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
+#'   identity link, a formula, tidymodels workflow or parsnip model fit
+#'   compatible with [runHeteroTests()]. The tests refuse a `glm` of any other
+#'   family or link since 0.15.0.
 #' @param data Optional data associated with `model`. Required when the model is
 #'   specified via a formula and used when additional preprocessing (e.g.
 #'   grouped data or data.table objects) is desired.
