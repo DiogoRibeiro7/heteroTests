@@ -63,6 +63,8 @@ test that remains.
 | `variance-form-dnvk-size-power.csv` | Its output, one row per test, block, bandwidth, form, truth, error distribution and sample size. |
 | `variance-form-dnvk-bootstrap-check.R` | The null cells of that study bootstrapped twice on the same samples, from the fitted and from the true variance function. `Rscript inst/validation/variance-form-dnvk-bootstrap-check.R`, with `N_MC`, `N_BOOT`, `MC_CORES`, `SCENARIOS` and `CSV` overridable. Does not load the package. |
 | `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
+| `wild-multiplier-size.R` | `performWildBootstrapTest()` with Rademacher and with Mammen multipliers on the same samples: size under Gaussian, `t5` and skewed errors at 30, 50 and 100 observations, and power. `Rscript inst/validation/wild-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `MC_CORES`, `UNITS`, `PART`, `MERGE` and `CSV` overridable. |
+| `wild-multiplier-size.csv` | Its output, one row per multiplier, block, error distribution and sample size, with the counts of samples only that multiplier rejected. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -1758,6 +1760,122 @@ What follows:
 Stage 1 ends here. `variance-form-dnvk-design.md` gives the recommendation,
 not to ship the test as the manuscript defines it, and the two ways forward;
 `ROADMAP.md` records the result.
+
+### The multiplier of the wild bootstrap
+
+`performWildBootstrapTest()` resamples the leverage-standardised, centred
+residuals with replacement and multiplies each by a draw `v` from the
+distribution `distribution` names. Rademacher's is `-1` or `1` with equal
+probability; Mammen's is `(1 - sqrt(5)) / 2` with probability
+`(sqrt(5) + 1) / (2 sqrt(5))` and `(1 + sqrt(5)) / 2` otherwise. Both have
+`E v = 0` and `E v^2 = 1`. Rademacher's has `E v^3 = 0` and `E v^4 = 1`: its
+bootstrap errors are symmetric, and their squares are the squares of the
+resampled residuals. Mammen's has `E v^3 = 1` and `E v^4 = 2`: its bootstrap
+errors keep the skewness of the residuals, and their squares are more
+dispersed than those of the residuals. The statistic is Koenker's, `n R^2` of
+the squared residuals on the regressors, so the question is which of the two
+matters more. The default is `"rademacher"`, and the roadmap asks for a size
+study at small `n` with skewed errors to settle it.
+
+The design is the cross-sectional one of Pass A,
+`y = 1 + 2 x1 + 0.5 x2 + sigma e`, with `x1` uniform on (1, 5), `x2` standard
+normal and the model `lm(y ~ x1 + x2)`, at 30, 50 and 100 observations. The
+errors have mean 0 and variance 1: Gaussian, `t5`, and a centred exponential,
+`rexp(n) - 1`, with skewness 2. The exponential is the skewed distribution
+because skewness is what separates the two multipliers, and in the Glejser
+study above it is the error under which the corrected statistic was outside
+the gate at 50 observations; the lognormal of that study adds tails heavy
+enough to test the statistic rather than the multiplier. Each sample is tested with both
+multipliers, so the two rates are paired, and the difference between them is
+measured more precisely than either rate. The size cells run at 5000
+replications and the power cells, against `sigma^2 = exp(0.4 x1)` (the
+`power_exp` alternative of Pass A) with Gaussian errors, at 1000. Every test
+uses `B = 999`.
+
+With `B = 999` a test whose level is exact gives `p < 0.05` with probability
+0.049. Each size cell is judged against the release gate, `[0.042, 0.058]`,
+and against the 99% interval around 0.049 at 5000 replications,
+`[0.041, 0.057]`; the author approved that second reference for these cells
+on 2026-10-15. The decision rule was fixed in the script before any result
+was seen: the default should be the multiplier inside the interval in more of
+the nine size cells, under each of the two intervals, provided that in at
+least one cell where only it is inside, the paired difference of the two
+rates is outside its 99% Monte Carlo interval. Otherwise neither is better
+within Monte Carlo error, and the default stays.
+
+**Wild bootstrap, size by multiplier.**
+
+| Errors | n | Rademacher | Mammen | Mammen - Rademacher |
+| --- | ---: | ---: | ---: | ---: |
+| Gaussian | 30 | 0.0442 [0.0367, 0.0517] | 0.0430 [0.0356, 0.0504] | -0.0012 [-0.0046, +0.0022] |
+| t5 | 30 | 0.0472 [0.0395, 0.0549] | 0.0460 [0.0384, 0.0536] | -0.0012 [-0.0043, +0.0019] |
+| exponential | 30 | 0.0820 [0.0720, 0.0920] | 0.0782 [0.0684, 0.0880] | -0.0038 [-0.0079, +0.0003] |
+| Gaussian | 50 | 0.0476 [0.0398, 0.0554] | 0.0508 [0.0428, 0.0588] | +0.0032 [-0.0002, +0.0066] |
+| t5 | 50 | 0.0444 [0.0369, 0.0519] | 0.0454 [0.0378, 0.0530] | +0.0010 [-0.0021, +0.0041] |
+| exponential | 50 | 0.0734 [0.0639, 0.0829] | 0.0698 [0.0605, 0.0791] | -0.0036 [-0.0075, +0.0003] |
+| Gaussian | 100 | 0.0482 [0.0404, 0.0560] | 0.0488 [0.0410, 0.0566] | +0.0006 [-0.0026, +0.0038] |
+| t5 | 100 | 0.0492 [0.0413, 0.0571] | 0.0476 [0.0398, 0.0554] | -0.0016 [-0.0050, +0.0018] |
+| exponential | 100 | 0.0608 [0.0521, 0.0695] | 0.0586 [0.0500, 0.0672] | -0.0022 [-0.0057, +0.0013] |
+
+Rejection rates at the 5% level with their 99% Monte Carlo intervals. Replications: 5000 per cell, both multipliers on each sample. B = 999.
+
+**Wild bootstrap, power against `sigma^2 = exp(0.4 x1)` by multiplier.**
+
+| Errors | n | Rademacher | Mammen | Mammen - Rademacher |
+| --- | ---: | ---: | ---: | ---: |
+| Gaussian | 30 | 0.1940 [0.1618, 0.2262] | 0.1880 [0.1562, 0.2198] | -0.0060 [-0.0191, +0.0071] |
+| Gaussian | 50 | 0.3610 [0.3219, 0.4001] | 0.3580 [0.3189, 0.3971] | -0.0030 [-0.0159, +0.0099] |
+| Gaussian | 100 | 0.7450 [0.7095, 0.7805] | 0.7490 [0.7137, 0.7843] | +0.0040 [-0.0086, +0.0166] |
+
+Gaussian errors. Rejection rates at the 5% level with their 99% Monte Carlo intervals. Replications: 1000 per cell, both multipliers on each sample. B = 999.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+Against the release gate, the 99% interval around 0.05, [0.0421, 0.0579], Rademacher's multiplier is inside in 6 of the 9 size cells and Mammen's in 6. Rademacher is outside in exponential errors, n = 30 (0.0820); exponential errors, n = 50 (0.0734); exponential errors, n = 100 (0.0608). Mammen is outside in exponential errors, n = 30 (0.0782); exponential errors, n = 50 (0.0698); exponential errors, n = 100 (0.0586).
+
+Against the 99% interval around 0.049, the rate of an exact test with B = 999, [0.0411, 0.0569], Rademacher's multiplier is inside in 6 of the 9 size cells and Mammen's in 6. Rademacher is outside in exponential errors, n = 30 (0.0820); exponential errors, n = 50 (0.0734); exponential errors, n = 100 (0.0608). Mammen is outside in exponential errors, n = 30 (0.0782); exponential errors, n = 50 (0.0698); exponential errors, n = 100 (0.0586).
+
+Neither multiplier holds the level in more of the grid by more than Monte Carlo error under both intervals, so by the rule fixed in the script the default, Rademacher, stays. The paired difference, Mammen less Rademacher, is -0.0038 to +0.0032 across the size cells, and its 99% Monte Carlo interval excludes zero in 0 of the 9.
+
+Against `sigma^2 = exp(0.4 x1)` the paired difference in power, Mammen less Rademacher, is -0.006, -0.003, +0.004 at n = 30, 50, 100.
+
+Every one of the 96,000 tests returned a p-value. Five things follow.
+
+- **Neither multiplier is better, so the default stays Rademacher.** The two
+  are inside the release gate in the same six of the nine size cells and
+  outside it in the same three, the three with exponential errors; the
+  interval around 0.049 gives the same split. In all nine cells the paired
+  difference is inside its 99% Monte Carlo interval.
+- **Under symmetric errors both hold the level from 30 observations.** With
+  Gaussian and `t5` errors Rademacher's multiplier rejects 0.0442 to 0.0492
+  of the time and Mammen's 0.0430 to 0.0508, all twelve cells inside both
+  intervals.
+- **Under skewed errors neither holds it, at any of the three sizes.**
+  Rademacher's multiplier rejects 0.0820, 0.0734 and 0.0608 of the time at
+  30, 50 and 100 observations, Mammen's 0.0782, 0.0698 and 0.0586. Mammen's
+  is lower in all three, by 0.22 to 0.38 percentage points, the direction its
+  third moment would suggest; but each difference is 1.6 to 2.4 of its
+  standard errors, inside the 99% interval, and it brings no cell inside
+  either interval. Both rates fall with `n` and are still outside at 100.
+- **The bootstrap does not bring the level under skewed errors closer to 5%
+  than the asymptotic test.** `performWildBootstrapTest()` computes Koenker's
+  statistic, the one `performKoenkerTest()` refers to the chi-squared
+  distribution. At 50 observations in the same design with the same
+  exponential errors, `glejser-skewed-errors.csv` has `performKoenkerTest()`
+  at 0.0628, against 0.0734 and 0.0698 for the two multipliers here, on other
+  samples: 2.1 and 1.4 standard errors of the difference above it. With
+  Gaussian errors the three are at 0.0462, 0.0476 and 0.0508, and with `t5`
+  errors at 0.0450, 0.0444 and 0.0454. The help page says the bootstrap
+  controls the size for heavy-tailed errors. That holds for the `t5` errors
+  here and not for the skewed ones.
+- **Power does not separate them either.** Against `sigma^2 = exp(0.4 x1)`
+  the two reject 0.194 and 0.188 of the time at 30 observations, 0.361 and
+  0.358 at 50, and 0.745 and 0.749 at 100. Each paired difference is inside
+  its 99% interval at 1000 replications. A tie on size broken by power would
+  have nothing to go on.
+
+This study changes no value: the default of `distribution` is `"rademacher"`
+before and after it.
 
 ## History
 
