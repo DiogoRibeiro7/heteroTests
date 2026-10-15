@@ -274,10 +274,11 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #'
 #' @inheritParams performWhiteTest
 #' @param B Integer scalar giving the number of bootstrap replications.
-#'   Defaults to 999. The p-value is `(1 + #) / (B + 1)`, so a test at level
-#'   `alpha` is exact only when `alpha * (B + 1)` is an integer: with 999 it
-#'   is at the 5% and 1% levels, and with 1000, the default before 0.15.0, at
-#'   neither.
+#'   Defaults to 999. The p-value is `(1 + #) / (B_eff + 1)`, where `B_eff` is
+#'   the number of replicates whose statistic is finite (`B` when every
+#'   replicate succeeds), so a test at level `alpha` is exact only when
+#'   `alpha * (B_eff + 1)` is an integer: with 999 it is at the 5% and 1%
+#'   levels, and with 1000, the default before 0.15.0, at neither.
 #' @param parallel Logical scalar; if `TRUE` the bootstrap loop is executed with
 #'   [parallel::mclapply()] when the `parallel` package and forked processing are
 #'   available.
