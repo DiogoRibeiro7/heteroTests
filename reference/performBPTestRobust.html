@@ -47,7 +47,7 @@ diagnostics.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performBPTestRobust</span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">data</span>,</span>
 <span>  studentize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  bootstrap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  B <span class="op">=</span> <span class="fl">1000</span>,</span>
@@ -69,12 +69,7 @@ residual variance is to be assessed.</p></dd>
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>A <a href="https://rdrr.io/r/base/data.frame.html" class="external-link">base::data.frame</a> (or compatible object) containing the
 variables referenced in <code>model</code>. The data must include all observations used
-to fit <code>model</code> and should not contain unresolved missing values.
-When <code>NULL</code>, the default, the model frame of <code>model</code> is used. It holds the
-terms of the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so
-a model that transforms a variable needs <code>data</code>, and so may a weighted fit
-whose weights are a column of the data, which the model frame holds as
-<code>(weights)</code>.</p></dd>
+to fit <code>model</code> and should not contain unresolved missing values.</p></dd>
 
 
 <dt id="arg-studentize">studentize<a class="anchor" aria-label="anchor" href="#arg-studentize"></a></dt>
@@ -103,8 +98,7 @@ statistic and p-value?</p></dd>
 
 <dt id="arg-studentized">studentized<a class="anchor" aria-label="anchor" href="#arg-studentized"></a></dt>
 <dd><p>Deprecated since 0.15.0: use <code>studentize</code>. It is still
-accepted, with a warning, and does what <code>studentize</code> does; it stops
-working in 1.0.0.</p></dd>
+accepted, with a warning, and does what <code>studentize</code> does.</p></dd>
 
 </dl></div>
     <div class="section level2">

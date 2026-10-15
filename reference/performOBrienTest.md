@@ -6,7 +6,7 @@ equality of group variances.
 ## Usage
 
 ``` r
-performOBrienTest(model, data = NULL, group)
+performOBrienTest(model, data, group)
 ```
 
 ## Arguments
@@ -18,10 +18,6 @@ performOBrienTest(model, data = NULL, group)
 - data:
 
   Data frame used to fit `model` and containing the grouping variable.
-  When `NULL`, the default, the model frame of `model` is used, so
-  `group` must then be a variable of the model. The model frame holds
-  the terms of the model rather than its variables (`log(x)` rather than
-  `x`), so a model that transforms a variable needs `data`.
 
 - group:
 

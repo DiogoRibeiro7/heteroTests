@@ -5,7 +5,7 @@ Checks for cross-sectional dependence in panel residuals.
 ## Usage
 
 ``` r
-performPesaranTest(model, data = NULL, id, time)
+performPesaranTest(model, data, id, time)
 ```
 
 ## Details
@@ -22,11 +22,7 @@ null of independence.
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `id` and `time` must then be variables of
-  the model. The model frame holds the terms of the model rather than
-  its variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - id:
 

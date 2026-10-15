@@ -686,24 +686,18 @@ is the documented exception, since it tests the data rather than
 residuals. A call that passes the old second argument by position
 (`performArchLMTest(m, 3)`, `performCookWeisbergTest(m, ~x)`,
 `performHarveyTest(m, "fitted")`) is recognised by its type, works in
-0.15.x, warns with the new call and stops working in 1.0.0; `NEWS.md`
-has the table. No value changes: every old and new form returns what the
-old form returned in 0.14.0, checked with
+0.15.0 and warns with the new call; `NEWS.md` has the table. No value
+changes: every old and new form returns what the old form returned in
+0.14.0, checked with
 [`identical()`](https://rdrr.io/r/base/identical.html) against 0.14.0.
-Extended on 2026-10-15 to every other test:
-`performRESETTest(model, power)` as the eight, and the 29 tests that
-required `data` now default it to `NULL`, the model frame. A call that
-worked returns what it returned, except `performRESETTest(m, NULL)` and
-`performRESETTest(m, <data frame>)`, which read the second argument as
-`power` and returned `NaN` or a meaningless F.
 
 **Argument names.** Harvey used `studentize` and
 [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
 `studentized`. Standardised on `studentize`, which matches
 [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html);
-`studentized` is accepted with a deprecation warning in 0.15.x and stops
-working in 1.0.0, and the `robust_details$studentized` field of the
-result keeps its name. No value changes.
+`studentized` is accepted with a deprecation warning in 0.15.0, and the
+`robust_details$studentized` field of the result keeps its name. No
+value changes.
 
 **The name of
 [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md).**
@@ -788,33 +782,6 @@ design the start of the ordering has the larger leverages. Either take
 its null distribution from the weighted design, as
 [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
 does, or document the restriction on the help page.
-
-**`runAdvancedDiagnostics(tests = "bp")`** stops with “Unsupported test
-requested: bp”, although its help page offers `c("white", "bp")` as a
-subset. The check compares the names asked for with the values of its
-lookup table (`"white"`, `"breusch_pagan"`) rather than with its names,
-which include `"bp"`. Found on 2026-10-15 and recorded, not fixed, in
-0.15.0.
-
-**`checkModel(<glm>, data, enhanced = TRUE)`** stops with “missing value
-where TRUE/FALSE needed”, Gaussian and binomial alike: the enhanced
-check reads the R-squared of
-[`summary()`](https://rdrr.io/r/base/summary.html), which a `glm` does
-not have. Since 0.15.0
-[`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md)
-refuses a `glm` before calling it; the check itself should refuse it
-with a clear message or skip that step. Found on 2026-10-15 and
-recorded, not fixed.
-
-**A weighted fit without `data`.** On a fit `lm(..., weights = w)` whose
-`w` is a column of the data, the tests that rebuild the design with
-`model.matrix(model, data = data)`
-([`performWhiteTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md),
-[`performBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md),
-[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-and others) stop with “object ‘w’ not found” when `data` is omitted, as
-they do when given the model frame, which holds the weights as
-`(weights)`. Found on 2026-10-15; no value changes.
 
 **Defects found during the 0.12.0 and 0.13.0 work**, left for this
 release so that 0.14.0 changes no value. Each fix that changes a value
@@ -1200,4 +1167,3 @@ group:
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md), [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) and [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) warn here for a minor release, naming it, and the code moves | 0.16.0 |
 | A consistent test of the variance function after stage 1 | Do not ship the Dette, Neumeyer and Van Keilegom test as defined: its prototype rejects a true non-constant variance function 0.019 to 0.036 of the time. Choose between a new stage 1 for a modified procedure (a better estimate of the variance function for the bootstrap data, or a studentized statistic) and one for Wang and Zhou (2007), and compare the published article with the manuscript first. If a test ships, a function of its own rather than `performVarianceFormTest(against = "any")` | Before any stage 2 |
 | `setup.sh` / `renv` / Docker | Keep Docker for reproducibility; drop `setup.sh` now CRAN is the install route | 0.16.0 |
-| Register the tests now callable as `(model, data)` | None recorded. Since 0.15.0 [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md), [`performMcLeodLiTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performMcLeodLiTest.md), [`performSpearmanTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpearmanTest.md), [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md) and [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md) can be called as `(model, data)` with no further argument, which is when a test goes in `R/diagnosticsRegistry.R`; registering one adds a name [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md) accepts and changes the article | 1.0.0 |

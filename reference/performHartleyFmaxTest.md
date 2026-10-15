@@ -6,7 +6,7 @@ Hartley's maximum F-ratio distribution.
 ## Usage
 
 ``` r
-performHartleyFmaxTest(model, data = NULL, group)
+performHartleyFmaxTest(model, data, group)
 ```
 
 ## Arguments
@@ -17,11 +17,7 @@ performHartleyFmaxTest(model, data = NULL, group)
 
 - data:
 
-  Data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `group` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  Data frame used to fit `model`.
 
 - group:
 

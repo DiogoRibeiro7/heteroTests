@@ -9,7 +9,7 @@ in the squared residuals is evidence of spatially varying variance.
 ``` r
 performSpatialHeteroTest(
   model,
-  data = NULL,
+  data,
   listw,
   permutations = 499,
   zero.policy = NULL
@@ -29,11 +29,7 @@ performSpatialHeteroTest(
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   compatible object) containing the variables referenced in `model`. The
   data must include all observations used to fit `model` and should not
-  contain unresolved missing values. When `NULL`, the default, the model
-  frame of `model` is used. It holds the terms of the model rather than
-  its variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`, and so may a weighted fit whose weights are a
-  column of the data, which the model frame holds as `(weights)`.
+  contain unresolved missing values.
 
 - listw:
 

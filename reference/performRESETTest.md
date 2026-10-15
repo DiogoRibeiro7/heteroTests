@@ -6,7 +6,7 @@ neglected nonlinearity.
 ## Usage
 
 ``` r
-performRESETTest(model, data = NULL, power = 2:3)
+performRESETTest(model, power = 2:3)
 ```
 
 ## Details
@@ -21,16 +21,6 @@ models were not nested.
 - model:
 
   A fitted `lm` model.
-
-- data:
-
-  optional data frame the model was fitted to. When `NULL`, the default,
-  the model frame of `model` is used. The statistic is computed from the
-  response, fitted values and model matrix of `model`, so `data` does
-  not change the result; it is accepted so that every test takes
-  `(model, data, ...)`. Before 0.15.0 the second argument was `power`: a
-  number passed there by position is still read as `power` in 0.15.x,
-  with a warning that shows the new call, and stops working in 1.0.0.
 
 - power:
 

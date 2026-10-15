@@ -5,7 +5,7 @@ Uses `bartlett.test` on model residuals grouped by a factor.
 ## Usage
 
 ``` r
-performBartlettTest(model, data = NULL, group)
+performBartlettTest(model, data, group)
 ```
 
 ## Details
@@ -24,11 +24,7 @@ chi-square distribution with \\k-1\\ degrees of freedom.
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `group` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - group:
 

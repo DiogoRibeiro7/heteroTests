@@ -7,7 +7,7 @@ respond to one; use the auxiliary-regression diagnostics for that.
 ## Usage
 
 ``` r
-performBPRandomEffectsTest(model, data = NULL, id)
+performBPRandomEffectsTest(model, data, id)
 ```
 
 ## Details
@@ -30,11 +30,7 @@ effect was present.
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `id` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - id:
 

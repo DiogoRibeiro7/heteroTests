@@ -5,7 +5,7 @@ Implements White's test on a fitted linear model.
 ## Usage
 
 ``` r
-performWhiteTest(model, data = NULL, cross_products = TRUE, max_interactions = 10)
+performWhiteTest(model, data, cross_products = TRUE, max_interactions = 10)
 ```
 
 ## Details
@@ -32,11 +32,7 @@ which also covers weights estimated by
 
 - data:
 
-  Data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used. It holds the terms of the model rather than
-  its variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`, and so may a weighted fit whose weights are a
-  column of the data, which the model frame holds as `(weights)`.
+  Data frame used to fit `model`.
 
 - cross_products:
 

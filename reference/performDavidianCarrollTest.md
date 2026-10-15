@@ -31,7 +31,7 @@ statistic.
 
   polynomial degree. Before 0.15.0 `degree` was the second argument: a
   number passed there by position is still read as `degree`, with a
-  warning that shows the new call; that form stops working in 1.0.0.
+  warning that shows the new call.
 
 ## Value
 

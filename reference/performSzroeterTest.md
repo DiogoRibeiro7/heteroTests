@@ -7,7 +7,7 @@ cumulative weighting scheme proposed by Szroeter (1978).
 ## Usage
 
 ``` r
-performSzroeterTest(model, data = NULL, order_by,
+performSzroeterTest(model, data, order_by,
   alternative = c("greater", "two.sided", "less"))
 ```
 
@@ -22,11 +22,7 @@ performSzroeterTest(model, data = NULL, order_by,
 
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   compatible tibble) containing the variables used to fit `model` and
-  the ordering variable supplied via `order_by`. When `NULL`, the
-  default, the model frame of `model` is used, so `order_by` must then
-  be a variable of the model. The model frame holds the terms of the
-  model rather than its variables (`log(x)` rather than `x`), so a model
-  that transforms a variable needs `data`.
+  the ordering variable supplied via `order_by`.
 
 - order_by:
 

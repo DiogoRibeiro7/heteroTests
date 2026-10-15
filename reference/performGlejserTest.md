@@ -8,7 +8,7 @@ errors are asymmetric.
 ## Usage
 
 ``` r
-performGlejserTest(model, data = NULL, variable,
+performGlejserTest(model, data, variable,
                    transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
                    robust = FALSE)
 ```
@@ -38,11 +38,7 @@ invalidates the nominal level. Simulated size and power are recorded in
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `variable` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - variable:
 

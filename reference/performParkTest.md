@@ -6,7 +6,7 @@ variable.
 ## Usage
 
 ``` r
-performParkTest(model, data = NULL, variable)
+performParkTest(model, data, variable)
 ```
 
 ## Details
@@ -23,11 +23,7 @@ scale depending on \\x\\.
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `variable` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - variable:
 

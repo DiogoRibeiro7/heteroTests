@@ -5,7 +5,7 @@ Brown-Forsythe test using medians instead of means.
 ## Usage
 
 ``` r
-performBrownForsytheTest(model, data = NULL, group)
+performBrownForsytheTest(model, data, group)
 ```
 
 ## Details
@@ -22,11 +22,7 @@ groups. The resulting statistic is an \\F\\ ratio with \\k-1\\ and
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `group` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - group:
 

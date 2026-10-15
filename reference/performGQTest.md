@@ -6,7 +6,7 @@ directional or two-sided alternatives.
 ## Usage
 
 ``` r
-performGQTest(model, data = NULL, order_by, fraction = 0.2,
+performGQTest(model, data, order_by, fraction = 0.2,
   alternative = c("greater", "two.sided", "less"))
 ```
 
@@ -37,11 +37,7 @@ weights.
 
 - data:
 
-  data frame used to fit `model`. When `NULL`, the default, the model
-  frame of `model` is used, so `order_by` must then be a variable of the
-  model. The model frame holds the terms of the model rather than its
-  variables (`log(x)` rather than `x`), so a model that transforms a
-  variable needs `data`.
+  data frame used to fit `model`.
 
 - order_by:
 
