@@ -18,25 +18,37 @@
 # On the socket path the workers load the installed heteroTests, so these
 # tests check the installed code there: under R CMD check that is this
 # version. In a development run, such as devtools::test(), the installed copy
-# may be another version, and a test would check it without saying so; a test
-# that runs on a socket cluster is skipped then, unless the installed version
-# is the version of the source. Forked workers run the code of the session.
+# may be other code under the same version number, a release or an older
+# build of the branch, and a test would check it without saying so. A test
+# that runs on a socket cluster is skipped then, unless the installed copy
+# holds the parallel code of the source: the functions below, compared
+# without their source references. Forked workers run the code of the
+# session.
+parallel_code <- c(
+  "rtask_streams", "rrun_on_stream", "rparallel_tasks", "runHeteroTestsParallel",
+  "bootstrapTestStatistic", "performWhiteTestBootstrap", "performWildBootstrapTest"
+)
+
 skip_unless_workers_load_this_version <- function(forked = FALSE) {
   if ((forked && .Platform$OS.type == "unix") || testthat::is_checking()) {
     return(invisible(TRUE))
   }
-  description <- file.path(.libPaths(), "heteroTests", "DESCRIPTION")
-  description <- description[file.exists(description)]
-  installed <- if (length(description) > 0L) {
-    unname(read.dcf(description[[1L]], fields = "Version")[1L, 1L])
-  } else {
-    "none"
+  installed <- find.package("heteroTests", lib.loc = .libPaths(), quiet = TRUE)
+  if (length(installed) == 0L) {
+    skip("the socket workers would find no installed heteroTests")
   }
-  source_version <- unname(as.character(getNamespaceVersion("heteroTests")))
-  if (!identical(installed, source_version)) {
+  code <- new.env()
+  lazyLoad(file.path(installed[[1L]], "R", "heteroTests"), envir = code)
+  source_code <- asNamespace("heteroTests")
+  text <- function(name, env) deparse(utils::removeSource(get(name, envir = env)))
+  differs <- Filter(function(name) {
+    !exists(name, envir = code, inherits = FALSE) ||
+      !identical(text(name, code), text(name, source_code))
+  }, parallel_code)
+  if (length(differs) > 0L) {
     skip(sprintf(
-      "the socket workers would load the installed heteroTests (%s), not the source (%s)",
-      installed, source_version
+      "the socket workers would load the heteroTests in %s, whose %s differs from the source",
+      installed[[1L]], differs[[1L]]
     ))
   }
   invisible(TRUE)
