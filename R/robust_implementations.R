@@ -48,7 +48,8 @@ NULL
 #'   whether or not the bootstrap runs.
 #' @param ci_level Confidence level for reported intervals.
 #' @param parallel Logical, allow parallel bootstrap evaluation when the
-#'   `parallel` package is available.
+#'   `parallel` package is available. A seeded call gives the same result
+#'   each time; see *Parallel replicates* in [bootstrapTestStatistic()].
 #'
 #' @return An object of class \code{htest} augmented with a
 #'   `robust_details` list containing bootstrap, effect size, and power

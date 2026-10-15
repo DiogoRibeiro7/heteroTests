@@ -44,7 +44,8 @@ whether or not the bootstrap runs.}
 \item{ci_level}{Confidence level for reported intervals.}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
-\code{parallel} package is available.}
+\code{parallel} package is available. A seeded call gives the same result
+each time; see \emph{Parallel replicates} in \code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}}.}
 
 \item{studentized}{Deprecated since 0.15.0: use \code{studentize}. It is still
 accepted, with a warning, and does what \code{studentize} does; it stops
