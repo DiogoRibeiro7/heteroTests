@@ -22,7 +22,9 @@ runDiagnostics(
 
 - model:
 
-  A fitted `lm` model or a formula.
+  A fitted `lm`, or a `glm` with the Gaussian family and the identity
+  link, or a formula. The tests refuse a `glm` of any other family or
+  link since 0.15.0.
 
 - data:
 

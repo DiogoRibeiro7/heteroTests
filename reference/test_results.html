@@ -109,6 +109,22 @@
     <p><code><a href="performWhiteTest.html">performWhiteTest()</a></code> and <code><a href="performWhiteTestRobust.html">performWhiteTestRobust()</a></code> attach the attributes <code>auxiliary_regressors</code>, <code>original_regressors</code>, <code>cross_products_included</code> and <code>r_squared_auxiliary</code>, which describe the auxiliary regression. <code><a href="runHeteroTests.html">runHeteroTests()</a></code> adds attributes of its own to each result it returns.</p>
     </div>
     <div class="section level2">
+    <h2 id="inputs-every-test-refuses">Inputs every test refuses<a class="anchor" aria-label="anchor" href="#inputs-every-test-refuses"></a></h2>
+    <p>Since 0.15.0 every test on a model refuses four inputs, each with one message: a <code>glm</code> that is not a least-squares
+fit, that is, of any family but <code>gaussian</code> or with any link but the identity ("needs a model fitted by
+stats::lm()"); a model with a coefficient that is not finite, such as the <code>NA</code> of an aliased term ("Model
+coefficients must be finite"); <code>data</code> that lack rows the model was fitted to; and <code>data</code> that lack a
+variable of the model ("The following variables are missing from"). The model frame is accepted as <code>data</code> as it
+is. A <code>glm</code> with the Gaussian family and the identity link is accepted and gives the result of the <code>lm</code> up
+to rounding error, except that <code><a href="performWhiteTestStreaming.html">performWhiteTestStreaming()</a></code>, <code><a href="performHarrisonMcCabeTest.html">performHarrisonMcCabeTest()</a></code> and
+<code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> refuse every <code>glm</code>. With positive prior weights it gives the result of
+<code>lm(..., weights = w)</code>: <code><a href="performGQTest.html">performGQTest()</a></code>, <code><a href="performRESETTest.html">performRESETTest()</a></code>,
+<code><a href="performWhiteTestBootstrap.html">performWhiteTestBootstrap()</a></code> and <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code>, which read the weights of an
+<code>lm</code>, read the prior weights of the <code>glm</code>, and <code><a href="performQuantileRegressionTest.html">performQuantileRegressionTest()</a></code>, which refuses
+a weighted <code>lm</code>, refuses it with the same message. A <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> fit is refused by every test ("The
+model is a <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> fit"). <code>tests/testthat/test-input-validation.R</code> gives every test these inputs.</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="runHeteroTests.html">runHeteroTests</a></code>, <code><a href="https://rdrr.io/r/stats/t.test.html" class="external-link">t.test</a></code> for the <code>htest</code> class</p></div>
     </div>

@@ -42,7 +42,9 @@ statistic. The classical test is still run by name,
 
 - model:
 
-  an object of class `lm`.
+  a fitted `lm`, or a `glm` with the Gaussian family and the identity
+  link, a model formula, a tidymodels workflow or a parsnip model fit.
+  The tests refuse a `glm` of any other family or link since 0.15.0.
 
 - data:
 

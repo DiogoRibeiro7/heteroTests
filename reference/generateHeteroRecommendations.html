@@ -88,7 +88,8 @@ with decision-tree style guidance.</p>
 <dd><p>Significance level applied when interpreting p-values.</p></dd>
 
   <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>Fitted <code>lm</code>/<code>glm</code> object or model formula.</p></dd>
+<dd><p>Fitted <code>lm</code>, or <code>glm</code> with the Gaussian family and the identity link, or model formula.
+  The tests refuse a <code>glm</code> of any other family or link since 0.15.0.</p></dd>
 
   <dt id="arg-interpretations">interpretations<a class="anchor" aria-label="anchor" href="#arg-interpretations"></a></dt>
 <dd><p>Output from <code>interpretHeteroTestResults()</code>.</p></dd>

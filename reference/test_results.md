@@ -141,6 +141,38 @@ auxiliary regression.
 [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
 adds attributes of its own to each result it returns.
 
+## Inputs every test refuses
+
+Since 0.15.0 every test on a model refuses four inputs, each with one
+message: a `glm` that is not a least-squares fit, that is, of any family
+but `gaussian` or with any link but the identity ("needs a model fitted
+by stats::lm()"); a model with a coefficient that is not finite, such as
+the `NA` of an aliased term ("Model coefficients must be finite");
+`data` that lack rows the model was fitted to; and `data` that lack a
+variable of the model ("The following variables are missing from"). The
+model frame is accepted as `data` as it is. A `glm` with the Gaussian
+family and the identity link is accepted and gives the result of the
+`lm` up to rounding error, except that
+[`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md),
+[`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md)
+and
+[`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
+refuse every `glm`. With positive prior weights it gives the result of
+`lm(..., weights = w)`:
+[`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md),
+[`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md),
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+and
+[`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md),
+which read the weights of an `lm`, read the prior weights of the `glm`,
+and
+[`performQuantileRegressionTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performQuantileRegressionTest.md),
+which refuses a weighted `lm`, refuses it with the same message. A
+[`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) fit is
+refused by every test ("The model is a
+[`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) fit").
+`tests/testthat/test-input-validation.R` gives every test these inputs.
+
 ## See also
 
 [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md),

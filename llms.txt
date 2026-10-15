@@ -273,10 +273,12 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders
 The development direction, completed work and known technical debt are
 tracked in
 [ROADMAP.md](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md).
-Current known limitations include: input validation is not yet uniform
-across every test. Most tests accept a `glm`, and a few accept a model
-with an `NA` coefficient or data that do not match the model; the
-roadmap lists them.
+Since 0.15.0 every test refuses the same bad inputs with the same
+message: a `glm` that is not a least-squares fit (a Gaussian `glm` with
+the identity link is accepted, unweighted or with positive weights, and
+gives the result of the `lm`), a model with an `NA` coefficient, and
+data that lack rows or variables of the model
+([`?test_results`](https://diogoribeiro7.github.io/heteroTests/reference/test_results.md)).
 
 ## Contributing
 

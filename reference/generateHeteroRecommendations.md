@@ -52,7 +52,9 @@ generateHeteroRecommendations(model, data = NULL, test_results = NULL,
 
 - model:
 
-  Fitted `lm`/`glm` object or model formula.
+  Fitted `lm`, or `glm` with the Gaussian family and the identity link,
+  or model formula. The tests refuse a `glm` of any other family or link
+  since 0.15.0.
 
 - interpretations:
 

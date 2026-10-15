@@ -54,6 +54,6 @@ tests for scale. *Journal of the American Statistical Association*,
 #>  Fligner-Killeen test for homogeneity of variances
 #> 
 #> data:  mpg ~ wt
-#> X-squared = 4.5637, df = 2, p-value = 0.1021
+#> X-squared = 4.5639, df = 2, p-value = 0.1021
 #> 
 ```

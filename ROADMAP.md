@@ -775,13 +775,21 @@ and `test-return-contract.R`. Five tests gained the name `df` of their
 its `data.name`; no number changed.
 
 **Uniform input validation** across all exported tests. The README lists
-its absence as a known limitation. Partly done:
-`test-input-validation.R` gives every test a `glm`, a model with an `NA`
+its absence as a known limitation. `test-input-validation.R` gives every
+test a `glm` that is not a least-squares fit, a model with an `NA`
 coefficient, data that lack rows of the fit and data that lack a
-variable, and every test that stops on one of them stops with the same
-message. The tests that still return a value for one of them wait for
-the decision on bad inputs below, since refusing them changes what those
-calls return.
+variable, and every test stops on each with the same message. Refusing
+the inputs some tests returned a value for was decided on 2026-10-15: 36
+test names refuse a `glm` of a family other than `gaussian` or a link
+other than the identity, five refuse an `NA` coefficient, and the
+variance-form, Pesaran and random-effects tests refuse data that cannot
+be matched to the fit (`NEWS.md` lists the calls). A Gaussian `glm` with
+the identity link is accepted and gives the result of the `lm`. With
+prior weights the GQ, RESET, White bootstrap and wild bootstrap tests,
+which read the weights of an `lm`, read them since then, decided on
+2026-10-15, where they took the `glm` for an unweighted fit, and the
+quantile regression test refuses it as it refuses a weighted `lm`; those
+calls change value. No recorded number moves.
 
 ### 0.16.0: statistics evidence, dependencies and internals (no API change)
 
@@ -846,54 +854,84 @@ and others) stop with “object ‘w’ not found” when `data` is omitted, as
 they do when given the model frame, which holds the weights as
 `(weights)`. Found on 2026-10-15; no value changes.
 
+**[`performFlignerKilleenTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performFlignerKilleenTest.md)
+and a tie at the median.** The statistic depends on rounding when the
+number of residuals is even: the two in the middle tie at exactly half
+their difference from the median, and which ranks first decides about
+`1e-6` of the statistic. Found on 2026-10-15 comparing a Gaussian `glm`
+with the same `lm`. Average the ranks of values tied to within a
+tolerance. Changes a value, by that much.
+
+**A Gaussian `glm` with a zero prior weight.** The tests that read the
+Pearson residuals through `rpearson_residuals()` refuse an `lm` with a
+zero weight, whose Pearson residual is an artificial zero, but not the
+same `glm`: `rpearson_residuals()` reads `rprior_weights()`, which
+returns no weights for a `glm`. The Koenker, White, Glejser, Spearman,
+GQ and wild bootstrap tests return a value for it, and
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+stops with “Model residuals must be finite”. Suggested fix: have
+`rpearson_residuals()` read `rleast_squares_weights()` instead of
+`rprior_weights()`. Two related gaps: `plotDiagnostics()` reads
+`rprior_weights()` too, so a weighted Gaussian `glm` is not labelled
+“(weighted residuals)”, and
+[`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md)
+does not refuse a zero weight, even on an `lm`. Found on 2026-10-15 and
+recorded, not fixed, in 0.15.0, as decided that day. A fix changes what
+such fits return.
+
 **Defects found during the 0.12.0 and 0.13.0 work**, left for this
 release so that 0.14.0 changes no value. Each fix that changes a value
 is announced in bold in `NEWS.md`.
 
-- [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
-  keeps the original weights in the model frame of its result, so
-  [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
-  on a
-  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
-  fit reads stale weights: 14.81, against 1.73 for the equivalent
-  `lm(weights = estimated)` fit. Suggested fix: `mf[["(weights)"]] <- w`
-  in `rweighted_refit()`. Changes a value.
-- [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
-  and
-  [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
-  accept a non-Gaussian `glm` and return a meaningless result. They
-  should refuse it, as
-  [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
-  does. Such a call fails instead.
-- The single tests and
-  [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
-  match a reordered tibble or `data.table` to the fit by position,
-  through `prepare_model_data_for_test()`. Changes a value for such
-  data.
-- The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
-  model) and
-  [`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
-  (about 25 KB per call) grow without bound, as the validation cache did
-  before \#97. No value changes.
-- A multivariate `lm`, `cbind(y, y2) ~ ...`, fails with a coercion error
-  instead of a clear refusal. No value changes.
-- The unexported `performWhiteTestEnhanced(bootstrap = TRUE)`, through
-  [`bootstrap_white_test()`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_white_test.md),
-  takes the log of a log response twice, drops an offset given as an
-  argument and takes rows by position. Remove it or fix it. No exported
-  value changes.
-- About 0.8 KB per test call on a new model still persists after the
-  validation cache is cleared, as seen in long simulations. No value
-  changes.
-- On a rank-deficient fit (`z2 = 2 * z`, the design in
-  `tests/testthat/test-koenker-studentized.R`) both
-  [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-  and
-  [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
-  refuse with “Model coefficients must be finite…”, where
-  [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html)
-  returns a statistic (20.87, df 2). Decide whether to compute on the
-  estimable subspace or keep the refusal with a clearer message.
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+keeps the original weights in the model frame of its result, so
+[`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+on a
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+fit reads stale weights: 14.81, against 1.73 for the equivalent
+`lm(weights = estimated)` fit. Suggested fix: `mf[["(weights)"]] <- w`
+in `rweighted_refit()`. Changes a value.
+
+[`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
+and
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+accepted a non-Gaussian `glm` and returned a meaningless result. Done in
+0.15.0 with the input validation: they refuse it, and read the prior
+weights of a Gaussian `glm`.
+
+The single tests and
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+match a reordered tibble or `data.table` to the fit by position, through
+`prepare_model_data_for_test()`. Changes a value for such data.
+
+The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
+model) and
+[`cachedTest()`](https://diogoribeiro7.github.io/heteroTests/reference/cachedTest.md)
+(about 25 KB per call) grow without bound, as the validation cache did
+before \#97. No value changes.
+
+A multivariate `lm`, `cbind(y, y2) ~ ...`, fails with a coercion error
+instead of a clear refusal. No value changes.
+
+The unexported `performWhiteTestEnhanced(bootstrap = TRUE)`, through
+[`bootstrap_white_test()`](https://diogoribeiro7.github.io/heteroTests/reference/bootstrap_white_test.md),
+takes the log of a log response twice, drops an offset given as an
+argument and takes rows by position. Remove it or fix it. No exported
+value changes.
+
+About 0.8 KB per test call on a new model still persists after the
+validation cache is cleared, as seen in long simulations. No value
+changes.
+
+On a rank-deficient fit (`z2 = 2 * z`, the design in
+`tests/testthat/test-koenker-studentized.R`) both
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+and
+[`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
+refuse with “Model coefficients must be finite…”, where
+[`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) returns
+a statistic (20.87, df 2). Decide whether to compute on the estimable
+subspace or keep the refusal with a clearer message.
 
 **Dependencies.**
 
@@ -1223,7 +1261,6 @@ group:
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier | Decide by simulation (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
-| Bad inputs that some tests accept | None recorded. Measured on 2026-10-15 by `test-input-validation.R`: 36 of the 39 tests on a model return a value for a `glm`, Poisson included, and only [`performWhiteTestStreaming()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestStreaming.md), [`performHarrisonMcCabeTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarrisonMcCabeTest.md) and [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md) refuse it; [`performSpreadLevelTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSpreadLevelTest.md), [`performDavidianCarrollTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performDavidianCarrollTest.md), [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md), [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md) and [`performRESETTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRESETTest.md) return a value for a model with an `NA` coefficient; [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md) and [`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md) for data that lack rows of the fit, and they and [`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md) for data that lack a variable of the model. Refusing any of these changes what the call returns, so each belongs in a minor release that says so | 0.15.0 |
 | Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, [`launchDiagnosticDashboard()`](https://diogoribeiro7.github.io/heteroTests/reference/launchDiagnosticDashboard.md), [`run_benchmark_suite()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) and [`generate_benchmark_report()`](https://diogoribeiro7.github.io/heteroTests/reference/run_benchmark_suite.md) warn here for a minor release, naming it, and the code moves | 0.16.0 |

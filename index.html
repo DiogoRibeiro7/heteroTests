@@ -177,7 +177,7 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders</code
 <div class="section level2">
 <h2 id="roadmap-and-limitations">Roadmap and limitations<a class="anchor" aria-label="anchor" href="#roadmap-and-limitations"></a>
 </h2>
-<p>The development direction, completed work and known technical debt are tracked in <a href="ROADMAP.html">ROADMAP.md</a>. Current known limitations include: input validation is not yet uniform across every test. Most tests accept a <code>glm</code>, and a few accept a model with an <code>NA</code> coefficient or data that do not match the model; the roadmap lists them.</p>
+<p>The development direction, completed work and known technical debt are tracked in <a href="ROADMAP.html">ROADMAP.md</a>. Since 0.15.0 every test refuses the same bad inputs with the same message: a <code>glm</code> that is not a least-squares fit (a Gaussian <code>glm</code> with the identity link is accepted, unweighted or with positive weights, and gives the result of the <code>lm</code>), a model with an <code>NA</code> coefficient, and data that lack rows or variables of the model (<code><a href="reference/test_results.html">?test_results</a></code>).</p>
 </div>
 <div class="section level2">
 <h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
