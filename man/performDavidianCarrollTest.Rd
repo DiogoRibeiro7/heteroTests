@@ -7,7 +7,7 @@
 \arguments{
   \item{model}{an object of class \code{lm}.}
   \item{data}{optional data frame the model was fitted to. When \code{NULL}, the default, the model frame of \code{model} is used. The statistic is computed from the residuals and fitted values of \code{model}, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}.}
-  \item{degree}{polynomial degree. Before 0.15.0 \code{degree} was the second argument: a number passed there by position is still read as \code{degree}, with a warning that shows the new call.}
+  \item{degree}{polynomial degree. Before 0.15.0 \code{degree} was the second argument: a number passed there by position is still read as \code{degree}, with a warning that shows the new call; that form stops working in 1.0.0.}
 }
 \value{An object of class \code{htest}.}
 \examples{

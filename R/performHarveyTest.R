@@ -14,7 +14,7 @@
 #'   `(model, data, ...)`. Before 0.15.0 the second argument was `auxiliary`
 #'   and the third `studentize`: a string passed second by position, and a
 #'   logical value after it, are still read as those two, with a warning that
-#'   shows the new call.
+#'   shows the new call; that form stops working in 1.0.0.
 #' @param auxiliary Character scalar choosing the variance regressors \eqn{Z}.
 #'   `"regressors"` (the default) uses the model's own explanatory variables,
 #'   which is the specification in Harvey (1976) and the usual textbook form.

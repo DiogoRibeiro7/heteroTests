@@ -14,7 +14,8 @@
 #'   fitted values (default `2`). Higher degrees allow more flexible variance
 #'   functions but require larger samples. Before 0.15.0 `degree` was the
 #'   second argument: a number passed there by position is still read as
-#'   `degree`, with a warning that shows the new call.
+#'   `degree`, with a warning that shows the new call; that form stops working
+#'   in 1.0.0.
 #'
 #' @return An object of class \code{htest} with the F statistic, numerator and
 #'   denominator degrees of freedom, and p-value for the joint null of constant

@@ -123,7 +123,7 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
 #' such a call by the type of its second argument, which a data frame never
 #' has, moves the value to the argument it was meant for, and calls this
 #' function, which warns and shows the call to use instead. The positional
-#' form works, with this warning, for one release.
+#' form works, with this warning, in 0.15.x and stops working in 1.0.0.
 #'
 #' @param fn Character scalar naming the calling test.
 #' @param model_expr The unevaluated `model` argument, from `substitute()`.
@@ -150,7 +150,8 @@ rwarn_positional_call <- function(fn, model_expr, moved) {
     msg = sprintf(
       paste0(
         "%s is deprecated: since heteroTests 0.15.0 the second argument ",
-        "of %s() is `data`.\nUse %s instead."
+        "of %s() is `data`, and this call stops working in 1.0.0.\n",
+        "Use %s instead."
       ),
       old, fn, new
     )

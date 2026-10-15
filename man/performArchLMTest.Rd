@@ -6,7 +6,7 @@
 \usage{performArchLMTest(model, data = NULL, lags = 1)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{optional data frame the model was fitted to. When \code{NULL}, the default, the model frame of \code{model} is used. The statistic is computed from the residuals of \code{model}, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}. Before 0.15.0 the second argument was \code{lags}: a number passed there by position is still read as \code{lags}, with a warning that shows the new call.}
+  \item{data}{optional data frame the model was fitted to. When \code{NULL}, the default, the model frame of \code{model} is used. The statistic is computed from the residuals of \code{model}, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}. Before 0.15.0 the second argument was \code{lags}: a number passed there by position is still read as \code{lags}, with a warning that shows the new call; that form stops working in 1.0.0.}
   \item{lags}{number of lags to include.}
 }
 \value{An object of class \code{htest} containing the test statistic, p-value and degrees of freedom.}

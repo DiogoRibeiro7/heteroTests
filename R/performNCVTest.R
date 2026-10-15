@@ -16,7 +16,8 @@
 #'   When `NULL` (the default) the fitted values are used as the single variance
 #'   regressor, matching the default behaviour of `car::ncvTest()`. Before
 #'   0.15.0 `var_formula` was the second argument: a formula passed there by
-#'   position is still read as `var_formula`, with a warning.
+#'   position is still read as `var_formula`, with a warning; that form stops
+#'   working in 1.0.0.
 #'
 #' @return An object of class \code{htest} containing the chi-squared
 #'   score statistic, its degrees of freedom, and the upper-tail p-value.

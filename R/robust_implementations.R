@@ -182,7 +182,8 @@ performWhiteTestRobust <- function(model, data, method = c("standard", "reduced"
 #'   `lmtest::bptest()` and [performHarveyTest()].
 #' @inheritParams performWhiteTestRobust
 #' @param studentized Deprecated since 0.15.0: use `studentize`. It is still
-#'   accepted, with a warning, and does what `studentize` does.
+#'   accepted, with a warning, and does what `studentize` does; it stops
+#'   working in 1.0.0.
 #'
 #' @return An augmented \code{htest} object containing a
 #'   `robust_details` element describing the additional diagnostics. Its
@@ -220,7 +221,8 @@ performBPTestRobust <- function(model, data, studentize = TRUE,
     .Deprecated(
       old = "performBPTestRobust",
       msg = paste0(
-        "The argument `studentized` of performBPTestRobust() is deprecated.\n",
+        "The argument `studentized` of performBPTestRobust() is deprecated ",
+        "and stops working in heteroTests 1.0.0.\n",
         "Use `studentize` instead, as in lmtest::bptest()."
       )
     )
@@ -408,12 +410,20 @@ runAdvancedDiagnostics <- function(model, data, tests = "all",
 #' @section Deprecated name:
 #' `rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
 #' `runAdvancedDiagnostics()`, the same function under the package's naming
-#' scheme. The old name still works, returns what it returned and warns.
+#' scheme. The old name still works, returns what it returned and warns; it
+#' leaves the exports in 1.0.0.
 #' @export
 rrunAdvancedDiagnostics <- function(model, data, tests = "all",
                                     auto_enhance = TRUE, bootstrap_B = 500,
                                     parallel = FALSE, ci_level = 0.95) {
-  .Deprecated("runAdvancedDiagnostics", old = "rrunAdvancedDiagnostics")
+  .Deprecated(
+    old = "rrunAdvancedDiagnostics",
+    msg = paste0(
+      "'rrunAdvancedDiagnostics' is deprecated and leaves the exports in ",
+      "heteroTests 1.0.0.\nUse 'runAdvancedDiagnostics' instead.\n",
+      "See help(\"Deprecated\")"
+    )
+  )
   runAdvancedDiagnostics(
     model, data,
     tests = tests, auto_enhance = auto_enhance, bootstrap_B = bootstrap_B,

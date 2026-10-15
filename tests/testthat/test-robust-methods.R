@@ -38,12 +38,12 @@ test_that("performBPTestRobust handles studentize toggle", {
   expect_false(classic$robust_details$bootstrap$enabled)
   expect_true(is.list(student$robust_details$effect_size))
 
-  # The old name `studentized` still works for one release, warns and returns
-  # what `studentize` returns.
+  # The old name `studentized` still works in 0.15.x, warns that it stops
+  # working in 1.0.0 and returns what `studentize` returns.
   for (value in c(FALSE, TRUE)) {
     expect_warning(
       old <- performBPTestRobust(model, mtcars, studentized = value, bootstrap = FALSE),
-      "`studentized` of performBPTestRobust\\(\\) is deprecated.*Use `studentize`",
+      "`studentized` of performBPTestRobust\\(\\) is deprecated.*1\\.0\\.0.*Use `studentize`",
       class = "deprecatedWarning"
     )
     expect_identical(
@@ -116,7 +116,7 @@ test_that("rrunAdvancedDiagnostics() warns, names its new name and keeps its val
   set.seed(15)
   expect_warning(
     old <- rrunAdvancedDiagnostics(model_small, small_data, bootstrap_B = 20),
-    "'rrunAdvancedDiagnostics' is deprecated.*Use 'runAdvancedDiagnostics' instead",
+    "'rrunAdvancedDiagnostics' is deprecated.*1\\.0\\.0.*Use 'runAdvancedDiagnostics' instead",
     class = "deprecatedWarning"
   )
   set.seed(15)

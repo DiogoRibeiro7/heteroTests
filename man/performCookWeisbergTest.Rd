@@ -11,7 +11,7 @@ The chi-square reference distribution follows from the null variance of \eqn{\ha
 \arguments{
   \item{model}{an object of class \code{lm}.}
   \item{data}{optional data frame the model was fitted to, in which \code{var_formula} is evaluated; its rows are matched to the residuals by row name. When \code{NULL}, the default, the model frame of \code{model} is used. Without \code{var_formula} the statistic is computed from the residuals and fitted values of \code{model}, and \code{data} does not change the result.}
-  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in \code{data} (for example \code{~ x1 + x2}). When \code{NULL}, the default, the fitted values are the variance regressor and the result is what this function returned before 0.14.0; otherwise it is what the deprecated \code{performNCVTest(model, var_formula)} returned, labels included. In 0.14.0 \code{var_formula} was the second argument: a formula passed there by position is still read as \code{var_formula}, with a warning that shows the new call.}
+  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in \code{data} (for example \code{~ x1 + x2}). When \code{NULL}, the default, the fitted values are the variance regressor and the result is what this function returned before 0.14.0; otherwise it is what the deprecated \code{performNCVTest(model, var_formula)} returned, labels included. In 0.14.0 \code{var_formula} was the second argument: a formula passed there by position is still read as \code{var_formula}, with a warning that shows the new call; that form stops working in 1.0.0.}
 }
 \value{An object of class \code{htest} containing the score statistic, its single degree of freedom and the p-value.}
 \section{Validation}{

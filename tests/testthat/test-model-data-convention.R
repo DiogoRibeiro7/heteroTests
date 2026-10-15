@@ -1,9 +1,10 @@
 # 0.15.0 gives every test the (model, data, ...) convention: `data = NULL` in
 # second position, recovered from the model frame when omitted.
 # performBoxMTest(data, group) is the documented exception. A call that still
-# passes the old second argument by position works for one release, with a
-# warning that shows the new call. No value changes: the old and the new form
-# of each call return what the old form returned in 0.14.0.
+# passes the old second argument by position works in 0.15.x, with a warning
+# that shows the new call, and stops working in 1.0.0. No value changes: the
+# old and the new form of each call return what the old form returned in
+# 0.14.0.
 
 convention_model <- function() {
   set.seed(20261015)
@@ -79,6 +80,11 @@ test_that("old positional calls warn, show the new call and keep their value", {
     class = "deprecatedWarning"
   )
   expect_identical(a, q(performArchLMTest(m, lags = 3)))
+  # The warning says when the old form goes.
+  expect_warning(
+    q(performArchLMTest(m, 3)), "stops working in 1\\.0\\.0",
+    class = "deprecatedWarning"
+  )
 
   expect_warning(
     a <- q(performMcLeodLiTest(m, 4)),

@@ -38,7 +38,8 @@ statistic and p-value?}
 \code{parallel} package is available.}
 
 \item{studentized}{Deprecated since 0.15.0: use \code{studentize}. It is still
-accepted, with a warning, and does what \code{studentize} does.}
+accepted, with a warning, and does what \code{studentize} does; it stops
+working in 1.0.0.}
 }
 \value{
 An augmented \code{htest} object containing a
