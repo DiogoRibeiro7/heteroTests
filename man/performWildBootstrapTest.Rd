@@ -7,7 +7,7 @@
 performWildBootstrapTest(
   model,
   data = NULL,
-  B = 499,
+  B = 999,
   distribution = c("rademacher", "mammen"),
   progress = interactive()
 )
@@ -25,7 +25,11 @@ a model that transforms a variable needs \code{data}, and so may a weighted fit
 whose weights are a column of the data, which the model frame holds as
 \code{(weights)}.}
 
-\item{B}{Integer number of bootstrap replications. Defaults to \code{499}.}
+\item{B}{Integer number of bootstrap replications. Defaults to \code{999}, which
+is the default of every resampling test in the package since 0.15.0; it
+was \code{499} before. The p-value is \verb{(1 + #) / (B_eff + 1)}, so a test at
+level \code{alpha} is exact only when \code{alpha * (B + 1)} is an integer, which
+999 is at the 5\% and 1\% levels.}
 
 \item{distribution}{Multiplier distribution used for the wild perturbation.
 Supported options are "rademacher" and "mammen".}

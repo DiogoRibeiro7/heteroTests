@@ -29,7 +29,8 @@ whose weights are a column of the data, which the model frame holds as
 observations. Defaults to the first non-intercept term in the model matrix.}
 
 \item{B}{Number of permutation replications used to approximate the null
-distribution.}
+distribution. Defaults to 999, the default of every resampling test in
+the package.}
 
 \item{progress}{Logical toggle for progress reporting during permutations.}
 }

@@ -179,3 +179,29 @@ test_that("a glm is refused by both resampling strategies", {
     )
   }
 })
+
+# Under that convention a test at level alpha is exact only when
+# alpha * (B + 1) is an integer, which 999 is at 5% and 1% and 1000 is not.
+# 0.15.0 made 999 the default of every resampling function; the defaults had
+# been 499, 500, 999 and 1000.
+test_that("every resampling function draws 999 replicates by default", {
+  defaults <- list(
+    performWildBootstrapTest = "B",
+    performWhiteTestBootstrap = "B",
+    performRankPermutationTest = "B",
+    bootstrapTestStatistic = "B",
+    rbootstrap_test_statistic = "B",
+    performWhiteTestRobust = "B",
+    performBPTestRobust = "B",
+    runAdvancedDiagnostics = "bootstrap_B",
+    rrunAdvancedDiagnostics = "bootstrap_B",
+    performSpatialHeteroTest = "permutations"
+  )
+  for (fn in names(defaults)) {
+    value <- formals(getExportedValue("heteroTests", fn))[[defaults[[fn]]]]
+    expect_identical(value, 999, info = fn)
+    for (alpha in c(0.05, 0.01)) {
+      expect_equal(alpha * (value + 1), round(alpha * (value + 1)), info = fn)
+    }
+  }
+})

@@ -42,6 +42,10 @@ NULL
 #' @param bootstrap Logical, compute bootstrap diagnostics for the
 #'   statistic and p-value?
 #' @param B Number of bootstrap replications when `bootstrap = TRUE`.
+#'   Defaults to 999, at which a bootstrap p-value of the form
+#'   `(1 + #) / (B + 1)` gives an exact test at the 5% and 1% levels; it was
+#'   1000 before 0.15.0. The value is recorded in `robust_details$bootstrap$B`
+#'   whether or not the bootstrap runs.
 #' @param ci_level Confidence level for reported intervals.
 #' @param parallel Logical, allow parallel bootstrap evaluation when the
 #'   `parallel` package is available.
@@ -74,7 +78,7 @@ NULL
 #'
 #' @export
 performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "reduced"),
-                                   bootstrap = FALSE, B = 1000, ci_level = 0.95,
+                                   bootstrap = FALSE, B = 999, ci_level = 0.95,
                                    parallel = FALSE) {
   data <- rdata_or_model_frame(model, data)
   method <- match.arg(method)
@@ -213,7 +217,7 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #'
 #' @export
 performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
-                                bootstrap = FALSE, B = 1000, ci_level = 0.95,
+                                bootstrap = FALSE, B = 999, ci_level = 0.95,
                                 parallel = FALSE, studentized) {
   data <- rdata_or_model_frame(model, data)
   if (!missing(studentized)) {
@@ -342,14 +346,15 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
 #' @param auto_enhance Logical, enable automatic bootstrap for small
 #'   samples (n < 50) and studentization for Breusch-Pagan.
 #' @param bootstrap_B Number of bootstrap replications used when automatic
-#'   enhancement triggers bootstrap.
+#'   enhancement triggers bootstrap. Defaults to 999, the default of every
+#'   resampling test in the package since 0.15.0; it was 500 before.
 #'
 #' @return A list with the executed results and metadata describing the
 #'   enhancements that were applied.
 #'
 #' @export
 runAdvancedDiagnostics <- function(model, data, tests = "all",
-                                   auto_enhance = TRUE, bootstrap_B = 500,
+                                   auto_enhance = TRUE, bootstrap_B = 999,
                                    parallel = FALSE, ci_level = 0.95) {
   rvalidateModelInputs(model, test_name = "Advanced diagnostics", min_obs = 10L)
   rvalidateDataInputs(data, min_obs = 10L)
@@ -419,7 +424,7 @@ runAdvancedDiagnostics <- function(model, data, tests = "all",
 #' leaves the exports in 1.0.0.
 #' @export
 rrunAdvancedDiagnostics <- function(model, data, tests = "all",
-                                    auto_enhance = TRUE, bootstrap_B = 500,
+                                    auto_enhance = TRUE, bootstrap_B = 999,
                                     parallel = FALSE, ci_level = 0.95) {
   .Deprecated(
     old = "rrunAdvancedDiagnostics",

@@ -84,7 +84,10 @@ NULL
 #'   discard its family and link.
 #' @param data Data frame used when fitting `model`, holding the rows it was
 #'   fitted to under their row names. Other rows are left out. See Details.
-#' @param B Integer, number of bootstrap replications. Defaults to 1000.
+#' @param B Integer, number of bootstrap replications. Defaults to 999. The
+#'   p-value is `(1 + #) / (B_eff + 1)`, so a test at level `alpha` is exact
+#'   only when `alpha * (B + 1)` is an integer: with 999 it is at the 5% and
+#'   1% levels, and with 1000, the default before 0.15.0, at neither.
 #' @param parallel Logical, compute replicates in parallel when possible?
 #' @param ci_level Confidence level for the percentile interval.
 #' @param resample Bootstrap strategy. `"null"` (the default) regenerates the
@@ -126,7 +129,7 @@ NULL
 #'   boot$ci
 #' }
 #' @export
-bootstrapTestStatistic <- function(test_function, model, data, B = 1000,
+bootstrapTestStatistic <- function(test_function, model, data, B = 999,
                                    parallel = FALSE, ci_level = 0.95,
                                    resample = c("null", "pairs"), n_cores = NULL,
                                    progress = interactive(), ...) {
@@ -143,7 +146,7 @@ bootstrapTestStatistic <- function(test_function, model, data, B = 1000,
 #' `bootstrapTestStatistic()`, the same function under the package's naming
 #' scheme. The old name still works, returns what it returned and warns.
 #' @export
-rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
+rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,
                                       resample = c("null", "pairs"), n_cores = NULL,
                                       progress = interactive(), ...) {
@@ -169,7 +172,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 1000,
 # The implementation behind bootstrapTestStatistic() and its deprecated name.
 # `.call` is the call each name records in its result, so that each reports
 # the call it was given.
-.bootstrap_test_statistic <- function(test_function, model, data, B = 1000,
+.bootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,
                                       resample = c("null", "pairs"), n_cores = NULL,
                                       progress = interactive(), ..., .call = NULL) {

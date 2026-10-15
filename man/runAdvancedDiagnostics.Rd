@@ -10,7 +10,7 @@ runAdvancedDiagnostics(
   data,
   tests = "all",
   auto_enhance = TRUE,
-  bootstrap_B = 500,
+  bootstrap_B = 999,
   parallel = FALSE,
   ci_level = 0.95
 )
@@ -20,7 +20,7 @@ rrunAdvancedDiagnostics(
   data,
   tests = "all",
   auto_enhance = TRUE,
-  bootstrap_B = 500,
+  bootstrap_B = 999,
   parallel = FALSE,
   ci_level = 0.95
 )
@@ -41,7 +41,8 @@ as \code{c("white", "bp")}.}
 samples (n < 50) and studentization for Breusch-Pagan.}
 
 \item{bootstrap_B}{Number of bootstrap replications used when automatic
-enhancement triggers bootstrap.}
+enhancement triggers bootstrap. Defaults to 999, the default of every
+resampling test in the package since 0.15.0; it was 500 before.}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
 \code{parallel} package is available.}

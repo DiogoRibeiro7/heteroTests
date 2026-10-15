@@ -9,7 +9,7 @@ performBPTestRobust(
   data = NULL,
   studentize = TRUE,
   bootstrap = FALSE,
-  B = 1000,
+  B = 999,
   ci_level = 0.95,
   parallel = FALSE,
   studentized
@@ -35,7 +35,11 @@ regression (Koenker variant)? Defaults to \code{TRUE}. The name matches
 \item{bootstrap}{Logical, compute bootstrap diagnostics for the
 statistic and p-value?}
 
-\item{B}{Number of bootstrap replications when \code{bootstrap = TRUE}.}
+\item{B}{Number of bootstrap replications when \code{bootstrap = TRUE}.
+Defaults to 999, at which a bootstrap p-value of the form
+\verb{(1 + #) / (B + 1)} gives an exact test at the 5\% and 1\% levels; it was
+1000 before 0.15.0. The value is recorded in \code{robust_details$bootstrap$B}
+whether or not the bootstrap runs.}
 
 \item{ci_level}{Confidence level for reported intervals.}
 
