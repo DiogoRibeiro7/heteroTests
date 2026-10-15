@@ -556,12 +556,19 @@ after it.
   `parLapply()` paths, so `set.seed()` does not make parallel resampling
   results reproducible. Fix that, and add a test that compares two seeded
   parallel runs.
-- [ ] **The default battery.** `runHeteroTests()`, `test()`/`summary()` on
-  `HeteroDiagnostic`, the advanced diagnostics and the dashboard all default to
-  `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the classical
-  statistic. The package's own sweep shows it rejecting 28.7% of the time under
-  a `t5` null, against 4.8% for Koenker. Make the studentized form the default.
-  The change alters default output, so it gets its own `NEWS.md` section.
+- [x] **The default battery.** `runHeteroTests()`, `test()`/`summary()` on
+  `HeteroDiagnostic`, the advanced diagnostics and the dashboard all defaulted
+  to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the classical
+  statistic. The package's own sweep shows it rejecting 28.75% of the time
+  under a `t5` null, against 4.75% for Koenker. Done (decided 2026-10-15:
+  White and Koenker): the default is `c("white", "koenker")` in those
+  functions and in `runDiagnostics()`, `compareModelDiagnostics()`,
+  `compareTestResults()` and `runSurveyHeteroTests()`, and the classical test
+  runs by name. `suggestRemediation()` reads `"koenker"` as well as
+  `"breusch_pagan"`, and `suggestDiagnosticsForProfile()` recommends Koenker's
+  test as the baseline. `runAdvancedDiagnostics()` already computed the
+  studentized statistic by default and is unchanged. No recorded number
+  moves.
 - [x] **Return contract.** Document the fields every `perform*Test()` returns,
   both the `htest` core and the package's additions, on one help page. Check
   every exported test against it in a single parametrised test. This also
@@ -915,7 +922,6 @@ which is also what a reader of the article asks of it. Within that group:
 
 | Question | Proposal | Needed by |
 | --- | --- | --- |
-| Default battery | White + Koenker | 0.15.0 |
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier | Decide by simulation (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
