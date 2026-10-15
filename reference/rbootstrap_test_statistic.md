@@ -13,7 +13,7 @@ bootstrapTestStatistic(
   test_function,
   model,
   data,
-  B = 1000,
+  B = 999,
   parallel = FALSE,
   ci_level = 0.95,
   resample = c("null", "pairs"),
@@ -26,7 +26,7 @@ rbootstrap_test_statistic(
   test_function,
   model,
   data,
-  B = 1000,
+  B = 999,
   parallel = FALSE,
   ci_level = 0.95,
   resample = c("null", "pairs"),
@@ -119,7 +119,11 @@ refitting would take the logarithm twice. That case raises an error;
 
 - B:
 
-  Integer, number of bootstrap replications. Defaults to 1000.
+  Integer, number of bootstrap replications. Defaults to 999. The
+  p-value is `(1 + #) / (B_eff + 1)`, so a test at level `alpha` is
+  exact only when `alpha * (B + 1)` is an integer: with 999 it is at the
+  5% and 1% levels, and with 1000, the default before 0.15.0, at
+  neither.
 
 - parallel:
 

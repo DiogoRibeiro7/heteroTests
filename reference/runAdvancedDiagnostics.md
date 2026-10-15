@@ -11,7 +11,7 @@ runAdvancedDiagnostics(
   data,
   tests = "all",
   auto_enhance = TRUE,
-  bootstrap_B = 500,
+  bootstrap_B = 999,
   parallel = FALSE,
   ci_level = 0.95
 )
@@ -21,7 +21,7 @@ rrunAdvancedDiagnostics(
   data,
   tests = "all",
   auto_enhance = TRUE,
-  bootstrap_B = 500,
+  bootstrap_B = 999,
   parallel = FALSE,
   ci_level = 0.95
 )
@@ -55,7 +55,8 @@ rrunAdvancedDiagnostics(
 - bootstrap_B:
 
   Number of bootstrap replications used when automatic enhancement
-  triggers bootstrap.
+  triggers bootstrap. Defaults to 999, the default of every resampling
+  test in the package since 0.15.0; it was 500 before.
 
 - parallel:
 
@@ -75,4 +76,5 @@ enhancements that were applied.
 
 `rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
 `runAdvancedDiagnostics()`, the same function under the package's naming
-scheme. The old name still works, returns what it returned and warns.
+scheme. The old name still works, returns what it returned and warns; it
+leaves the exports in 1.0.0.

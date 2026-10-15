@@ -10,10 +10,10 @@ bootstrap, and reporting effect sizes together with power diagnostics.
 ``` r
 performBPTestRobust(
   model,
-  data,
+  data = NULL,
   studentize = TRUE,
   bootstrap = FALSE,
-  B = 1000,
+  B = 999,
   ci_level = 0.95,
   parallel = FALSE,
   studentized
@@ -33,7 +33,11 @@ performBPTestRobust(
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   compatible object) containing the variables referenced in `model`. The
   data must include all observations used to fit `model` and should not
-  contain unresolved missing values.
+  contain unresolved missing values. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 - studentize:
 
@@ -48,7 +52,11 @@ performBPTestRobust(
 
 - B:
 
-  Number of bootstrap replications when `bootstrap = TRUE`.
+  Number of bootstrap replications when `bootstrap = TRUE`. Defaults to
+  999, at which a bootstrap p-value of the form `(1 + #) / (B + 1)`
+  gives an exact test at the 5% and 1% levels; it was 1000 before
+  0.15.0. The value is recorded in `robust_details$bootstrap$B` whether
+  or not the bootstrap runs.
 
 - ci_level:
 
@@ -62,7 +70,7 @@ performBPTestRobust(
 - studentized:
 
   Deprecated since 0.15.0: use `studentize`. It is still accepted, with
-  a warning, and does what `studentize` does.
+  a warning, and does what `studentize` does; it stops working in 1.0.0.
 
 ## Value
 

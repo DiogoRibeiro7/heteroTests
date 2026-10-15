@@ -10,10 +10,10 @@ reporting, and power analysis.
 ``` r
 performWhiteTestRobust(
   model,
-  data,
+  data = NULL,
   method = c("standard", "reduced"),
   bootstrap = FALSE,
-  B = 1000,
+  B = 999,
   ci_level = 0.95,
   parallel = FALSE
 )
@@ -31,7 +31,11 @@ performWhiteTestRobust(
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   object coercible to one) containing the variables referenced by
   `model`. It must include the observations used to fit `model` and will
-  be checked for missing values.
+  be checked for missing values. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 - method:
 
@@ -45,7 +49,11 @@ performWhiteTestRobust(
 
 - B:
 
-  Number of bootstrap replications when `bootstrap = TRUE`.
+  Number of bootstrap replications when `bootstrap = TRUE`. Defaults to
+  999, at which a bootstrap p-value of the form `(1 + #) / (B + 1)`
+  gives an exact test at the 5% and 1% levels; it was 1000 before
+  0.15.0. The value is recorded in `robust_details$bootstrap$B` whether
+  or not the bootstrap runs.
 
 - ci_level:
 

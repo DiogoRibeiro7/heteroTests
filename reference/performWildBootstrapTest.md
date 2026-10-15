@@ -10,8 +10,8 @@ asymptotic \\\chi^2\\ approximation.
 ``` r
 performWildBootstrapTest(
   model,
-  data,
-  B = 499,
+  data = NULL,
+  B = 999,
   distribution = c("rademacher", "mammen"),
   progress = interactive()
 )
@@ -30,11 +30,19 @@ performWildBootstrapTest(
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   compatible object) containing the variables referenced in `model`. The
   data must include all observations used to fit `model` and should not
-  contain unresolved missing values.
+  contain unresolved missing values. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 - B:
 
-  Integer number of bootstrap replications. Defaults to `499`.
+  Integer number of bootstrap replications. Defaults to `999`, which is
+  the default of every resampling test in the package since 0.15.0; it
+  was `499` before. The p-value is `(1 + #) / (B_eff + 1)`, so a test at
+  level `alpha` is exact only when `alpha * (B + 1)` is an integer,
+  which 999 is at the 5% and 1% levels.
 
 - distribution:
 

@@ -10,7 +10,7 @@ p-value is exact under normal errors, given the regressors.
 ``` r
 performHarrisonMcCabeTest(
   model,
-  data,
+  data = NULL,
   order_by,
   point = 0.5,
   alternative = c("less", "two.sided", "greater")
@@ -28,7 +28,11 @@ performHarrisonMcCabeTest(
 
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html)
   containing the variables used to fit `model` and the ordering variable
-  named by `order_by`.
+  named by `order_by`. When `NULL`, the default, the model frame of
+  `model` is used, so `order_by` must then be a variable of the model.
+  The model frame holds the terms of the model rather than its variables
+  (`log(x)` rather than `x`), so a model that transforms a variable
+  needs `data`.
 
 - order_by:
 

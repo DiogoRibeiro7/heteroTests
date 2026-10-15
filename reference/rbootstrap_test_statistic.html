@@ -55,7 +55,7 @@ percentile interval, and—for null-imposed resampling—a p-value.</p>
 <span>  <span class="va">test_function</span>,</span>
 <span>  <span class="va">model</span>,</span>
 <span>  <span class="va">data</span>,</span>
-<span>  B <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  B <span class="op">=</span> <span class="fl">999</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  resample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"null"</span>, <span class="st">"pairs"</span><span class="op">)</span>,</span>
@@ -68,7 +68,7 @@ percentile interval, and—for null-imposed resampling—a p-value.</p>
 <span>  <span class="va">test_function</span>,</span>
 <span>  <span class="va">model</span>,</span>
 <span>  <span class="va">data</span>,</span>
-<span>  B <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  B <span class="op">=</span> <span class="fl">999</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  resample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"null"</span>, <span class="st">"pairs"</span><span class="op">)</span>,</span>
@@ -158,7 +158,10 @@ fitted to under their row names. Other rows are left out. See Details.</p></dd>
 
 
 <dt id="arg-b">B<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>
-<dd><p>Integer, number of bootstrap replications. Defaults to 1000.</p></dd>
+<dd><p>Integer, number of bootstrap replications. Defaults to 999. The
+p-value is <code>(1 + #) / (B_eff + 1)</code>, so a test at level <code>alpha</code> is exact
+only when <code>alpha * (B + 1)</code> is an integer: with 999 it is at the 5% and
+1% levels, and with 1000, the default before 0.15.0, at neither.</p></dd>
 
 
 <dt id="arg-parallel">parallel<a class="anchor" aria-label="anchor" href="#arg-parallel"></a></dt>

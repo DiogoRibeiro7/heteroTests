@@ -7,7 +7,7 @@ the test statistic across many bootstrap replications.
 ## Usage
 
 ``` r
-performWhiteTestBootstrap(model, data, B = 1000, parallel = FALSE)
+performWhiteTestBootstrap(model, data = NULL, B = 999, parallel = FALSE)
 ```
 
 ## Arguments
@@ -22,13 +22,20 @@ performWhiteTestBootstrap(model, data, B = 1000, parallel = FALSE)
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or
   object coercible to one) containing the variables referenced by
   `model`. It must include the observations used to fit `model` and will
-  be checked for missing values.
+  be checked for missing values. When `NULL`, the default, the model
+  frame of `model` is used. It holds the terms of the model rather than
+  its variables (`log(x)` rather than `x`), so a model that transforms a
+  variable needs `data`, and so may a weighted fit whose weights are a
+  column of the data, which the model frame holds as `(weights)`.
 
 - B:
 
-  Integer scalar giving the number of bootstrap replications. Larger
-  values yield smoother p-value estimates at the cost of additional
-  runtime.
+  Integer scalar giving the number of bootstrap replications. Defaults
+  to 999. The p-value is `(1 + #) / (B_eff + 1)`, where `B_eff` is the
+  number of replicates whose statistic is finite (`B` when every
+  replicate succeeds), so a test at level `alpha` is exact only when
+  `alpha * (B_eff + 1)` is an integer: with 999 it is at the 5% and 1%
+  levels, and with 1000, the default before 0.15.0, at neither.
 
 - parallel:
 

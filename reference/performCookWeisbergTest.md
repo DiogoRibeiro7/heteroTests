@@ -51,7 +51,7 @@ that assumption is doubtful, prefer
   `performNCVTest(model, var_formula)` returned, labels included. In
   0.14.0 `var_formula` was the second argument: a formula passed there
   by position is still read as `var_formula`, with a warning that shows
-  the new call.
+  the new call; that form stops working in 1.0.0.
 
 ## Value
 

@@ -50,7 +50,7 @@ exact under normal errors, given the regressors.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performHarrisonMcCabeTest</span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
-<span>  <span class="va">data</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">order_by</span>,</span>
 <span>  point <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  alternative <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"less"</span>, <span class="st">"two.sided"</span>, <span class="st">"greater"</span><span class="op">)</span></span>
@@ -67,7 +67,11 @@ exact under normal errors, given the regressors.</p>
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>A <a href="https://rdrr.io/r/base/data.frame.html" class="external-link">base::data.frame</a> containing the variables used to fit
-<code>model</code> and the ordering variable named by <code>order_by</code>.</p></dd>
+<code>model</code> and the ordering variable named by <code>order_by</code>.
+When <code>NULL</code>, the default, the model frame of <code>model</code> is used, so <code>order_by</code>
+must then be a variable of the model. The model frame holds the terms of
+the model rather than its variables (<code>log(x)</code> rather than <code>x</code>), so a model
+that transforms a variable needs <code>data</code>.</p></dd>
 
 
 <dt id="arg-order-by">order_by<a class="anchor" aria-label="anchor" href="#arg-order-by"></a></dt>

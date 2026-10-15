@@ -8,7 +8,7 @@ processed without allocating the full auxiliary regression matrix.
 ## Usage
 
 ``` r
-performKoenkerTestStreaming(model, data, chunk_size = 10000, progress = interactive())
+performKoenkerTestStreaming(model, data = NULL, chunk_size = 10000, progress = interactive())
 ```
 
 ## Arguments
@@ -22,7 +22,12 @@ performKoenkerTestStreaming(model, data, chunk_size = 10000, progress = interact
 
   A [base::data.frame](https://rdrr.io/r/base/data.frame.html)
   containing the variables referenced in `model`. The data must align
-  with the observations used to fit the model.
+  with the observations used to fit the model. When `NULL`, the default,
+  the model frame of `model` is used. It holds the terms of the model
+  rather than its variables (`log(x)` rather than `x`), so a model that
+  transforms a variable needs `data`, and so may a weighted fit whose
+  weights are a column of the data, which the model frame holds as
+  `(weights)`.
 
 - chunk_size:
 
