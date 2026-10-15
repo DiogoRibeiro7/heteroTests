@@ -218,8 +218,9 @@ draws from stream `i` there too now, so the value is the one the workers
 give, whatever `n_cores`. With `set.seed(99)`,
 `runHeteroTestsParallel(lm(mpg ~ wt + qsec, data = mtcars), mtcars, tests =
 c("koenker", "wild_bootstrap"), n_cores = 1)` gave a wild bootstrap p-value
-of 0.2120, that of `performWildBootstrapTest()` called from the same seed,
-and gives 0.2110, as with `n_cores = 2` or 3.
+of 0.2180 in 0.14.0, that of `performWildBootstrapTest()` called from the
+same seed with the 499 replicates of then (0.2120 with the 999 of now), and
+gives 0.2110, as with `n_cores = 2` or 3.
 
 `performWhiteTestBootstrap(parallel = TRUE)` forked its workers with
 `parallel::mclapply()` on every platform, so on Windows, which cannot fork,
