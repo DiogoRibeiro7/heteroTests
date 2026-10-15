@@ -212,7 +212,7 @@ replicates*.
 
 `performWhiteTestBootstrap(parallel = TRUE)` forked its workers with
 `parallel::mclapply()` on every platform, so on Windows, which cannot fork,
-it stopped with "'mc.cores' > 1 is not supported on Windows" whenever the
+it stopped with `'mc.cores' > 1 is not supported on Windows` whenever the
 machine had more than two cores. It runs its replicates on a socket cluster
 there, as `bootstrapTestStatistic()` does, and gains `n_cores`, the number of
 workers, which the result does not depend on: with `set.seed(1)`,
