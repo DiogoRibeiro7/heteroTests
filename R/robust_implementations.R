@@ -341,9 +341,9 @@ performBPTestRobust <- function(model, data, studentize = TRUE,
 #'   enhancements that were applied.
 #'
 #' @export
-rrunAdvancedDiagnostics <- function(model, data, tests = "all",
-                                    auto_enhance = TRUE, bootstrap_B = 500,
-                                    parallel = FALSE, ci_level = 0.95) {
+runAdvancedDiagnostics <- function(model, data, tests = "all",
+                                   auto_enhance = TRUE, bootstrap_B = 500,
+                                   parallel = FALSE, ci_level = 0.95) {
   rvalidateModelInputs(model, test_name = "Advanced diagnostics", min_obs = 10L)
   rvalidateDataInputs(data, min_obs = 10L)
 
@@ -401,6 +401,23 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
       tests = names(results),
       bootstrap_B = bootstrap_B
     )
+  )
+}
+
+#' @rdname runAdvancedDiagnostics
+#' @section Deprecated name:
+#' `rrunAdvancedDiagnostics()` is deprecated since 0.15.0: use
+#' `runAdvancedDiagnostics()`, the same function under the package's naming
+#' scheme. The old name still works, returns what it returned and warns.
+#' @export
+rrunAdvancedDiagnostics <- function(model, data, tests = "all",
+                                    auto_enhance = TRUE, bootstrap_B = 500,
+                                    parallel = FALSE, ci_level = 0.95) {
+  .Deprecated("runAdvancedDiagnostics", old = "rrunAdvancedDiagnostics")
+  runAdvancedDiagnostics(
+    model, data,
+    tests = tests, auto_enhance = auto_enhance, bootstrap_B = bootstrap_B,
+    parallel = parallel, ci_level = ci_level
   )
 }
 

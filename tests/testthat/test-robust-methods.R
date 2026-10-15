@@ -90,10 +90,10 @@ test_that("restimate_test_power returns power diagnostics", {
   expect_true(is.data.frame(power$details$power_curve))
 })
 
-test_that("rrunAdvancedDiagnostics auto-enhances small samples", {
+test_that("runAdvancedDiagnostics auto-enhances small samples", {
   small_data <- mtcars[seq_len(30), ]
   model_small <- stats::lm(mpg ~ wt + cyl, data = small_data)
-  diagnostics <- rrunAdvancedDiagnostics(model_small, small_data,
+  diagnostics <- runAdvancedDiagnostics(model_small, small_data,
     tests = c("white", "breusch_pagan"),
     auto_enhance = TRUE,
     bootstrap_B = 20,
@@ -104,10 +104,23 @@ test_that("rrunAdvancedDiagnostics auto-enhances small samples", {
   expect_true(diagnostics$results$white$robust_details$bootstrap$enabled)
   expect_true(diagnostics$results$breusch_pagan$robust_details$studentized)
 
-  large_diag <- rrunAdvancedDiagnostics(model_small, small_data,
+  large_diag <- runAdvancedDiagnostics(model_small, small_data,
     tests = "white", auto_enhance = FALSE
   )
   expect_false(large_diag$results$white$robust_details$bootstrap$enabled)
+})
+
+test_that("rrunAdvancedDiagnostics() warns, names its new name and keeps its value", {
+  small_data <- mtcars[seq_len(30), ]
+  model_small <- stats::lm(mpg ~ wt + cyl, data = small_data)
+  set.seed(15)
+  expect_warning(
+    old <- rrunAdvancedDiagnostics(model_small, small_data, bootstrap_B = 20),
+    "'rrunAdvancedDiagnostics' is deprecated.*Use 'runAdvancedDiagnostics' instead",
+    class = "deprecatedWarning"
+  )
+  set.seed(15)
+  expect_identical(old, runAdvancedDiagnostics(model_small, small_data, bootstrap_B = 20))
 })
 
 test_that("rvalidate_against_reference reports comparison status", {
