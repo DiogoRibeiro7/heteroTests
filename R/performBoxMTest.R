@@ -3,6 +3,10 @@
 #' Applies Box's (1949) likelihood-ratio test to assess whether multiple groups
 #' share the same covariance matrix under multivariate normality.
 #'
+#' `performBoxMTest(data, group)` is the one test that does not take
+#' `(model, data, ...)`: it tests the covariance matrices of the data
+#' themselves, not the residuals of a fitted model.
+#'
 #' @param data A [base::data.frame] or matrix containing numeric variables.
 #' @param group A factor or grouping variable aligned with the rows of `data`.
 #'

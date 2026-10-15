@@ -7,6 +7,14 @@
 #'
 #' @param model A fitted [stats::lm] object representing the mean equation under
 #'   study.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the residuals, fitted values and model matrix of `model`, so `data`
+#'   does not change the result; it is accepted so that every test takes
+#'   `(model, data, ...)`. Before 0.15.0 the second argument was `auxiliary`
+#'   and the third `studentize`: a string passed second by position, and a
+#'   logical value after it, are still read as those two, with a warning that
+#'   shows the new call.
 #' @param auxiliary Character scalar choosing the variance regressors \eqn{Z}.
 #'   `"regressors"` (the default) uses the model's own explanatory variables,
 #'   which is the specification in Harvey (1976) and the usual textbook form.
@@ -80,9 +88,29 @@
 #' [performParkTest()] and [performGlejserTest()] implement related variance
 #' function diagnostics; [performBPTest()] tests the same regressor set under an
 #' additive rather than a multiplicative variance model.
-performHarveyTest <- function(model,
+performHarveyTest <- function(model, data = NULL,
                               auxiliary = c("regressors", "fitted"),
                               studentize = FALSE) {
+  if (is.character(data) && is.null(dim(data))) {
+    # performHarveyTest(m, "fitted") and performHarveyTest(m, "fitted", TRUE),
+    # the positional calls of the signature before 0.15.0.
+    if (missing(auxiliary)) {
+      rwarn_positional_call(
+        "performHarveyTest", substitute(model), list(auxiliary = substitute(data))
+      )
+      auxiliary <- data
+      data <- NULL
+    } else if (is.logical(auxiliary) && missing(studentize)) {
+      rwarn_positional_call(
+        "performHarveyTest", substitute(model),
+        list(auxiliary = substitute(data), studentize = substitute(auxiliary))
+      )
+      studentize <- auxiliary
+      auxiliary <- data
+      data <- NULL
+    }
+  }
+  rcheck_data_argument(data, "performHarveyTest")
   auxiliary <- match.arg(auxiliary)
   if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
     stop("`studentize` must be a single logical value.", call. = FALSE)

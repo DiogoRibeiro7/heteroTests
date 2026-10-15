@@ -1,5 +1,43 @@
 # heteroTests News
 
+## Development version
+
+0.15.0 makes the interface match its description. The changes below break
+calls, not values: each old form still works in 0.15.0, returns what it
+returned in 0.14.0 and warns with the call to use instead.
+
+### Calls that changed
+
+| Old form | New form | Old form still works |
+| --- | --- | --- |
+| `performArchLMTest(model, lags)` | `performArchLMTest(model, data = NULL, lags = 1)` | Yes, with a warning, when `lags` is a number given second by position |
+| `performMcLeodLiTest(model, lags)` | `performMcLeodLiTest(model, data = NULL, lags = 10)` | As above |
+| `performDavidianCarrollTest(model, degree)` | `performDavidianCarrollTest(model, data = NULL, degree = 2)` | Yes, with a warning, when `degree` is a number given second by position |
+| `performCookWeisbergTest(model, var_formula)` | `performCookWeisbergTest(model, data = NULL, var_formula = NULL)` | Yes, with a warning, when `var_formula` is a formula given second by position |
+| `performNCVTest(model, var_formula)` (deprecated) | `performNCVTest(model, data = NULL, var_formula = NULL)` | As above, with the deprecation warning of 0.14.0 as well |
+| `performHarveyTest(model, auxiliary, studentize)` | `performHarveyTest(model, data = NULL, auxiliary, studentize)` | Yes, with a warning, when `auxiliary` is a string given second by position, alone or followed by `studentize` |
+| `performSpearmanTest(model)` | `performSpearmanTest(model, data = NULL)` | Yes: `data` is optional |
+| `performSpreadLevelTest(model)` | `performSpreadLevelTest(model, data = NULL)` | Yes: `data` is optional |
+
+Calls that name their arguments, such as `performArchLMTest(model, lags = 3)`,
+are unchanged and do not warn.
+
+### The `(model, data, ...)` convention
+
+Every test now takes `(model, data, ...)`. The eight tests above, which read
+everything they need from the model, take `data = NULL` in second position and
+use the model frame when it is omitted, as `performVarianceFormTest()` and
+`fitWLS()` have done since 0.12.0. Giving them the data does not change the
+result, except that `performCookWeisbergTest(model, data, var_formula)` and
+`performNCVTest()` evaluate `var_formula` in `data`, matched to the residuals
+by row name, so the variance model can use a variable the mean model does
+not; with `data = NULL` it is evaluated in the model frame, as before.
+`performBoxMTest(data, group)` is the documented exception: it tests the
+covariance matrices of the data, not the residuals of a model.
+`tests/testthat/test-model-data-convention.R` checks the signatures, the
+warnings and that each old and new call returns the value of the old one.
+The registry entries `"cook_weisberg"` and `"spread_level"` pass the data on.
+
 ## 0.14.0
 
 0.14.0 reviews the exported names before 1.0.0: it deprecates 22 exports and

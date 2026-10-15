@@ -17,8 +17,10 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID 0009-0001-2022-7072]
 
 Every test returns a base-R `htest` object, so results print, subset and
 compose like those of `lmtest::bptest()` and slot directly into automated
-pipelines. Most tests take `(model, data, ...)`; the [roadmap](ROADMAP.md)
-lists the nine that do not yet. Where an established implementation exists, the
+pipelines. Every test takes `(model, data, ...)`, where `data` may be omitted
+for the tests that need nothing beyond the model, except Box's M test
+(`performBoxMTest(data, group)`), which tests the data rather than the
+residuals of a model. Where an established implementation exists, the
 test reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for
 Breusch--Pagan, Koenker and Goldfeld--Quandt, `car` for the Cook--Weisberg
 score test, Levene and Brown--Forsythe, `stats` for Bartlett and

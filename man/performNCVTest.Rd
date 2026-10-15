@@ -11,10 +11,11 @@ Because the divisor 2 is the null variance of \eqn{\hat{e}^2 / \sigma^2} under n
 }
 \section{Deprecated}{\code{performNCVTest()} is deprecated since 0.14.0: use \code{\link{performCookWeisbergTest}}, which gained \code{var_formula} and is the one entry point for the Cook-Weisberg score test. With a variance formula, \code{performNCVTest(model, var_formula)} returns what \code{performCookWeisbergTest(model, var_formula)} returns; without one the two return the same statistic, degrees of freedom and p-value, and \code{performCookWeisbergTest()} labels the result as the Cook-Weisberg test. The old name still works, returns what it returned and warns.}
 \section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}
-\usage{performNCVTest(model, var_formula = NULL)}
+\usage{performNCVTest(model, data = NULL, var_formula = NULL)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in the model frame of \code{model} (for example \code{~ x1 + x2}). When \code{NULL} the fitted values are used.}
+  \item{data}{optional data frame the model was fitted to, in which \code{var_formula} is evaluated, as in \code{\link{performCookWeisbergTest}}. When \code{NULL}, the default, the model frame of \code{model} is used.}
+  \item{var_formula}{optional one-sided formula giving the variance model, evaluated in \code{data} (for example \code{~ x1 + x2}). When \code{NULL} the fitted values are used. Before 0.15.0 \code{var_formula} was the second argument: a formula passed there by position is still read as \code{var_formula}, with a warning.}
 }
 \value{An object of class \code{htest} containing the chi-square score statistic, its degrees of freedom and the p-value.}
 \section{Validation}{

@@ -75,9 +75,11 @@ registerPlot <- function(name, fun) {
 registerDiagnostic("white", function(model, data) performWhiteTest(model, data))
 registerDiagnostic("breusch_pagan", function(model, data) performBPTest(model, data))
 registerDiagnostic("koenker", function(model, data) performKoenkerTest(model, data))
-registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model))
+registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model, data))
 registerDiagnostic("ncv", function(model, data) .ncv_test(model))
-registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model))
+registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model, data))
+# performBoxMTest() tests the data, not a model, and is the documented
+# exception to the (model, data, ...) convention.
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
 registerDiagnostic("student_bp", function(model, data) .studentized_bp_test(model, data))
 registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))

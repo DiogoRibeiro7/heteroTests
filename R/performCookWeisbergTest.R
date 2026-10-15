@@ -7,11 +7,18 @@
 #'
 #' @param model A fitted [stats::lm] object whose residuals will be analysed for
 #'   variance patterns.
+#' @param data Optional data frame the model was fitted to, in which
+#'   `var_formula` is evaluated; its rows are matched to the residuals by row
+#'   name. When `NULL`, the default, the model frame of `model` is used.
+#'   Without `var_formula` the statistic is computed from the residuals and
+#'   fitted values of `model`, and `data` does not change the result.
 #' @param var_formula Optional one-sided formula giving the variance model,
-#'   evaluated in the model frame of `model`, for example `~ x1 + x2`. When
-#'   `NULL`, the default, the fitted values are the variance regressor and the
-#'   result is what this function returned before 0.14.0; otherwise it is
-#'   what the deprecated `performNCVTest(model, var_formula)` returned.
+#'   evaluated in `data`, for example `~ x1 + x2`. When `NULL`, the default,
+#'   the fitted values are the variance regressor and the result is what this
+#'   function returned before 0.14.0; otherwise it is what the deprecated
+#'   `performNCVTest(model, var_formula)` returned. In 0.14.0 `var_formula`
+#'   was the second argument: a formula passed there by position is still read
+#'   as `var_formula`, with a warning that shows the new call.
 #'
 #' @return An object of class \code{htest} containing the score
 #'   statistic, its single degree of freedom, and the p-value for the null
@@ -52,6 +59,9 @@
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
 #' performCookWeisbergTest(mod)
 #'
+#' # With the data, the variance model can use variables the mean model does not
+#' performCookWeisbergTest(mod, mtcars, var_formula = ~ wt + hp)
+#'
 #' # The test is powerful against variance proportional to the squared mean
 #' set.seed(454)
 #' x <- runif(200)
@@ -63,7 +73,15 @@
 #' [performNCVTest()] for the same score test against an arbitrary variance
 #' model, [performBPTest()] for the general Breusch–Pagan regression, and
 #' [performWhiteTest()] for a higher-order omnibus alternative.
-performCookWeisbergTest <- function(model, var_formula = NULL) {
+performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
+  if (inherits(data, "formula") && missing(var_formula)) {
+    rwarn_positional_call(
+      "performCookWeisbergTest", substitute(model), list(var_formula = substitute(data))
+    )
+    var_formula <- data
+    data <- NULL
+  }
+  rcheck_data_argument(data, "performCookWeisbergTest")
   rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L)
 
   ht_log("INFO", "Running Cook-Weisberg test")
@@ -71,7 +89,7 @@ performCookWeisbergTest <- function(model, var_formula = NULL) {
   # With a variance model of its own the test is the score test that the
   # deprecated performNCVTest() computed, returned as it returned it.
   if (!is.null(var_formula)) {
-    return(.ncv_test(model, var_formula))
+    return(.ncv_test(model, var_formula, data))
   }
 
   # The Cook-Weisberg statistic is the score test of performNCVTest() with the

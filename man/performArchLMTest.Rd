@@ -3,9 +3,10 @@
 \title{Perform Engle's ARCH LM test}
 \description{Regresses squared residuals on their lags to detect ARCH effects.}
 \details{The statistic is \eqn{n R^2} from an auxiliary regression of \eqn{e_t^2} on its lagged values, where \eqn{R^2} is the coefficient of determination. Under the null of no ARCH effects it follows a chi-square distribution with degrees of freedom equal to the number of lags.}
-\usage{performArchLMTest(model, lags = 1)}
+\usage{performArchLMTest(model, data = NULL, lags = 1)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
+  \item{data}{optional data frame the model was fitted to. When \code{NULL}, the default, the model frame of \code{model} is used. The statistic is computed from the residuals of \code{model}, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}. Before 0.15.0 the second argument was \code{lags}: a number passed there by position is still read as \code{lags}, with a warning that shows the new call.}
   \item{lags}{number of lags to include.}
 }
 \value{An object of class \code{htest} containing the test statistic, p-value and degrees of freedom.}

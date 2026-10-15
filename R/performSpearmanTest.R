@@ -7,6 +7,10 @@
 #'
 #' @param model A fitted [stats::lm] object providing residuals and fitted values
 #'   for the diagnostic.
+#' @param data Optional data frame the model was fitted to. When `NULL`, the
+#'   default, the model frame of `model` is used. The statistic is computed
+#'   from the residuals and fitted values of `model`, so `data` does not change
+#'   the result; it is accepted so that every test takes `(model, data, ...)`.
 #'
 #' @return An object of class \code{htest} containing the t statistic for the
 #'   rank correlation and its associated p-value.
@@ -40,7 +44,8 @@
 #' @seealso
 #' [performNCVTest()] and [performSpreadLevelTest()] provide related tests based
 #' on monotonic variance patterns.
-performSpearmanTest <- function(model) {
+performSpearmanTest <- function(model, data = NULL) {
+  rcheck_data_argument(data, "performSpearmanTest")
   rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
