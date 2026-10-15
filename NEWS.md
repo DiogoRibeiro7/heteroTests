@@ -97,7 +97,9 @@ for a default suite. `suggestDiagnosticsForProfile()` recommends Koenker's
 test, where it recommended the classical one, beside White's as the baseline
 for every data profile. `runAdvancedDiagnostics()` is unchanged: with its
 default `auto_enhance = TRUE` its Breusch-Pagan entry is already the
-studentized statistic. None of the recorded evidence calls these functions
+studentized statistic, but `auto_enhance = FALSE` turns the studentization
+off with the bootstrap and runs the classical test, which is listed under
+0.16.0. None of the recorded evidence calls these functions
 with their default battery, so no recorded number moves.
 
 ### Calls that changed

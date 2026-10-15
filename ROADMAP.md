@@ -610,6 +610,14 @@ after it.
   subset. The check compares the names asked for with the values of its lookup
   table (`"white"`, `"breusch_pagan"`) rather than with its names, which
   include `"bp"`. Found on 2026-10-15 and recorded, not fixed, in 0.15.0.
+- [ ] **`runAdvancedDiagnostics(auto_enhance = FALSE)`** silently runs the
+  classical Breusch–Pagan test. `auto_enhance` also sets `studentize` for
+  `performBPTestRobust()`, so turning the small-sample bootstrap off turns
+  Koenker's studentization off with it, and the result, named `breusch_pagan`
+  either way, then assumes normal errors, which the default battery stopped
+  doing in 0.15.0. Either separate the two settings or say on the help page
+  what `auto_enhance = FALSE` runs. Found on 2026-10-15 and recorded, not
+  fixed, in 0.15.0.
 - [ ] **`checkModel(<glm>, data, enhanced = TRUE)`** stops with "missing value
   where TRUE/FALSE needed", Gaussian and binomial alike: the enhanced check
   reads the R-squared of `summary()`, which a `glm` does not have. Since 0.15.0
