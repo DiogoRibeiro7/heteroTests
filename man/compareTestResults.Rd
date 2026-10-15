@@ -4,14 +4,16 @@
 \alias{compareTestResults}
 \title{Summarise heteroscedasticity test results}
 \usage{
-compareTestResults(model, data = NULL, tests = c("white", "breusch_pagan"))
+compareTestResults(model, data = NULL, tests = c("white", "koenker"))
 }
 \arguments{
 \item{model}{A fitted \code{lm} model or a formula.}
 
 \item{data}{Data frame used if \code{model} is a formula.}
 
-\item{tests}{Character vector of heteroscedasticity tests.}
+\item{tests}{Character vector of heteroscedasticity tests. Defaults to the
+White and Koenker tests, the default of \code{\link[=runHeteroTests]{runHeteroTests()}}; it was the
+White and the classical Breusch-Pagan tests up to 0.14.0.}
 }
 \value{
 Data frame with columns \code{test}, \code{statistic}, and \code{p.value}.

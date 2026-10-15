@@ -6,7 +6,8 @@
 break calls, not values: each old form still works in 0.15.x, returns what it
 returned in 0.14.0 and warns with the call to use instead, and it stops
 working in 1.0.0. The changes in bold change values: every resampling test
-draws 999 replicates by default.
+draws 999 replicates by default, and the default battery of
+`runHeteroTests()` is White and Koenker.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -56,6 +57,50 @@ same seeds: under the null it rejected 0.045 of the time and rejects 0.050,
 and against the alternative 0.362 and 0.350
 (`inst/validation/full-sweep-size-power.csv`). The other studies give `B`
 explicitly.
+
+### White and Koenker are the default battery
+
+**`runHeteroTests()` and the functions that share its default run White's
+test and Koenker's studentized Breusch-Pagan test, `c("white", "koenker")`,
+where they ran White's and the classical Breusch-Pagan test,
+`c("white", "breusch_pagan")`.** The classical statistic divides by
+`2 sigma^4`, the variance of the squared errors only when they are normal. In
+the full sweep, with 150 observations and 400 replications, it rejects a true
+null hypothesis 28.75% of the time at the 5% level when the errors have a
+`t5` distribution (115 of 400 samples), against 4.75% (19 of 400) for
+Koenker's statistic; under Gaussian errors they reject 5.75% and 4.50%, and
+both reject every sample against `sd = x^2`
+(`inst/validation/full-sweep-size-power.csv`). Pass A, at 5000 replications
+and 100 observations, agrees: 21.86% against 4.24% under `t5` errors. What
+Koenker's statistic gives up is a little power when the errors are normal: in
+Pass A it rejects 72.70% of the time against `sigma^2 = exp(0.4 x1)`, where
+the classical test rejects 77.44% (`inst/validation/pass-a-size-power.csv`).
+
+The default changes in `runHeteroTests()`, `runDiagnostics()`, `summary()`
+and the deprecated `test()` on a `HeteroDiagnostic` object,
+`compareModelDiagnostics()`, `compareTestResults()`,
+`runSurveyHeteroTests()` and the tests the dashboard selects at start, and so
+in `generateDiagnosticReport()` and `generateHeteroRecommendations()`, which
+call `runHeteroTests()` with its default. The classical test still runs by
+name, `tests = "breusch_pagan"`, or `c("white", "breusch_pagan")` for the old
+battery. The second element of a default suite is now called `koenker`, so
+code that reads `$breusch_pagan` from it gets `NULL`. For
+`lm(mpg ~ wt + qsec, data = mtcars)`, `runHeteroTests(m, mtcars)` returned
+White's test (11.82 on 5 degrees of freedom, p = 0.0373) and the classical
+Breusch-Pagan test (3.135 on 2, p = 0.2086), and returns White's test and
+Koenker's (3.086 on 2, p = 0.2138).
+
+Two other functions follow the new default. `suggestRemediation()` suggests
+variance modelling when the Koenker test rejects as well as when the classical
+test does; it read only `"breusch_pagan"`, so it would never have suggested it
+for a default suite. `suggestDiagnosticsForProfile()` recommends Koenker's
+test, where it recommended the classical one, beside White's as the baseline
+for every data profile. `runAdvancedDiagnostics()` is unchanged: with its
+default `auto_enhance = TRUE` its Breusch-Pagan entry is already the
+studentized statistic, but `auto_enhance = FALSE` turns the studentization
+off with the bootstrap and runs the classical test, which is listed under
+0.16.0. None of the recorded evidence calls these functions
+with their default battery, so no recorded number moves.
 
 ### Calls that changed
 

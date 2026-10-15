@@ -565,7 +565,9 @@ tidy.hetero_grouped_suite <- function(x, ...) {
 #' @param formula Model formula specifying the mean structure.
 #' @param design A [survey::svydesign()] object. Only its data are used.
 #' @param tests Character vector of diagnostic names forwarded to
-#'   [runHeteroTests()]. Defaults to the White and Breusch-Pagan tests.
+#'   [runHeteroTests()]. Defaults to the White and Koenker tests, the default
+#'   of [runHeteroTests()]; it was the White and the classical Breusch-Pagan
+#'   tests up to 0.14.0.
 #' @param ... Additional arguments passed to [runHeteroTests()].
 #' @return A [`hetero_test_suite`] object containing the diagnostic results.
 #' @section Earlier versions:
@@ -584,7 +586,7 @@ tidy.hetero_grouped_suite <- function(x, ...) {
 #'   res <- runSurveyHeteroTests(api00 ~ api99 + ell, dstrata, tests = "white")
 #'   generics::tidy(res)
 #' }
-runSurveyHeteroTests <- function(formula, design, tests = c("white", "breusch_pagan"), ...) {
+runSurveyHeteroTests <- function(formula, design, tests = c("white", "koenker"), ...) {
   if (!requireNamespace("survey", quietly = TRUE)) {
     stop("The survey package must be installed to analyse survey designs.", call. = FALSE)
   }

@@ -29,10 +29,35 @@ test_that("diagnostic suggestions reflect profile", {
   )
 
   recs <- suggestDiagnosticsForProfile(profile)
-  expect_true("breusch_pagan" %in% recs$test)
+  # The baseline is the default battery of runHeteroTests(), White and
+  # Koenker, since 0.15.0; the classical Breusch-Pagan test assumes normal
+  # errors.
+  expect_true(all(c("koenker", "white") %in% recs$test))
+  expect_false("breusch_pagan" %in% recs$test)
   expect_true("wild_bootstrap" %in% recs$test)
   expect_true("high_dimensional" %in% recs$test)
   expect_true("spatial_hetero" %in% recs$test)
+})
+
+test_that("a very large profile lists Koenker's test once, with the baseline rationale", {
+  profile <- list(
+    size_bucket = "very_large",
+    high_dimensional = FALSE,
+    detected_spatial_fields = FALSE,
+    missingness = list(overall_rate = 0),
+    numeric_distribution = data.frame(variable = character(), shape = character())
+  )
+
+  recs <- suggestDiagnosticsForProfile(profile)
+  expect_setequal(recs$test, c("koenker", "white", "quantile_regression"))
+  expect_identical(anyDuplicated(recs$test), 0L)
+  expect_identical(
+    recs$rationale[recs$test == "koenker"],
+    paste(
+      "Baseline regression-based heteroscedasticity check, studentized so",
+      "that it does not assume normal errors."
+    )
+  )
 })
 
 test_that("interpretation produces confidence labels", {

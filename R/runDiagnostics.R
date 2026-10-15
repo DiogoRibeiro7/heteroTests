@@ -9,7 +9,9 @@
 #'   specified via a formula and used when additional preprocessing (e.g.
 #'   grouped data or data.table objects) is desired.
 #' @param tests Character vector of heteroscedasticity tests passed to
-#'   `runHeteroTests`.
+#'   `runHeteroTests`. Defaults to the White and Koenker tests, the default of
+#'   [runHeteroTests()]; it was the White and the classical Breusch-Pagan tests
+#'   up to 0.14.0.
 #' @param power Powers for `performRESETTest`.
 #' @param use_cache Logical flag forwarded to [runHeteroTests()] controlling
 #'   whether cached diagnostic results may be reused.
@@ -25,7 +27,7 @@
 #' data(mtcars)
 #' runDiagnostics(mpg ~ wt + qsec, mtcars)
 runDiagnostics <- function(model, data = NULL,
-                           tests = c("white", "breusch_pagan"),
+                           tests = c("white", "koenker"),
                            power = 2:3,
                            use_cache = TRUE,
                            chunk_threshold_mb = 100,
