@@ -685,11 +685,11 @@
 <h3 id="id_0150-make-the-interface-match-its-description">0.15.0: make the interface match its description<a class="anchor" aria-label="anchor" href="#id_0150-make-the-interface-match-its-description"></a></h3>
 <p>These changes break existing calls. They have to happen before 1.0.0, not after it.</p>
 <ul class="task-list"><li>
-<label><input type="checkbox"><strong>The <code>(model, data, ...)</code> convention.</strong> Nine exported tests do not follow it yet, as the README says:</label>
+<label><input type="checkbox" checked><strong>The <code>(model, data, ...)</code> convention.</strong> Nine exported tests did not follow it:</label>
 <ul><li>no <code>data</code> argument: <code><a href="reference/performArchLMTest.html">performArchLMTest()</a></code>, <code><a href="reference/performMcLeodLiTest.html">performMcLeodLiTest()</a></code>, <code><a href="reference/performCookWeisbergTest.html">performCookWeisbergTest()</a></code>, <code><a href="reference/performNCVTest.html">performNCVTest()</a></code>, <code><a href="reference/performSpearmanTest.html">performSpearmanTest()</a></code>, <code><a href="reference/performSpreadLevelTest.html">performSpreadLevelTest()</a></code>, <code><a href="reference/performDavidianCarrollTest.html">performDavidianCarrollTest()</a></code> and <code><a href="reference/performHarveyTest.html">performHarveyTest()</a></code>;</li>
 <li>no <code>model</code> argument: <code>performBoxMTest(data, group)</code>.</li>
 </ul>
-Proposal: <code>data = NULL</code> in second position everywhere, recovered from the model frame when omitted, which <code><a href="reference/runHeteroTests.html">runHeteroTests()</a></code> already does through <code>.ht_prepare_model()</code>, and which <code><a href="reference/performVarianceFormTest.html">performVarianceFormTest()</a></code> and <code><a href="reference/fitWLS.html">fitWLS()</a></code> have followed since 0.12.0. This breaks positional calls such as <code>performArchLMTest(m, 3)</code>, which is the reason it cannot wait until after 1.0. Where it is feasible, detect the old positional form and warn for one release. <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code> may stay the documented exception, since it tests the data rather than residuals. Since 0.14.0 <code>performCookWeisbergTest(model, var_formula)</code> takes <code>var_formula</code> second, which <code>data = NULL</code> in second position will move.</li>
+Decided on 2026-10-15 as proposed: the eight take <code>data = NULL</code> in second position, recovered from the model frame when omitted, and <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code> is the documented exception, since it tests the data rather than residuals. A call that passes the old second argument by position (<code>performArchLMTest(m, 3)</code>, <code>performCookWeisbergTest(m, ~x)</code>, <code>performHarveyTest(m, "fitted")</code>) is recognised by its type, works in 0.15.0 and warns with the new call; <code>NEWS.md</code> has the table. No value changes: every old and new form returns what the old form returned in 0.14.0, checked with <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code> against 0.14.0.</li>
 <li><label><input type="checkbox"><strong>Argument names.</strong> Harvey uses <code>studentize</code> and <code><a href="reference/performBPTestRobust.html">performBPTestRobust()</a></code> uses <code>studentized</code>. Standardise on <code>studentize</code>, which matches <code><a href="https://rdrr.io/pkg/lmtest/man/bptest.html" class="external-link">lmtest::bptest()</a></code>.</label></li>
 <li><label><input type="checkbox"><strong>Resampling defaults.</strong> <code>B</code> is 499 for the wild bootstrap, 999 for rank permutation, and 1000 for the White bootstrap and <code><a href="reference/rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code>. Under the <code>(1 + #) / (B + 1)</code> convention, a test at level <code>alpha</code> is exact only when <code>alpha * (B + 1)</code> is an integer, and 1000 fails that at 5%. Standardise on 999, or on 499 where cost matters, and never use 1000.</label></li>
 <li><label><input type="checkbox"><strong>Wild bootstrap multiplier</strong> (Rademacher or Mammen). Settle it by a size study at small <code>n</code> with skewed errors, and record the result in <code>inst/validation/</code>.</label></li>
@@ -860,12 +860,7 @@ Proposal: <code>data = NULL</code> in second position everywhere, recovered from
 <table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>Question</th>
 <th>Proposal</th>
 <th>Needed by</th>
-</tr></thead><tbody><tr><td>
-<code>data</code> argument on every test</td>
-<td>
-<code>data = NULL</code> in second position; <code><a href="reference/performBoxMTest.html">performBoxMTest()</a></code> the documented exception</td>
-<td>0.15.0</td>
-</tr><tr><td>Default battery</td>
+</tr></thead><tbody><tr><td>Default battery</td>
 <td>White + Koenker</td>
 <td>0.15.0</td>
 </tr><tr><td>Default of <code>robust</code> in <code><a href="reference/performGlejserTest.html">performGlejserTest()</a></code>

@@ -5,7 +5,7 @@ Tests the slope of `log(|residuals|)` on `log(fitted)`.
 ## Usage
 
 ``` r
-performSpreadLevelTest(model)
+performSpreadLevelTest(model, data = NULL)
 ```
 
 ## Details
@@ -18,6 +18,13 @@ a power transformation may stabilize the spread.
 - model:
 
   an object of class `lm`.
+
+- data:
+
+  optional data frame the model was fitted to. When `NULL`, the default,
+  the model frame of `model` is used. The statistic is computed from the
+  residuals and fitted values of `model`, so `data` does not change the
+  result; it is accepted so that every test takes `(model, data, ...)`.
 
 ## Value
 

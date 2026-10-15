@@ -8,6 +8,12 @@ Test whether multiple groups have equal covariance matrices.
 performBoxMTest(data, group)
 ```
 
+## Details
+
+`performBoxMTest(data, group)` is the one test that does not take
+`(model, data, ...)`: it tests the covariance matrices of the data
+themselves, not the residuals of a fitted model.
+
 ## Arguments
 
 - data:

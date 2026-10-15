@@ -5,7 +5,7 @@ Regresses squared residuals on their lags to detect ARCH effects.
 ## Usage
 
 ``` r
-performArchLMTest(model, lags = 1)
+performArchLMTest(model, data = NULL, lags = 1)
 ```
 
 ## Details
@@ -20,6 +20,15 @@ with degrees of freedom equal to the number of lags.
 - model:
 
   an object of class `lm`.
+
+- data:
+
+  optional data frame the model was fitted to. When `NULL`, the default,
+  the model frame of `model` is used. The statistic is computed from the
+  residuals of `model`, so `data` does not change the result; it is
+  accepted so that every test takes `(model, data, ...)`. Before 0.15.0
+  the second argument was `lags`: a number passed there by position is
+  still read as `lags`, with a warning that shows the new call.
 
 - lags:
 

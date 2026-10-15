@@ -16,12 +16,13 @@ Maintained by **Diogo Ribeiro** (<dfr@esmad.ipp.pt>, [ORCID
 Every test returns a base-R `htest` object, so results print, subset and
 compose like those of
 [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) and
-slot directly into automated pipelines. Most tests take
-`(model, data, ...)`; the
-[roadmap](https://diogoribeiro7.github.io/heteroTests/ROADMAP.md) lists
-the nine that do not yet. Where an established implementation exists,
-the test reproduces it and `tests/testthat/` asserts the agreement:
-`lmtest` for Breusch–Pagan, Koenker and Goldfeld–Quandt, `car` for the
+slot directly into automated pipelines. Every test takes
+`(model, data, ...)`, where `data` may be omitted for the tests that
+need nothing beyond the model, except Box’s M test
+(`performBoxMTest(data, group)`), which tests the data rather than the
+residuals of a model. Where an established implementation exists, the
+test reproduces it and `tests/testthat/` asserts the agreement: `lmtest`
+for Breusch–Pagan, Koenker and Goldfeld–Quandt, `car` for the
 Cook–Weisberg score test, Levene and Brown–Forsythe, `stats` for
 Bartlett and Fligner–Killeen, `vartest` for Hartley and O’Brien, and
 `plm` for the panel tests. Their simulated size and power are in

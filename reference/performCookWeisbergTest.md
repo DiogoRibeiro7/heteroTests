@@ -9,7 +9,7 @@ is deprecated.
 ## Usage
 
 ``` r
-performCookWeisbergTest(model, var_formula = NULL)
+performCookWeisbergTest(model, data = NULL, var_formula = NULL)
 ```
 
 ## Details
@@ -34,14 +34,24 @@ that assumption is doubtful, prefer
 
   an object of class `lm`.
 
+- data:
+
+  optional data frame the model was fitted to, in which `var_formula` is
+  evaluated; its rows are matched to the residuals by row name. When
+  `NULL`, the default, the model frame of `model` is used. Without
+  `var_formula` the statistic is computed from the residuals and fitted
+  values of `model`, and `data` does not change the result.
+
 - var_formula:
 
-  optional one-sided formula giving the variance model, evaluated in the
-  model frame of `model` (for example `~ x1 + x2`). When `NULL`, the
-  default, the fitted values are the variance regressor and the result
-  is what this function returned before 0.14.0; otherwise it is what the
-  deprecated `performNCVTest(model, var_formula)` returned, labels
-  included.
+  optional one-sided formula giving the variance model, evaluated in
+  `data` (for example `~ x1 + x2`). When `NULL`, the default, the fitted
+  values are the variance regressor and the result is what this function
+  returned before 0.14.0; otherwise it is what the deprecated
+  `performNCVTest(model, var_formula)` returned, labels included. In
+  0.14.0 `var_formula` was the second argument: a formula passed there
+  by position is still read as `var_formula`, with a warning that shows
+  the new call.
 
 ## Value
 
@@ -93,6 +103,18 @@ in regression. *Biometrika*, 70(1), 1–10.
 #> 
 #> data:  mpg ~ wt + qsec; variance model: wt
 #> X-squared = 0.066469, df = 1, p-value = 0.7965
+#> alternative hypothesis: error variance depends on the variance model
+#> 
+
+ # With the data, the variance model can use variables the mean model does not
+ performCookWeisbergTest(m, mtcars, var_formula = ~ wt + hp)
+#> [INFO] Running Cook-Weisberg test
+#> [INFO] Running NCV score test
+#> 
+#>  Cook-Weisberg score test for non-constant variance
+#> 
+#> data:  mpg ~ wt + qsec; variance model: wt, hp
+#> X-squared = 1.4103, df = 2, p-value = 0.494
 #> alternative hypothesis: error variance depends on the variance model
 #> 
 ```

@@ -39,7 +39,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performCookWeisbergTest</span><span class="op">(</span><span class="va">model</span>, var_formula <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">performCookWeisbergTest</span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="cn">NULL</span>, var_formula <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -53,8 +53,11 @@
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>an object of class <code>lm</code>.</p></dd>
 
+  <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
+<dd><p>optional data frame the model was fitted to, in which <code>var_formula</code> is evaluated; its rows are matched to the residuals by row name. When <code>NULL</code>, the default, the model frame of <code>model</code> is used. Without <code>var_formula</code> the statistic is computed from the residuals and fitted values of <code>model</code>, and <code>data</code> does not change the result.</p></dd>
+
   <dt id="arg-var-formula">var_formula<a class="anchor" aria-label="anchor" href="#arg-var-formula"></a></dt>
-<dd><p>optional one-sided formula giving the variance model, evaluated in the model frame of <code>model</code> (for example <code>~ x1 + x2</code>). When <code>NULL</code>, the default, the fitted values are the variance regressor and the result is what this function returned before 0.14.0; otherwise it is what the deprecated <code>performNCVTest(model, var_formula)</code> returned, labels included.</p></dd>
+<dd><p>optional one-sided formula giving the variance model, evaluated in <code>data</code> (for example <code>~ x1 + x2</code>). When <code>NULL</code>, the default, the fitted values are the variance regressor and the result is what this function returned before 0.14.0; otherwise it is what the deprecated <code>performNCVTest(model, var_formula)</code> returned, labels included. In 0.14.0 <code>var_formula</code> was the second argument: a formula passed there by position is still read as <code>var_formula</code>, with a warning that shows the new call.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -98,6 +101,18 @@
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec; variance model: wt</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 0.066469, df = 1, p-value = 0.7965</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: error variance depends on the variance model</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span> <span class="co"># With the data, the variance model can use variables the mean model does not</span></span></span>
+<span class="r-in"><span> <span class="fu">performCookWeisbergTest</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span>, var_formula <span class="op">=</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">hp</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Cook-Weisberg test</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running NCV score test</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 	Cook-Weisberg score test for non-constant variance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec; variance model: wt, hp</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 1.4103, df = 2, p-value = 0.494</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: error variance depends on the variance model</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 </code></pre></div>

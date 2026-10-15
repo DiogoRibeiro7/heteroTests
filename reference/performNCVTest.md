@@ -7,7 +7,7 @@ diagnostic returned by
 ## Usage
 
 ``` r
-performNCVTest(model, var_formula = NULL)
+performNCVTest(model, data = NULL, var_formula = NULL)
 ```
 
 ## Details
@@ -60,11 +60,20 @@ which also covers weights estimated by
 
   an object of class `lm`.
 
+- data:
+
+  optional data frame the model was fitted to, in which `var_formula` is
+  evaluated, as in
+  [`performCookWeisbergTest`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md).
+  When `NULL`, the default, the model frame of `model` is used.
+
 - var_formula:
 
-  optional one-sided formula giving the variance model, evaluated in the
-  model frame of `model` (for example `~ x1 + x2`). When `NULL` the
-  fitted values are used.
+  optional one-sided formula giving the variance model, evaluated in
+  `data` (for example `~ x1 + x2`). When `NULL` the fitted values are
+  used. Before 0.15.0 `var_formula` was the second argument: a formula
+  passed there by position is still read as `var_formula`, with a
+  warning.
 
 ## Value
 

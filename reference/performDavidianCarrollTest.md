@@ -5,7 +5,7 @@ Regresses `log(residual^2)` on fitted values using a polynomial.
 ## Usage
 
 ``` r
-performDavidianCarrollTest(model, degree = 2)
+performDavidianCarrollTest(model, data = NULL, degree = 2)
 ```
 
 ## Details
@@ -20,9 +20,18 @@ statistic.
 
   an object of class `lm`.
 
+- data:
+
+  optional data frame the model was fitted to. When `NULL`, the default,
+  the model frame of `model` is used. The statistic is computed from the
+  residuals and fitted values of `model`, so `data` does not change the
+  result; it is accepted so that every test takes `(model, data, ...)`.
+
 - degree:
 
-  polynomial degree.
+  polynomial degree. Before 0.15.0 `degree` was the second argument: a
+  number passed there by position is still read as `degree`, with a
+  warning that shows the new call.
 
 ## Value
 

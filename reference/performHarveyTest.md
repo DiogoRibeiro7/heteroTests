@@ -6,7 +6,7 @@ Harvey's (1976) Lagrange multiplier test, which regresses
 ## Usage
 
 ``` r
-performHarveyTest(model, auxiliary = c("regressors", "fitted"),
+performHarveyTest(model, data = NULL, auxiliary = c("regressors", "fitted"),
                   studentize = FALSE)
 ```
 
@@ -35,6 +35,17 @@ of freedom for aliased columns.
 - model:
 
   an object of class `lm`.
+
+- data:
+
+  optional data frame the model was fitted to. When `NULL`, the default,
+  the model frame of `model` is used. The statistic is computed from the
+  residuals, fitted values and model matrix of `model`, so `data` does
+  not change the result; it is accepted so that every test takes
+  `(model, data, ...)`. Before 0.15.0 the second argument was
+  `auxiliary` and the third `studentize`: a string passed second by
+  position, and a logical value after it, are still read as those two,
+  with a warning that shows the new call.
 
 - auxiliary:
 

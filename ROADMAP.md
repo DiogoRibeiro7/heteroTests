@@ -662,8 +662,8 @@ Notes on the verdicts:
 These changes break existing calls. They have to happen before 1.0.0,
 not after it.
 
-**The `(model, data, ...)` convention.** Nine exported tests do not
-follow it yet, as the README says:
+**The `(model, data, ...)` convention.** Nine exported tests did not
+follow it:
 
 - no `data` argument:
   [`performArchLMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performArchLMTest.md),
@@ -677,22 +677,17 @@ follow it yet, as the README says:
   [`performHarveyTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHarveyTest.md);
 - no `model` argument: `performBoxMTest(data, group)`.
 
-Proposal: `data = NULL` in second position everywhere, recovered from
-the model frame when omitted, which
-[`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md)
-already does through `.ht_prepare_model()`, and which
-[`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
-and
-[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
-have followed since 0.12.0. This breaks positional calls such as
-`performArchLMTest(m, 3)`, which is the reason it cannot wait until
-after 1.0. Where it is feasible, detect the old positional form and warn
-for one release.
+Decided on 2026-10-15 as proposed: the eight take `data = NULL` in
+second position, recovered from the model frame when omitted, and
 [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md)
-may stay the documented exception, since it tests the data rather than
-residuals. Since 0.14.0 `performCookWeisbergTest(model, var_formula)`
-takes `var_formula` second, which `data = NULL` in second position will
-move.
+is the documented exception, since it tests the data rather than
+residuals. A call that passes the old second argument by position
+(`performArchLMTest(m, 3)`, `performCookWeisbergTest(m, ~x)`,
+`performHarveyTest(m, "fitted")`) is recognised by its type, works in
+0.15.0 and warns with the new call; `NEWS.md` has the table. No value
+changes: every old and new form returns what the old form returned in
+0.14.0, checked with
+[`identical()`](https://rdrr.io/r/base/identical.html) against 0.14.0.
 
 **Argument names.** Harvey uses `studentize` and
 [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
@@ -1137,7 +1132,6 @@ group:
 
 | Question | Proposal | Needed by |
 |----|----|----|
-| `data` argument on every test | `data = NULL` in second position; [`performBoxMTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBoxMTest.md) the documented exception | 0.15.0 |
 | Default battery | White + Koenker | 0.15.0 |
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
