@@ -20,10 +20,11 @@ compose like those of `lmtest::bptest()` and slot directly into automated
 pipelines. Every test takes `(model, data, ...)`, except Box's M test
 (`performBoxMTest(data, group)`), which tests the data rather than the
 residuals of a model. `data` may be omitted, and the model frame is then
-used, but a model that transforms a variable (`log(x)`) or has an `offset()`
-term, a test on a column the model does not use (the `group` of Levene's
-test) and, in eight tests, a fit whose `weights` or `offset` argument is a
-column of the data still need `data`. Where an established implementation exists, the
+used. The tests that read variables from `data` still need it for a model
+that transforms a variable (`log(x)`) or has an `offset()` term, and for a
+column the model does not use (the `group` of Levene's test); eight of them
+also need it for a fit whose `weights` or `offset` argument is a column of
+the data. Where an established implementation exists, the
 test reproduces it and `tests/testthat/` asserts the agreement: `lmtest` for
 Breusch--Pagan, Koenker and Goldfeld--Quandt, `car` for the Cook--Weisberg
 score test, Levene and Brown--Forsythe, `stats` for Bartlett and
