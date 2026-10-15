@@ -198,7 +198,9 @@ scripts/           setup, checks, benchmarks, and notebook/figure builders
 
 The development direction, completed work and known technical debt are tracked in
 [ROADMAP.md](ROADMAP.md). Current known limitations include: input validation is
-not yet uniform across every test.
+not yet uniform across every test. Most tests accept a `glm`, and a few accept
+a model with an `NA` coefficient or data that do not match the model; the
+roadmap lists them.
 
 ## Contributing
 

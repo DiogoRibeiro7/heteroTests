@@ -264,6 +264,11 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 performWhiteTestStreaming <- function(model, data, chunk_size = 10000,
                                       cross_products = TRUE, max_interactions = 10,
                                       progress = interactive()) {
+  # checkModel(enhanced = TRUE) reads the R-squared of summary(), which a glm
+  # does not have, and stopped with "missing value where TRUE/FALSE needed".
+  if (inherits(model, "glm")) {
+    rrefuse_glm(model, "performWhiteTestStreaming")
+  }
   checkModel(model, data, enhanced = TRUE)
 
   model_terms <- stats::terms(model)

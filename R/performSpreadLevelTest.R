@@ -40,7 +40,7 @@
 #' [performNCVTest()] and [performSpearmanTest()] target similar monotonic
 #' heteroscedasticity patterns.
 performSpreadLevelTest <- function(model, data = NULL) {
-  rcheck_data_argument(data, "performSpreadLevelTest")
+  rcheck_data_argument(data, "performSpreadLevelTest", model, "Spread-level")
   checkModel(model)
 
   abs_res <- abs(rpearson_residuals(model))

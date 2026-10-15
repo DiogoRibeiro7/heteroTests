@@ -560,7 +560,12 @@ after it.
   tests gained the name `df` of their `parameter` and `performBoxMTest()` its
   `data.name`; no number changed.
 - [ ] **Uniform input validation** across all exported tests. The README lists
-  its absence as a known limitation.
+  its absence as a known limitation. Partly done:
+  `test-input-validation.R` gives every test a `glm`, a model with an `NA`
+  coefficient, data that lack rows of the fit and data that lack a variable,
+  and every test that stops on one of them stops with the same message. The
+  tests that still return a value for one of them wait for the decision on
+  bad inputs below, since refusing them changes what those calls return.
 
 ### 0.16.0: statistics evidence, dependencies and internals (no API change)
 
@@ -887,6 +892,7 @@ which is also what a reader of the article asks of it. Within that group:
 | Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier and `B` | Decide by simulation; `B = 999` | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
+| Bad inputs that some tests accept | None recorded. Measured on 2026-10-15 by `test-input-validation.R`: 36 of the 39 tests on a model return a value for a `glm`, Poisson included, and only `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and `performVarianceFormTest()` refuse it; `performSpreadLevelTest()`, `performDavidianCarrollTest()`, `performPesaranTest()`, `performBPRandomEffectsTest()` and `performRESETTest()` return a value for a model with an `NA` coefficient; `performVarianceFormTest()` and `performPesaranTest()` for data that lack rows of the fit, and they and `performBPRandomEffectsTest()` for data that lack a variable of the model. Refusing any of these changes what the call returns, so each belongs in a minor release that says so | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, `launchDiagnosticDashboard()`, `run_benchmark_suite()` and `generate_benchmark_report()` warn here for a minor release, naming it, and the code moves | 0.16.0 |

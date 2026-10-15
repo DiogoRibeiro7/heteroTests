@@ -71,7 +71,7 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
     lags <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performMcLeodLiTest")
+  rcheck_data_argument(data, "performMcLeodLiTest", model, "McLeod-Li")
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)
   }

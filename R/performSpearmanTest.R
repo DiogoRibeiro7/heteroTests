@@ -45,7 +45,7 @@
 #' [performNCVTest()] and [performSpreadLevelTest()] provide related tests based
 #' on monotonic variance patterns.
 performSpearmanTest <- function(model, data = NULL) {
-  rcheck_data_argument(data, "performSpearmanTest")
+  rcheck_data_argument(data, "performSpearmanTest", model, "Spearman rank")
   rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)

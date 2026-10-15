@@ -278,7 +278,7 @@ test_that("inputs are validated", {
   )
   expect_error(
     performVarianceFormTest(glm(y ~ x + z, data = d)),
-    "must be a fitted `lm` object"
+    "performVarianceFormTest\\(\\) needs a model fitted by stats::lm\\(\\)"
   )
   expect_error(performVarianceFormTest(lm(y ~ x, data = d[1:20, ])))
 })
