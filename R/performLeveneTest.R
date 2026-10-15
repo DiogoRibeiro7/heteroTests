@@ -48,6 +48,7 @@
 #' [performFlignerKilleenTest()] for a rank-based alternative, and
 #' [performBartlettTest()] when normality can be assumed.
 performLeveneTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performLeveneTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Levene's test"
 

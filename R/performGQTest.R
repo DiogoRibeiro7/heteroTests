@@ -62,6 +62,7 @@
 #' @export
 performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
                           alternative = c("greater", "two.sided", "less")) {
+  rrefuse_non_gaussian_glm(model, "performGQTest", weights_used = TRUE)
   data <- rdata_or_model_frame(model, data)
   test_label <- "Goldfeld-Quandt test"
   alternative <- match.arg(alternative)

@@ -77,6 +77,7 @@
 #' residual autocorrelations and [performPesaranTest()] when cross-sectional
 #' dependence is of interest.
 performArchLMTest <- function(model, data = NULL, lags = 1) {
+  rrefuse_non_gaussian_glm(model, "performArchLMTest")
   if (is.numeric(data) && is.null(dim(data)) && missing(lags)) {
     rwarn_positional_call("performArchLMTest", substitute(model), list(lags = substitute(data)))
     lags <- data

@@ -132,6 +132,7 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' diagnostics.
 #' @export
 performStudentizedBPTest <- function(model, data = NULL) {
+  rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
   data <- rdata_or_model_frame(model, data)
   .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
   .studentized_bp_test(model, data, data_name = deparse(substitute(model)))
@@ -374,6 +375,7 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
 performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE) {
+  rrefuse_non_gaussian_glm(model, "performWhiteTestBootstrap", weights_used = TRUE)
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
 
@@ -607,6 +609,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' @export
 performSzroeterTest <- function(model, data = NULL, order_by,
                                 alternative = c("greater", "two.sided", "less")) {
+  rrefuse_non_gaussian_glm(model, "performSzroeterTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Szroeter test"
 

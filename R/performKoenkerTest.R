@@ -84,6 +84,7 @@
 #' [performBPTest()] for the classical LM statistic using squared residuals,
 #' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
 performKoenkerTest <- function(model, data = NULL) {
+  rrefuse_non_gaussian_glm(model, "performKoenkerTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker studentized Breusch-Pagan test"
 

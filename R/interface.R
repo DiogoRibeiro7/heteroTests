@@ -118,9 +118,10 @@ rstop_data_rows <- function(residuals, data, test_label) {
 
 #' Refuse a glm in a test that needs least-squares residuals
 #'
-#' Most tests accept a `glm` today; the ones that cannot use it refuse it with
-#' this message, so that the refusal reads the same everywhere. Whether every
-#' test should refuse a `glm` is a decision of its own (`ROADMAP.md`).
+#' Three tests refuse every `glm` with this message. The others refuse a `glm`
+#' that is not a least-squares fit with the same message, through
+#' [rrefuse_non_gaussian_glm()], so that the refusal reads the same
+#' everywhere.
 #'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.
@@ -135,6 +136,85 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
   stop(
     sprintf("%s() needs a model fitted by stats::lm()", fn),
     if (is.null(reason)) "." else paste0(": ", reason),
+    call. = FALSE
+  )
+}
+
+#' Refuse a glm that is not a least-squares fit
+#'
+#' A `glm` with the Gaussian family and the identity link is a least-squares
+#' fit: its coefficients, fitted values and residuals are those of `lm()` up to
+#' rounding, and the tests return for it what they return for the `lm`
+#' (`test-input-validation.R`). Any other `glm` has residuals whose variance
+#' depends on the mean by construction, and before 0.15.0 most tests returned
+#' a value for it that tested nothing. Such a fit is refused, decided on
+#' 2026-10-15, with the message of [rrefuse_glm()].
+#'
+#' A few tests read the weights of an `lm`, to refit with them or to refuse a
+#' weighted fit, and `rprior_weights()` returns none for a `glm`, so they took
+#' a weighted Gaussian `glm` for an unweighted fit. They pass
+#' `weights_used = TRUE`, which refuses a `glm` with prior weights other than
+#' 1 as well.
+#'
+#' @param model A fitted model. Anything that is not a `glm` is left to the
+#'   checks of the calling test.
+#' @param fn Character scalar naming the calling test.
+#' @param weights_used Logical: does the calling test read the weights of an
+#'   `lm`?
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_non_gaussian_glm <- function(model, fn, weights_used = FALSE) {
+  # A survey::svyglm() fit is refused by rrefuse_survey_fit(), whose message
+  # says why its weights are not precision weights.
+  if (!inherits(model, "glm") || inherits(model, "svyglm")) {
+    return(invisible(NULL))
+  }
+  fam <- tryCatch(stats::family(model), error = function(e) NULL)
+  least_squares <- !is.null(fam) && identical(fam$family, "gaussian") &&
+    identical(fam$link, "identity")
+  if (!least_squares) {
+    described <- if (is.null(fam)) {
+      "a glm whose family cannot be read"
+    } else {
+      sprintf("a glm with the %s family and the %s link", fam$family, fam$link)
+    }
+    rrefuse_glm(model, fn, paste0(
+      described, " is not a least-squares fit. A glm with the gaussian family ",
+      "and the identity link is accepted."
+    ))
+  }
+  prior <- model$prior.weights
+  if (isTRUE(weights_used) && !is.null(prior) && any(prior != 1)) {
+    rrefuse_glm(model, fn, paste0(
+      "it reads the weights of an lm and would take a weighted glm for an ",
+      "unweighted fit. Fit a weighted model with stats::lm(weights = )."
+    ))
+  }
+  invisible(NULL)
+}
+
+#' Refuse a model with coefficients that are not finite
+#'
+#' An aliased term, such as `x2 = 2 * x1`, leaves an `NA` coefficient. The
+#' tests that validate the model refuse such a fit with this message; the
+#' five that did not, and returned a value, refuse it since 0.15.0.
+#'
+#' @param model A fitted model.
+#' @param test_label Character scalar naming the test in the message.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_nonfinite_coefficients <- function(model, test_label) {
+  coefs <- tryCatch(stats::coef(model), error = function(e) NULL)
+  if (is.null(coefs) || all(is.finite(coefs))) {
+    return(invisible(NULL))
+  }
+  stop(
+    sprintf(
+      "Model coefficients must be finite before running %s. Check for NA or infinite estimates.",
+      test_label
+    ),
     call. = FALSE
   )
 }

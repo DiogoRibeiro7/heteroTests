@@ -67,6 +67,7 @@
 #' [performArchLMTest()] for the related Lagrange Multiplier version and
 #' [performSzroeterTest()] for an ordered alternative on cross-sectional data.
 performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
+  rrefuse_non_gaussian_glm(model, "performMcLeodLiTest")
   if (is.numeric(data) && is.null(dim(data)) && missing(lags)) {
     rwarn_positional_call("performMcLeodLiTest", substitute(model), list(lags = substitute(data)))
     lags <- data

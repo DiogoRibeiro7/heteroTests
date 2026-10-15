@@ -80,6 +80,7 @@ NULL
 performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "reduced"),
                                    bootstrap = FALSE, B = 999, ci_level = 0.95,
                                    parallel = FALSE) {
+  rrefuse_non_gaussian_glm(model, "performWhiteTestRobust")
   data <- rdata_or_model_frame(model, data)
   method <- match.arg(method)
 
@@ -219,6 +220,7 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
                                 bootstrap = FALSE, B = 999, ci_level = 0.95,
                                 parallel = FALSE, studentized) {
+  rrefuse_non_gaussian_glm(model, "performBPTestRobust")
   data <- rdata_or_model_frame(model, data)
   if (!missing(studentized)) {
     if (!missing(studentize)) {

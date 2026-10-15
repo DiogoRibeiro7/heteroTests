@@ -39,6 +39,7 @@
 #' [performLeveneTest()] and [performFlignerKilleenTest()] for related
 #' group-variance diagnostics.
 performBrownForsytheTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performBrownForsytheTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Brown-Forsythe test"
 

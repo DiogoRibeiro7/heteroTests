@@ -60,6 +60,7 @@
 #' [performHarveyTest()] and [performNCVTest()] for related
 #' variance-function diagnostics.
 performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
+  rrefuse_non_gaussian_glm(model, "performDavidianCarrollTest")
   if (is.numeric(data) && is.null(dim(data)) && missing(degree)) {
     rwarn_positional_call(
       "performDavidianCarrollTest", substitute(model), list(degree = substitute(data))
@@ -71,6 +72,7 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }
+  rrefuse_nonfinite_coefficients(model, "Davidian-Carroll test")
   if (!is.numeric(degree) || degree < 1) {
     stop("`degree` must be a positive integer.")
   }

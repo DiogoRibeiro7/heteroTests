@@ -70,6 +70,7 @@
 #' [performWhiteTest()] when heteroscedasticity is suspected within each time
 #' period.
 performBPRandomEffectsTest <- function(model, data = NULL, id) {
+  rrefuse_non_gaussian_glm(model, "performBPRandomEffectsTest")
   data <- rdata_or_model_frame(model, data)
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
@@ -80,6 +81,10 @@ performBPRandomEffectsTest <- function(model, data = NULL, id) {
   if (!id %in% names(data)) {
     stop("`id` must be a column in `data`.")
   }
+  rrefuse_nonfinite_coefficients(model, "Breusch-Pagan random effects test")
+  # Data that lack a variable of the model are refused, as by the tests that
+  # read `data`; before 0.15.0 the variable was never looked for.
+  rcheck_data_matches_model(model, data, "Breusch-Pagan random effects test")
 
   res <- rpearson_residuals(model)
   # The rows of `data` are read in the order of the residuals. With another

@@ -152,6 +152,9 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
                                     form = c("exponential", "power"),
                                     against = "squares") {
   rrefuse_glm(model, "performVarianceFormTest")
+  # Data that lack rows of the fit or a variable of the model are refused, as
+  # by the tests that read `data`. Before 0.15.0 they returned a value.
+  rcheck_data_argument(data, "performVarianceFormTest", model, "Variance form test")
   rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L)
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("variance_form", model = model, data = model_data)

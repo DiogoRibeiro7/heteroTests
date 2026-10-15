@@ -46,6 +46,7 @@
 #' [performLeveneTest()] and [performFlignerKilleenTest()] for robust
 #' alternatives when normality is questionable.
 performBartlettTest <- function(model, data = NULL, group) {
+  rrefuse_non_gaussian_glm(model, "performBartlettTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bartlett's test"
 

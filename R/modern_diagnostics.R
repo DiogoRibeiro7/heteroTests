@@ -137,6 +137,7 @@
 performWildBootstrapTest <- function(model, data = NULL, B = 999,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive()) {
+  rrefuse_non_gaussian_glm(model, "performWildBootstrapTest", weights_used = TRUE)
   data <- rdata_or_model_frame(model, data)
   distribution <- match.arg(distribution)
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
@@ -311,6 +312,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
 #' @export
 performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 999,
                                        progress = interactive()) {
+  rrefuse_non_gaussian_glm(model, "performRankPermutationTest")
   data <- rdata_or_model_frame(model, data)
   if (!is.null(order_by)) {
     order_by <- enforce_character_scalar(order_by, "order_by")
@@ -429,6 +431,7 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #' @export
 performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 0.9,
                                        max_components = NULL) {
+  rrefuse_non_gaussian_glm(model, "performHighDimensionalTest")
   data <- rdata_or_model_frame(model, data)
   if (!is.numeric(variance_threshold) || length(variance_threshold) != 1L ||
     is.na(variance_threshold) || variance_threshold <= 0 || variance_threshold > 1) {
@@ -533,6 +536,7 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' @export
 performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 999,
                                      zero.policy = NULL) {
+  rrefuse_non_gaussian_glm(model, "performSpatialHeteroTest")
   data <- rdata_or_model_frame(model, data)
   if (!requireNamespace("spdep", quietly = TRUE)) {
     stop("Package 'spdep' is required for the spatial heteroscedasticity test.", call. = FALSE)

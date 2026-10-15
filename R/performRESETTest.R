@@ -22,6 +22,7 @@
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' performRESETTest(m)
 performRESETTest <- function(model, data = NULL, power = 2:3) {
+  rrefuse_non_gaussian_glm(model, "performRESETTest", weights_used = TRUE)
   if (is.numeric(data) && is.null(dim(data)) && missing(power)) {
     rwarn_positional_call("performRESETTest", substitute(model), list(power = substitute(data)))
     power <- data
@@ -29,6 +30,7 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   }
   rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)
+  rrefuse_nonfinite_coefficients(model, "RESET test")
   y <- model.response(model.frame(model))
   X0 <- model.matrix(model)
   yhat <- fitted(model)

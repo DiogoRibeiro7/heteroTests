@@ -45,6 +45,7 @@
 #' [performNCVTest()] and [performSpreadLevelTest()] provide related tests based
 #' on monotonic variance patterns.
 performSpearmanTest <- function(model, data = NULL) {
+  rrefuse_non_gaussian_glm(model, "performSpearmanTest")
   rcheck_data_argument(data, "performSpearmanTest", model, "Spearman rank")
   rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
 

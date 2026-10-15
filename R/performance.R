@@ -354,6 +354,7 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @export
 performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                    progress = interactive()) {
+  rrefuse_non_gaussian_glm(model, "performBPTestStreaming")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan"
 
@@ -450,6 +451,7 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @export
 performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                         progress = interactive()) {
+  rrefuse_non_gaussian_glm(model, "performKoenkerTestStreaming")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker"
 
