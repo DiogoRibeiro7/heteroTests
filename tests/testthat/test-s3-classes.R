@@ -74,11 +74,11 @@ test_that("HeteroDiagnostic test method works with defaults", {
   hd <- HeteroDiagnostic(test_obj$model, test_obj$data)
   
   result <- without_deprecation(test(hd))
-  expect_valid_diagnostic_result(result, c("white", "breusch_pagan"))
-  
+  expect_valid_diagnostic_result(result, c("white", "koenker"))
+
   # Each result should be an htest object
   expect_htest(result$white)
-  expect_htest(result$breusch_pagan)
+  expect_htest(result$koenker)
 })
 
 test_that("HeteroDiagnostic test method works with custom tests", {
@@ -176,7 +176,7 @@ test_that("HeteroDiagnostic summary method works", {
   # Should contain an entry for each requested test; names may be suffixed with
   # the statistic (e.g. "white.X-squared") and structural diagnostics are added
   expect_true(any(grepl("^white", names(summ))))
-  expect_true(any(grepl("^breusch_pagan", names(summ))))
+  expect_true(any(grepl("^koenker", names(summ))))
 
   # All values should be numeric
   expect_true(all(is.numeric(summ)))

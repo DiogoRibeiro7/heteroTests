@@ -10,12 +10,13 @@ weights, strata or clusters of the design}, and warns when the design has
 unequal weights or clusters.
 }
 \usage{
-runSurveyHeteroTests(formula, design, tests = c("white", "breusch_pagan"), ...)
+runSurveyHeteroTests(formula, design, tests = c("white", "koenker"), ...)
 }
 \arguments{
   \item{formula}{Model formula specifying the mean structure.}
   \item{design}{A \code{survey::svydesign()} object. Only its data are used.}
-  \item{tests}{Diagnostic names passed on to \code{runHeteroTests}.}
+  \item{tests}{Diagnostic names passed on to \code{runHeteroTests}. Defaults to the White and Koenker tests, the
+  default of \code{\link{runHeteroTests}}; it was the White and the classical Breusch-Pagan tests up to 0.14.0.}
   \item{...}{Additional arguments forwarded to \code{runHeteroTests}.}
 }
 \details{

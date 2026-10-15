@@ -2,8 +2,18 @@
 #'
 #' This convenience wrapper runs diagnostic functions registered in the
 #' package registry and returns their results as a list. By default it
-#' executes White's test and the Breusch-Pagan test, but additional tests or
-#' custom diagnostics registered via `registerDiagnostic()` can be requested.
+#' executes White's test and Koenker's studentized Breusch-Pagan test, but
+#' additional tests or custom diagnostics registered via `registerDiagnostic()`
+#' can be requested.
+#'
+#' Up to 0.14.0 the default was `c("white", "breusch_pagan")`, whose second
+#' test is the classical Breusch-Pagan statistic of [performBPTest()]. That
+#' statistic divides by `2 sigma^4`, the variance of the squared errors only
+#' when they are normal. In the full sweep of `inst/validation/`, with 150
+#' observations and 400 replications, it rejected a true null hypothesis
+#' 28.75% of the time at the 5% level when the errors had a `t5`
+#' distribution, against 4.75% for Koenker's statistic. The classical test is
+#' still run by name, `tests = "breusch_pagan"`.
 #'
 #' @param model A fitted model of class `lm`/`glm`, a model formula, a
 #'   tidymodels [workflows::workflow] or a [parsnip::model_fit] object.
@@ -43,7 +53,7 @@
 #' # Combine with advanced residual analysis
 #' adv <- analyzeMLResiduals(m, mtcars)
 runHeteroTests <- function(model, data = NULL,
-                           tests = c("white", "breusch_pagan"),
+                           tests = c("white", "koenker"),
                            use_cache = TRUE,
                            chunk_threshold_mb = 100,
                            chunk_size = 10000,

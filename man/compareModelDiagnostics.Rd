@@ -6,11 +6,12 @@ Diagnostics that cannot be computed (for example, due to validation failures)
 emit warnings and fill the corresponding entries with \code{NA_real_}. The
 original error messages are preserved on the returned data frame via the
 \code{diagnostic_errors} attribute.}
-\usage{compareModelDiagnostics(models, data = NULL, tests = c("white", "breusch_pagan"))}
+\usage{compareModelDiagnostics(models, data = NULL, tests = c("white", "koenker"))}
 \arguments{
   \item{models}{List of fitted models or formulas.}
   \item{data}{Optional data frame when formulas are supplied.}
-  \item{tests}{Diagnostics to run.}
+  \item{tests}{Diagnostics to run. Defaults to the White and Koenker tests, the default of
+  \code{\link{runHeteroTests}}; it was the White and the classical Breusch-Pagan tests up to 0.14.0.}
 }
 \value{A data frame of statistics, one row per model. Failed diagnostics are
 represented by \code{NA_real_} entries and the underlying error messages can be

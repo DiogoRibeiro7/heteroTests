@@ -58,7 +58,9 @@ analyzeMLResiduals <- function(model, data = NULL) {
 #'
 #' @param models A list of fitted models or formulas.
 #' @param data Optional data frame used when models are formulas.
-#' @param tests Heteroscedasticity tests to run.
+#' @param tests Heteroscedasticity tests to run. Defaults to the White and
+#'   Koenker tests, the default of [runHeteroTests()]; it was the White and
+#'   the classical Breusch-Pagan tests up to 0.14.0.
 #' @return A data frame with one row per model and columns for each test statistic.
 #'   When diagnostics fail they are represented by `NA_real_`; the original error
 #'   messages are attached as a `diagnostic_errors` attribute on the returned
@@ -70,7 +72,7 @@ analyzeMLResiduals <- function(model, data = NULL) {
 #' compareModelDiagnostics(list(m1, m2))
 #' @export
 compareModelDiagnostics <- function(models, data = NULL,
-                                    tests = c("white", "breusch_pagan")) {
+                                    tests = c("white", "koenker")) {
   error_messages <- vector("list", length(models))
   template <- stats::setNames(rep(NA_real_, length(tests)), tests)
 
@@ -140,7 +142,9 @@ compareModelDiagnostics <- function(models, data = NULL,
 #'
 #' @param model A fitted `lm` model or a formula.
 #' @param data Data frame used if `model` is a formula.
-#' @param tests Character vector of heteroscedasticity tests.
+#' @param tests Character vector of heteroscedasticity tests. Defaults to the
+#'   White and Koenker tests, the default of [runHeteroTests()]; it was the
+#'   White and the classical Breusch-Pagan tests up to 0.14.0.
 #' @return Data frame with columns `test`, `statistic`, and `p.value`.
 #' @examples
 #' data(mtcars)
@@ -148,7 +152,7 @@ compareModelDiagnostics <- function(models, data = NULL,
 #' compareTestResults(m)
 #' @export
 compareTestResults <- function(model, data = NULL,
-                               tests = c("white", "breusch_pagan")) {
+                               tests = c("white", "koenker")) {
   if (inherits(model, "formula")) {
     if (is.null(data)) stop("`data` must be supplied when `model` is a formula")
     .check_data(data)

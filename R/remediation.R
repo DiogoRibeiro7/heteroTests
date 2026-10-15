@@ -12,7 +12,11 @@
 #' The function counts how many diagnostic tests yield a p-value below 0.05.
 #' If none are significant it returns a brief conclusion that no action is
 #' needed. Otherwise a severity level is assigned and appropriate
-#' transformations or variance modelling approaches are suggested.
+#' transformations or variance modelling approaches are suggested: a
+#' transformation when White's test rejects, and variance modelling when the
+#' Breusch-Pagan test (`"breusch_pagan"`) or Koenker's studentized form of it
+#' (`"koenker"`, in the default battery of [runHeteroTests()] since 0.15.0)
+#' rejects.
 #'
 #' @return An object of class \code{remediation_suggestions} containing a summary
 #'   of potential actions.
@@ -49,7 +53,9 @@ suggestRemediation <- function(diagnostic_results) {
   if (isTRUE(sig_tests["white"])) {
     suggestions$transformations <- c("log", "sqrt")
   }
-  if (isTRUE(sig_tests["breusch_pagan"])) {
+  # The Breusch-Pagan family: the classical statistic and Koenker's studentized
+  # one, which replaced it in the default battery of runHeteroTests() in 0.15.0.
+  if (any(sig_tests[intersect(c("breusch_pagan", "koenker"), names(sig_tests))], na.rm = TRUE)) {
     suggestions$variance_modeling <- c(
       "Weighted Least Squares",
       "Robust Standard Errors"

@@ -51,7 +51,7 @@ launchDiagnosticDashboard <- function(model, data) {
   }
 
   available_tests <- .test_factory$get_available()
-  default_tests <- intersect(c("white", "breusch_pagan"), available_tests)
+  default_tests <- intersect(c("white", "koenker"), available_tests)
   if (length(default_tests) == 0) {
     default_tests <- head(available_tests, 3L)
   }

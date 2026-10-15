@@ -47,7 +47,7 @@ test <- function(object, ...) {
 }
 
 #' @export
-test.HeteroDiagnostic <- function(object, tests = c("white", "breusch_pagan"), ...) {
+test.HeteroDiagnostic <- function(object, tests = c("white", "koenker"), ...) {
   runDiagnostics(object$model, object$data, tests = tests, ...)
 }
 
@@ -62,7 +62,7 @@ plot.HeteroDiagnostic <- function(x,
 }
 
 #' @export
-summary.HeteroDiagnostic <- function(object, tests = c("white", "breusch_pagan"), ...) {
+summary.HeteroDiagnostic <- function(object, tests = c("white", "koenker"), ...) {
   res <- runDiagnostics(object$model, object$data, tests = tests, ...)
   stats <- sapply(res, function(r) {
     if (is.list(r) && !is.null(r$statistic)) r$statistic else NA

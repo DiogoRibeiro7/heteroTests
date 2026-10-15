@@ -2,12 +2,21 @@
 \alias{runHeteroTests}
 \title{Run multiple heteroscedasticity diagnostics}
 \description{Convenience wrapper that executes several heteroscedasticity tests on a fitted linear model.}
-\details{By default runs \code{\link{performWhiteTest}} and \code{\link{performBPTest}}, but additional tests can be requested. Custom diagnostics registered via \code{registerDiagnostic} are also available.}
+\details{By default runs \code{\link{performWhiteTest}} and \code{\link{performKoenkerTest}}, the studentized
+Breusch-Pagan test, but additional tests can be requested. Custom diagnostics registered via \code{registerDiagnostic}
+are also available.
+
+Up to 0.14.0 the default was \code{c("white", "breusch_pagan")}, whose second test is the classical Breusch-Pagan
+statistic of \code{\link{performBPTest}}. That statistic divides by \eqn{2 \hat\sigma^4}{2 sigma^4}, the variance of
+the squared errors only when they are normal. In the full sweep of \code{inst/validation/}, with 150 observations and
+400 replications, it rejected a true null hypothesis 28.75\% of the time at the 5\% level when the errors had a
+\eqn{t_5}{t5} distribution, against 4.75\% for Koenker's statistic. The classical test is still run by name,
+\code{tests = "breusch_pagan"}.}
 \usage{
 runHeteroTests(
   model,
   data = NULL,
-  tests = c("white", "breusch_pagan"),
+  tests = c("white", "koenker"),
   use_cache = TRUE,
   chunk_threshold_mb = 100,
   chunk_size = 10000,
@@ -32,13 +41,15 @@ runHeteroTests(
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
-# Default: White and Breusch-Pagan
+# Default: White and Koenker
 runHeteroTests(m, mtcars)
-# Specify additional diagnostics
+# Specify additional diagnostics, or the classical Breusch-Pagan test
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
+runHeteroTests(m, mtcars, tests = "breusch_pagan")
 custom <- function(model, data) list(stat = 1)
 registerDiagnostic("custom", custom)
 runHeteroTests(m, mtcars, tests = c("white", "custom"))
 }
 \references{White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. \emph{Econometrica}, 48(4), 817--838.
-Breusch, T. S., & Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. \emph{Econometrica}, 47(5), 1287--1294.}
+Breusch, T. S., & Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. \emph{Econometrica}, 47(5), 1287--1294.
+Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. \emph{Journal of Econometrics}, 17(1), 107--112. \doi{10.1016/0304-4076(81)90062-2}}
