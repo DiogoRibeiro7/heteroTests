@@ -196,7 +196,7 @@ validation_weighted_designs <- function() {
   )
 }
 
-test_that("the tests that read the weights give for a weighted Gaussian glm what they give for the lm", {
+test_that("the five tests that read weights give the lm's result for a weighted Gaussian glm", {
   skip_if_not_installed("quantreg")
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
