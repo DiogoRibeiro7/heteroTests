@@ -9,7 +9,7 @@ fitted linear model.
 runHeteroTests(
   model,
   data = NULL,
-  tests = c("white", "breusch_pagan"),
+  tests = c("white", "koenker"),
   use_cache = TRUE,
   chunk_threshold_mb = 100,
   chunk_size = 10000,
@@ -22,9 +22,21 @@ runHeteroTests(
 By default runs
 [`performWhiteTest`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTest.md)
 and
-[`performBPTest`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md),
-but additional tests can be requested. Custom diagnostics registered via
-`registerDiagnostic` are also available.
+[`performKoenkerTest`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md),
+the studentized Breusch-Pagan test, but additional tests can be
+requested. Custom diagnostics registered via `registerDiagnostic` are
+also available.
+
+Up to 0.14.0 the default was `c("white", "breusch_pagan")`, whose second
+test is the classical Breusch-Pagan statistic of
+[`performBPTest`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTest.md).
+That statistic divides by \\2 \hat\sigma^4\\, the variance of the
+squared errors only when they are normal. In the full sweep of
+`inst/validation/`, with 150 observations and 400 replications, it
+rejected a true null hypothesis 28.75% of the time at the 5% level when
+the errors had a \\t_5\\ distribution, against 4.75% for Koenker's
+statistic. The classical test is still run by name,
+`tests = "breusch_pagan"`.
 
 ## Arguments
 
@@ -77,14 +89,16 @@ White, H. (1980). A heteroskedasticity-consistent covariance matrix
 estimator and a direct test for heteroskedasticity. *Econometrica*,
 48(4), 817–838. Breusch, T. S., & Pagan, A. R. (1979). A Simple Test for
 Heteroscedasticity and Random Coefficient Variation. *Econometrica*,
-47(5), 1287–1294.
+47(5), 1287–1294. Koenker, R. (1981). A note on studentizing a test for
+heteroscedasticity. *Journal of Econometrics*, 17(1), 107–112.
+[doi:10.1016/0304-4076(81)90062-2](https://doi.org/10.1016/0304-4076%2881%2990062-2)
 
 ## Examples
 
 ``` r
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
-# Default: White and Breusch-Pagan
+# Default: White and Koenker
 runHeteroTests(m, mtcars)
 #> $white
 #> 
@@ -95,18 +109,18 @@ runHeteroTests(m, mtcars)
 #> alternative hypothesis: heteroscedasticity present
 #> 
 #> 
-#> $breusch_pagan
+#> $koenker
 #> 
-#>  Breusch-Pagan test for heteroscedasticity
+#>  Koenker studentized Breusch-Pagan test
 #> 
 #> data:  mpg ~ wt + qsec
-#> X-squared = 3.1348, df = 2, p-value = 0.2086
+#> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> 
 #> 
 #> attr(,"class")
 #> [1] "hetero_test_suite" "list"             
 #> attr(,"tests")
-#> [1] "white"         "breusch_pagan"
+#> [1] "white"   "koenker"
 #> attr(,"model")
 #> 
 #> Call:
@@ -118,7 +132,7 @@ runHeteroTests(m, mtcars)
 #> 
 #> attr(,"data_source")
 #> [1] "data.frame"
-# Specify additional diagnostics
+# Specify additional diagnostics, or the classical Breusch-Pagan test
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 #> [INFO] Running Cook-Weisberg test
 #> [INFO] Running NCV score test
@@ -152,6 +166,30 @@ runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 #> [1] "hetero_test_suite" "list"             
 #> attr(,"tests")
 #> [1] "white"         "koenker"       "cook_weisberg"
+#> attr(,"model")
+#> 
+#> Call:
+#> lm(formula = mpg ~ wt + qsec, data = mtcars)
+#> 
+#> Coefficients:
+#> (Intercept)           wt         qsec  
+#>     19.7462      -5.0480       0.9292  
+#> 
+#> attr(,"data_source")
+#> [1] "data.frame"
+runHeteroTests(m, mtcars, tests = "breusch_pagan")
+#> $breusch_pagan
+#> 
+#>  Breusch-Pagan test for heteroscedasticity
+#> 
+#> data:  mpg ~ wt + qsec
+#> X-squared = 3.1348, df = 2, p-value = 0.2086
+#> 
+#> 
+#> attr(,"class")
+#> [1] "hetero_test_suite" "list"             
+#> attr(,"tests")
+#> [1] "breusch_pagan"
 #> attr(,"model")
 #> 
 #> Call:

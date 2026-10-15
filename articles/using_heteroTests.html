@@ -137,7 +137,7 @@ an <code>htest</code> object.</p>
 <span><span class="fu"><a href="../reference/runHeteroTests.html">runHeteroTests</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co"># [INFO] Running White test</span></span>
 <span><span class="co"># [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span>
-<span><span class="co"># [INFO] Running Breusch-Pagan test</span></span>
+<span><span class="co"># [INFO] Running Koenker test</span></span>
 <span><span class="co"># $white</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co">#   White's test for heteroscedasticity</span></span>
@@ -147,18 +147,18 @@ an <code>htest</code> object.</p>
 <span><span class="co"># alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
-<span><span class="co"># $breusch_pagan</span></span>
+<span><span class="co"># $koenker</span></span>
 <span><span class="co"># </span></span>
-<span><span class="co">#   Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">#   Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># data:  stations ~ mag + depth</span></span>
-<span><span class="co"># X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
+<span><span class="co"># X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># attr(,"class")</span></span>
 <span><span class="co"># [1] "hetero_test_suite" "list"             </span></span>
 <span><span class="co"># attr(,"tests")</span></span>
-<span><span class="co"># [1] "white"         "breusch_pagan"</span></span>
+<span><span class="co"># [1] "white"   "koenker"</span></span>
 <span><span class="co"># attr(,"model")</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># Call:</span></span>
@@ -172,7 +172,6 @@ an <code>htest</code> object.</p>
 <span><span class="co"># [1] "data.frame"</span></span>
 <span><span class="co"># Choose a subset of diagnostics</span></span>
 <span><span class="fu"><a href="../reference/runHeteroTests.html">runHeteroTests</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">quakes</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span>, <span class="st">"cook_weisberg"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co"># [INFO] Running Koenker test</span></span>
 <span><span class="co"># [INFO] Running Cook-Weisberg test</span></span>
 <span><span class="co"># [INFO] Running NCV score test</span></span>
 <span><span class="co"># $white</span></span>
@@ -226,12 +225,12 @@ an <code>htest</code> object.</p>
 <span><span class="co"># alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
-<span><span class="co"># $breusch_pagan</span></span>
+<span><span class="co"># $koenker</span></span>
 <span><span class="co"># </span></span>
-<span><span class="co">#   Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">#   Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># data:  stations ~ mag + depth</span></span>
-<span><span class="co"># X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
+<span><span class="co"># X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># $vif</span></span>
@@ -656,12 +655,12 @@ real-world data.</p>
 <span><span class="co"># alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
-<span><span class="co"># $breusch_pagan</span></span>
+<span><span class="co"># $koenker</span></span>
 <span><span class="co"># </span></span>
-<span><span class="co">#   Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">#   Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># data:  stations ~ mag + depth</span></span>
-<span><span class="co"># X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
+<span><span class="co"># X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># $vif</span></span>
@@ -1087,12 +1086,12 @@ remedy and re-test the model.</p>
 <span><span class="co"># alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
-<span><span class="co"># $breusch_pagan</span></span>
+<span><span class="co"># $koenker</span></span>
 <span><span class="co"># </span></span>
-<span><span class="co">#   Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">#   Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># data:  stations ~ mag + depth</span></span>
-<span><span class="co"># X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
+<span><span class="co"># X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># $vif</span></span>
@@ -1463,7 +1462,7 @@ remedy and re-test the model.</p>
 <span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">wls_model</span>, <span class="va">quakes</span><span class="op">)</span></span>
 <span><span class="co"># [INFO] Running White test</span></span>
 <span><span class="co"># [INFO] White test completed: statistic = 42.1531 df = 5 p = 0</span></span>
-<span><span class="co"># [INFO] Running Breusch-Pagan test</span></span>
+<span><span class="co"># [INFO] Running Koenker test</span></span>
 <span><span class="co"># $white</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co">#   White's test for heteroscedasticity</span></span>
@@ -1473,12 +1472,12 @@ remedy and re-test the model.</p>
 <span><span class="co"># alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
-<span><span class="co"># $breusch_pagan</span></span>
+<span><span class="co"># $koenker</span></span>
 <span><span class="co"># </span></span>
-<span><span class="co">#   Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">#   Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># data:  stations ~ mag + depth</span></span>
-<span><span class="co"># X-squared = 40.795, df = 2, p-value = 1.385e-09</span></span>
+<span><span class="co"># X-squared = 35.09, df = 2, p-value = 2.401e-08</span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># </span></span>
 <span><span class="co"># $vif</span></span>

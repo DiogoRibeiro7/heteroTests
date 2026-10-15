@@ -35,7 +35,7 @@ An object of class `HeteroDiagnostic`.
  runDiagnostics(d$model, d$data)
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373
-#> [INFO] Running Breusch-Pagan test
+#> [INFO] Running Koenker test
 #> $white
 #> 
 #>  White's test for heteroscedasticity
@@ -45,12 +45,12 @@ An object of class `HeteroDiagnostic`.
 #> alternative hypothesis: heteroscedasticity present
 #> 
 #> 
-#> $breusch_pagan
+#> $koenker
 #> 
-#>  Breusch-Pagan test for heteroscedasticity
+#>  Koenker studentized Breusch-Pagan test
 #> 
 #> data:  mpg ~ wt + qsec
-#> X-squared = 3.1348, df = 2, p-value = 0.2086
+#> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> 
 #> 
 #> $vif

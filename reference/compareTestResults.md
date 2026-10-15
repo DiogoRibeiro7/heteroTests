@@ -6,7 +6,7 @@ frame of test statistics and p-values.
 ## Usage
 
 ``` r
-compareTestResults(model, data = NULL, tests = c("white", "breusch_pagan"))
+compareTestResults(model, data = NULL, tests = c("white", "koenker"))
 ```
 
 ## Arguments
@@ -21,7 +21,10 @@ compareTestResults(model, data = NULL, tests = c("white", "breusch_pagan"))
 
 - tests:
 
-  Character vector of heteroscedasticity tests.
+  Character vector of heteroscedasticity tests. Defaults to the White
+  and Koenker tests, the default of
+  [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md);
+  it was the White and the classical Breusch-Pagan tests up to 0.14.0.
 
 ## Value
 
@@ -35,8 +38,8 @@ m <- lm(mpg ~ wt + qsec, mtcars)
 compareTestResults(m)
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373
-#> [INFO] Running Breusch-Pagan test
-#>            test statistic    p.value
-#> 1         white  11.82248 0.03730286
-#> 2 breusch_pagan   3.13479 0.20858780
+#> [INFO] Running Koenker test
+#>      test statistic    p.value
+#> 1   white 11.822480 0.03730286
+#> 2 koenker  3.085836 0.21375642
 ```

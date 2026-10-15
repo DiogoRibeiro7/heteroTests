@@ -87,7 +87,7 @@ Several diagnostics can also be run together.
 runHeteroTests(model, quakes)
 # [INFO] Running White test
 # [INFO] White test completed: statistic = 125.558 df = 5 p = 0
-# [INFO] Running Breusch-Pagan test
+# [INFO] Running Koenker test
 # $white
 # 
 #   White's test for heteroscedasticity
@@ -97,18 +97,18 @@ runHeteroTests(model, quakes)
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
-# $breusch_pagan
+# $koenker
 # 
-#   Breusch-Pagan test for heteroscedasticity
+#   Koenker studentized Breusch-Pagan test
 # 
 # data:  stations ~ mag + depth
-# X-squared = 191.93, df = 2, p-value < 2.2e-16
+# X-squared = 111.31, df = 2, p-value < 2.2e-16
 # 
 # 
 # attr(,"class")
 # [1] "hetero_test_suite" "list"             
 # attr(,"tests")
-# [1] "white"         "breusch_pagan"
+# [1] "white"   "koenker"
 # attr(,"model")
 # 
 # Call:
@@ -122,7 +122,6 @@ runHeteroTests(model, quakes)
 # [1] "data.frame"
 # Choose a subset of diagnostics
 runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
-# [INFO] Running Koenker test
 # [INFO] Running Cook-Weisberg test
 # [INFO] Running NCV score test
 # $white
@@ -176,12 +175,12 @@ runDiagnostics(model, quakes)
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
-# $breusch_pagan
+# $koenker
 # 
-#   Breusch-Pagan test for heteroscedasticity
+#   Koenker studentized Breusch-Pagan test
 # 
 # data:  stations ~ mag + depth
-# X-squared = 191.93, df = 2, p-value < 2.2e-16
+# X-squared = 111.31, df = 2, p-value < 2.2e-16
 # 
 # 
 # $vif
@@ -613,12 +612,12 @@ runDiagnostics(quakes_model, quakes)
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
-# $breusch_pagan
+# $koenker
 # 
-#   Breusch-Pagan test for heteroscedasticity
+#   Koenker studentized Breusch-Pagan test
 # 
 # data:  stations ~ mag + depth
-# X-squared = 191.93, df = 2, p-value < 2.2e-16
+# X-squared = 111.31, df = 2, p-value < 2.2e-16
 # 
 # 
 # $vif
@@ -1057,12 +1056,12 @@ runDiagnostics(hd$model, hd$data)
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
-# $breusch_pagan
+# $koenker
 # 
-#   Breusch-Pagan test for heteroscedasticity
+#   Koenker studentized Breusch-Pagan test
 # 
 # data:  stations ~ mag + depth
-# X-squared = 191.93, df = 2, p-value < 2.2e-16
+# X-squared = 111.31, df = 2, p-value < 2.2e-16
 # 
 # 
 # $vif
@@ -1433,7 +1432,7 @@ wls_model <- fitWLS(hd$model)
 runDiagnostics(wls_model, quakes)
 # [INFO] Running White test
 # [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
-# [INFO] Running Breusch-Pagan test
+# [INFO] Running Koenker test
 # $white
 # 
 #   White's test for heteroscedasticity
@@ -1443,12 +1442,12 @@ runDiagnostics(wls_model, quakes)
 # alternative hypothesis: heteroscedasticity present
 # 
 # 
-# $breusch_pagan
+# $koenker
 # 
-#   Breusch-Pagan test for heteroscedasticity
+#   Koenker studentized Breusch-Pagan test
 # 
 # data:  stations ~ mag + depth
-# X-squared = 40.795, df = 2, p-value = 1.385e-09
+# X-squared = 35.09, df = 2, p-value = 2.401e-08
 # 
 # 
 # $vif

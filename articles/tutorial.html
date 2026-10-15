@@ -104,7 +104,7 @@ R’s built-in <code>quakes</code> dataset.</p>
 <span><span class="fu"><a href="../reference/runDiagnostics.html">runDiagnostics</a></span><span class="op">(</span><span class="va">hd</span><span class="op">$</span><span class="va">model</span>, <span class="va">hd</span><span class="op">$</span><span class="va">data</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [INFO] Running White test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span></code></pre>
-<pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>
+<pre><code><span><span class="co">## [INFO] Running Koenker test</span></span></code></pre>
 <pre><code><span><span class="co">## $white</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">##  White's test for heteroscedasticity</span></span>
@@ -114,12 +114,12 @@ R’s built-in <code>quakes</code> dataset.</p>
 <span><span class="co">## alternative hypothesis: heteroscedasticity present</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
-<span><span class="co">## $breusch_pagan</span></span>
+<span><span class="co">## $koenker</span></span>
 <span><span class="co">## </span></span>
-<span><span class="co">##  Breusch-Pagan test for heteroscedasticity</span></span>
+<span><span class="co">##  Koenker studentized Breusch-Pagan test</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## data:  stations ~ mag + depth</span></span>
-<span><span class="co">## X-squared = 191.93, df = 2, p-value &lt; 2.2e-16</span></span>
+<span><span class="co">## X-squared = 111.31, df = 2, p-value &lt; 2.2e-16</span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## $vif</span></span>
@@ -535,13 +535,13 @@ R’s built-in <code>quakes</code> dataset.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compareModelDiagnostics.html">compareModelDiagnostics</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">base_model</span>, <span class="va">wls_model</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [INFO] Running White test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] White test completed: statistic = 125.558 df = 5 p = 0</span></span></code></pre>
-<pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>
+<pre><code><span><span class="co">## [INFO] Running Koenker test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] Running White test</span></span></code></pre>
 <pre><code><span><span class="co">## [INFO] White test completed: statistic = 42.1531 df = 5 p = 0</span></span></code></pre>
-<pre><code><span><span class="co">## [INFO] Running Breusch-Pagan test</span></span></code></pre>
-<pre><code><span><span class="co">##            white breusch_pagan</span></span>
-<span><span class="co">## Model1 125.55798     191.92574</span></span>
-<span><span class="co">## Model2  42.15312      40.79457</span></span></code></pre>
+<pre><code><span><span class="co">## [INFO] Running Koenker test</span></span></code></pre>
+<pre><code><span><span class="co">##            white  koenker</span></span>
+<span><span class="co">## Model1 125.55798 111.3052</span></span>
+<span><span class="co">## Model2  42.15312  35.0896</span></span></code></pre>
 <p>The weighted least squares fit typically reduces the
 heteroscedasticity metrics. On a weighted fit the tests are computed
 from the standardized residuals, the raw residuals multiplied by the

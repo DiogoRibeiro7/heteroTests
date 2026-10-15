@@ -744,11 +744,24 @@ compares two seeded parallel runs.
 [`runHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md),
 [`test()`](https://diogoribeiro7.github.io/heteroTests/reference/test.HeteroDiagnostic.md)/[`summary()`](https://rdrr.io/r/base/summary.html)
 on `HeteroDiagnostic`, the advanced diagnostics and the dashboard all
-default to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the
-classical statistic. The package’s own sweep shows it rejecting 28.7% of
-the time under a `t5` null, against 4.8% for Koenker. Make the
-studentized form the default. The change alters default output, so it
-gets its own `NEWS.md` section.
+defaulted to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the
+classical statistic. The package’s own sweep shows it rejecting 28.75%
+of the time under a `t5` null, against 4.75% for Koenker. Done (decided
+2026-10-15: White and Koenker): the default is `c("white", "koenker")`
+in those functions and in
+[`runDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runDiagnostics.md),
+[`compareModelDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/compareModelDiagnostics.md),
+[`compareTestResults()`](https://diogoribeiro7.github.io/heteroTests/reference/compareTestResults.md)
+and
+[`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md),
+and the classical test runs by name.
+[`suggestRemediation()`](https://diogoribeiro7.github.io/heteroTests/reference/suggestRemediation.md)
+reads `"koenker"` as well as `"breusch_pagan"`, and
+[`suggestDiagnosticsForProfile()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+recommends Koenker’s test as the baseline.
+[`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+already computed the studentized statistic by default and is unchanged.
+No recorded number moves.
 
 **Return contract.** Document the fields every `perform*Test()` returns,
 both the `htest` core and the package’s additions, on one help page.
@@ -802,6 +815,16 @@ subset. The check compares the names asked for with the values of its
 lookup table (`"white"`, `"breusch_pagan"`) rather than with its names,
 which include `"bp"`. Found on 2026-10-15 and recorded, not fixed, in
 0.15.0.
+
+**`runAdvancedDiagnostics(auto_enhance = FALSE)`** silently runs the
+classical Breusch–Pagan test. `auto_enhance` also sets `studentize` for
+[`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md),
+so turning the small-sample bootstrap off turns Koenker’s studentization
+off with it, and the result, named `breusch_pagan` either way, then
+assumes normal errors, which the default battery stopped doing in
+0.15.0. Either separate the two settings or say on the help page what
+`auto_enhance = FALSE` runs. Found on 2026-10-15 and recorded, not
+fixed, in 0.15.0.
 
 **`checkModel(<glm>, data, enhanced = TRUE)`** stops with “missing value
 where TRUE/FALSE needed”, Gaussian and binomial alike: the enhanced
@@ -1197,7 +1220,6 @@ group:
 
 | Question | Proposal | Needed by |
 |----|----|----|
-| Default battery | White + Koenker | 0.15.0 |
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Wild bootstrap multiplier | Decide by simulation (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |

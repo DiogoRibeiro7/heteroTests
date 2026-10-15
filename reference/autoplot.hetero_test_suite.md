@@ -62,6 +62,6 @@ suite <- runHeteroTests(
   tests = c("white", "breusch_pagan", "koenker"),
   progress = FALSE
 )
-#> [INFO] Running Koenker test
+#> [INFO] Running Breusch-Pagan test
 ggplot2::autoplot(suite)
 ```

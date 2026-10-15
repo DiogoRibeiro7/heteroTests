@@ -10,7 +10,7 @@ design**, and warns when the design has unequal weights or clusters.
 ## Usage
 
 ``` r
-runSurveyHeteroTests(formula, design, tests = c("white", "breusch_pagan"), ...)
+runSurveyHeteroTests(formula, design, tests = c("white", "koenker"), ...)
 ```
 
 ## Arguments
@@ -27,7 +27,10 @@ runSurveyHeteroTests(formula, design, tests = c("white", "breusch_pagan"), ...)
 
 - tests:
 
-  Diagnostic names passed on to `runHeteroTests`.
+  Diagnostic names passed on to `runHeteroTests`. Defaults to the White
+  and Koenker tests, the default of
+  [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md);
+  it was the White and the classical Breusch-Pagan tests up to 0.14.0.
 
 - ...:
 
@@ -86,15 +89,15 @@ if (requireNamespace("survey", quietly = TRUE)) {
 #> Warning: runSurveyHeteroTests() does not use the sampling weights of the survey design. The model is fitted by ordinary least squares and the tests treat the observations as an independent sample, so they hold their level only if the design can be ignored given the regressors. See ?runSurveyHeteroTests.
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 6.2317 df = 5 p = 0.2843
-#> [INFO] Running Breusch-Pagan test
-#>      diagnostic statistic parameter parameter2    p.value estimate
-#> 1         white  6.231719         5         NA 0.28432020       NA
-#> 2 breusch_pagan  4.981994         2         NA 0.08282735       NA
-#>                  alternative                                    method nobs
-#> 1 heteroscedasticity present       White's test for heteroscedasticity  200
-#> 2                       <NA> Breusch-Pagan test for heteroscedasticity  200
-#>   status message suggestions
-#> 1     ok    <NA>        <NA>
-#> 2     ok    <NA>        <NA>
+#> [INFO] Running Koenker test
+#>   diagnostic statistic parameter parameter2   p.value estimate
+#> 1      white  6.231719         5         NA 0.2843202       NA
+#> 2    koenker  3.905375         2         NA 0.1418922       NA
+#>                  alternative                                 method nobs status
+#> 1 heteroscedasticity present    White's test for heteroscedasticity  200     ok
+#> 2                       <NA> Koenker studentized Breusch-Pagan test  200     ok
+#>   message suggestions
+#> 1    <NA>        <NA>
+#> 2    <NA>        <NA>
 # }
 ```

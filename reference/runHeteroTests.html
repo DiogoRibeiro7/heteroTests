@@ -42,7 +42,7 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">runHeteroTests</span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"breusch_pagan"</span><span class="op">)</span>,</span>
+<span>  tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span><span class="op">)</span>,</span>
 <span>  use_cache <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  chunk_threshold_mb <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  chunk_size <span class="op">=</span> <span class="fl">10000</span>,</span>
@@ -52,7 +52,15 @@
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>By default runs <code><a href="performWhiteTest.html">performWhiteTest</a></code> and <code><a href="performBPTest.html">performBPTest</a></code>, but additional tests can be requested. Custom diagnostics registered via <code>registerDiagnostic</code> are also available.</p>
+    <p>By default runs <code><a href="performWhiteTest.html">performWhiteTest</a></code> and <code><a href="performKoenkerTest.html">performKoenkerTest</a></code>, the studentized
+Breusch-Pagan test, but additional tests can be requested. Custom diagnostics registered via <code>registerDiagnostic</code>
+are also available.</p>
+<p>Up to 0.14.0 the default was <code>c("white", "breusch_pagan")</code>, whose second test is the classical Breusch-Pagan
+statistic of <code><a href="performBPTest.html">performBPTest</a></code>. That statistic divides by \(2 \hat\sigma^4\), the variance of
+the squared errors only when they are normal. In the full sweep of <code>inst/validation/</code>, with 150 observations and
+400 replications, it rejected a true null hypothesis 28.75% of the time at the 5% level when the errors had a
+\(t_5\) distribution, against 4.75% for Koenker's statistic. The classical test is still run by name,
+<code>tests = "breusch_pagan"</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
@@ -91,14 +99,15 @@
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. <em>Econometrica</em>, 48(4), 817–838.
-Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. <em>Econometrica</em>, 47(5), 1287–1294.</p>
+Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity and Random Coefficient Variation. <em>Econometrica</em>, 47(5), 1287–1294.
+Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. <em>Journal of Econometrics</em>, 17(1), 107–112. <a href="https://doi.org/10.1016/0304-4076%2881%2990062-2" class="external-link">doi:10.1016/0304-4076(81)90062-2</a></p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">qsec</span>, data <span class="op">=</span> <span class="va">mtcars</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="co"># Default: White and Breusch-Pagan</span></span></span>
+<span class="r-in"><span><span class="co"># Default: White and Koenker</span></span></span>
 <span class="r-in"><span><span class="fu">runHeteroTests</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $white</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -109,18 +118,18 @@ Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity 
 <span class="r-out co"><span class="r-pr">#&gt;</span> alternative hypothesis: heteroscedasticity present</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $breusch_pagan</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $koenker</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 	Breusch-Pagan test for heteroscedasticity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 	Koenker studentized Breusch-Pagan test</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 3.1348, df = 2, p-value = 0.2086</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 3.0858, df = 2, p-value = 0.2138</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "hetero_test_suite" "list"             </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"tests")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "white"         "breusch_pagan"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "white"   "koenker"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"model")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
@@ -132,7 +141,7 @@ Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity 
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"data_source")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "data.frame"</span>
-<span class="r-in"><span><span class="co"># Specify additional diagnostics</span></span></span>
+<span class="r-in"><span><span class="co"># Specify additional diagnostics, or the classical Breusch-Pagan test</span></span></span>
 <span class="r-in"><span><span class="fu">runHeteroTests</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span>, <span class="st">"cook_weisberg"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Cook-Weisberg test</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running NCV score test</span>
@@ -166,6 +175,30 @@ Breusch, T. S., &amp; Pagan, A. R. (1979). A Simple Test for Heteroscedasticity 
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "hetero_test_suite" "list"             </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"tests")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "white"         "koenker"       "cook_weisberg"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"model")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> lm(formula = mpg ~ wt + qsec, data = mtcars)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Coefficients:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)           wt         qsec  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     19.7462      -5.0480       0.9292  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"data_source")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "data.frame"</span>
+<span class="r-in"><span><span class="fu">runHeteroTests</span><span class="op">(</span><span class="va">m</span>, <span class="va">mtcars</span>, tests <span class="op">=</span> <span class="st">"breusch_pagan"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $breusch_pagan</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 	Breusch-Pagan test for heteroscedasticity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> data:  mpg ~ wt + qsec</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X-squared = 3.1348, df = 2, p-value = 0.2086</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"class")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "hetero_test_suite" "list"             </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"tests")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "breusch_pagan"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"model")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>

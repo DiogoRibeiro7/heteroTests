@@ -122,7 +122,7 @@ print(recs)
 #> Missingness: none (0.0%)
 #> 
 #> Key recommendations:
-#> - breusch_pagan: Baseline regression-based heteroscedasticity check.
+#> - koenker: Baseline regression-based heteroscedasticity check, studentized so that it does not assume normal errors.
 #> - quantile_regression: Variables carb show strong skewness; quantile slope comparisons provide a complementary distributional check.
 #> - rank_permutation: Rank-based test is robust when asymptotics are unreliable.
 #> - white: Detects general forms of non-constant variance.

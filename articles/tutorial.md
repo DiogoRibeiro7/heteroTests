@@ -56,7 +56,7 @@ runDiagnostics(hd$model, hd$data)
 
     ## [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 
-    ## [INFO] Running Breusch-Pagan test
+    ## [INFO] Running Koenker test
 
     ## $white
     ## 
@@ -67,12 +67,12 @@ runDiagnostics(hd$model, hd$data)
     ## alternative hypothesis: heteroscedasticity present
     ## 
     ## 
-    ## $breusch_pagan
+    ## $koenker
     ## 
-    ##  Breusch-Pagan test for heteroscedasticity
+    ##  Koenker studentized Breusch-Pagan test
     ## 
     ## data:  stations ~ mag + depth
-    ## X-squared = 191.93, df = 2, p-value < 2.2e-16
+    ## X-squared = 111.31, df = 2, p-value < 2.2e-16
     ## 
     ## 
     ## $vif
@@ -509,17 +509,17 @@ compareModelDiagnostics(list(base_model, wls_model))
 
     ## [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 
-    ## [INFO] Running Breusch-Pagan test
+    ## [INFO] Running Koenker test
 
     ## [INFO] Running White test
 
     ## [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
 
-    ## [INFO] Running Breusch-Pagan test
+    ## [INFO] Running Koenker test
 
-    ##            white breusch_pagan
-    ## Model1 125.55798     191.92574
-    ## Model2  42.15312      40.79457
+    ##            white  koenker
+    ## Model1 125.55798 111.3052
+    ## Model2  42.15312  35.0896
 
 The weighted least squares fit typically reduces the heteroscedasticity
 metrics. On a weighted fit the tests are computed from the standardized

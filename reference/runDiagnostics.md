@@ -9,7 +9,7 @@ nonlinearity and influential observations.
 runDiagnostics(
   model,
   data = NULL,
-  tests = c("white", "breusch_pagan"),
+  tests = c("white", "koenker"),
   power = 2:3,
   use_cache = TRUE,
   chunk_threshold_mb = 100,
@@ -30,7 +30,10 @@ runDiagnostics(
 
 - tests:
 
-  Heteroscedasticity tests to run.
+  Heteroscedasticity tests to run. Defaults to the White and Koenker
+  tests, the default of
+  [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md);
+  it was the White and the classical Breusch-Pagan tests up to 0.14.0.
 
 - power:
 
@@ -77,12 +80,12 @@ runDiagnostics(mpg ~ wt + qsec, mtcars)
 #> alternative hypothesis: heteroscedasticity present
 #> 
 #> 
-#> $breusch_pagan
+#> $koenker
 #> 
-#>  Breusch-Pagan test for heteroscedasticity
+#>  Koenker studentized Breusch-Pagan test
 #> 
 #> data:  mpg ~ wt + qsec
-#> X-squared = 3.1348, df = 2, p-value = 0.2086
+#> X-squared = 3.0858, df = 2, p-value = 0.2138
 #> 
 #> 
 #> $vif

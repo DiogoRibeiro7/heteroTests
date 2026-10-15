@@ -6,7 +6,7 @@ Summarize diagnostic test results.
 
 ``` r
 # S3 method for class 'HeteroDiagnostic'
-summary(object, tests = c("white", "breusch_pagan"), ...)
+summary(object, tests = c("white", "koenker"), ...)
 ```
 
 ## Arguments
@@ -17,7 +17,10 @@ summary(object, tests = c("white", "breusch_pagan"), ...)
 
 - tests:
 
-  Character vector naming the diagnostics to summarise.
+  Character vector naming the diagnostics to summarise. Defaults to the
+  White and Koenker tests, the default of
+  [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md);
+  it was the White and the classical Breusch-Pagan tests up to 0.14.0.
 
 - ...:
 

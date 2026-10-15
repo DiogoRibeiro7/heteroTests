@@ -9,7 +9,7 @@ data frame via the `diagnostic_errors` attribute.
 ## Usage
 
 ``` r
-compareModelDiagnostics(models, data = NULL, tests = c("white", "breusch_pagan"))
+compareModelDiagnostics(models, data = NULL, tests = c("white", "koenker"))
 ```
 
 ## Arguments
@@ -24,7 +24,10 @@ compareModelDiagnostics(models, data = NULL, tests = c("white", "breusch_pagan")
 
 - tests:
 
-  Diagnostics to run.
+  Diagnostics to run. Defaults to the White and Koenker tests, the
+  default of
+  [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md);
+  it was the White and the classical Breusch-Pagan tests up to 0.14.0.
 
 ## Value
 
@@ -45,11 +48,11 @@ be retrieved from the `diagnostic_errors` attribute.
  compareModelDiagnostics(list(m1, m2))
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373
-#> [INFO] Running Breusch-Pagan test
+#> [INFO] Running Koenker test
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 6.5431 df = 5 p = 0.2569
-#> [INFO] Running Breusch-Pagan test
-#>            white breusch_pagan
-#> Model1 11.822480      3.134790
-#> Model2  6.543086      1.026766
+#> [INFO] Running Koenker test
+#>            white   koenker
+#> Model1 11.822480 3.0858363
+#> Model2  6.543086 0.8807225
 ```

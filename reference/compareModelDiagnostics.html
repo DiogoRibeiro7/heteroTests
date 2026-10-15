@@ -51,7 +51,7 @@ original error messages are preserved on the returned data frame via the
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">compareModelDiagnostics</span><span class="op">(</span><span class="va">models</span>, data <span class="op">=</span> <span class="cn">NULL</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"breusch_pagan"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">compareModelDiagnostics</span><span class="op">(</span><span class="va">models</span>, data <span class="op">=</span> <span class="cn">NULL</span>, tests <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"white"</span>, <span class="st">"koenker"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -64,7 +64,8 @@ original error messages are preserved on the returned data frame via the
 <dd><p>Optional data frame when formulas are supplied.</p></dd>
 
   <dt id="arg-tests">tests<a class="anchor" aria-label="anchor" href="#arg-tests"></a></dt>
-<dd><p>Diagnostics to run.</p></dd>
+<dd><p>Diagnostics to run. Defaults to the White and Koenker tests, the default of
+  <code><a href="runHeteroTests.html">runHeteroTests</a></code>; it was the White and the classical Breusch-Pagan tests up to 0.14.0.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -86,13 +87,13 @@ retrieved from the <code>diagnostic_errors</code> attribute.</p>
 <span class="r-in"><span> <span class="fu">compareModelDiagnostics</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">m1</span>, <span class="va">m2</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running White test</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] White test completed: statistic = 11.8225 df = 5 p = 0.0373</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Breusch-Pagan test</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Koenker test</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running White test</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] White test completed: statistic = 6.5431 df = 5 p = 0.2569</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Breusch-Pagan test</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            white breusch_pagan</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Model1 11.822480      3.134790</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Model2  6.543086      1.026766</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [INFO] Running Koenker test</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            white   koenker</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Model1 11.822480 3.0858363</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Model2  6.543086 0.8807225</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

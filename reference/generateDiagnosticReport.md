@@ -61,7 +61,7 @@ if (requireNamespace("rmarkdown", quietly = TRUE) &&
 }
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 6.5431 df = 5 p = 0.2569
-#> [INFO] Running Breusch-Pagan test
-#> Report generated: /tmp/Rtmp8xHik9/diagnostic_report.html
+#> [INFO] Running Koenker test
+#> Report generated: /tmp/Rtmp4QQzdH/diagnostic_report.html
 # }
 ```
