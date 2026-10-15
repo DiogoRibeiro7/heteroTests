@@ -97,7 +97,7 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
     var_formula <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performNCVTest")
+  rcheck_data_argument(data, "performNCVTest", model, "NCV")
   .ncv_test(model, var_formula, data)
 }
 

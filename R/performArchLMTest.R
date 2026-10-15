@@ -81,7 +81,7 @@ performArchLMTest <- function(model, data = NULL, lags = 1) {
     lags <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performArchLMTest")
+  rcheck_data_argument(data, "performArchLMTest", model, "ARCH LM")
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)
   }

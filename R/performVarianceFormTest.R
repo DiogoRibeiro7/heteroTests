@@ -151,9 +151,7 @@
 performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
                                     form = c("exponential", "power"),
                                     against = "squares") {
-  if (!inherits(model, "lm") || inherits(model, "glm")) {
-    stop("`model` must be a fitted `lm` object.", call. = FALSE)
-  }
+  rrefuse_glm(model, "performVarianceFormTest")
   rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L)
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("variance_form", model = model, data = model_data)

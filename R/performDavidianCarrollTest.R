@@ -66,7 +66,7 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
     degree <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performDavidianCarrollTest")
+  rcheck_data_argument(data, "performDavidianCarrollTest", model, "Davidian-Carroll")
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }

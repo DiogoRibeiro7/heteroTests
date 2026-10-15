@@ -110,7 +110,7 @@ performHarveyTest <- function(model, data = NULL,
       data <- NULL
     }
   }
-  rcheck_data_argument(data, "performHarveyTest")
+  rcheck_data_argument(data, "performHarveyTest", model, "Harvey")
   auxiliary <- match.arg(auxiliary)
   if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
     stop("`studentize` must be a single logical value.", call. = FALSE)

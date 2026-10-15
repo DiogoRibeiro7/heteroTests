@@ -161,13 +161,10 @@ performHarrisonMcCabeTest <- function(model, data, order_by, point = 0.5,
   }
 
   rvalidateModelInputs(model, test_name = "Harrison-McCabe")
-  if (!inherits(model, "lm") || inherits(model, "glm")) {
-    stop(
-      "performHarrisonMcCabeTest() needs a model fitted by stats::lm(): its null ",
-      "distribution is that of least-squares residuals.",
-      call. = FALSE
-    )
-  }
+  rrefuse_glm(
+    model, "performHarrisonMcCabeTest",
+    "its null distribution is that of least-squares residuals."
+  )
 
   required_vars <- unique(c(all.vars(stats::terms(model)), order_by))
   prepared <- prepare_model_data_for_test(
