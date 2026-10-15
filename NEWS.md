@@ -152,6 +152,16 @@ stops with "Model residuals must be finite". It is recorded under 0.16.0.
 `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
 `performVarianceFormTest()` refuse every `glm`, as before.
 
+The registry names deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call
+the implementations behind `performNCVTest()` and
+`performStudentizedBPTest()`, not the functions, and do not refuse a `glm`
+of another family yet. `runHeteroTests()` falls back on `"ncv"` when White's,
+Koenker's or the classical test stops, so `runHeteroTests(<binomial glm>,
+data)` does not stop: it returns the Cook-Weisberg statistic under the names
+`white` and `koenker`, tagged as a fallback, where 0.14.0 returned White's
+and the classical test. `runDiagnostics()` stops, through
+`performRESETTest()`. It is recorded under 0.16.0.
+
 **`performGQTest()`, `performRESETTest()`, `performWhiteTestBootstrap()` and
 `performWildBootstrapTest()` now read the prior weights of a Gaussian `glm`,
 and `performQuantileRegressionTest()` refuses a weighted one, as it refuses a

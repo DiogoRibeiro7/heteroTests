@@ -666,6 +666,21 @@ after it.
   the 0.15.0 release audit; whether a failed test should rather be returned
   as failed is an interface decision for 1.0.0. Removing the fallback changes
   what such calls return.
+- [ ] **A `glm` of another family through the registry.** The registry names
+  deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call `.ncv_test()` and
+  `.studentized_bp_test()` directly, and the refusal of a `glm` that is not a
+  least-squares fit is in `performNCVTest()` and `performStudentizedBPTest()`
+  only. So `runHeteroTests(m, d, tests = "ncv")`, `cachedTest("ncv", m, d)`
+  and `runHeteroTestsParallel()` return a value for
+  `m <- glm(high ~ x1 + x2, family = binomial)`, and, because `"ncv"` is the
+  last fallback of `"white"`, `"koenker"` and `"breusch_pagan"`,
+  `runHeteroTests(m, d)` with its default battery returns the Cook-Weisberg
+  statistic under the names `white` and `koenker`, tagged as a fallback,
+  where 0.14.0 returned White's test and the classical one. Found in the
+  0.15.0 release audit and not fixed there, since a fix
+  changes what those calls return; it is one call of
+  `rrefuse_non_gaussian_glm()` in each of the two registry entries, and could
+  go in 0.15.0 if the author prefers.
 - [ ] **The panel tests on a fit that dropped rows.** On
   `lm(y ~ x1 + x2, data = d)` with `NA` in three rows of `x2`,
   `performPesaranTest(m, d, "id", "time")` stops with "arguments imply

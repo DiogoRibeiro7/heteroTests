@@ -34,7 +34,8 @@ runHeteroTests(
 \arguments{
   \item{model}{a fitted \code{lm}, or a \code{glm} with the Gaussian family and the identity link, a model
   formula, a tidymodels workflow or a parsnip model fit. The tests refuse a \code{glm} of any other family or link
-  since 0.15.0.}
+  since 0.15.0, but the deprecated registry names \code{"ncv"} and \code{"student_bp"} do not yet, so the fallback
+  (Details) returns the Cook-Weisberg test for such a fit rather than stopping.}
   \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used, which
   serves only the tests that find what they need there (see their \code{data} argument). With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
