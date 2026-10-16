@@ -173,6 +173,37 @@ refused by every test ("The model is a
 [`survey::svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) fit").
 `tests/testthat/test-input-validation.R` gives every test these inputs.
 
+The tests that read `data` also refuse `data` whose rows cannot be
+confirmed to hold the observations of the fit ("cannot match the rows of
+`data` to the observations of the model"). They match the rows of `data`
+to the residuals by row name, and a tibble, a data.table or a data frame
+whose row names were reset, as by
+[`dplyr::arrange()`](https://dplyr.tidyverse.org/reference/arrange.html),
+has row names that only number its rows. Before a test reads `data`, the
+rows the row names pick are compared with the model frame of the fit,
+row by row: every column `data` holds under its own name, value by
+value, and the others (`log(x)`, `poly(x, 2)`, `offset(o)`, the weights
+and an offset given as arguments) computed from `data` as the fit
+computed them. A term computed from the rows it is given, such as
+`I(x - mean(x))`, and a column that names a variable `data` does not
+hold, are not compared; for a term of variables of `data`, the compared
+columns must then tell the rows of the fit apart. Data that cannot be
+confirmed so are refused, even the data of the fit: when no column can
+be compared, as with `lm(d$y ~ d$x)`, or when the compared columns tie
+on rows that differ in such a term. Pass the full data the model was
+fitted on, or the variables as columns of `data`. Data without row names
+of their own in another order than the fit, or with rows in front of
+those of the fit, are refused, as are repeated row names, and a model
+frame rebuilt for a fit with `model = FALSE` from data that changed
+after the fit. Data with row names of their own are matched by name, in
+any order, except by
+[`performPesaranTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performPesaranTest.md),
+[`performBPRandomEffectsTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPRandomEffectsTest.md)
+and
+[`performScatterDiagnostic()`](https://diogoribeiro7.github.io/heteroTests/reference/performScatterDiagnostic.md),
+which read `data` by position and need its rows in the order of the fit.
+`tests/testthat/test-data-alignment-guard.R` checks these refusals.
+
 ## See also
 
 [`runHeteroTests`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTests.md),
