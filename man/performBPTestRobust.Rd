@@ -34,7 +34,10 @@ regression (Koenker variant)? Defaults to \code{TRUE}. The name matches
 \code{lmtest::bptest()} and \code{\link[=performHarveyTest]{performHarveyTest()}}.}
 
 \item{bootstrap}{Logical, compute bootstrap diagnostics for the
-statistic and p-value?}
+statistic and p-value? The bootstrap is \code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}}, so on
+a fit returned by \code{\link[=fitWLS]{fitWLS()}} each replicate estimates the weights again,
+its default since 0.15.0. There is no argument to hold them fixed here;
+\code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}} with \code{reestimate_weights = FALSE} does that.}
 
 \item{B}{Number of bootstrap replications when \code{bootstrap = TRUE}.
 Defaults to 999, at which a bootstrap p-value of the form

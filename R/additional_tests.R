@@ -369,15 +369,16 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' [performWhiteTest()] sees a `fitWLS()` fit of the replicate. A replicate
 #' whose variance function cannot be fitted, where `fitWLS()` would fall back
 #' to equal weights, counts as a failed replicate, and the p-value is computed
-#' from the replicates that remain.
+#' from the replicates that remain; a warning gives the number that failed.
 #'
 #' In `inst/validation/weighted-fits-size.R`, the data have standard deviation
 #' \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance function is correctly
 #' specified, the errors are normal, there are 150 observations and
 #' `B = 499`. At the 5% level the test then rejected 0.064 of the time when it
 #' held the weights of `fitWLS()` fixed, as every call did before 0.15.0 and
-#' `reestimate_weights = FALSE` still does. It rejected 0.042 when it estimated
-#' them again, and 0.054 with the true weights. The section on weighted fits
+#' `reestimate_weights = FALSE` still does. It rejected 0.0415 when it
+#' estimated them again, just below the release gate's interval, 0.042 to
+#' 0.058, and 0.054 with the true weights. The section on weighted fits
 #' in [performWildBootstrapTest()] has the larger error of Koenker's
 #' statistic.
 #'
@@ -565,6 +566,9 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   # replicates, and it is anti-conservative in the tail.
   finite_stats <- boot_stats[is.finite(boot_stats)]
   effective <- length(finite_stats)
+  if (!is.null(variance_record)) {
+    rwarn_failed_replicates("performWhiteTestBootstrap", B - effective, B)
+  }
   if (effective == 0L) {
     .std_error(
       "rassumption_violation",

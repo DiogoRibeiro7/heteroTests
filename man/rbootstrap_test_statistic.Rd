@@ -81,7 +81,8 @@ follow the rows drawn under pairs resampling, and the replicate is refitted
 with the weights it gives. A replicate whose variance function cannot be
 fitted, where \code{fitWLS()} would fall back to equal weights, fails as a
 replicate whose refit fails does, and the p-value and the interval are
-computed from the replicates that remain. In
+computed from the replicates that remain; a warning gives the number that
+failed. In
 \code{inst/validation/weighted-fits-size.R}, with the variance function
 correctly specified, normal errors, 150 observations, \code{B = 499} and
 \code{\link[=performKoenkerTest]{performKoenkerTest()}} as \code{test_function}, the rejection rate at the 5\%
@@ -157,10 +158,11 @@ displayed during bootstrap replication.}
 \code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
 fixed for any other model. \code{FALSE} holds them fixed, as every call did
 before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
-return, or on which it fell back to equal weights. A variance function
-whose \code{var_formula} uses the response cannot be estimated again, and is
-refused unless \code{reestimate_weights = FALSE}. It comes after \code{...}, so it
-has to be named in full. See Details.}
+return, or on which it fell back to equal weights. A variance regressor
+computed from the response, which each replicate regenerates, cannot be
+estimated again: \code{NULL} then holds the weights fixed, with a warning, and
+\code{TRUE} is an error. It comes after \code{...}, so it has to be named in full.
+See Details.}
 }
 \value{
 A list with components:

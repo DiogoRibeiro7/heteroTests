@@ -67,6 +67,21 @@ quiet <- function(expr) {
   suppressWarnings(expr)
 }
 
+# The value of `expr` and the messages of the warnings it gave, muffled.
+collect_warnings <- function(expr) {
+  messages <- character()
+  value <- withCallingHandlers(expr, warning = function(w) {
+    messages <<- c(messages, conditionMessage(w))
+    invokeRestart("muffleWarning")
+  })
+  list(value = value, warnings = messages)
+}
+
+strip_record <- function(fit) {
+  attr(fit, "variance_function") <- NULL
+  fit
+}
+
 # --- the default ---------------------------------------------------------------
 
 test_that("the weights are estimated again by default on a fitWLS() fit only", {
@@ -202,7 +217,7 @@ test_that("an lm, a weighted lm and a Gaussian glm return the values of 0.14.0",
 # --- what a replicate is ----------------------------------------------------------
 
 test_that("each wild bootstrap replicate is a fitWLS() fit of the replicate", {
-  for (variant in list(c(FALSE, FALSE), c(TRUE, FALSE), c(FALSE, TRUE))) {
+  for (variant in list(c(FALSE, FALSE), c(TRUE, FALSE), c(FALSE, TRUE), c(TRUE, TRUE))) {
     obj <- make_fgls_fit(weights = variant[1], offset = variant[2])
     d <- obj$data
     fit <- obj$fit
@@ -295,6 +310,43 @@ test_that("bootstrapTestStatistic() hands the test function a fitWLS() fit of ea
   expect_equal(pairs$replicates, expected, tolerance = 1e-8)
 })
 
+test_that("the regressors and weights of each row follow the rows of the data, in any order", {
+  obj <- make_fgls_fit(weights = TRUE)
+  fit <- obj$fit
+  set.seed(27)
+  shuffled <- obj$data[sample.int(nrow(obj$data)), ]
+  n <- nrow(shuffled)
+  B <- 5L
+  rows <- rownames(shuffled)
+
+  set.seed(28)
+  null <- quiet(bootstrapTestStatistic(performKoenkerTest, fit, shuffled, B = B,
+                                       progress = FALSE))
+  s <- sqrt(weights(fit))
+  names(s) <- names(residuals(fit))
+  pool <- s * residuals(fit) / sqrt(1 - hatvalues(fit))
+  pool <- pool - mean(pool)
+  set.seed(28)
+  expected <- vapply(seq_len(B), function(b) {
+    db <- shuffled
+    db$y <- fitted(fit)[rows] + sample(pool, n, replace = TRUE) / s[rows]
+    refit <- quiet(refit_by_fitwls(obj, db))
+    squared_pearson_r2(sqrt(weights(refit)) * residuals(refit), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(null$replicates, expected, tolerance = 1e-8)
+
+  set.seed(29)
+  pairs <- quiet(bootstrapTestStatistic(performKoenkerTest, fit, shuffled, B = B,
+                                        resample = "pairs", progress = FALSE))
+  set.seed(29)
+  expected <- vapply(seq_len(B), function(b) {
+    db <- shuffled[sample.int(n, replace = TRUE), , drop = FALSE]
+    refit <- quiet(refit_by_fitwls(obj, db))
+    squared_pearson_r2(sqrt(weights(refit)) * residuals(refit), ~ x + z, db)
+  }, numeric(1))
+  expect_equal(pairs$replicates, expected, tolerance = 1e-8)
+})
+
 test_that("the variance function is estimated again with its form and its regressors", {
   # A power variance function of a variable the mean model does not use,
   # given to fitWLS() through `data`. The record holds its logarithm, so the
@@ -330,6 +382,32 @@ test_that("fitWLS() records the weights of a weighted model it refits", {
   weighted <- make_fgls_fit(weights = TRUE)
   expect_identical(attr(weighted$fit, "variance_function")$initial_weights,
                    weights(weighted$base))
+})
+
+test_that("a fit made before 0.15.0 is estimated again from the weights in its model frame", {
+  # fitWLS() before 0.15.0 recorded no initial_weights. Its model frame is the
+  # frame of the model it refitted, which holds those weights as (weights).
+  obj <- make_fgls_fit(weights = TRUE, offset = TRUE)
+  d <- obj$data
+  old_fit <- obj$fit
+  record <- attr(old_fit, "variance_function")
+  record$initial_weights <- NULL
+  attr(old_fit, "variance_function") <- record
+  expect_identical(rwls_reestimation(old_fit, NULL, "f")$initial_weights,
+                   weights(obj$base))
+  run <- function(model) {
+    set.seed(26)
+    list(
+      wild = performWildBootstrapTest(model, d, B = 9, progress = FALSE)$bootstrap$replicates,
+      white = performWhiteTestBootstrap(model, d, B = 9)$boot_statistics,
+      null = bootstrapTestStatistic(performKoenkerTest, model, d, B = 9,
+                                    progress = FALSE)$replicates
+    )
+  }
+  expect_identical(quiet(run(old_fit)), quiet(run(obj$fit)))
+  # An unweighted fit has no weights in its frame, and is fitted unweighted.
+  unweighted <- make_fgls_fit()
+  expect_null(rwls_reestimation(unweighted$fit, NULL, "f")$initial_weights)
 })
 
 # --- failed replicates ------------------------------------------------------------
@@ -374,6 +452,52 @@ test_that("a replicate whose variance function cannot be fitted is left out", {
   expect_true(all(is.na(null$replicates[failed])))
   expect_identical(null$effective_samples, B %/% 2L)
   expect_equal(null$p_value, bootstrap_p_value(null$replicates, null$original_statistic))
+
+  # Each says once how many failed.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  count <- 0L
+  caught <- collect_warnings(performWildBootstrapTest(fit, d, B = B, progress = FALSE))
+  expect_identical(caught$warnings, paste0(
+    "performWildBootstrapTest(): 5 of the 10 replicates failed and were left out, ",
+    "among them any whose variance function could not be fitted again; the results ",
+    "are computed from the 5 that remain."
+  ))
+})
+
+test_that("a replicate does not warn about the residuals it floors", {
+  # Pairs resampling of a model with a level of three rows draws, now and
+  # then, a replicate with that level once, whose residual there is zero.
+  # fitWLS() floors it before taking logarithms and says so, which in a
+  # replicate would warn once each time.
+  skip_if_not(exists("local_mocked_bindings", envir = asNamespace("testthat")))
+  set.seed(30)
+  n <- 60
+  # The rare level is not the first, so it has a column of its own and a
+  # replicate that draws it once fits that row exactly.
+  d <- data.frame(x = runif(n, 1, 5),
+                  g = factor(c(rep("a", 3), sample(c("b", "c"), n - 3, replace = TRUE)),
+                             levels = c("b", "c", "a")))
+  d$y <- 1 + d$x + as.integer(d$g) + exp(0.3 * d$x) * rnorm(n)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit <- fitWLS(lm(y ~ x + g, data = d))
+  run <- function() {
+    set.seed(31)
+    collect_warnings(bootstrapTestStatistic(performKoenkerTest, fit, d, B = 49,
+                                            resample = "pairs", progress = FALSE))
+  }
+  caught <- run()
+  expect_false(any(grepl("floored", caught$warnings)))
+  expect_true(sum(is.finite(caught$value$replicates)) > 0L)
+  # Without the muffling the same draws warn, once per replicate concerned,
+  # and the replicates are the same.
+  local({
+    local_mocked_bindings(rwithout_floor_warning = function(expr) expr)
+    loud <- run()
+    expect_gt(sum(grepl("floored", loud$warnings)), 1L)
+    expect_identical(loud$value$replicates, caught$value$replicates)
+  })
 })
 
 test_that("when every replicate fails, the tests say so as before", {
@@ -446,22 +570,103 @@ test_that("a fit on which fitWLS() fell back to equal weights holds them fixed",
   expect_error(run(reestimate_weights = TRUE), "fell back to equal weights")
 })
 
-test_that("a variance function of the response is refused unless the weights are held fixed", {
+test_that("a variance regressor of the response holds the weights fixed, with a warning", {
   obj <- make_fgls_fit()
   d <- obj$data
-  fit <- quiet(fitWLS(obj$base, var_formula = ~ y))
-  expect_error(
-    performWildBootstrapTest(fit, d, B = 9, progress = FALSE),
-    "`var_formula` uses the response"
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # ~ y, and ~ ., whose expansion on the model frame holds the response.
+  fits <- list(
+    y = suppressWarnings(fitWLS(obj$base, var_formula = ~ y)),
+    dot = suppressWarnings(fitWLS(obj$base, var_formula = ~ .))
   )
-  expect_error(
-    bootstrapTestStatistic(performKoenkerTest, fit, d, B = 9, progress = FALSE),
-    "`var_formula` uses the response"
+  expect_identical(colnames(attr(fits$dot, "variance_function")$regressors), c("y", "x", "z"))
+  for (nm in names(fits)) {
+    fit <- fits[[nm]]
+    expect_error(
+      performWildBootstrapTest(fit, d, B = 9, progress = FALSE, reestimate_weights = TRUE),
+      "computed from the response", label = nm
+    )
+    run <- function(model, ...) {
+      set.seed(43)
+      list(
+        wild = performWildBootstrapTest(model, d, B = 9, progress = FALSE, ...),
+        white = performWhiteTestBootstrap(model, d, B = 9, ...),
+        null = bootstrapTestStatistic(performKoenkerTest, model, d, B = 9,
+                                      progress = FALSE, ...)[c("replicates", "p_value")]
+      )
+    }
+    caught <- collect_warnings(run(fit))
+    default <- caught$value
+    # One from each function; the White test may add warnings of its own.
+    expect_identical(sum(grepl("computed from the response", caught$warnings)), 3L,
+                     label = nm)
+    # The values of 0.14.0, which the same fit without its record gives.
+    expect_identical(default, run(strip_record(fit)), label = nm)
+    expect_identical(default, run(fit, reestimate_weights = FALSE), label = nm)
+  }
+})
+
+test_that("a regressor sharing only some variables of the response is estimated again", {
+  # The response I(y / x) is regenerated as a whole and x is left as it is,
+  # so the weights are estimated again from the variance regressor x.
+  obj <- make_fgls_fit()
+  d <- obj$data
+  base <- lm(I(y / x) ~ z, data = d)
+  fit <- fitWLS(base, data = d, var_formula = ~ x)
+  expect_identical(rregressors_from_response(fit, attr(fit, "variance_function")$regressors),
+                   character())
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(44)
+  caught <- collect_warnings(performWildBootstrapTest(fit, d, B = 19, progress = FALSE))
+  expect_identical(caught$warnings, character())
+  on <- caught$value
+  set.seed(44)
+  off <- performWildBootstrapTest(fit, d, B = 19, progress = FALSE, reestimate_weights = FALSE)
+  expect_true(all(is.finite(on$bootstrap$replicates)))
+  expect_false(isTRUE(all.equal(on$bootstrap$replicates, off$bootstrap$replicates)))
+  # A response of one variable, transformed, shares it with a regressor of it.
+  logged <- suppressWarnings(fitWLS(lm(log(abs(y)) ~ x + z, data = d), data = d,
+                                    var_formula = ~ y))
+  expect_identical(
+    rregressors_from_response(logged, attr(logged, "variance_function")$regressors), "y"
   )
-  expect_error(performWhiteTestBootstrap(fit, d, B = 9), "`var_formula` uses the response")
-  expect_true(is.finite(quiet(performWildBootstrapTest(
-    fit, d, B = 9, progress = FALSE, reestimate_weights = FALSE
-  ))$p.value))
+})
+
+test_that("the routes that inherit the default hold such weights fixed too, with a warning", {
+  skip_on_cran()
+  obj <- make_fgls_fit()
+  d <- obj$data
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit <- suppressWarnings(fitWLS(obj$base, var_formula = ~ y))
+  through_runner <- function(model) {
+    set.seed(45)
+    runHeteroTests(model, d, tests = c("wild_bootstrap", "white_bootstrap"),
+                   use_cache = FALSE)
+  }
+  # The White test warns on the outliers of some replicates by itself, so the
+  # warnings are collected rather than expected one by one.
+  caught <- collect_warnings(through_runner(fit))
+  runner <- caught$value
+  expect_true(any(grepl("computed from the response", caught$warnings)))
+  plain <- suppressWarnings(through_runner(strip_record(fit)))
+  # The runner did not fall back on another test: each name holds its test.
+  expect_match(runner$wild_bootstrap$method, "Wild bootstrap")
+  expect_match(runner$white_bootstrap$method, "Bootstrap White")
+  expect_identical(runner$wild_bootstrap$bootstrap$replicates,
+                   plain$wild_bootstrap$bootstrap$replicates)
+  expect_identical(runner$white_bootstrap$boot_statistics,
+                   plain$white_bootstrap$boot_statistics)
+
+  robust <- function(model) {
+    set.seed(46)
+    performWhiteTestRobust(model, d, bootstrap = TRUE, B = 9)$robust_details$bootstrap
+  }
+  caught <- collect_warnings(robust(fit))
+  expect_true(any(grepl("computed from the response", caught$warnings)))
+  expect_identical(caught$value, suppressWarnings(robust(strip_record(fit))))
 })
 
 # --- the deprecated name, the robust tests and reproducibility ----------------------

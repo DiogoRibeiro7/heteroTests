@@ -106,7 +106,8 @@
 #' distribution includes the estimation the observed statistic went through.
 #' A replicate whose variance function cannot be fitted, where `fitWLS()`
 #' would fall back to equal weights, counts as a failed replicate: the p-value
-#' is computed from the replicates that remain.
+#' is computed from the replicates that remain, and a warning gives the number
+#' that failed.
 #'
 #' Holding the weights of a `fitWLS()` fit fixed, as every call did before
 #' 0.15.0 and `reestimate_weights = FALSE` still does, leaves the estimation
@@ -115,9 +116,10 @@
 #' data have standard deviation \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance
 #' function is correctly specified, the errors are normal and `B = 499`. At
 #' the 5% level the test then rejected 0.086 of the time with 150 observations
-#' and 0.105 with 600 when it held the weights fixed, and 0.060 and 0.051 when
-#' it estimated them again. With the true weights it rejected 0.054 and 0.048.
-#' At 2000 replications 0.060 is 2.2 standard errors above 0.05.
+#' and 0.105 with 600 when it held the weights fixed, and 0.0605 and 0.0515
+#' when it estimated them again. With the true weights it rejected 0.054 and
+#' 0.048. At 2000 replications 0.0605 is 2.2 standard errors above 0.05, and
+#' outside the release gate's interval, 0.042 to 0.058.
 #' [performVarianceFormTest()] allows for the estimation too.
 #'
 #' @inheritParams performBPTest
@@ -135,9 +137,10 @@
 #'   `NULL`, the default, does so for a `fitWLS()` fit and holds the weights
 #'   fixed for any other model. `FALSE` holds them fixed, as every call did
 #'   before 0.15.0. `TRUE` is an error for a model that `fitWLS()` did not
-#'   return, or on which it fell back to equal weights. A variance function
-#'   whose `var_formula` uses the response cannot be estimated again, and is
-#'   refused unless `reestimate_weights = FALSE`. See *Weighted fits*.
+#'   return, or on which it fell back to equal weights. A variance regressor
+#'   computed from the response, which each replicate regenerates, cannot be
+#'   estimated again: `NULL` then holds the weights fixed, with a warning, and
+#'   `TRUE` is an error. See *Weighted fits*.
 #'
 #' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the
@@ -310,6 +313,9 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   }
 
   effective <- sum(is.finite(replicates))
+  if (!is.null(variance_record)) {
+    rwarn_failed_replicates("performWildBootstrapTest", B - effective, B)
+  }
   if (effective == 0L) {
     warning("All wild bootstrap replications failed; returning NA results.", call. = FALSE)
     p_value <- NA_real_

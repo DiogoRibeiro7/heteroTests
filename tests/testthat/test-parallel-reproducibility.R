@@ -29,7 +29,9 @@ parallel_code <- c(
   "bootstrapTestStatistic", "performWhiteTestBootstrap", "performWildBootstrapTest",
   # What a replicate of a fitWLS() fit calls when it estimates the weights
   # again, in the worker.
-  "rwls_refit_replicate", "rvariance_function_on", "rweighted_refit", "rfgls_fit"
+  "rwls_refit_replicate", "rwls_replicate_residuals", "rwls_reestimation",
+  "rwls_initial_weights", "rregressors_from_response", "rwithout_floor_warning",
+  "rvariance_function_on", "rweighted_refit", "rfgls_fit"
 )
 
 skip_unless_workers_load_this_version <- function(forked = FALSE) {

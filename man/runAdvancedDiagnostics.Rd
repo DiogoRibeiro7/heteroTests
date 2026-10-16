@@ -42,7 +42,11 @@ samples (n < 50) and studentization for Breusch-Pagan.}
 
 \item{bootstrap_B}{Number of bootstrap replications used when automatic
 enhancement triggers bootstrap. Defaults to 999, the default of every
-resampling test in the package since 0.15.0; it was 500 before.}
+resampling test in the package since 0.15.0; it was 500 before. On a fit
+returned by \code{\link[=fitWLS]{fitWLS()}} the bootstrap of \code{\link[=performWhiteTestRobust]{performWhiteTestRobust()}} and
+\code{\link[=performBPTestRobust]{performBPTestRobust()}} estimates the weights again in each replicate, the
+default of \code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}} since 0.15.0, and there is no
+argument to hold them fixed here.}
 
 \item{parallel}{Logical, allow parallel bootstrap evaluation when the
 \code{parallel} package is available. A seeded call gives the same result

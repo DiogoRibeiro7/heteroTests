@@ -48,9 +48,10 @@ does not depend on it.}
 \code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
 fixed for any other model. \code{FALSE} holds them fixed, as every call did
 before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
-return, or on which it fell back to equal weights. A variance function
-whose \code{var_formula} uses the response cannot be estimated again, and is
-refused unless \code{reestimate_weights = FALSE}. See \emph{Weighted fits}.}
+return, or on which it fell back to equal weights. A variance regressor
+computed from the response, which each replicate regenerates, cannot be
+estimated again: \code{NULL} then holds the weights fixed, with a warning, and
+\code{TRUE} is an error. See \emph{Weighted fits}.}
 }
 \value{
 A \code{htest} object reporting both the asymptotic White statistic
@@ -129,15 +130,16 @@ the replicate is refitted with the weights it gives, so that
 \code{\link[=performWhiteTest]{performWhiteTest()}} sees a \code{fitWLS()} fit of the replicate. A replicate
 whose variance function cannot be fitted, where \code{fitWLS()} would fall back
 to equal weights, counts as a failed replicate, and the p-value is computed
-from the replicates that remain.
+from the replicates that remain; a warning gives the number that failed.
 
 In \code{inst/validation/weighted-fits-size.R}, the data have standard deviation
 \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance function is correctly
 specified, the errors are normal, there are 150 observations and
 \code{B = 499}. At the 5\% level the test then rejected 0.064 of the time when it
 held the weights of \code{fitWLS()} fixed, as every call did before 0.15.0 and
-\code{reestimate_weights = FALSE} still does. It rejected 0.042 when it estimated
-them again, and 0.054 with the true weights. The section on weighted fits
+\code{reestimate_weights = FALSE} still does. It rejected 0.0415 when it
+estimated them again, just below the release gate's interval, 0.042 to
+0.058, and 0.054 with the true weights. The section on weighted fits
 in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}} has the larger error of Koenker's
 statistic.
 }

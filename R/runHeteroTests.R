@@ -27,7 +27,11 @@
 #'   offset and subset, must be a column of `data`.
 #' @param tests Character vector of test names to run: any of the names
 #'   [listDiagnostics()] returns, which include those added with
-#'   `registerDiagnostic()`.
+#'   `registerDiagnostic()`. On a fit returned by [fitWLS()] the resampling
+#'   tests `"wild_bootstrap"` and `"white_bootstrap"` estimate the weights
+#'   again in each replicate, as [performWildBootstrapTest()] and
+#'   [performWhiteTestBootstrap()] do by default since 0.15.0; to hold them
+#'   fixed, call those functions with `reestimate_weights = FALSE`.
 #' @param use_cache Logical, reuse cached diagnostic results when available.
 #'   Requires the **digest** package for hashing inputs and defaults to `TRUE`.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which

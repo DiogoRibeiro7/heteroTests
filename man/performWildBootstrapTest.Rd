@@ -44,9 +44,10 @@ when running the bootstrap loop.}
 \code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
 fixed for any other model. \code{FALSE} holds them fixed, as every call did
 before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
-return, or on which it fell back to equal weights. A variance function
-whose \code{var_formula} uses the response cannot be estimated again, and is
-refused unless \code{reestimate_weights = FALSE}. See \emph{Weighted fits}.}
+return, or on which it fell back to equal weights. A variance regressor
+computed from the response, which each replicate regenerates, cannot be
+estimated again: \code{NULL} then holds the weights fixed, with a warning, and
+\code{TRUE} is an error. See \emph{Weighted fits}.}
 }
 \value{
 An object of class \code{htest} containing the observed
@@ -107,7 +108,8 @@ computed from the Pearson residuals of that refit, so the reference
 distribution includes the estimation the observed statistic went through.
 A replicate whose variance function cannot be fitted, where \code{fitWLS()}
 would fall back to equal weights, counts as a failed replicate: the p-value
-is computed from the replicates that remain.
+is computed from the replicates that remain, and a warning gives the number
+that failed.
 
 Holding the weights of a \code{fitWLS()} fit fixed, as every call did before
 0.15.0 and \code{reestimate_weights = FALSE} still does, leaves the estimation
@@ -116,9 +118,10 @@ take the weights as known. In \code{inst/validation/weighted-fits-size.R}, the
 data have standard deviation \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance
 function is correctly specified, the errors are normal and \code{B = 499}. At
 the 5\% level the test then rejected 0.086 of the time with 150 observations
-and 0.105 with 600 when it held the weights fixed, and 0.060 and 0.051 when
-it estimated them again. With the true weights it rejected 0.054 and 0.048.
-At 2000 replications 0.060 is 2.2 standard errors above 0.05.
+and 0.105 with 600 when it held the weights fixed, and 0.0605 and 0.0515
+when it estimated them again. With the true weights it rejected 0.054 and
+0.048. At 2000 replications 0.0605 is 2.2 standard errors above 0.05, and
+outside the release gate's interval, 0.042 to 0.058.
 \code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation too.
 }
 
