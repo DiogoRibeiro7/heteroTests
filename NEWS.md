@@ -1,21 +1,38 @@
 # heteroTests News
 
-## Development version
+## 0.15.0
 
-0.15.0 makes the interface match its description. Most of the changes below
-break calls, not values: each old form still works in 0.15.x, returns what it
-returned in 0.14.0 and warns with the call to use instead, and it stops
-working in 1.0.0. The changes in bold change values: every resampling test
-draws 999 replicates by default, the default battery of `runHeteroTests()` is
-White and Koenker, `performGlejserTest()` corrects for asymmetric errors by
-default, the tests refuse four inputs that most or some of them returned a
-value for, the tests that read `data` refuse data whose rows they cannot
-match to the observations of the fit, the robust White and Breusch-Pagan
-tests and the White bootstrap give the value on the data of the fit for rows
-they had renumbered, seeded resampling with `parallel = TRUE` is
-reproducible, the bootstrap tests estimate the weights of a `fitWLS()` fit
-again in each replicate, and the studentized Breusch-Pagan statistic reads
-the weights of a `fitWLS()` fit.
+0.15.0 makes the interface match its description before 1.0.0. Every test
+takes `(model, data, ...)`, with `data = NULL` in second position and
+`performBoxMTest(data, group)` the documented exception;
+`performBPTestRobust()` chooses the studentized statistic with `studentize`,
+as `performHarveyTest()` and `lmtest::bptest()` do;
+`rrunAdvancedDiagnostics()` is renamed `runAdvancedDiagnostics()`; and
+`?test_results` documents what every test returns and the inputs every test
+refuses. Most of these changes break calls, not values: an old call form that
+0.15.0 replaces still works in 0.15.x, warns with the call to use instead
+and, apart from the changes in bold, returns what it returned in 0.14.0, and
+it stops working in 1.0.0 (the table under *Calls that changed* gives each).
+The changes in bold change what calls return: every resampling function
+draws 999 replicates by default; the default battery of `runHeteroTests()` is
+White and Koenker; `performGlejserTest()` corrects for asymmetric errors by
+default; the tests refuse a `glm` that is not a least-squares fit, which most
+of them returned a value for, and so do the registry names `"ncv"` and
+`"student_bp"`, deprecated in 0.14.0; they refuse a model with an `NA`
+coefficient and data that lack rows or variables of the fit, which some of
+them returned a value for, and `performRESETTest()` refuses a
+`survey::svyglm()` fit, as the other tests did already; the Goldfeld-Quandt,
+RESET, White bootstrap and wild bootstrap tests read the prior weights of a
+Gaussian `glm`, and the quantile regression test refuses a weighted one; the
+tests that read `data` refuse data whose rows they cannot match to the
+observations of the fit, and `runHeteroTests()` and `runDiagnostics()` stop
+on such data rather than fall back on another test; the robust White and
+Breusch-Pagan tests and the White bootstrap give the value on the data of the
+fit for rows they had renumbered; seeded resampling with `parallel = TRUE` is
+reproducible, and `runHeteroTestsParallel()` gives the same value with one
+worker as with several; the bootstrap tests estimate the weights of a
+`fitWLS()` fit again in each replicate; and the studentized Breusch-Pagan
+statistic reads the weights of a `fitWLS()` fit.
 
 ### Resampling tests draw 999 replicates by default
 
