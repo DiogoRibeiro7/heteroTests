@@ -684,6 +684,37 @@ test_that("a regressor of a variable the design holds fixed is estimated again",
   }
 })
 
+test_that("a column of the design is never computed from the response, whatever its name", {
+  # A level of g spelled like the response names the design column
+  # factor(g)y, which reads as the variable y; the design is held fixed in
+  # every replicate, so the weights are estimated again.
+  d <- response_rule_data()
+  d$g <- rep(c("a", "y", "b"), length.out = nrow(d))
+  d$gf <- factor(d$g)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  for (base in list(lm(y ~ x + factor(g), data = d), lm(y ~ x + gf, data = d))) {
+    fit <- fitWLS(base)
+    Z <- attr(fit, "variance_function")$regressors
+    expect_true(any(grepl("y$", colnames(Z))))
+    expect_identical(rregressors_from_response(fit, Z), character())
+    set.seed(49)
+    caught <- collect_warnings(performWildBootstrapTest(fit, d, B = 19, progress = FALSE))
+    expect_false(any(grepl("computed from the response", caught$warnings)))
+    set.seed(49)
+    off <- performWildBootstrapTest(fit, d, B = 19, progress = FALSE,
+                                    reestimate_weights = FALSE)
+    expect_false(isTRUE(all.equal(caught$value$bootstrap$replicates,
+                                  off$bootstrap$replicates)))
+  }
+  # The response term itself is not a column of the design, so `~ .` still
+  # flags it when every variable of the response is on the right-hand side.
+  both <- suppressWarnings(fitWLS(lm(I(y / x) ~ x + y, data = d), var_formula = ~ .))
+  expect_identical(
+    rregressors_from_response(both, attr(both, "variance_function")$regressors), "`I(y/x)`"
+  )
+})
+
 test_that("the routes that inherit the default hold such weights fixed too, with a warning", {
   skip_on_cran()
   obj <- make_fgls_fit()

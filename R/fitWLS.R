@@ -468,7 +468,8 @@ rwls_reestimation <- function(model, reestimate_weights, fn) {
 #' term itself, which is how `~ .` evaluated on the model frame names it,
 #' backquoted. A variable that the right-hand side uses is held fixed with the
 #' design, so `x` for `log(y / x) ~ log(x)` and the offset `o` for
-#' `y ~ x + offset(o)` are not computed from the response. The regressors are
+#' `y ~ x + offset(o)` are not computed from the response, and neither is any
+#' column of the design, whatever its name. The regressors are
 #' read from the columns fitWLS() recorded, so `.` is expanded as fitWLS()
 #' expanded it.
 #'
@@ -493,7 +494,15 @@ rregressors_from_response <- function(model, Z) {
   response_vars <- setdiff(all.vars(response), all.vars(model_formula[[3L]]))
   squash <- function(x) gsub("[[:space:]`]", "", x)
   response_term <- squash(paste(deparse(response, width.cutoff = 500L), collapse = ""))
+  # A column of the design is held fixed in every replicate whatever its
+  # name, such as factor(g)y for a level "y" of g, which the fallback below
+  # would read as the variable y.
+  design_columns <- tryCatch(colnames(stats::model.matrix(model)),
+                             error = function(e) character())
   uses_response <- vapply(colnames(Z), function(column) {
+    if (column %in% design_columns) {
+      return(FALSE)
+    }
     # `~ .` on the model frame names the response column backquoted, as
     # `log(y)`; a column that is the response term, or holds it backquoted, is
     # computed from it whatever its variables.
