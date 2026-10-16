@@ -287,20 +287,21 @@ visualisations.</p>
 <span><span class="fu"><a href="../reference/performGlejserTest.html">performGlejserTest</a></span><span class="op">(</span><span class="va">survey_model</span>, <span class="va">hetero_data</span>, <span class="st">"x"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [INFO] Running Glejser test</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Glejser test for heteroscedasticity</span></span>
+<span><span class="co">#&gt;  Glejser test for heteroscedasticity (robust to asymmetric errors)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; data:  y ~ x</span></span>
-<span><span class="co">#&gt; t = 5.0897, df = 98, p-value = 1.733e-06</span></span></code></pre></div>
+<span><span class="co">#&gt; t = 5.0343, df = 98, p-value = 2.181e-06</span></span></code></pre></div>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">survey_diag</span>, plots <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spread_level"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $spread_level</span></span>
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span></code></pre></div>
 <p><img src="real_world_case_studies_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="576"></p>
-<p><em>Interpretation.</em> Glejser’s test and the scale-location plot
-both indicate that variance increases with <code>x</code>. Depending on
-the modelling goal, analysts might log transform the response or model
-the variance explicitly (e.g. via <code>lm</code> weights or
-<code>glm</code> with a variance function).</p>
+<p><em>Interpretation.</em> The Glejser test (corrected for asymmetric
+errors, the default) and the scale-location plot both indicate that
+variance increases with <code>x</code>. Depending on the modelling goal,
+analysts might log transform the response or model the variance
+explicitly (e.g. via <code>lm</code> weights or <code>glm</code> with a
+variance function).</p>
 </div>
 <div class="section level2">
 <h2 id="case-study-3-engineering-reliability-assessment">Case study 3: Engineering reliability assessment<a class="anchor" aria-label="anchor" href="#case-study-3-engineering-reliability-assessment"></a>

@@ -48,9 +48,13 @@ panel tests. Their simulated size and power are in
   and the Cook–Weisberg score test
   ([`performCookWeisbergTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performCookWeisbergTest.md),
   with the fitted values as the variance regressor or a variance model
-  of your own in `var_formula`). `performGlejserTest(robust = TRUE)` is
-  the Glejser test of Im (2000) and of Machado and Santos Silva (2000),
-  which keeps its level under skewed errors.
+  of your own in `var_formula`). Since 0.15.0
+  [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md)
+  computes by default the Glejser test of Im (2000) and of Machado and
+  Santos Silva (2000), which keeps its level under skewed errors from
+  about 150 observations, and is somewhat above it at 50;
+  `robust = FALSE` gives Glejser’s (1969) statistic, the default up to
+  0.14.0.
 - **Does the variance change with the fitted values or along an
   ordering?** Goldfeld–Quandt
   ([`performGQTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGQTest.md)),

@@ -249,10 +249,10 @@ runDiagnostics(survey_diag$model, survey_diag$data, tests = c("white", "breusch_
 performGlejserTest(survey_model, hetero_data, "x")
 #> [INFO] Running Glejser test
 #> 
-#>  Glejser test for heteroscedasticity
+#>  Glejser test for heteroscedasticity (robust to asymmetric errors)
 #> 
 #> data:  y ~ x
-#> t = 5.0897, df = 98, p-value = 1.733e-06
+#> t = 5.0343, df = 98, p-value = 2.181e-06
 ```
 
 ``` r
@@ -264,10 +264,11 @@ plot(survey_diag, plots = c("spread_level"))
 
 ![](real_world_case_studies_files/figure-html/unnamed-chunk-7-1.png)
 
-*Interpretation.* Glejser’s test and the scale-location plot both
-indicate that variance increases with `x`. Depending on the modelling
-goal, analysts might log transform the response or model the variance
-explicitly (e.g. via `lm` weights or `glm` with a variance function).
+*Interpretation.* The Glejser test (corrected for asymmetric errors, the
+default) and the scale-location plot both indicate that variance
+increases with `x`. Depending on the modelling goal, analysts might log
+transform the response or model the variance explicitly (e.g. via `lm`
+weights or `glm` with a variance function).
 
 ## Case study 3: Engineering reliability assessment
 
