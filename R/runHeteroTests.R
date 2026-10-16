@@ -220,6 +220,14 @@ runHeteroTests <- function(model, data = NULL,
         if (isTRUE(recover_failures)) {
           return(failure)
         }
+        if (identical(failure_context$issue, "data_rows")) {
+          # Keep the class of the refusal of `data` (rcheck_data_rows()), so
+          # that a caller can tell it from a failure of the test.
+          stop(structure(
+            class = class(e),
+            list(message = failure_context$user_message, call = NULL)
+          ))
+        }
         stop(failure_context$user_message, call. = FALSE)
       }
     )

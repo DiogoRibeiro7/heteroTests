@@ -119,7 +119,11 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
   rprocessValidationResult(requirements)
 
   cross_products <- identical(method, "standard")
-  base_result <- performWhiteTest(model, working_data, cross_products = cross_products)
+  base_result <- performWhiteTest(
+    model,
+    rdata_with_fit_rows(working_data, names(prepared$residuals)),
+    cross_products = cross_products
+  )
 
   df <- .extract_df(base_result, model)
   ci_info <- list(
@@ -275,7 +279,7 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
   rprocessValidationResult(requirements)
 
   base_fun <- if (studentize) .studentized_bp_test else performBPTest
-  base_result <- base_fun(model, working_data)
+  base_result <- base_fun(model, rdata_with_fit_rows(working_data, names(prepared$residuals)))
 
   df <- .extract_df(base_result, model)
   ci_info <- list(

@@ -150,7 +150,7 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
       # The rows of `data` the model was fitted to, in the order of the
       # residuals, once rcheck_data_rows() has confirmed that the row names
       # pick them.
-      rcheck_data_rows(model, data, fn = rfunction_name(sys.call(-1L), sys.function(-1L)))
+      rcheck_data_rows(model, data, fn = rtest_name(sys.parent()))
       plain <- prepare_model_data_for_test(
         model,
         data,

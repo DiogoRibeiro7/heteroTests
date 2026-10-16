@@ -103,7 +103,18 @@ test_that("a data frame whose row names were reset, in another order, is refused
   expect_error(performKoenkerTest(m, arranged), "y, x, z differ from the model frame", fixed = TRUE)
   expect_error(
     performKoenkerTest(m, arranged),
-    "Pass the data the model was fitted on, in its order, or `data = NULL` to use the model frame.",
+    "Pass the rows of the fit in the order of the fit, or a data frame with its row names.",
+    fixed = TRUE
+  )
+  # Rows that carry the names of the fit but other values.
+  other <- d
+  other$y <- rev(other$y)
+  expect_error(
+    performKoenkerTest(m, other[sample(n), ]),
+    paste(
+      "the rows of `data` that carry the row names of the fit do not hold its",
+      "values: y differs from the model frame. Pass the data the model was fitted on."
+    ),
     fixed = TRUE
   )
   # The same rows with their own row names are matched by name, as before.
@@ -256,14 +267,23 @@ test_that("a transformed response is rebuilt from data through the terms of the 
   other <- d
   other$ypos <- rev(other$ypos)
   expect_error(performKoenkerTest(m, other), "log(ypos) differs from the model frame", fixed = TRUE)
-  # Transformed regressors are not compared themselves, and a value computed
-  # from all the rows, as I(x1 - mean(x1)) or poly(), is not a difference.
-  for (f in list(y ~ log(x1) + x2, y ~ poly(x1, 2) + x2, y ~ I(x1 - mean(x1)) + I(x2^2))) {
-    mf <- lm(f, data = d)
+  # Transformed regressors are computed from `data` through the predvars of
+  # the terms and compared. On data that number their rows, which are matched
+  # by position, the tibble of the fit passes and the tibble in another order
+  # is refused, poly() and ns() included; a term computed from all the rows,
+  # such as I(x1 - mean(x1)), is not a difference.
+  tb <- dplyr::as_tibble(d)
+  formulas <- list(
+    y ~ log(x1) + x2, y ~ poly(x1, 2) + x2, y ~ I(x1 - mean(x1)) + I(x2^2),
+    y ~ splines::ns(x1, 3) + x2
+  )
+  for (f in formulas) {
+    mf <- lm(f, data = tb)
     expect_same_result(
-      performKoenkerTest(mf, shuffled), performKoenkerTest(mf, d),
+      performKoenkerTest(mf, tb), performKoenkerTest(lm(f, data = d), d),
       info = deparse(f)
     )
+    expect_refused("performKoenkerTest", mf, tb[rev(seq_len(nrow(tb))), ], info = deparse(f))
   }
   # A response computed from all the rows is evaluated on all the rows of
   # `data`, as model.frame() evaluated it before dropping rows.
@@ -272,6 +292,19 @@ test_that("a transformed response is rebuilt from data through the terms of the 
   centred <- lm(I(y - mean(y)) ~ x1 + x2, data = d_na)
   expect_warning(performKoenkerTest(centred, d_na), "Removed 2 observations")
   expect_s3_class(suppressWarnings(performKoenkerTest(centred, d_na)), "htest")
+  # Given only the rows the fit kept, such a term is shifted by a constant,
+  # which is not a difference either.
+  kept <- d_na[rownames(stats::model.frame(centred)), ]
+  expect_same_result(
+    performKoenkerTest(centred, kept), suppressWarnings(performKoenkerTest(centred, d_na)),
+    info = "kept rows"
+  )
+  in_subset <- lm(y ~ I(x1 - mean(x1)) + x2, data = d, subset = x2 > 0)
+  expect_same_result(
+    performKoenkerTest(in_subset, d[rownames(stats::model.frame(in_subset)), ]),
+    performKoenkerTest(in_subset, d),
+    info = "subset"
+  )
 })
 
 test_that("weights and offsets given as columns are matched with their rows", {
@@ -372,15 +405,30 @@ test_that("runHeteroTests() and runDiagnostics() stop and fall back on nothing",
   m <- lm(y ~ x1 + x2, data = d)
   arranged <- dplyr::arrange(d, x1)
   local_silent_log()
+  # The runners keep the class of the refusal.
+  for (use_cache in c(FALSE, TRUE)) {
+    expect_error(
+      runHeteroTests(m, arranged, use_cache = use_cache, progress = FALSE),
+      "performWhiteTest\\(\\) cannot match the rows of `data`",
+      class = "heteroTests_data_rows_error"
+    )
+    expect_error(
+      runDiagnostics(m, arranged, use_cache = use_cache, progress = FALSE),
+      "performWhiteTest\\(\\) cannot match the rows of `data`",
+      class = "heteroTests_data_rows_error"
+    )
+  }
+  # A valid call cached first does not let the reordered data through.
+  cached <- runHeteroTests(m, d, use_cache = TRUE, progress = FALSE)
   expect_error(
-    runHeteroTests(m, arranged, use_cache = FALSE, progress = FALSE),
-    "performWhiteTest() cannot match the rows of `data`",
-    fixed = TRUE
+    runHeteroTests(m, arranged, use_cache = TRUE, progress = FALSE),
+    class = "heteroTests_data_rows_error"
   )
-  expect_error(
-    runDiagnostics(m, arranged, use_cache = FALSE, progress = FALSE),
-    "performWhiteTest() cannot match the rows of `data`",
-    fixed = TRUE
+  expect_s3_class(cachedTest("koenker", m, d), "htest")
+  expect_error(cachedTest("koenker", m, arranged), class = "heteroTests_data_rows_error")
+  expect_identical(
+    unname(runHeteroTests(m, d, use_cache = TRUE, progress = FALSE)$koenker$statistic),
+    unname(cached$koenker$statistic)
   )
   # The analysis of the failure offers no substitute, so no name can hold
   # another test: here every test of a battery whose fallbacks include the
@@ -403,4 +451,214 @@ test_that("runHeteroTests() and runDiagnostics() stop and fall back on nothing",
     unname(runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)$koenker$statistic),
     unname(performKoenkerTest(m, d)$statistic)
   )
+})
+
+test_that("a model fitted with model = FALSE refuses a frame rebuilt from changed data", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  d <- guard_data()
+  de <- d
+  m <- lm(y ~ x1 + x2, data = de, model = FALSE)
+  expected <- performKoenkerTest(m, de)
+  expect_same_result(performKoenkerTest(m), expected, info = "unchanged, NULL")
+  # The data the fit refers to are reordered after the fit: the frame rebuilt
+  # from them is compared with the response of the fit, not with itself.
+  de <- dplyr::arrange(de, x1)
+  stale <- "cannot use the model frame of `model`: the model was fitted with `model = FALSE`"
+  expect_error(performKoenkerTest(m, de), stale, fixed = TRUE)
+  expect_error(performKoenkerTest(m), stale, fixed = TRUE)
+  expect_error(
+    runHeteroTests(m, use_cache = FALSE, progress = FALSE),
+    class = "heteroTests_data_rows_error"
+  )
+  de <- d
+  expect_same_result(performKoenkerTest(m), expected, info = "restored")
+})
+
+test_that("transformed regressors, weights and offsets are compared too", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  set.seed(31)
+  n <- 120
+  d <- data.frame(x = runif(n, 1, 5), age = runif(n, 20, 60), z = rnorm(n))
+  d$y01 <- rbinom(n, 1, stats::plogis(-1 + 0.5 * d$x))
+  d$y <- 1 + d$x + d$z + rnorm(n, sd = d$x)
+  d$g <- factor(rep(1:4, length.out = n))
+  # A 0/1 response with ties, sorted by it: data arranged by (y01, x) hold the
+  # response in the same order and differ only in the transformed regressors.
+  d01 <- d[order(d$y01), ]
+  rownames(d01) <- NULL
+  m01 <- lm(y01 ~ log(x) + poly(age, 2), data = d01)
+  arranged <- dplyr::arrange(d01, y01, x)
+  expect_identical(arranged$y01, d01$y01)
+  for (fn in c("performKoenkerTest", "performWhiteTest", "performGlejserTest")) {
+    expect_refused(fn, m01, arranged, info = fn)
+  }
+  expect_error(performKoenkerTest(m01, arranged), "log(x), poly(age, 2) differ", fixed = TRUE)
+  # Rows tied on y, x and z that differ in their weight or their offset.
+  tied <- d[rep(seq_len(30), each = 4), ]
+  rownames(tied) <- NULL
+  tied$w <- runif(nrow(tied), 0.5, 2)
+  tied$o <- rnorm(nrow(tied))
+  swap <- function(v) stats::ave(v, tied$x, FUN = rev)
+  m_w <- lm(y ~ x + z, data = tied, weights = w)
+  m_o <- lm(y ~ x + z + offset(o), data = tied)
+  m_oa <- lm(y ~ x + z, data = tied, offset = o)
+  # Tied rows make the residuals far from normal, which Bartlett's test warns
+  # about; the warning is not what is tested here.
+  expect_s3_class(suppressWarnings(performBartlettTest(m_w, tied, "g")), "htest")
+  swapped_w <- tied
+  swapped_w$w <- swap(tied$w)
+  swapped_o <- tied
+  swapped_o$o <- swap(tied$o)
+  expect_error(performBartlettTest(m_w, swapped_w, "g"), "(weights) differs", fixed = TRUE)
+  expect_error(performBartlettTest(m_o, swapped_o, "g"), "offset(o) differs", fixed = TRUE)
+  expect_error(performBartlettTest(m_oa, swapped_o, "g"), "(offset) differs", fixed = TRUE)
+  # A test that reads `o` for an offset() term, with `o` in another order.
+  permuted <- tied
+  permuted$o <- rev(permuted$o)
+  expect_error(performGQTest(m_o, permuted, order_by = "x"), class = "heteroTests_data_rows_error")
+  expect_s3_class(performGQTest(m_o, tied, order_by = "x"), "htest")
+})
+
+test_that("numbers are compared value by value, dates and times exactly", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  d <- guard_data()
+  n <- nrow(d)
+  # One huge value no longer loosens the comparison of the whole column.
+  big <- d
+  big$y[1] <- 1e10
+  m_big <- lm(y ~ log(x1), data = big)
+  swapped <- big
+  swapped$y[2:11] <- swapped$y[c(3, 2, 5, 4, 7, 6, 9, 8, 11, 10)]
+  # The huge value is an outlier, which the test warns about.
+  expect_s3_class(suppressWarnings(performKoenkerTest(m_big, big)), "htest")
+  expect_refused("performKoenkerTest", m_big, swapped, info = "1e10")
+  for (k in c(1e-200, 1e200)) {
+    dk <- d
+    dk$y <- dk$y * k
+    mk <- lm(y ~ x1 + x2, data = dk)
+    sk <- dk
+    sk$y[1:2] <- sk$y[2:1]
+    expect_error(performKoenkerTest(mk, sk), class = "heteroTests_data_rows_error", info = k)
+  }
+  near <- d
+  near$y <- 1e15 + near$y
+  m_near <- lm(y ~ x1 + x2, data = near)
+  expect_same_result(
+    performKoenkerTest(m_near, dplyr::as_tibble(near)), performKoenkerTest(m_near, near),
+    info = "1e15"
+  )
+  dates <- d
+  dates$t <- as.POSIXct("2026-01-01", tz = "UTC") + seq_len(n)
+  m_t <- lm(y ~ x1 + t, data = dates)
+  one_second <- dates
+  one_second$t[1:2] <- one_second$t[2:1]
+  expect_error(performKoenkerTest(m_t, one_second), "t differs", fixed = TRUE)
+})
+
+test_that("the registry name student_bp checks data as performStudentizedBPTest() does", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  d <- guard_data()
+  m <- lm(y ~ x1 + x2, data = d)
+  arranged <- dplyr::arrange(d, x1)
+  expect_error(
+    suppressWarnings(runHeteroTests(m, arranged, tests = "student_bp", use_cache = FALSE,
+                                    progress = FALSE)),
+    "performStudentizedBPTest() cannot match the rows of `data`",
+    fixed = TRUE
+  )
+  expect_error(
+    test_factory$run_test("student_bp", m, arranged),
+    class = "heteroTests_data_rows_error"
+  )
+  expect_identical(
+    unname(suppressWarnings(runHeteroTests(m, d, tests = "student_bp", use_cache = FALSE,
+                                           progress = FALSE))$student_bp$statistic),
+    unname(suppressWarnings(performStudentizedBPTest(m, d))$statistic)
+  )
+})
+
+test_that("tests that call another test pass it the rows under the fit's names", {
+  # A fit to rows in another order, under their own names, and the tibble of
+  # the data in their first order: the rows are matched to the fit by position
+  # of those names, and the robust and bootstrap tests, which call White's or
+  # the Breusch-Pagan test on the aligned rows again, give the value on the
+  # data of the fit.
+  skip_if_not_installed("dplyr")
+  d <- guard_data()
+  set.seed(4)
+  shuffled <- d[sample(nrow(d)), ]
+  m <- lm(y ~ x1 + x2, data = shuffled)
+  tb <- dplyr::as_tibble(d)
+  for (fn in c("performWhiteTest", "performWhiteTestRobust", "performWhiteTestBootstrap",
+               "performBPTestRobust", "performKoenkerTest")) {
+    expect_same_result(guard_run(fn, m, tb), guard_run(fn, m, shuffled), info = fn)
+  }
+  local_silent_log()
+  expect_same_result(
+    performBPTestRobust(m, tb, studentize = FALSE),
+    performBPTestRobust(m, shuffled, studentize = FALSE),
+    info = "BP"
+  )
+})
+
+test_that("messages name the function called and say why", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  d <- guard_data()
+  m <- lm(y ~ x1 + x2, data = d)
+  arranged <- dplyr::arrange(d, x1)
+  expect_error(
+    suppressWarnings(performBreuschPaganTest(m, arranged)),
+    "^performBreuschPaganTest\\(\\) cannot match"
+  )
+  expect_error(
+    do.call(performKoenkerTest, list(m, arranged)),
+    "^performKoenkerTest\\(\\) cannot match"
+  )
+  expect_error(
+    heteroTests::performGlejserTest(m, arranged, "x1"),
+    "^performGlejserTest\\(\\) cannot match"
+  )
+  wide <- lm(y ~ x1 + x2 + w + o + ypos, data = d)
+  expect_error(performKoenkerTest(wide, arranged), "y, x1, x2 and 3 more differ", fixed = TRUE)
+  # A tibble the test renumbered when it dropped incomplete rows.
+  dn <- d
+  dn$x2[c(3, 7)] <- NA
+  tb <- dplyr::as_tibble(dn)
+  m_short <- lm(y ~ x1 + x2, data = tb[1:100, ])
+  expect_error(
+    suppressWarnings(performKoenkerTest(m_short, tb)),
+    "^performKoenkerTest\\(\\) cannot match.*afresh"
+  )
+  # The scatter diagnostic reads by position and cannot match the names of a
+  # fit to character row names against a tibble.
+  dc <- d
+  rownames(dc) <- paste0("obs", seq_len(nrow(dc)))
+  m_c <- lm(y ~ x1 + x2, data = dc)
+  expect_error(
+    performScatterDiagnostic(m_c, dplyr::as_tibble(dc), "x1"),
+    "the row names of `data` are not those of the fit",
+    fixed = TRUE
+  )
+  expect_identical(
+    performScatterDiagnostic(m_c, dc, "x1"),
+    performScatterDiagnostic(m, d, "x1")
+  )
+})
+
+test_that("a fitWLS() fit is matched like the fit it reweights", {
+  skip_if_not_installed("dplyr")
+  d <- guard_data()
+  wls <- fitWLS(lm(y ~ x1 + x2, data = d))
+  set.seed(12)
+  shuffled <- d[sample(nrow(d)), ]
+  tests <- c("performKoenkerTest", "performWhiteTest", "performGlejserTest", "performBartlettTest")
+  for (fn in tests) {
+    expect_same_result(guard_run(fn, wls, shuffled), guard_run(fn, wls, d), info = fn)
+    expect_refused(fn, wls, dplyr::arrange(d, x1), info = fn)
+  }
 })
