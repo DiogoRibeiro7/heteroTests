@@ -743,8 +743,10 @@ after it.
   Gaussian `glm` and a weighted `lm` every value is `identical()` to before.
 - [ ] **The panel tests on a fit that dropped rows.** On
   `lm(y ~ x1 + x2, data = d)` with `NA` in three rows of `x2`,
-  `performPesaranTest(m, d, "id", "time")` stops with "arguments imply
-  differing number of rows: 120, 117", and with only the complete rows with
+  `performPesaranTest(m, d, "id", "time")` stops with "requires `data` with
+  117 observations to match the fitted model, got 120" (since the 0.15.0 guard
+  on the order of the rows; "arguments imply differing number of rows: 120,
+  117" before it), and with only the complete rows with
   "number of items to replace is not a multiple of replacement length";
   `performBPRandomEffectsTest(m, d, "id")` refuses the full data with
   "requires `data` with 117 observations to match the fitted model, got 120",
@@ -791,7 +793,39 @@ after it.
     Gaussian `glm`.
   - The single tests and `performWhiteTestBootstrap()` match a reordered tibble
     or `data.table` to the fit by position, through
-    `prepare_model_data_for_test()`. Changes a value for such data.
+    `prepare_model_data_for_test()`. Since 0.15.0 they refuse such data
+    instead of returning wrong values: `rcheck_data_rows()`, called by
+    `rdata_or_model_frame()`, compares the response and every variable the
+    model frame holds as itself, on the rows the row names pick, with the model
+    frame, and the tests stop when they differ or when row names repeat;
+    `runHeteroTests()` and `runDiagnostics()` do not fall back on another test
+    for it. The model context replaces this guard, so that such data give the
+    value on the data of the fit. Changes a value for such data. Not covered by
+    the guard:
+    - `fitWLS(data, var_formula)` and `performVarianceFormTest()` with
+      `var_formula` or `against` read the variables of the second formula
+      through `rvariance_frame()`, which matches by name and, when no name
+      matches and the counts agree, by position, unchecked (a reordered tibble
+      changes their value).
+    - The tests that read nothing from `data` (`performSpearmanTest()`,
+      `performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`,
+      `performCookWeisbergTest()` without `var_formula`, `performNCVTest()`,
+      `performSpreadLevelTest()`, `performDavidianCarrollTest()`,
+      `performVarianceFormTest()` without a second formula,
+      `performRESETTest()`) accept reordered data and return the value of the
+      fit.
+    - A transformed variable is compared only through the response: two rows
+      that agree on the response and on every variable held as itself, but not
+      on a variable the frame holds only transformed (`x` in `log(x)`), on the
+      weights, the offset, or a column the test reads besides the model
+      (`group`, `order_by`), can pass for each other.
+    - A response computed from all the rows, such as `I(y - mean(y))`, given
+      with rows beyond those of the fit, does not reproduce the fit and is
+      refused.
+    - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
+      own check (0.13.0), and the panel tests and
+      `performScatterDiagnostic()` refuse data with row names of their own in
+      another order instead of matching it by name.
   - The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
     model) and `cachedTest()` (about 25 KB per call) grow without bound, as the
     validation cache did before #97. No value changes.
