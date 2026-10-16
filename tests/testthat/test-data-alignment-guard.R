@@ -749,6 +749,73 @@ test_that("columns that cannot be compared must leave no ties that matter", {
   expect_error(performKoenkerTest(m_t7, swapped), "I(x^2) differs", fixed = TRUE)
 })
 
+test_that("a column from outside data does not need telling rows apart", {
+  # Weights or an offset taken from the workspace are read by no test from
+  # `data`, so rows that tie on every compared column can be exchanged
+  # without changing anything a test reads: the fit's own data pass.
+  local_silent_log()
+  set.seed(31)
+  n <- 120
+  dt <- data.frame(
+    score = sample(1:5, n, TRUE), g = factor(sample(letters[1:3], n, TRUE)),
+    x = runif(n, 1, 5)
+  )
+  wts <- runif(n, 0.5, 2)
+  off <- rnorm(n)
+  with_column <- dt
+  with_column$w <- wts
+  with_column$o <- off
+  m_ws <- lm(score ~ g, data = dt, weights = wts)
+  m_wc <- lm(score ~ g, data = with_column, weights = w)
+  m_os <- lm(score ~ g, data = dt, offset = off)
+  m_oc <- lm(score ~ g, data = with_column, offset = o)
+  expect_same_result(performKoenkerTest(m_ws, dt), performKoenkerTest(m_wc, with_column),
+                     info = "weights")
+  # A discrete response: Bartlett's test warns about non-normal residuals.
+  expect_same_result(suppressWarnings(performBartlettTest(m_ws, dt, "g")),
+                     suppressWarnings(performBartlettTest(m_wc, with_column, "g")),
+                     info = "weights")
+  expect_same_result(performKoenkerTest(m_os, dt), performKoenkerTest(m_oc, with_column),
+                     info = "offset")
+  # The same tied rows swapped, with the weights a column of `data`: the
+  # weights are compared, and the swap is refused.
+  tied <- order(with_column$score, with_column$g)[1:2]
+  swapped <- with_column
+  swapped[tied, ] <- swapped[rev(tied), ]
+  rownames(swapped) <- NULL
+  expect_error(performKoenkerTest(m_wc, swapped), "(weights) differs", fixed = TRUE)
+  # No column at all can be compared: the data cannot be confirmed.
+  d <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
+  d$y <- 1 + d$x + d$z + rnorm(n)
+  expect_error(
+    performScatterDiagnostic(lm(d$y ~ d$x + d$z), d, "x"),
+    "no column can be compared", fixed = TRUE
+  )
+})
+
+test_that("a term that depends on the first row only is recognised", {
+  # Every row is left out of one of the probes, so I(x - x[1]) and
+  # I(x / max(x)) are found to depend on the rows when na.omit dropped the
+  # first row and that of the largest x.
+  local_silent_log()
+  set.seed(32)
+  n <- 120
+  b <- data.frame(
+    x = runif(n, 1, 5), z = rnorm(n), g = factor(rep(1:4, length.out = n)), time = seq_len(n)
+  )
+  b$y <- 1 + b$x + b$z + rnorm(n, sd = b$x)
+  b$z[c(1, which.max(b$x))] <- NA
+  kept <- b[stats::complete.cases(b), ]
+  formulas <- list(y ~ I(x / max(x)) + z, y ~ I(x - x[1]) + z, y ~ I(time - time[1]) + x + z)
+  for (f in formulas) {
+    m <- lm(f, data = b)
+    expect_same_result(performKoenkerTest(m, kept), suppressWarnings(performKoenkerTest(m, b)),
+                       info = deparse(f))
+    expect_same_result(performBartlettTest(m, kept, "g"),
+                       suppressWarnings(performBartlettTest(m, b, "g")), info = deparse(f))
+  }
+})
+
 test_that("a model = FALSE fit is checked through its fitted values too", {
   skip_if_not_installed("dplyr")
   local_silent_log()

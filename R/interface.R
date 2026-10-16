@@ -99,10 +99,14 @@ rdata_or_model_frame <- function(model, data) {
 #' * a column whose expression names a variable `data` does not hold, or whose
 #'   computation fails (a function that is no longer found).
 #'
-#' When a column is not compared, the columns that are must tell the rows of
-#' the fit apart on their own: if two rows of the fit tie on all of them but
-#' differ in a column that was not compared, the data are refused, with the
-#' columns that could not be compared named. When
+#' When a column computed from variables of `data` is not compared (it
+#' depends on the rows, or its computation failed), the columns that are must
+#' tell the rows of the fit apart on their own: if two rows of the fit tie on
+#' all of them but differ in such a column, the data are refused, with the
+#' columns that could not be compared named. A column computed from variables
+#' `data` does not hold (a vector of the workspace) is read by no test from
+#' `data` and does not count. When no column at all can be compared, as with
+#' `lm(d$y ~ d$x)`, the data are refused. When
 #' every column is compared, two rows that tie on all of them have the same
 #' design row, weight, offset and residual, and exchanging them changes no
 #' statistic computed from the model.
@@ -161,8 +165,17 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
   if (length(checked$differ) > 0L) {
     rstop_data_rows_unmatched(fn, if (numbered) "numbered" else "named", checked$differ)
   }
-  if (length(checked$skipped) > 0L &&
-        rrows_tied(frame, checked$compared, names(checked$skipped))) {
+  # A column computed from variables `data` does not hold comes from elsewhere
+  # (a vector of the workspace), so no test reads it from `data`: rows that tie
+  # on every compared column can be exchanged without changing what a test
+  # reads. Only the columns computed from variables of `data` (a term that
+  # depends on the rows, or one whose computation failed) must be told apart.
+  from_data <- names(checked$skipped)[checked$skipped %in% c("dependent", "failed")]
+  unconfirmed <- length(checked$skipped) > 0L && (
+    length(checked$compared) == 0L ||
+      (length(from_data) > 0L && rrows_tied(frame, checked$compared, from_data))
+  )
+  if (unconfirmed) {
     rstop_data_rows_unmatched(
       fn, "unconfirmed",
       skipped = checked$skipped, compared = checked$compared
@@ -358,15 +371,20 @@ rdata_column_status <- function(expr, data, rows, target, env) {
 }
 
 # Does a column, `base` when computed on the rows `base_index` of `data`,
-# depend on the rows it is computed from? It is computed again on every other
-# row and on the first half of the rows; if either changes its values on those
-# rows, it does.
+# depend on the rows it is computed from? It is computed again on the odd and
+# on the even rows, on the first and on the second half, so that every row is
+# left out of at least one of them (I(x - x[1]) depends on the first row
+# only); if any changes its values on the rows it keeps, it does.
 rdepends_on_rows <- function(computed, base, base_index) {
   n <- length(base_index)
   if (n < 4L) {
     return(FALSE)
   }
-  probes <- list(seq.int(1L, n, by = 2L), seq_len(ceiling(n / 2)))
+  half <- ceiling(n / 2)
+  probes <- list(
+    seq.int(1L, n, by = 2L), seq.int(2L, n, by = 2L),
+    seq_len(half), seq.int(half + 1L, n)
+  )
   for (positions in probes) {
     again <- computed(base_index[positions])
     if (is.null(again) || !isTRUE(rsame_rows(base, positions, again, recomputed = TRUE))) {
