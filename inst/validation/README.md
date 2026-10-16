@@ -41,6 +41,8 @@ test that remains.
 | `full-sweep-size-power.csv` | Its output, one row per test, with the alternative each was driven against. |
 | `weighted-fits-size.R` | The tests on weighted fits, with weights known and with weights estimated by `fitWLS()`, and the resampling tests with weights exact, true, estimated and too weak. `Rscript inst/validation/weighted-fits-size.R`, with `N_MC` and `MC_CORES` overridable. |
 | `weighted-fits-size.csv` | Its output, one row per test, block, error distribution and sample size. |
+| `weighted-fits-refit-reproduction.R` | The rows of `weighted-fits-size.R` whose weights are estimated again in each replicate, measured by a prototype in 0.12.0, against the package on the same samples. `Rscript inst/validation/weighted-fits-refit-reproduction.R`, with `STEP`, `N_MC`, `N_BOOT`, `CELLS`, `PART`, `MERGE` and `CSV` overridable. Reads the prototype and the design from `weighted-fits-size.R`. |
+| `weighted-fits-refit-reproduction.csv` | Its output, one row per cell, with the samples checked and how many agree. |
 | `offset-refits-size.R` | The three resampling tests on an unweighted fit with an offset given as an argument, as corrected and as they computed it before. `Rscript inst/validation/offset-refits-size.R`, with `N_MC`, `N_MC_BEFORE` and `MC_CORES` overridable. |
 | `offset-refits-size.csv` | Its output, one row per test, version, terms and order of the rows. |
 | `white-bootstrap-transformed-size.R` | `performWhiteTestBootstrap()` on a model of `log(y)`: its size, and its power against a variance that grows with a regressor. `Rscript inst/validation/white-bootstrap-transformed-size.R`, with `N_MC`, `N_MC_POWER`, `MC_CORES` and `MIN_FREE_GB` overridable. |
@@ -482,13 +484,21 @@ where the null hypothesis is constant variance, and refit with the weights.
 The data are those of the first two blocks: `sd = x^2` with the exact weights
 `1 / x^4`, and the `fitWLS()` design, `sd = exp(0.3 x)`. The second is fitted
 three ways: with the weights of its true variance function, `exp(-0.6 x)`;
-with the weights `fitWLS()` estimates, which the three hold fixed, as the
-tests of the second block take them as known; and with the weights estimated
-again in every replicate, which the package does not do. For the wild and the
-White bootstrap the script repeats their resampling with that one change,
-after checking that without it the repetition reproduces the package's
-replicates; `rbootstrap_test_statistic()` is given a test function that calls
-`fitWLS()`. The wild bootstrap, the cheapest, also runs at 600 observations.
+with the weights `fitWLS()` estimates, held fixed, `reestimate_weights =
+FALSE`, as the tests of the second block take them as known and as the three
+did by default before 0.15.0; and with the weights estimated again in every
+replicate, `reestimate_weights = TRUE`, the default on a `fitWLS()` fit since
+0.15.0. The rows with the weights estimated again were measured in 0.12.0,
+before the package could estimate them again, by a prototype: for the wild
+and the White bootstrap the script repeated their resampling with that one
+change, after checking that without it the repetition reproduced the
+package's replicates, and `rbootstrap_test_statistic()` was given a test
+function that calls `fitWLS()`. Their design text in the CSV is still the one
+they were recorded with. The script now calls the package for them, and the
+rows were not run again: on 200 of the 2000 samples of each, the package gives
+the p-values, the replicates and the random draws of the prototype (the
+table after this block). The wild bootstrap, the cheapest, also runs at 600
+observations.
 The last table is a power: `sd = x^2` with the weights `1 / x`, which leave
 the weighted fit heteroscedastic.
 
@@ -562,21 +572,59 @@ Four things follow.
   weights is a sample whose weights are known, so the reference distribution
   leaves out the estimation that the observed statistic went through, and the
   discrepancy does not shrink with the sample.
-- **Estimating the weights again in each replicate holds the level.** The
-  same three resampling schemes, with `fitWLS()` run on every replicate,
-  reject 0.042 to 0.060 of the time at 150 observations, and the wild
-  bootstrap 0.051 at 600, all inside the interval. The wild bootstrap at 150
-  observations, 0.0605, is 2.2 standard errors above 0.05, against 0.054 for
-  the same test with the true weights. The package does not do this;
-  `ROADMAP.md` proposes an argument that would. Until then the re-estimating
-  bootstrap is available through `rbootstrap_test_statistic()` with a test
-  function that calls `fitWLS()`, as the script does, and
-  `performVarianceFormTest()` remains the test that allows for the
-  estimation.
+- **Estimating the weights again in each replicate holds the level at this
+  number of replications.** The same three resampling schemes, with
+  `fitWLS()` run on every replicate, reject 0.042 to 0.060 of the time at 150
+  observations, and the wild bootstrap 0.051 at 600, all inside the
+  interval. The wild bootstrap at 150 observations, 0.0605, is 2.2 standard
+  errors above 0.05, against 0.054 for the same test with the true weights.
+  Since 0.15.0 the three do this by default on a `fitWLS()` fit
+  (`reestimate_weights`), and `performVarianceFormTest()` allows for the
+  estimation too. These rates are at 2000 replications, not at the 5000 of
+  the release gate. Against the gate's interval, `[0.042, 0.058]`, the wild
+  bootstrap at 150 observations, 0.0605, is outside, above it, and the White
+  bootstrap, 0.0415, just below it; against `[0.041, 0.057]`, the interval
+  around 0.049, the rate of an exact test with `B = 999`, the wild bootstrap
+  is outside and the other three inside. No study of the default at 5000
+  replications with `B = 999` has been run; `ROADMAP.md` lists it under
+  0.16.0.
 - **The weights `1 / x` are rejected every time** by all three, at 400
   replications. Resampling on the weighted scale imposes the null hypothesis
   of the weighted model and keeps the power against weights that do not undo
   the heteroscedasticity.
+
+**The rows with the weights estimated again, prototype and package.** The
+four rows "estimated, re-estimated" were produced in 0.12.0 by the prototype
+described above, before the package could estimate the weights again. Since
+0.15.0 the three functions do it themselves, and `weighted-fits-size.R` calls
+them, but the rows were not run again. `weighted-fits-refit-reproduction.R`
+checks instead that the package gives what the prototype gave, on every
+tenth sample of each row: the 10th, 20th, and so on to the 2000th, drawn from
+the seeds of `weighted-fits-size.R`, with `B = 499` as recorded. On each it
+runs the prototype and the package from the same state of the random number
+generator and compares their p-values, their replicates, the replicates that
+fail and the state each leaves the generator in. The samples in between are
+skipped by drawing the random numbers they would draw, which the script checks
+against a sample it runs.
+
+| Test | n | Samples | Decisions agree | p-values equal | Max abs. difference of p | Max rel. difference of a replicate | Samples with a failed replicate, prototype / package | Same random draws |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `performWildBootstrapTest()` | 150 | 200 | 200 | 200 | 0 | 0 | 0 / 0 | 200 |
+| `performWhiteTestBootstrap()` | 150 | 200 | 200 | 200 | 0 | 0 | 0 / 0 | 200 |
+| `rbootstrap_test_statistic()`, Koenker | 150 | 200 | 200 | 200 | 0 | 0 | 0 / 0 | 200 |
+| `performWildBootstrapTest()` | 600 | 200 | 200 | 200 | 0 | 0 | 0 / 0 | 200 |
+
+Every 10th sample of the 2000 of each cell, with B = 499, as recorded.
+
+<!-- generated by make-table.R; do not edit the numbers by hand -->
+
+On all 800 samples checked, 200 in each of the 4 cells, the package returns the p-value of the repetition, so its decision at the 5% level is the same, no replicate fails in either, and leaves the generator in the same state. The largest relative difference between two replicates is 0. Both reject 12, 11, 7 and 12 of the 200 samples of the cells, in the order of the table.
+
+A relative difference of 0 means the replicates are equal to the last bit:
+the package runs the same computations as the prototype, in the same order.
+The four rows of the CSV are therefore kept as they are. That a run of
+`weighted-fits-size.R` would write them again rests on these 800 samples,
+not on a run of all 8000.
 
 ### The resampling tests on a fit with an offset
 

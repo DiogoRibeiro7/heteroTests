@@ -1,0 +1,5 @@
+"test","weights","n","scenario","replications","step","bootstrap","samples","decisions_agree","p_values_equal","max_abs_dp","max_rel_replicate_diff","samples_failed_prototype","samples_failed_package","samples_same_failures","samples_same_state","rejections_prototype","rejections_package"
+"performWildBootstrapTest","estimated, re-estimated",150,7,2000,10,499,200,200,200,0,0,0,0,200,200,12,12
+"performWhiteTestBootstrap","estimated, re-estimated",150,8,2000,10,499,200,200,200,0,0,0,0,200,200,11,11
+"rbootstrap_test_statistic","estimated, re-estimated",150,9,2000,10,499,200,200,200,0,0,0,0,200,200,7,7
+"performWildBootstrapTest","estimated, re-estimated",600,11,2000,10,499,200,200,200,0,0,0,0,200,200,12,12

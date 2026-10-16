@@ -36,14 +36,25 @@
 # sqrt(w) y on sqrt(w) X. Each runs with B = 499 at five times N_MC, where the
 # 99% interval around a true 5% is [0.037, 0.063]. With exact weights the
 # rejection rate is a size, and so it is with weights that fitWLS() estimated
-# from a correctly specified variance function. The bootstrap tests hold
-# those weights fixed, as the tests of block 2 take them as known. The block
-# also runs each bootstrap with the weights estimated again in every
-# replicate, which the package does not do: for the wild and the White
-# bootstrap the script repeats their resampling with that one change, and
-# checks first that without it the repetition reproduces the package's
-# replicates; rbootstrap_test_statistic() is given a test function that calls
-# fitWLS(). The power rows run at N_MC replications: the weights 1 / x where
+# from a correctly specified variance function. The rows "held fixed" hold
+# those weights fixed, reestimate_weights = FALSE, as the tests of block 2
+# take them as known, and as the package did by default before 0.15.0. The
+# rows "re-estimated" estimate them again in every replicate,
+# reestimate_weights = TRUE, the default on a fitWLS() fit since 0.15.0.
+#
+# Those four rows were measured in 0.12.0, before the package could estimate
+# the weights again, with a repetition of the resampling outside it: for the
+# wild and the White bootstrap resample_weighted() below, which repeats their
+# resampling with that one change, and for rbootstrap_test_statistic() a test
+# function that calls fitWLS(), koenker_reestimated(). Their rows were not run
+# again when the script was changed to call the package. On 200 of the 2000
+# samples of each of the four, the package gives the p-values and the
+# replicates of the repetition: weighted-fits-refit-reproduction.R, which
+# reads the repetition from this file. The design text of the four rows is
+# the text they were recorded with, so that a run of this script writes the
+# CSV it wrote. check_repetition() asserts, on one sample, that the
+# repetition reproduces the package with the weights held fixed and with them
+# estimated again. The power rows run at N_MC replications: the weights 1 / x where
 # the standard deviation is x^2, which leave the weighted fit
 # heteroscedastic. The last rows fit the design of block 2 with the weights
 # of its true variance function, so that the rows with estimated weights have
@@ -246,10 +257,11 @@ white_statistic <- function(fit, data) {
 
 # The resampling of performWildBootstrapTest() and performWhiteTestBootstrap()
 # on a fitWLS() fit, repeated with the weights estimated again in every
-# replicate. The package does not do this. With reestimate = FALSE each
+# replicate, as it was measured in 0.12.0. With reestimate = FALSE each
 # replicate is refitted with the weights of the fit, as the package functions
-# do, and check_repetition() asserts that the two then agree. The wild
-# bootstrap resamples the Pearson residuals divided by sqrt(1 - h) and centred,
+# do with reestimate_weights = FALSE, and with reestimate = TRUE fitWLS() is
+# run on it, as they do with reestimate_weights = TRUE; check_repetition()
+# asserts that the two agree either way. The wild bootstrap resamples the Pearson residuals divided by sqrt(1 - h) and centred,
 # times Rademacher signs; the White bootstrap resamples the centred Pearson
 # residuals. Each draw is returned to the scale of its observation by dividing
 # by sqrt(w).
@@ -296,7 +308,10 @@ resample_weighted <- function(o, scheme, reestimate, B = n_boot) {
 
 # Koenker's statistic after fitWLS() has estimated the weights again from the
 # data it is given. On the data of the fit itself it is the statistic of the
-# fit, so through rbootstrap_test_statistic() only the replicates change.
+# fit, so through rbootstrap_test_statistic() with the weights of the refit
+# held fixed only the replicates change. This is how the row was measured in
+# 0.12.0; the script now gives performKoenkerTest() to bootstrapTestStatistic()
+# with reestimate_weights = TRUE.
 koenker_reestimated <- function(model, data) {
   list(statistic = koenker_statistic(fitWLS(lm(y ~ x + z, data = data)), data))
 }
@@ -315,40 +330,62 @@ check_repetition <- function() {
   if (!all(agree)) {
     stop("The statistics written out here differ from the package's.")
   }
-  for (scheme in c("wild", "white")) {
-    set.seed(seed_boot - 2L)
-    ours <- resample_weighted(o, scheme, reestimate = FALSE, B = 25L)
-    set.seed(seed_boot - 2L)
-    theirs <- if (scheme == "wild") {
-      r <- performWildBootstrapTest(o$model, o$data, B = 25L, progress = FALSE)
-      list(p.value = r$p.value, replicates = r$bootstrap$replicates)
-    } else {
-      r <- suppressWarnings(performWhiteTestBootstrap(o$model, o$data, B = 25L))
-      list(p.value = r$p.value, replicates = r$boot_statistics)
-    }
-    if (!same(ours$replicates, theirs$replicates) || ours$p.value != theirs$p.value) {
-      stop("The repetition of the ", scheme, " bootstrap does not reproduce the package.")
+  for (reestimate in c(FALSE, TRUE)) {
+    for (scheme in c("wild", "white")) {
+      set.seed(seed_boot - 2L)
+      ours <- resample_weighted(o, scheme, reestimate = reestimate, B = 25L)
+      set.seed(seed_boot - 2L)
+      theirs <- if (scheme == "wild") {
+        r <- performWildBootstrapTest(o$model, o$data, B = 25L, progress = FALSE,
+                                      reestimate_weights = reestimate)
+        list(p.value = r$p.value, replicates = r$bootstrap$replicates)
+      } else {
+        r <- suppressWarnings(performWhiteTestBootstrap(o$model, o$data, B = 25L,
+                                                        reestimate_weights = reestimate))
+        list(p.value = r$p.value, replicates = r$boot_statistics)
+      }
+      if (!same(ours$replicates, theirs$replicates) || ours$p.value != theirs$p.value) {
+        stop("The repetition of the ", scheme, " bootstrap does not reproduce the package",
+             if (reestimate) " with the weights estimated again." else ".")
+      }
     }
   }
-  message("the statistics and the repeated wild and White bootstraps reproduce the package")
+  # The test function that calls fitWLS(), given replicates whose weights are
+  # held fixed, against the package estimating them again.
+  set.seed(seed_boot - 3L)
+  ours <- bootstrapTestStatistic(koenker_reestimated, o$model, o$data, B = 25L,
+                                 progress = FALSE, reestimate_weights = FALSE)
+  set.seed(seed_boot - 3L)
+  theirs <- bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = 25L,
+                                   progress = FALSE, reestimate_weights = TRUE)
+  if (!same(ours$replicates, theirs$replicates) || ours$p_value != theirs$p_value) {
+    stop("The test function that calls fitWLS() does not reproduce the package.")
+  }
+  message(
+    "the statistics and the repeated wild and White bootstraps reproduce the ",
+    "package, with the weights held fixed and estimated again"
+  )
 }
 
+# The weights of a fitWLS() fit are held fixed or estimated again as the row
+# says. The other rows fit lm() with weights, which are held fixed whatever
+# the argument, and leave it at its default.
 boot_p_value <- function(test, weights, o) {
-  reestimate <- weights == "estimated, re-estimated"
+  reestimate <- switch(weights,
+    "estimated, held fixed" = FALSE,
+    "estimated, re-estimated" = TRUE,
+    NULL
+  )
   switch(test,
-    performWildBootstrapTest = if (reestimate) {
-      resample_weighted(o, "wild", reestimate = TRUE)
-    } else {
-      performWildBootstrapTest(o$model, o$data, B = n_boot, progress = FALSE)
-    },
-    performWhiteTestBootstrap = if (reestimate) {
-      resample_weighted(o, "white", reestimate = TRUE)
-    } else {
-      performWhiteTestBootstrap(o$model, o$data, B = n_boot)
-    },
+    performWildBootstrapTest = performWildBootstrapTest(
+      o$model, o$data, B = n_boot, progress = FALSE, reestimate_weights = reestimate
+    ),
+    performWhiteTestBootstrap = performWhiteTestBootstrap(
+      o$model, o$data, B = n_boot, reestimate_weights = reestimate
+    ),
     rbootstrap_test_statistic = {
-      fn <- if (reestimate) koenker_reestimated else performKoenkerTest
-      r <- bootstrapTestStatistic(fn, o$model, o$data, B = n_boot, progress = FALSE)
+      r <- bootstrapTestStatistic(performKoenkerTest, o$model, o$data, B = n_boot,
+                                  progress = FALSE, reestimate_weights = reestimate)
       list(p.value = r$p_value)
     }
   )
@@ -374,6 +411,8 @@ boot_scenarios <- rbind(
   boot_scenario(boot_tests, "true", n_obs),
   boot_scenario("performWildBootstrapTest", "true", 600L)
 )
+# The rows "re-estimated" keep the text they were recorded with in 0.12.0,
+# when the weights were estimated again outside the package; see the header.
 boot_design <- function(test, weights) {
   switch(weights,
     "exact" = "sd = x^2 fitted with weights 1 / x^4",
