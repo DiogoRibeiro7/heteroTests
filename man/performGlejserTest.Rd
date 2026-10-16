@@ -36,6 +36,15 @@ Up to 0.14.0 the default was \code{robust = FALSE}. Since 0.15.0 it is \code{rob
 
 Glejser's statistic needs positive and negative errors to be equally likely, which is seldom known: in the study above it rejects a true null hypothesis 8.8\% to 17.7\% of the time at the 5\% level when the errors are skewed, at every sample size from 50 to 1000, where the corrected statistic rejects 4.6\% to 5.7\% of the time from 150 observations on. The change costs some power when the errors are symmetric, 1.1 and 1.9 percentage points at 50 observations under Gaussian errors in that study, and the corrected statistic is above the 5\% level at 50 observations under skewed errors, as above.
 }
+\section{Supported models}{
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
+or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
+}
 \examples{
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)

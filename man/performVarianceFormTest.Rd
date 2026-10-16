@@ -123,6 +123,14 @@ log-linear form it was 22\% at 150 observations and 74\% at 400. See
 \code{inst/validation/README.md}.
 }
 
+\section{Supported models}{
+It accepts an unweighted \code{lm}, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit,
+which it tests on the estimable part of its design: it gives the value of the same model fitted
+without the aliased columns. It refuses every \code{glm}, weights that did not come from
+\code{fitWLS()}, a \code{survey::svyglm()} fit, a coefficient that is not finite for another reason,
+and \code{data} that lack rows or variables of the fit. Which model each test accepts, and why, is
+set out in \code{\link{test_results}}, under \emph{Supported models}.
+}
 \examples{
 # Standard deviation proportional to x, so the variance is a power of x
 set.seed(2026)
