@@ -189,6 +189,8 @@ TESTS <- list(
   list("performLeveneTest", "hetero", function(o) performLeveneTest(o$model, o$data, "g")),
   list("performOBrienTest", "hetero", function(o) performOBrienTest(o$model, o$data, "g")),
   list("performBoxMTest", "hetero", function(o) performBoxMTest(o$data[, c("y", "x")], o$data$g)),
+  # The default, robust = TRUE since 0.15.0. The row was regenerated then from
+  # these seeds; with robust = FALSE the same run gives the row of 0.14.0.
   list("performGlejserTest", "hetero", function(o) performGlejserTest(o$model, o$data, "x")),
   list("performParkTest", "hetero", function(o) performParkTest(o$model, o$data, "x")),
   list("performGQTest", "hetero", function(o) performGQTest(o$model, o$data, "x")),

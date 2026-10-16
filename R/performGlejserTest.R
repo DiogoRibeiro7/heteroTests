@@ -2,9 +2,13 @@
 #'
 #' Estimates Glejser's (1969) parametric test by regressing the absolute residuals
 #' on transformations of a suspected regressor. Significant slopes indicate that
-#' the variance of the error term depends on that regressor. With
-#' `robust = TRUE` the test is the version of Im (2000) and of Machado and
-#' Santos Silva (2000), which keeps its level when the errors are asymmetric.
+#' the variance of the error term depends on that regressor. By default,
+#' `robust = TRUE` since 0.15.0, the absolute residuals are first corrected
+#' for the asymmetry of the errors: this is the version of Im (2000) and of
+#' Machado and Santos Silva (2000), which keeps its level when the errors are
+#' asymmetric, from about 150 observations on (see the section on asymmetric
+#' errors for smaller samples). `robust = FALSE` gives Glejser's statistic,
+#' the default up to 0.14.0.
 #'
 #' @param model A fitted [stats::lm] object whose residuals are examined.
 #' @param data [base::data.frame] used to fit `model`.
@@ -18,12 +22,14 @@
 #' @param transformation Character scalar selecting the transformation applied to
 #'   `variable` in the auxiliary regression. One of `"abs"`, `"sqrt"`, `"inverse"`,
 #'   or `"inverse_sqrt"`.
-#' @param robust Logical. When `FALSE` (the default) the statistic is Glejser's
-#'   (1969), which has its nominal level when positive and negative errors are
-#'   equally likely, as they are for symmetric errors. When `TRUE` the absolute
+#' @param robust Logical. When `TRUE`, the default since 0.15.0, the absolute
 #'   residuals are corrected for the asymmetry of the errors before the
 #'   auxiliary regression, following Im (2000) and Machado and Santos Silva
-#'   (2000). See the section on asymmetric errors.
+#'   (2000). When `FALSE` the statistic is Glejser's (1969), which has its
+#'   nominal level when positive and negative errors are equally likely, as
+#'   they are for symmetric errors; it is what the function returned by
+#'   default up to 0.14.0. See the sections on asymmetric errors and on the
+#'   default.
 #'
 #' @return An object of class \code{htest} reporting the t statistic and
 #'   p-value for the slope coefficient in the auxiliary regression. The `method`
@@ -38,7 +44,7 @@
 #' and \link[=rhandleMissingValues]{rhandleMissingValues()}, then enforces transformation-specific
 #' requirements via \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}. The resulting t statistic tests
 #' the null hypothesis of no relationship between the transformed regressor and
-#' the absolute residuals.
+#' the absolute residuals, corrected for asymmetry by default.
 #'
 #'
 #' @section Asymmetric errors:
@@ -49,11 +55,11 @@
 #' equally likely (Godfrey 1996). When they are not, and the variable tested
 #' is correlated with the regressors, the test does not in general have its
 #' nominal level, and a larger sample does not help. In the designs of
-#' `inst/validation/glejser-skewed-errors.R` the default statistic rejects a
-#' true null hypothesis about 13% of the time at the 5% level under
-#' exponential errors and about 17% under lognormal errors, at every sample
-#' size from 50 to 1000. For other error distributions the rate can also fall
-#' below the nominal level.
+#' `inst/validation/glejser-skewed-errors.R` Glejser's statistic,
+#' `robust = FALSE`, rejects a true null hypothesis about 13% of the time at
+#' the 5% level under exponential errors and about 17% under lognormal errors,
+#' at every sample size from 50 to 1000. For other error distributions the
+#' rate can also fall below the nominal level.
 #'
 #' `robust = TRUE` replaces the regressand \eqn{|\hat{e}_i|} by
 #' \deqn{|\hat{e}_i| - \hat{m}\, \hat{e}_i, \qquad
@@ -72,26 +78,48 @@
 #' distribution with one degree of freedom. The t statistic reported here is
 #' the signed form of it, \eqn{n R^2 = n t^2 / (t^2 + n - 2)}, and its p-value
 #' is taken from the t distribution with \eqn{n - 2} degrees of freedom, as
-#' for the default. The two p-values agree as the sample grows.
+#' for Glejser's statistic. The two p-values agree as the sample grows.
 #'
-#' In the same study the corrected statistic is within simulation error of
-#' the 5% level from 150 observations on. At 50 observations it rejects 5.7%
-#' to 6.6% of the time under skewed errors. Under symmetric errors
-#' \eqn{\hat{m}} is close to zero and the two statistics differ little: the
-#' corrected one rejects about half a percentage point less often at 50
-#' observations and gives up one or two points of power there. For a weighted
-#' fit the residuals are the Pearson residuals, and the correction is applied
-#' to those.
+#' In the same study, with 5000 replications in each cell, the corrected
+#' statistic is within simulation error of the 5% level from 150 observations
+#' on: all 27 of its cells with a true null hypothesis and 150 observations or
+#' more are inside the 99% interval around 5%, from 4.21% to 5.79%, at 4.4%
+#' to 5.7%. At 50 observations it rejects 5.7% to 6.6% of the time under
+#' skewed errors, and four of those six cells are above that interval, at
+#' 5.80% to 6.58%. Under symmetric errors \eqn{\hat{m}} is close to zero and
+#' the two statistics differ little: the corrected one rejects 0.5 to 0.7
+#' percentage points less often at 50 observations and gives up one or two
+#' points of power there. For a weighted fit the residuals are the Pearson
+#' residuals, and the correction is applied to those.
+#'
+#' @section The default:
+#' Up to 0.14.0 the default was `robust = FALSE`. Since 0.15.0 it is
+#' `robust = TRUE`, so a call that does not give `robust` returns a different
+#' statistic and p-value from those it returned before, and its `method` ends
+#' in "(robust to asymmetric errors)". `robust = FALSE` returns what such a
+#' call returned up to 0.14.0. Glejser's statistic needs positive and
+#' negative errors to be equally likely, which is seldom known: in the study
+#' above it rejects a true null hypothesis 8.8% to 17.7% of the time at the 5%
+#' level when the errors are skewed, at every sample size from 50 to 1000,
+#' where the corrected statistic rejects 4.6% to 5.7% of the time from 150
+#' observations on. The change costs some power when the errors are
+#' symmetric, 1.1 and 1.9 percentage points at 50 observations under Gaussian
+#' errors in that study, and the corrected statistic is above the 5% level at
+#' 50 observations under skewed errors, as above.
 #'
 #' @section Interpretation and caveats:
-#' The default t statistic has its nominal level when positive and negative
-#' errors are equally likely; see the section above, and use `robust = TRUE`
-#' when the residuals are skewed or their shape is unknown. Either form
-#' conditions on a single user-chosen variable and a single transformation, so
-#' scanning several transformations and reporting only the smallest p-value
-#' invalidates the nominal level. Simulated size and power are recorded in
-#' `inst/validation/pass-a-size-power.csv` for the default and in
-#' `inst/validation/glejser-skewed-errors.csv` for both.
+#' Glejser's statistic, `robust = FALSE`, has its nominal level only when
+#' positive and negative errors are equally likely; see the section on
+#' asymmetric errors. The corrected statistic of the default does not need
+#' that, and is the one to use when the residuals may be skewed or their shape
+#' is unknown. Either form conditions on a single user-chosen variable and a
+#' single transformation, so scanning several transformations and reporting
+#' only the smallest p-value invalidates the nominal level. Simulated size and
+#' power of both statistics are recorded in
+#' `inst/validation/glejser-skewed-errors.csv`; those of Glejser's statistic in
+#' `inst/validation/pass-a-size-power.csv`, and those of the default in
+#' `inst/validation/full-sweep-size-power.csv` and
+#' `inst/validation/weighted-fits-size.csv`.
 #' @references
 #' Glejser, H. (1969). A new test for heteroskedasticity. *Journal of the American
 #' Statistical Association, 64*(325), 316–323.
@@ -115,10 +143,12 @@
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
+#' # The default, which keeps its level under asymmetric errors from about
+#' # 150 observations
 #' performGlejserTest(mod, mtcars, "wt")
 #'
-#' # The version that keeps its level under asymmetric errors
-#' performGlejserTest(mod, mtcars, "wt", robust = TRUE)
+#' # Glejser's (1969) statistic, the default up to 0.14.0
+#' performGlejserTest(mod, mtcars, "wt", robust = FALSE)
 #'
 #' # Examine alternative transformations
 #' performGlejserTest(mod, mtcars, "wt", transformation = "inverse")
@@ -129,7 +159,7 @@
 #' for related parametric tests of specific forms of heteroscedasticity.
 performGlejserTest <- function(model, data = NULL, variable,
                                transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
-                               robust = FALSE) {
+                               robust = TRUE) {
   rrefuse_non_gaussian_glm(model, "performGlejserTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Glejser test"

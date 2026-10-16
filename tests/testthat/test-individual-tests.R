@@ -352,8 +352,12 @@ test_that("performGlejserTest works correctly", {
   
   result <- performGlejserTest(test_obj$model, test_obj$data, "x1", transformation = "sqrt")
   expect_htest(result)
+  # The default since 0.15.0 is robust = TRUE.
+  expect_equal(result$method, "Glejser test for heteroscedasticity (robust to asymmetric errors)")
+  result <- performGlejserTest(test_obj$model, test_obj$data, "x1", transformation = "sqrt",
+                               robust = FALSE)
   expect_equal(result$method, "Glejser test for heteroscedasticity")
-  
+
   # Test different transformations
   transformations <- c("abs", "sqrt", "inverse", "inverse_sqrt")
   for (trans in transformations) {

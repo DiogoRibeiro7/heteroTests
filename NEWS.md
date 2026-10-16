@@ -7,9 +7,9 @@ break calls, not values: each old form still works in 0.15.x, returns what it
 returned in 0.14.0 and warns with the call to use instead, and it stops
 working in 1.0.0. The changes in bold change values: every resampling test
 draws 999 replicates by default, the default battery of `runHeteroTests()` is
-White and Koenker, the tests refuse four inputs that most or some of them
-returned a value for, and seeded resampling with `parallel = TRUE` is
-reproducible.
+White and Koenker, `performGlejserTest()` corrects for asymmetric errors by
+default, the tests refuse four inputs that most or some of them returned a
+value for, and seeded resampling with `parallel = TRUE` is reproducible.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -103,6 +103,53 @@ studentized statistic, but `auto_enhance = FALSE` turns the studentization
 off with the bootstrap and runs the classical test, which is listed under
 0.16.0. None of the recorded evidence calls these functions
 with their default battery, so no recorded number moves.
+
+### The Glejser test corrects for asymmetric errors by default
+
+**`performGlejserTest()` computes the statistic of Im (2000) and of Machado
+and Santos Silva (2000) by default, `robust = TRUE`, where it computed
+Glejser's (1969), so the statistic and p-value it reports by default
+change.** Glejser's statistic regresses the absolute residuals on the
+variable tested, and has its nominal level only when positive and negative
+errors are equally likely. In `inst/validation/glejser-skewed-errors.csv`, at
+5000 replications, it rejects a true null hypothesis 8.8% to 17.7% of the
+time at the 5% level when the errors are skewed, at every sample size from 50
+to 1000. The corrected statistic, added in 0.13.0, subtracts the mean sign of
+the residuals times each residual from its absolute value. Under the same
+skewed errors it rejects 4.6% to 5.7% of the time from 150 observations on,
+and all 27 of its null cells from 150 observations, with symmetric errors
+too, are inside the release-gate interval, [0.0421, 0.0579]. At 50
+observations it is not: under skewed errors it rejects 5.7% to 6.6% of the
+time, and four of those six cells are above the interval, at 0.0580, 0.0592,
+0.0626 and 0.0658, where Koenker's statistic on the same regressor is at
+0.0586 to 0.0714. Under symmetric errors the two statistics differ little:
+the corrected one rejects 0.5 to 0.7 percentage points less often at 50
+observations, and against `sigma^2 = exp(gamma x1)` with Gaussian errors it
+has 1.1 and 1.9 points less power at 50 observations, and 0.8 and 0.1 at 150.
+
+The `method` of the result says which statistic was computed, and by default
+now reads "Glejser test for heteroscedasticity (robust to asymmetric
+errors)". Pass `robust = FALSE` for Glejser's statistic: it returns what the
+default returned in 0.14.0, checked with `identical()` against 0.14.0. The
+default was and is:
+
+| Call | 0.14.0 | Now |
+| --- | ---: | ---: |
+| `performGlejserTest(lm(mpg ~ wt + qsec, data = mtcars), mtcars, "wt")` | t = -0.450 (p = 0.656) | t = -0.395 (p = 0.695) |
+| `performGlejserTest(lm(dist ~ speed, data = cars), cars, "speed")` | t = 2.059 (p = 0.045) | t = 1.943 (p = 0.058) |
+
+`performGlejserTest()` is not a registered test, so `runHeteroTests()`, the
+dashboard and the recommendations do not call it, and no other function of
+the package changes with it. Of the recorded evidence, the full sweep and
+the known-weights block of the weighted fits call it with its default. Their
+two rows were regenerated from the same seeds, and with `robust = FALSE` the
+same runs reproduce the rows of 0.14.0 byte for byte: in the full sweep the
+size moves from 0.0600 to 0.0575, the size under `t5` errors from 0.0575 to
+0.0550, and the power stays 1.000 (`inst/validation/full-sweep-size-power.csv`);
+with known weights the rejection rate moves from 0.0475 to 0.0450
+(`inst/validation/weighted-fits-size.csv`). Pass A and the Glejser study name
+Glejser's statistic, and now give `robust = FALSE`; their numbers do not
+change.
 
 ### Inputs every test refuses
 

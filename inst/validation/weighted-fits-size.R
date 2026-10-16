@@ -157,6 +157,8 @@ KNOWN <- list(
   list("performHartleyFmaxTest", make_xs, function(o) performHartleyFmaxTest(o$model, o$data, "g")),
   list("performLeveneTest", make_xs, function(o) performLeveneTest(o$model, o$data, "g")),
   list("performOBrienTest", make_xs, function(o) performOBrienTest(o$model, o$data, "g")),
+  # The default, robust = TRUE since 0.15.0. The row was regenerated then from
+  # this seed; with robust = FALSE the same run gives the row of 0.14.0.
   list("performGlejserTest", make_xs, function(o) performGlejserTest(o$model, o$data, "x")),
   list("performParkTest", make_xs, function(o) performParkTest(o$model, o$data, "x")),
   list("performGQTest", make_xs, function(o) performGQTest(o$model, o$data, "x")),

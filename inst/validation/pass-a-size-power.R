@@ -73,6 +73,10 @@ gen_ts <- function(n, dgp, gamma = 0.6) {
 
 p_or_na <- function(expr) tryCatch(expr$p.value, error = function(e) NA_real_)
 
+# `Glejser` is Glejser's (1969) statistic, robust = FALSE, which was the
+# default of performGlejserTest() up to 0.14.0; the call left `robust` out
+# until then, and giving it changes no value. The default since 0.15.0,
+# robust = TRUE, is measured in the same design by glejser-skewed-errors.R.
 CS_TESTS <- list(
   `Breusch-Pagan`         = function(m, d) p_or_na(performBPTest(m, d)),
   `Koenker`               = function(m, d) p_or_na(performKoenkerTest(m, d)),
@@ -81,7 +85,7 @@ CS_TESTS <- list(
   `Harvey`                = function(m, d) p_or_na(performHarveyTest(m)),
   `Harvey (studentized)`  = function(m, d) p_or_na(performHarveyTest(m, studentize = TRUE)),
   `Park`                  = function(m, d) p_or_na(performParkTest(m, d, "x1")),
-  `Glejser`               = function(m, d) p_or_na(performGlejserTest(m, d, "x1")),
+  `Glejser`               = function(m, d) p_or_na(performGlejserTest(m, d, "x1", robust = FALSE)),
   `Szroeter`              = function(m, d) p_or_na(performSzroeterTest(m, d, order_by = "x1")),
   `Cook-Weisberg`         = function(m, d) p_or_na(performCookWeisbergTest(m)),
   `NCV`                   = function(m, d) p_or_na(performCookWeisbergTest(m))

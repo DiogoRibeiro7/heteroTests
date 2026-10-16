@@ -115,10 +115,11 @@ performGlejserTest(survey_model, hetero_data, "x")
 plot(survey_diag, plots = c("spread_level"))
 ```
 
-*Interpretation.* Glejser's test and the scale-location plot both indicate that
-variance increases with `x`. Depending on the modelling goal, analysts might log
-transform the response or model the variance explicitly (e.g. via `lm` weights
-or `glm` with a variance function).
+*Interpretation.* The Glejser test (corrected for asymmetric errors, the
+default) and the scale-location plot both indicate that variance increases
+with `x`. Depending on the modelling goal, analysts might log transform the
+response or model the variance explicitly (e.g. via `lm` weights or `glm`
+with a variance function).
 
 ## Case study 3: Engineering reliability assessment
 
