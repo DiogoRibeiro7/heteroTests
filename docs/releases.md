@@ -13,6 +13,15 @@ The changes in each version, from the package's `NEWS.md`.
     logo is in `man/figures/logo.png`, where R tooling looks for it, and
     `assets/` is left out of the built package.
 
+### Documentation
+
+- The documentation site, <https://diogoribeiro7.github.io/heteroTests/>,
+    moves from pkgdown to Material for MkDocs and shows the package logo. Its API
+    reference is generated from the help pages by `tools/build-docs.R`, in the
+    sections the pkgdown index had, and `tests/testthat/test-reference-index.R`
+    checks that every export is in one; the vignettes become its user guide. No
+    function changes.
+
 ## 0.15.0
 
 0.15.0 makes the interface match its description before 1.0.0. Every test

@@ -6,7 +6,11 @@ We welcome contributions in the form of pull requests or issue reports.
 
 1. Fork the repository and create feature branches from `main`.
 2. Restore development dependencies by running `./setup.sh` and then execute `R CMD check --no-manual`.
-3. Build the docs with `pkgdown::build_site()` to verify examples render.
+3. After changing a help page, `NEWS.md` or `ROADMAP.md`, regenerate the
+   documentation site's pages with `Rscript tools/build-docs.R`, and after
+   changing a vignette, its guide page with `Rscript tools/render-guides.R`.
+   Commit what they write; `mkdocs build --strict` builds the site (see
+   `docs/development.md`).
 4. Add unit tests for any new functionality and update relevant docs.
 
 To run style checks, unit tests and coverage in one step, first run

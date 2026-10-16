@@ -76,7 +76,7 @@ jobs:
           }
           RSCRIPT
       # Reported, not gated. urlchecker::url_check() aborts on the first bad
-      # URL, and the package's own pkgdown site is published only from main,
+      # URL, and the package's own documentation site is published only from main,
       # so a branch that has not merged yet can never satisfy it. External
       # reachability is also not a property of the commit -- sites go down and
       # rate-limit. Read the step output when changing documentation URLs.
