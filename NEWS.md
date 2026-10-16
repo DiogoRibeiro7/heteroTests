@@ -1,5 +1,14 @@
 # heteroTests News
 
+## Development version
+
+### Packaging
+
+- The logo shows in the README, and the `R CMD check` NOTE
+  "Non-standard file/directory found at top level: 'assets'" is gone. The
+  logo is in `man/figures/logo.png`, where R tooling looks for it, and
+  `assets/` is left out of the built package.
+
 ## 0.15.0
 
 0.15.0 makes the interface match its description before 1.0.0. Every test

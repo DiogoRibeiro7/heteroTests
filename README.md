@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="assets/project-logo.png" alt="heteroTests project logo" width="160" height="160">
-</p>
-
-# heteroTests
+# heteroTests <img src="man/figures/logo.png" align="right" height="139" alt="heteroTests logo" />
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/heteroTests)](https://CRAN.R-project.org/package=heteroTests)
