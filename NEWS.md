@@ -152,15 +152,26 @@ stops with "Model residuals must be finite". It is recorded under 0.16.0.
 `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
 `performVarianceFormTest()` refuse every `glm`, as before.
 
-The registry names deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call
-the implementations behind `performNCVTest()` and
-`performStudentizedBPTest()`, not the functions, and do not refuse a `glm`
-of another family yet. `runHeteroTests()` falls back on `"ncv"` when White's,
-Koenker's or the classical test stops, so `runHeteroTests(<binomial glm>,
-data)` does not stop: it returns the Cook-Weisberg statistic under the names
-`white` and `koenker`, tagged as a fallback, where 0.14.0 returned White's
-and the classical test. `runDiagnostics()` stops, through
-`performRESETTest()`. It is recorded under 0.16.0.
+**The registry names deprecated in 0.14.0, `"ncv"` and `"student_bp"`, and
+the `"student_bp"` entry of `test_factory` refuse such a `glm` too, with the
+message of `performNCVTest()` and `performStudentizedBPTest()`, and so does
+`rvalidate_against_reference("studentized_bp", ...)`.** They call the
+implementations behind those two functions rather than the functions, and
+returned a value for it through `runHeteroTests(tests = ...)`,
+`runDiagnostics()`, `cachedTest()`, `runHeteroTestsParallel()` and
+`test_factory$run_test()`. `runHeteroTests()` falls back on `"ncv"` when
+White's, Koenker's, the classical, the quantile regression or the rank
+permutation test stops, so `runHeteroTests(<binomial glm>, data)` returned
+the Cook-Weisberg statistic under the names `white` and `koenker`, tagged as
+a fallback, where 0.14.0 returned White's and the classical test. Decided on
+2026-10-16: it now stops with the refusal of `performWhiteTest()`, as
+`runHeteroTests(<binomial glm>, data, tests = "cook_weisberg")` stops with
+that of `performCookWeisbergTest()`, and with grouped data it returns each
+test as failed, with its refusal. `runDiagnostics()` stops at the same point,
+where it stopped later, at `performRESETTest()`. No name holds a fallback
+computed on such a fit. On an `lm`, a Gaussian `glm` and a weighted `lm`, the
+two names, the factory entry and the default battery return values
+`identical()` to those they returned before.
 
 **`performGQTest()`, `performRESETTest()`, `performWhiteTestBootstrap()` and
 `performWildBootstrapTest()` now read the prior weights of a Gaussian `glm`,
@@ -369,6 +380,22 @@ and the 156 results of the return-contract comparison, every result is
 `identical()` to 0.14.0, apart from the `df` names and the `data.name` above.
 The tests that returned a value for one of the four inputs refuse it too, which
 changes what those calls return (*Inputs every test refuses*, above).
+
+### The advice for a small sample
+
+`warnDiagnosticAssumptions()`, and so `generateHeteroRecommendations()`, told
+the user of a sample of fewer than 100 observations to "rely on wild
+bootstrap or permutation-based tests for reliable inference". In the
+package's validation study of the multiplier,
+`inst/validation/wild-multiplier-size.R`, with `B = 999`, the wild bootstrap
+holds its level with Gaussian and `t5` errors at 30, 50 and 100
+observations, but not with skewed ones: with centred exponential errors it
+rejects a true null hypothesis 8.2%, 7.3% and 6.1% of the time at the 5%
+level with the Rademacher multiplier, and 7.8%, 7.0% and 5.9% with the
+Mammen multiplier. The warning now says so, as the help page of
+`performWildBootstrapTest()` does since this release, and asks the user to
+check the residuals for skewness and to read p-values near the level with
+caution. Only the text changes: which warnings are given, and when, does not.
 
 ## 0.14.0
 
