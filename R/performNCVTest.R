@@ -148,7 +148,9 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
       attr(plain, "terms") <- NULL
     } else {
       # The rows of `data` the model was fitted to, in the order of the
-      # residuals.
+      # residuals, once rcheck_data_rows() has confirmed that the row names
+      # pick them.
+      rcheck_data_rows(model, data, fn = rtest_name(sys.parent()))
       plain <- prepare_model_data_for_test(
         model,
         data,

@@ -268,11 +268,16 @@ test_that("data without row names of its own must be in the order of the fit", {
   shuffled <- d[order(d$z), ]
   rownames(shuffled) <- NULL
 
+  # Since 0.15.0 performKoenkerTest() refuses such data itself, before the
+  # bootstrap refits (rcheck_data_rows()), so the message is the test's. A
+  # test function of the caller's own meets the bootstrap's check, below.
+  refused <- "cannot match the rows of `data` to the observations of the model"
   for (strategy in c("null", "pairs")) {
     expect_error(
       bootstrapTestStatistic(performKoenkerTest, m, shuffled, B = 5,
                              resample = strategy, progress = FALSE),
-      "does not reproduce the fit"
+      refused,
+      class = "heteroTests_data_rows_error"
     )
     out <- bootstrapTestStatistic(performKoenkerTest, m, d, B = 5,
                                   resample = strategy, progress = FALSE)
@@ -288,7 +293,8 @@ test_that("data without row names of its own must be in the order of the fit", {
   expect_error(
     bootstrapTestStatistic(performKoenkerTest, m_dt, data.table::as.data.table(shuffled),
                            B = 5, progress = FALSE),
-    "does not reproduce the fit"
+    refused,
+    class = "heteroTests_data_rows_error"
   )
   set.seed(91)
   in_order <- bootstrapTestStatistic(performKoenkerTest, m_dt, dt, B = 5, progress = FALSE)

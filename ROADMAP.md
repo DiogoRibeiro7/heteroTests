@@ -743,8 +743,10 @@ after it.
   Gaussian `glm` and a weighted `lm` every value is `identical()` to before.
 - [ ] **The panel tests on a fit that dropped rows.** On
   `lm(y ~ x1 + x2, data = d)` with `NA` in three rows of `x2`,
-  `performPesaranTest(m, d, "id", "time")` stops with "arguments imply
-  differing number of rows: 120, 117", and with only the complete rows with
+  `performPesaranTest(m, d, "id", "time")` stops with "requires `data` with
+  117 observations to match the fitted model, got 120" (since the 0.15.0 guard
+  on the order of the rows; "arguments imply differing number of rows: 120,
+  117" before it), and with only the complete rows with
   "number of items to replace is not a multiple of replacement length";
   `performBPRandomEffectsTest(m, d, "id")` refuses the full data with
   "requires `data` with 117 observations to match the fitted model, got 120",
@@ -791,7 +793,97 @@ after it.
     Gaussian `glm`.
   - The single tests and `performWhiteTestBootstrap()` match a reordered tibble
     or `data.table` to the fit by position, through
-    `prepare_model_data_for_test()`. Changes a value for such data.
+    `prepare_model_data_for_test()`. Since 0.15.0 they refuse such data
+    instead of returning wrong values: `rcheck_data_rows()`, called by
+    `rdata_or_model_frame()`, compares every column of the model frame, on the
+    rows the row names pick, with the model frame: the columns `data` holds
+    under their own names value by value, and the others (`log(y)`,
+    `log(x)`, `poly()`, `ns()`, `offset(o)`, `(weights)`, `(offset)`) computed
+    from `data` through the `predvars` of the terms and the `weights` and
+    `offset` expressions of the call. A term that depends on the rows it is
+    computed from (`I(x - mean(x))`, `I(x > median(x))`, `rank(x)`), found by
+    computing it again on half the rows, is not compared when it differs, and
+    neither is a column that names a variable `data` lacks or whose
+    computation fails; the compared columns must then leave no two rows of the
+    fit that tie on them and differ in such a column computed from variables
+    of `data`, and at least one column must be compared. The tests stop
+    when a compared column differs, when such ties remain, when row names
+    repeat, or when a fit with `model = FALSE` rebuilds a frame whose response
+    or fitted values are not the fit's; `runHeteroTests()` and
+    `runDiagnostics()` do not fall back on another test for it. The model
+    context replaces this guard, so that such data give the value on the data
+    of the fit. Changes a value for such data. Its cost on a valid call grows
+    with the columns it computes again: at 100,000 rows it takes about 5 ms on
+    `lm(y ~ x1 + x2 + g)` and about 43 ms on a weighted fit with `log()` and
+    `poly()` terms, against 50 to 70 ms for the Glejser and Bartlett tests and
+    about 200 ms for Koenker's on main. The review of 0.15.0 measured it at
+    about a third of the Glejser (100 ms) and Bartlett (120 ms) calls at that
+    size, before factors were compared by their codes; the model context,
+    which reads the design from the fit, does not need it. Not covered by the
+    guard:
+    - `fitWLS(data, var_formula)` and `performVarianceFormTest()` with
+      `var_formula` or `against` read the variables of the second formula
+      through `rvariance_frame()`, which matches by name and, when no name
+      matches and the counts agree, by position, unchecked (a reordered tibble
+      changes their value).
+    - The tests that read nothing from `data` (`performSpearmanTest()`,
+      `performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`,
+      `performCookWeisbergTest()` without `var_formula`, `performNCVTest()`,
+      `performSpreadLevelTest()`, `performDavidianCarrollTest()`,
+      `performVarianceFormTest()` without a second formula,
+      `performRESETTest()`) accept reordered data and return the value of the
+      fit.
+    - The columns a test reads besides the model (`group`, `order_by`,
+      `variable`, `id`, `time`) are not compared. When every column of the
+      model frame is compared, two rows that tie on all of them (response,
+      regressors, weights, offset) can pass for each other, as with a binary or
+      integer response; they then have the same design row, weight, offset and
+      residual, so exchanging them moves only those other columns between
+      identical observations. The review of the guard found that swapping such
+      rows of an unweighted fit with no offset left the Bartlett, Glejser,
+      Szroeter and GQ statistics unchanged.
+    - A column computed from a vector of the workspace (`weights = wvec`,
+      `offset = ovec`, `log(x + k)`) is not compared; no test reads it from
+      `data`, so it needs nothing more.
+    - The guard refuses data it cannot confirm, even the data of the fit:
+      (i) when no column of the model frame can be compared, as with
+      `lm(d$y ~ d$x)`; (ii) when the compared columns tie on rows of the fit
+      that differ in a term that depends on the rows or in a term of variables
+      of `data` that cannot be computed, as with a discrete response and a
+      row-dependent regressor on the rows an `na.omit` fit kept
+      (`lm(score ~ g + I(x > median(x)) + z2)`), or `y01 ~ myf(x)` after
+      `rm(myf)` and `ns()` after `detach("package:splines")`. The message names
+      the columns; pass the full data the model was fitted on, with the rows
+      it dropped, or the variables as columns of `data`.
+    - A term that depends on the rows is recognised by computing it again on
+      the odd and even rows and on each half, so every row is left out of one
+      of them; one that gives the same values on all four by chance is
+      compared, and refused on the rows a `subset =` or `na.omit` fit kept.
+    - Data that reproduce every column of the model frame exactly but are
+      another data set, with another extra column the test reads (`g` in
+      T1b of the review), give a wrong value without an error, as in 0.14.0.
+    - `performScatterDiagnostic()` refuses a tibble in the order of the fit of
+      a model fitted to data with character row names, which it cannot match
+      by name.
+    - `cut(x, quantile(x))` in the formula makes Koenker's test stop with
+      "factor has new levels", on main and with the guard alike.
+    - The second review of the guard measured it at about 20 to 40% of a
+      cheap test (Bartlett, Glejser) at 100,000 rows.
+    - A `model = FALSE` fit whose data changed after the fit is refused by
+      the tests that read `data`, with or without it, but the tests that read
+      only the model rebuild its frame too: `performRESETTest()` takes its
+      response from that frame and stays wrong, as in 0.14.0.
+    - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
+      own check (0.13.0), and the panel tests and
+      `performScatterDiagnostic()` refuse data with row names of their own in
+      another order instead of matching it by name.
+    - The `(weights)` column is compared with the `weights` expression of the
+      call computed on `data`. If the `fitWLS()` defect above is fixed by
+      writing the estimated weights into `(weights)` (decision 11 of the
+      model-context design) while the call still says `weights = w`, every
+      test given `data` on a `fitWLS()` fit of a weighted model would be
+      refused; the model context, which takes the weights from the fit, avoids
+      it, and this guard must then skip that column for such fits.
   - The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
     model) and `cachedTest()` (about 25 KB per call) grow without bound, as the
     validation cache did before #97. No value changes.

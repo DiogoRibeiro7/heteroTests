@@ -58,5 +58,9 @@ performScatterDiagnostic <- function(model, data, vars) {
   }
 
   res <- abs(rpearson_residuals(model))
+  # The i-th row of `data` is read with the i-th residual: data in another
+  # order than the fit are refused until 0.16.0 matches the rows by name.
+  rcheck_data_rows(model, data, "performScatterDiagnostic")
+  rcheck_data_in_fit_order(res, data, "performScatterDiagnostic", "Scatter diagnostic")
   sapply(vars, function(v) cor(res, data[[v]], method = "spearman"))
 }

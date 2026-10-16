@@ -9,7 +9,11 @@ working in 1.0.0. The changes in bold change values: every resampling test
 draws 999 replicates by default, the default battery of `runHeteroTests()` is
 White and Koenker, `performGlejserTest()` corrects for asymmetric errors by
 default, the tests refuse four inputs that most or some of them returned a
-value for, and seeded resampling with `parallel = TRUE` is reproducible.
+value for, the tests that read `data` refuse data whose rows they cannot
+match to the observations of the fit, the robust White and Breusch-Pagan
+tests and the White bootstrap give the value on the data of the fit for rows
+they had renumbered, and seeded resampling with `parallel = TRUE` is
+reproducible.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -252,6 +256,165 @@ that do not match the fit: the rows of the full sweep for the six tests whose
 checks changed besides the `glm` one, the Pesaran, random-effects,
 variance-form, RESET, spread-level and Davidian-Carroll tests, run again from
 their seeds, are identical.
+
+### Data in another order than the fit
+
+**Calls that returned wrong values on `data` holding the rows of the fit in
+another order now stop with an error.** The tests match the rows of `data` to
+the residuals by row name. A tibble, a data.table, or a data frame whose row
+names were reset, as `dplyr::arrange()` resets them, has row names that only
+number its rows, so such data were matched by position: in another order than
+the fit, or with rows in front of those of the fit, each residual was read
+with another observation's row, without an error. With
+
+```r
+set.seed(1); n <- 120
+d <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
+d$y <- 1 + d$x + d$z + rnorm(n, sd = d$x)
+m <- lm(y ~ x + z, d)
+```
+
+`performKoenkerTest(m, d)` gives 17.56, and
+`performKoenkerTest(m, dplyr::arrange(d, x))` gave 0.114. It now stops with
+"`performKoenkerTest()` cannot match the rows of `data` to the observations
+of the model: `data` has no row names of its own (a tibble, a data.table, or
+a data frame whose row names were reset, as by `dplyr::arrange()`), so its rows
+are matched to the observations by position, and in that order its values are
+not those of the fit: y, x, z differ from the model frame. Pass the rows of
+the fit in the order of the fit, or a data frame with its row names."
+
+Before a test reads `data`, it takes the rows that the row names pick for the
+observations of the fit and compares them, row by row, with every column of
+the model frame of the fit. A column that `data` holds under its own name,
+such as `y` or `x`, is compared value by value, each number to `1e-8` of its
+own size, and dates and times exactly. Any other column is computed from
+`data` as the fit computed it: a term such as `log(y)`, `log(x)`,
+`poly(x, 2)`, `ns(x, 3)` or `offset(o)` through the terms of the fit, and
+weights or an offset given as arguments from the expressions of the call. It
+is computed on all the rows of `data`, as `model.frame()` computed it before
+dropping rows, or else on the matched rows, and compared value by value too.
+So rows that agree on the response but not on a transformed regressor, a
+weight or an offset are told apart, as when the data are sorted on a 0/1
+response. A term that depends on the rows it is computed from, such as
+`I((x - mean(x))^2)`, `I(x > median(x))` or `rank(x)`, comes out otherwise on
+the rows a fit with `subset =` or `na.omit` kept, which are the right rows; it
+is not compared, and neither is a column that names a variable `data` does not
+hold or whose computation fails. A column computed from a vector of the
+workspace, such as `weights = wts`, is read by no test from `data` and needs
+nothing more. For the others, the columns that are compared must tell the
+rows of the fit apart.
+
+The guard refuses data it cannot confirm, even when they are the data of the
+fit. It does so in two cases. One is when no column of the model frame can be
+compared, as with `lm(d$y ~ d$x)`. The other is when the compared columns tie
+on rows of the fit that differ in a term that depends on the rows, or in a
+term of variables of `data` that cannot be computed. That happens with a
+discrete response and a row-dependent regressor on the rows an `na.omit` fit
+kept, as in `lm(score ~ g + I(x > median(x)) + z2)`, and with `y01 ~ myf(x)`
+after `rm(myf)` or `ns()` after `detach("package:splines")`. Pass the full data
+the model was fitted on, with the rows it dropped, or its variables as
+columns of `data`. Data whose rows differ are refused, and so are repeated row
+names. Data with row names of their own, such as
+`d[sample(n), ]`, are still matched by name, the tibble or data.table the
+model was fitted on is accepted, and so are rows after those of the fit. On
+eighteen fits (unweighted, weighted, with an offset given as an argument or as
+a term, `log(y)`, `na.omit` with three rows dropped, a Gaussian `glm`, a
+`fitWLS()` fit, `log(x) + poly(x, 2)`, `model = FALSE`, a discrete response
+with weights or an offset from the workspace, and seven with a term computed
+from the rows under `na.omit` or `subset =`), every exported test on
+the data of the fit, with `data = NULL`, on the same rows shuffled with their
+row names, on the rows the fit kept, and on the tibble and the data.table the
+model was fitted on returns what it returned, `identical()`, except the three
+tests below on the shuffled rows, which returned wrong values, and the
+robust and bootstrap tests that stopped with an error on the tibble of a
+`subset =` fit and now return a value (below); some errors changed their
+message.
+
+The guard covers the 23 tests that returned wrong values on such data:
+`performWhiteTest()`, `performWhiteTestStreaming()`,
+`performWhiteTestRobust()`, `performWhiteTestBootstrap()`, `performBPTest()`
+and `performBreuschPaganTest()`, `performBPTestStreaming()`,
+`performKoenkerTest()`, `performKoenkerTestStreaming()`,
+`performRankPermutationTest()`, `performHighDimensionalTest()`,
+`performParkTest()`, `performSzroeterTest()`, `performHarrisonMcCabeTest()`,
+`performGlejserTest()`, `performHartleyFmaxTest()`, the five group tests
+(`performLeveneTest()`, `performBrownForsytheTest()`,
+`performFlignerKilleenTest()`, `performBartlettTest()`, `performOBrienTest()`),
+`performPesaranTest()` and `performBPRandomEffectsTest()`, and also
+`performCookWeisbergTest()` with `var_formula`, which read the variables of
+the variance formula from the same rows. Six tests that start the same way,
+`performGQTest()`, `performStudentizedBPTest()`, `performBPTestRobust()`,
+`performWildBootstrapTest()`, `performSpatialHeteroTest()` and
+`performQuantileRegressionTest()`, returned the right value on reordered
+numbered data, the quantile test to rounding (a relative difference of
+`3e-15` on the data above), because they take everything but an ordering from
+the fit or refit on the rows; they refuse it too, so that every test that
+reads `data` treats it alike, and so do the registry names `"szroeter"`,
+`"wild_bootstrap"`, `"quantile_regression"` and `"student_bp"` in
+`runHeteroTests()`, which returned the right value too. Exempting them would
+leave the cases with rows in front of those of the fit, on which they were
+wrong. The tests that read nothing from `data`, such as
+`performSpearmanTest()` or `performRESETTest()`, are unchanged.
+`bootstrapTestStatistic()` refused such data already (0.13.0); with one of
+these tests as `test_function` it now stops with the test's message, before
+its own check.
+
+A model fitted with `model = FALSE` keeps no model frame, and the tests
+rebuild it from the data the fit refers to. When those data changed after the
+fit, the rebuilt frame held other rows, and the tests computed on it: after
+`m <- lm(y ~ x + z, d, model = FALSE)` and `d <- dplyr::arrange(d, x)`,
+`performKoenkerTest(m)`, `performKoenkerTest(m, d)` and Koenker's test in
+`runHeteroTests(m)` gave 0.114 instead of 17.56. The response of the rebuilt
+frame is now compared with that of the fit, and its design, times the
+coefficients, plus its offset, with the fitted values, and such a frame is
+refused ("cannot use the model frame of `model`").
+
+A tibble that has more rows than the fit and incomplete rows was renumbered
+when a test dropped those rows, and its rows then matched others: on a fit to
+the first 100 rows of a tibble of 120, three of them incomplete, Koenker's
+statistic was 0.0165 where the rows of the fit give 7.93. It is refused, with
+the advice to pass `as.data.frame(data)`.
+
+**`performWhiteTestRobust()`, `performWhiteTestBootstrap()` and
+`performBPTestRobust()` give the value on the data of the fit where they gave
+another one.** They call White's or the Breusch-Pagan test again on the rows
+they matched to the fit, and a tibble they had subset numbered those rows
+afresh, so the inner test matched them to other observations. With a fit to
+`set.seed(4); ds <- d[sample(n), ]` and `data = tibble::as_tibble(d)`, valid
+data, `performWhiteTestRobust()` and the observed statistic of
+`performWhiteTestBootstrap()` were 3.09 and
+`performBPTestRobust(studentize = FALSE)` 0.140, where the rows of the fit
+give 21.79 and 37.06. They now pass the rows under the row names of the fit,
+and return those values.
+
+`performPesaranTest()`, `performBPRandomEffectsTest()` and
+`performScatterDiagnostic()` read `data` by position, the i-th row with the
+i-th residual, so they gave wrong values on data with row names of their own
+in another order too. With `d$id <- rep(1:12, each = 10)`,
+`d$time <- rep(1:10, 12)` and `set.seed(2); dp <- d[sample(n), ]`, the
+Pesaran statistic was -0.987 on `d` and -0.392 on `dp`, the random-effects
+statistic 1.19 and 0.506, and `performScatterDiagnostic(m, ., "x")` 0.468 and
+-0.080. They refuse such data ("the rows of `data`, matched by name, are not
+in the order of the fit"), data whose row names are not those of the fit,
+which cannot show their order, and data with another number of rows than the
+fit, with the message the random-effects test gave already ("requires `data`
+with 117 observations to match the fitted model, got 120"), where the Pesaran
+test stopped with "arguments imply differing number of rows" and the scatter
+diagnostic with "incompatible dimensions".
+
+**`runHeteroTests()` and `runDiagnostics()` stop with this error, and do not
+fall back on another test for it.** On `dplyr::arrange(d, x)` above,
+`runHeteroTests(m, ...)` returned White's statistic 1.50 and Koenker's 0.114,
+both computed on misaligned rows (21.79 and 17.56 on `d`). When one of their
+tests stops, the runners run a substitute under its name, the last of them the
+Cook-Weisberg test, which reads nothing from `data`; for this refusal there
+is none, so no name can hold a test computed on, or regardless of, such data.
+The error keeps the class of the refusal, `heteroTests_data_rows_error`.
+
+The guard is a stopgap. 0.16.0 replaces it with the model context of the
+roadmap, which takes the response, design and weights from the fit and
+matches the rows of `data` by name or by verified position, so that data in
+any order give the value on the data of the fit.
 
 ### Seeded resampling in parallel is reproducible
 

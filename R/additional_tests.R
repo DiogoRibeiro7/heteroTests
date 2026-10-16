@@ -35,6 +35,10 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
         call. = FALSE
       )
     }
+    rcheck_rows_after_cleaning(
+      data, cleaned, match_idx, resid_names,
+      fn = rtest_name(sys.parent()), test_label = test_label
+    )
     aligned_data <- cleaned$data[match_idx, , drop = FALSE]
   } else {
     if (nrow(cleaned$data) != length(residuals)) {
@@ -144,6 +148,12 @@ performStudentizedBPTest <- function(model, data = NULL) {
 # is kept as it was, so that none of them changes value in 0.14.0.
 .studentized_bp_test <- function(model, data, data_name = deparse(substitute(model))) {
   test_label <- "Studentized BP"
+  # The registry name "student_bp", its test_factory entry and
+  # rvalidate_against_reference() call this implementation directly, not
+  # performStudentizedBPTest(), so the rows of `data` are checked here too.
+  if (!is.null(data)) {
+    rcheck_data_rows(model, data, fn = rtest_name(sys.parent(), "performStudentizedBPTest"))
+  }
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))
@@ -408,7 +418,9 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
     min_obs_data = 20L
   )
 
-  working_data <- prepared$data
+  # Under the row names of the fit, so that performWhiteTest() below matches
+  # the rows to the same observations.
+  working_data <- rdata_with_fit_rows(prepared$data, names(prepared$residuals))
 
   requirements <- rvalidateTestRequirements("bootstrap_tests", model = model, data = working_data)
   rprocessValidationResult(requirements)
