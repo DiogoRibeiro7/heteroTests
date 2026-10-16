@@ -9,7 +9,8 @@ performWildBootstrapTest(
   data = NULL,
   B = 999,
   distribution = c("rademacher", "mammen"),
-  progress = interactive()
+  progress = interactive(),
+  reestimate_weights = NULL
 )
 }
 \arguments{
@@ -37,6 +38,15 @@ Supported options are "rademacher" and "mammen".}
 
 \item{progress}{Logical flag controlling whether progress should be reported
 when running the bootstrap loop.}
+
+\item{reestimate_weights}{Whether each replicate estimates the weights of a
+\code{\link[=fitWLS]{fitWLS()}} fit again from the variance function \code{fitWLS()} recorded on it.
+\code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
+fixed for any other model. \code{FALSE} holds them fixed, as every call did
+before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
+return, or on which it fell back to equal weights. A variance function
+whose \code{var_formula} uses the response cannot be estimated again, and is
+refused unless \code{reestimate_weights = FALSE}. See \emph{Weighted fits}.}
 }
 \value{
 An object of class \code{htest} containing the observed
@@ -85,16 +95,31 @@ resampled are the Pearson residuals divided by
 regression, and centred; and each replicate refits it. With equal weights
 the result is that of the unweighted fit.
 
-The weights are held fixed in every replicate. When they were estimated
-from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
-out, and the test inherits the error of the tests that take the weights as
-known. In \code{inst/validation/weighted-fits-size.R}, on data whose standard
-deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
-correctly specified, normal errors and \code{B = 499}, its rejection rate at the
-5\% level was 0.086 with 150 observations and 0.105 with 600. In the same
-design with the true weights it was 0.054 and 0.048, and with the weights
-estimated again in each replicate, which this function does not do, 0.060
-and 0.051. \code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation.
+Weights given to the fit are known, and they are held fixed in every
+replicate. On a fit returned by \code{\link[=fitWLS]{fitWLS()}} they were estimated from the same
+data, and since 0.15.0 they are estimated again in each replicate by
+default (\code{reestimate_weights}). The replicate is fitted as the model
+\code{fitWLS()} was given: by least squares, with the weights that model had, if
+any. The variance function \code{fitWLS()} recorded, with its form, is then
+fitted again to the residuals, on the regressors \code{fitWLS()} evaluated, and
+the replicate is refitted with the weights it gives. The statistic is
+computed from the Pearson residuals of that refit, so the reference
+distribution includes the estimation the observed statistic went through.
+A replicate whose variance function cannot be fitted, where \code{fitWLS()}
+would fall back to equal weights, counts as a failed replicate: the p-value
+is computed from the replicates that remain.
+
+Holding the weights of a \code{fitWLS()} fit fixed, as every call did before
+0.15.0 and \code{reestimate_weights = FALSE} still does, leaves the estimation
+out of the replicates, and the test inherits the error of the tests that
+take the weights as known. In \code{inst/validation/weighted-fits-size.R}, the
+data have standard deviation \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance
+function is correctly specified, the errors are normal and \code{B = 499}. At
+the 5\% level the test then rejected 0.086 of the time with 150 observations
+and 0.105 with 600 when it held the weights fixed, and 0.060 and 0.051 when
+it estimated them again. With the true weights it rejected 0.054 and 0.048.
+At 2000 replications 0.060 is 2.2 standard errors above 0.05.
+\code{\link[=performVarianceFormTest]{performVarianceFormTest()}} allows for the estimation too.
 }
 
 \examples{

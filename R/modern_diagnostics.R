@@ -94,16 +94,31 @@
 #' regression, and centred; and each replicate refits it. With equal weights
 #' the result is that of the unweighted fit.
 #'
-#' The weights are held fixed in every replicate. When they were estimated
-#' from the same data, as by [fitWLS()], the replicates leave that estimation
-#' out, and the test inherits the error of the tests that take the weights as
-#' known. In `inst/validation/weighted-fits-size.R`, on data whose standard
-#' deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
-#' correctly specified, normal errors and `B = 499`, its rejection rate at the
-#' 5% level was 0.086 with 150 observations and 0.105 with 600. In the same
-#' design with the true weights it was 0.054 and 0.048, and with the weights
-#' estimated again in each replicate, which this function does not do, 0.060
-#' and 0.051. [performVarianceFormTest()] allows for the estimation.
+#' Weights given to the fit are known, and they are held fixed in every
+#' replicate. On a fit returned by [fitWLS()] they were estimated from the same
+#' data, and since 0.15.0 they are estimated again in each replicate by
+#' default (`reestimate_weights`). The replicate is fitted as the model
+#' `fitWLS()` was given: by least squares, with the weights that model had, if
+#' any. The variance function `fitWLS()` recorded, with its form, is then
+#' fitted again to the residuals, on the regressors `fitWLS()` evaluated, and
+#' the replicate is refitted with the weights it gives. The statistic is
+#' computed from the Pearson residuals of that refit, so the reference
+#' distribution includes the estimation the observed statistic went through.
+#' A replicate whose variance function cannot be fitted, where `fitWLS()`
+#' would fall back to equal weights, counts as a failed replicate: the p-value
+#' is computed from the replicates that remain.
+#'
+#' Holding the weights of a `fitWLS()` fit fixed, as every call did before
+#' 0.15.0 and `reestimate_weights = FALSE` still does, leaves the estimation
+#' out of the replicates, and the test inherits the error of the tests that
+#' take the weights as known. In `inst/validation/weighted-fits-size.R`, the
+#' data have standard deviation \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance
+#' function is correctly specified, the errors are normal and `B = 499`. At
+#' the 5% level the test then rejected 0.086 of the time with 150 observations
+#' and 0.105 with 600 when it held the weights fixed, and 0.060 and 0.051 when
+#' it estimated them again. With the true weights it rejected 0.054 and 0.048.
+#' At 2000 replications 0.060 is 2.2 standard errors above 0.05.
+#' [performVarianceFormTest()] allows for the estimation too.
 #'
 #' @inheritParams performBPTest
 #' @param B Integer number of bootstrap replications. Defaults to `999`, which
@@ -115,6 +130,14 @@
 #'   Supported options are "rademacher" and "mammen".
 #' @param progress Logical flag controlling whether progress should be reported
 #'   when running the bootstrap loop.
+#' @param reestimate_weights Whether each replicate estimates the weights of a
+#'   [fitWLS()] fit again from the variance function `fitWLS()` recorded on it.
+#'   `NULL`, the default, does so for a `fitWLS()` fit and holds the weights
+#'   fixed for any other model. `FALSE` holds them fixed, as every call did
+#'   before 0.15.0. `TRUE` is an error for a model that `fitWLS()` did not
+#'   return, or on which it fell back to equal weights. A variance function
+#'   whose `var_formula` uses the response cannot be estimated again, and is
+#'   refused unless `reestimate_weights = FALSE`. See *Weighted fits*.
 #'
 #' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the
@@ -141,7 +164,8 @@
 #' @export
 performWildBootstrapTest <- function(model, data = NULL, B = 999,
                                      distribution = c("rademacher", "mammen"),
-                                     progress = interactive()) {
+                                     progress = interactive(),
+                                     reestimate_weights = NULL) {
   rrefuse_non_gaussian_glm(model, "performWildBootstrapTest")
   data <- rdata_or_model_frame(model, data)
   distribution <- match.arg(distribution)
@@ -152,6 +176,9 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   if (!is.logical(progress) || length(progress) != 1L || is.na(progress)) {
     stop("`progress` must be a single logical value.", call. = FALSE)
   }
+  # The variance function of a fitWLS() fit, estimated again in each
+  # replicate, or NULL, which holds the weights fixed as before 0.15.0.
+  variance_record <- rwls_reestimation(model, reestimate_weights, "performWildBootstrapTest")
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))
@@ -236,6 +263,19 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   if (!is.null(prior_weights)) {
     transformed_qr <- qr(sqrt(prior_weights) * design_matrix)
   }
+  # On a fitWLS() fit whose weights are estimated again, a replicate is the
+  # fit's fitted values plus the regenerated errors, each returned to the
+  # scale of its observation by dividing by sqrt(w). It is refitted as
+  # fitWLS() fitted the model: by least squares, with the weights of the model
+  # fitWLS() was given, if it had any; then the variance function is fitted
+  # to its residuals, on the regressors fitWLS() recorded, and the replicate
+  # is refitted with the weights it gives. The statistic is computed from the
+  # Pearson residuals of that refit. A replicate whose variance function
+  # cannot be fitted, where fitWLS() would fall back to equal weights, fails,
+  # and the p-value counts the replicates that remain.
+  if (!is.null(variance_record)) {
+    root_weights <- sqrt(prior_weights)
+  }
 
   progress_bar <- chunk_progress_bar(B, progress && B > 1L, "Wild bootstrap replications")
   on.exit(progress_bar$close(), add = TRUE)
@@ -246,7 +286,15 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
     boot_errors <- sample(null_residuals, length(residuals), replace = TRUE) * boot_multiplier
     boot_stat <- tryCatch(
       {
-        if (is.null(prior_weights)) {
+        if (!is.null(variance_record)) {
+          boot_res <- rwls_replicate_residuals(
+            design_matrix, fitted_vals + boot_errors / root_weights, model_offset,
+            variance_record
+          )
+          if (is.null(boot_res)) {
+            stop("the variance function of the replicate could not be fitted")
+          }
+        } else if (is.null(prior_weights)) {
           boot_res <- stats::lm.fit(
             design_matrix, fitted_vals + boot_errors, offset = model_offset
           )$residuals

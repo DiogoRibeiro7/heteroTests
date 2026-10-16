@@ -15,7 +15,8 @@ bootstrapTestStatistic(
   resample = c("null", "pairs"),
   n_cores = NULL,
   progress = interactive(),
-  ...
+  ...,
+  reestimate_weights = NULL
 )
 
 rbootstrap_test_statistic(
@@ -28,7 +29,8 @@ rbootstrap_test_statistic(
   resample = c("null", "pairs"),
   n_cores = NULL,
   progress = interactive(),
-  ...
+  ...,
+  reestimate_weights = NULL
 )
 }
 \details{
@@ -65,9 +67,28 @@ centred, and divides each draw by \eqn{\sqrt{w_i}}{sqrt(w_i)} before adding
 it to \eqn{\hat y_i}{yhat_i}.
 Pairs resampling draws each row with its weight. Either way each replicate
 is refitted with the weights, so \code{test_function} sees a weighted fit, as it
-did on the original data. The weights are held fixed; when they were
-estimated from the same data, see the section on weighted fits in
-\code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
+did on the original data.
+
+Weights given to the fit are known, and they are held fixed. On a fit
+returned by \code{\link[=fitWLS]{fitWLS()}} they were estimated from the same data, and since
+0.15.0 each replicate estimates them again by default
+(\code{reestimate_weights}), so that \code{test_function} sees what \code{fitWLS()} would
+have returned for the replicate. The replicate is fitted as the model
+\code{fitWLS()} was given, without weights or with the weights that model had.
+The variance function \code{fitWLS()} recorded is fitted again to its residuals,
+with the same form and on the regressors \code{fitWLS()} evaluated, whose rows
+follow the rows drawn under pairs resampling, and the replicate is refitted
+with the weights it gives. A replicate whose variance function cannot be
+fitted, where \code{fitWLS()} would fall back to equal weights, fails as a
+replicate whose refit fails does, and the p-value and the interval are
+computed from the replicates that remain. In
+\code{inst/validation/weighted-fits-size.R}, with the variance function
+correctly specified, normal errors, 150 observations, \code{B = 499} and
+\code{\link[=performKoenkerTest]{performKoenkerTest()}} as \code{test_function}, the rejection rate at the 5\%
+level was 0.083 with the weights held fixed, as every call did before
+0.15.0 and \code{reestimate_weights = FALSE} still does, 0.045 with them
+estimated again, and 0.045 with the true weights. See the section on
+weighted fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}.
 
 Weighted or not, each replicate is refitted with an offset the model was
 given as an argument, \code{lm(..., offset = o)}; an offset written in the
@@ -130,6 +151,16 @@ The result does not depend on it.}
 displayed during bootstrap replication.}
 
 \item{...}{Additional arguments forwarded to \code{test_function}.}
+
+\item{reestimate_weights}{Whether each replicate estimates the weights of a
+\code{\link[=fitWLS]{fitWLS()}} fit again from the variance function \code{fitWLS()} recorded on it.
+\code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
+fixed for any other model. \code{FALSE} holds them fixed, as every call did
+before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
+return, or on which it fell back to equal weights. A variance function
+whose \code{var_formula} uses the response cannot be estimated again, and is
+refused unless \code{reestimate_weights = FALSE}. It comes after \code{...}, so it
+has to be named in full. See Details.}
 }
 \value{
 A list with components:
