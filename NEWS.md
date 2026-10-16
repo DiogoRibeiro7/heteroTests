@@ -524,11 +524,16 @@ returned. `TRUE` on a model that `fitWLS()` did not return is an error. An
 `lm`, a weighted `lm` and a Gaussian `glm` carry no variance function, and they
 return what they returned. Two kinds of `fitWLS()` fit keep the values of
 0.14.0 under the default. One on which `fitWLS()` fell back to equal weights
-estimated no weights. One with a variance regressor computed from the
-response, such as `var_formula = ~ y` or `~ .` for the response `y`, cannot be
-estimated again from the regressors `fitWLS()` recorded, since each replicate
-regenerates the response: the default holds its weights fixed and warns. On
-both, `TRUE` is an error. In `bootstrapTestStatistic()` and
+estimated no weights. The other has a variance regressor computed from the
+response. Each replicate regenerates the response and holds the design
+fixed, so such a regressor is one that uses a variable of the response which
+the right-hand side of the model does not use, or one that is the response
+term itself, as `~ .` gives. Examples are `~ y` or `~ .` for `y ~ x + z`, and
+`~ y` or `~ x` for `I(y / x) ~ z`. Its weights cannot be estimated again from
+the regressors `fitWLS()` recorded, so the default holds them fixed and warns.
+The rule is conservative for `~ x` with `I(y / x) ~ z`: giving the response as
+a column, `r ~ z`, says that `x` stays. On both kinds of fit, `TRUE` is an
+error. In `bootstrapTestStatistic()` and
 `rbootstrap_test_statistic()` the argument comes after `...`, so it has to be
 named in full.
 
@@ -607,7 +612,8 @@ of the time at the 5% level with 150 observations and 0.110 with 600
 statistic with replicates computed the same way. In an exploratory run by the
 reviewer of #129, not recorded in `inst/validation/` (20 samples of a
 correctly specified design, `B = 99`), the 0.14.0 path rejected all 20 and
-the new default none. The statistic still drops an offset, as before; that is
+the new default 1 of 20, with a mean p-value of 0.498. The statistic still
+drops an offset, as before; that is
 listed for 0.16.0 in `ROADMAP.md`. No recorded evidence calls these on a
 `fitWLS()` fit: `weighted-fits-size.R` runs `performStudentizedBPTest()` and
 `performBPTestRobust()` on fits with known weights only.

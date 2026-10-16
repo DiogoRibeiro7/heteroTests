@@ -421,12 +421,18 @@ rwls_reestimation <- function(model, reestimate_weights, fn) {
       " computed from the response, which each replicate regenerates, so ",
       "fitWLS() cannot be run again on a replicate from the regressors it recorded"
     )
+    workaround <- paste0(
+      "A variable of the response that the right-hand side of the model does ",
+      "not use counts as regenerated; if it is not, give the response as a ",
+      "column of the data, as in d$r <- d$y / d$x; lm(r ~ z, data = d), and ",
+      "fit that."
+    )
     if (requested) {
-      stop(fn, "(reestimate_weights = TRUE): ", what, ".", call. = FALSE)
+      stop(fn, "(reestimate_weights = TRUE): ", what, ". ", workaround, call. = FALSE)
     }
     warning(
       fn, "(): ", what, ". The weights are held fixed in each replicate, as ",
-      "before 0.15.0.",
+      "before 0.15.0. ", workaround,
       call. = FALSE
     )
     return(NULL)
@@ -453,15 +459,23 @@ rwls_reestimation <- function(model, reestimate_weights, fn) {
 
 #' Variance regressors computed from the response
 #'
-#' A replicate regenerates the response of the model and nothing else, so a
-#' variance regressor is fixed unless it is computed from the response. One is
-#' taken to be when it uses every variable the response is computed from:
-#' `y`, `log(y)` or `y:x` for the response `y`, or `log(y)` for the response
-#' `log(y)`, and every column of `~ .` evaluated on the model frame, which
-#' holds the response. One that uses only some of them, such as `x` for the
-#' response `I(y/x)`, is not: the replicate regenerates `I(y/x)` and leaves
-#' `x` as it is. The regressors are read from the columns fitWLS() recorded,
-#' so `.` is expanded as fitWLS() expanded it.
+#' A replicate regenerates the response of the model and holds the design
+#' fixed. A variable of the response that the right-hand side of the model
+#' does not use, `y` in `log(y) ~ x` or both `y` and `x` in `I(y / x) ~ z`, is
+#' therefore regenerated with it: `fitWLS()` on the replicate would see
+#' `y* = exp(r*)` or `y* = r* x`. A variance regressor that uses such a
+#' variable is computed from the response, and so is one that is the response
+#' term itself, which is how `~ .` evaluated on the model frame names it,
+#' backquoted. A variable that the right-hand side uses is held fixed with the
+#' design, so `x` for `log(y / x) ~ log(x)` and the offset `o` for
+#' `y ~ x + offset(o)` are not computed from the response. The regressors are
+#' read from the columns fitWLS() recorded, so `.` is expanded as fitWLS()
+#' expanded it.
+#'
+#' The rule is conservative: `x` for `I(y / x) ~ z` counts as computed from
+#' the response, since the replicate cannot tell which of `y` and `x`
+#' changed. Giving the response as a column of the data, `r <- y / x` and
+#' `lm(r ~ z)`, says that `x` stays.
 #'
 #' @param model A fitted `lm`.
 #' @param Z The recorded variance regressors.
@@ -469,13 +483,28 @@ rwls_reestimation <- function(model, reestimate_weights, fn) {
 #' @keywords internal
 #' @noRd
 rregressors_from_response <- function(model, Z) {
-  response <- tryCatch(stats::formula(model)[[2L]], error = function(e) NULL)
-  response_vars <- if (is.null(response)) character() else all.vars(response)
-  if (length(response_vars) == 0L || is.null(colnames(Z))) {
+  model_formula <- tryCatch(stats::formula(model), error = function(e) NULL)
+  if (is.null(model_formula) || length(model_formula) != 3L || is.null(colnames(Z))) {
     return(character())
   }
+  response <- model_formula[[2L]]
+  # Every replicate holds the design fixed: a variable of the right-hand side
+  # is not regenerated.
+  response_vars <- setdiff(all.vars(response), all.vars(model_formula[[3L]]))
+  squash <- function(x) gsub("[[:space:]`]", "", x)
+  response_term <- squash(paste(deparse(response, width.cutoff = 500L), collapse = ""))
   uses_response <- vapply(colnames(Z), function(column) {
-    expr <- tryCatch(str2lang(column), error = function(e) NULL)
+    # `~ .` on the model frame names the response column backquoted, as
+    # `log(y)`; a column that is the response term, or holds it backquoted, is
+    # computed from it whatever its variables.
+    if (identical(squash(column), response_term) ||
+          grepl(paste0("`", response_term, "`"), gsub("[[:space:]]", "", column), fixed = TRUE)) {
+      return(TRUE)
+    }
+    if (length(response_vars) == 0L) {
+      return(FALSE)
+    }
+    expr <- tryCatch(str2lang(gsub("`", "", column, fixed = TRUE)), error = function(e) NULL)
     used <- if (is.null(expr)) {
       # A column name that does not parse, such as factor(g)b: look for the
       # variables as whole words.
@@ -486,7 +515,7 @@ rregressors_from_response <- function(model, Z) {
     } else {
       all.vars(expr)
     }
-    all(response_vars %in% used)
+    any(response_vars %in% used)
   }, logical(1))
   colnames(Z)[uses_response]
 }

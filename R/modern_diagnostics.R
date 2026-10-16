@@ -137,10 +137,14 @@
 #'   `NULL`, the default, does so for a `fitWLS()` fit and holds the weights
 #'   fixed for any other model. `FALSE` holds them fixed, as every call did
 #'   before 0.15.0. `TRUE` is an error for a model that `fitWLS()` did not
-#'   return, or on which it fell back to equal weights. A variance regressor
-#'   computed from the response, which each replicate regenerates, cannot be
-#'   estimated again: `NULL` then holds the weights fixed, with a warning, and
-#'   `TRUE` is an error. See *Weighted fits*.
+#'   return, or on which it fell back to equal weights. Each replicate
+#'   regenerates the response and holds the design fixed, so a variance
+#'   regressor that uses a variable of the response which the right-hand side
+#'   of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
+#'   is the response term itself, as `~ .` gives, cannot be estimated again:
+#'   `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
+#'   error. Giving the response as a column of the data, as in `r ~ z`, says
+#'   which variables stay. See *Weighted fits*.
 #'
 #' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the

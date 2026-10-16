@@ -607,31 +607,81 @@ test_that("a variance regressor of the response holds the weights fixed, with a 
   }
 })
 
-test_that("a regressor sharing only some variables of the response is estimated again", {
-  # The response I(y / x) is regenerated as a whole and x is left as it is,
-  # so the weights are estimated again from the variance regressor x.
+# A variable of the response that the right-hand side does not use is
+# regenerated with it, and a regressor of such a variable, or the response
+# term itself, as `~ .` names it, is computed from the response.
+response_rule_data <- function() {
   obj <- make_fgls_fit()
   d <- obj$data
-  base <- lm(I(y / x) ~ z, data = d)
-  fit <- fitWLS(base, data = d, var_formula = ~ x)
-  expect_identical(rregressors_from_response(fit, attr(fit, "variance_function")$regressors),
-                   character())
+  set.seed(48)
+  d$yp <- exp(0.2 * d$x + 0.3 * rnorm(nrow(d)))
+  d$r <- d$y / d$x
+  d
+}
+
+test_that("a regressor of a variable the response regenerates holds the weights fixed", {
+  d <- response_rule_data()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
-  set.seed(44)
-  caught <- collect_warnings(performWildBootstrapTest(fit, d, B = 19, progress = FALSE))
-  expect_identical(caught$warnings, character())
-  on <- caught$value
-  set.seed(44)
-  off <- performWildBootstrapTest(fit, d, B = 19, progress = FALSE, reestimate_weights = FALSE)
-  expect_true(all(is.finite(on$bootstrap$replicates)))
-  expect_false(isTRUE(all.equal(on$bootstrap$replicates, off$bootstrap$replicates)))
-  # A response of one variable, transformed, shares it with a regressor of it.
-  logged <- suppressWarnings(fitWLS(lm(log(abs(y)) ~ x + z, data = d), data = d,
-                                    var_formula = ~ y))
-  expect_identical(
-    rregressors_from_response(logged, attr(logged, "variance_function")$regressors), "y"
+  ratio <- lm(I(y / x) ~ z, data = d)
+  held <- list(
+    ratio_y = suppressWarnings(fitWLS(ratio, data = d, var_formula = ~ y)),
+    # Conservative: x is a variable of I(y / x) and not of the right-hand side.
+    ratio_x = fitWLS(ratio, data = d, var_formula = ~ x),
+    ratio_dot = suppressWarnings(fitWLS(ratio, var_formula = ~ .)),
+    log_dot = suppressWarnings(fitWLS(lm(log(yp) ~ x + z, data = d), var_formula = ~ .))
   )
+  expect_identical(colnames(attr(held$ratio_dot, "variance_function")$regressors),
+                   c("`I(y/x)`", "z"))
+  expect_identical(colnames(attr(held$log_dot, "variance_function")$regressors),
+                   c("`log(yp)`", "x", "z"))
+  for (nm in names(held)) {
+    fit <- held[[nm]]
+    expect_error(
+      performWildBootstrapTest(fit, d, B = 9, progress = FALSE, reestimate_weights = TRUE),
+      "computed from the response", label = nm
+    )
+    run <- function(...) {
+      set.seed(47)
+      performWildBootstrapTest(fit, d, B = 9, progress = FALSE, ...)
+    }
+    caught <- collect_warnings(run())
+    expect_true(any(grepl("computed from the response.*d\\$r <- d\\$y / d\\$x",
+                          caught$warnings)), label = nm)
+    expect_identical(caught$value, suppressWarnings(run(reestimate_weights = FALSE)),
+                     label = nm)
+  }
+})
+
+test_that("a regressor of a variable the design holds fixed is estimated again", {
+  d <- response_rule_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  estimated <- list(
+    # The response given as a column says that x stays.
+    column = fitWLS(lm(r ~ z, data = d), data = d, var_formula = ~ x),
+    # x is on the right-hand side, so only y is regenerated.
+    log_ratio = fitWLS(lm(log(yp / x) ~ log(x), data = d)),
+    log_ratio_x = fitWLS(lm(log(yp / x) ~ log(x) + z, data = d), data = d, var_formula = ~ x),
+    # An offset is part of the design.
+    offset = fitWLS(lm(y ~ x + offset(o), data = d), data = d, var_formula = ~ o)
+  )
+  for (nm in names(estimated)) {
+    fit <- estimated[[nm]]
+    expect_identical(
+      rregressors_from_response(fit, attr(fit, "variance_function")$regressors),
+      character(), label = nm
+    )
+    set.seed(44)
+    caught <- collect_warnings(performWildBootstrapTest(fit, d, B = 19, progress = FALSE))
+    expect_false(any(grepl("computed from the response", caught$warnings)), label = nm)
+    set.seed(44)
+    off <- performWildBootstrapTest(fit, d, B = 19, progress = FALSE,
+                                    reestimate_weights = FALSE)
+    expect_true(all(is.finite(caught$value$bootstrap$replicates)), label = nm)
+    expect_false(isTRUE(all.equal(caught$value$bootstrap$replicates,
+                                  off$bootstrap$replicates)), label = nm)
+  }
 })
 
 test_that("the routes that inherit the default hold such weights fixed too, with a warning", {
