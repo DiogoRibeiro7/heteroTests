@@ -122,6 +122,15 @@
 #' Regression*. Chapman & Hall. Chapter 3 treats the estimation and checking of
 #' variance functions.
 #'
+#' @section Supported models:
+#' It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses every
+#' `glm`, weights that did not come from `fitWLS()`, a `survey::svyglm()` fit, a
+#' coefficient that is not finite for another reason, and `data` that lack rows or
+#' variables of the fit. Which model each test accepts, and why, is set out in
+#' [test_results], under *Supported models*.
+#'
 #' @examples
 #' # Standard deviation proportional to x, so the variance is a power of x
 #' set.seed(2026)
@@ -155,7 +164,7 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # Data that lack rows of the fit or a variable of the model are refused, as
   # by the tests that read `data`. Before 0.15.0 they returned a value.
   rcheck_data_argument(data, "performVarianceFormTest", model, "Variance form test")
-  rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L)
+  rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L, allow_aliased = TRUE)
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("variance_form", model = model, data = model_data)
   rprocessValidationResult(requirements)

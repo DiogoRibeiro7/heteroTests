@@ -30,9 +30,11 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   }
   rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)
-  rrefuse_nonfinite_coefficients(model, "RESET test")
+  rrefuse_nonfinite_coefficients(model, "RESET test", allow_aliased = TRUE)
   y <- model.response(model.frame(model))
-  X0 <- model.matrix(model)
+  # The design without the columns a rank-deficient fit aliased: the
+  # augmented model is then that of the same model fitted without them.
+  X0 <- rnon_aliased_columns(model.matrix(model), model)
   yhat <- fitted(model)
   X1 <- X0
   for (p in power) {

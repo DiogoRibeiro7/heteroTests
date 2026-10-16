@@ -68,7 +68,7 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
   test_label <- "Goldfeld-Quandt test"
   alternative <- match.arg(alternative)
 
-  rvalidateModelInputs(model, test_name = "Goldfeld-Quandt")
+  rvalidateModelInputs(model, test_name = "Goldfeld-Quandt", allow_aliased = TRUE)
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
     stop("`order_by` must be supplied as a single column name.", call. = FALSE)
@@ -87,7 +87,8 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
     model,
     data,
     required_vars = required_vars,
-    test_label = test_label
+    test_label = test_label,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
 
@@ -116,8 +117,9 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
   point1 <- floor((0.5 - fraction / 2) * n)
   point2 <- ceiling((0.5 + fraction / 2) * n + 0.01)
 
-  # Number of fitted coefficients, including the intercept where present.
-  k <- ncol(stats::model.matrix(model))
+  # Number of fitted coefficients, including the intercept where present: the
+  # rank of a rank-deficient fit, whose aliased columns are left out.
+  k <- ncol(rnon_aliased_columns(stats::model.matrix(model), model))
   if (point2 > n - k + 1L || point1 < k) {
     stop("`fraction` leaves insufficient observations for the two comparison groups.", call. = FALSE)
   }
@@ -141,7 +143,7 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
     # sqrt(w) * y on sqrt(w) * X, whose errors are homoscedastic when the
     # weights are right. Refitting without the weights, as releases before
     # 0.12.0 did, compares raw variances that differ by construction.
-    design <- stats::model.matrix(model)
+    design <- rnon_aliased_columns(stats::model.matrix(model), model)
     response <- stats::model.response(stats::model.frame(model))
     if (nrow(design) != n || length(prior_weights) != n) {
       stop(

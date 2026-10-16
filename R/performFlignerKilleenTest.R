@@ -46,7 +46,7 @@ performFlignerKilleenTest <- function(model, data = NULL, group) {
   data <- rdata_or_model_frame(model, data)
   test_label <- "Fligner-Killeen test"
 
-  rvalidateModelInputs(model, test_name = "Fligner-Killeen", min_obs = 6L)
+  rvalidateModelInputs(model, test_name = "Fligner-Killeen", min_obs = 6L, allow_aliased = TRUE)
 
   if (missing(group) || length(group) != 1L) {
     stop("`group` must be a single column name.", call. = FALSE)

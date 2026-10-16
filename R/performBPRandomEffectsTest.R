@@ -82,7 +82,7 @@ performBPRandomEffectsTest <- function(model, data = NULL, id) {
   if (!id %in% names(data)) {
     stop("`id` must be a column in `data`.")
   }
-  rrefuse_nonfinite_coefficients(model, "Breusch-Pagan random effects test")
+  rrefuse_nonfinite_coefficients(model, "Breusch-Pagan random effects test", allow_aliased = TRUE)
   # Data that lack a variable of the model are refused, as by the tests that
   # read `data`; before 0.15.0 the variable was never looked for.
   rcheck_data_matches_model(model, data, "Breusch-Pagan random effects test")

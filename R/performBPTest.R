@@ -88,7 +88,7 @@ performBPTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performBPTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan test"
-  rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L)
+  rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))
@@ -188,7 +188,9 @@ performBPTest <- function(model, data = NULL) {
     )
   }
 
-  X_full <- stats::model.matrix(model, data = working_data)
+  # The design without the columns a rank-deficient fit aliased, so that the
+  # degrees of freedom are those of the estimable part of the design.
+  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
   if (nrow(X_full) != length(residuals)) {
     stop(
       sprintf(

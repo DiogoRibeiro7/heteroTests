@@ -51,7 +51,7 @@ performBartlettTest <- function(model, data = NULL, group) {
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bartlett's test"
 
-  rvalidateModelInputs(model, test_name = "Bartlett", min_obs = 4L)
+  rvalidateModelInputs(model, test_name = "Bartlett", min_obs = 4L, allow_aliased = TRUE)
 
   if (missing(group) || length(group) != 1L) {
     stop("`group` must be a single column name.", call. = FALSE)

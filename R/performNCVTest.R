@@ -108,7 +108,7 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
 # 0.15.0 `var_formula` can be evaluated in `data` rather than in the model
 # frame; with `data = NULL` the computation is the one of 0.14.0.
 .ncv_test <- function(model, var_formula = NULL, data = NULL) {
-  rvalidateModelInputs(model, test_name = "NCV", min_obs = 10L)
+  rvalidateModelInputs(model, test_name = "NCV", min_obs = 10L, allow_aliased = TRUE)
 
   ht_log("INFO", "Running NCV score test")
 
@@ -157,7 +157,8 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
         required_vars = all.vars(var_formula),
         test_label = "Cook-Weisberg test",
         min_obs_model = 10L,
-        min_obs_data = 10L
+        min_obs_data = 10L,
+        allow_aliased = TRUE
       )$data
     }
     aux_frame <- stats::model.frame(var_formula, data = plain)

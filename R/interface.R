@@ -873,24 +873,157 @@ rrefuse_non_gaussian_glm <- function(model, fn) {
 
 #' Refuse a model with coefficients that are not finite
 #'
-#' An aliased term, such as `x2 = 2 * x1`, leaves an `NA` coefficient. The
-#' tests that validate the model refuse such a fit with this message; the
-#' five that did not, and returned a value, refuse it since 0.15.0.
+#' An aliased term, such as `x2 = 2 * x1`, leaves an `NA` coefficient: the
+#' fit is rank-deficient (see [raliased_coefficients()]). The tests that can
+#' be computed on the estimable part of the design pass
+#' `allow_aliased = TRUE` and accept such a fit; the others refuse it with
+#' the message of [rstop_aliased()], which names the aliased coefficients. A
+#' coefficient that is infinite, `NaN`, or `NA` without the fit being
+#' rank-deficient is refused by every test with the message below.
 #'
 #' @param model A fitted model.
 #' @param test_label Character scalar naming the test in the message.
+#' @param allow_aliased Logical: does the calling test accept a rank-deficient
+#'   fit?
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
-rrefuse_nonfinite_coefficients <- function(model, test_label) {
+rrefuse_nonfinite_coefficients <- function(model, test_label, allow_aliased = FALSE) {
   coefs <- tryCatch(stats::coef(model), error = function(e) NULL)
   if (is.null(coefs) || all(is.finite(coefs))) {
     return(invisible(NULL))
   }
+  aliased <- raliased_coefficients(model)
+  if (length(aliased) > 0L && all(is.finite(coefs[!names(coefs) %in% aliased]))) {
+    if (isTRUE(allow_aliased)) {
+      return(invisible(NULL))
+    }
+    rstop_aliased(aliased, test_label)
+  }
+  stop(rnonfinite_coefficients_message(test_label), call. = FALSE)
+}
+
+# The message for a coefficient that is infinite, NaN, or NA without the fit
+# being rank-deficient.
+rnonfinite_coefficients_message <- function(test_label) {
+  sprintf(
+    "Model coefficients must be finite before running %s. Check for NA or infinite estimates.",
+    test_label
+  )
+}
+
+#' The coefficients a rank-deficient fit aliased
+#'
+#' `lm()` and `glm()` decompose the design by a pivoted QR decomposition, and
+#' a column that is a linear combination of the columns before it, such as
+#' `x2 = 2 * x1`, or the dummy of a cell of an interaction that no observation
+#' falls in, is moved out of the decomposition: its coefficient is `NA` and
+#' the rank of the fit, `model$rank`, is the number of the others. The
+#' residuals and fitted values of such a fit are the projection on the column
+#' space of the design, which the aliased columns do not change, so they are
+#' those of the same model fitted without the aliased columns.
+#'
+#' @param model A fitted model.
+#' @return The names of the aliased coefficients, or `character()` when the
+#'   fit is not rank-deficient or its `NA` coefficients are not aliased ones
+#'   (their number differs from the number of columns its rank leaves out).
+#' @keywords internal
+#' @noRd
+raliased_coefficients <- function(model) {
+  if (!inherits(model, "lm")) {
+    return(character())
+  }
+  coefs <- tryCatch(stats::coef(model), error = function(e) NULL)
+  rank <- model$rank
+  if (is.null(coefs) || is.matrix(coefs) || is.null(rank) || is.null(names(coefs))) {
+    return(character())
+  }
+  # NaN is not aliasing; lm() and glm() set an aliased coefficient to NA.
+  aliased <- is.na(coefs) & !is.nan(coefs)
+  if (!any(aliased) || sum(!aliased) != rank) {
+    return(character())
+  }
+  names(coefs)[aliased]
+}
+
+# Does the refit `refit` of a resampling replicate alias a coefficient that
+# the fit estimated, whose names are `estimated`? A column the replicate does
+# not have at all, such as the dummy of a level no row of the replicate holds,
+# is not aliased.
+rrefit_aliases_estimated <- function(refit, estimated) {
+  coefs <- tryCatch(stats::coef(refit), error = function(e) NULL)
+  if (is.null(coefs) || is.matrix(coefs)) {
+    return(FALSE)
+  }
+  shared <- coefs[names(coefs) %in% estimated]
+  anyNA(shared)
+}
+
+#' The columns of a design that a rank-deficient fit estimated
+#'
+#' The tests that accept a rank-deficient fit compute their statistic on the
+#' estimable part of the design: they drop the aliased columns
+#' ([raliased_coefficients()]) from the design they build, and then compute
+#' what they compute for the same model fitted without those columns, which
+#' has the same column space, the same residuals and fitted values, and as
+#' many columns as the rank of the fit. A design of a fit that is not
+#' rank-deficient is returned as it is.
+#'
+#' @param X A design matrix of `model`, from `model.matrix()`, whose columns
+#'   are named as the coefficients.
+#' @param model The fitted model.
+#' @return `X` without its aliased columns.
+#' @keywords internal
+#' @noRd
+rnon_aliased_columns <- function(X, model) {
+  aliased <- raliased_coefficients(model)
+  if (length(aliased) == 0L) {
+    return(X)
+  }
+  keep <- !colnames(X) %in% aliased
+  X[, keep, drop = FALSE]
+}
+
+#' Refuse a rank-deficient fit with the aliased coefficients named
+#'
+#' No test needs every coefficient, so no test refuses a rank-deficient fit
+#' since 0.16.0; the checks that are made for any test, such as those of
+#' `validateTestInputs()` and of a function a user registers with
+#' `test_factory`, refuse it with this message.
+#'
+#' @param aliased The names of the aliased coefficients.
+#' @param who The test, named in the message: `"performX()"` or a label.
+#' @param reason Optional character scalar saying why the test needs every
+#'   coefficient.
+#' @return Does not return; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_aliased <- function(aliased, who, reason = NULL) {
+  listed <- paste(utils::head(aliased, 5L), collapse = ", ")
+  if (length(aliased) > 5L) {
+    listed <- sprintf("%s and %d more", listed, length(aliased) - 5L)
+  }
+  what <- if (length(aliased) == 1L) {
+    sprintf(
+      paste(
+        "the coefficient of %s is aliased (NA): its column of the design is a",
+        "linear combination of the others."
+      ),
+      listed
+    )
+  } else {
+    sprintf(
+      paste(
+        "the coefficients of %s are aliased (NA): their columns of the design are",
+        "linear combinations of the others."
+      ),
+      listed
+    )
+  }
   stop(
     sprintf(
-      "Model coefficients must be finite before running %s. Check for NA or infinite estimates.",
-      test_label
+      "%s cannot use a rank-deficient model: %s%s Refit the model without the aliased columns.",
+      who, what, if (is.null(reason)) "" else paste0(" ", reason)
     ),
     call. = FALSE
   )

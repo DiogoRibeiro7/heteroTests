@@ -9,9 +9,14 @@ NULL
 
 # Internal helper --------------------------------------------------------------
 
+# `allow_aliased = TRUE` for a test computed on the estimable part of the
+# design, which accepts a rank-deficient fit (see rnon_aliased_columns()).
 prepare_model_data_for_test <- function(model, data, required_vars, test_label,
-                                        min_obs_model = 10L, min_obs_data = 10L) {
-  rvalidateModelInputs(model, test_name = test_label, min_obs = min_obs_model)
+                                        min_obs_model = 10L, min_obs_data = 10L,
+                                        allow_aliased = FALSE) {
+  rvalidateModelInputs(
+    model, test_name = test_label, min_obs = min_obs_model, allow_aliased = allow_aliased
+  )
   rvalidateDataInputs(data, required_vars = required_vars, min_obs = min_obs_data)
 
   cleaned <- rhandleMissingValues(data, variables = required_vars)
@@ -125,6 +130,16 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' Oxford University Press. Section 7.5 derives the test as \eqn{n R^2} from
 #' the regression of the squared residuals on the variance regressors.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -166,7 +181,8 @@ performStudentizedBPTest <- function(model, data = NULL) {
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data
@@ -188,8 +204,9 @@ performStudentizedBPTest <- function(model, data = NULL) {
   # model.matrix(model), not model.matrix(model, data = model_frame): the
   # latter re-evaluates the model call against the model frame, where a weights
   # column is stored as "(weights)" and the name used in the call is gone, so
-  # every weighted fit failed with "object not found".
-  design_matrix <- stats::model.matrix(model)
+  # every weighted fit failed with "object not found". Without the columns a
+  # rank-deficient fit aliased (rnon_aliased_columns()).
+  design_matrix <- rnon_aliased_columns(stats::model.matrix(model), model)
 
   if (ncol(design_matrix) < 2L) {
     stop(
@@ -399,6 +416,16 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' tests. *Journal of Econometrics, 133*(2), 421–441.
 #' \doi{10.1016/j.jeconom.2005.02.002}
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' # The bootstrap needs at least 50 observations, so mtcars (32) is too small.
 #' set.seed(42)
@@ -440,7 +467,8 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
 
   # Under the row names of the fit, so that performWhiteTest() below matches
@@ -675,6 +703,16 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
 #' University Press. Section 5.4 outlines the Szroeter test.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -716,7 +754,8 @@ performSzroeterTest <- function(model, data = NULL, order_by,
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data

@@ -4,7 +4,7 @@
 \alias{rvalidateModelInputs}
 \title{Validate regression model inputs}
 \usage{
-rvalidateModelInputs(model, test_name, min_obs = 10)
+rvalidateModelInputs(model, test_name, min_obs = 10, allow_aliased = FALSE)
 }
 \arguments{
 \item{model}{A fitted model object produced by \code{\link[stats:lm]{stats::lm()}} or
@@ -15,6 +15,12 @@ reference the calling test.}
 
 \item{min_obs}{Minimum number of observations required for the calling
 procedure. Defaults to \code{10}.}
+
+\item{allow_aliased}{Logical. \code{FALSE}, the default, refuses a rank-deficient
+fit, whose aliased coefficients are \code{NA}, with a message that names them;
+\code{TRUE} accepts it, for a procedure computed on the estimable part of the
+design. A coefficient that is not finite for another reason is refused
+either way.}
 }
 \value{
 Invisibly returns \code{model} when validation passes.

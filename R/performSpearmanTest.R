@@ -47,7 +47,7 @@
 performSpearmanTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performSpearmanTest")
   rcheck_data_argument(data, "performSpearmanTest", model, "Spearman rank")
-  rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L)
+  rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L, allow_aliased = TRUE)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("spearman", model = model, data = model_data)

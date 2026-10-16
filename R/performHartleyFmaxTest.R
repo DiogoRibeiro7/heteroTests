@@ -68,7 +68,7 @@ performHartleyFmaxTest <- function(model, data = NULL, group) {
     stop("`group` must be supplied as a single column name.", call. = FALSE)
   }
 
-  rvalidateModelInputs(model, test_name = "Hartley Fmax", min_obs = 10L)
+  rvalidateModelInputs(model, test_name = "Hartley Fmax", min_obs = 10L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), group))
@@ -79,7 +79,8 @@ performHartleyFmaxTest <- function(model, data = NULL, group) {
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 10L,
-    min_obs_data = 10L
+    min_obs_data = 10L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data

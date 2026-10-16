@@ -64,7 +64,7 @@ performOBrienTest <- function(model, data = NULL, group) {
     stop("`group` must be supplied as a single column name.", call. = FALSE)
   }
 
-  rvalidateModelInputs(model, test_name = "O'Brien", min_obs = 6L)
+  rvalidateModelInputs(model, test_name = "O'Brien", min_obs = 6L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), group))

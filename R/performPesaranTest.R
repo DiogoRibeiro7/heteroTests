@@ -76,7 +76,7 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   if (!all(c(id, time) %in% names(data))) {
     stop("`id` and `time` must be columns in `data`.")
   }
-  rrefuse_nonfinite_coefficients(model, "Pesaran CD test")
+  rrefuse_nonfinite_coefficients(model, "Pesaran CD test", allow_aliased = TRUE)
   # The rows of `data` are read in the order of the residuals, so data that
   # lack rows of the fit or a variable of the model are refused, as by the
   # tests that read `data`. Before 0.15.0 they returned a value: data.frame()

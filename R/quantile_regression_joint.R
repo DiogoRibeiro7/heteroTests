@@ -43,6 +43,17 @@
 #'
 #' Koenker, R. (2005). *Quantile Regression*. Cambridge University Press.
 #'
+#' @section Supported models:
+#' It accepts an unweighted `lm` and an unweighted `glm` with the Gaussian family
+#' and the identity link and, since 0.16.0, a rank-deficient one: `quantreg::rq()`
+#' refuses a singular design, so the quantile regressions are fitted to the columns
+#' that were not aliased, which gives the value of the same model fitted without
+#' them. It refuses a weighted fit, a `fitWLS()` fit among them, as it refits the
+#' model without the weights, a `glm` of another family or link, a
+#' `survey::svyglm()` fit, a coefficient that is not finite for another reason, and
+#' `data` that lack rows or variables of the fit. Which model each test accepts,
+#' and why, is set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' if (requireNamespace("quantreg", quietly = TRUE)) {
 #'   # The test needs at least 40 observations, so mtcars (32) is too small.
@@ -82,7 +93,8 @@ performQuantileRegressionTest <- function(model, data = NULL,
     required_vars = required_vars,
     test_label = "Quantile regression",
     min_obs_model = 30L,
-    min_obs_data = 30L
+    min_obs_data = 30L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
 
@@ -94,7 +106,11 @@ performQuantileRegressionTest <- function(model, data = NULL,
   rprocessValidationResult(requirements)
 
   formula <- stats::formula(model)
-  rq_fit <- quantreg::rq(formula, tau = taus, data = working_data)
+  rq_fit <- if (length(raliased_coefficients(model)) == 0L) {
+    quantreg::rq(formula, tau = taus, data = working_data)
+  } else {
+    rrq_estimable(model, working_data, taus)
+  }
   if (!inherits(rq_fit, "rqs")) {
     stop("Joint quantile regression fit did not return an 'rqs' object.", call. = FALSE)
   }
@@ -140,4 +156,31 @@ performQuantileRegressionTest <- function(model, data = NULL,
     ),
     class = "htest"
   )
+}
+
+#' Quantile regressions of a rank-deficient fit on its estimable design
+#'
+#' `quantreg::rq()` refuses a singular design ("Singular design matrix"). The
+#' joint test of equal slopes is then the test of the same model fitted
+#' without the columns the least-squares fit aliased, which span the same
+#' space: the quantile regressions are fitted on the remaining columns, so
+#' the statistic is that of the model refitted without them, and the slopes
+#' reported are those of the remaining columns, under their names.
+#'
+#' @param model The rank-deficient `lm` or Gaussian `glm`.
+#' @param working_data The rows of `data` that hold the observations of the
+#'   fit, in the order of the fit.
+#' @param taus The quantiles.
+#' @return The `rqs` fit.
+#' @keywords internal
+#' @noRd
+rrq_estimable <- function(model, working_data, taus) {
+  X <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  intercept <- colnames(X) == "(Intercept)"
+  estimable <- data.frame(.response = stats::model.response(stats::model.frame(model)))
+  estimable$.design <- X[, !intercept, drop = FALSE]
+  fit_formula <- if (any(intercept)) .response ~ .design else .response ~ .design - 1
+  fit <- quantreg::rq(fit_formula, tau = taus, data = estimable)
+  rownames(fit$coefficients) <- sub("^\\.design", "", rownames(fit$coefficients))
+  fit
 }

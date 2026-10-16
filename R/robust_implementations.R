@@ -16,7 +16,7 @@ NULL
       return(df)
     }
   }
-  max(1, length(stats::coef(model)) - 1L)
+  max(1, sum(!is.na(stats::coef(model))) - 1L)
 }
 
 .asymptotic_ci <- function(df, level) {
@@ -71,6 +71,16 @@ NULL
 #' Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*.
 #' Chapman & Hall.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -114,7 +124,8 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
     required_vars = required_vars,
     test_label = "White (robust)",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
 
@@ -215,6 +226,16 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 #' *Journal of Econometrics, 17*(1), 107–112.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -274,7 +295,8 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
     required_vars = required_vars,
     test_label = "Breusch-Pagan (robust)",
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
 
@@ -370,7 +392,9 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
 runAdvancedDiagnostics <- function(model, data, tests = "all",
                                    auto_enhance = TRUE, bootstrap_B = 999,
                                    parallel = FALSE, ci_level = 0.95) {
-  rvalidateModelInputs(model, test_name = "Advanced diagnostics", min_obs = 10L)
+  rvalidateModelInputs(
+    model, test_name = "Advanced diagnostics", min_obs = 10L, allow_aliased = TRUE
+  )
   rvalidateDataInputs(data, min_obs = 10L)
 
   if (!is.logical(auto_enhance) || length(auto_enhance) != 1L || is.na(auto_enhance)) {
@@ -491,7 +515,9 @@ rvalidate_against_reference <- function(test_name, model, data, tolerance = 1e-6
     stop("`test_name` must be a single character string.", call. = FALSE)
   }
 
-  rvalidateModelInputs(model, test_name = "Reference validation", min_obs = 5L)
+  rvalidateModelInputs(
+    model, test_name = "Reference validation", min_obs = 5L, allow_aliased = TRUE
+  )
   rvalidateDataInputs(data, min_obs = 5L)
 
   key <- gsub("[^a-z]", "_", tolower(test_name))

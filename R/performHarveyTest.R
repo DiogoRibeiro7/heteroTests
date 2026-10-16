@@ -117,7 +117,7 @@ performHarveyTest <- function(model, data = NULL,
     stop("`studentize` must be a single logical value.", call. = FALSE)
   }
 
-  rvalidateModelInputs(model, test_name = "Harvey", min_obs = 15L)
+  rvalidateModelInputs(model, test_name = "Harvey", min_obs = 15L, allow_aliased = TRUE)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("harvey", model = model, data = model_data)
@@ -135,7 +135,7 @@ performHarveyTest <- function(model, data = NULL,
     }
     Z <- cbind(yhat = yhat, yhat_sq = yhat^2)
   } else {
-    X <- stats::model.matrix(model)
+    X <- rnon_aliased_columns(stats::model.matrix(model), model)
     Z <- X[, colnames(X) != "(Intercept)", drop = FALSE]
     if (ncol(Z) == 0L) {
       .std_error(

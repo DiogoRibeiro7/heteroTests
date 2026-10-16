@@ -89,7 +89,7 @@ performKoenkerTest <- function(model, data = NULL) {
   data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker studentized Breusch-Pagan test"
 
-  rvalidateModelInputs(model, test_name = "Koenker", min_obs = 15L)
+  rvalidateModelInputs(model, test_name = "Koenker", min_obs = 15L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))
@@ -100,7 +100,8 @@ performKoenkerTest <- function(model, data = NULL) {
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data
@@ -133,7 +134,9 @@ performKoenkerTest <- function(model, data = NULL) {
 
   ht_log("INFO", "Running Koenker test")
 
-  X_full <- stats::model.matrix(model, data = working_data)
+  # The design without the columns a rank-deficient fit aliased, so that the
+  # degrees of freedom are those of the estimable part of the design.
+  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
   if (nrow(X_full) != length(residuals)) {
     stop(
       sprintf(

@@ -43,7 +43,7 @@ performSpreadLevelTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performSpreadLevelTest")
   rcheck_data_argument(data, "performSpreadLevelTest", model, "Spread-level")
   checkModel(model)
-  rrefuse_nonfinite_coefficients(model, "Spread-level test")
+  rrefuse_nonfinite_coefficients(model, "Spread-level test", allow_aliased = TRUE)
 
   abs_res <- abs(rpearson_residuals(model))
   abs_res <- pmax(abs_res, .Machine$double.eps)

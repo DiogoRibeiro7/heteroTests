@@ -36,7 +36,7 @@ rcalculateEffectSize <- function(test_result, model, data,
 
 .calculate_effect_size <- function(test_result, model, data,
                                    type = c("cramers_v", "phi", "eta_squared")) {
-  rvalidateModelInputs(model, test_name = "Effect size", min_obs = 5L)
+  rvalidateModelInputs(model, test_name = "Effect size", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
   type <- match.arg(type)
@@ -55,7 +55,7 @@ rcalculateEffectSize <- function(test_result, model, data,
     df <- suppressWarnings(as.numeric(test_result$parameter[[1L]]))
   }
   if (is.na(df) || df <= 0) {
-    df <- max(1, length(stats::coef(model)) - 1L)
+    df <- max(1, sum(!is.na(stats::coef(model))) - 1L)
   }
 
   n <- nrow(data)

@@ -196,6 +196,14 @@ bootstrapTestStatistic <- function(test_function, model, data, B = 999,
 #' `rbootstrap_test_statistic()` is deprecated since 0.14.0: use
 #' `bootstrapTestStatistic()`, the same function under the package's naming
 #' scheme. The old name still works, returns what it returned and warns.
+#' @section Supported models:
+#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
+#' since 0.16.0, a rank-deficient `lm`; a replicate whose refit aliases a
+#' coefficient the fit estimated, as a pairs resample of an interaction can, fails.
+#' It refuses every `glm`, as each replicate is refitted by least squares, a fit
+#' with a zero weight, and `data` that do not reproduce the fit. Which model each
+#' test accepts, and why, is set out in [test_results], under *Supported models*.
+#'
 #' @export
 rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,
@@ -236,7 +244,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 
   resample <- match.arg(resample)
 
-  rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L)
+  rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
@@ -464,6 +472,12 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     refit_weights <- variance_record$initial_weights[row_index]
   }
 
+  coefs <- stats::coef(model)
+  estimated_coefficients <- names(coefs)[!is.na(coefs)]
+  # A local copy travels with compute_bootstrap() to the workers of a socket
+  # cluster, which load the installed package.
+  aliases_estimated <- rrefit_aliases_estimated
+
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
     boot_offset <- offset_argument
@@ -505,6 +519,15 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       )
     }
     if (is.null(boot_model)) {
+      return(NA_real_)
+    }
+    # A replicate whose refit aliases a coefficient the fit estimated, as a
+    # pairs resample can that leaves a cell of an interaction empty, has lost
+    # a column of the design and is not a replicate of the model: it fails.
+    # Before 0.16.0 every test of the package refused such a refit, so the
+    # replicate failed then too; since then the tests accept a rank-deficient
+    # fit, computed on the estimable part of its design.
+    if (aliases_estimated(boot_model, estimated_coefficients)) {
       return(NA_real_)
     }
     boot_result <- tryCatch(
@@ -707,7 +730,7 @@ restimate_test_power <- function(test_result, model, data, alpha = 0.05,
     .call <- match.call()
     .call[[1L]] <- as.name("restimate_test_power")
   }
-  rvalidateModelInputs(model, test_name = "Power analysis", min_obs = 5L)
+  rvalidateModelInputs(model, test_name = "Power analysis", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
   if (!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha) ||
@@ -736,7 +759,7 @@ restimate_test_power <- function(test_result, model, data, alpha = 0.05,
     df <- suppressWarnings(as.numeric(test_result$parameter[[1L]]))
   }
   if (is.na(df) || df <= 0) {
-    df <- max(1, length(stats::coef(model)) - 1L)
+    df <- max(1, sum(!is.na(stats::coef(model))) - 1L)
   }
 
   n <- nrow(data)

@@ -84,8 +84,15 @@ TestFactory <- R6::R6Class(
         stop("Unknown test: ", test_name)
       }
       meta <- private$.metadata[[test_name]]
-      .validate_test_inputs(model, data, test_name, meta$min_observations)
-      result <- private$.tests[[test_name]](model, data, ...)
+      test <- private$.tests[[test_name]]
+      # A rank-deficient fit is left to a test of the package, which accepts
+      # it, computed on the estimable part of the design, or refuses it with
+      # its own message; it is refused here for any other function.
+      .validate_test_inputs(
+        model, data, test_name, meta$min_observations,
+        allow_aliased = rfactory_test_validates(test)
+      )
+      result <- test(model, data, ...)
       if (inherits(result, "htest")) {
         result$test_metadata <- meta
       }
@@ -108,34 +115,48 @@ NULL
 
 test_factory <- TestFactory$new()
 
-# Register core and validated tests
-.test_factory_register_defaults <- function() {
-  test_factory$register("white", performWhiteTest)
-  test_factory$register("breusch_pagan", performBPTest)
-  test_factory$register("koenker", performKoenkerTest)
+# The tests the package registers, by name. Each validates the model it is
+# given itself, and accepts a rank-deficient fit, computed on the estimable
+# part of its design, or refuses it with its own message, so run_test() leaves
+# such a fit to them (rfactory_test_validates()). A function a user registers
+# is not one of them, and the checks run_test() makes first still refuse such
+# a fit for it, as before 0.16.0.
+.ht_factory_tests <- list(
+  white = performWhiteTest,
+  breusch_pagan = performBPTest,
+  koenker = performKoenkerTest,
   # The implementation behind performStudentizedBPTest(), after the refusal
   # of a glm that is not a least-squares fit that the function makes, since
   # 0.15.0; it returned a value for such a fit before.
-  test_factory$register("student_bp", function(model, data, ...) {
+  student_bp = function(model, data, ...) {
     rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
     .studentized_bp_test(model, data, ...)
-  })
-  test_factory$register("white_bootstrap", performWhiteTestBootstrap)
-  test_factory$register("szroeter", performSzroeterTest)
-  test_factory$register("wild_bootstrap", performWildBootstrapTest)
-  test_factory$register("quantile_regression", performQuantileRegressionTest)
-  test_factory$register("rank_permutation", performRankPermutationTest)
-  test_factory$register("high_dimensional", performHighDimensionalTest)
-  test_factory$register(
-    "spatial_hetero",
-    function(model, data) {
-      listw <- attr(data, "listw")
-      if (is.null(listw)) {
-        stop("Spatial test requires `listw` attribute on data.", call. = FALSE)
-      }
-      performSpatialHeteroTest(model, data, listw = listw)
+  },
+  white_bootstrap = performWhiteTestBootstrap,
+  szroeter = performSzroeterTest,
+  wild_bootstrap = performWildBootstrapTest,
+  quantile_regression = performQuantileRegressionTest,
+  rank_permutation = performRankPermutationTest,
+  high_dimensional = performHighDimensionalTest,
+  spatial_hetero = function(model, data) {
+    listw <- attr(data, "listw")
+    if (is.null(listw)) {
+      stop("Spatial test requires `listw` attribute on data.", call. = FALSE)
     }
-  )
+    performSpatialHeteroTest(model, data, listw = listw)
+  }
+)
+
+# Is `fun` one of the tests the package registers?
+rfactory_test_validates <- function(fun) {
+  any(vapply(.ht_factory_tests, identical, logical(1), fun))
+}
+
+# Register core and validated tests
+.test_factory_register_defaults <- function() {
+  for (name in names(.ht_factory_tests)) {
+    test_factory$register(name, .ht_factory_tests[[name]])
+  }
 }
 
 .test_factory_register_defaults()

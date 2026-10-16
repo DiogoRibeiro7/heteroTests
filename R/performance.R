@@ -57,12 +57,14 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
   for (i in seq_along(chunks)) {
     idx <- chunks[[i]]
     chunk_data <- data[idx, , drop = FALSE]
-    mm_chunk <- stats::model.matrix(
+    # Without the columns a rank-deficient fit aliased, as the exact tests
+    # build their design (rnon_aliased_columns()).
+    mm_chunk <- rnon_aliased_columns(stats::model.matrix(
       terms_obj,
       data = chunk_data,
       contrasts.arg = contrasts,
       xlev = xlevels
-    )
+    ), model)
 
     predictors <- predictor_builder(mm_chunk, chunk_data, residuals[idx])
     predictors <- as.matrix(predictors)
@@ -253,6 +255,17 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
 #' and a direct test for heteroscedasticity. *Econometrica, 48*(4), 817–838.
 #'
+#' @section Supported models:
+#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
+#' since 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+#' design: it gives the value of the same model fitted without the aliased columns.
+#' It refuses every `glm`, a `survey::svyglm()` fit, a fit with a zero weight, a
+#' coefficient that is not finite for another reason, and `data` that lack rows or
+#' variables of the fit. It stops when terms of its auxiliary regression are
+#' collinear, as the squares of dummy variables are, which [performWhiteTest()]
+#' drops. Which model each test accepts, and why, is set out in [test_results],
+#' under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' performWhiteTestStreaming(lm(mpg ~ wt + qsec, data = mtcars), mtcars, chunk_size = 16)
@@ -280,7 +293,8 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     required_vars = required_vars,
     test_label = "White test",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data
@@ -366,7 +380,8 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data
@@ -463,7 +478,8 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 15L,
-    min_obs_data = 15L
+    min_obs_data = 15L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data
