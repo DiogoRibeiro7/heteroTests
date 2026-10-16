@@ -86,20 +86,31 @@ rdata_or_model_frame <- function(model, data) {
 #' `offset(o)` through the `predvars` of the terms, and the `(weights)` and
 #' `(offset)` columns from the `weights` and `offset` expressions of the call.
 #' It is computed on all the rows of `data`, as `model.frame()` computed it
-#' before dropping rows, and the matched rows are then taken; a term that
-#' depends on the rows it is computed on, such as `I(x - mean(x))`, is also
-#' tried on the matched rows alone, for data that hold more rows than the fit,
-#' and passes when it equals the fit's column up to an increasing affine map,
-#' for data that hold only the rows the fit kept.
-#' A column whose expression names a variable that `data` does not hold, or
-#' whose computation fails, is not compared, and nothing is looked up outside
-#' `data`.
+#' before dropping rows, and, if that differs, on the matched rows alone.
+#'
+#' Some columns cannot be compared:
+#' * a term that depends on the rows it is computed from, such as
+#'   `I(x - mean(x))`, `I(x > median(x))` or `rank(x)`, differs on the rows a
+#'   fit with `subset =` or `na.omit` kept even when they are the right ones.
+#'   When such a column differs, it is computed again on half the rows; if
+#'   that changes its values, it is not compared. `log()`, and `poly()`,
+#'   `ns()` or `scale()` through their `predvars`, do not depend on the rows
+#'   and are always compared;
+#' * a column whose expression names a variable `data` does not hold, or whose
+#'   computation fails (a function that is no longer found).
+#'
+#' When a column is not compared, the columns that are must tell the rows of
+#' the fit apart on their own: if two rows of the fit tie on all of them but
+#' differ in a column that was not compared, the data are refused, with the
+#' columns that could not be compared named. When
+#' every column is compared, two rows that tie on all of them have the same
+#' design row, weight, offset and residual, and exchanging them changes no
+#' statistic computed from the model.
 #'
 #' A model fitted with `model = FALSE` has no model frame of its own, and
 #' `model.frame()` rebuilds one from the data the fit refers to; if those data
-#' changed after the fit, the rebuilt frame no longer holds the fit's response
-#' and the comparison above would compare `data` with itself. Such a frame is
-#' refused first (rcheck_model_frame()).
+#' changed after the fit, the comparison above would compare `data` with
+#' itself. Such a frame is refused first (rcheck_model_frame()).
 #'
 #' Data that lack a row of the fit, or a variable of the model, are left to
 #' the calling test, which refuses them with its own message. Repeated row
@@ -146,48 +157,100 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
   if (anyNA(rows)) {
     return(invisible(NULL))
   }
-  differ <- rdata_rows_differ(model, frame, data, rows)
-  if (length(differ) > 0L) {
-    rstop_data_rows_unmatched(fn, if (numbered) "numbered" else "named", differ)
+  checked <- rdata_rows_checked(model, frame, data, rows)
+  if (length(checked$differ) > 0L) {
+    rstop_data_rows_unmatched(fn, if (numbered) "numbered" else "named", checked$differ)
+  }
+  if (length(checked$skipped) > 0L &&
+        rrows_tied(frame, checked$compared, names(checked$skipped))) {
+    rstop_data_rows_unmatched(
+      fn, "unconfirmed",
+      skipped = checked$skipped, compared = checked$compared
+    )
   }
   invisible(rows)
 }
 
 # Refuse a model frame that `model.frame()` rebuilt, for a fit without one of
-# its own (`model = FALSE`), from data that changed after the fit: its response
-# is no longer the response of the fit, `fitted + residuals` for an `lm` and
-# `y` for a `glm`, both on the rows of the fit, without the padding of
-# na.exclude. A frame the fit stored is its own and is not checked.
+# its own (`model = FALSE`), from data that changed after the fit. Its response
+# must be the response of the fit (`fitted + residuals` for an `lm`, `y` for a
+# `glm`), and its design, times the coefficients, plus its offset, the fitted
+# linear predictor, both on the rows of the fit, without the padding of
+# na.exclude, and with the coefficients of aliased terms left out. A frame the
+# fit stored is its own and is not checked.
 rcheck_model_frame <- function(model, frame, fn = NULL) {
   if (!is.null(model[["model"]]) || !inherits(model, "lm") || inherits(model, "svyglm")) {
     return(invisible(NULL))
   }
-  response <- tryCatch(stats::model.response(frame), error = function(e) NULL)
-  fitted_values <- model$fitted.values
-  stored <- if (inherits(model, "glm")) model$y else fitted_values + model$residuals
-  if (is.null(response) || is.null(stored) || !is.numeric(response) ||
-        NCOL(response) != NCOL(stored)) {
-    return(invisible(NULL))
-  }
-  response <- unname(as.matrix(response))
-  stored <- unname(as.matrix(stored))
-  same <- identical(dim(response), dim(stored)) && {
-    scale <- pmax(abs(response), abs(stored), abs(unname(as.matrix(fitted_values))),
-                  .Machine$double.xmin)
-    isTRUE(all(abs(response - stored) <= 1e-8 * scale))
-  }
-  if (!same) {
+  if (identical(rframe_holds_response(model, frame), FALSE) ||
+        identical(rframe_holds_fit(model, frame), FALSE)) {
     rstop_data_rows_unmatched(fn, "stale_frame")
   }
   invisible(NULL)
 }
 
-# The columns of the model frame that the rows `rows` of `data` do not
-# reproduce. A column `data` holds under its own name is compared as it is; a
-# term, or the `(weights)` and `(offset)` columns, is computed from `data`
-# (rdata_column_same()). A column that cannot be computed from `data` alone is
-# not compared.
-rdata_rows_differ <- function(model, frame, data, rows) {
+# TRUE when the response of `frame` is that of the fit, FALSE when it is not,
+# NA when it cannot be checked.
+rframe_holds_response <- function(model, frame) {
+  response <- tryCatch(stats::model.response(frame), error = function(e) NULL)
+  fitted_values <- model$fitted.values
+  stored <- if (inherits(model, "glm")) model$y else fitted_values + model$residuals
+  if (is.null(response) || is.null(stored) || !is.numeric(response) ||
+        NCOL(response) != NCOL(stored)) {
+    return(NA)
+  }
+  response <- unname(as.matrix(response))
+  stored <- unname(as.matrix(stored))
+  if (!identical(dim(response), dim(stored))) {
+    return(FALSE)
+  }
+  scale <- pmax(abs(response), abs(stored), abs(unname(as.matrix(fitted_values))),
+                .Machine$double.xmin)
+  isTRUE(all(abs(response - stored) <= 1e-8 * scale))
+}
+
+# TRUE when the design of `frame`, times the coefficients, plus its offset, is
+# the fitted linear predictor, FALSE when it is not, NA when it cannot be
+# checked.
+rframe_holds_fit <- function(model, frame) {
+  tryCatch(
+    {
+      coefs <- stats::coef(model)
+      fitted_linear <- if (inherits(model, "glm")) model$linear.predictors else model$fitted.values
+      if (is.null(coefs) || is.null(fitted_linear)) {
+        return(NA)
+      }
+      b <- as.matrix(coefs)
+      X <- stats::model.matrix(attr(frame, "terms"), frame, contrasts.arg = model$contrasts)
+      if (nrow(b) != ncol(X)) {
+        return(FALSE)
+      }
+      keep <- rowSums(is.na(b)) == 0L
+      X <- X[, keep, drop = FALSE]
+      b <- b[keep, , drop = FALSE]
+      offset <- stats::model.offset(frame)
+      if (is.null(offset)) {
+        offset <- 0
+      }
+      linear <- unname(X %*% b + offset)
+      target <- unname(as.matrix(fitted_linear))
+      if (!identical(dim(linear), dim(target))) {
+        return(FALSE)
+      }
+      scale <- abs(X) %*% abs(b) + abs(offset) + abs(target) + .Machine$double.xmin
+      isTRUE(all(abs(linear - target) <= 1e-8 * scale))
+    },
+    error = function(e) NA
+  )
+}
+
+# The columns of the model frame that the rows `rows` of `data` reproduce
+# (`compared`), those they do not (`differ`), and those that could not be
+# compared (`skipped`, named by column, the reason as the value). A column
+# `data` holds under its own name is compared as it is; a term, or the
+# `(weights)` and `(offset)` columns, is computed from `data`
+# (rdata_column_status()).
+rdata_rows_checked <- function(model, frame, data, rows) {
   model_terms <- attr(frame, "terms")
   variables <- as.list(attr(model_terms, "variables"))[-1L]
   predvars <- attr(model_terms, "predvars")
@@ -201,130 +264,170 @@ rdata_rows_differ <- function(model, frame, data, rows) {
     env <- baseenv()
   }
   columns <- names(frame)
-  differ <- character()
+  plain <- all.vars(model_terms)
+  expression_of <- function(j, column) {
+    if (j <= length(predvars)) {
+      predvars[[j]]
+    } else if (column %in% c("(weights)", "(offset)") && !is.null(call)) {
+      call[[if (column == "(weights)") "weights" else "offset"]]
+    }
+  }
+  out <- list(compared = character(), differ = character(), skipped = character())
   for (j in seq_along(columns)) {
     column <- columns[j]
     target <- frame[[j]]
-    same <- if (column %in% names(data)) {
-      rsame_rows(data[[column]], rows, target, recomputed = FALSE)
-    } else {
-      expr <- if (j <= length(predvars)) {
-        predvars[[j]]
-      } else if (identical(column, "(weights)") && !is.null(call)) {
-        call$weights
-      } else if (identical(column, "(offset)") && !is.null(call)) {
-        call$offset
+    expr <- expression_of(j, column)
+    status <- if (column %in% names(data)) {
+      same <- rsame_rows(data[[column]], rows, target, recomputed = FALSE)
+      computed <- NULL
+      if (!isTRUE(same) && !is.null(expr) && !column %in% plain) {
+        # A term `data` holds under its own name, as the model frame of
+        # another fit does (a bootstrap replicate refitted on one): computed
+        # from the variables of `data`, it can still be the column of this fit.
+        computed <- rdata_column_status(expr, data, rows, target, env)
       }
-      if (is.null(expr)) NA else rdata_column_same(expr, data, rows, target, env)
+      if (isTRUE(same)) {
+        "same"
+      } else if (!is.null(computed) && computed %in% c("same", "dependent")) {
+        computed
+      } else if (identical(same, FALSE)) {
+        "differ"
+      } else {
+        "failed"
+      }
+    } else if (j <= length(predvars) || column %in% c("(weights)", "(offset)")) {
+      if (is.null(expr)) "missing" else rdata_column_status(expr, data, rows, target, env)
+    } else {
+      # Another column the fit's call added, such as (etastart): not data.
+      "ignored"
     }
-    if (identical(same, FALSE)) {
-      differ <- c(differ, column)
+    if (identical(status, "same")) {
+      out$compared <- c(out$compared, column)
+    } else if (identical(status, "differ")) {
+      out$differ <- c(out$differ, column)
+    } else if (!identical(status, "ignored")) {
+      out$skipped[[column]] <- status
     }
   }
-  differ
+  out
 }
 
-# Does the expression `expr` of a model-frame column, computed from `data`,
-# give `target` on the rows `rows`? It is computed on all the rows of `data`,
-# as model.frame() computed it, and, if that differs, on the rows `rows` alone,
-# for a term that depends on the rows it is computed on and data with more rows
-# than the fit. NA when `data` does not hold every variable it names or the
-# computation fails.
-rdata_column_same <- function(expr, data, rows, target, env) {
+# Is the column computed by the expression `expr` from `data` the column
+# `target` of the model frame on the rows `rows`? "same", "differ", or why it
+# could not be compared: "missing" (it names a variable `data` does not
+# hold), "failed" (its computation fails), "dependent" (it depends on the rows
+# it is computed from, and differs).
+rdata_column_status <- function(expr, data, rows, target, env) {
   needed <- all.vars(expr)
   if (length(needed) == 0L || !all(needed %in% names(data))) {
-    return(NA)
+    return("missing")
   }
   columns <- lapply(stats::setNames(needed, needed), function(v) data[[v]])
-  computed <- function(cols, n) {
-    values <- tryCatch(
-      suppressWarnings(eval(expr, cols, env)),
-      error = function(e) NULL
-    )
+  computed <- function(index = NULL) {
+    cols <- if (is.null(index)) {
+      columns
+    } else {
+      lapply(columns, function(v) if (is.matrix(v)) v[index, , drop = FALSE] else v[index])
+    }
+    n <- if (is.null(index)) nrow(data) else length(index)
+    values <- tryCatch(suppressWarnings(eval(expr, cols, env)), error = function(e) NULL)
     if (is.null(values) || NROW(values) != n) NULL else values
   }
-  all_rows <- computed(columns, nrow(data))
-  same <- if (is.null(all_rows)) NA else rsame_rows(all_rows, rows, target, recomputed = TRUE)
-  if (isTRUE(same)) {
-    return(TRUE)
+  all_rows <- computed()
+  if (!is.null(all_rows) && isTRUE(rsame_rows(all_rows, rows, target, recomputed = TRUE))) {
+    return("same")
   }
   only_rows <- NULL
   if (!identical(rows, seq_len(nrow(data)))) {
-    only_rows <- computed(
-      lapply(columns, function(v) if (is.matrix(v)) v[rows, , drop = FALSE] else v[rows]),
-      length(rows)
-    )
-    if (!is.null(only_rows)) {
-      same <- rsame_rows(only_rows, seq_along(rows), target, recomputed = TRUE)
-      if (isTRUE(same)) {
-        return(TRUE)
-      }
+    only_rows <- computed(rows)
+    if (!is.null(only_rows) &&
+          isTRUE(rsame_rows(only_rows, seq_along(rows), target, recomputed = TRUE))) {
+      return("same")
     }
   }
-  # A term computed from the rows it is given, such as I(x - mean(x)), on data
-  # that hold other rows than those the fit computed it on (the fit dropped
-  # rows, or used a subset): the right rows give the fit's column up to an
-  # increasing affine map, which a permutation of distinct values cannot.
-  candidate <- if (!is.null(only_rows)) {
-    only_rows
-  } else if (!is.null(all_rows)) {
-    if (is.matrix(all_rows)) all_rows[rows, , drop = FALSE] else all_rows[rows]
+  if (is.null(all_rows) && is.null(only_rows)) {
+    return("failed")
   }
-  if (!is.null(candidate) && isTRUE(raffine_same(candidate, target))) {
-    return(TRUE)
-  }
-  same
+  # The column differs. A term that depends on the rows it is computed from
+  # differs on the rows a fit with subset = or na.omit kept even when they are
+  # the right ones: it is not compared. Any other term differs because the
+  # rows do.
+  base_index <- if (!is.null(all_rows)) seq_len(nrow(data)) else rows
+  base <- if (!is.null(all_rows)) all_rows else only_rows
+  if (rdepends_on_rows(computed, base, base_index)) "dependent" else "differ"
 }
 
-# Are the numbers `values` an increasing affine function of `target`, column
-# by column, to 1e-8 of their size? A constant column of `target` must be
-# matched by a constant one. NA when they are not numbers that can be
-# compared.
-raffine_same <- function(values, target, tolerance = 1e-8) {
-  labelled <- function(z) {
-    is.factor(z) || is.character(z) || inherits(z, c("POSIXt", "Date", "difftime"))
-  }
-  if (labelled(values) || labelled(target)) {
+# Does a column, `base` when computed on the rows `base_index` of `data`,
+# depend on the rows it is computed from? It is computed again on every other
+# row and on the first half of the rows; if either changes its values on those
+# rows, it does.
+rdepends_on_rows <- function(computed, base, base_index) {
+  n <- length(base_index)
+  if (n < 4L) {
     return(FALSE)
   }
-  tryCatch(
-    {
-      v <- unname(as.matrix(unclass(values)))
-      x <- unname(as.matrix(unclass(target)))
-      storage.mode(v) <- "double"
-      storage.mode(x) <- "double"
-      if (!identical(dim(v), dim(x)) || anyNA(v) || anyNA(x) ||
-            !all(is.finite(v)) || !all(is.finite(x))) {
-        return(FALSE)
-      }
-      for (j in seq_len(ncol(x))) {
-        xj <- x[, j] - mean(x[, j])
-        vj <- v[, j] - mean(v[, j])
-        scale <- max(abs(v[, j]), abs(x[, j]), .Machine$double.xmin)
-        sxx <- sum(xj^2)
-        if (sxx <= (tolerance * scale)^2) {
-          if (max(abs(vj)) > tolerance * scale) {
-            return(FALSE)
-          }
-          next
+  probes <- list(seq.int(1L, n, by = 2L), seq_len(ceiling(n / 2)))
+  for (positions in probes) {
+    again <- computed(base_index[positions])
+    if (is.null(again) || !isTRUE(rsame_rows(base, positions, again, recomputed = TRUE))) {
+      return(TRUE)
+    }
+  }
+  FALSE
+}
+
+# Can two rows of the fit pass for each other on the columns `compared` and
+# still be different observations? They can when they tie on every compared
+# column of the model frame and differ in one of the columns `skipped`, which
+# the data could not be checked on. Rows that tie on every column, as the
+# repeated rows of a pairs resample do, are the same observation and do not
+# count.
+rrows_tied <- function(frame, compared, skipped) {
+  n <- nrow(frame)
+  if (n < 2L) {
+    return(FALSE)
+  }
+  keys_of <- function(columns) {
+    keys <- list()
+    for (column in columns) {
+      v <- frame[[column]]
+      parts <- if (is.matrix(v)) lapply(seq_len(ncol(v)), function(j) v[, j]) else list(v)
+      for (p in parts) {
+        keys[[length(keys) + 1L]] <- if (is.factor(p)) {
+          as.integer(p)
+        } else if (is.character(p)) {
+          p
+        } else {
+          as.double(unclass(p))
         }
-        slope <- sum(xj * vj) / sxx
-        if (!(slope > 0) || max(abs(vj - slope * xj)) > tolerance * scale) {
-          return(FALSE)
-        }
       }
-      TRUE
-    },
-    error = function(e) NA
-  )
+    }
+    keys
+  }
+  compared_keys <- keys_of(compared)
+  skipped_keys <- keys_of(skipped)
+  sorted <- do.call(order, unname(c(compared_keys, skipped_keys)))
+  ties_on <- function(keys) {
+    tied <- rep(TRUE, n - 1L)
+    for (k in keys) {
+      ks <- k[sorted]
+      a <- ks[-1L]
+      b <- ks[-n]
+      same <- (a == b) | (is.na(a) & is.na(b))
+      same[is.na(same)] <- FALSE
+      tied <- tied & same
+    }
+    tied
+  }
+  any(ties_on(compared_keys) & !ties_on(skipped_keys))
 }
 
 # Do the rows `rows` of `values` equal `target`, a column of the model frame?
-# Factors and characters by their labels, dates and times exactly. Numbers
-# copied from `data` value by value, each to 1e-8 of its own size; numbers
-# computed again (`recomputed`), which can differ in their last bits (poly()
-# through its predvars), to 1e-8 of the largest value of the column. NA when
-# the two cannot be compared.
+# Factors and characters by their labels, dates and times exactly, and numbers
+# value by value, each to 1e-8 of its own size. Numbers computed again
+# (`recomputed`), which can differ in their last bits (poly() through its
+# predvars), may also differ by 1e-12 of the largest value of their column.
+# NA when the two cannot be compared.
 rsame_rows <- function(values, rows, target, recomputed = FALSE, tolerance = 1e-8) {
   tryCatch(
     {
@@ -355,6 +458,12 @@ rsame_rows <- function(values, rows, target, recomputed = FALSE, tolerance = 1e-
       if (!identical(is.na(a), is.na(b))) {
         return(FALSE)
       }
+      floor <- 0
+      if (recomputed && is.double(b)) {
+        column_max <- matrix(abs(b), nrow = NROW(target))
+        column_max[!is.finite(column_max)] <- 0
+        floor <- 1e-12 * rep(apply(column_max, 2L, max), each = NROW(target))
+      }
       keep <- !is.na(a)
       a <- a[keep]
       b <- b[keep]
@@ -365,14 +474,11 @@ rsame_rows <- function(values, rows, target, recomputed = FALSE, tolerance = 1e-
       if (is.character(a) || exact(values) || exact(target)) {
         return(FALSE)
       }
-      both_finite <- is.finite(a) & is.finite(b)
-      scale <- if (recomputed) {
-        finite <- abs(b[is.finite(b)])
-        if (length(finite) > 0L && max(finite) > 0) max(finite) else 1
-      } else {
-        pmax(abs(a), abs(b), .Machine$double.xmin)
+      if (length(floor) > 1L) {
+        floor <- floor[keep]
       }
-      all(same | (both_finite & abs(a - b) <= tolerance * scale))
+      bound <- tolerance * pmax(abs(a), abs(b), .Machine$double.xmin) + floor
+      all(same | (is.finite(a) & is.finite(b) & abs(a - b) <= bound))
     },
     error = function(e) NA
   )
@@ -412,13 +518,35 @@ rdata_with_fit_rows <- function(data, ids) {
 # The error of the checks above: what does not match, and what to pass
 # instead. `data = NULL` is not offered, as many tests need columns, weights or
 # offsets that the model frame does not hold under their own names.
-rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = NULL) {
+rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = NULL,
+                                      skipped = character(), compared = character()) {
   who <- if (!is.null(fn)) sprintf("%s()", fn) else if (!is.null(label)) label else "The test"
-  columns <- paste(utils::head(differ, 3L), collapse = ", ")
-  if (length(differ) > 3L) {
-    columns <- sprintf("%s and %d more", columns, length(differ) - 3L)
+  listed <- function(names) {
+    text <- paste(utils::head(names, 3L), collapse = ", ")
+    if (length(names) > 3L) {
+      text <- sprintf("%s and %d more", text, length(names) - 3L)
+    }
+    text
   }
+  columns <- listed(differ)
   verb <- if (length(differ) == 1L) "differs" else "differ"
+  why <- c(
+    dependent = "depends on the rows it is computed from",
+    missing = "names a variable `data` does not hold",
+    failed = "cannot be computed from `data`"
+  )
+  not_compared <- paste(
+    sprintf("%s %s", names(skipped), why[unname(skipped)]),
+    collapse = "; "
+  )
+  compared_text <- if (length(compared) > 0L) {
+    sprintf(
+      "the columns that can be (%s) tie on rows of the fit that differ in those",
+      listed(compared)
+    )
+  } else {
+    "no column can be compared"
+  }
   in_order <- paste(
     "Pass the rows of the fit in the order of the fit,",
     "or a data frame with its row names."
@@ -476,12 +604,25 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
       ),
       "Pass it as a data frame, `as.data.frame(data)`, whose row numbers survive the drop."
     ),
+    unconfirmed = c(
+      sprintf(
+        paste0(
+          "some columns of the model frame cannot be compared (%s), and %s, ",
+          "so the rows of `data` cannot be shown to be those of the fit."
+        ),
+        not_compared, compared_text
+      ),
+      paste(
+        "Pass the data the model was fitted on, with all its rows and the variables",
+        "the model names, in the order of the fit or with its row names."
+      )
+    ),
     stale_frame = c(
       paste0(
         "the model was fitted with `model = FALSE`, so its model frame is ",
         "rebuilt from the data it was fitted on, and the rebuilt frame no ",
-        "longer holds the response of the fit: those data changed after the ",
-        "fit, reordered or with other values."
+        "longer holds the response or the fitted values of the fit: those ",
+        "data changed after the fit, reordered or with other values."
       ),
       "Refit the model, or keep its model frame with `model = TRUE`, the default."
     )

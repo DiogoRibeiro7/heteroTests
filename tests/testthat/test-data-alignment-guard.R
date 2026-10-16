@@ -650,6 +650,136 @@ test_that("messages name the function called and say why", {
   )
 })
 
+test_that("a term that depends on the rows is not compared, the others decide", {
+  # na.omit and subset = computed these terms on all the rows of the data and
+  # then dropped some, so the rows the fit kept, which are the right rows,
+  # compute them otherwise. They are not compared; y, x and z, continuous,
+  # tell the rows apart, and the result is that on the full data.
+  local_silent_log()
+  set.seed(21)
+  n <- 120
+  d <- data.frame(x = runif(n, 1, 5), z = rnorm(n), g = factor(rep(1:4, length.out = n)))
+  d$y <- 1 + d$x + d$z + rnorm(n, sd = d$x)
+  d_na <- d
+  d_na$z[c(4, 9, 15)] <- NA
+  formulas <- list(
+    y ~ x + I((x - mean(x))^2) + z, y ~ x + I(x > median(x)) + z,
+    y ~ x + rank(x) + z, y ~ I(x - mean(x)) + z
+  )
+  tests <- list(
+    function(m, data) performKoenkerTest(m, data),
+    function(m, data) performWhiteTest(m, data),
+    function(m, data) performGlejserTest(m, data, "x"),
+    function(m, data) performBartlettTest(m, data, "g"),
+    function(m, data) performParkTest(m, data, "x")
+  )
+  for (f in formulas) {
+    m_na <- lm(f, data = d_na)
+    m_sub <- lm(f, data = d, subset = x > 2)
+    kept_sub <- d[rownames(stats::model.frame(m_sub)), ]
+    for (k in seq_along(tests)) {
+      info <- paste(deparse(f), k)
+      full <- suppressWarnings(tests[[k]](m_na, d_na))
+      expect_same_result(tests[[k]](m_na, d_na[stats::complete.cases(d_na), ]), full, info = info)
+      expect_same_result(tests[[k]](m_sub, kept_sub), tests[[k]](m_sub, d), info = info)
+    }
+  }
+  # The White bootstrap refits each replicate on the model frame, which holds
+  # such a term under its own name, computed on all the rows; the replicate
+  # computes it on the rows it keeps, and is checked from the variables.
+  m_quad <- lm(formulas[[1]], data = d_na)
+  set.seed(3)
+  expect_s3_class(suppressWarnings(performWhiteTestBootstrap(m_quad, B = 9)), "htest")
+})
+
+test_that("columns that cannot be compared must leave no ties that matter", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  # T1: four earlier rows in front, a 0/1 response of period 4, scale(t). The
+  # response matches by position; scale(t) is computed through its predvars
+  # and compared exactly, so the shift is seen.
+  t1 <- data.frame(t = 1:120, g = factor(rep(1:3, 40)))
+  t1$y01 <- rep(c(0, 0, 1, 1), 30)
+  m_t1 <- lm(y01 ~ scale(t), data = t1)
+  front <- rbind(t1[1:4, ], t1)
+  rownames(front) <- NULL
+  expect_s3_class(suppressWarnings(performBartlettTest(m_t1, t1, "g")), "htest")
+  expect_error(performBartlettTest(m_t1, front, "g"), "scale(t) differs", fixed = TRUE)
+  # T1b: every column depends on the rows, so none can be compared.
+  t1b <- data.frame(t = 1:120, g = factor(rep(1:3, 40)))
+  t1b$y <- t1b$t + rep(c(0, 1, 0, -1), 30) * 3
+  m_t1b <- lm(I(y - mean(y)) ~ I(t - mean(t)), data = t1b)
+  front_b <- rbind(t1b[1:4, ], t1b)
+  rownames(front_b) <- NULL
+  expect_s3_class(suppressWarnings(performBartlettTest(m_t1b, t1b, "g")), "htest")
+  expect_error(
+    performBartlettTest(m_t1b, front_b, "g"),
+    "depends on the rows it is computed from", fixed = TRUE
+  )
+  expect_error(performBartlettTest(m_t1b, front_b, "g"), "no column can be compared", fixed = TRUE)
+  # T5: a function of the formula that is no longer found, and a 0/1 response
+  # that cannot tell the rows apart on its own: refused, also in the order of
+  # the fit, which cannot be confirmed.
+  set.seed(5)
+  lp <- data.frame(x = runif(120, 1, 5))
+  lp$y01 <- rbinom(120, 1, stats::plogis(-2 + 0.7 * lp$x))
+  lp <- lp[order(lp$y01), ]
+  rownames(lp) <- NULL
+  helper <- function(v) v^2 + v
+  m_t5 <- lm(y01 ~ helper(x), data = lp)
+  rm(helper)
+  within <- dplyr::arrange(lp, y01, x)
+  expect_error(
+    performGlejserTest(m_t5, within, "x"),
+    "helper(x) cannot be computed from `data`", fixed = TRUE
+  )
+  expect_error(performGlejserTest(m_t5, lp, "x"), class = "heteroTests_data_rows_error")
+  # T7: computed columns are compared value by value too, so one large x no
+  # longer loosens I(x^2), and two rows tied on round(y) cannot be swapped.
+  d <- guard_data()
+  names(d)[names(d) == "x1"] <- "x"
+  d$x[1] <- 1e4
+  m_t7 <- lm(I(round(y)) ~ I(x^2), data = d)
+  ry <- round(d$y)
+  pair <- which(ry == ry[2] & seq_along(ry) > 2)[1]
+  swapped <- d
+  swapped[c(2, pair), ] <- swapped[c(pair, 2), ]
+  rownames(swapped) <- NULL
+  expect_s3_class(suppressWarnings(performKoenkerTest(m_t7, d)), "htest")
+  expect_error(performKoenkerTest(m_t7, swapped), "I(x^2) differs", fixed = TRUE)
+})
+
+test_that("a model = FALSE fit is checked through its fitted values too", {
+  skip_if_not_installed("dplyr")
+  local_silent_log()
+  set.seed(5)
+  lp <- data.frame(x = runif(120, 1, 5))
+  lp$y01 <- rbinom(120, 1, stats::plogis(-2 + 0.7 * lp$x))
+  lp <- lp[order(lp$y01), ]
+  rownames(lp) <- NULL
+  # T3: a linear probability model; the data are sorted again after the fit
+  # within the ties of the response, which keeps the response where it was.
+  dd <- lp
+  m <- lm(y01 ~ x, data = dd, model = FALSE)
+  expected <- performKoenkerTest(m)
+  dd <- dplyr::arrange(dd, y01, x)
+  expect_identical(dd$y01, lp$y01)
+  expect_error(performKoenkerTest(m), "cannot use the model frame of `model`", fixed = TRUE)
+  expect_error(performKoenkerTest(m, dd), "cannot use the model frame of `model`", fixed = TRUE)
+  # T4: x shuffled after the fit.
+  dd <- lp
+  set.seed(6)
+  dd$x <- sample(dd$x)
+  expect_error(performKoenkerTest(m), "cannot use the model frame of `model`", fixed = TRUE)
+  dd <- lp
+  expect_same_result(performKoenkerTest(m), expected, info = "restored")
+  # A rank-deficient fit leaves its aliased coefficient out of the check.
+  dd$x2 <- 2 * dd$x
+  m_aliased <- lm(y01 ~ x + x2, data = dd, model = FALSE)
+  expect_true(anyNA(stats::coef(m_aliased)))
+  expect_null(rcheck_model_frame(m_aliased, stats::model.frame(m_aliased)))
+})
+
 test_that("a fitWLS() fit is matched like the fit it reweights", {
   skip_if_not_installed("dplyr")
   d <- guard_data()
