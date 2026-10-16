@@ -87,3 +87,19 @@ test_that("recommendation engine returns structured guidance", {
   expect_true(is.list(recommendations$interpretations))
   expect_true(is.list(recommendations$remediation))
 })
+
+test_that("a small sample is not told to rely on the wild bootstrap", {
+  # In inst/validation/wild-multiplier-size.R the wild bootstrap rejects a true
+  # null hypothesis 5.9% to 8.2% of the time at the 5% level with skewed errors
+  # at 30 to 100 observations, with either multiplier. Before 0.15.0 the
+  # warning for a small sample told the user to rely on it.
+  profile <- list(size_bucket = "small", missingness = list(overall_rate = 0))
+  interpretations <- list(results = data.frame(decision = character(), method = character()))
+  warnings <- warnDiagnosticAssumptions(profile, interpretations, NULL, NULL, list(toy = 1))
+  small <- grep("^Sample size is limited", warnings, value = TRUE)
+  expect_length(small, 1L)
+  expect_false(grepl("rely on", small))
+  expect_match(
+    small, "with skewed errors the wild bootstrap does not hold its level", fixed = TRUE
+  )
+})
