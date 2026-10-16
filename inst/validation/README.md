@@ -493,8 +493,9 @@ before the package could estimate them again, by a prototype: for the wild
 and the White bootstrap the script repeated their resampling with that one
 change, after checking that without it the repetition reproduced the
 package's replicates, and `rbootstrap_test_statistic()` was given a test
-function that calls `fitWLS()`. Their design text in the CSV is still the one
-they were recorded with. The script now calls the package for them, and the
+function that calls `fitWLS()`. In 0.15.0 their design text in the CSV, which
+said "not in the package", was changed to the text the script writes now, and
+nothing else in them. The script now calls the package for them, and the
 rows were not run again: on 200 of the 2000 samples of each, the package gives
 the p-values, the replicates and the random draws of the prototype (the
 table after this block). The wild bootstrap, the cheapest, also runs at 600
@@ -622,7 +623,7 @@ On all 800 samples checked, 200 in each of the 4 cells, the package returns the 
 
 A relative difference of 0 means the replicates are equal to the last bit:
 the package runs the same computations as the prototype, in the same order.
-The four rows of the CSV are therefore kept as they are. That a run of
+The numbers of the four rows of the CSV are therefore kept as they are. That a run of
 `weighted-fits-size.R` would write them again rests on these 800 samples,
 not on a run of all 8000.
 

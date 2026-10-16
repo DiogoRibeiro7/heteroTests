@@ -50,15 +50,15 @@
 # again when the script was changed to call the package. On 200 of the 2000
 # samples of each of the four, the package gives the p-values and the
 # replicates of the repetition: weighted-fits-refit-reproduction.R, which
-# reads the repetition from this file. The design text of the four rows is
-# the text they were recorded with, so that a run of this script writes the
-# CSV it wrote. check_repetition() asserts, on one sample, that the
-# repetition reproduces the package with the weights held fixed and with them
-# estimated again. The power rows run at N_MC replications: the weights 1 / x where
-# the standard deviation is x^2, which leave the weighted fit
-# heteroscedastic. The last rows fit the design of block 2 with the weights
-# of its true variance function, so that the rows with estimated weights have
-# a comparison in the same design.
+# reads the repetition from this file. Their numbers are those of 0.12.0, and
+# their design text, which said "not in the package" there, was changed in
+# 0.15.0 to the text this script writes. check_repetition() asserts, on one
+# sample, that the repetition reproduces the package with the weights held
+# fixed and with them estimated again. The power rows run at N_MC
+# replications: the weights 1 / x where the standard deviation is x^2, which
+# leave the weighted fit heteroscedastic. The last rows fit the design of
+# block 2 with the weights of its true variance function, so that the rows
+# with estimated weights have a comparison in the same design.
 #
 # Block 4 is run by scenario, each with its own seed, so its results do not
 # depend on MC_CORES, which runs the scenarios in parallel through
@@ -261,10 +261,10 @@ white_statistic <- function(fit, data) {
 # replicate is refitted with the weights of the fit, as the package functions
 # do with reestimate_weights = FALSE, and with reestimate = TRUE fitWLS() is
 # run on it, as they do with reestimate_weights = TRUE; check_repetition()
-# asserts that the two agree either way. The wild bootstrap resamples the Pearson residuals divided by sqrt(1 - h) and centred,
-# times Rademacher signs; the White bootstrap resamples the centred Pearson
-# residuals. Each draw is returned to the scale of its observation by dividing
-# by sqrt(w).
+# asserts that the two agree either way. The wild bootstrap resamples the
+# Pearson residuals divided by sqrt(1 - h) and centred, times Rademacher
+# signs; the White bootstrap resamples the centred Pearson residuals. Each
+# draw is returned to the scale of its observation by dividing by sqrt(w).
 resample_weighted <- function(o, scheme, reestimate, B = n_boot) {
   model <- o$model
   d <- o$data
@@ -411,8 +411,6 @@ boot_scenarios <- rbind(
   boot_scenario(boot_tests, "true", n_obs),
   boot_scenario("performWildBootstrapTest", "true", 600L)
 )
-# The rows "re-estimated" keep the text they were recorded with in 0.12.0,
-# when the weights were estimated again outside the package; see the header.
 boot_design <- function(test, weights) {
   switch(weights,
     "exact" = "sd = x^2 fitted with weights 1 / x^4",
@@ -421,11 +419,7 @@ boot_design <- function(test, weights) {
     "estimated, held fixed" = "fitWLS(), exponential variance correctly specified",
     "estimated, re-estimated" = paste(
       "fitWLS(), exponential variance correctly specified;",
-      if (test == "rbootstrap_test_statistic") {
-        "the test function calls fitWLS() again"
-      } else {
-        "fitWLS() again in each replicate (not in the package)"
-      }
+      "fitWLS() again in each replicate"
     )
   )
 }
