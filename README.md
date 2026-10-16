@@ -38,9 +38,11 @@ tests. Their simulated size and power are in
   (`performHarveyTest()`), Park (`performParkTest()`), Glejser
   (`performGlejserTest()`) and the Cook--Weisberg score test
   (`performCookWeisbergTest()`, with the fitted values as the variance
-  regressor or a variance model of your own in `var_formula`). `performGlejserTest(robust = TRUE)` is the Glejser
-  test of Im (2000) and of Machado and Santos Silva (2000), which keeps its
-  level under skewed errors.
+  regressor or a variance model of your own in `var_formula`). Since 0.15.0
+  `performGlejserTest()` computes by default the Glejser test of Im (2000)
+  and of Machado and Santos Silva (2000), which keeps its level under skewed
+  errors; `robust = FALSE` gives Glejser's (1969) statistic, the default up
+  to 0.14.0.
 - **Does the variance change with the fitted values or along an ordering?**
   Goldfeld--Quandt (`performGQTest()`), Szroeter (`performSzroeterTest()`),
   Harrison--McCabe (`performHarrisonMcCabeTest()`, with a p-value that is exact

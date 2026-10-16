@@ -599,6 +599,23 @@ after it.
   test as the baseline. `runAdvancedDiagnostics()` already computed the
   studentized statistic by default and is unchanged. No recorded number
   moves.
+- [x] **The default of `robust` in `performGlejserTest()`.** It was `FALSE`,
+  Glejser's (1969) statistic, which in `inst/validation/glejser-skewed-errors.R`
+  rejects a true null hypothesis 8.8% to 17.7% of the time at the 5% level
+  when the errors are skewed, at every sample size from 50 to 1000. Done
+  (decided for 0.15.0 as proposed: `TRUE`): the default is the corrected
+  statistic of Im (2000) and Machado and Santos Silva (2000), added in
+  0.13.0. From 150 observations it holds its level under every error
+  distribution measured, inside the release gate in all 27 of its null
+  cells; at 50 observations it rejects 5.7% to 6.6% of the time under skewed
+  errors, four of those six cells above the gate, and gives up 1.1 and 1.9
+  points of power under Gaussian errors. Default values change; `NEWS.md` has
+  an example. `robust = FALSE` returns what the default returned in 0.14.0,
+  checked with `identical()` against 0.14.0. Of the recorded evidence the
+  full sweep and the weighted fits call the default, and their two rows were
+  regenerated from the same seeds: size 0.0600 to 0.0575 and 0.0475 to
+  0.0450. Pass A and the Glejser study name Glejser's statistic and now give
+  `robust = FALSE`; their numbers do not move.
 - [x] **Return contract.** Document the fields every `perform*Test()` returns,
   both the `htest` core and the package's additions, on one help page. Check
   every exported test against it in a single parametrised test. This also
@@ -1043,8 +1060,8 @@ which is also what a reader of the article asks of it. Within that group:
   statistic rejects a true null hypothesis 9% to 18% of the time at the 5%
   level when the errors are skewed, at every sample size, and
   `skedastic::glejser()` uses the uncorrected absolute residuals as well. The
-  default is still Glejser's statistic; whether it should be is under
-  *Decisions needed*.
+  corrected statistic is the default since 0.15.0 (the 0.15.0 milestone,
+  above).
 - **Harrison–McCabe (1979)**, in 0.13.0, as `performHarrisonMcCabeTest()`,
   beside Goldfeld–Quandt and Szroeter. The 1979 article was not read; the
   definition rests on Harrison (1981), by its first author, whose published
@@ -1062,7 +1079,6 @@ which is also what a reader of the article asks of it. Within that group:
 
 | Question | Proposal | Needed by |
 | --- | --- | --- |
-| Default of `robust` in `performGlejserTest()` | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
 | Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
