@@ -85,6 +85,10 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   rcheck_data_matches_model(model, data, "Pesaran CD test")
 
   res <- rpearson_residuals(model)
+  # The i-th row is read with the i-th residual, so data with its own row
+  # names in another order than the fit, or with more rows than the fit, which
+  # data.frame() below recycled, are refused until 0.16.0 matches by name.
+  rcheck_data_in_fit_order(res, data, "performPesaranTest", "Pesaran CD test")
   df <- data.frame(id = data[[id]], time = data[[time]], res = res)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)

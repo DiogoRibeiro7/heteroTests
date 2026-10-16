@@ -35,6 +35,7 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
         call. = FALSE
       )
     }
+    rcheck_rows_after_cleaning(data, cleaned, match_idx, resid_names, test_label)
     aligned_data <- cleaned$data[match_idx, , drop = FALSE]
   } else {
     if (nrow(cleaned$data) != length(residuals)) {

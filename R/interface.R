@@ -44,6 +44,10 @@ rcheck_data_argument <- function(data, fn, model = NULL, test_label = fn) {
 #' frame cannot be rebuilt leaves `data` as `NULL`, and the test refuses it as
 #' it did before 0.15.0.
 #'
+#' `data` that is given is checked by [rcheck_data_rows()] first, so every
+#' test that starts here refuses data whose rows cannot be confirmed to hold
+#' the observations of the fit.
+#'
 #' @param model The fitted model of the calling test.
 #' @param data The `data` argument of the calling test.
 #' @return `data`, or the model frame of `model` when `data` is `NULL`.
@@ -51,9 +55,308 @@ rcheck_data_argument <- function(data, fn, model = NULL, test_label = fn) {
 #' @noRd
 rdata_or_model_frame <- function(model, data) {
   if (!is.null(data)) {
+    # sys.call(-1L) and sys.function(-1L) are the call and the function of the
+    # test that called this one, also when the promise is forced later, in
+    # the error.
+    rcheck_data_rows(model, data, fn = rfunction_name(sys.call(-1L), sys.function(-1L)))
     return(data)
   }
   tryCatch(stats::model.frame(model), error = function(e) NULL)
+}
+
+#' Refuse `data` whose rows cannot be confirmed to hold the fit's observations
+#'
+#' The tests match the rows of `data` to the residuals by row name. A tibble,
+#' a data.table, or a data frame whose row names were reset (as by
+#' `dplyr::arrange()`) has row names that only number its rows, so for such
+#' data the match is by position, and data in another order than the fit, or
+#' with rows in front of those of the fit, were matched to other observations
+#' and gave wrong values without an error. This guard refuses them, until the
+#' model context planned for 0.16.0 replaces it.
+#'
+#' It takes the rows of `data` that the row names pick for the observations of
+#' the fit, the rows the tests read, and compares them, row by row, with the
+#' model frame of the fit: the response and every variable the frame holds as
+#' itself (`y`, `x1`, `group`; not `log(x1)` or `poly(x1, 2)`). A response the
+#' frame holds transformed, such as `log(y)`, is evaluated on all the rows of
+#' `data`, through the `predvars` of the terms, as `model.frame()` evaluated it
+#' before dropping rows, and the matched rows are then taken. A value that
+#' cannot be rebuilt from `data` alone is not compared, and nothing is looked
+#' up outside `data`.
+#'
+#' Data that lack a row of the fit, or a variable of the model, are left to
+#' the calling test, which refuses them with its own message. Repeated row
+#' names, which say nothing about which row holds which observation, are
+#' refused. The error has class `heteroTests_data_rows_error`, which
+#' [ht_analyse_failure()] treats as final: `runHeteroTests()` does not fall
+#' back on another test for it.
+#'
+#' @param model The fitted model of the calling test. A model that is not an
+#'   `lm`, or whose model frame cannot be rebuilt, is left to the checks of the
+#'   test.
+#' @param data The `data` argument of the calling test, not `NULL`.
+#' @param fn Character scalar naming the calling test in the message, or
+#'   `NULL`.
+#' @return The rows of `data` that hold the observations of the fit,
+#'   invisibly, or `NULL` when they were not checked.
+#' @keywords internal
+#' @noRd
+rcheck_data_rows <- function(model, data, fn = NULL) {
+  if (!inherits(model, "lm") || inherits(model, "svyglm") || !is.data.frame(data)) {
+    return(invisible(NULL))
+  }
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (!is.data.frame(frame) || nrow(frame) == 0L) {
+    return(invisible(NULL))
+  }
+  numbered <- .row_names_info(data) < 0L
+  # The row names as stored, integer or character: rownames() would turn
+  # integers into strings on every call, and two integer row names are the
+  # same name exactly when they are the same integer.
+  data_rows <- attr(data, "row.names")
+  if (!numbered && anyDuplicated(data_rows) > 0L) {
+    rstop_data_rows_unmatched(fn, "duplicated")
+  }
+  ids <- attr(frame, "row.names")
+  rows <- if (identical(ids, data_rows)) {
+    seq_along(ids)
+  } else if (is.integer(ids) && is.integer(data_rows)) {
+    match(ids, data_rows)
+  } else {
+    match(as.character(ids), as.character(data_rows))
+  }
+  if (anyNA(rows)) {
+    return(invisible(NULL))
+  }
+  differ <- rdata_rows_differ(frame, data, rows)
+  if (length(differ) > 0L) {
+    rstop_data_rows_unmatched(fn, if (numbered) "numbered" else "named", differ)
+  }
+  invisible(rows)
+}
+
+# The columns of the model frame that the rows `rows` of `data` do not
+# reproduce: the response, and each variable the frame holds as itself. A
+# column that cannot be rebuilt from `data` is not compared.
+rdata_rows_differ <- function(frame, data, rows) {
+  model_terms <- attr(frame, "terms")
+  plain <- intersect(names(frame), all.vars(model_terms))
+  response <- if (isTRUE(attr(model_terms, "response") == 1L)) names(frame)[1L]
+  differ <- character()
+  for (column in unique(c(response, plain))) {
+    values <- if (column %in% names(data)) {
+      data[[column]]
+    } else if (identical(column, response)) {
+      rresponse_from_data(model_terms, data)
+    }
+    if (is.null(values)) {
+      next
+    }
+    if (identical(rsame_rows(values, rows, frame[[column]]), FALSE)) {
+      differ <- c(differ, column)
+    }
+  }
+  differ
+}
+
+# The response of the model, such as log(y), evaluated on all the rows of
+# `data` through the predvars of the terms, or NULL when `data` does not hold
+# every variable it is computed from or the evaluation fails.
+rresponse_from_data <- function(model_terms, data) {
+  variables <- attr(model_terms, "predvars")
+  if (is.null(variables)) {
+    variables <- attr(model_terms, "variables")
+  }
+  expr <- variables[[2L]]
+  needed <- all.vars(expr)
+  if (length(needed) == 0L || !all(needed %in% names(data))) {
+    return(NULL)
+  }
+  columns <- lapply(stats::setNames(needed, needed), function(v) data[[v]])
+  env <- environment(model_terms)
+  if (is.null(env)) {
+    env <- baseenv()
+  }
+  values <- tryCatch(
+    suppressWarnings(eval(expr, columns, env)),
+    error = function(e) NULL
+  )
+  if (is.null(values) || NROW(values) != nrow(data)) {
+    return(NULL)
+  }
+  values
+}
+
+# Do the rows `rows` of `values` equal `target`, a column of the model frame?
+# Numbers to 1e-8 of the largest value of the column, factors and characters
+# by their labels. NA when the two cannot be compared.
+rsame_rows <- function(values, rows, target, tolerance = 1e-8) {
+  tryCatch(
+    {
+      values <- if (is.matrix(target) || is.matrix(values)) {
+        as.matrix(values)[rows, , drop = FALSE]
+      } else {
+        values[rows]
+      }
+      if (identical(values, target)) {
+        return(TRUE)
+      }
+      if (NROW(values) != NROW(target) || NCOL(values) != NCOL(target)) {
+        return(FALSE)
+      }
+      labelled <- function(v) is.factor(v) || is.character(v)
+      if (labelled(values) || labelled(target)) {
+        a <- as.character(values)
+        b <- as.character(target)
+      } else {
+        a <- as.double(unclass(values))
+        b <- as.double(unclass(target))
+      }
+      if (!identical(is.na(a), is.na(b))) {
+        return(FALSE)
+      }
+      keep <- !is.na(a)
+      a <- a[keep]
+      b <- b[keep]
+      same <- a == b
+      if (all(same)) {
+        return(TRUE)
+      }
+      if (is.character(a)) {
+        return(FALSE)
+      }
+      finite <- abs(b[is.finite(b)])
+      scale <- if (length(finite) > 0L && max(finite) > 0) max(finite) else 1
+      all(same | (is.finite(a) & is.finite(b) & abs(a - b) <= tolerance * scale))
+    },
+    error = function(e) NA
+  )
+}
+
+# rhandleMissingValues() drops the incomplete rows of `data` before some tests
+# match the rest by row name, and a tibble numbers the rows that are left
+# afresh, so their row names can then point to other rows. The rows the match
+# picked, counted in `data` before the drop, must be the rows the row names of
+# `data` picked before it, which rcheck_data_rows() compared with the fit.
+rcheck_rows_after_cleaning <- function(data, cleaned, match_idx, ids, test_label) {
+  if (cleaned$removed_count == 0L) {
+    return(invisible(NULL))
+  }
+  kept <- seq_len(nrow(data))[-cleaned$removed_cases]
+  if (!identical(kept[match_idx], match(ids, rownames(data)))) {
+    rstop_data_rows_unmatched(NULL, "renumbered", label = test_label)
+  }
+  invisible(NULL)
+}
+
+# The error of rcheck_data_rows(), rcheck_data_in_fit_order() and
+# rcheck_rows_after_cleaning(): what does not match, and what to pass instead.
+rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = NULL) {
+  who <- if (!is.null(fn)) sprintf("%s()", fn) else if (!is.null(label)) label else "The test"
+  columns <- paste(utils::head(differ, 3L), collapse = ", ")
+  verb <- if (length(differ) == 1L) "differs" else "differ"
+  detail <- switch(reason,
+    duplicated = paste0(
+      "the row names of `data` are not unique, so they do not say which row ",
+      "holds which observation."
+    ),
+    numbered = sprintf(
+      paste0(
+        "`data` has no row names of its own (a tibble, a data.table, or a ",
+        "data frame whose row names were reset, as by dplyr::arrange()), so ",
+        "its rows are matched to the observations by position, and in that ",
+        "order its values are not those of the fit: %s %s from the model frame."
+      ),
+      columns, verb
+    ),
+    named = sprintf(
+      paste0(
+        "the rows of `data` that carry the row names of the fit do not hold ",
+        "its values: %s %s from the model frame."
+      ),
+      columns, verb
+    ),
+    order = paste0(
+      "it reads `data` by position, the i-th row with the i-th observation, ",
+      "and the rows of `data` are not in the order of the fit."
+    ),
+    renumbered = paste0(
+      "its rows with missing values were dropped, and `data`, which has no ",
+      "row names of its own (a tibble), numbers the rows that are left ",
+      "afresh, so their row names now point to other rows."
+    )
+  )
+  advice <- switch(reason,
+    order = "Pass the data the model was fitted on, in its order.",
+    renumbered = paste0(
+      "Pass it as a data frame, `as.data.frame(data)`, whose row numbers ",
+      "survive the drop, or `data = NULL` to use the model frame."
+    ),
+    "Pass the data the model was fitted on, in its order, or `data = NULL` to use the model frame."
+  )
+  stop(structure(
+    class = c("heteroTests_data_rows_error", "error", "condition"),
+    list(
+      message = paste0(
+        who, " cannot match the rows of `data` to the observations of the model: ",
+        detail, " ", advice
+      ),
+      call = NULL
+    )
+  ))
+}
+
+#' Refuse `data` that a test reads by position when it is not in fit order
+#'
+#' `performPesaranTest()`, `performBPRandomEffectsTest()` and
+#' `performScatterDiagnostic()` read `data` by position, the i-th row with the
+#' i-th residual, where the other tests match its rows by name. Data with its
+#' own row names in another order than the fit, which the others match
+#' correctly, were read against other residuals and gave wrong values. They
+#' are refused, until 0.16.0 matches them by name.
+#'
+#' @param residuals The residuals the test reads, named by observation.
+#' @param data The data the test reads, after [rcheck_data_rows()].
+#' @param fn Character scalar naming the calling test.
+#' @param test_label Character scalar naming the test in the message on the
+#'   number of rows, which is that of [rstop_data_rows()].
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rcheck_data_in_fit_order <- function(residuals, data, fn, test_label) {
+  if (nrow(data) != length(residuals)) {
+    rstop_data_rows(residuals, data, test_label)
+  }
+  ids <- names(residuals)
+  if (!is.null(ids) && !identical(match(ids, rownames(data)), seq_along(ids))) {
+    rstop_data_rows_unmatched(fn, "order")
+  }
+  invisible(NULL)
+}
+
+# The exported name of the function `fun`, which `call` called, for messages:
+# the name in the call when it is the package's name for `fun`, otherwise the
+# export that is `fun` (a test passed on as `test_function`, or called through
+# do.call()), or NULL. Called only for an error, so the search costs nothing
+# on a call that is not refused.
+rfunction_name <- function(call, fun) {
+  call <- tryCatch(call, error = function(e) NULL)
+  fun <- tryCatch(fun, error = function(e) NULL)
+  if (!is.function(fun)) {
+    return(NULL)
+  }
+  ns <- topenv(environment(rfunction_name))
+  head <- if (is.call(call)) call[[1L]]
+  if (is.call(head) && length(head) == 3L && as.character(head[[1L]]) %in% c("::", ":::")) {
+    head <- head[[3L]]
+  }
+  candidates <- c(if (is.name(head)) as.character(head), getNamespaceExports(ns))
+  for (name in candidates) {
+    if (identical(get0(name, envir = ns, inherits = FALSE), fun)) {
+      return(name)
+    }
+  }
+  NULL
 }
 
 # Does `data` hold the variables of `model` and the rows its fit used? A model

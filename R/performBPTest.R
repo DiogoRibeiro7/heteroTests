@@ -123,6 +123,9 @@ performBPTest <- function(model, data = NULL) {
           call. = FALSE
         )
       }
+      # `data` and `cleaned` are those of the enclosing call: the rows before
+      # and after rhandleMissingValues().
+      rcheck_rows_after_cleaning(data, cleaned, match_idx, resid_names, test_label)
       aligned_data <- clean_data[match_idx, , drop = FALSE]
       list(data = aligned_data, residuals = residuals)
     } else {

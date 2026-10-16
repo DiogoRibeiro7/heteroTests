@@ -90,10 +90,11 @@ performBPRandomEffectsTest <- function(model, data = NULL, id) {
   res <- rpearson_residuals(model)
   # The rows of `data` are read in the order of the residuals. With another
   # number of rows tapply() below stops with "arguments must have same
-  # length"; say which rows are missing instead.
-  if (nrow(data) != length(res)) {
-    rstop_data_rows(res, data, "Breusch-Pagan random effects test")
-  }
+  # length"; say which rows are missing instead. Data with its own row names
+  # in another order than the fit are refused until 0.16.0 matches by name.
+  rcheck_data_in_fit_order(
+    res, data, "performBPRandomEffectsTest", "Breusch-Pagan random effects test"
+  )
   idfac <- factor(data[[id]])
   T_i <- tapply(res, idfac, length)
   if (length(unique(T_i)) > 1) {

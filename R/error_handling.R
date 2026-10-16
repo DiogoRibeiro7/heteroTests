@@ -95,6 +95,7 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     rank_deficiency = "Rank deficiency detected",
     perfect_separation = "Perfect separation detected",
     data_quality = "Data quality issue detected",
+    data_rows = "Data do not match the model",
     "Diagnostic execution failed"
   )
   if (!is.null(test_name)) {
@@ -246,6 +247,23 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
 
 ht_analyse_failure <- function(test_name, error, model, data) {
   raw_message <- conditionMessage(error)
+  if (inherits(error, "heteroTests_data_rows_error")) {
+    # `data` cannot be matched to the rows of the fit (rcheck_data_rows()).
+    # Every substitute would read the same rows, or, as the Cook-Weisberg
+    # test does, ignore `data` and return another test under this name, so
+    # there is no fallback and no cleaning to suggest.
+    return(list(
+      raw_message = raw_message,
+      user_message = ht_format_failure_message(
+        "data_rows",
+        raw_message,
+        test_name = ht_pretty_test_name(test_name)
+      ),
+      suggestions = character(),
+      issue = "data_rows",
+      fallbacks = character()
+    ))
+  }
   suggestions <- ht_data_cleaning_suggestions(raw_message, data)
   issue <- "diagnostic_failure"
   if (grepl("rank|singular", raw_message, ignore.case = TRUE)) {
