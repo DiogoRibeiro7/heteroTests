@@ -12,8 +12,9 @@ default, the tests refuse four inputs that most or some of them returned a
 value for, the tests that read `data` refuse data whose rows they cannot
 match to the observations of the fit, the robust White and Breusch-Pagan
 tests and the White bootstrap give the value on the data of the fit for rows
-they had renumbered, and seeded resampling with `parallel = TRUE` is
-reproducible.
+they had renumbered, seeded resampling with `parallel = TRUE` is
+reproducible, and the bootstrap tests estimate the weights of a `fitWLS()`
+fit again in each replicate.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -463,6 +464,91 @@ workers, which the result does not depend on: with `set.seed(1)`,
 n_cores = 2)` gives 0.1750 on every run, against 0.1670 serially.
 
 No recorded evidence runs a resampling test with `parallel = TRUE`.
+
+### Bootstrap tests estimate the weights of a `fitWLS()` fit again
+
+**On a fit returned by `fitWLS()`, `performWildBootstrapTest()`,
+`performWhiteTestBootstrap()` and `bootstrapTestStatistic()` estimate the
+weights again in each replicate by default, so the p-values they return on
+such a fit change.** Since 0.13.0 they held the weights `fitWLS()` estimated
+fixed in every replicate, as if they were known. The replicates then leave out
+the estimation that the observed statistic went through, and the tests
+rejected a true null hypothesis too often, more so with more observations. In
+`inst/validation/weighted-fits-size.R`, the data have standard deviation
+`exp(0.3 x)` and `fitWLS()` fits its default exponential variance function,
+which is correctly specified. With normal errors, 2000 replications and
+`B = 499`, the rejection rates at the 5% level are:
+
+| Test | n | Weights held fixed, before | Estimated again, now | True weights |
+| --- | ---: | ---: | ---: | ---: |
+| `performWildBootstrapTest()` | 150 | 0.0865 | 0.0605 | 0.0540 |
+| `performWildBootstrapTest()` | 600 | 0.1050 | 0.0515 | 0.0480 |
+| `performWhiteTestBootstrap()` | 150 | 0.0640 | 0.0415 | 0.0540 |
+| `bootstrapTestStatistic()` with `performKoenkerTest()` | 150 | 0.0825 | 0.0450 | 0.0455 |
+
+(`inst/validation/weighted-fits-size.csv`, the rows whose weights are
+"estimated, held fixed", "estimated, re-estimated" and "true"). At 2000
+replications the 99% interval around 0.05 is [0.037, 0.063], and all four
+rates with the weights estimated again are inside it. The release gate is set
+at 5000 replications, and against its interval, [0.042, 0.058], the wild
+bootstrap with 150 observations, 0.0605, is outside, above it, and the White
+bootstrap, 0.0415, just below it. Against [0.041, 0.057], the interval around
+0.049, the rate of an exact test with `B = 999`, the wild bootstrap with 150
+observations is outside and the other three are inside. No study of the new
+default at 5000 replications with `B = 999` has been run; `ROADMAP.md` lists
+it under 0.16.0.
+
+Those four rows were measured in 0.12.0 by repeating the resampling outside
+the package, and were not run again. The package reproduces the repetition on
+200 of the 2000 samples of each: the same p-values, the same replicates and
+the same random draws (`inst/validation/weighted-fits-refit-reproduction.csv`).
+
+Each replicate is refitted as `fitWLS()` fitted the model: by least squares,
+as the model `fitWLS()` was given, with its weights if it had any. The
+variance function `fitWLS()` recorded is then fitted again to the residuals,
+with the same form and on the regressors `fitWLS()` evaluated. Last, the
+replicate is refitted with the weights that gives. A replicate whose
+variance function cannot be fitted, where `fitWLS()` would fall back to equal
+weights, counts as a failed replicate, and the p-value is computed from the
+replicates that remain, as for a refit that fails. `fitWLS()` records the
+weights of a weighted model it refits, as `initial_weights` in its
+`"variance_function"` attribute, for this.
+
+The new argument `reestimate_weights` chooses. `NULL`, the default, estimates
+the weights again on a `fitWLS()` fit and holds them fixed on any other model.
+`reestimate_weights = FALSE` holds them fixed and returns what 0.14.0
+returned. `TRUE` on a model that `fitWLS()` did not return is an error. An
+`lm`, a weighted `lm` and a Gaussian `glm` carry no variance function, and they
+return what they returned. Two kinds of `fitWLS()` fit are treated
+separately. One on which `fitWLS()` fell back to equal weights estimated no
+weights, and is unchanged. One whose `var_formula` uses the response cannot be
+estimated again from the regressors `fitWLS()` recorded, and is refused unless
+`reestimate_weights = FALSE`. In `bootstrapTestStatistic()` and
+`rbootstrap_test_statistic()` the argument comes after `...`, so it has to be
+named in full.
+
+With `set.seed(1)` before each call, for
+`fit <- fitWLS(lm(dist ~ speed, data = cars))`:
+
+| Call | Before, and with `reestimate_weights = FALSE` | Now |
+| --- | ---: | ---: |
+| `performWildBootstrapTest(fit, cars)` | 0.6730 | 0.6990 |
+| `performWhiteTestBootstrap(fit, cars)` | 0.7640 | 0.7290 |
+| `bootstrapTestStatistic(performKoenkerTest, fit, cars)$p_value` | 0.7020 | 0.6750 |
+
+The functions that call these with their default change with them on a
+`fitWLS()` fit. These are the registered tests `"wild_bootstrap"` and
+`"white_bootstrap"`, which `runHeteroTests()`, `runHeteroTestsParallel()`
+and the functions built on them run by name, and `performWhiteTestRobust()` and
+`performBPTestRobust()` with `bootstrap = TRUE`, and so
+`runAdvancedDiagnostics()` when it bootstraps. They have no argument of their
+own; to hold the weights fixed, call the bootstrap function directly with
+`reestimate_weights = FALSE`.
+
+Of the recorded evidence, only the rows "estimated, held fixed" of
+`weighted-fits-size.R` call these functions on a `fitWLS()` fit. The script
+passes `reestimate_weights = FALSE` there, so they do not move, and it calls
+the package for the rows "estimated, re-estimated".
 
 ### Calls that changed
 
