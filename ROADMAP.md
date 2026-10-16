@@ -1028,7 +1028,8 @@ after it.
 - [ ] Remove everything deprecated in 0.14.0 and 0.15.0, or turn it into
   `.Defunct()` stubs that name the replacement.
 - [ ] `test-public-api.R` asserts the frozen export list exactly.
-- [ ] pkgdown reference index grouped by the frozen API: tests by family
+- [ ] Reference index of the documentation site (`tools/reference-index.R`)
+  grouped by the frozen API: tests by family
   (auxiliary regression, group-wise, rank-based, time series, panel and
   spatial, resampling), remediation, simulation, plotting and reporting.
 - [ ] **Vignettes.** There are eight, and `tutorial`, `using_heteroTests` and
@@ -1039,7 +1040,7 @@ after it.
   - remediation;
   - theory and references.
 - [ ] Publish the stability policy from [What 1.0.0 means](#what-100-means) in
-  the README and on the pkgdown site.
+  the README and on the documentation site.
 - [ ] `NEWS.md` for 1.0.0 with the complete old → new migration table.
 - [ ] Full `--as-cran` on every CI flavour, plus win-builder, then submit.
 - [ ] Update the R Journal manuscript, kept in its own repository, to the 1.0
