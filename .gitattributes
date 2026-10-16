@@ -1,0 +1,14 @@
+# Pages of the documentation site that tools/build-docs.R and
+# tools/render-guides.R write. They are written with LF line endings, so they
+# are checked out with LF too: otherwise a checkout with core.autocrlf shows
+# them as modified after every run. They are collapsed in pull-request diffs;
+# edit their sources instead (man/, tools/reference-index.R, NEWS.md,
+# ROADMAP.md, vignettes/).
+docs/reference/*.md     text eol=lf linguist-generated=true
+docs/releases.md        text eol=lf linguist-generated=true
+docs/roadmap.md         text eol=lf linguist-generated=true
+docs/guide/*.md         text eol=lf linguist-generated=true
+docs/guide/figures/*    binary linguist-generated=true
+
+# tools/build-docs.R rewrites the API reference part of its nav.
+mkdocs.yml              text eol=lf

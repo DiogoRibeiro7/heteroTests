@@ -39,8 +39,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# pkgdown site
-docs/
+# The documentation site built by `mkdocs build`; its sources in docs/ are
+# tracked.
+site/
 
 # translation temp files
 po/*~

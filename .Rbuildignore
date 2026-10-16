@@ -20,6 +20,9 @@
 ^\.zenodo\.json$
 ^CITATION\.cff$
 ^CONTRIBUTING\.md$
-^_pkgdown\.yml$
+^docs$
+^mkdocs\.yml$
+^site$
+^tools$
 ^LICENSE$
 ^assets$
