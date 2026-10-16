@@ -10,8 +10,10 @@ draws 999 replicates by default, the default battery of `runHeteroTests()` is
 White and Koenker, `performGlejserTest()` corrects for asymmetric errors by
 default, the tests refuse four inputs that most or some of them returned a
 value for, the tests that read `data` refuse data whose rows they cannot
-match to the observations of the fit, and seeded resampling with
-`parallel = TRUE` is reproducible.
+match to the observations of the fit, the robust White and Breusch-Pagan
+tests and the White bootstrap give the value on the data of the fit for rows
+they had renumbered, and seeded resampling with `parallel = TRUE` is
+reproducible.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -290,25 +292,31 @@ own size, and dates and times exactly. Any other column is computed from
 `poly(x, 2)`, `ns(x, 3)` or `offset(o)` through the terms of the fit, and
 weights or an offset given as arguments from the expressions of the call. It
 is computed on all the rows of `data`, as `model.frame()` computed it before
-dropping rows, and compared to `1e-8` of the largest value of the column; a
-term computed from the rows it is given, such as `I(x - mean(x))`, is also
-tried on the matched rows alone, for data with more rows than the fit, and
-passes when it equals the fit's column up to a shift and a positive factor,
-for data that hold only the rows the fit kept. A
-column that names a variable `data` does not hold, or whose computation fails,
-is not compared. So rows that agree on the response but not on a transformed
-regressor, a weight or an offset are told apart too, as when the data are
-sorted on a 0/1 response. Data whose rows differ are refused, and so are
-repeated row names. Data with row names of their own, such as
+dropping rows, or else on the matched rows, and compared value by value too.
+So rows that agree on the response but not on a transformed regressor, a
+weight or an offset are told apart, as when the data are sorted on a 0/1
+response. A term that depends on the rows it is computed from, such as
+`I((x - mean(x))^2)`, `I(x > median(x))` or `rank(x)`, comes out otherwise on
+the rows a fit with `subset =` or `na.omit` kept, which are the right rows; it
+is not compared, and neither is a column that names a variable `data` does not
+hold or whose computation fails. The columns that are compared must then tell
+the rows of the fit apart: if two rows tie on all of them and differ in a
+column that is not compared, the data are refused, with that column named.
+Data whose rows differ are refused, and so are repeated row names. Data with
+row names of their own, such as
 `d[sample(n), ]`, are still matched by name, the tibble or data.table the
 model was fitted on is accepted, and so are rows after those of the fit. On
-eight fits (unweighted, weighted, with an offset given as an argument or as a
-term, `log(y)`, `na.omit` with three rows dropped, a Gaussian `glm` and a
-`fitWLS()` fit), every exported test on the data of the fit, with
-`data = NULL`, on the same rows shuffled with their row names, and on the
-tibble and the data.table the model was fitted on returns what it returned,
-`identical()`, except the three tests below on the shuffled rows, which
-returned wrong values, and the message of two errors on the `na.omit` fit.
+thirteen fits (unweighted, weighted, with an offset given as an argument or as
+a term, `log(y)`, `na.omit` with three rows dropped, a Gaussian `glm`, a
+`fitWLS()` fit, `log(x) + poly(x, 2)`, `model = FALSE`, and four with a term
+computed from the rows under `na.omit` or `subset =`), every exported test on
+the data of the fit, with `data = NULL`, on the same rows shuffled with their
+row names, on the rows the fit kept, and on the tibble and the data.table the
+model was fitted on returns what it returned, `identical()`, except the three
+tests below on the shuffled rows, which returned wrong values, and the
+robust and bootstrap tests that stopped with an error on the tibble of a
+`subset =` fit and now return a value (below); some errors changed their
+message.
 
 The guard covers the 23 tests that returned wrong values on such data:
 `performWhiteTest()`, `performWhiteTestStreaming()`,
@@ -345,8 +353,9 @@ fit, the rebuilt frame held other rows, and the tests computed on it: after
 `m <- lm(y ~ x + z, d, model = FALSE)` and `d <- dplyr::arrange(d, x)`,
 `performKoenkerTest(m)`, `performKoenkerTest(m, d)` and Koenker's test in
 `runHeteroTests(m)` gave 0.114 instead of 17.56. The response of the rebuilt
-frame is now compared with that of the fit, and such a frame is refused ("cannot
-use the model frame of `model`").
+frame is now compared with that of the fit, and its design, times the
+coefficients, plus its offset, with the fitted values, and such a frame is
+refused ("cannot use the model frame of `model`").
 
 A tibble that has more rows than the fit and incomplete rows was renumbered
 when a test dropped those rows, and its rows then matched others: on a fit to
@@ -354,12 +363,14 @@ the first 100 rows of a tibble of 120, three of them incomplete, Koenker's
 statistic was 0.0165 where the rows of the fit give 7.93. It is refused, with
 the advice to pass `as.data.frame(data)`.
 
-`performWhiteTestRobust()`, `performWhiteTestBootstrap()` and
-`performBPTestRobust()` call White's or the Breusch-Pagan test again on the
-rows they matched to the fit, and a tibble they had subset numbered those rows
+**`performWhiteTestRobust()`, `performWhiteTestBootstrap()` and
+`performBPTestRobust()` give the value on the data of the fit where they gave
+another one.** They call White's or the Breusch-Pagan test again on the rows
+they matched to the fit, and a tibble they had subset numbered those rows
 afresh, so the inner test matched them to other observations. With a fit to
-`set.seed(4); ds <- d[sample(n), ]` and `data = tibble::as_tibble(d)`,
-`performWhiteTestRobust()` returned 3.09 and
+`set.seed(4); ds <- d[sample(n), ]` and `data = tibble::as_tibble(d)`, valid
+data, `performWhiteTestRobust()` and the observed statistic of
+`performWhiteTestBootstrap()` were 3.09 and
 `performBPTestRobust(studentize = FALSE)` 0.140, where the rows of the fit
 give 21.79 and 37.06. They now pass the rows under the row names of the fit,
 and return those values.

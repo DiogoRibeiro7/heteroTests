@@ -800,12 +800,26 @@ after it.
     under their own names value by value, and the others (`log(y)`,
     `log(x)`, `poly()`, `ns()`, `offset(o)`, `(weights)`, `(offset)`) computed
     from `data` through the `predvars` of the terms and the `weights` and
-    `offset` expressions of the call. The tests stop when they differ, when
-    row names repeat, or when a fit with `model = FALSE` rebuilds a frame
-    whose response is not the fit's; `runHeteroTests()` and `runDiagnostics()`
-    do not fall back on another test for it. The model context replaces this
-    guard, so that such data give the value on the data of the fit. Changes a
-    value for such data. Not covered by the guard:
+    `offset` expressions of the call. A term that depends on the rows it is
+    computed from (`I(x - mean(x))`, `I(x > median(x))`, `rank(x)`), found by
+    computing it again on half the rows, is not compared when it differs, and
+    neither is a column that names a variable `data` lacks or whose
+    computation fails; the compared columns must then leave no two rows of the
+    fit that tie on them and differ in a column not compared. The tests stop
+    when a compared column differs, when such ties remain, when row names
+    repeat, or when a fit with `model = FALSE` rebuilds a frame whose response
+    or fitted values are not the fit's; `runHeteroTests()` and
+    `runDiagnostics()` do not fall back on another test for it. The model
+    context replaces this guard, so that such data give the value on the data
+    of the fit. Changes a value for such data. Its cost on a valid call grows
+    with the columns it computes again: at 100,000 rows it takes about 5 ms on
+    `lm(y ~ x1 + x2 + g)` and about 43 ms on a weighted fit with `log()` and
+    `poly()` terms, against 50 to 70 ms for the Glejser and Bartlett tests and
+    about 200 ms for Koenker's on main. The review of 0.15.0 measured it at
+    about a third of the Glejser (100 ms) and Bartlett (120 ms) calls at that
+    size, before factors were compared by their codes; the model context,
+    which reads the design from the fit, does not need it. Not covered by the
+    guard:
     - `fitWLS(data, var_formula)` and `performVarianceFormTest()` with
       `var_formula` or `against` read the variables of the second formula
       through `rvariance_frame()`, which matches by name and, when no name
@@ -818,30 +832,39 @@ after it.
       `performVarianceFormTest()` without a second formula,
       `performRESETTest()`) accept reordered data and return the value of the
       fit.
-    - A column whose expression names a variable that `data` does not hold
-      (a vector or a constant of the workspace, as in `weights = wvec` or
-      `log(x + k)`), or whose computation fails, is not compared; neither are
-      the columns a test reads besides the model (`group`, `order_by`,
-      `variable`, `id`, `time`). With a binary or integer response, rows tied
-      on every column of the model frame (response, regressors, weights,
-      offset) can pass for each other. They then have the same design row,
-      weight, offset and residual, so exchanging them moves only those other
-      columns between identical observations; the review of the guard found
-      that swapping such rows of an unweighted fit with no offset left the
-      Bartlett, Glejser, Szroeter and GQ statistics unchanged.
-    - A term computed from the rows it is given passes when it matches the
-      fit's column on all the rows of `data`, on the matched rows, or up to an
-      increasing affine map, as a centred or scaled term does
-      (`I(x - mean(x))`); one that changes otherwise with the rows, such as
-      `I(x > median(x))` given other rows than those the fit computed it on,
-      is refused.
-    - A fit with `model = FALSE` is checked through its response only: a
-      regressor changed after the fit, with the response unchanged, is not
-      seen, since `data` is compared with the frame rebuilt from it.
+    - The columns a test reads besides the model (`group`, `order_by`,
+      `variable`, `id`, `time`) are not compared. When every column of the
+      model frame is compared, two rows that tie on all of them (response,
+      regressors, weights, offset) can pass for each other, as with a binary or
+      integer response; they then have the same design row, weight, offset and
+      residual, so exchanging them moves only those other columns between
+      identical observations. The review of the guard found that swapping such
+      rows of an unweighted fit with no offset left the Bartlett, Glejser,
+      Szroeter and GQ statistics unchanged.
+    - When a column is not compared (it depends on the rows, names a
+      variable of the workspace as `weights = wvec` or `log(x + k)` do, or uses
+      a function that is no longer found), the data are accepted only if the
+      compared columns tell the rows of the fit apart. With continuous
+      variables they do; with a 0/1 response and such a column the data are
+      refused even in the order of the fit, which the guard cannot confirm.
+    - A term that depends on the rows is recognised by computing it again on
+      half the rows; one that gives the same values there by chance is
+      compared, and refused on the rows a `subset =` or `na.omit` fit kept.
+    - A `model = FALSE` fit whose data changed after the fit is refused by
+      the tests that read `data`, with or without it, but the tests that read
+      only the model rebuild its frame too: `performRESETTest()` takes its
+      response from that frame and stays wrong, as in 0.14.0.
     - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
       own check (0.13.0), and the panel tests and
       `performScatterDiagnostic()` refuse data with row names of their own in
       another order instead of matching it by name.
+    - The `(weights)` column is compared with the `weights` expression of the
+      call computed on `data`. If the `fitWLS()` defect above is fixed by
+      writing the estimated weights into `(weights)` (decision 11 of the
+      model-context design) while the call still says `weights = w`, every
+      test given `data` on a `fitWLS()` fit of a weighted model would be
+      refused; the model context, which takes the weights from the fit, avoids
+      it, and this guard must then skip that column for such fits.
   - The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
     model) and `cachedTest()` (about 25 KB per call) grow without bound, as the
     validation cache did before #97. No value changes.
