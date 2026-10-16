@@ -46,6 +46,10 @@
 #' fit <- lm(y ~ x, data = sim_df)
 #' performScatterDiagnostic(fit, sim_df, "x")
 performScatterDiagnostic <- function(model, data, vars) {
+  # The absolute residuals of a glm that is not a least-squares fit vary with
+  # the mean by construction, as the tests refuse it for; before 0.16.0 this
+  # diagnostic returned their correlations.
+  rrefuse_non_gaussian_glm(model, "performScatterDiagnostic")
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }
@@ -56,11 +60,14 @@ performScatterDiagnostic <- function(model, data, vars) {
   if (length(missing_vars) > 0) {
     stop("Variables not found: ", paste(missing_vars, collapse = ", "))
   }
-
   res <- abs(rpearson_residuals(model))
   # The i-th row of `data` is read with the i-th residual: data in another
   # order than the fit are refused until 0.16.0 matches the rows by name.
   rcheck_data_rows(model, data, "performScatterDiagnostic")
   rcheck_data_in_fit_order(res, data, "performScatterDiagnostic", "Scatter diagnostic")
+  # Data that lack a variable of the model are refused, with the message of
+  # the tests, since 0.16.0; before, a variable of the model the diagnostic
+  # does not read could be missing.
+  rcheck_data_matches_model(model, data, "Scatter diagnostic")
   sapply(vars, function(v) cor(res, data[[v]], method = "spearman"))
 }
