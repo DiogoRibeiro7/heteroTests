@@ -222,9 +222,11 @@
       stop("tidymodels workflow supplied but the workflows package is not installed.", call. = FALSE)
     }
     parsnip_fit <- workflows::extract_fit_parsnip(model)
-    mold_data <- tryCatch(workflows::extract_mold(model)$predictors, error = function(e) NULL)
-    # fall back to `data` argument if mold extraction fails
-    data <- data %||% mold_data
+    # Without `data`, the data of the fit are the model frame of the engine's
+    # fit (below), which holds its response and its predictors. Before 0.16.0
+    # they were the predictors of the workflow's mold, which lack the
+    # response: every test refused them, and runHeteroTests() returned the
+    # Cook-Weisberg statistic, which ignored them, under the names asked for.
     return(.ht_prepare_model(parsnip_fit, data = data, context = context, allow_grouped = allow_grouped))
   }
 
