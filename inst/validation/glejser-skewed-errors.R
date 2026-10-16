@@ -16,6 +16,12 @@
 # (Im 2000; Machado and Santos Silva 2000). The script measures both, and
 # Koenker's test beside them, in four blocks.
 #
+# Both are called with `robust` given, so the rows keep their meaning whatever
+# the default. The rows `glejser` are Glejser's statistic, robust = FALSE, the
+# default up to 0.14.0, and the rows `glejser_robust` the corrected one,
+# robust = TRUE, the default since 0.15.0. Before 0.15.0 the first call left
+# `robust` out; giving it changes no value.
+#
 # Koenker's test appears twice. performKoenkerTest() takes every regressor of
 # the mean equation, two here, and is what a user who follows the help page
 # runs. The other row is Koenker's statistic on the one regressor the Glejser
@@ -164,7 +170,9 @@ run_scenario <- function(i) {
       make_ols(s$n, s$errors, s$gamma)
     }
     c(
-      glejser = pval(performGlejserTest(o$model, o$data, "x1", s$transformation)),
+      glejser = pval(
+        performGlejserTest(o$model, o$data, "x1", s$transformation, robust = FALSE)
+      ),
       glejser_robust = pval(
         performGlejserTest(o$model, o$data, "x1", s$transformation, robust = TRUE)
       ),

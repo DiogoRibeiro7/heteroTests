@@ -49,7 +49,7 @@ test that remains.
 | `variance-form-size-power.csv` | Its output, one row per form, truth, error distribution and sample size. |
 | `survey-designs-size.R` | The tests `runSurveyHeteroTests()` runs on the data of a survey design, beside three ways of using the design that were not adopted. `Rscript inst/validation/survey-designs-size.R`, with `N_MC` overridable. Needs `survey`. |
 | `survey-designs-size.csv` | Its output, one row per test, procedure, design and sample size. |
-| `glejser-skewed-errors.R` | `performGlejserTest()` with and without `robust = TRUE`, beside Koenker's test, under symmetric and skewed errors. `Rscript inst/validation/glejser-skewed-errors.R`, with `N_MC` and `MC_CORES` overridable. |
+| `glejser-skewed-errors.R` | `performGlejserTest()` with `robust = FALSE`, Glejser's statistic, and with `robust = TRUE`, the default since 0.15.0, beside Koenker's test, under symmetric and skewed errors. `Rscript inst/validation/glejser-skewed-errors.R`, with `N_MC` and `MC_CORES` overridable. |
 | `glejser-skewed-errors.csv` | Its output, one row per test, block, error distribution and sample size. |
 | `modified-wald-size-power.R` | The modified Wald test for groupwise heteroscedasticity of Stata's `xttest3`, which the package does not export, on fixed-effects panels. `Rscript inst/validation/modified-wald-size-power.R`, with `N_MC` and `MC_CORES` overridable. Checks the statistic against the example in Baum (2001) when `plm` is installed. |
 | `modified-wald-size-power.csv` | Its output, one row per block, reference distribution, error distribution and panel shape. |
@@ -122,7 +122,7 @@ pointed to a robust alternative.
 | Harvey | 0.052 | 0.057 | 0.070 | 0.424 | 0.354 |
 | Harvey (studentized) | 0.051 | 0.057 | 0.052 | 0.423 | 0.356 |
 | Park | 0.041 | 0.060 | 0.055 | 0.514 | 0.437 |
-| Glejser | 0.046 | 0.056 | 0.053 | 0.814 | 0.743 |
+| Glejser (`robust = FALSE`) | 0.046 | 0.056 | 0.053 | 0.814 | 0.743 |
 | Szroeter | 0.045 | 0.048 | 0.126 | 0.915 | 0.870 |
 | Cook-Weisberg | 0.044 | 0.047 | 0.173 | 0.830 | 0.772 |
 | NCV | 0.044 | 0.047 | 0.173 | 0.830 | 0.772 |
@@ -153,6 +153,13 @@ errors. Koenker (0.042), Harvey with `studentize = TRUE` (0.052), Glejser
 (0.053), Park (0.055) and White (0.059) hold their level. This is the basis for
 the cross-references in the help pages: where a test is normality-dependent, its
 documentation names the robust alternative.
+
+The Glejser row is Glejser's (1969) statistic,
+`performGlejserTest(robust = FALSE)`, which was the default up to 0.14.0. The
+default since 0.15.0, `robust = TRUE`, corrects the absolute residuals for
+asymmetric errors. It is measured in the same design, at 50 to 1000
+observations, in *The Glejser test under asymmetric errors* below, and is not
+in this table.
 
 On power, Szroeter and Goldfeld-Quandt lead against both alternatives, which is
 expected since both exploit the ordering in `x1` that the alternatives are built
@@ -225,7 +232,7 @@ the time under the null at four groups. See `NEWS.md`.
 | `performLeveneTest()` | sd = x^2 | 0.068 | 0.048 | 1.000 |
 | `performOBrienTest()` | sd = x^2 | 0.048 | 0.028 | 1.000 |
 | `performBoxMTest()` | sd = x^2 | 0.012 (low) | 0.070 | 1.000 |
-| `performGlejserTest()` | sd = x^2 | 0.060 | 0.058 | 1.000 |
+| `performGlejserTest()` | sd = x^2 | 0.058 | 0.055 | 1.000 |
 | `performParkTest()` | sd = x^2 | 0.062 | 0.058 | 1.000 |
 | `performGQTest()` | sd = x^2 | 0.082 | 0.152 | 1.000 |
 | `performSzroeterTest()` | sd = x^2 | 0.058 | 0.163 | 1.000 |
@@ -376,7 +383,7 @@ deviation that rises along the sample, with the weights that undo it.
 | `performHartleyFmaxTest()` | 0.050 |
 | `performLeveneTest()` | 0.050 |
 | `performOBrienTest()` | 0.040 |
-| `performGlejserTest()` | 0.048 |
+| `performGlejserTest()` | 0.045 |
 | `performParkTest()` | 0.058 |
 | `performGQTest()` | 0.045 |
 | `performSzroeterTest()` | 0.077 |
@@ -857,10 +864,10 @@ Reading the tables:
 Glejser's statistic regresses the absolute residuals on a transformation of a
 regressor. An absolute residual differs from the absolute error by
 `sign(e) x'(b - beta)`, and the mean of that term is zero only when positive
-and negative errors are equally likely (Godfrey 1996). `robust = TRUE`
-regresses `abs(e) - m e` instead, where `m` is the proportion of positive
-residuals less the proportion of negative ones (Im 2000; Machado and Santos
-Silva 2000).
+and negative errors are equally likely (Godfrey 1996). `robust = TRUE`, the
+default since 0.15.0, regresses `abs(e) - m e` instead, where `m` is the
+proportion of positive residuals less the proportion of negative ones (Im
+2000; Machado and Santos Silva 2000).
 
 The design is the cross-sectional one of Pass A,
 `y = 1 + 2 x1 + 0.5 x2 + sigma e`, with `x1` uniform on (1, 5) and the test
@@ -877,31 +884,36 @@ is `n R^2` of the squared residuals on the one regressor the Glejser test is
 given, with one degree of freedom. The package has no call for it and the
 script computes it. That row is the like-for-like comparison.
 
+The script gives `robust` in both calls, so each row means the same whatever
+the default: `performGlejserTest(robust = FALSE)` is Glejser's statistic, the
+default up to 0.14.0, and `performGlejserTest(robust = TRUE)` the corrected
+statistic, the default since 0.15.0.
+
 **Glejser test, size by error distribution.**
 
 | Errors | Skewness | Test | n = 50 | n = 150 | n = 400 | n = 1000 |
 | --- | ---: | --- | ---: | ---: | ---: | ---: |
-| Gaussian | 0 | `performGlejserTest()` | 0.054 | 0.049 | 0.045 | 0.050 |
+| Gaussian | 0 | `performGlejserTest(robust = FALSE)` | 0.054 | 0.049 | 0.045 | 0.050 |
 | Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.049 | 0.047 | 0.044 | 0.050 |
 | Gaussian | 0 | Koenker's statistic on the same regressor | 0.046 | 0.048 | 0.048 | 0.051 |
 | Gaussian | 0 | `performKoenkerTest()` | 0.046 | 0.053 | 0.048 | 0.049 |
-| t5 | 0 | `performGlejserTest()` | 0.054 | 0.050 | 0.053 | 0.055 |
+| t5 | 0 | `performGlejserTest(robust = FALSE)` | 0.054 | 0.050 | 0.053 | 0.055 |
 | t5 | 0 | `performGlejserTest(robust = TRUE)` | 0.046 | 0.048 | 0.053 | 0.054 |
 | t5 | 0 | Koenker's statistic on the same regressor | 0.048 | 0.046 | 0.049 | 0.053 |
 | t5 | 0 | `performKoenkerTest()` | 0.045 | 0.048 | 0.051 | 0.050 |
-| chi-squared(5) | 1.26 | `performGlejserTest()` | 0.094 | 0.096 | 0.089 | 0.088 |
+| chi-squared(5) | 1.26 | `performGlejserTest(robust = FALSE)` | 0.094 | 0.096 | 0.089 | 0.088 |
 | chi-squared(5) | 1.26 | `performGlejserTest(robust = TRUE)` | 0.057 | 0.056 | 0.048 | 0.047 |
 | chi-squared(5) | 1.26 | Koenker's statistic on the same regressor | 0.058 | 0.060 | 0.053 | 0.050 |
 | chi-squared(5) | 1.26 | `performKoenkerTest()` | 0.058 | 0.058 | 0.052 | 0.050 |
-| exponential | 2 | `performGlejserTest()` | 0.133 | 0.134 | 0.132 | 0.123 |
+| exponential | 2 | `performGlejserTest(robust = FALSE)` | 0.133 | 0.134 | 0.132 | 0.123 |
 | exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.059 | 0.054 | 0.049 | 0.046 |
 | exponential | 2 | Koenker's statistic on the same regressor | 0.061 | 0.049 | 0.045 | 0.046 |
 | exponential | 2 | `performKoenkerTest()` | 0.063 | 0.055 | 0.046 | 0.049 |
-| exponential, mirrored | -2 | `performGlejserTest()` | 0.133 | 0.134 | 0.139 | 0.126 |
+| exponential, mirrored | -2 | `performGlejserTest(robust = FALSE)` | 0.133 | 0.134 | 0.139 | 0.126 |
 | exponential, mirrored | -2 | `performGlejserTest(robust = TRUE)` | 0.058 | 0.057 | 0.046 | 0.047 |
 | exponential, mirrored | -2 | Koenker's statistic on the same regressor | 0.059 | 0.051 | 0.044 | 0.046 |
 | exponential, mirrored | -2 | `performKoenkerTest()` | 0.058 | 0.051 | 0.044 | 0.046 |
-| lognormal | 6.18 | `performGlejserTest()` | 0.166 | 0.177 | 0.169 | 0.174 |
+| lognormal | 6.18 | `performGlejserTest(robust = FALSE)` | 0.166 | 0.177 | 0.169 | 0.174 |
 | lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.057 | 0.054 | 0.047 | 0.051 |
 | lognormal | 6.18 | Koenker's statistic on the same regressor | 0.048 | 0.041 | 0.039 | 0.045 |
 | lognormal | 6.18 | `performKoenkerTest()` | 0.054 | 0.046 | 0.047 | 0.044 |
@@ -910,15 +922,15 @@ script computes it. That row is the like-for-like comparison.
 
 | Errors | Skewness | Test | n = 50 | n = 400 |
 | --- | ---: | --- | ---: | ---: |
-| Gaussian | 0 | `performGlejserTest()` | 0.055 | 0.053 |
+| Gaussian | 0 | `performGlejserTest(robust = FALSE)` | 0.055 | 0.053 |
 | Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.049 | 0.053 |
 | Gaussian | 0 | Koenker's statistic on the same regressor | 0.049 | 0.053 |
 | Gaussian | 0 | `performKoenkerTest()` | 0.048 | 0.057 |
-| exponential | 2 | `performGlejserTest()` | 0.118 | 0.120 |
+| exponential | 2 | `performGlejserTest(robust = FALSE)` | 0.118 | 0.120 |
 | exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.063 | 0.048 |
 | exponential | 2 | Koenker's statistic on the same regressor | 0.061 | 0.048 |
 | exponential | 2 | `performKoenkerTest()` | 0.062 | 0.053 |
-| lognormal | 6.18 | `performGlejserTest()` | 0.155 | 0.158 |
+| lognormal | 6.18 | `performGlejserTest(robust = FALSE)` | 0.155 | 0.158 |
 | lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.066 | 0.053 |
 | lognormal | 6.18 | Koenker's statistic on the same regressor | 0.071 | 0.054 |
 | lognormal | 6.18 | `performKoenkerTest()` | 0.066 | 0.043 |
@@ -927,15 +939,15 @@ script computes it. That row is the like-for-like comparison.
 
 | Errors | Skewness | Test | n = 150 | n = 400 |
 | --- | ---: | --- | ---: | ---: |
-| Gaussian | 0 | `performGlejserTest()` | 0.051 | 0.058 |
+| Gaussian | 0 | `performGlejserTest(robust = FALSE)` | 0.051 | 0.058 |
 | Gaussian | 0 | `performGlejserTest(robust = TRUE)` | 0.050 | 0.057 |
 | Gaussian | 0 | Koenker's statistic on the same regressor | 0.051 | 0.053 |
 | Gaussian | 0 | `performKoenkerTest()` | 0.053 | 0.050 |
-| exponential | 2 | `performGlejserTest()` | 0.119 | 0.116 |
+| exponential | 2 | `performGlejserTest(robust = FALSE)` | 0.119 | 0.116 |
 | exponential | 2 | `performGlejserTest(robust = TRUE)` | 0.053 | 0.052 |
 | exponential | 2 | Koenker's statistic on the same regressor | 0.051 | 0.048 |
 | exponential | 2 | `performKoenkerTest()` | 0.052 | 0.057 |
-| lognormal | 6.18 | `performGlejserTest()` | 0.153 | 0.148 |
+| lognormal | 6.18 | `performGlejserTest(robust = FALSE)` | 0.153 | 0.148 |
 | lognormal | 6.18 | `performGlejserTest(robust = TRUE)` | 0.054 | 0.049 |
 | lognormal | 6.18 | Koenker's statistic on the same regressor | 0.044 | 0.039 |
 | lognormal | 6.18 | `performKoenkerTest()` | 0.043 | 0.043 |
@@ -944,19 +956,19 @@ script computes it. That row is the like-for-like comparison.
 
 | Errors | Skewness | gamma | Test | n = 50 | n = 150 |
 | --- | ---: | ---: | --- | ---: | ---: |
-| Gaussian | 0 | 0.2 | `performGlejserTest()` | 0.163 | 0.441 |
+| Gaussian | 0 | 0.2 | `performGlejserTest(robust = FALSE)` | 0.163 | 0.441 |
 | Gaussian | 0 | 0.2 | `performGlejserTest(robust = TRUE)` | 0.152 | 0.434 |
 | Gaussian | 0 | 0.2 | Koenker's statistic on the same regressor | 0.167 | 0.478 |
 | Gaussian | 0 | 0.2 | `performKoenkerTest()` | 0.118 | 0.366 |
-| Gaussian | 0 | 0.4 | `performGlejserTest()` | 0.476 | 0.941 |
+| Gaussian | 0 | 0.4 | `performGlejserTest(robust = FALSE)` | 0.476 | 0.941 |
 | Gaussian | 0 | 0.4 | `performGlejserTest(robust = TRUE)` | 0.456 | 0.940 |
 | Gaussian | 0 | 0.4 | Koenker's statistic on the same regressor | 0.485 | 0.953 |
 | Gaussian | 0 | 0.4 | `performKoenkerTest()` | 0.346 | 0.900 |
-| exponential | 2 | 0.2 | `performGlejserTest()` | 0.203 | 0.365 |
+| exponential | 2 | 0.2 | `performGlejserTest(robust = FALSE)` | 0.203 | 0.365 |
 | exponential | 2 | 0.2 | `performGlejserTest(robust = TRUE)` | 0.105 | 0.209 |
 | exponential | 2 | 0.2 | Koenker's statistic on the same regressor | 0.096 | 0.179 |
 | exponential | 2 | 0.2 | `performKoenkerTest()` | 0.083 | 0.135 |
-| exponential | 2 | 0.4 | `performGlejserTest()` | 0.409 | 0.778 |
+| exponential | 2 | 0.4 | `performGlejserTest(robust = FALSE)` | 0.409 | 0.778 |
 | exponential | 2 | 0.4 | `performGlejserTest(robust = TRUE)` | 0.251 | 0.622 |
 | exponential | 2 | 0.4 | Koenker's statistic on the same regressor | 0.221 | 0.520 |
 | exponential | 2 | 0.4 | `performKoenkerTest()` | 0.167 | 0.398 |
@@ -965,7 +977,7 @@ Replications: 5000. Nominal level: 0.05. Monte Carlo standard error at the nomin
 
 <!-- generated by make-table.R; do not edit the numbers by hand -->
 
-Under symmetric errors the default statistic rejects 0.045 to 0.058 of the time and the corrected one 0.044 to 0.057. Under asymmetric errors the default rejects 0.088 to 0.177 and the corrected one 0.046 to 0.066. Of the 36 null cells of the corrected statistic, 32 fall inside the release-gate interval [0.0421, 0.0579]. Outside it:
+Under symmetric errors Glejser's statistic, `robust = FALSE`, rejects 0.045 to 0.058 of the time and the corrected one, `robust = TRUE`, the default since 0.15.0, 0.044 to 0.057. Under asymmetric errors Glejser's statistic rejects 0.088 to 0.177 and the corrected one 0.046 to 0.066. Of the 36 null cells of the corrected statistic, 32 fall inside the release-gate interval [0.0421, 0.0579]. Outside it:
 
 - exponential errors, n = 50, size: 0.0592.
 - exponential, mirrored errors, n = 50, size: 0.0580.
@@ -974,7 +986,7 @@ Under symmetric errors the default statistic rejects 0.045 to 0.058 of the time 
 
 Five things follow.
 
-- **The default statistic is not a 5% test when the errors are skewed.** With
+- **Glejser's statistic is not a 5% test when the errors are skewed.** With
   `x1` as the auxiliary regressor it rejects 0.088 to 0.096 of the time at a
   skewness of 1.26, 0.123 to 0.139 at a skewness of 2 in either direction, and
   0.166 to 0.177 for the lognormal. With `1 / x1`, and after a weighted fit,
@@ -991,7 +1003,7 @@ Five things follow.
   excess depends on: the shape of the errors and how far the auxiliary
   regressor is explained by the mean equation, 1 for `x1` and 0.844 for
   `1 / x1`. Under other error distributions the bracket can be negative, and
-  the default statistic then rejects too seldom.
+  Glejser's statistic then rejects too seldom.
 - **The corrected statistic holds its level from 150 observations.** All 27
   of its null cells at 150 observations or more are inside the release-gate
   interval, with `x1` or `1 / x1` as the auxiliary regressor and after a
@@ -1000,7 +1012,7 @@ Five things follow.
   Koenker's statistic on the same regressor is at 0.059 to 0.071 and
   `performKoenkerTest()` at 0.058 to 0.066.
 - **Under symmetric errors the correction costs little, and it is not free.**
-  The corrected statistic rejects less often than the default in ten of the
+  The corrected statistic rejects less often than Glejser's in ten of the
   twelve symmetric null cells and as often in the other two: by 0.5 to 0.7
   percentage points at 50 observations and by 0.2 or less from 150. With
   Gaussian errors it loses 1.1 and 1.9 points of power at 50 observations and
@@ -1010,11 +1022,11 @@ Five things follow.
   more power than the corrected Glejser statistic. With exponential errors the
   corrected Glejser statistic has 0.9 to 10.3 points more. `performKoenkerTest()`
   is below both in every power cell, because it spends a degree of freedom on
-  `x2`, which the variance does not depend on. The rejection rates of the
-  default Glejser statistic under exponential errors are not powers, because
-  its size there is 0.13.
+  `x2`, which the variance does not depend on. The rejection rates of
+  Glejser's statistic under exponential errors are not powers, because its
+  size there is 0.13.
 
-**Glejser test, size of the default statistic against its asymptotic value.**
+**Glejser test, size of Glejser's statistic against its asymptotic value.**
 
 | Errors | Regressor | Asymptotic | Simulated |
 | --- | --- | ---: | ---: |
@@ -1024,9 +1036,15 @@ Five things follow.
 | lognormal | `x1` | 0.170 | 0.166 to 0.177 |
 | lognormal | `1 / x1` | 0.153 | 0.155 to 0.158 |
 
-The default of `robust` is `FALSE`, so `performGlejserTest()` returns what it
-returned in every earlier release. Whether the default should change is listed
-under *Decisions needed* in `ROADMAP.md`.
+Up to 0.14.0 the default of `robust` was `FALSE`, Glejser's statistic. Since
+0.15.0 it is `TRUE`: `performGlejserTest()` returns the corrected statistic,
+and with `robust = FALSE` what its default returned up to 0.14.0. The
+release gate holds for the new default from 150
+observations on, in all 27 of its null cells, and does not at 50
+observations, where four of its nine null cells, all with skewed errors, are
+above the interval, at 0.0580 to 0.0658. The full sweep and the weighted
+fits above call `performGlejserTest()` with its default, and their rows were
+regenerated in 0.15.0 (*History*, below).
 
 ### The modified Wald test for groupwise heteroscedasticity
 
@@ -1900,6 +1918,18 @@ The full sweep calls it with its default, so its row was regenerated in 0.15.0
 with 999, from the same seeds: with 499 it rejected 0.045 of the time under
 the null and 0.362 against the alternative, and with 999, 0.050 and 0.350. No
 other row of the sweep calls a resampling test with its default.
+
+Up to 0.14.0, `performGlejserTest()` computed Glejser's statistic by default,
+and since 0.15.0 the statistic corrected for asymmetric errors. The full sweep
+and the known-weights block of the weighted fits call it with its default, so
+their two rows were regenerated in 0.15.0 from the same seeds, and no other
+row: with `robust = FALSE` the same runs reproduce the rows of 0.14.0 byte for
+byte. In the full sweep the size moved from 0.0600 to 0.0575, the size under
+`t5` errors from 0.0575 to 0.0550, and the power stayed 1.000; with known
+weights the rejection rate moved from 0.0475 to 0.0450. Pass A and the
+`glejser` rows of `glejser-skewed-errors.R` measure Glejser's statistic by
+name; their calls give `robust = FALSE` since 0.15.0, and their CSVs are
+unchanged.
 
 The variance-form study once had a third form, an additive variance function
 `sigma^2 = a + z'b`, estimated by regressing the squared residuals on the
