@@ -257,10 +257,10 @@ deprecated until it has one.
 
 - [x] **Duplicate exports.** Each duplicate below is deprecated in favour of
   the name it duplicates. `performStudentizedBPTest()` agrees with
-  `performKoenkerTest()` to `1e-8` except on a `fitWLS()` fit, where it reads
-  the stale weights listed under 0.16.0, and on a model with an offset, which
-  it drops (also listed under 0.16.0); it keeps its implementation, so no
-  value changes.
+  `performKoenkerTest()` to `1e-8` except on a model with an offset, which it
+  drops (listed under 0.16.0). It keeps its implementation, so no value
+  changed in 0.14.0; on a `fitWLS()` fit it read stale weights until 0.15.0
+  fixed that (listed under 0.16.0, done in 0.15.0).
   - `performBreuschPaganTest()` is `performBPTest()`, assigned at
     `R/performBPTest.R:232`.
   - `performStudentizedBPTest()` is a separate implementation that matches
@@ -824,10 +824,15 @@ after it.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
   release so that 0.14.0 changes no value. Each fix that changes a value is
   announced in bold in `NEWS.md`.
-  - `fitWLS()` keeps the original weights in the model frame of its result, so
+  - [x] `fitWLS()` keeps the original weights in the model frame of its result, so
     `performStudentizedBPTest()` on a `fitWLS()` fit reads stale weights: 14.81,
-    against 1.73 for the equivalent `lm(weights = estimated)` fit. Suggested
-    fix: `mf[["(weights)"]] <- w` in `rweighted_refit()`. Changes a value.
+    against 1.73 for the equivalent `lm(weights = estimated)` fit. Done in
+    0.15.0 (decided 2026-10-16, in #129): `.studentized_bp_test()` reads the
+    weights of the fit, through `rleast_squares_weights()`, rather than those
+    of its model frame, which is unchanged. It changes the values of
+    `performStudentizedBPTest()`, `performBPTestRobust()` and the registered
+    `"student_bp"` on a `fitWLS()` fit only, and so the Breusch-Pagan entry of
+    `runAdvancedDiagnostics()` on one.
   - `.studentized_bp_test()`, behind `performStudentizedBPTest()`,
     `performBPTestRobust(studentize = TRUE)` and the registered `"student_bp"`,
     drops every offset, given as an argument or written in the formula: it

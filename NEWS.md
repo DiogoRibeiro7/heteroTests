@@ -13,8 +13,9 @@ value for, the tests that read `data` refuse data whose rows they cannot
 match to the observations of the fit, the robust White and Breusch-Pagan
 tests and the White bootstrap give the value on the data of the fit for rows
 they had renumbered, seeded resampling with `parallel = TRUE` is
-reproducible, and the bootstrap tests estimate the weights of a `fitWLS()`
-fit again in each replicate.
+reproducible, the bootstrap tests estimate the weights of a `fitWLS()` fit
+again in each replicate, and the studentized Breusch-Pagan statistic reads
+the weights of a `fitWLS()` fit.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -553,6 +554,63 @@ Of the recorded evidence, only the rows "estimated, held fixed" of
 `weighted-fits-size.R` call these functions on a `fitWLS()` fit. The script
 passes `reestimate_weights = FALSE` there, so they do not move, and it calls
 the package for the rows "estimated, re-estimated".
+
+### The studentized Breusch-Pagan statistic on a `fitWLS()` fit
+
+**On a fit returned by `fitWLS()`, `performStudentizedBPTest()`,
+`performBPTestRobust()` with its default `studentize = TRUE`, and the
+registered `"student_bp"` computed the statistic of the unweighted fit. They
+now compute that of the weighted fit, which is Koenker's.** They read the
+weights from the model frame, and the model frame of a `fitWLS()` fit is that
+of the model `fitWLS()` refitted. It holds that model's weights, none for an
+unweighted model, and not the estimated ones. On a correctly specified fit the
+statistic therefore reported the heteroscedasticity that the weights remove.
+In the design of `inst/validation/weighted-fits-size.R`, with
+`set.seed(s)` for `s` from 1 to 5, `x` and `z` uniform on (1, 5),
+`y = 1 + 2 x + 0.5 z + exp(0.3 x) e` with normal `e`, 150 observations and
+`fit <- fitWLS(lm(y ~ x + z))`, `performStudentizedBPTest(fit)` returned
+p = 0.0019, 0.0015, 4.2e-07, 0.00097 and 0.013. It now returns 0.50, 0.86,
+0.22, 0.56 and 0.53, the p-values of `performKoenkerTest()`. Since 0.15.0 the
+three read the weights of the fit, as the other tests do (decided on
+2026-10-16).
+
+The values change on a `fitWLS()` fit only:
+
+- the statistic and p-value of `performStudentizedBPTest()`;
+- the statistic, the asymptotic p-value and the bootstrap p-value of
+  `performBPTestRobust()`, and so the Breusch-Pagan entry of
+  `runAdvancedDiagnostics()`;
+- `"student_bp"`.
+
+The model frame of a `fitWLS()` fit is unchanged. Nothing else changes. A
+corpus of seeded calls was run on the development version before and after
+the change: the corpus of the review of #129, extended to every test on the
+models that `fitWLS()` did not return.
+
+- On an `lm`, a weighted `lm`, an `lm` with an offset given either way or with
+  weights and an offset, a Gaussian `glm` with and without weights, and a
+  model of `log(y)`, all 472 calls return what they returned, with the same
+  warnings and random draws. 464 are `identical()`. In the other 8 the result
+  holds the `glm`, whose family closures compare equal only up to their
+  environments.
+- On the six `fitWLS()` fits, 228 of the 234 calls of the 39 other tests and
+  runners return what they returned: 226 `identical()`, and 2 up to the
+  `initial_weights` that a fit of a weighted model now records. The six that
+  change are `performStudentizedBPTest()`.
+
+The statistic now equals Koenker's, so on a `fitWLS()` fit it has Koenker's
+level, which was already documented. The weights are taken as known, and with
+the variance function correctly specified and normal errors it rejects 0.077
+of the time at the 5% level with 150 observations and 0.110 with 600
+(`inst/validation/weighted-fits-size.csv`, `performKoenkerTest()`, weights
+"estimated"). The bootstrap of `performBPTestRobust()` now compares the
+statistic with replicates computed the same way. In an exploratory run by the
+reviewer of #129, not recorded in `inst/validation/` (20 samples of a
+correctly specified design, `B = 99`), the 0.14.0 path rejected all 20 and
+the new default none. The statistic still drops an offset, as before; that is
+listed for 0.16.0 in `ROADMAP.md`. No recorded evidence calls these on a
+`fitWLS()` fit: `weighted-fits-size.R` runs `performStudentizedBPTest()` and
+`performBPTestRobust()` on fits with known weights only.
 
 ### Calls that changed
 

@@ -61,13 +61,16 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' Studentized Breusch–Pagan test (deprecated)
 #'
 #' `performStudentizedBPTest()` is deprecated since 0.14.0: use
-#' [performKoenkerTest()], which computes the same statistic. It still works,
-#' returns what it returned before and warns. On a fit returned by [fitWLS()]
-#' the two differ, and [performKoenkerTest()] is the correct one: the model
-#' frame of that fit still holds the weights of the model `fitWLS()` refitted
-#' (none, for an unweighted model), not the estimated weights, and
-#' `performStudentizedBPTest()` reads them from there. That is to be fixed in
-#' 0.16.0.
+#' [performKoenkerTest()], which computes the same statistic. It still works
+#' and warns, and returns what it returned before except on a fit returned by
+#' [fitWLS()]. The model frame of that fit holds the weights of the model
+#' `fitWLS()` refitted (none, for an unweighted model), not the estimated
+#' weights, and before 0.15.0 `performStudentizedBPTest()` read them from
+#' there, so it computed the statistic of the unweighted fit. Since 0.15.0 it
+#' reads the weights of the fit, as [performKoenkerTest()] does, and the two
+#' agree. On a model with an offset they still differ:
+#' `performStudentizedBPTest()` drops the offset, which is to be fixed in
+#' 0.16.0, and [performKoenkerTest()] is the correct one.
 #'
 #' Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
 #' multiplier statistic, \eqn{n R^2} from the regression of the squared
@@ -195,7 +198,13 @@ performStudentizedBPTest <- function(model, data = NULL) {
     )
   }
 
-  weights <- stats::model.weights(model_frame)
+  # The weights of the fit, not those of its model frame. The frame of a
+  # fitWLS() fit is that of the model fitWLS() refitted, so it holds that
+  # model's weights, or none, and not the estimated weights: before 0.15.0 the
+  # statistic of a fitWLS() fit was that of the unweighted fit. They are read
+  # as the other tests read them, which for a Gaussian glm are its prior
+  # weights.
+  weights <- rleast_squares_weights(model)
   if (is.null(weights)) {
     weights <- rep.int(1, nrow(design_matrix))
   }

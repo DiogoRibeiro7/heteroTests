@@ -25,13 +25,16 @@ and p-value for the null hypothesis of constant error variance.
 }
 \description{
 \code{performStudentizedBPTest()} is deprecated since 0.14.0: use
-\code{\link[=performKoenkerTest]{performKoenkerTest()}}, which computes the same statistic. It still works,
-returns what it returned before and warns. On a fit returned by \code{\link[=fitWLS]{fitWLS()}}
-the two differ, and \code{\link[=performKoenkerTest]{performKoenkerTest()}} is the correct one: the model
-frame of that fit still holds the weights of the model \code{fitWLS()} refitted
-(none, for an unweighted model), not the estimated weights, and
-\code{performStudentizedBPTest()} reads them from there. That is to be fixed in
-0.16.0.
+\code{\link[=performKoenkerTest]{performKoenkerTest()}}, which computes the same statistic. It still works
+and warns, and returns what it returned before except on a fit returned by
+\code{\link[=fitWLS]{fitWLS()}}. The model frame of that fit holds the weights of the model
+\code{fitWLS()} refitted (none, for an unweighted model), not the estimated
+weights, and before 0.15.0 \code{performStudentizedBPTest()} read them from
+there, so it computed the statistic of the unweighted fit. Since 0.15.0 it
+reads the weights of the fit, as \code{\link[=performKoenkerTest]{performKoenkerTest()}} does, and the two
+agree. On a model with an offset they still differ:
+\code{performStudentizedBPTest()} drops the offset, which is to be fixed in
+0.16.0, and \code{\link[=performKoenkerTest]{performKoenkerTest()}} is the correct one.
 }
 \details{
 Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
