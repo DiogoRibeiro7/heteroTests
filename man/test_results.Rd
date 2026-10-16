@@ -55,9 +55,13 @@ The tests that read \code{data} also refuse \code{data} whose rows cannot be con
 the fit ("cannot match the rows of \code{data} to the observations of the model"). They match the rows of \code{data}
 to the residuals by row name, and a tibble, a data.table or a data frame whose row names were reset, as by
 \code{dplyr::arrange()}, has row names that only number its rows. Before a test reads \code{data}, the rows the row
-names pick are compared with the model frame of the fit, row by row: the response and every variable the frame holds
-as itself. Data in another order than the fit, or with rows in front of those of the fit, are refused, as are
-repeated row names. Data with row names of their own are matched by name, in any order, except by
+names pick are compared with the model frame of the fit, row by row: every column \code{data} holds under its own
+name, value by value, and the others (\code{log(x)}, \code{poly(x, 2)}, \code{offset(o)}, the weights and an offset
+given as arguments) computed from \code{data} as the fit computed them; a column that names a variable \code{data}
+does not hold is not compared. Data without row names of their own in another order than the fit, or with rows in
+front of those of the fit, are refused, as are repeated row names, and a model frame rebuilt for a fit with
+\code{model = FALSE} from data that changed after the fit. Data with row names of their own are matched by name, in
+any order, except by
 \code{\link{performPesaranTest}()}, \code{\link{performBPRandomEffectsTest}()} and
 \code{\link{performScatterDiagnostic}()}, which read \code{data} by position and need its rows in the order of the
 fit. \code{tests/testthat/test-data-alignment-guard.R} checks these refusals.

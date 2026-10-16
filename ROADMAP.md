@@ -795,13 +795,17 @@ after it.
     or `data.table` to the fit by position, through
     `prepare_model_data_for_test()`. Since 0.15.0 they refuse such data
     instead of returning wrong values: `rcheck_data_rows()`, called by
-    `rdata_or_model_frame()`, compares the response and every variable the
-    model frame holds as itself, on the rows the row names pick, with the model
-    frame, and the tests stop when they differ or when row names repeat;
-    `runHeteroTests()` and `runDiagnostics()` do not fall back on another test
-    for it. The model context replaces this guard, so that such data give the
-    value on the data of the fit. Changes a value for such data. Not covered by
-    the guard:
+    `rdata_or_model_frame()`, compares every column of the model frame, on the
+    rows the row names pick, with the model frame: the columns `data` holds
+    under their own names value by value, and the others (`log(y)`,
+    `log(x)`, `poly()`, `ns()`, `offset(o)`, `(weights)`, `(offset)`) computed
+    from `data` through the `predvars` of the terms and the `weights` and
+    `offset` expressions of the call. The tests stop when they differ, when
+    row names repeat, or when a fit with `model = FALSE` rebuilds a frame
+    whose response is not the fit's; `runHeteroTests()` and `runDiagnostics()`
+    do not fall back on another test for it. The model context replaces this
+    guard, so that such data give the value on the data of the fit. Changes a
+    value for such data. Not covered by the guard:
     - `fitWLS(data, var_formula)` and `performVarianceFormTest()` with
       `var_formula` or `against` read the variables of the second formula
       through `rvariance_frame()`, which matches by name and, when no name
@@ -814,14 +818,26 @@ after it.
       `performVarianceFormTest()` without a second formula,
       `performRESETTest()`) accept reordered data and return the value of the
       fit.
-    - A transformed variable is compared only through the response: two rows
-      that agree on the response and on every variable held as itself, but not
-      on a variable the frame holds only transformed (`x` in `log(x)`), on the
-      weights, the offset, or a column the test reads besides the model
-      (`group`, `order_by`), can pass for each other.
-    - A response computed from all the rows, such as `I(y - mean(y))`, given
-      with rows beyond those of the fit, does not reproduce the fit and is
-      refused.
+    - A column whose expression names a variable that `data` does not hold
+      (a vector or a constant of the workspace, as in `weights = wvec` or
+      `log(x + k)`), or whose computation fails, is not compared; neither are
+      the columns a test reads besides the model (`group`, `order_by`,
+      `variable`, `id`, `time`). With a binary or integer response, rows tied
+      on every column of the model frame (response, regressors, weights,
+      offset) can pass for each other. They then have the same design row,
+      weight, offset and residual, so exchanging them moves only those other
+      columns between identical observations; the review of the guard found
+      that swapping such rows of an unweighted fit with no offset left the
+      Bartlett, Glejser, Szroeter and GQ statistics unchanged.
+    - A term computed from the rows it is given passes when it matches the
+      fit's column on all the rows of `data`, on the matched rows, or up to an
+      increasing affine map, as a centred or scaled term does
+      (`I(x - mean(x))`); one that changes otherwise with the rows, such as
+      `I(x > median(x))` given other rows than those the fit computed it on,
+      is refused.
+    - A fit with `model = FALSE` is checked through its response only: a
+      regressor changed after the fit, with the response unchanged, is not
+      seen, since `data` is compared with the frame rebuilt from it.
     - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
       own check (0.13.0), and the panel tests and
       `performScatterDiagnostic()` refuse data with row names of their own in
