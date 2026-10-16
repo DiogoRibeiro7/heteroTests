@@ -62,6 +62,11 @@ registerPlot <- function(name, fun) {
 # Registry names deprecated in 0.14.0, each with the name its warning points
 # to. A deprecated name keeps calling what it called before, so its results do
 # not change, and runHeteroTests() warns once per call, not once per group.
+# Since 0.15.0 it refuses first what the deprecated function it computes
+# refuses: a glm that is not a least-squares fit, with that function's
+# message. Before, the two names returned a value for such a fit, and
+# runHeteroTests() fell back on "ncv" and returned it under the name of the
+# test that had refused it.
 .ht_deprecated_tests <- c(student_bp = "koenker", ncv = "cook_weisberg")
 
 .ht_deprecated_test_message <- function(old) {
@@ -76,12 +81,18 @@ registerDiagnostic("white", function(model, data) performWhiteTest(model, data))
 registerDiagnostic("breusch_pagan", function(model, data) performBPTest(model, data))
 registerDiagnostic("koenker", function(model, data) performKoenkerTest(model, data))
 registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model, data))
-registerDiagnostic("ncv", function(model, data) .ncv_test(model))
+registerDiagnostic("ncv", function(model, data) {
+  rrefuse_non_gaussian_glm(model, "performNCVTest")
+  .ncv_test(model)
+})
 registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model, data))
 # performBoxMTest() tests the data, not a model, and is the documented
 # exception to the (model, data, ...) convention.
 registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
-registerDiagnostic("student_bp", function(model, data) .studentized_bp_test(model, data))
+registerDiagnostic("student_bp", function(model, data) {
+  rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
+  .studentized_bp_test(model, data)
+})
 registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))
 # performSzroeterTest() needs an ordering of the observations and a registry
 # entry is called with the model and the data only. The ordering comes from

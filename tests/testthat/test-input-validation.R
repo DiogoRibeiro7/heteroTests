@@ -298,3 +298,115 @@ test_that("a model-only test checks the data it is given against the model", {
     "ARCH LM requires `data` to contain the rows used to fit the model. Missing rows: 7"
   )
 })
+
+# The registry names deprecated in 0.14.0, "ncv" and "student_bp", and the
+# "student_bp" entry of test_factory call the implementations behind
+# performNCVTest() and performStudentizedBPTest(), not the functions. Since
+# 0.15.0 they refuse a glm that is not a least-squares fit first, with the
+# message of those functions, decided on 2026-10-16. Before, they returned a
+# value for it, and runHeteroTests() fell back on "ncv" when White's or
+# Koenker's test refused it, and returned the Cook-Weisberg statistic under
+# their names.
+validation_registry_refusals <- c(
+  ncv = "performNCVTest", student_bp = "performStudentizedBPTest"
+)
+
+validation_refusal_of <- function(fn) {
+  paste0(fn, "\\(\\) needs a model fitted by stats::lm\\(\\): a glm with the")
+}
+
+test_that("the deprecated registry names refuse a glm that is not a least-squares fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  inputs <- validation_inputs()[c("glm", "poisson")]
+  for (input in names(inputs)) {
+    m <- inputs[[input]]$m
+    d <- inputs[[input]]$d
+    for (name in names(validation_registry_refusals)) {
+      refusal <- validation_refusal_of(validation_registry_refusals[[name]])
+      info <- paste(name, "on", input)
+      expect_error(
+        without_deprecation(runHeteroTests(m, d, tests = name, use_cache = FALSE)),
+        refusal, info = info
+      )
+      expect_error(
+        without_deprecation(runDiagnostics(m, d, tests = name, use_cache = FALSE)),
+        refusal, info = info
+      )
+      expect_error(cachedTest(name, m, d, use_cache = FALSE), refusal, info = info)
+      expect_error(runHeteroTestsParallel(m, d, tests = name, n_cores = 1), refusal, info = info)
+    }
+    expect_error(
+      test_factory$run_test("student_bp", m, d),
+      validation_refusal_of("performStudentizedBPTest"), info = input
+    )
+  }
+})
+
+test_that("the studentized key of the reference validation refuses such a glm too", {
+  skip_if_not_installed("lmtest")
+  input <- validation_inputs()$glm
+  expect_error(
+    without_deprecation(rvalidate_against_reference("studentized_bp", input$m, input$d)),
+    validation_refusal_of("performStudentizedBPTest")
+  )
+})
+
+test_that("no name holds a fallback result for a glm that is not a least-squares fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  input <- validation_inputs()$glm
+  m <- input$m
+  d <- input$d
+  # The default battery stops with White's refusal, as the other tests stop
+  # with theirs, where it returned the Cook-Weisberg test under the names
+  # white and koenker.
+  expect_error(runHeteroTests(m, d, use_cache = FALSE), validation_refusal_of("performWhiteTest"))
+  expect_error(runDiagnostics(m, d, use_cache = FALSE), validation_refusal_of("performWhiteTest"))
+  # Every test whose fallbacks ended on "ncv" stops with its own refusal.
+  falling_back <- names(Filter(
+    function(chain) "ncv" %in% chain,
+    heteroTests:::.ht_fallback_registry
+  ))
+  expect_true(all(c("white", "koenker", "breusch_pagan") %in% falling_back))
+  for (name in intersect(falling_back, listDiagnostics())) {
+    expect_error(
+      without_deprecation(runHeteroTests(m, d, tests = name, use_cache = FALSE)),
+      "needs a model fitted by stats::lm\\(\\): a glm with the binomial family", info = name
+    )
+  }
+  # Grouped data return each test as failed, with its refusal.
+  skip_if_not_installed("dplyr")
+  d$half <- rep(c("a", "b"), length.out = nrow(d))
+  res <- runHeteroTests(m, dplyr::group_by(d, half))
+  refused_by <- c(white = "performWhiteTest", koenker = "performKoenkerTest")
+  expect_length(res, 2L)
+  for (suite in res) {
+    expect_named(suite, names(refused_by))
+    for (name in names(suite)) {
+      extras <- attr(suite[[name]], "extras")
+      expect_identical(extras$status, "error", info = name)
+      expect_identical(attr(suite[[name]], "diagnostic"), name)
+      expect_match(extras$message, validation_refusal_of(refused_by[[name]]), info = name)
+    }
+  }
+})
+
+test_that("the deprecated names give their implementations' value on a least-squares fit", {
+  cases <- validation_gaussian_glm_cases()
+  ncv <- get("ncv", envir = heteroTests:::.diagnostic_registry)
+  student_bp <- get("student_bp", envir = heteroTests:::.diagnostic_registry)
+  for (case in names(cases)) {
+    for (fit in c("lm", "glm")) {
+      m <- cases[[case]][[fit]]
+      d <- cases[[case]]$d
+      info <- paste(fit, case)
+      expect_identical(ncv(m, d), heteroTests:::.ncv_test(m), info = info)
+      expected <- heteroTests:::.studentized_bp_test(m, d, data_name = "model")
+      expect_identical(student_bp(m, d), expected, info = info)
+      from_factory <- test_factory$run_test("student_bp", m, d)
+      from_factory$test_metadata <- NULL
+      expect_identical(from_factory, expected, info = info)
+    }
+  }
+})
