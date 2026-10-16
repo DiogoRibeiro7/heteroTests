@@ -92,7 +92,11 @@ samples (n &lt; 50) and studentization for Breusch-Pagan.</p></dd>
 <dt id="arg-bootstrap-b">bootstrap_B<a class="anchor" aria-label="anchor" href="#arg-bootstrap-b"></a></dt>
 <dd><p>Number of bootstrap replications used when automatic
 enhancement triggers bootstrap. Defaults to 999, the default of every
-resampling test in the package since 0.15.0; it was 500 before.</p></dd>
+resampling test in the package since 0.15.0; it was 500 before. On a fit
+returned by <code><a href="fitWLS.html">fitWLS()</a></code> the bootstrap of <code><a href="performWhiteTestRobust.html">performWhiteTestRobust()</a></code> and
+<code><a href="performBPTestRobust.html">performBPTestRobust()</a></code> estimates the weights again in each replicate, the
+default of <code><a href="rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code> since 0.15.0, and there is no
+argument to hold them fixed here.</p></dd>
 
 
 <dt id="arg-parallel">parallel<a class="anchor" aria-label="anchor" href="#arg-parallel"></a></dt>

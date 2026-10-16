@@ -53,7 +53,8 @@ samples and under non-normal errors without relying on the asymptotic
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  B <span class="op">=</span> <span class="fl">999</span>,</span>
 <span>  distribution <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rademacher"</span>, <span class="st">"mammen"</span><span class="op">)</span>,</span>
-<span>  progress <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  progress <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  reestimate_weights <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -94,6 +95,22 @@ Supported options are "rademacher" and "mammen".</p></dd>
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
 <dd><p>Logical flag controlling whether progress should be reported
 when running the bootstrap loop.</p></dd>
+
+
+<dt id="arg-reestimate-weights">reestimate_weights<a class="anchor" aria-label="anchor" href="#arg-reestimate-weights"></a></dt>
+<dd><p>Whether each replicate estimates the weights of a
+<code><a href="fitWLS.html">fitWLS()</a></code> fit again from the variance function <code><a href="fitWLS.html">fitWLS()</a></code> recorded on it.
+<code>NULL</code>, the default, does so for a <code><a href="fitWLS.html">fitWLS()</a></code> fit and holds the weights
+fixed for any other model. <code>FALSE</code> holds them fixed, as every call did
+before 0.15.0. <code>TRUE</code> is an error for a model that <code><a href="fitWLS.html">fitWLS()</a></code> did not
+return, or on which it fell back to equal weights. Each replicate
+regenerates the response and holds the design fixed, so a variance
+regressor that uses a variable of the response which the right-hand side
+of the model does not use, such as <code>y</code> or <code>x</code> for <code>I(y / x) ~ z</code>, or that
+is the response term itself, as <code>~ .</code> gives, cannot be estimated again:
+<code>NULL</code> then holds the weights fixed, with a warning, and <code>TRUE</code> is an
+error. Giving the response as a column of the data, as in <code>r ~ z</code>, says
+which variables stay. See <em>Weighted fits</em>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -139,16 +156,32 @@ resampled are the Pearson residuals divided by
 \(\sqrt{1 - h_{ii}}\), with the leverages of that
 regression, and centred; and each replicate refits it. With equal weights
 the result is that of the unweighted fit.</p>
-<p>The weights are held fixed in every replicate. When they were estimated
-from the same data, as by <code><a href="fitWLS.html">fitWLS()</a></code>, the replicates leave that estimation
-out, and the test inherits the error of the tests that take the weights as
-known. In <code>inst/validation/weighted-fits-size.R</code>, on data whose standard
-deviation is \(\exp(0.3 x)\), with the variance function
-correctly specified, normal errors and <code>B = 499</code>, its rejection rate at the
-5% level was 0.086 with 150 observations and 0.105 with 600. In the same
-design with the true weights it was 0.054 and 0.048, and with the weights
-estimated again in each replicate, which this function does not do, 0.060
-and 0.051. <code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> allows for the estimation.</p>
+<p>Weights given to the fit are known, and they are held fixed in every
+replicate. On a fit returned by <code><a href="fitWLS.html">fitWLS()</a></code> they were estimated from the same
+data, and since 0.15.0 they are estimated again in each replicate by
+default (<code>reestimate_weights</code>). The replicate is fitted as the model
+<code><a href="fitWLS.html">fitWLS()</a></code> was given: by least squares, with the weights that model had, if
+any. The variance function <code><a href="fitWLS.html">fitWLS()</a></code> recorded, with its form, is then
+fitted again to the residuals, on the regressors <code><a href="fitWLS.html">fitWLS()</a></code> evaluated, and
+the replicate is refitted with the weights it gives. The statistic is
+computed from the Pearson residuals of that refit, so the reference
+distribution includes the estimation the observed statistic went through.
+A replicate whose variance function cannot be fitted, where <code><a href="fitWLS.html">fitWLS()</a></code>
+would fall back to equal weights, counts as a failed replicate: the p-value
+is computed from the replicates that remain, and a warning gives the number
+that failed.</p>
+<p>Holding the weights of a <code><a href="fitWLS.html">fitWLS()</a></code> fit fixed, as every call did before
+0.15.0 and <code>reestimate_weights = FALSE</code> still does, leaves the estimation
+out of the replicates, and the test inherits the error of the tests that
+take the weights as known. In <code>inst/validation/weighted-fits-size.R</code>, the
+data have standard deviation \(\exp(0.3 x)\), the variance
+function is correctly specified, the errors are normal and <code>B = 499</code>. At
+the 5% level the test then rejected 0.086 of the time with 150 observations
+and 0.105 with 600 when it held the weights fixed, and 0.0605 and 0.0515
+when it estimated them again. With the true weights it rejected 0.054 and
+0.048. At 2000 replications 0.0605 is 2.2 standard errors above 0.05, and
+outside the release gate's interval, 0.042 to 0.058.
+<code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> allows for the estimation too.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

@@ -56,7 +56,16 @@ rrunAdvancedDiagnostics(
 
   Number of bootstrap replications used when automatic enhancement
   triggers bootstrap. Defaults to 999, the default of every resampling
-  test in the package since 0.15.0; it was 500 before.
+  test in the package since 0.15.0; it was 500 before. On a fit returned
+  by
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  the bootstrap of
+  [`performWhiteTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestRobust.md)
+  and
+  [`performBPTestRobust()`](https://diogoribeiro7.github.io/heteroTests/reference/performBPTestRobust.md)
+  estimates the weights again in each replicate, the default of
+  [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  since 0.15.0, and there is no argument to hold them fixed here.
 
 - parallel:
 

@@ -48,6 +48,14 @@ performWhiteTestRobust(
 - bootstrap:
 
   Logical, compute bootstrap diagnostics for the statistic and p-value?
+  The bootstrap is
+  [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md),
+  so on a fit returned by
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  each replicate estimates the weights again, its default since 0.15.0.
+  There is no argument to hold them fixed here;
+  [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+  with `reestimate_weights = FALSE` does that.
 
 - B:
 

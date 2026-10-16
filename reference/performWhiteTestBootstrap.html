@@ -50,7 +50,8 @@ test statistic across many bootstrap replications.</p>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  B <span class="op">=</span> <span class="fl">999</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  n_cores <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  n_cores <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  reestimate_weights <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -95,6 +96,22 @@ See <em>Parallel replicates</em>.</p></dd>
 <dd><p>Optional integer number of worker processes when
 <code>parallel = TRUE</code>. Defaults to <code>parallel::detectCores() - 1</code>. The result
 does not depend on it.</p></dd>
+
+
+<dt id="arg-reestimate-weights">reestimate_weights<a class="anchor" aria-label="anchor" href="#arg-reestimate-weights"></a></dt>
+<dd><p>Whether each replicate estimates the weights of a
+<code><a href="fitWLS.html">fitWLS()</a></code> fit again from the variance function <code><a href="fitWLS.html">fitWLS()</a></code> recorded on it.
+<code>NULL</code>, the default, does so for a <code><a href="fitWLS.html">fitWLS()</a></code> fit and holds the weights
+fixed for any other model. <code>FALSE</code> holds them fixed, as every call did
+before 0.15.0. <code>TRUE</code> is an error for a model that <code><a href="fitWLS.html">fitWLS()</a></code> did not
+return, or on which it fell back to equal weights. Each replicate
+regenerates the response and holds the design fixed, so a variance
+regressor that uses a variable of the response which the right-hand side
+of the model does not use, such as <code>y</code> or <code>x</code> for <code>I(y / x) ~ z</code>, or that
+is the response term itself, as <code>~ .</code> gives, cannot be estimated again:
+<code>NULL</code> then holds the weights fixed, with a warning, and <code>TRUE</code> is an
+error. Giving the response as a column of the data, as in <code>r ~ z</code>, says
+which variables stay. See <em>Weighted fits</em>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -159,15 +176,26 @@ given as an argument, <code>lm(..., offset = o)</code>; an offset written in the
 formula, <code>offset(o)</code>, is evaluated again from the data of the replicate. A
 transformed response, such as <code>log(y)</code> in <code>log(y) ~ x</code>, is regenerated on
 the scale the model uses, and the refit reads it in place of <code>log(y)</code>.</p>
-<p>The weights are held fixed in every replicate. When they were estimated
-from the same data, as by <code><a href="fitWLS.html">fitWLS()</a></code>, the replicates leave that estimation
-out. In <code>inst/validation/weighted-fits-size.R</code>, on data whose standard
-deviation is \(\exp(0.3 x)\), with the variance function
-correctly specified, normal errors, 150 observations and <code>B = 499</code>, the
-rejection rate at the 5% level was 0.064. In the same design with the true
-weights it was 0.054, and with the weights estimated again in each
-replicate, which this function does not do, 0.042. The section on weighted
-fits in <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code> has the larger error of Koenker's
+<p>Weights given to the fit are known, and they are held fixed in every
+replicate. On a fit returned by <code><a href="fitWLS.html">fitWLS()</a></code> they were estimated from the same
+data, and since 0.15.0 they are estimated again in each replicate by
+default (<code>reestimate_weights</code>): the replicate is fitted as the model
+<code><a href="fitWLS.html">fitWLS()</a></code> was given, the variance function <code><a href="fitWLS.html">fitWLS()</a></code> recorded is fitted
+again to its residuals, on the same regressors and with the same form, and
+the replicate is refitted with the weights it gives, so that
+<code><a href="performWhiteTest.html">performWhiteTest()</a></code> sees a <code><a href="fitWLS.html">fitWLS()</a></code> fit of the replicate. A replicate
+whose variance function cannot be fitted, where <code><a href="fitWLS.html">fitWLS()</a></code> would fall back
+to equal weights, counts as a failed replicate, and the p-value is computed
+from the replicates that remain; a warning gives the number that failed.</p>
+<p>In <code>inst/validation/weighted-fits-size.R</code>, the data have standard deviation
+\(\exp(0.3 x)\), the variance function is correctly
+specified, the errors are normal, there are 150 observations and
+<code>B = 499</code>. At the 5% level the test then rejected 0.064 of the time when it
+held the weights of <code><a href="fitWLS.html">fitWLS()</a></code> fixed, as every call did before 0.15.0 and
+<code>reestimate_weights = FALSE</code> still does. It rejected 0.0415 when it
+estimated them again, just below the release gate's interval, 0.042 to
+0.058, and 0.054 with the true weights. The section on weighted fits
+in <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code> has the larger error of Koenker's
 statistic.</p>
     </div>
     <div class="section level2">

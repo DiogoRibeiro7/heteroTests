@@ -44,7 +44,9 @@ attached as the `"variance_model"` attribute, and the fitted variance
 function (its form, regressors and coefficients) as the
 `"variance_function"` attribute, which is what
 [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
-reads.
+reads, and what the bootstrap tests read to estimate the weights again
+in each replicate. When `model` was fitted with weights, the attribute
+also holds them, as `initial_weights`.
 
 ## Details
 
@@ -99,6 +101,21 @@ the truth about 10% of the time.
 Whether the variance function *is* correctly specified can be tested:
 pass the result to
 [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md).
+
+A test of constant variance on the result takes its weights as known,
+although they were estimated from the same data, so its reference
+distribution is only approximate: see the validation study in
+`inst/validation/README.md`. The bootstrap tests
+[`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md),
+[`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+and
+[`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
+allow for the estimation. Since 0.15.0 they run `fitWLS()` again on each
+replicate by default: they fit it as `model` was fitted, fit the
+recorded variance function again to its residuals, on the recorded
+regressors, and refit it with the weights that gives. Their argument
+`reestimate_weights = FALSE` holds the weights fixed instead, as they
+did before 0.15.0.
 
 If the variance function cannot be fitted, or yields no usable
 variation, the function falls back to equal weights, which reduces the

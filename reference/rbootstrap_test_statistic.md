@@ -19,7 +19,8 @@ bootstrapTestStatistic(
   resample = c("null", "pairs"),
   n_cores = NULL,
   progress = interactive(),
-  ...
+  ...,
+  reestimate_weights = NULL
 )
 
 rbootstrap_test_statistic(
@@ -32,7 +33,8 @@ rbootstrap_test_statistic(
   resample = c("null", "pairs"),
   n_cores = NULL,
   progress = interactive(),
-  ...
+  ...,
+  reestimate_weights = NULL
 )
 ```
 
@@ -70,8 +72,39 @@ h_i}\\ with the leverages of that regression and centred, and divides
 each draw by \\\sqrt{w_i}\\ before adding it to \\\hat y_i\\. Pairs
 resampling draws each row with its weight. Either way each replicate is
 refitted with the weights, so `test_function` sees a weighted fit, as it
-did on the original data. The weights are held fixed; when they were
-estimated from the same data, see the section on weighted fits in
+did on the original data.
+
+Weights given to the fit are known, and they are held fixed. On a fit
+returned by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+they were estimated from the same data, and since 0.15.0 each replicate
+estimates them again by default (`reestimate_weights`), so that
+`test_function` sees what
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+would have returned for the replicate. The replicate is fitted as the
+model
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+was given, without weights or with the weights that model had. The
+variance function
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+recorded is fitted again to its residuals, with the same form and on the
+regressors
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+evaluated, whose rows follow the rows drawn under pairs resampling, and
+the replicate is refitted with the weights it gives. A replicate whose
+variance function cannot be fitted, where
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+would fall back to equal weights, fails as a replicate whose refit fails
+does, and the p-value and the interval are computed from the replicates
+that remain; a warning gives the number that failed. In
+`inst/validation/weighted-fits-size.R`, with the variance function
+correctly specified, normal errors, 150 observations, `B = 499` and
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+as `test_function`, the rejection rate at the 5% level was 0.083 with
+the weights held fixed, as every call did before 0.15.0 and
+`reestimate_weights = FALSE` still does, 0.045 with them estimated
+again, and 0.045 with the true weights. See the section on weighted fits
+in
 [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md).
 
 Weighted or not, each replicate is refitted with an offset the model was
@@ -155,6 +188,28 @@ refitting would take the logarithm twice. That case raises an error;
 - ...:
 
   Additional arguments forwarded to `test_function`.
+
+- reestimate_weights:
+
+  Whether each replicate estimates the weights of a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit again from the variance function
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  recorded on it. `NULL`, the default, does so for a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit and holds the weights fixed for any other model. `FALSE` holds
+  them fixed, as every call did before 0.15.0. `TRUE` is an error for a
+  model that
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  did not return, or on which it fell back to equal weights. Each
+  replicate regenerates the response and holds the design fixed, so a
+  variance regressor that uses a variable of the response which the
+  right-hand side of the model does not use, such as `y` or `x` for
+  `I(y / x) ~ z`, or that is the response term itself, as `~ .` gives,
+  cannot be estimated again: `NULL` then holds the weights fixed, with a
+  warning, and `TRUE` is an error. Giving the response as a column of
+  the data, as in `r ~ z`, says which variables stay. It comes after
+  `...`, so it has to be named in full. See Details.
 
 ## Value
 

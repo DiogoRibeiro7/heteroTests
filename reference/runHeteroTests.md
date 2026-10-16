@@ -75,7 +75,16 @@ Cook-Weisberg test. Pass `data` for such a fit.
 
   character vector of test names to run: any of the names
   [`listDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/listDiagnostics.md)
-  returns, which include those added with `registerDiagnostic`.
+  returns, which include those added with `registerDiagnostic`. On a fit
+  returned by
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  the resampling tests `"wild_bootstrap"` and `"white_bootstrap"`
+  estimate the weights again in each replicate, as
+  [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md)
+  and
+  [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md)
+  do by default since 0.15.0; to hold them fixed, call those functions
+  with `reestimate_weights = FALSE`.
 
 - use_cache:
 

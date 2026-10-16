@@ -144,8 +144,11 @@ panel tests. Their simulated size and power are in
   weights are adequate, and the bootstrap tests resample on the same
   scale. For weights estimated by
   [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
+  the bootstrap tests estimate them again in each replicate, and
   [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
-  is the test that allows for the estimation.
+  tests the variance function
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fitted; both allow for the estimation.
 - **Ecosystem integration** — `broom` tidiers, `ggplot2`
   theming/`autoplot`, and helpers for tidymodels and grouped pipelines.
   [`runSurveyHeteroTests()`](https://diogoribeiro7.github.io/heteroTests/reference/runSurveyHeteroTests.md)

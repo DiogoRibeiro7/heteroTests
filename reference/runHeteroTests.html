@@ -87,7 +87,10 @@ test. Pass <code>data</code> for such a fit.</p>
 
   <dt id="arg-tests">tests<a class="anchor" aria-label="anchor" href="#arg-tests"></a></dt>
 <dd><p>character vector of test names to run: any of the names <code><a href="listDiagnostics.html">listDiagnostics()</a></code> returns, which
-  include those added with <code>registerDiagnostic</code>.</p></dd>
+  include those added with <code>registerDiagnostic</code>. On a fit returned by <code><a href="fitWLS.html">fitWLS()</a></code> the resampling tests
+  <code>"wild_bootstrap"</code> and <code>"white_bootstrap"</code> estimate the weights again in each replicate, as
+  <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code> and <code><a href="performWhiteTestBootstrap.html">performWhiteTestBootstrap()</a></code> do by default since 0.15.0; to hold
+  them fixed, call those functions with <code>reestimate_weights = FALSE</code>.</p></dd>
 
   <dt id="arg-use-cache">use_cache<a class="anchor" aria-label="anchor" href="#arg-use-cache"></a></dt>
 <dd><p>logical indicating whether cached results should be reused when available. Requires the <span class="pkg">digest</span>

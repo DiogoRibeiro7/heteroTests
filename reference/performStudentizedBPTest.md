@@ -2,17 +2,21 @@
 
 `performStudentizedBPTest()` is deprecated since 0.14.0: use
 [`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md),
-which computes the same statistic. It still works, returns what it
-returned before and warns. On a fit returned by
-[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
-the two differ, and
-[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
-is the correct one: the model frame of that fit still holds the weights
-of the model
+which computes the same statistic. It still works and warns, and returns
+what it returned before except on a fit returned by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md).
+The model frame of that fit holds the weights of the model
 [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
 refitted (none, for an unweighted model), not the estimated weights, and
-`performStudentizedBPTest()` reads them from there. That is to be fixed
-in 0.16.0.
+before 0.15.0 `performStudentizedBPTest()` read them from there, so it
+computed the statistic of the unweighted fit. Since 0.15.0 it reads the
+weights of the fit, as
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+does, and the two agree. On a model with an offset they still differ:
+`performStudentizedBPTest()` drops the offset, which is to be fixed in
+0.16.0, and
+[`performKoenkerTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performKoenkerTest.md)
+is the correct one.
 
 ## Usage
 

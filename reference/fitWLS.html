@@ -81,7 +81,9 @@ functions.</p></dd>
 attached as the <code>"variance_model"</code> attribute, and the fitted variance
 function (its form, regressors and coefficients) as the
 <code>"variance_function"</code> attribute, which is what
-<code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> reads.</p>
+<code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code> reads, and what the bootstrap tests read to
+estimate the weights again in each replicate. When <code>model</code> was fitted
+with weights, the attribute also holds them, as <code>initial_weights</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -131,6 +133,17 @@ residuals: the weighted residual sum of squares then collapsed towards
 about 10% of the time.</p>
 <p>Whether the variance function <em>is</em> correctly specified can be tested: pass
 the result to <code><a href="performVarianceFormTest.html">performVarianceFormTest()</a></code>.</p>
+<p>A test of constant variance on the result takes its weights as known,
+although they were estimated from the same data, so its reference
+distribution is only approximate: see the validation study in
+<code>inst/validation/README.md</code>. The bootstrap
+tests <code><a href="performWildBootstrapTest.html">performWildBootstrapTest()</a></code>, <code><a href="performWhiteTestBootstrap.html">performWhiteTestBootstrap()</a></code> and
+<code><a href="rbootstrap_test_statistic.html">bootstrapTestStatistic()</a></code> allow for the estimation. Since 0.15.0 they run
+<code>fitWLS()</code> again on each replicate by default: they fit it as <code>model</code> was
+fitted, fit the recorded variance function again to its residuals, on the
+recorded regressors, and refit it with the weights that gives. Their
+argument <code>reestimate_weights = FALSE</code> holds the weights fixed instead, as
+they did before 0.15.0.</p>
 <p>If the variance function cannot be fitted, or yields no usable variation,
 the function falls back to equal weights, which reduces the result to the
 original OLS fit.</p>

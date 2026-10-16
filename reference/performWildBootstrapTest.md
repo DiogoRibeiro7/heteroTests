@@ -13,7 +13,8 @@ performWildBootstrapTest(
   data = NULL,
   B = 999,
   distribution = c("rademacher", "mammen"),
-  progress = interactive()
+  progress = interactive(),
+  reestimate_weights = NULL
 )
 ```
 
@@ -55,6 +56,28 @@ performWildBootstrapTest(
 
   Logical flag controlling whether progress should be reported when
   running the bootstrap loop.
+
+- reestimate_weights:
+
+  Whether each replicate estimates the weights of a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit again from the variance function
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  recorded on it. `NULL`, the default, does so for a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit and holds the weights fixed for any other model. `FALSE` holds
+  them fixed, as every call did before 0.15.0. `TRUE` is an error for a
+  model that
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  did not return, or on which it fell back to equal weights. Each
+  replicate regenerates the response and holds the design fixed, so a
+  variance regressor that uses a variable of the response which the
+  right-hand side of the model does not use, such as `y` or `x` for
+  `I(y / x) ~ z`, or that is the response term itself, as `~ .` gives,
+  cannot be estimated again: `NULL` then holds the weights fixed, with a
+  warning, and `TRUE` is an error. Giving the response as a column of
+  the data, as in `r ~ z`, says which variables stay. See *Weighted
+  fits*.
 
 ## Value
 
@@ -101,20 +124,44 @@ divided by \\\sqrt{1 - h\_{ii}}\\, with the leverages of that
 regression, and centred; and each replicate refits it. With equal
 weights the result is that of the unweighted fit.
 
-The weights are held fixed in every replicate. When they were estimated
-from the same data, as by
-[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md),
-the replicates leave that estimation out, and the test inherits the
-error of the tests that take the weights as known. In
-`inst/validation/weighted-fits-size.R`, on data whose standard deviation
-is \\\exp(0.3 x)\\, with the variance function correctly specified,
-normal errors and `B = 499`, its rejection rate at the 5% level was
-0.086 with 150 observations and 0.105 with 600. In the same design with
-the true weights it was 0.054 and 0.048, and with the weights estimated
-again in each replicate, which this function does not do, 0.060 and
-0.051.
+Weights given to the fit are known, and they are held fixed in every
+replicate. On a fit returned by
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+they were estimated from the same data, and since 0.15.0 they are
+estimated again in each replicate by default (`reestimate_weights`). The
+replicate is fitted as the model
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+was given: by least squares, with the weights that model had, if any.
+The variance function
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+recorded, with its form, is then fitted again to the residuals, on the
+regressors
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+evaluated, and the replicate is refitted with the weights it gives. The
+statistic is computed from the Pearson residuals of that refit, so the
+reference distribution includes the estimation the observed statistic
+went through. A replicate whose variance function cannot be fitted,
+where
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+would fall back to equal weights, counts as a failed replicate: the
+p-value is computed from the replicates that remain, and a warning gives
+the number that failed.
+
+Holding the weights of a
+[`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+fit fixed, as every call did before 0.15.0 and
+`reestimate_weights = FALSE` still does, leaves the estimation out of
+the replicates, and the test inherits the error of the tests that take
+the weights as known. In `inst/validation/weighted-fits-size.R`, the
+data have standard deviation \\\exp(0.3 x)\\, the variance function is
+correctly specified, the errors are normal and `B = 499`. At the 5%
+level the test then rejected 0.086 of the time with 150 observations and
+0.105 with 600 when it held the weights fixed, and 0.0605 and 0.0515
+when it estimated them again. With the true weights it rejected 0.054
+and 0.048. At 2000 replications 0.0605 is 2.2 standard errors above
+0.05, and outside the release gate's interval, 0.042 to 0.058.
 [`performVarianceFormTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performVarianceFormTest.md)
-allows for the estimation.
+allows for the estimation too.
 
 ## References
 
