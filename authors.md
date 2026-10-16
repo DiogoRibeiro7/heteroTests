@@ -13,7 +13,7 @@ Source:
 Ribeiro D (2026). *heteroTests: Heteroscedasticity Diagnostics for
 Linear Models*.
 [doi:10.32614/CRAN.package.heteroTests](https://doi.org/10.32614/CRAN.package.heteroTests).
-R package version 0.14.0,
+R package version 0.15.0,
 <https://CRAN.R-project.org/package=heteroTests>.
 
     @Manual{,
@@ -22,7 +22,7 @@ R package version 0.14.0,
       year = {2026},
       doi = {10.32614/CRAN.package.heteroTests},
       url = {https://CRAN.R-project.org/package=heteroTests},
-      note = {R package version 0.14.0},
+      note = {R package version 0.15.0},
     }
 
 See the vignette for a detailed introduction to all diagnostics.

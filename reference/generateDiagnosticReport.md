@@ -62,6 +62,6 @@ if (requireNamespace("rmarkdown", quietly = TRUE) &&
 #> [INFO] Running White test
 #> [INFO] White test completed: statistic = 6.5431 df = 5 p = 0.2569
 #> [INFO] Running Koenker test
-#> Report generated: /tmp/RtmpCLVPJB/diagnostic_report.html
+#> Report generated: /tmp/RtmpI3IhKJ/diagnostic_report.html
 # }
 ```

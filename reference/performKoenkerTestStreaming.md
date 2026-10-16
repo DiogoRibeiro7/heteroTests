@@ -8,7 +8,12 @@ processed without allocating the full auxiliary regression matrix.
 ## Usage
 
 ``` r
-performKoenkerTestStreaming(model, data = NULL, chunk_size = 10000, progress = interactive())
+performKoenkerTestStreaming(
+  model,
+  data = NULL,
+  chunk_size = 10000,
+  progress = interactive()
+)
 ```
 
 ## Arguments

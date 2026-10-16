@@ -5,11 +5,11 @@ meaningful code changes. Milestones are ordered, not dated. The history
 of what changed and why lives in `NEWS.md`; the statistical evidence
 lives in `inst/validation/`.
 
-## Where things stand (0.14.0)
+## Where things stand (0.15.0)
 
 - **On CRAN.** 0.11.2 was accepted in September 2026, after one review
-  round on 0.11.1. 0.12.0, 0.13.0 and 0.14.0 are GitHub releases: the
-  next submission is 1.0.0 (decided 2026-10-11).
+  round on 0.11.1. 0.12.0, 0.13.0, 0.14.0 and 0.15.0 are GitHub
+  releases: the next submission is 1.0.0 (decided 2026-10-11).
 - **The validation matrix is complete** for every exported
   `perform*Test()`. The sweep found six broken procedures, all corrected
   or withdrawn, and twenty-five of the twenty-six heteroscedasticity
@@ -24,7 +24,9 @@ lives in `inst/validation/`.
   corrects that and adds weighted designs to the matrix
   (`inst/validation/weighted-fits-size.R`). In 0.13.0 the bootstrap
   tests accept a weighted fit too, with designs of their own in the same
-  study.
+  study, and since 0.15.0 they estimate the weights of a
+  [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md)
+  fit again in each replicate rather than take them as known.
 - **Reference equivalence** is asserted to `1e-8` against `lmtest`,
   `car` and `plm` wherever a reference implementation exists.
   [`lmtest::bptest()`](https://rdrr.io/pkg/lmtest/man/bptest.html) is
@@ -36,11 +38,22 @@ lives in `inst/validation/`.
   [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md),
   [`simulate_size()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
   and
-  [`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md)
-  the package exports 132 objects, and `test-public-api.R` asserts the
-  107 planned for 1.0.0. What stands between 0.14.0 and 1.0.0 is the
-  interface itself, whose changes break calls (0.15.0), and the evidence
-  and internals of 0.16.0.
+  [`simulate_power()`](https://diogoribeiro7.github.io/heteroTests/reference/simulation_framework.md),
+  and
+  [`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
+  in 0.15.0, the package exports 133 objects, and `test-public-api.R`
+  asserts the 107 planned for 1.0.0.
+- **The interface matches its description.** In 0.15.0 every test takes
+  `(model, data, ...)`, `performBoxMTest(data, group)` being the
+  documented exception, `studentize` chooses the studentized statistic
+  throughout,
+  [`?test_results`](https://diogoribeiro7.github.io/heteroTests/reference/test_results.md)
+  documents what every test returns, and every test refuses the same bad
+  inputs with one message. The old call forms warn in 0.15.x and stop
+  working in 1.0.0. The defaults changed with it: 999 replicates for
+  every resampling function, White and Koenker as the default battery,
+  and the corrected Glejser statistic. What stands between 0.15.0 and
+  1.0.0 is the evidence and internals of 0.16.0, and the freeze.
 
 ## What 1.0.0 means
 
@@ -79,7 +92,9 @@ corrected what was found after it, so the API is next.
   would have frozen each of those faults rather than caught it.
 - **One consistent interface.** All diagnostics return base-R `htest`
   objects and follow the `perform*Test(model, data, ...)` convention.
-  (Nine exported tests do not yet; see 0.15.0.)
+  (Since 0.15.0 every exported test does, except
+  `performBoxMTest(data, group)`, which tests the data rather than
+  residuals; see 0.15.0.)
 - **Scale and robustness as first-class concerns**: streaming
   implementations for large data, resampling and robust variants for
   small or non-normal samples.
@@ -392,7 +407,7 @@ is renamed
 [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md)
 and the other three are deprecated as internal helpers.
 [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
-stays core API (decided), and is renamed
+stays core API (decided), and was renamed
 [`runAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
 in 0.15.0.
 
@@ -662,7 +677,7 @@ Notes on the verdicts:
   spell the verb two ways. Both are core API; the roadmap names no
   change for them.
 
-### 0.15.0: make the interface match its description
+### 0.15.0: make the interface match its description (done)
 
 These changes break existing calls. They have to happen before 1.0.0,
 not after it.
@@ -1079,6 +1094,44 @@ not say that they go in 1.0.0, as the internal helpers, the 0.15.0 forms
 and
 [`rrunAdvancedDiagnostics()`](https://diogoribeiro7.github.io/heteroTests/reference/runAdvancedDiagnostics.md)
 do. Found in the 0.15.0 release audit; no value changes.
+
+**The wild bootstrap in the advice for a small sample.** 0.15.0
+corrected the warning of
+[`warnDiagnosticAssumptions()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+for a sample of fewer than 100 observations, but two other strings still
+recommend the wild bootstrap for such a sample:
+[`suggestDiagnosticsForProfile()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+adds it with the rationale “Bootstrap inference performs well in small
+samples.” (`R/intelligent_recommendations.R:183`), and step 1 of
+[`buildDiagnosticDecisionTree()`](https://diogoribeiro7.github.io/heteroTests/reference/generateHeteroRecommendations.md)
+says “Emphasise wild bootstrap and rank permutation tests.” (`:575`). In
+`inst/validation/wild-multiplier-size.R` the wild bootstrap does not
+hold its level with skewed errors at 30, 50 and 100 observations: with
+centred exponential errors it rejects 0.082, 0.073 and 0.061 of the time
+at the 5% level with the Rademacher multiplier. Say what the warning
+says, or drop the claim. Recorded, not fixed, in 0.15.0; only the text
+changes.
+
+**`ht_analyse_failure()` labels a failure by its message, ignoring
+case.** It calls a failure a rank deficiency when the message matches
+`"rank|singular"` and a data-quality issue when it matches
+`"NA|NaN|missing|Inf"`, both with `ignore.case = TRUE`
+(`R/error_handling.R:269-275`), and `ht_data_cleaning_suggestions()`
+picks its advice by the same patterns. The refusals of a `glm` that is
+not a least-squares fit name the test, and two names match: on
+`m <- glm(am ~ wt + hp, data = mtcars, family = binomial)`,
+`runHeteroTests(m, mtcars, tests = "rank_permutation")` stops with “Rank
+deficiency detected for Rank Permutation:
+[`performRankPermutationTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performRankPermutationTest.md)
+needs a model fitted by stats::lm(): …” and the advice to remove
+collinear predictors, and `tests = "high_dimensional"` with “Data
+quality issue detected”, from the “na” of
+[`performHighDimensionalTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performHighDimensionalTest.md),
+and the advice to remove missing values. The other tests refuse it as
+“Diagnostic execution failed”. Match whole words, and `NA` only in
+capitals, or give the refusal of such a `glm` an issue of its own.
+Recorded, not fixed, in 0.15.0; only the message and the recorded
+`issue` change.
 
 **[`performFlignerKilleenTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performFlignerKilleenTest.md)
 and a tie at the median.** The statistic depends on rounding when the
