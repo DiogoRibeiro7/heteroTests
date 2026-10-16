@@ -299,17 +299,29 @@ response. A term that depends on the rows it is computed from, such as
 `I((x - mean(x))^2)`, `I(x > median(x))` or `rank(x)`, comes out otherwise on
 the rows a fit with `subset =` or `na.omit` kept, which are the right rows; it
 is not compared, and neither is a column that names a variable `data` does not
-hold or whose computation fails. The columns that are compared must then tell
-the rows of the fit apart: if two rows tie on all of them and differ in a
-column that is not compared, the data are refused, with that column named.
-Data whose rows differ are refused, and so are repeated row names. Data with
-row names of their own, such as
+hold or whose computation fails. A column computed from a vector of the
+workspace, such as `weights = wts`, is read by no test from `data` and needs
+nothing more. For the others, the columns that are compared must tell the
+rows of the fit apart.
+
+The guard refuses data it cannot confirm, even when they are the data of the
+fit. It does so in two cases. One is when no column of the model frame can be
+compared, as with `lm(d$y ~ d$x)`. The other is when the compared columns tie
+on rows of the fit that differ in a term that depends on the rows, or in a
+term of variables of `data` that cannot be computed. That happens with a
+discrete response and a row-dependent regressor on the rows an `na.omit` fit
+kept, as in `lm(score ~ g + I(x > median(x)) + z2)`, and with `y01 ~ myf(x)`
+after `rm(myf)` or `ns()` after `detach("package:splines")`. Pass the full data
+the model was fitted on, with the rows it dropped, or its variables as
+columns of `data`. Data whose rows differ are refused, and so are repeated row
+names. Data with row names of their own, such as
 `d[sample(n), ]`, are still matched by name, the tibble or data.table the
 model was fitted on is accepted, and so are rows after those of the fit. On
-thirteen fits (unweighted, weighted, with an offset given as an argument or as
+eighteen fits (unweighted, weighted, with an offset given as an argument or as
 a term, `log(y)`, `na.omit` with three rows dropped, a Gaussian `glm`, a
-`fitWLS()` fit, `log(x) + poly(x, 2)`, `model = FALSE`, and four with a term
-computed from the rows under `na.omit` or `subset =`), every exported test on
+`fitWLS()` fit, `log(x) + poly(x, 2)`, `model = FALSE`, a discrete response
+with weights or an offset from the workspace, and seven with a term computed
+from the rows under `na.omit` or `subset =`), every exported test on
 the data of the fit, with `data = NULL`, on the same rows shuffled with their
 row names, on the rows the fit kept, and on the tibble and the data.table the
 model was fitted on returns what it returned, `identical()`, except the three

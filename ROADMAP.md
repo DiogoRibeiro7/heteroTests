@@ -805,7 +805,8 @@ after it.
     computing it again on half the rows, is not compared when it differs, and
     neither is a column that names a variable `data` lacks or whose
     computation fails; the compared columns must then leave no two rows of the
-    fit that tie on them and differ in a column not compared. The tests stop
+    fit that tie on them and differ in such a column computed from variables
+    of `data`, and at least one column must be compared. The tests stop
     when a compared column differs, when such ties remain, when row names
     repeat, or when a fit with `model = FALSE` rebuilds a frame whose response
     or fitted values are not the fit's; `runHeteroTests()` and
@@ -841,15 +842,33 @@ after it.
       identical observations. The review of the guard found that swapping such
       rows of an unweighted fit with no offset left the Bartlett, Glejser,
       Szroeter and GQ statistics unchanged.
-    - When a column is not compared (it depends on the rows, names a
-      variable of the workspace as `weights = wvec` or `log(x + k)` do, or uses
-      a function that is no longer found), the data are accepted only if the
-      compared columns tell the rows of the fit apart. With continuous
-      variables they do; with a 0/1 response and such a column the data are
-      refused even in the order of the fit, which the guard cannot confirm.
+    - A column computed from a vector of the workspace (`weights = wvec`,
+      `offset = ovec`, `log(x + k)`) is not compared; no test reads it from
+      `data`, so it needs nothing more.
+    - The guard refuses data it cannot confirm, even the data of the fit:
+      (i) when no column of the model frame can be compared, as with
+      `lm(d$y ~ d$x)`; (ii) when the compared columns tie on rows of the fit
+      that differ in a term that depends on the rows or in a term of variables
+      of `data` that cannot be computed, as with a discrete response and a
+      row-dependent regressor on the rows an `na.omit` fit kept
+      (`lm(score ~ g + I(x > median(x)) + z2)`), or `y01 ~ myf(x)` after
+      `rm(myf)` and `ns()` after `detach("package:splines")`. The message names
+      the columns; pass the full data the model was fitted on, with the rows
+      it dropped, or the variables as columns of `data`.
     - A term that depends on the rows is recognised by computing it again on
-      half the rows; one that gives the same values there by chance is
+      the odd and even rows and on each half, so every row is left out of one
+      of them; one that gives the same values on all four by chance is
       compared, and refused on the rows a `subset =` or `na.omit` fit kept.
+    - Data that reproduce every column of the model frame exactly but are
+      another data set, with another extra column the test reads (`g` in
+      T1b of the review), give a wrong value without an error, as in 0.14.0.
+    - `performScatterDiagnostic()` refuses a tibble in the order of the fit of
+      a model fitted to data with character row names, which it cannot match
+      by name.
+    - `cut(x, quantile(x))` in the formula makes Koenker's test stop with
+      "factor has new levels", on main and with the guard alike.
+    - The second review of the guard measured it at about 20 to 40% of a
+      cheap test (Bartlett, Glejser) at 100,000 rows.
     - A `model = FALSE` fit whose data changed after the fit is refused by
       the tests that read `data`, with or without it, but the tests that read
       only the model rebuild its frame too: `performRESETTest()` takes its
