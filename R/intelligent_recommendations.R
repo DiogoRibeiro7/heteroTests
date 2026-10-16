@@ -520,7 +520,12 @@ warnDiagnosticAssumptions <- function(profile, interpretations, model, data, tes
   }
 
   if (identical(profile$size_bucket, "small")) {
-    warnings <- c(warnings, "Sample size is limited; rely on wild bootstrap or permutation-based tests for reliable inference.")
+    warnings <- c(warnings, paste(
+      "Sample size is limited; with skewed errors the wild bootstrap does not hold its level",
+      "here: in the package's validation study it rejected a true null hypothesis 6% to 8% of",
+      "the time at the 5% level at 30 to 100 observations. Check the residuals for skewness",
+      "and read p-values near the level with caution."
+    ))
   }
 
   if (identical(profile$size_bucket, "very_large")) {

@@ -524,6 +524,11 @@ rvalidate_against_reference <- function(test_name, model, data, tolerance = 1e-6
       return(list(status = "skipped", message = "Package 'lmtest' not installed."))
     }
     reference <- lmtest::bptest(model, studentize = TRUE)
+    # The other two keys call the exported test, which refuses a glm that is
+    # not a least-squares fit; this one calls the implementation behind
+    # performStudentizedBPTest() and refuses it as that function does, since
+    # 0.15.0.
+    rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
     ours <- .studentized_bp_test(model, data)
     return(compare_results(ours, unname(reference$statistic), reference$p.value))
   }

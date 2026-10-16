@@ -113,7 +113,13 @@ test_factory <- TestFactory$new()
   test_factory$register("white", performWhiteTest)
   test_factory$register("breusch_pagan", performBPTest)
   test_factory$register("koenker", performKoenkerTest)
-  test_factory$register("student_bp", .studentized_bp_test)
+  # The implementation behind performStudentizedBPTest(), after the refusal
+  # of a glm that is not a least-squares fit that the function makes, since
+  # 0.15.0; it returned a value for such a fit before.
+  test_factory$register("student_bp", function(model, data, ...) {
+    rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
+    .studentized_bp_test(model, data, ...)
+  })
   test_factory$register("white_bootstrap", performWhiteTestBootstrap)
   test_factory$register("szroeter", performSzroeterTest)
   test_factory$register("wild_bootstrap", performWildBootstrapTest)
