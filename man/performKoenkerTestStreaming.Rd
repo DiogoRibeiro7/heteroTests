@@ -3,7 +3,12 @@
 \alias{performKoenkerTestStreaming}
 \title{Streaming Koenker studentized Breusch\–Pagan test}
 \usage{
-performKoenkerTestStreaming(model, data = NULL, chunk_size = 10000, progress = interactive())
+performKoenkerTestStreaming(
+  model,
+  data = NULL,
+  chunk_size = 10000,
+  progress = interactive()
+)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object supplying residuals and fitted values for
