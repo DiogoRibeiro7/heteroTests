@@ -258,7 +258,8 @@ deprecated until it has one.
 - [x] **Duplicate exports.** Each duplicate below is deprecated in favour of
   the name it duplicates. `performStudentizedBPTest()` agrees with
   `performKoenkerTest()` to `1e-8` except on a `fitWLS()` fit, where it reads
-  the stale weights listed under 0.16.0; it keeps its implementation, so no
+  the stale weights listed under 0.16.0, and on a model with an offset, which
+  it drops (also listed under 0.16.0); it keeps its implementation, so no
   value changes.
   - `performBreuschPaganTest()` is `performBPTest()`, assigned at
     `R/performBPTest.R:232`.
@@ -827,6 +828,14 @@ after it.
     `performStudentizedBPTest()` on a `fitWLS()` fit reads stale weights: 14.81,
     against 1.73 for the equivalent `lm(weights = estimated)` fit. Suggested
     fix: `mf[["(weights)"]] <- w` in `rweighted_refit()`. Changes a value.
+  - `.studentized_bp_test()`, behind `performStudentizedBPTest()`,
+    `performBPTestRobust(studentize = TRUE)` and the registered `"student_bp"`,
+    drops every offset, given as an argument or written in the formula: it
+    refits the model with `lm.wfit()` and no offset. On
+    `lm(y ~ x + z, offset = o)` in the design of
+    `tests/testthat/test-fitwls-reestimation.R` it gives 19.91 where
+    `performKoenkerTest()` gives 18.79. Found in the review of #129. Changes a
+    value.
   - [x] `performWildBootstrapTest()` and `performWhiteTestBootstrap()` accepted
     a non-Gaussian `glm` and returned a meaningless result. Done in 0.15.0 with
     the input validation: they refuse it, and read the prior weights of a

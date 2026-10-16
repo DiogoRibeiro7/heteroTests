@@ -510,20 +510,24 @@ with the same form and on the regressors `fitWLS()` evaluated. Last, the
 replicate is refitted with the weights that gives. A replicate whose
 variance function cannot be fitted, where `fitWLS()` would fall back to equal
 weights, counts as a failed replicate, and the p-value is computed from the
-replicates that remain, as for a refit that fails. `fitWLS()` records the
-weights of a weighted model it refits, as `initial_weights` in its
-`"variance_function"` attribute, for this.
+replicates that remain, as for a refit that fails; a warning gives the number
+that failed. `fitWLS()` records the weights of a weighted model it refits, as
+`initial_weights` in its `"variance_function"` attribute, for this. A fit
+made by an earlier version has no `initial_weights`, and its model frame,
+which still holds those weights, is read instead.
 
 The new argument `reestimate_weights` chooses. `NULL`, the default, estimates
 the weights again on a `fitWLS()` fit and holds them fixed on any other model.
 `reestimate_weights = FALSE` holds them fixed and returns what 0.14.0
 returned. `TRUE` on a model that `fitWLS()` did not return is an error. An
 `lm`, a weighted `lm` and a Gaussian `glm` carry no variance function, and they
-return what they returned. Two kinds of `fitWLS()` fit are treated
-separately. One on which `fitWLS()` fell back to equal weights estimated no
-weights, and is unchanged. One whose `var_formula` uses the response cannot be
-estimated again from the regressors `fitWLS()` recorded, and is refused unless
-`reestimate_weights = FALSE`. In `bootstrapTestStatistic()` and
+return what they returned. Two kinds of `fitWLS()` fit keep the values of
+0.14.0 under the default. One on which `fitWLS()` fell back to equal weights
+estimated no weights. One with a variance regressor computed from the
+response, such as `var_formula = ~ y` or `~ .` for the response `y`, cannot be
+estimated again from the regressors `fitWLS()` recorded, since each replicate
+regenerates the response: the default holds its weights fixed and warns. On
+both, `TRUE` is an error. In `bootstrapTestStatistic()` and
 `rbootstrap_test_statistic()` the argument comes after `...`, so it has to be
 named in full.
 
