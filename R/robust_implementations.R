@@ -40,7 +40,10 @@ NULL
 #'   "standard" retains squares and cross-products, while "reduced"
 #'   excludes cross-products for high-dimensional designs.
 #' @param bootstrap Logical, compute bootstrap diagnostics for the
-#'   statistic and p-value?
+#'   statistic and p-value? The bootstrap is [bootstrapTestStatistic()], so on
+#'   a fit returned by [fitWLS()] each replicate estimates the weights again,
+#'   its default since 0.15.0. There is no argument to hold them fixed here;
+#'   [bootstrapTestStatistic()] with `reestimate_weights = FALSE` does that.
 #' @param B Number of bootstrap replications when `bootstrap = TRUE`.
 #'   Defaults to 999, at which a bootstrap p-value of the form
 #'   `(1 + #) / (B + 1)` gives an exact test at the 5% and 1% levels; it was
@@ -354,7 +357,11 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
 #'   samples (n < 50) and studentization for Breusch-Pagan.
 #' @param bootstrap_B Number of bootstrap replications used when automatic
 #'   enhancement triggers bootstrap. Defaults to 999, the default of every
-#'   resampling test in the package since 0.15.0; it was 500 before.
+#'   resampling test in the package since 0.15.0; it was 500 before. On a fit
+#'   returned by [fitWLS()] the bootstrap of [performWhiteTestRobust()] and
+#'   [performBPTestRobust()] estimates the weights again in each replicate, the
+#'   default of [bootstrapTestStatistic()] since 0.15.0, and there is no
+#'   argument to hold them fixed here.
 #'
 #' @return A list with the executed results and metadata describing the
 #'   enhancements that were applied.

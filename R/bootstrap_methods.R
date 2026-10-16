@@ -47,9 +47,29 @@ NULL
 #' it to \eqn{\hat y_i}{yhat_i}.
 #' Pairs resampling draws each row with its weight. Either way each replicate
 #' is refitted with the weights, so `test_function` sees a weighted fit, as it
-#' did on the original data. The weights are held fixed; when they were
-#' estimated from the same data, see the section on weighted fits in
-#' [performWildBootstrapTest()].
+#' did on the original data.
+#'
+#' Weights given to the fit are known, and they are held fixed. On a fit
+#' returned by [fitWLS()] they were estimated from the same data, and since
+#' 0.15.0 each replicate estimates them again by default
+#' (`reestimate_weights`), so that `test_function` sees what `fitWLS()` would
+#' have returned for the replicate. The replicate is fitted as the model
+#' `fitWLS()` was given, without weights or with the weights that model had.
+#' The variance function `fitWLS()` recorded is fitted again to its residuals,
+#' with the same form and on the regressors `fitWLS()` evaluated, whose rows
+#' follow the rows drawn under pairs resampling, and the replicate is refitted
+#' with the weights it gives. A replicate whose variance function cannot be
+#' fitted, where `fitWLS()` would fall back to equal weights, fails as a
+#' replicate whose refit fails does, and the p-value and the interval are
+#' computed from the replicates that remain; a warning gives the number that
+#' failed. In
+#' `inst/validation/weighted-fits-size.R`, with the variance function
+#' correctly specified, normal errors, 150 observations, `B = 499` and
+#' [performKoenkerTest()] as `test_function`, the rejection rate at the 5%
+#' level was 0.083 with the weights held fixed, as every call did before
+#' 0.15.0 and `reestimate_weights = FALSE` still does, 0.045 with them
+#' estimated again, and 0.045 with the true weights. See the section on
+#' weighted fits in [performWildBootstrapTest()].
 #'
 #' Weighted or not, each replicate is refitted with an offset the model was
 #' given as an argument, `lm(..., offset = o)`; an offset written in the
@@ -114,6 +134,20 @@ NULL
 #' @param progress Logical flag controlling whether a textual progress bar is
 #'   displayed during bootstrap replication.
 #' @param ... Additional arguments forwarded to `test_function`.
+#' @param reestimate_weights Whether each replicate estimates the weights of a
+#'   [fitWLS()] fit again from the variance function `fitWLS()` recorded on it.
+#'   `NULL`, the default, does so for a `fitWLS()` fit and holds the weights
+#'   fixed for any other model. `FALSE` holds them fixed, as every call did
+#'   before 0.15.0. `TRUE` is an error for a model that `fitWLS()` did not
+#'   return, or on which it fell back to equal weights. Each replicate
+#'   regenerates the response and holds the design fixed, so a variance
+#'   regressor that uses a variable of the response which the right-hand side
+#'   of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
+#'   is the response term itself, as `~ .` gives, cannot be estimated again:
+#'   `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
+#'   error. Giving the response as a column of the data, as in `r ~ z`, says
+#'   which variables stay. It comes after `...`, so it has to be named in
+#'   full. See Details.
 #'
 #' @return A list with components:
 #'   \describe{
@@ -147,11 +181,13 @@ NULL
 bootstrapTestStatistic <- function(test_function, model, data, B = 999,
                                    parallel = FALSE, ci_level = 0.95,
                                    resample = c("null", "pairs"), n_cores = NULL,
-                                   progress = interactive(), ...) {
+                                   progress = interactive(), ...,
+                                   reestimate_weights = NULL) {
   .bootstrap_test_statistic(
     test_function, model, data,
     B = B, parallel = parallel, ci_level = ci_level, resample = resample,
-    n_cores = n_cores, progress = progress, ..., .call = match.call()
+    n_cores = n_cores, progress = progress, ...,
+    reestimate_weights = reestimate_weights, .call = match.call()
   )
 }
 
@@ -164,12 +200,14 @@ bootstrapTestStatistic <- function(test_function, model, data, B = 999,
 rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,
                                       resample = c("null", "pairs"), n_cores = NULL,
-                                      progress = interactive(), ...) {
+                                      progress = interactive(), ...,
+                                      reestimate_weights = NULL) {
   .Deprecated("bootstrapTestStatistic", old = "rbootstrap_test_statistic")
   .bootstrap_test_statistic(
     test_function, model, data,
     B = B, parallel = parallel, ci_level = ci_level, resample = resample,
-    n_cores = n_cores, progress = progress, ..., .call = match.call()
+    n_cores = n_cores, progress = progress, ...,
+    reestimate_weights = reestimate_weights, .call = match.call()
   )
 }
 
@@ -190,7 +228,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 .bootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,
                                       resample = c("null", "pairs"), n_cores = NULL,
-                                      progress = interactive(), ..., .call = NULL) {
+                                      progress = interactive(), ...,
+                                      reestimate_weights = NULL, .call = NULL) {
   if (!is.function(test_function)) {
     stop("`test_function` must be a function.", call. = FALSE)
   }
@@ -240,6 +279,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # that was supplied. NULL for an unweighted fit, which takes the path it
   # always took.
   prior_weights <- rprior_weights(model)
+
+  # The variance function of a fitWLS() fit, estimated again in each
+  # replicate, or NULL, which holds the weights fixed as before 0.15.0.
+  variance_record <- rwls_reestimation(model, reestimate_weights, "bootstrapTestStatistic")
 
   # `data` is reduced to the rows the model was fitted to, matched by row
   # name: rows it does not hold, such as those the fit dropped for missing
@@ -410,10 +453,24 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   prior_weights <- prior_weights[row_index]
   fitted_vals <- fitted_vals[row_index]
   offset_argument <- roffset_argument(model)[row_index]
+  # On a fitWLS() fit whose weights are estimated again, each replicate is
+  # refitted as fitWLS() fitted the model: first as the model fitWLS() was
+  # given, without weights or with the weights it had; then its variance
+  # function is fitted again, on the regressors fitWLS() recorded, and it is
+  # refitted with the weights that gives. The regressors and those weights
+  # belong to rows, and are put in the row order of `data` as the rest is.
+  if (!is.null(variance_record)) {
+    refit_regressors <- variance_record$regressors[row_index, , drop = FALSE]
+    refit_weights <- variance_record$initial_weights[row_index]
+  }
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
     boot_offset <- offset_argument
+    if (!is.null(variance_record)) {
+      boot_weights <- refit_weights
+      boot_regressors <- refit_regressors
+    }
     if (identical(resample, "null")) {
       boot_data <- data
       boot_errors <- sample(null_residuals, n, replace = TRUE)
@@ -424,8 +481,11 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     } else {
       sampled_idx <- sample.int(n, replace = TRUE)
       boot_data <- data[sampled_idx, , drop = FALSE]
-      boot_weights <- prior_weights[sampled_idx]
+      boot_weights <- boot_weights[sampled_idx]
       boot_offset <- offset_argument[sampled_idx]
+      if (!is.null(variance_record)) {
+        boot_regressors <- boot_regressors[sampled_idx, , drop = FALSE]
+      }
     }
     boot_model <- tryCatch(
       if (is.null(boot_weights) && is.null(boot_offset)) {
@@ -435,6 +495,15 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       },
       error = function(e) NULL
     )
+    # A replicate whose variance function cannot be fitted again, where
+    # fitWLS() would fall back to equal weights, fails as a replicate whose
+    # refit fails does, and the p-value counts the replicates that remain.
+    if (!is.null(boot_model) && !is.null(variance_record)) {
+      boot_model <- tryCatch(
+        rwls_refit_replicate(boot_model, variance_record, boot_regressors),
+        error = function(e) NULL
+      )
+    }
     if (is.null(boot_model)) {
       return(NA_real_)
     }
@@ -490,6 +559,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   }
 
   effective <- sum(is.finite(replicates))
+  if (!is.null(variance_record)) {
+    rwarn_failed_replicates("bootstrapTestStatistic", B - effective, B)
+  }
   if (effective == 0L) {
     warning("All bootstrap replicates failed; returning NA results.", call. = FALSE)
     ci <- c(lower = NA_real_, upper = NA_real_)

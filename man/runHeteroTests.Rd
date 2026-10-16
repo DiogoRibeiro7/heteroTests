@@ -42,7 +42,10 @@ runHeteroTests(
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
   group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}.}
   \item{tests}{character vector of test names to run: any of the names \code{\link{listDiagnostics}()} returns, which
-  include those added with \code{registerDiagnostic}.}
+  include those added with \code{registerDiagnostic}. On a fit returned by \code{\link{fitWLS}()} the resampling tests
+  \code{"wild_bootstrap"} and \code{"white_bootstrap"} estimate the weights again in each replicate, as
+  \code{\link{performWildBootstrapTest}()} and \code{\link{performWhiteTestBootstrap}()} do by default since 0.15.0; to hold
+  them fixed, call those functions with \code{reestimate_weights = FALSE}.}
   \item{use_cache}{logical indicating whether cached results should be reused when available. Requires the \pkg{digest}
   package and defaults to \code{TRUE}.}
   \item{chunk_threshold_mb}{numeric threshold (in megabytes) above which streaming implementations are preferred for supported

@@ -204,12 +204,13 @@ Found on the way and left for their own changes:
   correction. In the same designs it rejects 0.042 to 0.060 with 150
   observations for the wild bootstrap, the White bootstrap and
   `rbootstrap_test_statistic()` with Koenker's statistic, and 0.051 with 600
-  for the wild bootstrap (`inst/validation/weighted-fits-size.R`). Proposal,
-  not implemented: an argument to the three functions that refits the
-  variance function `fitWLS()` recorded on the model, with the same
-  `var_formula` and `form`, in each replicate. It applies only to a fit that
-  carries that record; weights the user supplied are known and stay fixed. See
-  *Decisions needed*.
+  for the wild bootstrap (`inst/validation/weighted-fits-size.R`). Resolved in
+  0.15.0 for the bootstrap tests, as proposed: the argument
+  `reestimate_weights` of the three functions refits the variance function
+  `fitWLS()` recorded on the model, with the same `var_formula` and `form`, in
+  each replicate, by default on a fit that carries that record; weights the
+  user supplied are known and stay fixed (0.15.0, below). The tests of
+  constant variance themselves still take the weights as known.
 
 ### 0.13.0: what was found after 0.12.0 (done)
 
@@ -256,9 +257,10 @@ deprecated until it has one.
 
 - [x] **Duplicate exports.** Each duplicate below is deprecated in favour of
   the name it duplicates. `performStudentizedBPTest()` agrees with
-  `performKoenkerTest()` to `1e-8` except on a `fitWLS()` fit, where it reads
-  the stale weights listed under 0.16.0; it keeps its implementation, so no
-  value changes.
+  `performKoenkerTest()` to `1e-8` except on a model with an offset, which it
+  drops (listed under 0.16.0). It keeps its implementation, so no value
+  changed in 0.14.0; on a `fitWLS()` fit it read stale weights until 0.15.0
+  fixed that (listed under 0.16.0, done in 0.15.0).
   - `performBreuschPaganTest()` is `performBPTest()`, assigned at
     `R/performBPTest.R:232`.
   - `performStudentizedBPTest()` is a separate implementation that matches
@@ -586,6 +588,31 @@ after it.
   not depend on `n_cores` either, and changes. The White bootstrap
   runs on a socket cluster on Windows, where it stopped, and gains
   `n_cores`. The forked path is exercised by CI on Linux and macOS only.
+- [x] **Bootstrap tests on a `fitWLS()` fit.** Accepted for 0.15.0 as
+  proposed under *Decisions needed*, and moved from 0.14.0 because it changes
+  values. `performWildBootstrapTest()`, `performWhiteTestBootstrap()`,
+  `bootstrapTestStatistic()` and its deprecated name take
+  `reestimate_weights`. `NULL`, the default, runs `fitWLS()` again on each
+  replicate of a fit that carries its record of the variance function and
+  holds the weights of any other model fixed; `FALSE` holds them fixed, as
+  0.13.0 and 0.14.0 did; `TRUE` on a model without the record is an error.
+  Each replicate is fitted as the model `fitWLS()` was given, the recorded
+  variance function is fitted again on the recorded regressors, and the
+  replicate is refitted with the weights that gives; one whose variance
+  function cannot be fitted counts as a failed replicate. The default p-values
+  on a `fitWLS()` fit change, announced in bold in `NEWS.md`. An `lm`, a
+  weighted `lm` and a Gaussian `glm` return `identical()` values, and so does
+  a `fitWLS()` fit with `FALSE`. In `inst/validation/weighted-fits-size.R`, at
+  2000 replications with `B = 499`, the wild bootstrap rejects 0.0605 and
+  0.0515 of the time at 150 and 600 observations, the White bootstrap 0.0415
+  and `bootstrapTestStatistic()` with Koenker's statistic 0.045, against
+  0.0865, 0.105, 0.064 and 0.0825 with the weights held fixed. Those four rows
+  were measured by the prototype of 0.12.0 and not run again: the package
+  reproduces it on 200 samples of each, p-values, replicates and random draws
+  (`inst/validation/weighted-fits-refit-reproduction.csv`). The wild
+  bootstrap at 150 observations is outside the release gate's interval
+  `[0.042, 0.058]` and the White bootstrap just below it; a study at 5000
+  replications is listed under 0.16.0.
 - [x] **The default battery.** `runHeteroTests()`, `test()`/`summary()` on
   `HeteroDiagnostic`, the advanced diagnostics and the dashboard all defaulted
   to `c("white", "breusch_pagan")`, and `"breusch_pagan"` is the classical
@@ -648,6 +675,20 @@ after it.
   error is 1.1%, so the Gaussian sizes between 0.068 and 0.072 (Cook–Weisberg
   and NCV, Spearman, Levene) cannot be told apart from noise. Pass A, at 5000
   replications, put Cook–Weisberg at 0.044.
+- [ ] **The bootstraps that estimate the weights again, at the release
+  gate.** The 0.15.0 default of `reestimate_weights` rests on rates measured
+  at 2000 replications with `B = 499` (`inst/validation/weighted-fits-size.csv`),
+  where the 99% interval around 0.05 is `[0.037, 0.063]` and all four cells
+  are inside it. Against the release gate's interval at 5000 replications,
+  `[0.042, 0.058]`, the wild bootstrap with 150 observations, 0.0605, is
+  outside and the White bootstrap, 0.0415, just below it; against
+  `[0.041, 0.057]`, around 0.049, the rate of an exact test with `B = 999`,
+  the wild bootstrap is outside. Measure the four cells of block 4 at 5000
+  replications with `B = 999`, the default, beside the true weights in the
+  same design. From the time per sample measured in 0.15.0 that costs about
+  36 to 50 CPU-hours for the four cells, and about 7.6 for the two cells of
+  the wild bootstrap alone. If the wild bootstrap stays outside the gate at
+  150 observations, say so on its help page.
 - [ ] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
   chi-square approximation. Compare it against Box's F approximation, then
   either switch or document the conservatism on the help page.
@@ -783,10 +824,23 @@ after it.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
   release so that 0.14.0 changes no value. Each fix that changes a value is
   announced in bold in `NEWS.md`.
-  - `fitWLS()` keeps the original weights in the model frame of its result, so
+  - [x] `fitWLS()` keeps the original weights in the model frame of its result, so
     `performStudentizedBPTest()` on a `fitWLS()` fit reads stale weights: 14.81,
-    against 1.73 for the equivalent `lm(weights = estimated)` fit. Suggested
-    fix: `mf[["(weights)"]] <- w` in `rweighted_refit()`. Changes a value.
+    against 1.73 for the equivalent `lm(weights = estimated)` fit. Done in
+    0.15.0 (decided 2026-10-16, in #129): `.studentized_bp_test()` reads the
+    weights of the fit, through `rleast_squares_weights()`, rather than those
+    of its model frame, which is unchanged. It changes the values of
+    `performStudentizedBPTest()`, `performBPTestRobust()` and the registered
+    `"student_bp"` on a `fitWLS()` fit only, and so the Breusch-Pagan entry of
+    `runAdvancedDiagnostics()` on one.
+  - `.studentized_bp_test()`, behind `performStudentizedBPTest()`,
+    `performBPTestRobust(studentize = TRUE)` and the registered `"student_bp"`,
+    drops every offset, given as an argument or written in the formula: it
+    refits the model with `lm.wfit()` and no offset. On
+    `lm(y ~ x + z, offset = o)` in the design of
+    `tests/testthat/test-fitwls-reestimation.R` it gives 19.91 where
+    `performKoenkerTest()` gives 18.79. Found in the review of #129. Changes a
+    value.
   - [x] `performWildBootstrapTest()` and `performWhiteTestBootstrap()` accepted
     a non-Gaussian `glm` and returned a meaningless result. Done in 0.15.0 with
     the input validation: they refuse it, and read the prior weights of a
@@ -1171,7 +1225,6 @@ which is also what a reader of the article asks of it. Within that group:
 
 | Question | Proposal | Needed by |
 | --- | --- | --- |
-| Bootstrap tests on a `fitWLS()` fit | Add an argument to `performWildBootstrapTest()`, `performWhiteTestBootstrap()` and `bootstrapTestStatistic()` that runs `fitWLS()` again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a `fitWLS()` fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, `launchDiagnosticDashboard()`, `run_benchmark_suite()` and `generate_benchmark_report()` warn here for a minor release, naming it, and the code moves | 0.16.0 |

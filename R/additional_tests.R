@@ -61,13 +61,16 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' Studentized Breusch–Pagan test (deprecated)
 #'
 #' `performStudentizedBPTest()` is deprecated since 0.14.0: use
-#' [performKoenkerTest()], which computes the same statistic. It still works,
-#' returns what it returned before and warns. On a fit returned by [fitWLS()]
-#' the two differ, and [performKoenkerTest()] is the correct one: the model
-#' frame of that fit still holds the weights of the model `fitWLS()` refitted
-#' (none, for an unweighted model), not the estimated weights, and
-#' `performStudentizedBPTest()` reads them from there. That is to be fixed in
-#' 0.16.0.
+#' [performKoenkerTest()], which computes the same statistic. It still works
+#' and warns, and returns what it returned before except on a fit returned by
+#' [fitWLS()]. The model frame of that fit holds the weights of the model
+#' `fitWLS()` refitted (none, for an unweighted model), not the estimated
+#' weights, and before 0.15.0 `performStudentizedBPTest()` read them from
+#' there, so it computed the statistic of the unweighted fit. Since 0.15.0 it
+#' reads the weights of the fit, as [performKoenkerTest()] does, and the two
+#' agree. On a model with an offset they still differ:
+#' `performStudentizedBPTest()` drops the offset, which is to be fixed in
+#' 0.16.0, and [performKoenkerTest()] is the correct one.
 #'
 #' Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
 #' multiplier statistic, \eqn{n R^2} from the regression of the squared
@@ -195,7 +198,13 @@ performStudentizedBPTest <- function(model, data = NULL) {
     )
   }
 
-  weights <- stats::model.weights(model_frame)
+  # The weights of the fit, not those of its model frame. The frame of a
+  # fitWLS() fit is that of the model fitWLS() refitted, so it holds that
+  # model's weights, or none, and not the estimated weights: before 0.15.0 the
+  # statistic of a fitWLS() fit was that of the unweighted fit. They are read
+  # as the other tests read them, which for a Gaussian glm are its prior
+  # weights.
+  weights <- rleast_squares_weights(model)
   if (is.null(weights)) {
     weights <- rep.int(1, nrow(design_matrix))
   }
@@ -298,6 +307,7 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' @param n_cores Optional integer number of worker processes when
 #'   `parallel = TRUE`. Defaults to `parallel::detectCores() - 1`. The result
 #'   does not depend on it.
+#' @inheritParams performWildBootstrapTest
 #'
 #' @return A \code{htest} object reporting both the asymptotic White statistic
 #'   and its bootstrap p-value. The returned object also stores the simulated test
@@ -358,15 +368,27 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' transformed response, such as `log(y)` in `log(y) ~ x`, is regenerated on
 #' the scale the model uses, and the refit reads it in place of `log(y)`.
 #'
-#' The weights are held fixed in every replicate. When they were estimated
-#' from the same data, as by [fitWLS()], the replicates leave that estimation
-#' out. In `inst/validation/weighted-fits-size.R`, on data whose standard
-#' deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
-#' correctly specified, normal errors, 150 observations and `B = 499`, the
-#' rejection rate at the 5% level was 0.064. In the same design with the true
-#' weights it was 0.054, and with the weights estimated again in each
-#' replicate, which this function does not do, 0.042. The section on weighted
-#' fits in [performWildBootstrapTest()] has the larger error of Koenker's
+#' Weights given to the fit are known, and they are held fixed in every
+#' replicate. On a fit returned by [fitWLS()] they were estimated from the same
+#' data, and since 0.15.0 they are estimated again in each replicate by
+#' default (`reestimate_weights`): the replicate is fitted as the model
+#' `fitWLS()` was given, the variance function `fitWLS()` recorded is fitted
+#' again to its residuals, on the same regressors and with the same form, and
+#' the replicate is refitted with the weights it gives, so that
+#' [performWhiteTest()] sees a `fitWLS()` fit of the replicate. A replicate
+#' whose variance function cannot be fitted, where `fitWLS()` would fall back
+#' to equal weights, counts as a failed replicate, and the p-value is computed
+#' from the replicates that remain; a warning gives the number that failed.
+#'
+#' In `inst/validation/weighted-fits-size.R`, the data have standard deviation
+#' \eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance function is correctly
+#' specified, the errors are normal, there are 150 observations and
+#' `B = 499`. At the 5% level the test then rejected 0.064 of the time when it
+#' held the weights of `fitWLS()` fixed, as every call did before 0.15.0 and
+#' `reestimate_weights = FALSE` still does. It rejected 0.0415 when it
+#' estimated them again, just below the release gate's interval, 0.042 to
+#' 0.058, and 0.054 with the true weights. The section on weighted fits
+#' in [performWildBootstrapTest()] has the larger error of Koenker's
 #' statistic.
 #'
 #' @references
@@ -402,8 +424,11 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()} for enriched diagnostics.
 #' @export
 performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE,
-                                      n_cores = NULL) {
+                                      n_cores = NULL, reestimate_weights = NULL) {
   rrefuse_non_gaussian_glm(model, "performWhiteTestBootstrap")
+  # The variance function of a fitWLS() fit, estimated again in each
+  # replicate, or NULL, which holds the weights fixed as before 0.15.0.
+  variance_record <- rwls_reestimation(model, reestimate_weights, "performWhiteTestBootstrap")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Bootstrap White"
 
@@ -499,10 +524,26 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
     boot_data <- working_data
     boot_data[[response_name]] <- boot_y
 
-    boot_model <- if (is.null(prior_weights) && is.null(offset_argument)) {
-      safe_lm(boot_formula, data = boot_data)
+    if (!is.null(variance_record)) {
+      # fitWLS() run again on the replicate: the model is refitted as it was
+      # before fitWLS() weighted it, its variance function is fitted again and
+      # it is refitted with the weights that gives. A replicate whose variance
+      # function cannot be fitted fails, and the p-value counts the replicates
+      # that remain.
+      initial_weights <- variance_record$initial_weights
+      initial <- if (is.null(initial_weights) && is.null(offset_argument)) {
+        safe_lm(boot_formula, data = boot_data)
+      } else {
+        rrefit_lm(boot_formula, boot_data, initial_weights, offset_argument)
+      }
+      boot_model <- rwls_refit_replicate(initial, variance_record, variance_record$regressors)
+      if (is.null(boot_model)) {
+        return(NA_real_)
+      }
+    } else if (is.null(prior_weights) && is.null(offset_argument)) {
+      boot_model <- safe_lm(boot_formula, data = boot_data)
     } else {
-      rrefit_lm(boot_formula, boot_data, prior_weights, offset_argument)
+      boot_model <- rrefit_lm(boot_formula, boot_data, prior_weights, offset_argument)
     }
     unname(performWhiteTest(boot_model, boot_data)$statistic[1])
   }
@@ -534,6 +575,9 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   # replicates, and it is anti-conservative in the tail.
   finite_stats <- boot_stats[is.finite(boot_stats)]
   effective <- length(finite_stats)
+  if (!is.null(variance_record)) {
+    rwarn_failed_replicates("performWhiteTestBootstrap", B - effective, B)
+  }
   if (effective == 0L) {
     .std_error(
       "rassumption_violation",

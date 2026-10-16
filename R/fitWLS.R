@@ -48,6 +48,18 @@
 #' Whether the variance function *is* correctly specified can be tested: pass
 #' the result to [performVarianceFormTest()].
 #'
+#' A test of constant variance on the result takes its weights as known,
+#' although they were estimated from the same data, so its reference
+#' distribution is only approximate: see the validation study in
+#' `inst/validation/README.md`. The bootstrap
+#' tests [performWildBootstrapTest()], [performWhiteTestBootstrap()] and
+#' [bootstrapTestStatistic()] allow for the estimation. Since 0.15.0 they run
+#' `fitWLS()` again on each replicate by default: they fit it as `model` was
+#' fitted, fit the recorded variance function again to its residuals, on the
+#' recorded regressors, and refit it with the weights that gives. Their
+#' argument `reestimate_weights = FALSE` holds the weights fixed instead, as
+#' they did before 0.15.0.
+#'
 #' If the variance function cannot be fitted, or yields no usable variation,
 #' the function falls back to equal weights, which reduces the result to the
 #' original OLS fit.
@@ -72,7 +84,9 @@
 #'   attached as the `"variance_model"` attribute, and the fitted variance
 #'   function (its form, regressors and coefficients) as the
 #'   `"variance_function"` attribute, which is what
-#'   [performVarianceFormTest()] reads.
+#'   [performVarianceFormTest()] reads, and what the bootstrap tests read to
+#'   estimate the weights again in each replicate. When `model` was fitted
+#'   with weights, the attribute also holds them, as `initial_weights`.
 #' @references
 #' Harvey, A. C. (1976). Estimating regression models with multiplicative
 #' heteroscedasticity. *Econometrica, 44*(3), 461--465.
@@ -132,7 +146,17 @@ rweighted_refit <- function(model, variance) {
   fit$weights <- w
   class(fit) <- class(model)
   attr(fit, "variance_model") <- 1 / w
-  attr(fit, "variance_function") <- variance[names(variance) != "weights"]
+  record <- variance[names(variance) != "weights"]
+  # The weights of the model refitted, if it had any. They decided its
+  # residuals, so a bootstrap that estimates the variance function again
+  # refits each replicate with them first, as the model was fitted. The model
+  # frame keeps them as "(weights)" for now, but that is a defect to be fixed
+  # in 0.16.0, so they are recorded here.
+  initial_weights <- rprior_weights(model)
+  if (!is.null(initial_weights)) {
+    record$initial_weights <- initial_weights
+  }
+  attr(fit, "variance_function") <- record
   fit
 }
 
@@ -282,6 +306,24 @@ rfit_variance_function <- function(model, data, var_formula, form, warn = TRUE) 
     colnames(Z) <- paste0("log(", colnames(Z), ")")
   }
 
+  rvariance_function_on(res, Z, form, var_formula, regressors$label, warn = warn)
+}
+
+#' Fit a variance function on regressors already on the scale of its form
+#'
+#' The estimation step of [rfit_variance_function()], once the regressors have
+#' been evaluated and, for the power form, logged. The bootstrap tests call it
+#' on each replicate of a [fitWLS()] fit with the regressors the fit recorded,
+#' so that a replicate is estimated as [fitWLS()] estimated the fit.
+#'
+#' @param res Residuals of the model the variance function is fitted to.
+#' @param Z Variance regressors on the scale the form uses, without a constant.
+#' @param form,var_formula,label As recorded by [rfit_variance_function()].
+#' @param warn Whether an unusable weight spread warns.
+#' @return The list [rfit_variance_function()] returns.
+#' @keywords internal
+#' @noRd
+rvariance_function_on <- function(res, Z, form, var_formula, label, warn = TRUE) {
   # The variance function always carries its own constant, whether or not the
   # mean model has an intercept: without one, log sigma^2 = z'gamma pins the
   # variance at 1 where z = 0 and leaves the model no scale to fit.
@@ -293,13 +335,339 @@ rfit_variance_function <- function(model, data, var_formula, form, warn = TRUE) 
     weights = estimated$weights,
     form = form,
     var_formula = var_formula,
-    label = regressors$label,
+    label = label,
     regressors = Z,
     coefficients = estimated$coefficients,
     index = estimated$index,
     usable = is.null(estimated$reason),
     reason = estimated$reason
   )
+}
+
+#' The variance function a bootstrap estimates again in each replicate
+#'
+#' Resolves the `reestimate_weights` argument of [performWildBootstrapTest()],
+#' [performWhiteTestBootstrap()] and [bootstrapTestStatistic()]. `NULL`, the
+#' default, estimates the weights again when `model` carries the variance
+#' function [fitWLS()] estimated, and holds them fixed otherwise. `TRUE` on a
+#' model without one is an error: weights the user supplied are known, and
+#' there is no variance function to estimate them from.
+#'
+#' A fit on which [fitWLS()] fell back to equal weights estimated none, so it
+#' is treated as a model without a variance function. A variance regressor
+#' computed from the response (see [rregressors_from_response()]) cannot be
+#' estimated again from the record, which holds the regressors as evaluated on
+#' the data of the fit, while each replicate regenerates the response: `NULL`
+#' then holds the weights fixed with a warning, and `TRUE` is an error. So is
+#' a fit whose initial weights cannot be read (see
+#' [rwls_initial_weights()]). The record returned carries the initial weights
+#' as `initial_weights`, read from the model frame for a fit made before
+#' 0.15.0.
+#'
+#' @param model The fitted model given to the bootstrap.
+#' @param reestimate_weights The argument: `NULL`, `TRUE` or `FALSE`.
+#' @param fn Name of the calling function, for messages.
+#' @return `NULL` when the weights are held fixed, otherwise the record
+#'   [fitWLS()] attached to `model` as its `"variance_function"` attribute.
+#' @keywords internal
+#' @noRd
+rwls_reestimation <- function(model, reestimate_weights, fn) {
+  if (!is.null(reestimate_weights) &&
+        (!is.logical(reestimate_weights) || length(reestimate_weights) != 1L ||
+           is.na(reestimate_weights))) {
+    stop("`reestimate_weights` must be NULL, TRUE or FALSE.", call. = FALSE)
+  }
+  if (isFALSE(reestimate_weights)) {
+    return(NULL)
+  }
+  record <- attr(model, "variance_function")
+  requested <- isTRUE(reestimate_weights)
+  if (is.null(record) || is.null(record$regressors)) {
+    if (!requested) {
+      return(NULL)
+    }
+    stop(
+      fn, "(reestimate_weights = TRUE) needs a fit returned by fitWLS(), which ",
+      "records the variance function its weights were estimated from. `model` ",
+      "carries none: weights given to lm() are known, and they are held fixed ",
+      "in each replicate.",
+      call. = FALSE
+    )
+  }
+  if (!isTRUE(record$usable)) {
+    if (!requested) {
+      return(NULL)
+    }
+    stop(
+      fn, "(reestimate_weights = TRUE): fitWLS() could not estimate the ",
+      "variance function of `model` (", record$reason, ") and fell back to ",
+      "equal weights, so there are no estimated weights to estimate again.",
+      call. = FALSE
+    )
+  }
+  if (nrow(record$regressors) != length(model$residuals)) {
+    stop(
+      fn, "(): the variance function recorded on `model` does not have one row ",
+      "per fitted observation, so it cannot be estimated again.",
+      call. = FALSE
+    )
+  }
+  response_regressors <- rregressors_from_response(model, record$regressors)
+  if (length(response_regressors) > 0L) {
+    what <- paste0(
+      "the variance regressor", if (length(response_regressors) > 1L) "s", " ",
+      paste(response_regressors, collapse = ", "), " of `model` ",
+      if (length(response_regressors) > 1L) "are" else "is",
+      " computed from the response, which each replicate regenerates, so ",
+      "fitWLS() cannot be run again on a replicate from the regressors it recorded"
+    )
+    workaround <- paste0(
+      "A variable of the response that the right-hand side of the model does ",
+      "not use counts as regenerated; if it is not, give the response as a ",
+      "column of the data, as in d$r <- d$y / d$x; lm(r ~ z, data = d), and ",
+      "fit that."
+    )
+    if (requested) {
+      stop(fn, "(reestimate_weights = TRUE): ", what, ". ", workaround, call. = FALSE)
+    }
+    warning(
+      fn, "(): ", what, ". The weights are held fixed in each replicate, as ",
+      "before 0.15.0. ", workaround,
+      call. = FALSE
+    )
+    return(NULL)
+  }
+  initial <- rwls_initial_weights(model, record)
+  if (identical(initial, FALSE)) {
+    if (requested) {
+      stop(
+        fn, "(reestimate_weights = TRUE): the weights of the model fitWLS() ",
+        "refitted cannot be read from `model`.",
+        call. = FALSE
+      )
+    }
+    warning(
+      fn, "(): the weights of the model fitWLS() refitted cannot be read from ",
+      "`model`, so the weights are held fixed in each replicate, as before 0.15.0.",
+      call. = FALSE
+    )
+    return(NULL)
+  }
+  record$initial_weights <- initial
+  record
+}
+
+#' Variance regressors computed from the response
+#'
+#' A replicate regenerates the response of the model and holds the design
+#' fixed. A variable of the response that the right-hand side of the model
+#' does not use, `y` in `log(y) ~ x` or both `y` and `x` in `I(y / x) ~ z`, is
+#' therefore regenerated with it: `fitWLS()` on the replicate would see
+#' `y* = exp(r*)` or `y* = r* x`. A variance regressor that uses such a
+#' variable is computed from the response, and so is one that is the response
+#' term itself, which is how `~ .` evaluated on the model frame names it,
+#' backquoted. A variable that the right-hand side uses is held fixed with the
+#' design, so `x` for `log(y / x) ~ log(x)` and the offset `o` for
+#' `y ~ x + offset(o)` are not computed from the response, and neither is any
+#' column of the design, whatever its name. The regressors are
+#' read from the columns fitWLS() recorded, so `.` is expanded as fitWLS()
+#' expanded it.
+#'
+#' The rule is conservative: `x` for `I(y / x) ~ z` counts as computed from
+#' the response, since the replicate cannot tell which of `y` and `x`
+#' changed. Giving the response as a column of the data, `r <- y / x` and
+#' `lm(r ~ z)`, says that `x` stays.
+#'
+#' @param model A fitted `lm`.
+#' @param Z The recorded variance regressors.
+#' @return The names of the columns of `Z` computed from the response.
+#' @keywords internal
+#' @noRd
+rregressors_from_response <- function(model, Z) {
+  model_formula <- tryCatch(stats::formula(model), error = function(e) NULL)
+  if (is.null(model_formula) || length(model_formula) != 3L || is.null(colnames(Z))) {
+    return(character())
+  }
+  response <- model_formula[[2L]]
+  # Every replicate holds the design fixed: a variable of the right-hand side
+  # is not regenerated.
+  response_vars <- setdiff(all.vars(response), all.vars(model_formula[[3L]]))
+  squash <- function(x) gsub("[[:space:]`]", "", x)
+  response_term <- squash(paste(deparse(response, width.cutoff = 500L), collapse = ""))
+  # A column of the design is held fixed in every replicate whatever its
+  # name, such as factor(g)y for a level "y" of g, which the fallback below
+  # would read as the variable y.
+  design_columns <- tryCatch(colnames(stats::model.matrix(model)),
+                             error = function(e) character())
+  uses_response <- vapply(colnames(Z), function(column) {
+    if (column %in% design_columns) {
+      return(FALSE)
+    }
+    # `~ .` on the model frame names the response column backquoted, as
+    # `log(y)`; a column that is the response term, or holds it backquoted, is
+    # computed from it whatever its variables.
+    if (identical(squash(column), response_term) ||
+          grepl(paste0("`", response_term, "`"), gsub("[[:space:]]", "", column), fixed = TRUE)) {
+      return(TRUE)
+    }
+    if (length(response_vars) == 0L) {
+      return(FALSE)
+    }
+    expr <- tryCatch(str2lang(gsub("`", "", column, fixed = TRUE)), error = function(e) NULL)
+    used <- if (is.null(expr)) {
+      # A column name that does not parse, such as factor(g)b: look for the
+      # variables as whole words.
+      response_vars[vapply(response_vars, function(v) {
+        grepl(paste0("(^|[^[:alnum:]._])", gsub("([.])", "\\\\.", v), "($|[^[:alnum:]._])"),
+              column)
+      }, logical(1))]
+    } else {
+      all.vars(expr)
+    }
+    any(response_vars %in% used)
+  }, logical(1))
+  colnames(Z)[uses_response]
+}
+
+#' Weights of the model a fitWLS() fit refitted
+#'
+#' Since 0.15.0 [fitWLS()] records them as `initial_weights`. A fit made
+#' before 0.15.0 does not, but its model frame is the frame of the model it
+#' refitted, and holds them as `(weights)`. The frame of a fit made since
+#' 0.15.0 of an unweighted model holds no weights, or, should it ever hold the
+#' estimated weights, holds those of the fit itself, which are not the
+#' weights of the model it refitted.
+#'
+#' @param model A [fitWLS()] fit.
+#' @param record Its `"variance_function"` attribute.
+#' @return The weights, `NULL` for an unweighted model, or `FALSE` when they
+#'   cannot be read.
+#' @keywords internal
+#' @noRd
+rwls_initial_weights <- function(model, record) {
+  if (!is.null(record$initial_weights)) {
+    return(record$initial_weights)
+  }
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.null(frame)) {
+    return(FALSE)
+  }
+  w <- stats::model.weights(frame)
+  if (is.null(w)) {
+    return(NULL)
+  }
+  w <- as.vector(w)
+  if (identical(w, as.vector(model$weights))) {
+    return(NULL)
+  }
+  if (length(w) != length(model$residuals)) {
+    return(FALSE)
+  }
+  w
+}
+
+#' Estimate the weights of a replicate as fitWLS() estimated the fit
+#'
+#' `initial` is the model of a replicate fitted as the model [fitWLS()] was
+#' given: without weights, or with the weights it had, recorded as
+#' `initial_weights`. Its residuals are fitted with the variance function of
+#' `record`, on the regressors `Z` of the rows of the replicate, and the model
+#' is refitted with the estimated weights, as [fitWLS()] refits it.
+#'
+#' @param initial The initial fit of the replicate, an `lm`.
+#' @param record The variance function [fitWLS()] recorded.
+#' @param Z The variance regressors of the rows of the replicate.
+#' @return The weighted fit, or `NULL` when the variance function cannot be
+#'   estimated and [fitWLS()] would fall back to equal weights.
+#' @keywords internal
+#' @noRd
+rwls_refit_replicate <- function(initial, record, Z) {
+  variance <- rwithout_floor_warning(rvariance_function_on(
+    initial$residuals, Z, record$form, record$var_formula, record$label,
+    warn = FALSE
+  ))
+  if (!isTRUE(variance$usable)) {
+    return(NULL)
+  }
+  rweighted_refit(initial, variance)
+}
+
+#' Pearson residuals of a replicate whose weights are estimated again
+#'
+#' The computation of [rwls_refit_replicate()] on the design matrix, for a
+#' bootstrap that refits by least squares without building a model: the
+#' initial fit, the variance function and the weighted refit are the calls
+#' `lm()`, [rfit_variance_function()] and [rweighted_refit()] make.
+#'
+#' @param design The design matrix of the fit.
+#' @param response The regenerated response, on the scale the model uses.
+#' @param offset The offset of the fit, or `NULL`.
+#' @param record The variance function [fitWLS()] recorded.
+#' @return The Pearson residuals of the weighted refit, or `NULL` when the
+#'   variance function cannot be estimated.
+#' @keywords internal
+#' @noRd
+rwls_replicate_residuals <- function(design, response, offset, record) {
+  initial <- if (is.null(record$initial_weights)) {
+    stats::lm.fit(design, response, offset = offset)
+  } else {
+    stats::lm.wfit(design, response, record$initial_weights, offset = offset)
+  }
+  variance <- rwithout_floor_warning(rvariance_function_on(
+    initial$residuals, record$regressors, record$form, record$var_formula,
+    record$label, warn = FALSE
+  ))
+  if (!isTRUE(variance$usable)) {
+    return(NULL)
+  }
+  refit <- stats::lm.wfit(design, response, variance$weights, offset = offset)
+  refit$residuals * sqrt(variance$weights)
+}
+
+#' Evaluate without the warning of a residual floored before its logarithm
+#'
+#' [rlog_squared_residuals()] warns when it floors a residual that is
+#' numerically zero. On the fit [fitWLS()] returns that is worth saying once.
+#' In a replicate, such as one of pairs resampling that draws a level of a
+#' factor once, it would say it once per replicate, so the replicate is
+#' estimated as [fitWLS()] estimates it, floor included, without the warning.
+#'
+#' @param expr The expression to evaluate.
+#' @return The value of `expr`.
+#' @keywords internal
+#' @noRd
+rwithout_floor_warning <- function(expr) {
+  withCallingHandlers(expr, warning = function(w) {
+    if (grepl("numerically zero and were floored", conditionMessage(w), fixed = TRUE)) {
+      invokeRestart("muffleWarning")
+    }
+  })
+}
+
+#' Say once how many replicates whose weights were estimated again failed
+#'
+#' @param fn Name of the calling function.
+#' @param failed Number of replicates that failed.
+#' @param B Number of replicates.
+#' @return `NULL`, invisibly; called for the warning, given when some but not
+#'   all replicates failed. When all fail the caller says so itself.
+#' @keywords internal
+#' @noRd
+rwarn_failed_replicates <- function(fn, failed, B) {
+  if (failed > 0L && failed < B) {
+    warning(
+      sprintf(
+        paste0(
+          "%s(): %d of the %d replicates failed and were left out, among them ",
+          "any whose variance function could not be fitted again; the results ",
+          "are computed from the %d that remain."
+        ),
+        fn, failed, B, B - failed
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Feasible-GLS weights from a log-variance model

@@ -9,7 +9,8 @@ performWhiteTestBootstrap(
   data = NULL,
   B = 999,
   parallel = FALSE,
-  n_cores = NULL
+  n_cores = NULL,
+  reestimate_weights = NULL
 )
 }
 \arguments{
@@ -41,6 +42,20 @@ See \emph{Parallel replicates}.}
 \item{n_cores}{Optional integer number of worker processes when
 \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}. The result
 does not depend on it.}
+
+\item{reestimate_weights}{Whether each replicate estimates the weights of a
+\code{\link[=fitWLS]{fitWLS()}} fit again from the variance function \code{fitWLS()} recorded on it.
+\code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
+fixed for any other model. \code{FALSE} holds them fixed, as every call did
+before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
+return, or on which it fell back to equal weights. Each replicate
+regenerates the response and holds the design fixed, so a variance
+regressor that uses a variable of the response which the right-hand side
+of the model does not use, such as \code{y} or \code{x} for \code{I(y / x) ~ z}, or that
+is the response term itself, as \code{~ .} gives, cannot be estimated again:
+\code{NULL} then holds the weights fixed, with a warning, and \code{TRUE} is an
+error. Giving the response as a column of the data, as in \code{r ~ z}, says
+which variables stay. See \emph{Weighted fits}.}
 }
 \value{
 A \code{htest} object reporting both the asymptotic White statistic
@@ -109,15 +124,27 @@ formula, \code{offset(o)}, is evaluated again from the data of the replicate. A
 transformed response, such as \code{log(y)} in \code{log(y) ~ x}, is regenerated on
 the scale the model uses, and the refit reads it in place of \code{log(y)}.
 
-The weights are held fixed in every replicate. When they were estimated
-from the same data, as by \code{\link[=fitWLS]{fitWLS()}}, the replicates leave that estimation
-out. In \code{inst/validation/weighted-fits-size.R}, on data whose standard
-deviation is \eqn{\exp(0.3 x)}{exp(0.3 x)}, with the variance function
-correctly specified, normal errors, 150 observations and \code{B = 499}, the
-rejection rate at the 5\% level was 0.064. In the same design with the true
-weights it was 0.054, and with the weights estimated again in each
-replicate, which this function does not do, 0.042. The section on weighted
-fits in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}} has the larger error of Koenker's
+Weights given to the fit are known, and they are held fixed in every
+replicate. On a fit returned by \code{\link[=fitWLS]{fitWLS()}} they were estimated from the same
+data, and since 0.15.0 they are estimated again in each replicate by
+default (\code{reestimate_weights}): the replicate is fitted as the model
+\code{fitWLS()} was given, the variance function \code{fitWLS()} recorded is fitted
+again to its residuals, on the same regressors and with the same form, and
+the replicate is refitted with the weights it gives, so that
+\code{\link[=performWhiteTest]{performWhiteTest()}} sees a \code{fitWLS()} fit of the replicate. A replicate
+whose variance function cannot be fitted, where \code{fitWLS()} would fall back
+to equal weights, counts as a failed replicate, and the p-value is computed
+from the replicates that remain; a warning gives the number that failed.
+
+In \code{inst/validation/weighted-fits-size.R}, the data have standard deviation
+\eqn{\exp(0.3 x)}{exp(0.3 x)}, the variance function is correctly
+specified, the errors are normal, there are 150 observations and
+\code{B = 499}. At the 5\% level the test then rejected 0.064 of the time when it
+held the weights of \code{fitWLS()} fixed, as every call did before 0.15.0 and
+\code{reestimate_weights = FALSE} still does. It rejected 0.0415 when it
+estimated them again, just below the release gate's interval, 0.042 to
+0.058, and 0.054 with the true weights. The section on weighted fits
+in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}} has the larger error of Koenker's
 statistic.
 }
 

@@ -74,11 +74,11 @@
 "performWildBootstrapTest","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.0865,0.00628560856242258,2000,0
 "performWhiteTestBootstrap","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.064,0.00547284204047586,2000,0
 "rbootstrap_test_statistic","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",150,2000,0.0825,0.0061519813881383,2000,0
-"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",150,2000,0.0605,0.0053310294503032,2000,0
-"performWhiteTestBootstrap","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",150,2000,0.0415,0.00445969449626317,2000,0
-"rbootstrap_test_statistic","estimated, re-estimated","fitWLS(), exponential variance correctly specified; the test function calls fitWLS() again","normal",150,2000,0.045,0.00463546114210873,2000,0
+"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate","normal",150,2000,0.0605,0.0053310294503032,2000,0
+"performWhiteTestBootstrap","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate","normal",150,2000,0.0415,0.00445969449626317,2000,0
+"rbootstrap_test_statistic","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate","normal",150,2000,0.045,0.00463546114210873,2000,0
 "performWildBootstrapTest","estimated, held fixed","fitWLS(), exponential variance correctly specified","normal",600,2000,0.105,0.00685474288358068,2000,0
-"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate (not in the package)","normal",600,2000,0.0515,0.00494205169944629,2000,0
+"performWildBootstrapTest","estimated, re-estimated","fitWLS(), exponential variance correctly specified; fitWLS() again in each replicate","normal",600,2000,0.0515,0.00494205169944629,2000,0
 "performWildBootstrapTest","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
 "performWhiteTestBootstrap","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0
 "rbootstrap_test_statistic","too weak","sd = x^2 fitted with weights 1 / x","normal",150,400,1,0,400,0

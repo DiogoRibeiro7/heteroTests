@@ -3,10 +3,13 @@
 # statistic. The first test asserts that to 1e-8 over the designs of the
 # heteroscedasticity family in inst/validation/full-sweep-size-power.R (a
 # Gaussian null, sd = x^2 and a t5 null, 150 observations), a factor regressor
-# and a weighted fit. On a fitWLS() fit they differ: performStudentizedBPTest()
-# reads the weights left in the model frame, which the roadmap lists under
-# 0.16.0, so only performKoenkerTest() is asserted there, against lm() on the
-# estimated weights. Asserting the stale value would freeze the fault.
+# and a weighted fit. On a fitWLS() fit they differed before 0.15.0:
+# performStudentizedBPTest() read the weights left in the model frame, those
+# of the model fitWLS() refitted, and so computed the statistic of the
+# unweighted fit. Since 0.15.0 it reads the weights of the fit, and the two
+# agree on a fitWLS() fit too, which a test below asserts. They still differ
+# on a model with an offset, which the studentized statistic drops; the
+# roadmap lists that under 0.16.0.
 
 agreement_designs <- local({
   n <- 150L
@@ -84,6 +87,61 @@ test_that("performKoenkerTest() reads the estimated weights of a fitWLS() fit", 
   b <- performKoenkerTest(reference, d)
   expect_lt(abs(unname(a$statistic) - unname(b$statistic)), 1e-8)
   expect_lt(abs(a$p.value - b$p.value), 1e-8)
+})
+
+# A correctly specified fitWLS() design, sd = exp(0.3 x), with input weights
+# for the weighted lm and for fitWLS() of a weighted model.
+fitwls_design <- function() {
+  set.seed(20261017)
+  n <- 150
+  d <- data.frame(x = runif(n, 1, 5), z = runif(n, 1, 5))
+  d$y <- 1 + 2 * d$x + 0.5 * d$z + exp(0.3 * d$x) * rnorm(n)
+  d$w <- 1 / d$x
+  d
+}
+
+test_that("on a fitWLS() fit the studentized statistic reads the weights of the fit", {
+  # Before 0.15.0 it read the weights of the model frame, that of the model
+  # fitWLS() refitted, and computed the statistic of the unweighted fit.
+  d <- fitwls_design()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  for (base in list(lm(y ~ x + z, d), lm(y ~ x + z, d, weights = w))) {
+    wls <- fitWLS(base)
+    koenker <- performKoenkerTest(wls, d)
+    internal <- heteroTests:::.studentized_bp_test(wls, d)
+    exported <- without_deprecation(performStudentizedBPTest(wls, d))
+    robust <- performBPTestRobust(wls, d)
+    for (r in list(internal, exported, robust)) {
+      expect_lt(abs(unname(r$statistic) - unname(koenker$statistic)), 1e-8)
+      expect_lt(abs(r$p.value - koenker$p.value), 1e-8)
+    }
+  }
+})
+
+test_that("the robust bootstrap of a correctly specified fitWLS() fit is no longer tiny", {
+  d <- fitwls_design()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit <- fitWLS(lm(y ~ x + z, d))
+  set.seed(3)
+  r <- suppressWarnings(performBPTestRobust(fit, d, bootstrap = TRUE, B = 99))
+  # In 0.14.0 the statistic was 19.39, that of the unweighted fit, the
+  # asymptotic p-value 6.2e-05 and the bootstrap one 0.01. Now the statistic
+  # is Koenker's, 1.97.
+  expect_lt(abs(unname(r$statistic) - unname(performKoenkerTest(fit, d)$statistic)), 1e-8)
+  expect_gt(r$p.value, 0.05)
+  expect_identical(r$p.value_bootstrap, 0.59)
+})
+
+test_that("the studentized statistic of an lm and a weighted lm is that of 0.14.0", {
+  d <- fitwls_design()
+  # Computed by 0.14.0's .studentized_bp_test().
+  expect_equal(unname(heteroTests:::.studentized_bp_test(lm(y ~ x + z, d), d)$statistic),
+               19.391293965792642, tolerance = 1e-12)
+  expect_equal(unname(heteroTests:::.studentized_bp_test(lm(y ~ x + z, d, weights = w),
+                                                         d)$statistic),
+               6.5727512464303572, tolerance = 1e-12)
 })
 
 test_that("performStudentizedBPTest() warns, names performKoenkerTest() and keeps its value", {

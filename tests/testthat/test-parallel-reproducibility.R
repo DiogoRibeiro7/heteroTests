@@ -26,7 +26,12 @@
 # session.
 parallel_code <- c(
   "rtask_streams", "rrun_on_stream", "rparallel_tasks", "runHeteroTestsParallel",
-  "bootstrapTestStatistic", "performWhiteTestBootstrap", "performWildBootstrapTest"
+  "bootstrapTestStatistic", "performWhiteTestBootstrap", "performWildBootstrapTest",
+  # What a replicate of a fitWLS() fit calls when it estimates the weights
+  # again, in the worker.
+  "rwls_refit_replicate", "rwls_replicate_residuals", "rwls_reestimation",
+  "rwls_initial_weights", "rregressors_from_response", "rwithout_floor_warning",
+  "rvariance_function_on", "rweighted_refit", "rfgls_fit"
 )
 
 skip_unless_workers_load_this_version <- function(forked = FALSE) {
@@ -85,6 +90,37 @@ test_that("a seeded parallel bootstrap repeats itself with any number of workers
   serial <- run(NULL, parallel = FALSE)
   expect_true(all(is.finite(serial$replicates)))
   expect_false(identical(serial$replicates, first$replicates))
+})
+
+test_that("a parallel bootstrap of a fitWLS() fit estimates the weights again on each stream", {
+  skip_on_cran()
+  skip_unless_workers_load_this_version(forked = TRUE)
+  s <- parallel_data()
+  fit <- fitWLS(s$m)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  run <- function(cores, ...) {
+    set.seed(2027)
+    suppressWarnings(bootstrapTestStatistic(performKoenkerTest, fit, s$d, B = 19,
+                                            parallel = TRUE, n_cores = cores,
+                                            progress = FALSE, ...))
+  }
+  first <- run(2)
+  expect_true(all(is.finite(first$replicates)))
+  expect_identical(first$replicates, run(2)$replicates)
+  expect_identical(first$replicates, run(1)$replicates)
+  expect_identical(first$replicates, run(2, reestimate_weights = TRUE)$replicates)
+  expect_false(isTRUE(all.equal(first$replicates,
+                                run(2, reestimate_weights = FALSE)$replicates)))
+
+  set.seed(2028)
+  white <- suppressWarnings(performWhiteTestBootstrap(fit, s$d, B = 19, parallel = TRUE,
+                                                      n_cores = 2))
+  set.seed(2028)
+  again <- suppressWarnings(performWhiteTestBootstrap(fit, s$d, B = 19, parallel = TRUE,
+                                                      n_cores = 1))
+  expect_true(all(is.finite(white$boot_statistics)))
+  expect_identical(white$boot_statistics, again$boot_statistics)
 })
 
 test_that("the White bootstrap is reproducible in parallel, and Windows can run it", {

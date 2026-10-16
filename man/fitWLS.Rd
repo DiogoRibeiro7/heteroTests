@@ -30,7 +30,9 @@ A new \code{lm} object fitted with weights. The estimated variances are
 attached as the \code{"variance_model"} attribute, and the fitted variance
 function (its form, regressors and coefficients) as the
 \code{"variance_function"} attribute, which is what
-\code{\link[=performVarianceFormTest]{performVarianceFormTest()}} reads.
+\code{\link[=performVarianceFormTest]{performVarianceFormTest()}} reads, and what the bootstrap tests read to
+estimate the weights again in each replicate. When \code{model} was fitted
+with weights, the attribute also holds them, as \code{initial_weights}.
 }
 \description{
 Refit a model by feasible generalised least squares, weighting each
@@ -82,6 +84,18 @@ about 10\% of the time.
 
 Whether the variance function \emph{is} correctly specified can be tested: pass
 the result to \code{\link[=performVarianceFormTest]{performVarianceFormTest()}}.
+
+A test of constant variance on the result takes its weights as known,
+although they were estimated from the same data, so its reference
+distribution is only approximate: see the validation study in
+\code{inst/validation/README.md}. The bootstrap
+tests \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}}, \code{\link[=performWhiteTestBootstrap]{performWhiteTestBootstrap()}} and
+\code{\link[=bootstrapTestStatistic]{bootstrapTestStatistic()}} allow for the estimation. Since 0.15.0 they run
+\code{fitWLS()} again on each replicate by default: they fit it as \code{model} was
+fitted, fit the recorded variance function again to its residuals, on the
+recorded regressors, and refit it with the weights that gives. Their
+argument \code{reestimate_weights = FALSE} holds the weights fixed instead, as
+they did before 0.15.0.
 
 If the variance function cannot be fitted, or yields no usable variation,
 the function falls back to equal weights, which reduces the result to the

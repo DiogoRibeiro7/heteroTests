@@ -12,8 +12,10 @@ default, the tests refuse four inputs that most or some of them returned a
 value for, the tests that read `data` refuse data whose rows they cannot
 match to the observations of the fit, the robust White and Breusch-Pagan
 tests and the White bootstrap give the value on the data of the fit for rows
-they had renumbered, and seeded resampling with `parallel = TRUE` is
-reproducible.
+they had renumbered, seeded resampling with `parallel = TRUE` is
+reproducible, the bootstrap tests estimate the weights of a `fitWLS()` fit
+again in each replicate, and the studentized Breusch-Pagan statistic reads
+the weights of a `fitWLS()` fit.
 
 ### Resampling tests draw 999 replicates by default
 
@@ -463,6 +465,158 @@ workers, which the result does not depend on: with `set.seed(1)`,
 n_cores = 2)` gives 0.1750 on every run, against 0.1670 serially.
 
 No recorded evidence runs a resampling test with `parallel = TRUE`.
+
+### Bootstrap tests estimate the weights of a `fitWLS()` fit again
+
+**On a fit returned by `fitWLS()`, `performWildBootstrapTest()`,
+`performWhiteTestBootstrap()` and `bootstrapTestStatistic()` estimate the
+weights again in each replicate by default, so the p-values they return on
+such a fit change.** Since 0.13.0 they held the weights `fitWLS()` estimated
+fixed in every replicate, as if they were known. The replicates then leave out
+the estimation that the observed statistic went through, and the tests
+rejected a true null hypothesis too often, more so with more observations. In
+`inst/validation/weighted-fits-size.R`, the data have standard deviation
+`exp(0.3 x)` and `fitWLS()` fits its default exponential variance function,
+which is correctly specified. With normal errors, 2000 replications and
+`B = 499`, the rejection rates at the 5% level are:
+
+| Test | n | Weights held fixed, before | Estimated again, now | True weights |
+| --- | ---: | ---: | ---: | ---: |
+| `performWildBootstrapTest()` | 150 | 0.0865 | 0.0605 | 0.0540 |
+| `performWildBootstrapTest()` | 600 | 0.1050 | 0.0515 | 0.0480 |
+| `performWhiteTestBootstrap()` | 150 | 0.0640 | 0.0415 | 0.0540 |
+| `bootstrapTestStatistic()` with `performKoenkerTest()` | 150 | 0.0825 | 0.0450 | 0.0455 |
+
+(`inst/validation/weighted-fits-size.csv`, the rows whose weights are
+"estimated, held fixed", "estimated, re-estimated" and "true"). At 2000
+replications the 99% interval around 0.05 is [0.037, 0.063], and all four
+rates with the weights estimated again are inside it. The release gate is set
+at 5000 replications, and against its interval, [0.042, 0.058], the wild
+bootstrap with 150 observations, 0.0605, is outside, above it, and the White
+bootstrap, 0.0415, just below it. Against [0.041, 0.057], the interval around
+0.049, the rate of an exact test with `B = 999`, the wild bootstrap with 150
+observations is outside and the other three are inside. No study of the new
+default at 5000 replications with `B = 999` has been run; `ROADMAP.md` lists
+it under 0.16.0.
+
+Those four rows were measured in 0.12.0 by repeating the resampling outside
+the package, and were not run again. The package reproduces the repetition on
+200 of the 2000 samples of each: the same p-values, the same replicates and
+the same random draws (`inst/validation/weighted-fits-refit-reproduction.csv`).
+
+Each replicate is refitted as `fitWLS()` fitted the model: by least squares,
+as the model `fitWLS()` was given, with its weights if it had any. The
+variance function `fitWLS()` recorded is then fitted again to the residuals,
+with the same form and on the regressors `fitWLS()` evaluated. Last, the
+replicate is refitted with the weights that gives. A replicate whose
+variance function cannot be fitted, where `fitWLS()` would fall back to equal
+weights, counts as a failed replicate, and the p-value is computed from the
+replicates that remain, as for a refit that fails; a warning gives the number
+that failed. `fitWLS()` records the weights of a weighted model it refits, as
+`initial_weights` in its `"variance_function"` attribute, for this. A fit
+made by an earlier version has no `initial_weights`, and its model frame,
+which still holds those weights, is read instead.
+
+The new argument `reestimate_weights` chooses. `NULL`, the default, estimates
+the weights again on a `fitWLS()` fit and holds them fixed on any other model.
+`reestimate_weights = FALSE` holds them fixed and returns what 0.14.0
+returned. `TRUE` on a model that `fitWLS()` did not return is an error. An
+`lm`, a weighted `lm` and a Gaussian `glm` carry no variance function, and they
+return what they returned. Two kinds of `fitWLS()` fit keep the values of
+0.14.0 under the default. One on which `fitWLS()` fell back to equal weights
+estimated no weights. The other has a variance regressor computed from the
+response. Each replicate regenerates the response and holds the design
+fixed, so such a regressor is one that uses a variable of the response which
+the right-hand side of the model does not use, or one that is the response
+term itself, as `~ .` gives. Examples are `~ y` or `~ .` for `y ~ x + z`, and
+`~ y` or `~ x` for `I(y / x) ~ z`. Its weights cannot be estimated again from
+the regressors `fitWLS()` recorded, so the default holds them fixed and warns.
+The rule is conservative for `~ x` with `I(y / x) ~ z`: giving the response as
+a column, `r ~ z`, says that `x` stays. On both kinds of fit, `TRUE` is an
+error. In `bootstrapTestStatistic()` and
+`rbootstrap_test_statistic()` the argument comes after `...`, so it has to be
+named in full.
+
+With `set.seed(1)` before each call, for
+`fit <- fitWLS(lm(dist ~ speed, data = cars))`:
+
+| Call | Before, and with `reestimate_weights = FALSE` | Now |
+| --- | ---: | ---: |
+| `performWildBootstrapTest(fit, cars)` | 0.6730 | 0.6990 |
+| `performWhiteTestBootstrap(fit, cars)` | 0.7640 | 0.7290 |
+| `bootstrapTestStatistic(performKoenkerTest, fit, cars)$p_value` | 0.7020 | 0.6750 |
+
+The functions that call these with their default change with them on a
+`fitWLS()` fit. These are the registered tests `"wild_bootstrap"` and
+`"white_bootstrap"`, which `runHeteroTests()`, `runHeteroTestsParallel()`
+and the functions built on them run by name, and `performWhiteTestRobust()` and
+`performBPTestRobust()` with `bootstrap = TRUE`, and so
+`runAdvancedDiagnostics()` when it bootstraps. They have no argument of their
+own; to hold the weights fixed, call the bootstrap function directly with
+`reestimate_weights = FALSE`.
+
+Of the recorded evidence, only the rows "estimated, held fixed" of
+`weighted-fits-size.R` call these functions on a `fitWLS()` fit. The script
+passes `reestimate_weights = FALSE` there, so they do not move, and it calls
+the package for the rows "estimated, re-estimated".
+
+### The studentized Breusch-Pagan statistic on a `fitWLS()` fit
+
+**On a fit returned by `fitWLS()`, `performStudentizedBPTest()`,
+`performBPTestRobust()` with its default `studentize = TRUE`, and the
+registered `"student_bp"` computed the statistic of the unweighted fit. They
+now compute that of the weighted fit, which is Koenker's.** They read the
+weights from the model frame, and the model frame of a `fitWLS()` fit is that
+of the model `fitWLS()` refitted. It holds that model's weights, none for an
+unweighted model, and not the estimated ones. On a correctly specified fit the
+statistic therefore reported the heteroscedasticity that the weights remove.
+In the design of `inst/validation/weighted-fits-size.R`, with
+`set.seed(s)` for `s` from 1 to 5, `x` and `z` uniform on (1, 5),
+`y = 1 + 2 x + 0.5 z + exp(0.3 x) e` with normal `e`, 150 observations and
+`fit <- fitWLS(lm(y ~ x + z))`, `performStudentizedBPTest(fit)` returned
+p = 0.0019, 0.0015, 4.2e-07, 0.00097 and 0.013. It now returns 0.50, 0.86,
+0.22, 0.56 and 0.53, the p-values of `performKoenkerTest()`. Since 0.15.0 the
+three read the weights of the fit, as the other tests do (decided on
+2026-10-16).
+
+The values change on a `fitWLS()` fit only:
+
+- the statistic and p-value of `performStudentizedBPTest()`;
+- the statistic, the asymptotic p-value and the bootstrap p-value of
+  `performBPTestRobust()`, and so the Breusch-Pagan entry of
+  `runAdvancedDiagnostics()`;
+- `"student_bp"`.
+
+The model frame of a `fitWLS()` fit is unchanged. Nothing else changes. A
+corpus of seeded calls was run on the development version before and after
+the change: the corpus of the review of #129, extended to every test on the
+models that `fitWLS()` did not return.
+
+- On an `lm`, a weighted `lm`, an `lm` with an offset given either way or with
+  weights and an offset, a Gaussian `glm` with and without weights, and a
+  model of `log(y)`, all 472 calls return what they returned, with the same
+  warnings and random draws. 464 are `identical()`. In the other 8 the result
+  holds the `glm`, whose family closures compare equal only up to their
+  environments.
+- On the six `fitWLS()` fits, 228 of the 234 calls of the 39 other tests and
+  runners return what they returned: 226 `identical()`, and 2 up to the
+  `initial_weights` that a fit of a weighted model now records. The six that
+  change are `performStudentizedBPTest()`.
+
+The statistic now equals Koenker's, so on a `fitWLS()` fit it has Koenker's
+level, which was already documented. The weights are taken as known, and with
+the variance function correctly specified and normal errors it rejects 0.077
+of the time at the 5% level with 150 observations and 0.110 with 600
+(`inst/validation/weighted-fits-size.csv`, `performKoenkerTest()`, weights
+"estimated"). The bootstrap of `performBPTestRobust()` now compares the
+statistic with replicates computed the same way. In an exploratory run by the
+reviewer of #129, not recorded in `inst/validation/` (20 samples of a
+correctly specified design, `B = 99`), the 0.14.0 path rejected all 20 and
+the new default 1 of 20, with a mean p-value of 0.498. The statistic still
+drops an offset, as before; that is
+listed for 0.16.0 in `ROADMAP.md`. No recorded evidence calls these on a
+`fitWLS()` fit: `weighted-fits-size.R` runs `performStudentizedBPTest()` and
+`performBPTestRobust()` on fits with known weights only.
 
 ### Calls that changed
 
