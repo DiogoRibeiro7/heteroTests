@@ -6,8 +6,9 @@
 #' `robust = TRUE` since 0.15.0, the absolute residuals are first corrected
 #' for the asymmetry of the errors: this is the version of Im (2000) and of
 #' Machado and Santos Silva (2000), which keeps its level when the errors are
-#' asymmetric. `robust = FALSE` gives Glejser's statistic, the default up to
-#' 0.14.0.
+#' asymmetric, from about 150 observations on (see the section on asymmetric
+#' errors for smaller samples). `robust = FALSE` gives Glejser's statistic,
+#' the default up to 0.14.0.
 #'
 #' @param model A fitted [stats::lm] object whose residuals are examined.
 #' @param data [base::data.frame] used to fit `model`.
@@ -86,25 +87,25 @@
 #' to 5.7%. At 50 observations it rejects 5.7% to 6.6% of the time under
 #' skewed errors, and four of those six cells are above that interval, at
 #' 5.80% to 6.58%. Under symmetric errors \eqn{\hat{m}} is close to zero and
-#' the two statistics differ little: the corrected one rejects about half a
-#' percentage point less often at 50 observations and gives up one or two
+#' the two statistics differ little: the corrected one rejects 0.5 to 0.7
+#' percentage points less often at 50 observations and gives up one or two
 #' points of power there. For a weighted fit the residuals are the Pearson
 #' residuals, and the correction is applied to those.
 #'
 #' @section The default:
 #' Up to 0.14.0 the default was `robust = FALSE`. Since 0.15.0 it is
-#' `robust = TRUE`, so a call that does not give `robust` returns another
-#' statistic and p-value than before, and a `method` that ends in "(robust to
-#' asymmetric errors)". `robust = FALSE` returns what such a call returned up
-#' to 0.14.0. Glejser's statistic needs positive and negative errors to be
-#' equally likely, which is seldom known: in the study above it rejects a true
-#' null hypothesis 8.8% to 17.7% of the time at the 5% level when the errors
-#' are skewed, at every sample size from 50 to 1000, where the corrected
-#' statistic rejects 4.6% to 5.7% of the time from 150 observations on. The
-#' change costs some power when the errors are symmetric, 1.1 and 1.9
-#' percentage points at 50 observations under Gaussian errors in that study,
-#' and the corrected statistic is above the 5% level at 50 observations under
-#' skewed errors, as above.
+#' `robust = TRUE`, so a call that does not give `robust` returns a different
+#' statistic and p-value from those it returned before, and its `method` ends
+#' in "(robust to asymmetric errors)". `robust = FALSE` returns what such a
+#' call returned up to 0.14.0. Glejser's statistic needs positive and
+#' negative errors to be equally likely, which is seldom known: in the study
+#' above it rejects a true null hypothesis 8.8% to 17.7% of the time at the 5%
+#' level when the errors are skewed, at every sample size from 50 to 1000,
+#' where the corrected statistic rejects 4.6% to 5.7% of the time from 150
+#' observations on. The change costs some power when the errors are
+#' symmetric, 1.1 and 1.9 percentage points at 50 observations under Gaussian
+#' errors in that study, and the corrected statistic is above the 5% level at
+#' 50 observations under skewed errors, as above.
 #'
 #' @section Interpretation and caveats:
 #' Glejser's statistic, `robust = FALSE`, has its nominal level only when
@@ -142,7 +143,8 @@
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
-#' # The default, which keeps its level under asymmetric errors
+#' # The default, which keeps its level under asymmetric errors from about
+#' # 150 observations
 #' performGlejserTest(mod, mtcars, "wt")
 #'
 #' # Glejser's (1969) statistic, the default up to 0.14.0

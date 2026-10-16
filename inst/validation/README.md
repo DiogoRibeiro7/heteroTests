@@ -1039,12 +1039,12 @@ Five things follow.
 Up to 0.14.0 the default of `robust` was `FALSE`, Glejser's statistic. Since
 0.15.0 it is `TRUE`: `performGlejserTest()` returns the corrected statistic,
 and with `robust = FALSE` what its default returned up to 0.14.0. The
-release gate holds for the new default from 150
-observations on, in all 27 of its null cells, and does not at 50
-observations, where four of its nine null cells, all with skewed errors, are
-above the interval, at 0.0580 to 0.0658. The full sweep and the weighted
-fits above call `performGlejserTest()` with its default, and their rows were
-regenerated in 0.15.0 (*History*, below).
+release gate holds for the new default from 150 observations on, in all 27
+of its null cells, and does not at 50 observations, where four of its nine
+null cells, all with skewed errors, are above the interval, at 0.0580 to
+0.0658. The full sweep and the weighted fits above call
+`performGlejserTest()` with its default, and their rows were regenerated in
+0.15.0 (*History*, below).
 
 ### The modified Wald test for groupwise heteroscedasticity
 

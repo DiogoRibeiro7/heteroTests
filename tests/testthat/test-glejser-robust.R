@@ -271,10 +271,11 @@ test_that("`robust` must be a single logical value", {
 
 test_that("under skewed errors only the corrected statistic holds its level", {
   skip_on_cran()
-  # Centred lognormal errors, constant variance. At 5000 replications the
-  # default statistic rejects about 17% of the time and the corrected one about
-  # 5%; see inst/validation/glejser-skewed-errors.csv. 400 replications put the
-  # Monte Carlo standard error at 1.1% for the second and 1.9% for the first.
+  # Centred lognormal errors, constant variance. At 5000 replications
+  # Glejser's statistic (`robust = FALSE`) rejects about 17% of the time and the
+  # corrected one, the default, about 5%; see
+  # inst/validation/glejser-skewed-errors.csv. 400 replications put the Monte
+  # Carlo standard error at 1.1% for the second and 1.9% for the first.
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
   reps <- 400

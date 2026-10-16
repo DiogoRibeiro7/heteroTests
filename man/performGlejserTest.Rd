@@ -1,7 +1,7 @@
 \name{performGlejserTest}
 \alias{performGlejserTest}
 \title{Perform Glejser test for heteroscedasticity}
-\description{Regresses absolute residuals on a transformation of a suspected variable. By default, \code{robust = TRUE} since 0.15.0, the absolute residuals are first corrected for the asymmetry of the errors: this is the version of Im (2000) and of Machado and Santos Silva (2000), which keeps its level when the errors are asymmetric. \code{robust = FALSE} gives Glejser's (1969) statistic, the default up to 0.14.0.}
+\description{Regresses absolute residuals on a transformation of a suspected variable. By default, \code{robust = TRUE} since 0.15.0, the absolute residuals are first corrected for the asymmetry of the errors: this is the version of Im (2000) and of Machado and Santos Silva (2000), which keeps its level when the errors are asymmetric, from about 150 observations on (see the section on asymmetric errors for smaller samples). \code{robust = FALSE} gives Glejser's (1969) statistic, the default up to 0.14.0.}
 \details{A variety of transformations of the explanatory variable (e.g. absolute value, square root) can reveal a relationship between scale and the covariate. Significance of the slope parameter is assessed with a t test. For a weighted fit the residuals are the Pearson residuals.
 
 Glejser's statistic, \code{robust = FALSE}, has its nominal level only when positive and negative errors are equally likely. The corrected statistic of the default does not need that, and is the one to use when the residuals may be skewed or their shape is unknown.
@@ -29,17 +29,18 @@ where \eqn{\hat{m}}{mhat} is the proportion of positive residuals less the propo
 
 The auxiliary regression is otherwise the same. Both references state the statistic as \eqn{n R^2}{n R^2} of that regression, referred to a chi-squared distribution with one degree of freedom. The t statistic reported here is the signed form of it, \eqn{n R^2 = n t^2 / (t^2 + n - 2)}{n R^2 = n t^2 / (t^2 + n - 2)}, and its p-value is taken from the t distribution with \eqn{n - 2}{n - 2} degrees of freedom, as for Glejser's statistic. The two p-values agree as the sample grows.
 
-In the same study, with 5000 replications in each cell, the corrected statistic is within simulation error of the 5\% level from 150 observations on: all 27 of its cells with a true null hypothesis and 150 observations or more are inside the 99\% interval around 5\%, from 4.21\% to 5.79\%, at 4.4\% to 5.7\%. At 50 observations it rejects 5.7\% to 6.6\% of the time under skewed errors, and four of those six cells are above that interval, at 5.80\% to 6.58\%. Under symmetric errors \eqn{\hat{m}}{mhat} is close to zero and the two statistics differ little: the corrected one rejects about half a percentage point less often at 50 observations and gives up one or two points of power there. For a weighted fit the correction is applied to the Pearson residuals.
+In the same study, with 5000 replications in each cell, the corrected statistic is within simulation error of the 5\% level from 150 observations on: all 27 of its cells with a true null hypothesis and 150 observations or more are inside the 99\% interval around 5\%, from 4.21\% to 5.79\%, at 4.4\% to 5.7\%. At 50 observations it rejects 5.7\% to 6.6\% of the time under skewed errors, and four of those six cells are above that interval, at 5.80\% to 6.58\%. Under symmetric errors \eqn{\hat{m}}{mhat} is close to zero and the two statistics differ little: the corrected one rejects 0.5 to 0.7 percentage points less often at 50 observations and gives up one or two points of power there. For a weighted fit the correction is applied to the Pearson residuals.
 }
 \section{The default}{
-Up to 0.14.0 the default was \code{robust = FALSE}. Since 0.15.0 it is \code{robust = TRUE}, so a call that does not give \code{robust} returns another statistic and p-value than before, and a \code{method} that ends in "(robust to asymmetric errors)". \code{robust = FALSE} returns what such a call returned up to 0.14.0.
+Up to 0.14.0 the default was \code{robust = FALSE}. Since 0.15.0 it is \code{robust = TRUE}, so a call that does not give \code{robust} returns a different statistic and p-value from those it returned before, and its \code{method} ends in "(robust to asymmetric errors)". \code{robust = FALSE} returns what such a call returned up to 0.14.0.
 
 Glejser's statistic needs positive and negative errors to be equally likely, which is seldom known: in the study above it rejects a true null hypothesis 8.8\% to 17.7\% of the time at the 5\% level when the errors are skewed, at every sample size from 50 to 1000, where the corrected statistic rejects 4.6\% to 5.7\% of the time from 150 observations on. The change costs some power when the errors are symmetric, 1.1 and 1.9 percentage points at 50 observations under Gaussian errors in that study, and the corrected statistic is above the 5\% level at 50 observations under skewed errors, as above.
 }
 \examples{
  data(mtcars)
  m <- lm(mpg ~ wt + qsec, data = mtcars)
- # The default, which keeps its level under asymmetric errors
+ # The default, which keeps its level under asymmetric errors from about
+ # 150 observations
  performGlejserTest(m, mtcars, "wt")
 
  # Glejser's (1969) statistic, the default up to 0.14.0
