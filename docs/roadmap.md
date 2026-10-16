@@ -852,7 +852,7 @@ after it.
     ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
     comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
     tied to within a tolerance. Changes a value, by that much.
-- [ ] **A Gaussian `glm` with a zero prior weight.** The tests that read the
+- [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
     Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
     weight, whose Pearson residual is an artificial zero, but not the same
     `glm`: `rpearson_residuals()` reads `rprior_weights()`, which returns no
@@ -864,7 +864,59 @@ after it.
     `rprior_weights()` too, so a weighted Gaussian `glm` is not labelled
     "(weighted residuals)", and `performRESETTest()` does not refuse a zero
     weight, even on an `lm`. Found on 2026-10-15 and recorded, not fixed, in
-    0.15.0, as decided that day. A fix changes what such fits return.
+    0.15.0, as decided that day. A fix changes what such fits return. Done in
+    0.16.0 as suggested: the 32 tests that returned a value, and the scatter
+    diagnostic, refuse such a `glm` with the message of the `lm`, and
+    `plotBeforeAfter()` labels a weighted Gaussian `glm`. `performRESETTest()`
+    keeps accepting a zero weight, on an `lm` and a `glm`: its two fits are
+    weighted least squares, which drop the observation, and its F statistic and
+    degrees of freedom are those of the fit to the positive weights
+    (`test-model-eligibility.R`). **For the author to confirm**, or to refuse
+    it as the other tests do, for consistency.
+- [ ] **Found by the model-eligibility work (the *Supported models* page),
+    recorded, not fixed**, as they change what a test computes rather than which
+    models it accepts:
+    - `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
+        deficient" when terms of its auxiliary regression are collinear, as the
+        squares of dummy variables are, on any model with a factor, where
+        `performWhiteTest()` drops them; and the exact White, Breusch-Pagan and
+        Koenker tests switch to the streaming ones above 100 MB. Drop the
+        collinear terms from the accumulated cross-products, as the exact test
+        does. Changes a value (an error becomes one).
+    - `test_factory$run_test("szroeter", ...)` always stops with "argument
+        \"order_by\" is missing": the factory registers `performSzroeterTest()`,
+        which needs an ordering, where the registry name `"szroeter"` orders by the
+        fitted values. Register the same function. An error becomes a value.
+    - `rvalidate_against_reference("white", ...)` compares White's statistic with
+        `car::ncvTest()`, the Cook-Weisberg score test, so it reports a mismatch on
+        every model. Compare with `lmtest::bptest()` on the squares and cross
+        products, as `test-model-eligibility.R` does. Deprecated; changes what it
+        returns.
+    - `performInfluenceDiagnostics()` counts the aliased coefficients of a
+        rank-deficient fit in `p` for its default cutoff, `4 / (n - p)`, and so
+        `runDiagnostics()` does; the rank is the number of coefficients. Changes a
+        value.
+    - The three tests that refuse every `glm`, `performWhiteTestStreaming()`,
+        `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, refuse a
+        Gaussian `glm` with the identity link too, which is a least-squares fit
+        the others accept. Accepting it is a decision for the author; it makes
+        refusals values.
+    - `generateHeteroRecommendations()` refuses a rank-deficient fit (it checks
+        the model with the checks of `validateTestInputs()`), which the tests and
+        `runHeteroTests()` accept since 0.16.0. Accepting it makes a refusal a
+        value.
+    - `runHeteroTests(<workflow>, data)` refuses the data the workflow was
+        fitted to, because the engine's fit names its response `..y`; without
+        `data` it uses the model frame of that fit (0.16.0). Map the columns, or
+        say so on the help page. An error becomes a value.
+    - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
+        as an `lm` and test its M-estimation residuals as least-squares ones; the
+        studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
+        `performBPTestRobust()` refits its design by least squares and tests the
+        least-squares fit instead (9.04 against Koenker's 8.74 on the residuals of
+        the M-estimate, in the design of the *Supported models* page); and
+        `performQuantileRegressionTest()` refuses it as a weighted fit, because
+        its case weights are all 1. Keep accepting it, or refuse it.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
     release so that 0.14.0 changes no value. Each fix that changes a value is
     announced in bold in `NEWS.md`.
@@ -993,12 +1045,22 @@ after it.
         it. No exported value changes.
     - About 0.8 KB per test call on a new model still persists after the
         validation cache is cleared, as seen in long simulations. No value changes.
-    - On a rank-deficient fit (`z2 = 2 * z`, the design in
+    - [x] On a rank-deficient fit (`z2 = 2 * z`, the design in
         `tests/testthat/test-koenker-studentized.R`) both `performKoenkerTest()`
         and `performStudentizedBPTest()` refuse with "Model coefficients must be
         finite…", where `lmtest::bptest()` returns a statistic (20.87, df 2).
         Decide whether to compute on the estimable subspace or keep the refusal
-        with a clearer message.
+        with a clearer message. Done in 0.16.0 on the estimable subspace, for
+        every test, as the brief of the model-eligibility work asked: every test
+        that accepts the model without the aliased columns accepts the
+        rank-deficient one, and gives its statistic and p-value (to the last digit
+        on the four fits of `test-model-eligibility.R`); Koenker's is 20.87 on 2
+        df. No test needs every coefficient, so none refuses; the quantile
+        regression test fits `quantreg::rq()` to the columns that were not
+        aliased. `validateTestInputs()`, functions a user registers with
+        `test_factory` and `generateHeteroRecommendations()` still refuse it, with
+        a message that names the aliased coefficients. **For the author to
+        confirm.**
 - [ ] **Dependencies.**
     - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
     - `R6` goes if `TestFactory` leaves the API, since it is the only user.

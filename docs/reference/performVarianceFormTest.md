@@ -125,6 +125,15 @@ quadratic in a regressor was 98% at 150 observations. Against the other
 log-linear form it was 22% at 150 observations and 74% at 400. See
 `inst/validation/README.md`.
 
+## Supported models
+
+It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit,
+which it tests on the estimable part of its design: it gives the value of the same model fitted
+without the aliased columns. It refuses every `glm`, weights that did not come from
+`fitWLS()`, a `survey::svyglm()` fit, a coefficient that is not finite for another reason,
+and `data` that lack rows or variables of the fit. Which model each test accepts, and why, is
+set out in [`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Wooldridge, J. M. (1990). A unified approach to robust, regression-based

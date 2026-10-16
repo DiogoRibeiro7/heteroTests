@@ -31,6 +31,16 @@ An object of class `htest` containing the t statistic, p-value and degrees of fr
 
 The slope coefficient from \(\log(e^2)\) regressed on \(\log x\) is tested for zero using a t statistic. A significant coefficient indicates scale depending on \(x\).
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Park, R. E. (1966). Estimation with heteroscedastic error terms. *Econometrica*, 34(4), 888. [doi:10.2307/1910108](https://doi.org/10.2307/1910108)

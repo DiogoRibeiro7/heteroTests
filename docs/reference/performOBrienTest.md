@@ -31,6 +31,16 @@ An object of class `htest` containing the F statistic, numerator and denominator
 
 For each residual within a group, O'Brien's transformation combines its squared deviation from the group mean with the group's sample variance and sample size. A one-way ANOVA of those transformed observations yields an approximate \(F_{k-1,N-k}\) test. Every group must contain at least three observations.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 O'Brien, R. G. (1981). A simple test for variance effects in experimental designs. *Psychological Bulletin*, 89(3), 570–574.

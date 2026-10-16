@@ -31,6 +31,18 @@ An object of class `htest`.
 
 The statistic is Breusch and Pagan (1980) equation 5, \(LM = nT / (2(T-1)) [ \sum_i (\sum_t e_{it})^2 / \sum_{it} e_{it}^2 - 1 ]^2\), which follows a chi-square distribution with one degree of freedom under the null of no individual effect. The bracketed ratio is close to one under the null and the statistic measures its squared departure from one. Before 0.11.0 the "- 1" and the square were absent and the scaling used T^2 rather than nT, which left the statistic sitting at the critical value: it rejected about a third of the time when no individual effect was present.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. The model is a pooled `lm` of the panel, with the units and
+the periods as columns of `data`; a `plm::plm()` fit is not an `lm` and is refused.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## References
 
 Breusch, T. S., & Pagan, A. R. (1980). The Lagrange Multiplier Test and Its Applications to Model Specification in Econometrics. *Review of Economic Studies*, 47(1), 239–253.

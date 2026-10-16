@@ -50,6 +50,16 @@ of squared residuals on the model regressors. Aggregating these matrices yields
 the exact Koenker statistic while bounding memory usage. Sparse cross-products
 from Matrix are used automatically when available for large chunks.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## See also
 
 [`performKoenkerTest`](performKoenkerTest.md) for the standard implementation.

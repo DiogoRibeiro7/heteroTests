@@ -71,17 +71,20 @@ Every exported `perform*Test()` function returns a base-R `htest` object, so a r
 
 Since 0.15.0 every test on a model refuses four inputs, each with one message: a `glm` that is not a least-squares
 fit, that is, of any family but `gaussian` or with any link but the identity ("needs a model fitted by
-stats::lm()"); a model with a coefficient that is not finite, such as the `NA` of an aliased term ("Model
-coefficients must be finite"); `data` that lack rows the model was fitted to; and `data` that lack a
-variable of the model ("The following variables are missing from"). The model frame is accepted as `data` as it
-is. A `glm` with the Gaussian family and the identity link is accepted and gives the result of the `lm` up
+stats::lm()"); a model with a coefficient that is not finite, infinite, `NaN`, or `NA` without the fit being
+rank-deficient ("Model coefficients must be finite"); `data` that lack rows the model was fitted to; and
+`data` that lack a variable of the model ("The following variables are missing from"). Until 0.16.0 the
+`NA` of an aliased term was refused too; since then a rank-deficient fit is tested on the estimable part of its
+design (see *Supported models*). The model frame is accepted as `data` as it is. A `glm` with the Gaussian family and the identity link is accepted and gives the result of the `lm` up
 to rounding error, except that [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performHarrisonMcCabeTest()`](performHarrisonMcCabeTest.md) and
 [`performVarianceFormTest()`](performVarianceFormTest.md) refuse every `glm`. With positive prior weights it gives the result of
 `lm(..., weights = w)`: [`performGQTest()`](performGQTest.md), [`performRESETTest()`](performRESETTest.md),
 [`performWhiteTestBootstrap()`](performWhiteTestBootstrap.md) and [`performWildBootstrapTest()`](performWildBootstrapTest.md), which read the weights of an
 `lm`, read the prior weights of the `glm`, and [`performQuantileRegressionTest()`](performQuantileRegressionTest.md), which refuses
-a weighted `lm`, refuses it with the same message. A `survey::svyglm()` fit is refused by every test ("The
-model is a `survey::svyglm()` fit"). `tests/testthat/test-input-validation.R` gives every test these inputs.
+a weighted `lm`, refuses it with the same message. With a zero prior weight it is refused as the `lm` with a
+zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A `survey::svyglm()` fit is
+refused by every test ("The model is a `survey::svyglm()` fit"). `tests/testthat/test-input-validation.R`
+gives every test these inputs.
 
 The tests that read `data` also refuse `data` whose rows cannot be confirmed to hold the observations of
 the fit ("cannot match the rows of `data` to the observations of the model"). They match the rows of `data`
@@ -102,6 +105,27 @@ any order, except by
 [`performPesaranTest()`](performPesaranTest.md), [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md) and
 [`performScatterDiagnostic()`](performScatterDiagnostic.md), which read `data` by position and need its rows in the order of the
 fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
+
+## Supported models
+
+The tests examine the residuals of a least-squares fit for a variance that is not constant, so they accept the models
+whose residuals are those of a least-squares fit, and refuse the others early, with the messages above. Which test
+accepts which class, measured by running every test on each, is the table of the *Supported models* page of the
+documentation site; `tests/testthat/test-model-eligibility.R` and `test-input-validation.R` check it.
+
+- An `lm` is accepted by every test.
+- An `lm(..., weights = w)` is accepted: `lm()` states that the error variance is \(\sigma^2 / w_i\), and the tests read the Pearson residuals \(\sqrt{w_i}\, e_i\), which have constant variance when the weights are right. [`performQuantileRegressionTest()`](performQuantileRegressionTest.md), which refits without them, refuses it, and [`performVarianceFormTest()`](performVarianceFormTest.md) refuses weights that did not come from [`fitWLS()`](fitWLS.md).
+- A zero weight: the observation is not part of the fit, and its residual is an artificial zero that a test would count. Refused by every test but [`performRESETTest()`](performRESETTest.md), an F test of two nested weighted least-squares fits, in which a zero weight drops the observation from both; it gives the value of the fit to the observations with positive weight.
+- A `glm` with the Gaussian family and the identity link is a least-squares fit: it gives the result of the `lm`, weighted or not, but [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performHarrisonMcCabeTest()`](performHarrisonMcCabeTest.md) and [`performVarianceFormTest()`](performVarianceFormTest.md) refuse every `glm`. The tests read its prior weights, `model$prior.weights`, and never `model$weights`, which holds the working weights of the last iteration of iteratively reweighted least squares, \(w_i (d\mu_i/d\eta_i)^2 / V(\mu_i)\). For this family and link the two are equal; for any other they depend on the fitted means.
+- Any other `glm`, such as a binomial or a Poisson one, is refused: its residuals have a variance that depends on the mean by construction, so a test of constant variance tests nothing the help pages describe.
+- A `survey::svyglm()` fit is refused: its residuals are scaled by the sampling weights, which are not precision weights. See [`runSurveyHeteroTests()`](runSurveyHeteroTests.md).
+- Panel models: [`performPesaranTest()`](performPesaranTest.md) and [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md), and so [`runPanelTests()`](runPanelTests.md), take a pooled `lm` and the columns of `data` that name the units and the periods. A `plm::plm()` fit is not an `lm` and is refused, by every test.
+- A rank-deficient fit: a term that is a linear combination of others, or the dummy of a cell of an interaction that no observation falls in, leaves an `NA` coefficient. Its residuals and fitted values are the projection on the column space of the design, which the aliased columns do not change. Since 0.16.0 every test that accepts the model without the aliased columns accepts it, computed on the estimable part of the design: the columns that were not aliased, with degrees of freedom from the rank, so that it gives the statistic and p-value of the model fitted without them. A test that refuses that model refuses the rank-deficient one with the same message.
+- A `fitWLS()` fit is a weighted `lm`, with estimated weights: accepted, but the reference distributions take the weights as known ([`performVarianceFormTest()`](performVarianceFormTest.md) accounts for the estimation).
+- A `MASS::rlm()` fit is an `lm` by class, so the tests accept it, as before 0.16.0, and test its M-estimation residuals as if they were least-squares ones; its case weights, all 1 unless given, are read as precision weights, so [`performQuantileRegressionTest()`](performQuantileRegressionTest.md) refuses it as a weighted fit. Whether to keep accepting it or refuse it is an open decision.
+
+[`checkModel()`](checkModel.md) checks the class of a model only, `lm` or `glm`; it does not check whether a test
+accepts it.
 
 ## See also
 

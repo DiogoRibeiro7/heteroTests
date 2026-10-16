@@ -12,7 +12,7 @@ residuals, and minimum sample size requirements.
 ## Usage
 
 ```r
-rvalidateModelInputs(model, test_name, min_obs = 10)
+rvalidateModelInputs(model, test_name, min_obs = 10, allow_aliased = FALSE)
 ```
 
 ## Arguments
@@ -28,6 +28,13 @@ rvalidateModelInputs(model, test_name, min_obs = 10)
 `min_obs`
 :   Minimum number of observations required for the calling
     procedure. Defaults to `10`.
+
+`allow_aliased`
+:   Logical. `FALSE`, the default, refuses a rank-deficient
+    fit, whose aliased coefficients are `NA`, with a message that names them;
+    `TRUE` accepts it, for a procedure computed on the estimable part of the
+    design. A coefficient that is not finite for another reason is refused
+    either way.
 
 ## Value
 

@@ -34,6 +34,16 @@ Squared residuals are regressed on the regressors but the statistic \(n R^2\) us
 
 The reference distribution takes the weights as known. When they were estimated from the same data, as by [`fitWLS()`](fitWLS.md), it is only approximate, and not more accurate in larger samples. With a correctly specified variance function and normal errors, the Koenker test rejected 8% of the time at the 5% level with 150 observations and 11% with 600, the White test 6% and 8%, and the Harvey test never, because it repeats the regression the weights were estimated from (`inst/validation/weighted-fits-size.csv`). [`performVarianceFormTest()`](performVarianceFormTest.md) accounts for the estimation, held its level in the same designs, and is the test to use on a `fitWLS()` fit.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. *Journal of Econometrics*, 17(1), 107–112.
