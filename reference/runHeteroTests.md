@@ -55,10 +55,11 @@ Cook-Weisberg test. Pass `data` for such a fit.
 
   a fitted `lm`, or a `glm` with the Gaussian family and the identity
   link, a model formula, a tidymodels workflow or a parsnip model fit.
-  The tests refuse a `glm` of any other family or link since 0.15.0, but
-  the deprecated registry names `"ncv"` and `"student_bp"` do not yet,
-  so the fallback (Details) returns the Cook-Weisberg test for such a
-  fit rather than stopping.
+  The tests refuse a `glm` of any other family or link since 0.15.0, the
+  deprecated registry names `"ncv"` and `"student_bp"` and the
+  substitutes of the fallback (Details) included: the call stops with
+  the error of the first test asked for, and with grouped data each test
+  is returned as failed.
 
 - data:
 

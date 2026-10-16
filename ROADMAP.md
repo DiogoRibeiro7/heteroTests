@@ -747,11 +747,13 @@ multiplier rejects 0.082, 0.073 and 0.061 of the time and Mammen’s
 difference inside its 99% interval. The interval around 0.049, the rate
 of an exact test with `B = 999`, gives the same split. Against
 `sigma^2 = exp(0.4 x1)` the power of the two differs by less than one
-point at each `n`. Recommendation: keep `"rademacher"`, which changes no
-value. The help page said the bootstrap controls the size for
-heavy-tailed errors; that holds for the `t5` errors of the study and not
-for the skewed ones, with either multiplier, and \#125 corrects the
-page.
+point at each `n`. Done (decided 2026-10-16: keep `"rademacher"`, as the
+study recommended); no value changes. The help page said the bootstrap
+controls the size for heavy-tailed errors; that holds for the `t5`
+errors of the study and not for the skewed ones, with either multiplier,
+and \#125 corrected the page. A wild bootstrap without a multiplier,
+which may hold the level better under skewed errors, is to be measured
+in 0.16.0 (below).
 
 **Reproducibility under `parallel = TRUE`.** A search of `R/` finds no
 `clusterSetRNGStream()` and no L’Ecuyer set-up on the `mclapply()` and
@@ -944,24 +946,28 @@ returned as failed is an interface decision for 1.0.0. Removing the
 fallback changes what such calls return.
 
 **A `glm` of another family through the registry.** The registry names
-deprecated in 0.14.0, `"ncv"` and `"student_bp"`, call `.ncv_test()` and
-`.studentized_bp_test()` directly, and the refusal of a `glm` that is
-not a least-squares fit is in
+deprecated in 0.14.0, `"ncv"` and `"student_bp"`, called `.ncv_test()`
+and `.studentized_bp_test()` directly, and the refusal of a `glm` that
+is not a least-squares fit was in
 [`performNCVTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performNCVTest.md)
 and
 [`performStudentizedBPTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performStudentizedBPTest.md)
 only. So `runHeteroTests(m, d, tests = "ncv")`,
 `cachedTest("ncv", m, d)` and
 [`runHeteroTestsParallel()`](https://diogoribeiro7.github.io/heteroTests/reference/runHeteroTestsParallel.md)
-return a value for `m <- glm(high ~ x1 + x2, family = binomial)`, and,
+returned a value for `m <- glm(high ~ x1 + x2, family = binomial)`, and,
 because `"ncv"` is the last fallback of `"white"`, `"koenker"` and
 `"breusch_pagan"`, `runHeteroTests(m, d)` with its default battery
-returns the Cook-Weisberg statistic under the names `white` and
-`koenker`, tagged as a fallback, where 0.14.0 returned White’s test and
-the classical one. Found in the 0.15.0 release audit and not fixed
-there, since a fix changes what those calls return; it is one call of
-`rrefuse_non_gaussian_glm()` in each of the two registry entries, and
-could go in 0.15.0 if the author prefers.
+returned the Cook-Weisberg statistic under the names `white` and
+`koenker`. Found in the 0.15.0 release audit. Done in 0.15.0 (decided
+2026-10-16): the two registry entries, the `"student_bp"` entry of
+`test_factory` and the `"studentized_bp"` key of
+[`rvalidate_against_reference()`](https://diogoribeiro7.github.io/heteroTests/reference/rvalidate_against_reference.md)
+refuse such a fit with the message of those functions, so
+`runHeteroTests(m, d)` stops with White’s refusal and no name holds a
+fallback computed on it. On an `lm`, a Gaussian `glm` and a weighted
+`lm` every value is
+[`identical()`](https://rdrr.io/r/base/identical.html) to before.
 
 **The panel tests on a fit that dropped rows.** On
 `lm(y ~ x1 + x2, data = d)` with `NA` in three rows of `x2`,
@@ -1398,7 +1404,6 @@ group:
 | Question | Proposal | Needed by |
 |----|----|----|
 | Default of `robust` in [`performGlejserTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performGlejserTest.md) | `TRUE`. From 150 observations the corrected statistic holds its level under every error distribution measured, where the default is at 9% to 18% when the errors are skewed. At 50 observations it is at 5.7% to 6.6% under skewed errors and costs a point or two of power under Gaussian errors. It changes the values the function reports, so it belongs in a minor release that says so | 0.15.0 |
-| Wild bootstrap multiplier | Keep `"rademacher"`: in `inst/validation/wild-multiplier-size.R` neither multiplier holds the level in more of the grid, and both are outside the gate under skewed errors at 30 to 100 observations (`B = 999`, the default since 0.15.0, was decided on 2026-10-15) | 0.15.0 |
 | Bootstrap tests on a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit | Add an argument to [`performWildBootstrapTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](https://diogoribeiro7.github.io/heteroTests/reference/performWhiteTestBootstrap.md) and [`bootstrapTestStatistic()`](https://diogoribeiro7.github.io/heteroTests/reference/rbootstrap_test_statistic.md) that runs [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) again in each replicate, on by default when the model records a variance function. Holding the weights fixed, the wild bootstrap rejects 0.086 and 0.105 at 150 and 600 observations; estimating them again, 0.060 and 0.051; with the true weights, 0.054 and 0.048. Postponed on 2026-10-12: 0.13.0 accepts a weighted fit in these functions and holds the weights of a [`fitWLS()`](https://diogoribeiro7.github.io/heteroTests/reference/fitWLS.md) fit fixed in each replicate, so a default that estimates them again changes values 0.13.0 returned, and has to be announced in bold in a minor release. Moved from 0.14.0 on 2026-10-14: the new default changes a default and the values these functions return, which belongs with the other default changes of 0.15.0, not in 0.14.0, where no value may change | 0.15.0 |
 | Ties in the ordering of [`performSzroeterTest()`](https://diogoribeiro7.github.io/heteroTests/reference/performSzroeterTest.md) | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |

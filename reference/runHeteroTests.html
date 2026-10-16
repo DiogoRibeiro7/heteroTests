@@ -75,8 +75,9 @@ test. Pass <code>data</code> for such a fit.</p>
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>a fitted <code>lm</code>, or a <code>glm</code> with the Gaussian family and the identity link, a model
   formula, a tidymodels workflow or a parsnip model fit. The tests refuse a <code>glm</code> of any other family or link
-  since 0.15.0, but the deprecated registry names <code>"ncv"</code> and <code>"student_bp"</code> do not yet, so the fallback
-  (Details) returns the Cook-Weisberg test for such a fit rather than stopping.</p></dd>
+  since 0.15.0, the deprecated registry names <code>"ncv"</code> and <code>"student_bp"</code> and the substitutes of the
+  fallback (Details) included: the call stops with the error of the first test asked for, and with grouped data
+  each test is returned as failed.</p></dd>
 
   <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>optional data frame used to fit <code>model</code>. If omitted, <code>model.frame(model)</code> is used, which
