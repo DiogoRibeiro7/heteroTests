@@ -1,5 +1,7 @@
 # performGlejserTest(robust = TRUE): the correction of Im (2000) and of Machado
-# and Santos Silva (2000) for asymmetric errors.
+# and Santos Silva (2000) for asymmetric errors. It is the default since
+# 0.15.0; up to 0.14.0 the default was robust = FALSE, Glejser's (1969)
+# statistic.
 
 glejser_data <- function(n = 120, seed = 1, errors = c("exponential", "normal", "lognormal")) {
   errors <- match.arg(errors)
@@ -23,19 +25,107 @@ n_r_squared <- function(result, n) {
 
 quiet <- function(expr) suppressWarnings(suppressMessages(expr))
 
-test_that("the default is Glejser's statistic and is unchanged", {
+# Glejser's (1969) statistic as the default of 0.14.0 computed it: the t test of
+# the slope in the regression of the absolute Pearson residuals on the
+# transformed variable, by the same operations in the same order, so that the
+# result can be compared with identical().
+glejser_1969 <- function(model, z) {
+  e <- residuals(model)
+  if (!is.null(weights(model))) e <- sqrt(weights(model)) * e
+  aux <- lm(abs_res ~ z, data = data.frame(abs_res = abs(e), z = z))
+  coefficients <- summary(aux)$coefficients
+  structure(
+    list(
+      statistic = c(t = coefficients[2, 3]),
+      parameter = c(df = aux$df.residual),
+      p.value = coefficients[2, 4],
+      method = "Glejser test for heteroscedasticity",
+      data.name = deparse(stats::formula(model))
+    ),
+    class = "htest"
+  )
+}
+
+test_that("the default is robust = TRUE, the corrected statistic", {
+  expect_identical(formals(performGlejserTest)$robust, TRUE)
+
+  for (errors in c("exponential", "normal")) {
+    obj <- glejser_data(errors = errors)
+    default <- quiet(performGlejserTest(obj$model, obj$data, "x1"))
+    explicit <- quiet(performGlejserTest(obj$model, obj$data, "x1", robust = TRUE))
+    expect_htest(default)
+    expect_identical(default, explicit, info = errors)
+    expect_identical(
+      default$method,
+      "Glejser test for heteroscedasticity (robust to asymmetric errors)",
+      info = errors
+    )
+  }
+})
+
+test_that("robust = FALSE returns what the default of 0.14.0 returned", {
   obj <- glejser_data()
-  e <- residuals(obj$model)
-  reference <- summary(lm(abs(e) ~ obj$data$x1))$coefficients
+  x <- obj$data$x1
+  regressors <- list(abs = abs(x), sqrt = sqrt(x), inverse = 1 / x, inverse_sqrt = 1 / sqrt(x))
+  for (transformation in names(regressors)) {
+    result <- quiet(performGlejserTest(obj$model, obj$data, "x1", transformation, robust = FALSE))
+    expect_identical(result, glejser_1969(obj$model, regressors[[transformation]]),
+                     info = transformation)
+  }
 
-  default <- quiet(performGlejserTest(obj$model, obj$data, "x1"))
-  explicit <- quiet(performGlejserTest(obj$model, obj$data, "x1", robust = FALSE))
+  # From the model frame, and after a weighted fit.
+  expect_identical(
+    quiet(performGlejserTest(obj$model, variable = "x1", robust = FALSE)),
+    glejser_1969(obj$model, abs(x))
+  )
+  weighted <- lm(y ~ x1 + x2, data = obj$data, weights = w)
+  expect_identical(
+    quiet(performGlejserTest(weighted, obj$data, "x1", robust = FALSE)),
+    glejser_1969(weighted, abs(x))
+  )
 
-  expect_htest(default)
-  expect_equal(unname(default$statistic), reference[2, 3], tolerance = 1e-10)
-  expect_equal(default$p.value, reference[2, 4], tolerance = 1e-10)
-  expect_identical(default, explicit)
-  expect_identical(default$method, "Glejser test for heteroscedasticity")
+  # The values the default returned up to 0.14.0, computed at commit 5ce6042,
+  # to 1e-12 rather than identically: the last bits of a QR decomposition can
+  # differ between platforms. The identical() comparisons above hold on every
+  # platform.
+  pinned <- list(
+    abs = c(t = -0.234183910481965, p = 0.815248040659971),
+    inverse = c(t = -0.411476127924781, p = 0.681469846542957)
+  )
+  for (transformation in names(pinned)) {
+    result <- quiet(performGlejserTest(obj$model, obj$data, "x1", transformation, robust = FALSE))
+    expect_equal(unname(result$statistic), pinned[[transformation]][["t"]], tolerance = 1e-12,
+                 info = transformation)
+    expect_equal(result$p.value, pinned[[transformation]][["p"]], tolerance = 1e-12,
+                 info = transformation)
+    expect_identical(unname(result$parameter), 118L, info = transformation)
+  }
+})
+
+test_that("the default reports the values NEWS.md gives for 0.15.0", {
+  # Before 0.15.0 these calls returned the values given with robust = FALSE.
+  mtcars_model <- lm(mpg ~ wt + qsec, data = mtcars)
+  cars_model <- lm(dist ~ speed, data = cars)
+  cases <- list(
+    list(call = function(robust) performGlejserTest(mtcars_model, mtcars, "wt", robust = robust),
+         before = c(t = -0.44953254825848, p = 0.656278705759926),
+         now = c(t = -0.39528130563259, p = 0.695432088710059)),
+    list(call = function(robust) performGlejserTest(cars_model, cars, "speed", robust = robust),
+         before = c(t = 2.05905451377893, p = 0.0449368398858078),
+         now = c(t = 1.94313334846181, p = 0.0578771236059652))
+  )
+  for (i in seq_along(cases)) {
+    now <- quiet(cases[[i]]$call(TRUE))
+    before <- quiet(cases[[i]]$call(FALSE))
+    expect_equal(unname(now$statistic), cases[[i]]$now[["t"]], tolerance = 1e-10, info = i)
+    expect_equal(now$p.value, cases[[i]]$now[["p"]], tolerance = 1e-10, info = i)
+    expect_equal(unname(before$statistic), cases[[i]]$before[["t"]], tolerance = 1e-10, info = i)
+    expect_equal(before$p.value, cases[[i]]$before[["p"]], tolerance = 1e-10, info = i)
+  }
+  expect_identical(
+    quiet(performGlejserTest(mtcars_model, mtcars, "wt")),
+    quiet(cases[[1]]$call(TRUE))
+  )
 })
 
 test_that("robust = TRUE reproduces Im (2000) and Machado and Santos Silva (2000)", {
@@ -84,7 +174,7 @@ test_that("the method label says which statistic was computed", {
 
 test_that("the correction changes the statistic when the residuals are skewed", {
   obj <- glejser_data(errors = "exponential")
-  original <- quiet(performGlejserTest(obj$model, obj$data, "x1"))
+  original <- quiet(performGlejserTest(obj$model, obj$data, "x1", robust = FALSE))
   corrected <- quiet(performGlejserTest(obj$model, obj$data, "x1", robust = TRUE))
 
   expect_gt(abs(mean(sign(residuals(obj$model)))), 0.1)
@@ -103,7 +193,7 @@ test_that("the correction vanishes when the residuals are balanced in sign", {
   }
   skip_if(is.null(balanced), "no balanced sample among the seeds tried")
 
-  original <- quiet(performGlejserTest(balanced$model, balanced$data, "x1"))
+  original <- quiet(performGlejserTest(balanced$model, balanced$data, "x1", robust = FALSE))
   corrected <- quiet(performGlejserTest(balanced$model, balanced$data, "x1", robust = TRUE))
   expect_equal(unname(corrected$statistic), unname(original$statistic), tolerance = 1e-12)
   expect_equal(corrected$p.value, original$p.value, tolerance = 1e-12)
@@ -192,7 +282,7 @@ test_that("under skewed errors only the corrected statistic holds its level", {
   p <- vapply(seq_len(reps), function(i) {
     obj <- glejser_data(n = 200, seed = 3000 + i, errors = "lognormal")
     c(
-      original = quiet(performGlejserTest(obj$model, obj$data, "x1"))$p.value,
+      original = quiet(performGlejserTest(obj$model, obj$data, "x1", robust = FALSE))$p.value,
       corrected = quiet(performGlejserTest(obj$model, obj$data, "x1", robust = TRUE))$p.value
     )
   }, numeric(2))
@@ -211,7 +301,7 @@ test_that("under normal errors the two statistics reach the same decision", {
   p <- vapply(seq_len(reps), function(i) {
     obj <- glejser_data(n = 200, seed = 4000 + i, errors = "normal")
     c(
-      original = quiet(performGlejserTest(obj$model, obj$data, "x1"))$p.value,
+      original = quiet(performGlejserTest(obj$model, obj$data, "x1", robust = FALSE))$p.value,
       corrected = quiet(performGlejserTest(obj$model, obj$data, "x1", robust = TRUE))$p.value
     )
   }, numeric(2))
