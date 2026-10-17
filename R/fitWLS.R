@@ -71,7 +71,14 @@
 #' On a model fitted with weights, the refit uses the estimated weights in
 #' their place, and `weights()` of the result returns them.
 #'
-#' @param model A fitted model of class `lm`.
+#' A `glm` with the Gaussian family and the identity link is a least-squares
+#' fit, with the design and residuals of the `lm`, and since 0.16.0 the result
+#' for it is the `lm` returned for that `lm`, prior weights included; before,
+#' it kept the class of the `glm` without its family, which `summary()` could
+#' not read and every test refused. Any other `glm` is refused.
+#'
+#' @param model A fitted model of class `lm`, or a `glm` with the Gaussian
+#'   family and the identity link.
 #' @param data Optional [base::data.frame] holding the variables named in
 #'   `var_formula`. It is needed only when they are not in the model frame, and
 #'   is matched to the fitted rows by row name.
@@ -108,6 +115,11 @@
 fitWLS <- function(model, data = NULL, var_formula = NULL,
                    form = c("exponential", "power")) {
   checkModel(model)
+  # A Gaussian glm with the identity link is a least-squares fit, and is
+  # refitted as the lm it is. Before 0.16.0 any glm was refitted and kept the
+  # class of a glm without its family, which summary() could not read and
+  # every test refused.
+  rrefuse_non_gaussian_glm(model, "fitWLS")
   form <- match.arg(form)
   rweighted_refit(model, rfit_variance_function(model, data, var_formula, form))
 }
@@ -144,15 +156,20 @@ rweighted_refit <- function(model, variance) {
   fit$contrasts <- attr(design, "contrasts")
   fit$na.action <- stats::na.action(model)
   fit$weights <- w
-  class(fit) <- class(model)
+  # lm.wfit() fitted it, so it is an lm(..., weights = w), also when `model`
+  # is a Gaussian glm with the identity link, the only glm fitWLS() and
+  # performVarianceFormTest() accept. Before 0.16.0 such a fit kept the class
+  # of the glm, without its family.
+  class(fit) <- if (inherits(model, "glm")) "lm" else class(model)
   attr(fit, "variance_model") <- 1 / w
   record <- variance[names(variance) != "weights"]
   # The weights of the model refitted, if it had any. They decided its
   # residuals, so a bootstrap that estimates the variance function again
   # refits each replicate with them first, as the model was fitted. The model
   # frame keeps them as "(weights)" for now, but that is a defect to be fixed
-  # in 0.16.0, so they are recorded here.
-  initial_weights <- rprior_weights(model)
+  # in 0.16.0, so they are recorded here. The prior weights of a Gaussian glm
+  # are read too (rleast_squares_weights()).
+  initial_weights <- rleast_squares_weights(model)
   if (!is.null(initial_weights)) {
     record$initial_weights <- initial_weights
   }
