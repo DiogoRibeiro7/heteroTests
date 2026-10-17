@@ -347,8 +347,10 @@ test_that("a Gaussian glm with a zero prior weight is refused as the same lm is"
   }
   # Before 0.16.0 the glm returned a value in all but the White bootstrap
   # ("Model residuals must be finite"), the quantile regression test (a
-  # weighted fit) and the spatial test, which stopped with another error.
-  expect_gte(refused, 34L)
+  # weighted fit) and the spatial test, which stopped with another error. The
+  # quantile regression and spatial tests are skipped without quantreg and
+  # spdep.
+  expect_gte(refused, 32L)
   expect_error(
     performKoenkerTest(z$glm, z$d),
     "The model was fitted with zero or non-finite weights", fixed = TRUE
@@ -458,6 +460,11 @@ test_that("every route refuses a non-least-squares glm, a svyglm and data that d
   # The factory's "szroeter" is called without the ordering it needs, and
   # stops for that (ROADMAP); "spatial_hetero" needs a neighbour list.
   factory_tests <- setdiff(names(.ht_factory_tests), c("szroeter", "spatial_hetero"))
+  # Without quantreg the quantile regression test stops for that first.
+  if (!requireNamespace("quantreg", quietly = TRUE)) {
+    registered <- setdiff(registered, "quantile_regression")
+    factory_tests <- setdiff(factory_tests, "quantile_regression")
+  }
   for (input in names(inputs)) {
     m <- inputs[[input]]$m
     d <- inputs[[input]]$d
