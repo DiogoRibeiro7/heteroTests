@@ -59,8 +59,6 @@ mod <- lm(y ~ x, dat)
 performWhiteTest(mod, dat)
 #> Warning: Residual outliers detected at rows 24 (|z| > 5). Inspect leverage
 #> before running White.
-#> [INFO] Running White test
-#> [INFO] White test completed: statistic = 70.9198 df = 2 p = 0
 #>
 #> 	White's test for heteroscedasticity
 #>
@@ -76,7 +74,6 @@ performWhiteTest(mod, dat)
 data(mtcars)
 fit <- lm(mpg ~ wt + hp, data = mtcars)
 performBPTest(fit, mtcars)
-#> [INFO] Running Breusch-Pagan test
 #>
 #> 	Breusch-Pagan test for heteroscedasticity
 #>
@@ -91,7 +88,6 @@ performBPTest(fit, mtcars)
 dat <- simulate_hetero(n = 250, beta0 = 1, beta1 = 2, sigma_func = sigma_linear)
 fit <- lm(y ~ x, data = dat)
 performSzroeterTest(fit, dat, order_by = "x")
-#> [INFO] Running Szroeter test
 #>
 #> 	Szroeter test for ordered heteroscedasticity
 #>

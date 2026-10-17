@@ -90,8 +90,6 @@ Implementation details:
 
 ``` r
 white_result <- performWhiteTest(model, quakes)
-#> [INFO] Running White test
-#> [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 white_result
 #>
 #> 	White's test for heteroscedasticity
@@ -127,7 +125,6 @@ highlight influential residuals and stability warnings.
 
 ``` r
 bp_result <- performBPTest(model, quakes)
-#> [INFO] Running Breusch-Pagan test
 bp_result
 #>
 #> 	Breusch-Pagan test for heteroscedasticity
@@ -154,7 +151,6 @@ reference but improved Type I error control under heavy tails.
 
 ``` r
 koenker_result <- performKoenkerTest(model, quakes)
-#> [INFO] Running Koenker test
 koenker_result
 #>
 #> 	Koenker studentized Breusch-Pagan test
@@ -194,9 +190,7 @@ $\widehat{y}_i$ and $\widehat{y}_i^2$.
 
 ``` r
 park_result <- performParkTest(model, quakes, "mag")
-#> [INFO] Running Park test
 harvey_result <- performHarveyTest(model)
-#> [INFO] Running Harvey test
 list(Park = park_result, Harvey = harvey_result)
 #> $Park
 #>

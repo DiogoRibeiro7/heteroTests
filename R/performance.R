@@ -350,9 +350,9 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   )
 }
 
-#' Streaming Breusch–Pagan test for large datasets
+#' Streaming Breusch-Pagan test for large datasets
 #'
-#' Computes the classical Breusch–Pagan statistic using chunked cross-products
+#' Computes the classical Breusch-Pagan statistic using chunked cross-products
 #' to avoid materialising the full auxiliary regression when working with large
 #' data frames. The streamed result is algebraically equivalent to the standard
 #' implementation while substantially reducing peak memory usage.
@@ -449,9 +449,9 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   )
 }
 
-#' Streaming Koenker studentized Breusch–Pagan test
+#' Streaming Koenker studentized Breusch-Pagan test
 #'
-#' Evaluates Koenker's studentized variant of the Breusch–Pagan test (the
+#' Evaluates Koenker's studentized variant of the Breusch-Pagan test (the
 #' \eqn{n R^2} statistic from regressing the squared residuals on the regressors)
 #' using streamed cross-products so that large datasets can be processed without
 #' allocating the full auxiliary regression matrix.

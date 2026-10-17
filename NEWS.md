@@ -228,6 +228,11 @@ Also:
   sections the pkgdown index had, and `tests/testthat/test-reference-index.R`
   checks that every export is in one; the vignettes become its user guide. No
   function changes.
+- The pkgdown site's addresses, such as `reference/performWhiteTest.html`,
+  `articles/tutorial.html` and `news/index.html`, redirect to the pages that
+  replaced them; the guides no longer print the `[INFO]` line of every test
+  they run; and the titles of `?performBPTestStreaming` and
+  `?performKoenkerTestStreaming` lose a stray backslash before "Pagan".
 
 ## 0.15.0
 
