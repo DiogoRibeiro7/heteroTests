@@ -7,9 +7,10 @@
 # performStudentizedBPTest() read the weights left in the model frame, those
 # of the model fitWLS() refitted, and so computed the statistic of the
 # unweighted fit. Since 0.15.0 it reads the weights of the fit, and the two
-# agree on a fitWLS() fit too, which a test below asserts. They still differ
-# on a model with an offset, which the studentized statistic drops; the
-# roadmap lists that under 0.16.0.
+# agree on a fitWLS() fit too, which a test below asserts. On a model with an
+# offset, which the studentized statistic drops, it gave another value; since
+# 0.16.0 it refuses such a model (test-model-eligibility.R) until the offset
+# fix the roadmap lists under 0.16.0.
 
 agreement_designs <- local({
   n <- 150L

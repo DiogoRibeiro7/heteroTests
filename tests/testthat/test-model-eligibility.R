@@ -384,6 +384,138 @@ test_that("the power form of the variance-form test uses every column of the des
   }
 })
 
+# Offsets ----------------------------------------------------------------------
+
+# Four tests leave the offset out of a refit and, on a model with an offset,
+# returned a value that is not that of the model. Decided on 2026-10-17: they
+# refuse exactly the offsets they ignore, until the offset fix of 0.16.0.
+offset_fits <- function() {
+  d <- contract_data()$d
+  set.seed(33)
+  d$u <- rnorm(nrow(d))
+  d$o <- 0.8 * d$u
+  d$y <- d$y + d$o
+  d$yo <- d$y - d$o
+  d$w <- 1 / d$x1^2
+  d$zero <- 0
+  list(
+    d = d,
+    argument = lm(y ~ x1 + x2, d, offset = o),
+    term = lm(y ~ x1 + x2 + offset(o), d),
+    weighted_argument = lm(y ~ x1 + x2, d, offset = o, weights = w),
+    weighted_term = lm(y ~ x1 + x2 + offset(o), d, weights = w),
+    reference = lm(yo ~ x1 + x2, d),
+    weighted_reference = lm(yo ~ x1 + x2, d, weights = w),
+    zero = lm(y ~ x1 + x2, d, offset = zero),
+    plain = lm(y ~ x1 + x2, d)
+  )
+}
+
+offset_refusal <- "does not account for an offset yet"
+
+test_that("the tests that ignore an offset refuse it, and only the offsets they ignore", {
+  f <- offset_fits()
+  d <- f$d
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  offsets <- c("argument", "term", "weighted_argument", "weighted_term")
+  refuse_all <- list(
+    performRESETTest = function(m) performRESETTest(m),
+    performStudentizedBPTest = function(m) without_deprecation(performStudentizedBPTest(m, d)),
+    performBPTestRobust = function(m) performBPTestRobust(m, d)
+  )
+  for (fn in names(refuse_all)) {
+    for (k in offsets) {
+      expect_error(refuse_all[[fn]](f[[k]]), offset_refusal,
+                   class = "heteroTests_offset_error", info = paste(fn, k))
+    }
+  }
+  # The registered name and the implementation behind them refuse it too.
+  expect_error(.studentized_bp_test(f$argument, d), offset_refusal)
+  if (requireNamespace("quantreg", quietly = TRUE)) {
+    for (k in c("argument", "term")) {
+      expect_error(performQuantileRegressionTest(f[[k]], d), offset_refusal,
+                   class = "heteroTests_offset_error", info = k)
+    }
+  }
+  # GQ refits an unweighted segment from the formula, which evaluates an
+  # offset() term again: that offset is accounted for, and accepted.
+  for (k in c("argument", "weighted_argument", "weighted_term")) {
+    expect_error(performGQTest(f[[k]], d, order_by = "x1"), offset_refusal,
+                 class = "heteroTests_offset_error", info = k)
+  }
+  gq <- performGQTest(f$term, d, order_by = "x1")
+  expect_equal(unname(gq$statistic),
+               unname(performGQTest(f$reference, d, order_by = "x1")$statistic),
+               tolerance = 1e-10)
+  # The classical statistic of performBPTestRobust() accounts for an offset.
+  classical <- performBPTestRobust(f$argument, d, studentize = FALSE)
+  expect_equal(unname(classical$statistic),
+               unname(performBPTestRobust(f$reference, d, studentize = FALSE)$statistic),
+               tolerance = 1e-10)
+  # An offset that is zero everywhere changes nothing and is not refused.
+  expect_identical(performRESETTest(f$zero)$statistic, performRESETTest(f$plain)$statistic)
+  expect_equal(unname(performGQTest(f$zero, d, order_by = "x1")$statistic),
+               unname(performGQTest(f$plain, d, order_by = "x1")$statistic), tolerance = 1e-12)
+  # The message says what the test does with the offset and what accounts for it.
+  expect_error(
+    performGQTest(f$argument, d, order_by = "x1"),
+    paste0(
+      "performGQTest() does not account for an offset yet: it refits each segment from ",
+      "the formula, which leaves out an offset given as an argument"
+    ),
+    fixed = TRUE
+  )
+  expect_error(performRESETTest(f$argument), "performKoenkerTest(), performWhiteTest()",
+               fixed = TRUE)
+})
+
+test_that("the routes report a refused offset without a fallback", {
+  f <- offset_fits()
+  d <- f$d
+  m <- f$argument
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  names <- "student_bp"
+  if (requireNamespace("quantreg", quietly = TRUE)) {
+    names <- c(names, "quantile_regression")
+  }
+  for (name in names) {
+    expect_error(
+      without_deprecation(runHeteroTests(m, d, tests = name, use_cache = FALSE)),
+      offset_refusal, class = "heteroTests_offset_error", info = name
+    )
+    expect_error(
+      without_deprecation(runHeteroTests(m, d, tests = name, use_cache = TRUE)),
+      offset_refusal, class = "heteroTests_offset_error", info = name
+    )
+    expect_error(without_deprecation(cachedTest(name, m, d, use_cache = FALSE)), offset_refusal,
+                 info = name)
+    expect_error(get(name, envir = .diagnostic_registry)(m, d), offset_refusal, info = name)
+    expect_error(test_factory$run_test(name, m, d), offset_refusal, info = name)
+    expect_error(runHeteroTestsParallel(m, d, tests = name, n_cores = 1), offset_refusal,
+                 info = name)
+  }
+  # runDiagnostics() runs RESET, which refuses the offset.
+  expect_error(runDiagnostics(m, d, use_cache = FALSE), offset_refusal,
+               class = "heteroTests_offset_error")
+  # The default battery accounts for the offset.
+  res <- runHeteroTests(m, d, use_cache = FALSE)
+  expect_equal(unname(res$koenker$statistic),
+               unname(performKoenkerTest(f$reference, d)$statistic), tolerance = 1e-10)
+  # Grouped data return the test as failed, with its refusal, and no fallback.
+  skip_if_not_installed("dplyr")
+  d$half <- rep(c("a", "b"), length.out = nrow(d))
+  grouped <- without_deprecation(runHeteroTests(lm(y ~ x1 + x2, d, offset = o),
+                                                dplyr::group_by(d, half), tests = "student_bp"))
+  for (suite in grouped) {
+    extras <- attr(suite$student_bp, "extras")
+    expect_identical(extras$status, "error")
+    expect_identical(extras$issue, "offset")
+    expect_match(extras$message, offset_refusal)
+  }
+})
+
 # Zero prior weights -----------------------------------------------------------
 
 zero_weight_fits <- function() {
