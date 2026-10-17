@@ -124,9 +124,14 @@ log-linear form it was 22\% at 150 observations and 74\% at 400. See
 }
 
 \section{Supported models}{
-It accepts an unweighted \code{lm}, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit,
-which it tests on the estimable part of its design: it gives the value of the same model fitted
-without the aliased columns. It refuses every \code{glm}, weights that did not come from
+It accepts an unweighted \code{lm}, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit.
+With the exponential form, the default, the variance regressors of a rank-deficient fit span the
+same space with or without its aliased columns, and the test gives the value of the same model
+fitted without them. With the power form they are the logarithms of every column of the design,
+the aliased ones included, and the logarithm of an aliased column is not a combination of the
+logarithms of the others, so the value is not that of the model without them; it does not depend on
+the order of the terms, as the value of the model without them does. It refuses every \code{glm},
+weights that did not come from
 \code{fitWLS()}, a \code{survey::svyglm()} fit, a coefficient that is not finite for another reason,
 and \code{data} that lack rows or variables of the fit. Which model each test accepts, and why, is
 set out in \code{\link{test_results}}, under \emph{Supported models}.

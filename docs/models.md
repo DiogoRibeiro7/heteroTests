@@ -36,6 +36,7 @@ One line for each class and each answer in the table.
 | `plm::plm()` | no: not `lm` | The panel tests, `performPesaranTest()` and `performBPRandomEffectsTest()`, take the pooled `lm` of the panel and the columns of `data` that name the units and the periods. A `plm` fit is not an `lm`. |
 | A rank-deficient fit | yes | An aliased column, a linear combination of the others, does not change the column space of the design, so the residuals and fitted values are those of the model fitted without it. Since 0.16.0 the tests drop the aliased columns from the design they build and take their degrees of freedom from the rank: the value is that of the model fitted without them. |
 | | no | A test that refuses the model without the aliased columns, for one of the reasons above, refuses the rank-deficient one with the same message. |
+| | yes, not the reduced value | `performVarianceFormTest(form = "power")` takes the logarithms of every column of the design, the aliased ones included; the logarithm of an aliased column is not a combination of the logarithms of the others, so the value is not that of the model without the aliased columns. It does not depend on the order of the terms, as the value of that model does. With the exponential form, the default, the value is that of the model without them. |
 | An `NA` from an empty cell | yes | The dummy of a cell of an interaction that no observation falls in is aliased: as for any rank-deficient fit. |
 | | error, as reduced | The squares of the dummies are collinear, and `performWhiteTestStreaming()` stops, as it does on the model fitted without the aliased column; `performWhiteTest()` drops such terms. |
 | `MASS::rlm()` | as today | An `lm` by class, so 37 tests accept it, as before 0.16.0, and test its M-estimation residuals as if they were least-squares residuals. Whether that is a test of anything is an open decision (below). |
@@ -44,7 +45,51 @@ One line for each class and each answer in the table.
 
 Every test also refuses a coefficient that is infinite, `NaN`, or `NA` without
 the fit being rank-deficient, and `data` that lack rows or variables of the
-fit, or whose rows cannot be shown to be those of the fit.
+fit, or whose rows cannot be shown to be those of the fit. Anything that is
+not an `lm` or a `glm`, a `plm` fit among them, is refused by every test with
+one message, which names the class received and points to the pooled `lm` the
+panel tests take.
+
+### Which model without the aliased columns
+
+The model fitted without the aliased columns is the one `lm()` keeps: its
+decomposition keeps a column unless it is a combination of the columns before
+it, so of an aliased set the column that comes last, in the order of the
+terms, is left out (in `y ~ x1 + x2 + x_sum`, with `x_sum = x1 + x2`, it is
+`x_sum`; in `y ~ x_sum + x1 + x2`, it is `x2`). Most statistics depend only on
+the space the columns span, and are the same whichever column is left out.
+These depend on which:
+
+- `performWhiteTest()`, and so `performWhiteTestRobust()`,
+  `performWhiteTestStreaming()` and `performWhiteTestBootstrap()`, when the
+  cross products are left out (`cross_products = FALSE`, `method = "reduced"`,
+  or more regressors than `max_interactions`): the squares are those of the
+  columns kept. With the cross products, the default, they span the same space
+  either way.
+- `performHighDimensionalTest()` when it keeps fewer principal components than
+  there are columns.
+
+### Offsets
+
+An offset, given as `offset = o` or written as `offset(o)`, is part of the fit,
+and most tests read the residuals of the fit, which include it. Four ignore it
+today, so that on a model with an offset they do not give the value of the
+same model fitted to the response minus the offset:
+
+- `performRESETTest()` refits the augmented model without the offset;
+- `performGQTest()` refits each segment without an offset given as an
+  argument, and, on a weighted fit, without any offset;
+- `performQuantileRegressionTest()` fits `quantreg::rq()`, which ignores an
+  offset;
+- the studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
+  of `performBPTestRobust()`, and the registered `"student_bp"`, refits the
+  design without the offset.
+
+They are recorded in the roadmap; whether to correct them or refuse an offset
+is open. The tests built on the fitted values (the Cook-Weisberg, Spearman,
+spread-level and Davidian-Carroll tests, and Harvey's with
+`auxiliary = "fitted"`) read $X\hat\beta$ plus the offset, as the fit defines
+it.
 
 ## The table
 
@@ -114,11 +159,16 @@ The runners and the registry call the tests, and inherit what they refuse:
   `attr(, "extras")$status == "fallback"` (an open decision for 1.0.0, in the
   roadmap).
 - The registry names, `cachedTest()`, `runHeteroTestsParallel()` and
-  `test_factory$run_test()` call the same tests. Before it runs a function a
-  user registered, `test_factory` refuses a rank-deficient fit, as it did
-  before 0.16.0; it leaves it to the tests of the package.
-- `runPanelTests()` and `runTimeSeriesTests()` call `checkModel()`, then the
-  tests.
+  `test_factory$run_test()` call the same tests. `test_factory` leaves a
+  rank-deficient fit to a function of the package, whoever registered it, and
+  refuses it, as before 0.16.0, for a function defined outside the package,
+  such as one a user writes.
+- `runPanelTests()` and `runTimeSeriesTests()` refuse anything but an `lm` or a
+  `glm` with the message of the tests, then call them.
+- `runHeteroTests()` tests a tidymodels workflow on the model frame of its
+  engine's fit, with `data = NULL`. Given `data`, such as the data the
+  workflow was fitted to, it refuses them when they lack the variables of that
+  fit, which names its response `..y`, and says to pass `data = NULL`.
 - `runSurveyHeteroTests()` fits the model by least squares to the data of a
   design, and is never given a `svyglm()` fit.
 - `runMultivariateTests()` runs Box's M test on data and a grouping; a test of

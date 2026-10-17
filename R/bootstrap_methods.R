@@ -169,6 +169,14 @@ NULL
 #'     \item{`call`}{Matched call for reproducibility.}
 #'   }
 #'
+#' @section Supported models:
+#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
+#' since 0.16.0, a rank-deficient `lm`; a replicate whose refit aliases a
+#' coefficient the fit estimated, as a pairs resample of an interaction can, fails.
+#' It refuses every `glm`, as each replicate is refitted by least squares, a fit
+#' with a zero weight, and `data` that do not reproduce the fit. Which model each
+#' test accepts, and why, is set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' model <- lm(mpg ~ wt + cyl, data = mtcars)
@@ -196,14 +204,6 @@ bootstrapTestStatistic <- function(test_function, model, data, B = 999,
 #' `rbootstrap_test_statistic()` is deprecated since 0.14.0: use
 #' `bootstrapTestStatistic()`, the same function under the package's naming
 #' scheme. The old name still works, returns what it returned and warns.
-#' @section Supported models:
-#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
-#' since 0.16.0, a rank-deficient `lm`; a replicate whose refit aliases a
-#' coefficient the fit estimated, as a pairs resample of an interaction can, fails.
-#' It refuses every `glm`, as each replicate is refitted by least squares, a fit
-#' with a zero weight, and `data` that do not reproduce the fit. Which model each
-#' test accepts, and why, is set out in [test_results], under *Supported models*.
-#'
 #' @export
 rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       parallel = FALSE, ci_level = 0.95,

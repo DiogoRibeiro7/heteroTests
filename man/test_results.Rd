@@ -102,13 +102,24 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   precision weights. See \code{\link{runSurveyHeteroTests}()}.
   \item Panel models: \code{\link{performPesaranTest}()} and \code{\link{performBPRandomEffectsTest}()}, and so
   \code{\link{runPanelTests}()}, take a pooled \code{lm} and the columns of \code{data} that name the units and the
-  periods. A \code{plm::plm()} fit is not an \code{lm} and is refused, by every test.
+  periods. A \code{plm::plm()} fit is not an \code{lm}: every test refuses it, as it refuses anything but an
+  \code{lm} or a \code{glm}, with one message, which names the class received and points to the pooled
+  \code{lm()}.
   \item A rank-deficient fit: a term that is a linear combination of others, or the dummy of a cell of an interaction
   that no observation falls in, leaves an \code{NA} coefficient. Its residuals and fitted values are the projection on
   the column space of the design, which the aliased columns do not change. Since 0.16.0 every test that accepts the
   model without the aliased columns accepts it, computed on the estimable part of the design: the columns that were
   not aliased, with degrees of freedom from the rank, so that it gives the statistic and p-value of the model fitted
-  without them. A test that refuses that model refuses the rank-deficient one with the same message.
+  without them. A test that refuses that model refuses the rank-deficient one with the same message. The model
+  without them is the one \code{lm()} keeps: its decomposition keeps a column unless it is a combination of the columns
+  before it, so of an aliased set the column that comes last, in the order of the terms, is left out. Most statistics
+  depend only on the space the columns span, and are the same whichever column is left out. Two depend on which:
+  \code{\link{performWhiteTest}()}, and its robust, streaming and bootstrap forms, when the cross products are left out
+  (\code{cross_products = FALSE}, \code{method = "reduced"}, or more regressors than \code{max_interactions}), as the
+  squares are those of the columns kept; and \code{\link{performHighDimensionalTest}()} when it keeps fewer
+  principal components than columns. With \code{form = "power"}, \code{\link{performVarianceFormTest}()} takes the
+  logarithms of every column of the design, the aliased ones included, so its value is not that of the model without
+  them (and does not depend on the order of the terms); with the exponential form, the default, it is.
   \item A \code{fitWLS()} fit is a weighted \code{lm}, with estimated weights: accepted, but the reference
   distributions take the weights as known (\code{\link{performVarianceFormTest}()} accounts for the estimation).
   \item A \code{MASS::rlm()} fit is an \code{lm} by class, so the tests accept it, as before 0.16.0, and test its

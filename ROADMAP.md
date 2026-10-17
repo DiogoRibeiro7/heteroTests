@@ -903,8 +903,35 @@ after it.
     value.
   - `runHeteroTests(<workflow>, data)` refuses the data the workflow was
     fitted to, because the engine's fit names its response `..y`; without
-    `data` it uses the model frame of that fit (0.16.0). Map the columns, or
-    say so on the help page. An error becomes a value.
+    `data` it uses the model frame of that fit (0.16.0), and the refusal says
+    to pass `data = NULL`. Map the columns instead. An error becomes a value.
+  - `performWhiteTest()` counts one degree of freedom too many when its
+    auxiliary columns span the constant (R/performWhiteTest.R:272, 316): it
+    takes the rank of the auxiliary design without the intercept, where the
+    regression has one. With a factor under `contr.sum`, as in
+    `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))` with four levels, the
+    squares of its columns sum to a constant, and the df is 9 where
+    `lmtest::bptest()` on the same terms gives 8, with the same statistic.
+    The review of the model-eligibility work, which found it, reports 15
+    against 14 with nested Helmert contrasts and 24 against 23 on a design
+    with an empty cell (the empty cell of the *Supported models* page, under
+    treatment contrasts, gives the right 23). Take the rank of the auxiliary
+    design with its constant, minus one. Changes p-values.
+  - Three more tests ignore an offset, besides the studentized statistic
+    above, so that on `lm(y ~ x1 + x2, offset = o)`, or with `+ offset(o)`,
+    they do not give the value of the same model fitted to `y - o`:
+    `performRESETTest()` refits the augmented model without it
+    (R/performRESETTest.R:50), with either form of offset;
+    `performGQTest()` refits each segment of an unweighted fit from the
+    formula, which drops an offset given as an argument (R/performGQTest.R:132),
+    and those of a weighted fit with `lm.wfit()` and no offset at all; and
+    `performQuantileRegressionTest()` fits `quantreg::rq()`, which ignores
+    any. With `o = 0.8 u`, `u` a regressor outside the model, RESET gave a
+    negative F where the model of `y - o` gives 4.49 (p = 0.013), GQ 1.63
+    against 2.38 and the quantile test 0.90 against 3.26 (found in the review
+    of the model-eligibility work). The *Supported models* page lists them.
+    Correct them, or refuse an offset: **a decision for the author**. Changes
+    values.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -1053,10 +1080,14 @@ after it.
     on the four fits of `test-model-eligibility.R`); Koenker's is 20.87 on 2
     df. No test needs every coefficient, so none refuses; the quantile
     regression test fits `quantreg::rq()` to the columns that were not
-    aliased. `validateTestInputs()`, functions a user registers with
-    `test_factory` and `generateHeteroRecommendations()` still refuse it, with
-    a message that names the aliased coefficients. **For the author to
-    confirm.**
+    aliased. `validateTestInputs()`, functions defined outside the package
+    that a user registers with `test_factory`, and
+    `generateHeteroRecommendations()` still refuse it, with a message that
+    names the aliased coefficients. The power form of
+    `performVarianceFormTest()` takes the logarithms of every column, the
+    aliased ones included, so its value is not that of the reduced model, and
+    does not depend on the order of the terms (kept so, decided in the review).
+    **For the author to confirm.**
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
