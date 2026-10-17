@@ -8,6 +8,11 @@
 #' is detected (R\eqn{^2 > 0.999}), or, when `data` is given, when a variance
 #' inflation factor exceeds 10 (Belsley et al., 1980).
 #'
+#' It does not check whether a test accepts `model`: it accepts a binomial or a
+#' Poisson `glm`, a `survey::svyglm()` fit and a fit with a zero weight,
+#' which the tests refuse, each with its own message. Which test accepts which
+#' model is set out in [test_results], under *Supported models*.
+#'
 #' @param model An object to check.
 #' @param data Optional `data.frame` used when fitting `model`. With
 #'   `enhanced = TRUE` it enables the multicollinearity check through
@@ -349,6 +354,20 @@ rlog_squared_residuals <- function(e, test_name) {
 #' Returns the weights of a weighted `lm`, and `NULL` for an unweighted fit or
 #' for a `glm`, whose prior weights are not inverse error variances.
 #'
+#' Prior weights and working weights. An `lm` keeps the weights it was given
+#' in `model$weights`: they are prior weights, and they stay fixed. A `glm`
+#' keeps them in `model$prior.weights`, and `model$weights` holds the working
+#' weights of the last iteration of iteratively reweighted least squares,
+#' \eqn{w_i (d\mu_i / d\eta_i)^2 / V(\mu_i)}. With the Gaussian family and
+#' the identity link the derivative and the variance function are 1, so the
+#' working weights are the prior weights; with any other family or link they
+#' depend on the fitted means, and the tests refuse such a `glm`. This
+#' function never returns the working weights: it reads `model$weights` of an
+#' `lm` only. [rleast_squares_weights()] reads the prior weights of a
+#' Gaussian `glm`. A `MASS::rlm()` fit is an `lm` whose `weights` are its case
+#' weights, all 1 when none were given, and whose robustness weights are in
+#' `w`, which nothing reads.
+#'
 #' @param model A fitted model.
 #' @return Numeric vector of weights, or `NULL`.
 #' @keywords internal
@@ -375,6 +394,11 @@ rprior_weights <- function(model) {
 #' link, and a `survey::svyglm()` fit, are refused before this is called; for
 #' them it returns `NULL`, as [rprior_weights()] does.
 #'
+#' It reads `model$prior.weights`, the weights the `glm` was given, and not
+#' `model$weights`, the working weights of its last iteration. For the
+#' Gaussian family with the identity link the two are equal; for the fits
+#' that are refused they are not (see [rprior_weights()]).
+#'
 #' @param model A fitted model.
 #' @return Numeric vector of weights, or `NULL`.
 #' @keywords internal
@@ -386,6 +410,7 @@ rleast_squares_weights <- function(model) {
   fam <- tryCatch(stats::family(model), error = function(e) NULL)
   least_squares <- !inherits(model, "svyglm") && !is.null(fam) &&
     identical(fam$family, "gaussian") && identical(fam$link, "identity")
+  # The prior weights, never model$weights, which holds the working weights.
   w <- model$prior.weights
   if (!least_squares || is.null(w) || all(w == 1)) {
     return(NULL)
@@ -410,7 +435,16 @@ rleast_squares_weights <- function(model) {
 #'
 #' A zero weight removes an observation from the fit, and its Pearson residual
 #' is an artificial zero that would be counted as an observation by everything
-#' downstream. Such fits are refused rather than tested.
+#' downstream. Such fits are refused rather than tested, an `lm` and a
+#' Gaussian `glm` alike: the weights are read by [rleast_squares_weights()],
+#' the prior weights of either. Before 0.16.0 they were read by
+#' [rprior_weights()], which returns none for a `glm`, so a Gaussian `glm`
+#' with a zero prior weight was tested with that artificial zero.
+#'
+#' The residuals of a Gaussian `glm` are `stats::residuals(model)`, its
+#' deviance residuals, which for the identity link are
+#' \eqn{\sqrt{w_i}\,(y_i - \hat\mu_i)}, the Pearson residuals up to rounding;
+#' they are what the tests read before 0.16.0, so its values do not change.
 #'
 #' @param model A fitted model.
 #' @return Numeric vector of residuals.
@@ -418,20 +452,34 @@ rleast_squares_weights <- function(model) {
 #' @noRd
 rpearson_residuals <- function(model) {
   rrefuse_survey_fit(model)
-  w <- rprior_weights(model)
+  w <- rleast_squares_weights(model)
   if (is.null(w)) {
     return(stats::residuals(model))
   }
-  if (any(!is.finite(w)) || any(w <= 0)) {
-    stop(
-      "The model was fitted with zero or non-finite weights. Observations ",
-      "with zero weight are not part of the fit, so the diagnostics cannot ",
-      "treat them as residuals. Refit on the observations with positive ",
-      "weight.",
-      call. = FALSE
-    )
+  rrefuse_zero_weights(w)
+  if (inherits(model, "glm")) {
+    return(stats::residuals(model))
   }
   stats::residuals(model, type = "pearson")
+}
+
+#' Refuse prior weights that are zero or not finite
+#'
+#' @param w The prior weights of the fit, from [rleast_squares_weights()].
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_zero_weights <- function(w) {
+  if (is.null(w) || (all(is.finite(w)) && all(w > 0))) {
+    return(invisible(NULL))
+  }
+  stop(
+    "The model was fitted with zero or non-finite weights. Observations ",
+    "with zero weight are not part of the fit, so the diagnostics cannot ",
+    "treat them as residuals. Refit on the observations with positive ",
+    "weight.",
+    call. = FALSE
+  )
 }
 
 #' Refuse a weighted fit in a procedure that refits without the weights

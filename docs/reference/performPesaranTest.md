@@ -34,6 +34,18 @@ An object of class `htest`.
 
 The statistic averages pairwise correlation coefficients of the residuals and is standardized to follow a normal distribution under the null of independence.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. The model is a pooled `lm` of the panel, with the units and
+the periods as columns of `data`; a `plm::plm()` fit is not an `lm` and is refused.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## References
 
 Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in panels. *Cambridge Working Papers in Economics*.

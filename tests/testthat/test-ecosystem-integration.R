@@ -52,6 +52,22 @@ testthat::test_that("tidymodels workflows are supported", {
   wf <- workflows::fit(wf, data = mtcars)
   res <- runHeteroTests(wf, tests = "white")
   testthat::expect_s3_class(res[[1]], "hetero_test")
+  # White's test of the engine's fit, on its model frame. Before 0.16.0 the
+  # data were the predictors of the mold, without the response, which White's
+  # test refused, and the result was the Cook-Weisberg fallback.
+  engine <- workflows::extract_fit_engine(wf)
+  testthat::expect_null(attr(res$white, "extras")$status)
+  testthat::expect_identical(res$white$method, "White's test for heteroscedasticity")
+  testthat::expect_equal(
+    unname(res$white$statistic),
+    unname(performWhiteTest(engine, stats::model.frame(engine))$statistic)
+  )
+  # The data the workflow was fitted to lack the response the engine's fit
+  # names `..y`, and are refused with a message that says what to pass.
+  testthat::expect_error(
+    runHeteroTests(wf, mtcars, tests = "white"),
+    "and `data` lacks ..y. Pass `data = NULL`", fixed = TRUE
+  )
 })
 
 testthat::test_that("survey designs route through helper", {

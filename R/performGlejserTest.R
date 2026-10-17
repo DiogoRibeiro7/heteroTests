@@ -171,7 +171,7 @@ performGlejserTest <- function(model, data = NULL, variable,
     stop("`robust` must be a single logical value.", call. = FALSE)
   }
 
-  rvalidateModelInputs(model, test_name = "Glejser", min_obs = 12L)
+  rvalidateModelInputs(model, test_name = "Glejser", min_obs = 12L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(c(all.vars(model_terms), variable))
@@ -184,7 +184,8 @@ performGlejserTest <- function(model, data = NULL, variable,
     required_vars = required_vars,
     test_label = test_label,
     min_obs_model = 12L,
-    min_obs_data = 12L
+    min_obs_data = 12L,
+    allow_aliased = TRUE
   )
 
   working_data <- prepared$data

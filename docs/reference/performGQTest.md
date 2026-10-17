@@ -42,6 +42,19 @@ Observations are ordered by a suspected variance-driving variable. With the spli
 
 On a fit with weights each segment is refitted with its own weights and the segments are compared on the weighted residual sum of squares, \(\sum w_i e_i^2\). That is the Goldfeld-Quandt statistic of the equivalent unweighted regression, so the test asks whether the weights are adequate. Releases before 0.12.0 refitted the segments without the weights.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Until the offset fix planned for 0.16.0 (decided 2026-10-17) it
+refuses an offset given as an argument, which its refits of the segments leave out, and any offset
+on a weighted fit; an `offset()` term on an unweighted fit is evaluated again in each segment
+and accounted for. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Goldfeld, S. M., & Quandt, R. E. (1965). Some tests for homoscedasticity. *Journal of the American Statistical Association*, 60(310), 539–547. [doi:10.1080/01621459.1965.10480811](https://doi.org/10.1080/01621459.1965.10480811)

@@ -84,6 +84,19 @@ Offers expanded reporting for the Breusch–Pagan family of tests including
 bootstrap p-values and asymptotic confidence intervals. The optional
 `studentize` argument toggles between the classic and Koenker versions.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. With `studentize = TRUE`, the default, it refuses a model
+with an offset, which the studentized statistic leaves out when it refits the design, until the
+offset fix planned for 0.16.0 (decided 2026-10-17); with `studentize = FALSE` it accounts for
+it. Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## References
 
 Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity

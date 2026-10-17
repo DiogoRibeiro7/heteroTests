@@ -122,6 +122,21 @@
 #' Regression*. Chapman & Hall. Chapter 3 treats the estimation and checking of
 #' variance functions.
 #'
+#' @section Supported models:
+#' It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit. With the exponential form, the default, the variance
+#' regressors of a rank-deficient fit span the same space with or without its
+#' aliased columns, and the test gives the value of the same model fitted without
+#' them. With the power form they are the logarithms of every column of the
+#' design, the aliased ones included, and the logarithm of an aliased column is not
+#' a combination of the logarithms of the others, so the value is not that of the
+#' model without them; it does not depend on the order of the terms, as the value
+#' of the model without them does. It refuses every `glm`, weights that did not
+#' come from `fitWLS()`, a `survey::svyglm()` fit, a
+#' coefficient that is not finite for another reason, and `data` that lack rows or
+#' variables of the fit. Which model each test accepts, and why, is set out in
+#' [test_results], under *Supported models*.
+#'
 #' @examples
 #' # Standard deviation proportional to x, so the variance is a power of x
 #' set.seed(2026)
@@ -155,7 +170,7 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # Data that lack rows of the fit or a variable of the model are refused, as
   # by the tests that read `data`. Before 0.15.0 they returned a value.
   rcheck_data_argument(data, "performVarianceFormTest", model, "Variance form test")
-  rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L)
+  rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L, allow_aliased = TRUE)
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("variance_form", model = model, data = model_data)
   rprocessValidationResult(requirements)

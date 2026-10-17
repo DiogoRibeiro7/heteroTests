@@ -80,7 +80,7 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
   lags <- as.integer(lags)
 
   min_required <- rTEST_REQUIREMENTS$mcleod_li(lags)
-  rvalidateModelInputs(model, test_name = "McLeod-Li", min_obs = min_required)
+  rvalidateModelInputs(model, test_name = "McLeod-Li", min_obs = min_required, allow_aliased = TRUE)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("mcleod_li", model = model, data = model_data, lags = lags)

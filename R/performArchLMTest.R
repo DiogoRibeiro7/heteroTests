@@ -90,7 +90,7 @@ performArchLMTest <- function(model, data = NULL, lags = 1) {
   lags <- as.integer(lags)
 
   min_required <- rTEST_REQUIREMENTS$arch_lm(lags)
-  rvalidateModelInputs(model, test_name = "ARCH LM", min_obs = min_required)
+  rvalidateModelInputs(model, test_name = "ARCH LM", min_obs = min_required, allow_aliased = TRUE)
 
   model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
   requirements <- rvalidateTestRequirements("arch_lm", model = model, data = model_data, lags = lags)

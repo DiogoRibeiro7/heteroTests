@@ -160,6 +160,16 @@
 #' Wu, C. F. J. (1986). Jackknife, bootstrap and other resampling methods in
 #' regression analysis. *The Annals of Statistics, 14*(4), 1261–1295.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' model <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -195,7 +205,8 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
     required_vars = required_vars,
     test_label = "Wild bootstrap",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
   residuals <- prepared$residuals
@@ -220,7 +231,10 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # holds weights and an offset given as arguments as "(weights)" and
   # "(offset)", under which the call cannot find them.
   prior_weights <- rleast_squares_weights(model)
-  design_matrix <- stats::model.matrix(model)
+  # Without the columns a rank-deficient fit aliased, so that the auxiliary
+  # regression and its degrees of freedom are those of the estimable part of
+  # the design.
+  design_matrix <- rnon_aliased_columns(stats::model.matrix(model), model)
   model_offset <- stats::model.offset(model_frame)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]
@@ -366,6 +380,16 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
 #' Hollander, M., Wolfe, D. A., & Chicken, E. (2013). *Nonparametric Statistical
 #' Methods* (3rd ed.). Wiley.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' model <- lm(mpg ~ wt + hp, data = mtcars)
@@ -396,7 +420,8 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
     required_vars = required_vars,
     test_label = "Rank permutation",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
   residuals <- abs(prepared$residuals)
@@ -404,7 +429,7 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
   requirements <- rvalidateTestRequirements("rank_permutation", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  model_matrix <- stats::model.matrix(model, data = working_data)
+  model_matrix <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
   predictor_name <- if (is.null(order_by)) .pick_predictor(model_matrix) else order_by
   if (is.null(predictor_name)) {
     stop("Unable to determine ordering variable for permutation test.", call. = FALSE)
@@ -482,6 +507,16 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #' feature space. *Journal of the Royal Statistical Society: Series B, 70*(5),
 #' 849–911.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' set.seed(123)
 #' X <- matrix(rnorm(80 * 20), nrow = 80)
@@ -512,7 +547,8 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
     required_vars = required_vars,
     test_label = "High-dimensional",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
   residuals <- prepared$residuals
@@ -520,7 +556,9 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
   requirements <- rvalidateTestRequirements("high_dimensional", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  design_matrix <- stats::model.matrix(model, data = working_data)
+  # The principal components are those of the estimable part of the design:
+  # an aliased column would add its variance to the projection.
+  design_matrix <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]
   } else {
@@ -586,6 +624,16 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' Bivand, R. S., Pebesma, E., & Gómez-Rubio, V. (2013). *Applied Spatial Data
 #' Analysis with R* (2nd ed.). Springer.
 #'
+#' @section Supported models:
+#' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+#' unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+#' rank-deficient fit, which it tests on the estimable part of its design: it gives
+#' the value of the same model fitted without the aliased columns. It refuses a
+#' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+#' weight, a coefficient that is not finite for another reason, and `data` that
+#' lack rows or variables of the fit. Which model each test accepts, and why, is
+#' set out in [test_results], under *Supported models*.
+#'
 #' @examples
 #' if (requireNamespace("spdep", quietly = TRUE)) {
 #'   data(mtcars)
@@ -620,7 +668,8 @@ performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 9
     required_vars = required_vars,
     test_label = "Spatial heteroscedasticity",
     min_obs_model = 20L,
-    min_obs_data = 20L
+    min_obs_data = 20L,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
   residuals <- prepared$residuals

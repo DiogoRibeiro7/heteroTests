@@ -74,6 +74,17 @@ in the standard White test, ensuring numerical equivalence while dramatically
 reducing peak memory usage. When `Matrix` is installed, sparse cross-products
 are leveraged automatically for large chunks.
 
+## Supported models
+
+It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
+of the same model fitted without the aliased columns. It refuses every `glm`, a
+`survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
+reason, and `data` that lack rows or variables of the fit. It stops when terms of its auxiliary
+regression are collinear, as the squares of dummy variables are, which
+[`performWhiteTest()`](performWhiteTest.md) drops. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator

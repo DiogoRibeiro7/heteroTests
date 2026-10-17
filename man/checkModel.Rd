@@ -25,6 +25,12 @@ when the residual degrees of freedom fall below six, when a near-perfect fit
 is detected (R\eqn{^2 > 0.999}), or, when \code{data} is given, when a variance
 inflation factor exceeds 10 (Belsley et al., 1980).
 }
+\details{
+It does not check whether a test accepts \code{model}: it accepts a binomial or a
+Poisson \code{glm}, a \code{survey::svyglm()} fit and a fit with a zero weight,
+which the tests refuse, each with its own message. Which test accepts which
+model is set out in \link{test_results}, under \emph{Supported models}.
+}
 \references{
 Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:
 Identifying Influential Data and Sources of Collinearity}. Wiley.

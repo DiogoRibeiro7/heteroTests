@@ -130,8 +130,10 @@ plotBeforeAfter <- function(original, remedied) {
   checkModel(remedied)
   resid_original <- rpearson_residuals(original)
   resid_remedied <- rpearson_residuals(remedied)
+  # The prior weights of an lm or of a Gaussian glm, whose residuals are
+  # weighted too; before 0.16.0 a weighted Gaussian glm was not labelled.
   panel_label <- function(model, label) {
-    if (is.null(rprior_weights(model))) label else paste0(label, " (weighted residuals)")
+    if (is.null(rleast_squares_weights(model))) label else paste0(label, " (weighted residuals)")
   }
   labels <- c(
     original = panel_label(original, "Original"),

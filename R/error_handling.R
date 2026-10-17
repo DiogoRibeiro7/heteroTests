@@ -96,6 +96,7 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     perfect_separation = "Perfect separation detected",
     data_quality = "Data quality issue detected",
     data_rows = "Data do not match the model",
+    offset = "Offset not supported",
     "Diagnostic execution failed"
   )
   if (!is.null(test_name)) {
@@ -247,6 +248,22 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
 
 ht_analyse_failure <- function(test_name, error, model, data) {
   raw_message <- conditionMessage(error)
+  if (inherits(error, "heteroTests_offset_error")) {
+    # The test does not account for the offset of the model (rrefuse_offset()).
+    # A substitute that does would be another test under this name, so there
+    # is no fallback.
+    return(list(
+      raw_message = raw_message,
+      user_message = ht_format_failure_message(
+        "offset",
+        raw_message,
+        test_name = ht_pretty_test_name(test_name)
+      ),
+      suggestions = character(),
+      issue = "offset",
+      fallbacks = character()
+    ))
+  }
   if (inherits(error, "heteroTests_data_rows_error")) {
     # `data` cannot be matched to the rows of the fit (rcheck_data_rows()).
     # Every substitute would read the same rows, or, as the Cook-Weisberg

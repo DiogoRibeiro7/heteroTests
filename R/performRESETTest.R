@@ -30,9 +30,18 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   }
   rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)
-  rrefuse_nonfinite_coefficients(model, "RESET test")
+  rrefuse_nonfinite_coefficients(model, "RESET test", allow_aliased = TRUE)
+  # The augmented model below is refitted without the offset, so the two fits
+  # are not nested: refused until 0.16.0 accounts for it (decided 2026-10-17).
+  rrefuse_offset(
+    model, "performRESETTest",
+    how = "it refits the model augmented with powers of the fitted values without the offset",
+    subtract = FALSE
+  )
   y <- model.response(model.frame(model))
-  X0 <- model.matrix(model)
+  # The design without the columns a rank-deficient fit aliased: the
+  # augmented model is then that of the same model fitted without them.
+  X0 <- rnon_aliased_columns(model.matrix(model), model)
   yhat <- fitted(model)
   X1 <- X0
   for (p in power) {

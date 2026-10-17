@@ -34,7 +34,9 @@ the residuals of a model. A call in a form that 0.15.0 replaced still works in
 
 Since 0.15.0 every test on a model refuses the same four inputs, each with one
 message: a `glm` that is not a least-squares fit, a model with a coefficient
-that is not finite, and data that lack rows or variables of the fit.
+that is not finite, and data that lack rows or variables of the fit. Which
+class of model each test accepts, and why, is the
+[Supported models](models.md) page.
 
 ## The return contract
 

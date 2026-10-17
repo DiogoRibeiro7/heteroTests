@@ -63,6 +63,19 @@ regressors. Adding a column of ones would restore the location-shift form,
 but that version of the test needs its own derivation and its own size
 study, and has neither.
 
+## Supported models
+
+It accepts an unweighted `lm` and an unweighted `glm` with the Gaussian family and the
+identity link and, since 0.16.0, a rank-deficient one: `quantreg::rq()` refuses a singular
+design, so the quantile regressions are fitted to the columns that were not aliased, which gives the
+value of the same model fitted without them. It refuses a weighted fit, a `fitWLS()` fit among
+them, as it refits the model without the weights, a `glm` of another family or link, a
+`survey::svyglm()` fit, a coefficient that is not finite for another reason, and `data`
+that lack rows or variables of the fit. It refuses a model with an offset, which
+`quantreg::rq()` leaves out, until the offset fix planned for 0.16.0 (decided 2026-10-17).
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## References
 
 Koenker, R., & Bassett, G. (1982). Robust tests for heteroscedasticity based on regression quantiles. *Econometrica, 50*(1), 43–61.

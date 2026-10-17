@@ -72,7 +72,7 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }
-  rrefuse_nonfinite_coefficients(model, "Davidian-Carroll test")
+  rrefuse_nonfinite_coefficients(model, "Davidian-Carroll test", allow_aliased = TRUE)
   if (!is.numeric(degree) || degree < 1) {
     stop("`degree` must be a positive integer.")
   }

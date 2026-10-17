@@ -217,6 +217,14 @@ with different draws, and each is valid. Before 0.15.0 a seeded call with
 scheme. The old name still works, returns what it returned and warns.
 }
 
+\section{Supported models}{
+It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit and, since
+0.16.0, a rank-deficient \code{lm}; a replicate whose refit aliases a coefficient the fit estimated,
+as a pairs resample of an interaction can, fails. It refuses every \code{glm}, as each replicate is
+refitted by least squares, a fit with a zero weight, and \code{data} that do not reproduce the fit.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+\emph{Supported models}.
+}
 \examples{
 data(mtcars)
 model <- lm(mpg ~ wt + cyl, data = mtcars)

@@ -135,6 +135,15 @@ regression on a constant alone, whatever the model, and with
 different p-value as well; \code{inst/validation/README.md} says why.
 }
 
+\section{Supported models}{
+It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
+of the same model fitted without the aliased columns. It refuses every \code{glm}, as its null
+distribution is that of least-squares residuals, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that lack rows or
+variables of the fit. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
+}
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)

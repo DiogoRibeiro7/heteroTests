@@ -2,6 +2,217 @@
 
 ## Development version
 
+### Which models the tests accept
+
+Every exported test was run on an `lm`, a weighted `lm`, an `lm` with a zero
+weight, a Gaussian `glm` (unweighted, weighted, with a zero prior weight), a
+binomial and a Poisson `glm`, a `survey::svyglm()` fit, a `plm` fit,
+rank-deficient fits, `MASS::rlm()` and `fitWLS()` fits, through every route
+that calls it (`runHeteroTests()`, `runDiagnostics()`, the registry,
+`test_factory`, `cachedTest()`, `runHeteroTestsParallel()`, `runPanelTests()`,
+`runTimeSeriesTests()`). The result is the table of the new *Supported
+models* page of the site, and `?test_results` sets out the rules. The changes
+in bold change what calls return.
+
+**A rank-deficient fit is tested on the estimable part of its design.** An
+aliased term, such as `z2 = 2 * z`, or the dummy of a cell of an interaction
+that no observation falls in, leaves an `NA` coefficient. The residuals and
+fitted values of such a fit are the projection on the column space of the
+design, which the aliased columns do not change, so they are those of the
+same model fitted without them. Every test refused such a fit with "Model
+coefficients must be finite before running ..."; every test that accepts the
+model without the aliased columns now accepts it, drops the aliased columns
+from the design it builds, takes its degrees of freedom from the rank, and
+returns the statistic and p-value of the model fitted without them. A test
+that refuses that model, as the quantile regression test refuses a weighted
+fit, refuses the rank-deficient one with the same message.
+`tests/testthat/test-model-eligibility.R` checks all 39 tests on four such
+fits (an aliased regressor in an `lm`, a weighted `lm` and a Gaussian `glm`,
+and an empty cell of an interaction) to `1e-10`; on them the two agree to the
+last digit. On `lm(y ~ x + z + z2)` in the design of
+`tests/testthat/test-koenker-studentized.R`:
+
+| Call | 0.15.0 | Now |
+| --- | --- | --- |
+| `performKoenkerTest()`, `performStudentizedBPTest()` | Error: "Model coefficients must be finite" | 20.87 on 2 degrees of freedom (p = 2.9e-05), as `lmtest::bptest()` |
+| `performWhiteTest()` | Error | 22.43 on 5 degrees of freedom (p = 0.00043) |
+| `performGQTest(order_by = "x")` | Error | 4.208 on 57 and 57 degrees of freedom (p = 1.0e-07) |
+| `performRESETTest()` | Error | F = 0.359 on 2 and 145 degrees of freedom (p = 0.699) |
+| `performQuantileRegressionTest()` | Error | F = 18.53 on 2 and 298 degrees of freedom (p = 2.6e-08) |
+| `runHeteroTests()` | Error | White's and Koenker's tests, as above |
+
+These are the values for `lm(y ~ x + z)`. `lmtest::bptest()` and
+`car::ncvTest()` give the same value on the rank-deficient fit;
+`lmtest::gqtest()` and `lmtest::resettest()` count the aliased column and
+give 56 and 144 degrees of freedom, against 57 and 145 on `lm(y ~ x + z)`.
+The quantile regression test fits `quantreg::rq()`, which refuses a singular
+design, to the columns that were not aliased. A resampling replicate whose
+refit aliases a coefficient the fit estimated, as a pairs resample of an
+interaction can, fails, as it did when every test refused it. The White
+streaming test stops on the empty cell, because the squares of its dummies
+are collinear, as it stops on the model without the aliased column. A
+coefficient that is infinite, `NaN`, or `NA` without the fit being
+rank-deficient is still refused. `validateTestInputs()`, a function defined
+outside the package that a user registers with `test_factory`, and
+`generateHeteroRecommendations()` still refuse a rank-deficient fit, now with
+"cannot use a rank-deficient model: the coefficient of z2 is aliased (NA)";
+`test_factory` leaves it to any function of the package.
+
+The model without the aliased columns is the one `lm()` keeps: of an aliased
+set, the column that comes last in the order of the terms is left out. Most
+statistics depend only on the space the columns span; White's test without
+its cross products (`cross_products = FALSE`, `method = "reduced"` of
+`performWhiteTestRobust()`, or more regressors than `max_interactions`) and
+`performHighDimensionalTest()` when it keeps fewer components than columns
+depend on which column is left out, and so on the order of the terms. One
+test does not give the value of the model without the aliased columns:
+`performVarianceFormTest(form = "power")` takes the logarithms of every
+column of the design, the aliased ones included, and the logarithm of an
+aliased column is not a combination of the logarithms of the others. With
+`x14 = x1 + x4`, `lm(y ~ x1 + x4 + x14)` gives 1.352 on 6 and 150 degrees of
+freedom, where `lm(y ~ x1 + x4)` gives 2.015 on 3 and 154 and
+`lm(y ~ x14 + x1)` 1.343, in the design of `test-model-eligibility.R`; the
+value does not depend on the order of the terms. With the exponential form,
+the default, all three give 0.922 on 3 and 154.
+
+**A Gaussian `glm` with a zero prior weight is refused as the same `lm`
+is.** A zero weight removes an observation from the fit, and its residual is
+an artificial zero that the tests would count. The tests refused an `lm` with
+a zero weight but read the weights of a `glm` through a helper that returns
+none for a `glm`: with `cars$w <- 1 / cars$speed` and a zero first weight,
+`performKoenkerTest(glm(dist ~ speed, data = cars, weights = w), cars)`
+returned 0.750 (p = 0.386) and `performWhiteTest()` 0.801 (p = 0.670). The
+32 tests that returned a value for such a `glm`, `performScatterDiagnostic()`,
+and so `runHeteroTests()`, `runDiagnostics()`, the registry, `test_factory`,
+`cachedTest()`, `runHeteroTestsParallel()`, `runPanelTests()` and
+`runTimeSeriesTests()`, now stop with the message they give for the `lm`,
+"The model was fitted with zero or non-finite weights";
+`performWhiteTestBootstrap()` gives it instead of "Model residuals must be
+finite", and `performSpatialHeteroTest()` instead of "objects of different
+length". The three tests that refuse every `glm` refuse it as before. `performRESETTest()` accepts a zero weight, on
+an `lm` and on a `glm`, as before: its two fits are weighted least squares,
+in which a zero weight drops the observation from both, and its F statistic
+and degrees of freedom are those of the fit to the observations with positive
+weight (1.489 on 2 and 45 degrees of freedom for `cars` above, either way).
+The residuals of a weighted Gaussian `glm` are still its deviance residuals,
+so no value of a `glm` with positive weights changes, and `plotBeforeAfter()`
+now labels them
+"(weighted residuals)", as it labels those of a weighted `lm`.
+
+**`performScatterDiagnostic()` refuses a `glm` that is not a least-squares
+fit, and data that lack a variable of the model.** Its absolute residuals vary
+with the mean by construction:
+`performScatterDiagnostic(glm(am ~ wt, data = mtcars, family = binomial), mtcars, "wt")`
+returned -0.180, and with `qsec` dropped from `mtcars` the diagnostic of
+`lm(mpg ~ wt + qsec, data = mtcars)` returned -0.141; both now stop with the
+messages the tests give.
+
+**The registry name `"ncv"` checks the data it is given, as
+`performNCVTest()` does.** It ignored `data`, and because it is the last
+fallback of `"white"`, `"koenker"` and `"breusch_pagan"`,
+`runHeteroTests(lm(mpg ~ wt + qsec, data = mtcars), mtcars[1:20, ])`, or with
+data that lack `qsec`, returned the Cook-Weisberg statistic, 0.591 on 1
+degree of freedom, under the names `white` and `koenker`, tagged as a
+fallback, as did `runDiagnostics()`. They now stop with the refusal of White's test, as
+`cachedTest("ncv", ...)` and `runHeteroTests(tests = "ncv")` stop with that of
+`performNCVTest()`. On data that hold the rows and variables of the fit, and
+with `data = NULL`, every value is `identical()` to before.
+
+**`runHeteroTests()` on a tidymodels workflow without `data` runs the tests
+on the model frame of the engine's fit.** It gave them the predictors of the
+workflow's mold, which lack the response; every test refused them, and the
+result was the same Cook-Weisberg fallback under the names asked for. For a
+workflow of `linear_reg()` with `recipe(mpg ~ wt + qsec, data = mtcars)` it
+returned 0.591 under `white` and `koenker`, and returns White's statistic,
+11.82 on 5 degrees of freedom, and Koenker's, 3.086 on 2, those of the `lm`.
+Given the data the workflow was fitted to it now stops, as the engine's fit
+names its response `..y`, which those data do not hold, with a message that
+says so and to pass `data = NULL`; it returned the same fallback.
+
+**Four tests refuse the offsets they ignored.** `performRESETTest()` refits
+its augmented model without the offset; `performGQTest()` refits each segment
+without an offset given as an argument, and, on a weighted fit, without any
+offset; `performQuantileRegressionTest()` fits `quantreg::rq()`, which leaves
+the offset out; and the studentized Breusch-Pagan statistic of
+`performStudentizedBPTest()`, of `performBPTestRobust()` with
+`studentize = TRUE`, its default, and of the registered `"student_bp"` refits
+the design without it. On a model with an offset they returned a value that
+is not that of the model. Decided on 2026-10-17: until the offset fix planned
+for 0.16.0 they refuse such a model, with a message that says the test does
+not account for the offset yet and which tests do. They refuse exactly the
+offsets they leave out: an `offset()` term on an unweighted fit, which the
+refits of GQ evaluate again, is accepted, as is the classical statistic of
+`performBPTestRobust(studentize = FALSE)`, and an offset that is zero
+everywhere. With
+
+```r
+set.seed(33); n <- 160
+d <- data.frame(x1 = runif(n, 1, 3), x2 = rnorm(n), u = rnorm(n))
+d$o <- 0.8 * d$u
+d$y <- 1 + d$x1 + d$o + rnorm(n, sd = d$x1)
+m <- lm(y ~ x1 + x2, data = d, offset = o)
+```
+
+and the same model fitted to the response minus the offset,
+`lm(I(y - o) ~ x1 + x2, data = d)`:
+
+| Call | 0.15.0, on `m` | On the model of `y - o` | Now, on `m` |
+| --- | ---: | ---: | --- |
+| `performRESETTest()` | F = -0.289 (p = 1) | F = 4.487 (p = 0.013) | Error: `performRESETTest() does not account for an offset yet: ...` |
+| `performGQTest(order_by = "x1")` | 1.634 | 2.383 | Error |
+| `performQuantileRegressionTest()` | 0.897 | 3.256 | Error |
+| `performStudentizedBPTest()` | 4.877 | 9.762, Koenker's statistic on `m` | Error |
+
+In the design of `test-fitwls-reestimation.R` the studentized statistic of
+`lm(y ~ x + z, offset = o)` was 19.91, where Koenker's is 18.79. The error has
+class `heteroTests_offset_error`, and `runHeteroTests()` and
+`runDiagnostics()` do not fall back on another test for it:
+`runHeteroTests(m, d, tests = "student_bp")` and `tests =
+"quantile_regression"` stop with it, as do `cachedTest()`, the registry,
+`test_factory` and `runHeteroTestsParallel()`, and with grouped data the test
+is returned as failed. `runDiagnostics()`, which runs RESET, stops on a model
+with an offset; its default battery, White's and Koenker's tests, accounts for
+the offset.
+
+**Calls that go through the tests change with them.** On data that lack rows
+or variables of the fit, `compareTestResults()` and
+`generateHeteroRecommendations()` stop, where they returned a data frame and a
+report built on the Cook-Weisberg fallback. `runAdvancedDiagnostics()` and
+`compareTestResults()` accept a rank-deficient fit and refuse a Gaussian `glm`
+with a zero prior weight, and `rcalculateEffectSize()` and
+`restimate_test_power()` accept a rank-deficient fit. `runDiagnostics()`
+returns for a rank-deficient fit, where it stopped: its variance inflation
+factors are all `Inf`, and the cutoff of its influence measures counts the
+aliased coefficient (recorded in the roadmap). `plotBeforeAfter()`,
+`plotResidualsFitted()` and the other plots of the residuals stop on a
+Gaussian `glm` with a zero prior weight, as on the same `lm`.
+
+Also:
+
+- The tests read the prior weights of a Gaussian `glm`, `prior.weights`, and
+  never its working weights, `weights`, which are the weights of the last
+  iteration of iteratively reweighted least squares. For the Gaussian family
+  with the identity link the two are equal; for any other family or link they
+  depend on the fitted means, and such a `glm` is refused. `?test_results`
+  says so.
+- `checkModel()` checks the class of a model only, and says so: the tests
+  decide which models they accept.
+- A model that is neither an `lm` nor a `glm`, such as a `plm::plm()` fit, is
+  refused by every test, `runPanelTests()` and `runTimeSeriesTests()` with one
+  message, which names the class received, as in `Provide an object fitted
+  with stats::lm() or stats::glm() before running performKoenkerTest()
+  (received class: plm/panelmodel)`, and goes on to say that a panel is tested
+  as its pooled `lm()`, with the units and the periods as columns of `data`. It
+  was refused with four different messages.
+- The *Supported models* page lists, for each of the four tests above, the
+  offsets it refuses and those it accepts, and records that
+  `performRESETTest()` keeps accepting a zero weight (decided 2026-10-17).
+- The valid calls of a corpus of 1,198 on the supported classes (an `lm`,
+  weighted or not, a Gaussian `glm`, weighted or not, `MASS::rlm()` and
+  `fitWLS()` fits, and seven other specifications, through every test and
+  route) return what they returned in 0.15.0, `identical()`, but the label of
+  `plotBeforeAfter()` for a weighted Gaussian `glm`.
+
 ### Packaging
 
 - The logo shows in the README, and the `R CMD check` NOTE

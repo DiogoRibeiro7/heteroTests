@@ -52,6 +52,18 @@ regressors. Adding a column of ones would restore the location-shift form,
 but that version of the test needs its own derivation and its own size
 study, and has neither.
 }
+\section{Supported models}{
+It accepts an unweighted \code{lm} and an unweighted \code{glm} with the Gaussian family and the
+identity link and, since 0.16.0, a rank-deficient one: \code{quantreg::rq()} refuses a singular
+design, so the quantile regressions are fitted to the columns that were not aliased, which gives the
+value of the same model fitted without them. It refuses a weighted fit, a \code{fitWLS()} fit among
+them, as it refits the model without the weights, a \code{glm} of another family or link, a
+\code{survey::svyglm()} fit, a coefficient that is not finite for another reason, and \code{data}
+that lack rows or variables of the fit. It refuses a model with an offset, which
+\code{quantreg::rq()} leaves out, until the offset fix planned for 0.16.0 (decided 2026-10-17).
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+\emph{Supported models}.
+}
 \examples{
 if (requireNamespace("quantreg", quietly = TRUE)) {
   # The test needs at least 40 observations, so mtcars (32) is too small.

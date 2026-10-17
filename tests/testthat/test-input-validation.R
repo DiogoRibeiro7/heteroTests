@@ -1,26 +1,33 @@
 # Uniform input validation: every exported test, called as in
 # helper-test-recipes.R, meets the same bad input with the same error. The
 # fixed set of bad inputs is a glm that is not a least-squares fit, binomial
-# and Poisson, a model with an NA coefficient, a data frame that lacks rows
-# the model was fitted to, one that lacks a variable of the model, and, when
-# the survey package is installed, a survey::svyglm() fit.
+# and Poisson, a model with a coefficient that is not finite, a data frame
+# that lacks rows the model was fitted to, one that lacks a variable of the
+# model, and, when the survey package is installed, a survey::svyglm() fit.
 #
 # Before 0.15.0 most tests returned a value for a glm of any family, and
 # seven returned one for some of the other inputs. Refusing them all was
 # decided on 2026-10-15. A glm with the Gaussian family and the identity link
 # is a least-squares fit and is accepted: the tests return for it what they
 # return for the lm (below).
+#
+# Until 0.16.0 the input with a coefficient that is not finite was a
+# rank-deficient fit, whose aliased coefficient is NA. Since 0.16.0 the tests
+# compute their statistic on the estimable part of its design, as for the
+# same model fitted without the aliased column (test-model-eligibility.R), so
+# the input is a coefficient made infinite.
 
 validation_inputs <- function() {
   s <- contract_data()
   d <- s$d
-  d$x1_twice <- 2 * d$x1
   d$high <- as.integer(d$y > stats::median(d$y))
   d$count <- stats::rpois(nrow(d), exp(0.2 + 0.3 * d$x1))
+  infinite <- s$m
+  infinite$coefficients[["x1"]] <- Inf
   list(
     glm = list(m = glm(high ~ x1 + x2, data = d, family = binomial), d = d),
     poisson = list(m = glm(count ~ x1 + x2, data = d, family = poisson), d = d),
-    na_coefficient = list(m = lm(y ~ x1 + x2 + x1_twice, data = d), d = d),
+    nonfinite_coefficient = list(m = infinite, d = d),
     rows_missing = list(m = s$m, d = s$d[1:60, ]),
     variable_missing = list(m = s$m, d = s$d[, setdiff(names(s$d), "x2")])
   )
@@ -39,7 +46,7 @@ validation_survey_input <- function() {
 validation_messages <- c(
   glm = "needs a model fitted by stats::lm\\(\\)",
   poisson = "needs a model fitted by stats::lm\\(\\)",
-  na_coefficient = "Model coefficients must be finite",
+  nonfinite_coefficient = "Model coefficients must be finite",
   rows_missing = paste0(
     "requires `data` (to contain the rows used to fit the model|",
     "with [0-9]+ observations to match the fitted model)"

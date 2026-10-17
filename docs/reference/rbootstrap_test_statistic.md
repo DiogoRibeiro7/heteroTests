@@ -245,6 +245,15 @@ with different draws, and each is valid. Before 0.15.0 a seeded call with
 `bootstrapTestStatistic()`, the same function under the package's naming
 scheme. The old name still works, returns what it returned and warns.
 
+## Supported models
+
+It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and, since
+0.16.0, a rank-deficient `lm`; a replicate whose refit aliases a coefficient the fit estimated,
+as a pairs resample of an interaction can, fails. It refuses every `glm`, as each replicate is
+refitted by least squares, a fit with a zero weight, and `data` that do not reproduce the fit.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## Examples
 
 ```r

@@ -224,8 +224,9 @@ runHeteroTests <- function(model, data = NULL,
         if (isTRUE(recover_failures)) {
           return(failure)
         }
-        if (identical(failure_context$issue, "data_rows")) {
-          # Keep the class of the refusal of `data` (rcheck_data_rows()), so
+        if (failure_context$issue %in% c("data_rows", "offset")) {
+          # Keep the class of the refusal of `data` (rcheck_data_rows()), or
+          # of an offset the test does not account for (rrefuse_offset()), so
           # that a caller can tell it from a failure of the test.
           stop(structure(
             class = class(e),

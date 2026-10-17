@@ -148,6 +148,16 @@ regression on a constant alone, whatever the model, and with
 `simulate.p = FALSE` it is `NA`. `skedastic::harrison_mccabe()` reports a
 different p-value as well; `inst/validation/README.md` says why.
 
+## Supported models
+
+It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
+of the same model fitted without the aliased columns. It refuses every `glm`, as its null
+distribution is that of least-squares residuals, a `survey::svyglm()` fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and `data` that lack rows or
+variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Harrison, M. J. (1981). A comparison of the bounds, beta-approximate, and

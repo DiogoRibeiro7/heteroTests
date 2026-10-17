@@ -83,6 +83,12 @@ registerDiagnostic("koenker", function(model, data) performKoenkerTest(model, da
 registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model, data))
 registerDiagnostic("ncv", function(model, data) {
   rrefuse_non_gaussian_glm(model, "performNCVTest")
+  # The data it is given are checked against the model, as performNCVTest()
+  # checks them, since 0.16.0. Before, data that lacked rows or variables of
+  # the fit were ignored, and because "ncv" is the last fallback of "white",
+  # "koenker" and "breusch_pagan", runHeteroTests() on such data returned the
+  # Cook-Weisberg statistic under their names.
+  rcheck_data_argument(data, "performNCVTest", model, "NCV")
   .ncv_test(model)
 })
 registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model, data))

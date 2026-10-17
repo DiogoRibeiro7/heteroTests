@@ -97,7 +97,9 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
   rrefuse_non_gaussian_glm(model, "performWhiteTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "White test"
-  rvalidateModelInputs(model, test_name = "White", min_obs = 20L)
+  # A rank-deficient fit is tested on the estimable part of its design: as the
+  # same model fitted without its aliased columns (rnon_aliased_columns()).
+  rvalidateModelInputs(model, test_name = "White", min_obs = 20L, allow_aliased = TRUE)
 
   model_terms <- stats::terms(model)
   required_vars <- unique(all.vars(model_terms))
@@ -197,8 +199,9 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
   e_squared <- residuals^2
   n <- length(e_squared)
 
-  # Get the model matrix (includes intercept)
-  X_full <- stats::model.matrix(model, data = working_data)
+  # Get the model matrix (includes intercept), without the columns of a
+  # rank-deficient fit that it aliased
+  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
 
   if (nrow(X_full) != n) {
     stop(

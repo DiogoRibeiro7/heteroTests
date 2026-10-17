@@ -31,6 +31,15 @@ A named numeric vector of correlations.
 
 High correlations suggest increasing spread with the explanatory variables and motivate variance-stabilizing transformations.
 
+## Supported models
+
+It accepts the models the tests accept: an `lm` and a `glm` with the Gaussian family and
+the identity link, unweighted or with positive weights, a `fitWLS()` fit and a rank-deficient
+fit. It refuses a `glm` of another family or link (since 0.16.0), a `survey::svyglm()`
+fit, a fit with a zero weight, and `data` that lack rows or (since 0.16.0) variables of the
+fit. Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
+
 ## References
 
 Cleveland, W. S. (1979). Robust locally weighted regression and smoothing scatterplots. *Journal of the American Statistical Association*, 74(368), 829–836.

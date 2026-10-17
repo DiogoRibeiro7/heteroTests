@@ -31,6 +31,16 @@ An object of class `htest` containing the chi-squared statistic, p-value and deg
 
 The test statistic compares the pooled variance to the individual group variances. It is computed as \(\chi^2 = (N - k) \ln S_p^2 - \sum (n_i - 1) \ln s_i^2\), where \(S_p^2\) is the pooled variance and \(s_i^2\) the group variances. Under the null it approximates a chi-square distribution with \(k-1\) degrees of freedom.
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 Bartlett, M. S. (1937). Properties of sufficiency and statistical tests. *Proceedings of the Royal Society of London*, 160(901), 268–282. [doi:10.1098/rspa.1937.0109](https://doi.org/10.1098/rspa.1937.0109)

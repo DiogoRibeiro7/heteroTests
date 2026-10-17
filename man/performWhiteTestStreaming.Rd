@@ -62,6 +62,16 @@ in the standard White test, ensuring numerical equivalence while dramatically
 reducing peak memory usage. When \code{Matrix} is installed, sparse cross-products
 are leveraged automatically for large chunks.
 }
+\section{Supported models}{
+It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
+of the same model fitted without the aliased columns. It refuses every \code{glm}, a
+\code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
+reason, and \code{data} that lack rows or variables of the fit. It stops when terms of its auxiliary
+regression are collinear, as the squares of dummy variables are, which
+\code{\link{performWhiteTest}()} drops. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
+}
 \examples{
 data(mtcars)
 performWhiteTestStreaming(lm(mpg ~ wt + qsec, data = mtcars), mtcars, chunk_size = 16)

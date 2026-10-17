@@ -40,6 +40,16 @@ An auxiliary regression of \(e^2\) on all regressors, their squares and cross-pr
 
 On a fit with weights the test is computed from the Pearson residuals \(\sqrt{w_i}\, e_i\), so it tests whether the weights are adequate; see the section on weighted fits in [`performKoenkerTest()`](performKoenkerTest.md), which also covers weights estimated by [`fitWLS()`](fitWLS.md).
 
+## Supported models
+
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
+or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
+tests on the estimable part of its design: it gives the value of the same model fitted without the
+aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
+fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
+
 ## References
 
 White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. *Econometrica*, 48(4), 817–838. [doi:10.2307/1912934](https://doi.org/10.2307/1912934)

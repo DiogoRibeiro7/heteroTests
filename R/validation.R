@@ -237,7 +237,10 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
   .validate_test_inputs(model, data, test_name, min_obs)
 }
 
-.validate_test_inputs <- function(model, data, test_name, min_obs = 10) {
+# `allow_aliased = TRUE` leaves a rank-deficient fit to the test that is run
+# next, which accepts it or refuses it with its own message: test_factory
+# runs tests that validate their model themselves.
+.validate_test_inputs <- function(model, data, test_name, min_obs = 10, allow_aliased = FALSE) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"white\"")
   min_obs <- enforce_integer_scalar(min_obs, "min_obs", lower = 0L)
 
@@ -248,7 +251,9 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
     min_obs = min_obs,
     context = sprintf("data supplied to %s", test_name)
   )
-  model_result <- validate_model_inputs_internal(model, data, test_name, min_obs)
+  model_result <- validate_model_inputs_internal(
+    model, data, test_name, min_obs, allow_aliased = allow_aliased
+  )
 
   combined <- validation_merge(base_result, data_result, model_result)
 
@@ -337,13 +342,15 @@ checkModelEnhanced <- function(model, data = NULL) {
   invisible(model)
 }
 
-validate_model_inputs_internal <- function(model, data, test_name, min_obs) {
+validate_model_inputs_internal <- function(model, data, test_name, min_obs,
+                                           allow_aliased = FALSE) {
   cache_key <- .validation_cache_key(
     "model_inputs",
     test = test_name,
     min_obs = min_obs,
     model = model_signature(model),
-    data_rows = if (is.data.frame(data)) nrow(data) else NULL
+    data_rows = if (is.data.frame(data)) nrow(data) else NULL,
+    allow_aliased = isTRUE(allow_aliased)
   )
   cached <- .validation_cache_get(cache_key)
   if (!is.null(cached)) {
@@ -356,11 +363,8 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs) {
 
   if (!inherits(model, c("lm", "glm"))) {
     model_class <- paste(class(model), collapse = "/")
-    message <- sprintf(
-      "Provide an object fitted with stats::lm() or stats::glm() before running %s (received class: %s).",
-      test_name,
-      model_class
-    )
+    # The message the tests give for such a model (rrefuse_model_class()).
+    message <- rmodel_class_message(model, test_name)
     result <- validation_add_error(result, message, "model_class", model_class)
     return(.validation_cache_set(cache_key, result))
   }
@@ -375,12 +379,23 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs) {
     return(.validation_cache_set(cache_key, result))
   }
   if (!all(is.finite(coefs))) {
-    message <- sprintf(
-      "Model coefficients must be finite before running %s. Check for NA or infinite estimates.",
-      test_name
-    )
-    result <- validation_add_error(result, message)
-    return(.validation_cache_set(cache_key, result))
+    # A rank-deficient fit leaves the coefficients of its aliased columns NA.
+    # A test that is computed on the estimable part of the design accepts it
+    # (allow_aliased = TRUE); the others refuse it with a message that names
+    # them. Any other coefficient that is not finite is refused by all.
+    aliased <- raliased_coefficients(model)
+    only_aliased <- length(aliased) > 0L &&
+      all(is.finite(coefs[!names(coefs) %in% aliased]))
+    if (!only_aliased) {
+      result <- validation_add_error(result, rnonfinite_coefficients_message(test_name))
+      return(.validation_cache_set(cache_key, result))
+    }
+    if (!isTRUE(allow_aliased)) {
+      message <- tryCatch(rstop_aliased(aliased, test_name), error = conditionMessage)
+      result <- validation_add_error(result, message)
+      return(.validation_cache_set(cache_key, result))
+    }
+    result <- validation_add_detail(result, "aliased", aliased)
   }
   result <- validation_add_detail(result, "coefficients", coefs)
 
@@ -577,13 +592,20 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
 #'   reference the calling test.
 #' @param min_obs Minimum number of observations required for the calling
 #'   procedure. Defaults to `10`.
+#' @param allow_aliased Logical. `FALSE`, the default, refuses a rank-deficient
+#'   fit, whose aliased coefficients are `NA`, with a message that names them;
+#'   `TRUE` accepts it, for a procedure computed on the estimable part of the
+#'   design. A coefficient that is not finite for another reason is refused
+#'   either way.
 #' @return Invisibly returns `model` when validation passes.
 #' @keywords internal
-rvalidateModelInputs <- function(model, test_name, min_obs = 10) {
+rvalidateModelInputs <- function(model, test_name, min_obs = 10, allow_aliased = FALSE) {
   test_name <- enforce_character_scalar(test_name, "test_name", example = "\"white\"")
   min_obs <- enforce_integer_scalar(min_obs, "min_obs", lower = 1L)
 
-  result <- validate_model_inputs_internal(model, NULL, test_name, min_obs)
+  result <- validate_model_inputs_internal(
+    model, NULL, test_name, min_obs, allow_aliased = allow_aliased
+  )
   rprocessValidationResult(result)
   invisible(model)
 }

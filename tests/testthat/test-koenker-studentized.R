@@ -7,9 +7,10 @@
 # performStudentizedBPTest() read the weights left in the model frame, those
 # of the model fitWLS() refitted, and so computed the statistic of the
 # unweighted fit. Since 0.15.0 it reads the weights of the fit, and the two
-# agree on a fitWLS() fit too, which a test below asserts. They still differ
-# on a model with an offset, which the studentized statistic drops; the
-# roadmap lists that under 0.16.0.
+# agree on a fitWLS() fit too, which a test below asserts. On a model with an
+# offset, which the studentized statistic drops, it gave another value; since
+# 0.16.0 it refuses such a model (test-model-eligibility.R) until the offset
+# fix the roadmap lists under 0.16.0.
 
 agreement_designs <- local({
   n <- 150L
@@ -66,14 +67,27 @@ test_that("performStudentizedBPTest() agrees with performKoenkerTest() to 1e-8",
   }
 })
 
-test_that("both refuse a rank-deficient fit with the same message", {
+# Before 0.16.0 both refused this rank-deficient fit with "Model coefficients
+# must be finite". Since 0.16.0 both compute the statistic on the estimable
+# part of the design, the statistic of lm(y ~ x + z) and of lmtest::bptest(),
+# which takes its degrees of freedom from the rank of the auxiliary fit.
+test_that("both give a rank-deficient fit the statistic of lmtest::bptest()", {
   set.seed(20261015)
   d <- data.frame(x = runif(150, 1, 5), z = runif(150, 1, 5))
   d$y <- 1 + 2 * d$x + 0.5 * d$z + d$x * rnorm(150)
   d$z2 <- 2 * d$z
   m <- lm(y ~ x + z + z2, d)
-  expect_error(without_deprecation(performStudentizedBPTest(m, d)), "coefficients must be finite")
-  expect_error(performKoenkerTest(m, d), "coefficients must be finite")
+  reduced <- performKoenkerTest(lm(y ~ x + z, d), d)
+  for (r in list(without_deprecation(performStudentizedBPTest(m, d)), performKoenkerTest(m, d))) {
+    expect_equal(unname(r$statistic), 20.8736185, tolerance = 1e-8)
+    expect_identical(unname(r$parameter), 2L)
+    expect_equal(unname(r$statistic), unname(reduced$statistic), tolerance = 1e-10)
+    expect_equal(r$p.value, reduced$p.value, tolerance = 1e-10)
+  }
+  skip_if_not_installed("lmtest")
+  bp <- lmtest::bptest(m)
+  expect_equal(unname(performKoenkerTest(m, d)$statistic), unname(bp$statistic), tolerance = 1e-10)
+  expect_equal(performKoenkerTest(m, d)$p.value, unname(bp$p.value), tolerance = 1e-10)
 })
 
 test_that("performKoenkerTest() reads the estimated weights of a fitWLS() fit", {

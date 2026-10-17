@@ -84,7 +84,7 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
     data <- NULL
   }
   rcheck_data_argument(data, "performCookWeisbergTest", model, "Cook-Weisberg")
-  rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L)
+  rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L, allow_aliased = TRUE)
 
   ht_log("INFO", "Running Cook-Weisberg test")
 

@@ -122,6 +122,16 @@
 #' normal variables. *Biometrika, 48*(3-4), 419--426.
 #' \doi{10.1093/biomet/48.3-4.419}
 #'
+#' @section Supported models:
+#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
+#' since 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+#' design: it gives the value of the same model fitted without the aliased columns.
+#' It refuses every `glm`, as its null distribution is that of least-squares
+#' residuals, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient
+#' that is not finite for another reason, and `data` that lack rows or variables of
+#' the fit. Which model each test accepts, and why, is set out in [test_results],
+#' under *Supported models*.
+#'
 #' @examples
 #' data(mtcars)
 #' mod <- lm(mpg ~ wt + qsec, data = mtcars)
@@ -146,6 +156,7 @@
 #' @export
 performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
                                       alternative = c("less", "two.sided", "greater")) {
+  rrefuse_model_class(model, "performHarrisonMcCabeTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Harrison-McCabe test"
 
@@ -166,7 +177,7 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
     )
   }
 
-  rvalidateModelInputs(model, test_name = "Harrison-McCabe")
+  rvalidateModelInputs(model, test_name = "Harrison-McCabe", allow_aliased = TRUE)
   rrefuse_glm(
     model, "performHarrisonMcCabeTest",
     "its null distribution is that of least-squares residuals."
@@ -177,7 +188,8 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
     model,
     data,
     required_vars = required_vars,
-    test_label = test_label
+    test_label = test_label,
+    allow_aliased = TRUE
   )
   working_data <- prepared$data
 
@@ -194,7 +206,9 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   # Pearson residuals sqrt(w) * e and the rows sqrt(w) * x on a weighted fit,
   # the ordinary ones otherwise.
   residuals <- unname(prepared$residuals)
-  design <- stats::model.matrix(model)
+  # Without the columns a rank-deficient fit aliased: its residual-maker is
+  # that of the remaining columns, which span the same space.
+  design <- rnon_aliased_columns(stats::model.matrix(model), model)
   weights <- rprior_weights(model)
   if (!is.null(weights)) {
     design <- sqrt(weights) * design
