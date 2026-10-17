@@ -363,11 +363,8 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs,
 
   if (!inherits(model, c("lm", "glm"))) {
     model_class <- paste(class(model), collapse = "/")
-    message <- sprintf(
-      "Provide an object fitted with stats::lm() or stats::glm() before running %s (received class: %s).",
-      test_name,
-      model_class
-    )
+    # The message the tests give for such a model (rrefuse_model_class()).
+    message <- rmodel_class_message(model, test_name)
     result <- validation_add_error(result, message, "model_class", model_class)
     return(.validation_cache_set(cache_key, result))
   }

@@ -16,6 +16,8 @@
 #' runTimeSeriesTests(m, lags = 2)
 #' @export
 runTimeSeriesTests <- function(model, lags = 1, tests = c("arch_lm", "mcleod_li")) {
+  # Anything but an lm or a glm is refused with the message of the tests.
+  rrefuse_model_class(model, "runTimeSeriesTests")
   checkModel(model)
   available <- list(
     arch_lm = function(m) performArchLMTest(m, lags = lags),

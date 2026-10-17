@@ -796,6 +796,44 @@ rstop_data_rows <- function(residuals, data, test_label) {
   )
 }
 
+#' Refuse a model that is neither an lm nor a glm
+#'
+#' The tests take a fitted `lm`, or a `glm`, which inherits from `lm`, and
+#' refuse anything else first, with one message that names the class received
+#' and what is accepted, and says how a panel is tested: as its pooled `lm()`,
+#' with the units and the periods as columns of `data`. Before 0.16.0 a
+#' `plm::plm()` fit was refused with four different messages, depending on the
+#' test. [rrefuse_non_gaussian_glm()] and [rrefuse_glm()] call it, so every
+#' test that starts with either does; the validation of the model gives the
+#' same message ([rmodel_class_message()]).
+#'
+#' @param model The `model` argument of the calling test.
+#' @param fn Character scalar naming the calling function.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_model_class <- function(model, fn) {
+  if (inherits(model, "lm")) {
+    return(invisible(NULL))
+  }
+  stop(rmodel_class_message(model, sprintf("%s()", fn)), call. = FALSE)
+}
+
+# The message for a model that is neither an lm nor a glm. It begins as the
+# message of the validation of the model did before 0.16.0.
+rmodel_class_message <- function(model, who) {
+  sprintf(
+    paste0(
+      "Provide an object fitted with stats::lm() or stats::glm() before running %s ",
+      "(received class: %s). The tests take an lm, or a glm with the gaussian family ",
+      "and the identity link; a panel is tested as its pooled lm(), with the units and ",
+      "the periods as columns of `data`, as performPesaranTest() and ",
+      "performBPRandomEffectsTest() take them."
+    ),
+    who, paste(class(model), collapse = "/")
+  )
+}
+
 #' Refuse a glm in a test that needs least-squares residuals
 #'
 #' Three tests refuse every `glm` with this message. The others refuse a `glm`
@@ -812,6 +850,7 @@ rstop_data_rows <- function(residuals, data, test_label) {
 #' @noRd
 rrefuse_glm <- function(model, fn, reason = NULL) {
   rrefuse_survey_fit(model)
+  rrefuse_model_class(model, fn)
   if (inherits(model, "lm") && !inherits(model, "glm")) {
     return(invisible(NULL))
   }
@@ -851,6 +890,7 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
 #' @noRd
 rrefuse_non_gaussian_glm <- function(model, fn) {
   rrefuse_survey_fit(model)
+  rrefuse_model_class(model, fn)
   if (!inherits(model, "glm")) {
     return(invisible(NULL))
   }

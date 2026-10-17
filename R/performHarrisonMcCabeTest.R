@@ -156,6 +156,7 @@
 #' @export
 performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
                                       alternative = c("less", "two.sided", "greater")) {
+  rrefuse_model_class(model, "performHarrisonMcCabeTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Harrison-McCabe test"
 

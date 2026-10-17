@@ -22,6 +22,8 @@
 #' @export
 runPanelTests <- function(model, data, id, time = NULL,
                           tests = c("bp_random", "pesaran")) {
+  # Anything but an lm or a glm is refused with the message of the tests.
+  rrefuse_model_class(model, "runPanelTests")
   checkModel(model)
   .check_data(data)
   if (!id %in% names(data)) {
