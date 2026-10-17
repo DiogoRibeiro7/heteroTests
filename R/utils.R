@@ -434,17 +434,16 @@ rleast_squares_weights <- function(model) {
 #' same `lm` met, and `checkModel(enhanced = TRUE)` stopped on any `glm` with
 #' "missing value where TRUE/FALSE needed".
 #'
-#' For such a `glm` the R-squared of the equivalent `lm(..., weights = w)` is
-#' one minus the ratio of its deviance to its null deviance. The deviance is
-#' the weighted residual sum of squares \eqn{\sum_i w_i e_i^2}. The null
-#' deviance is that of the model with the constant and the offset alone, or the
-#' offset alone without a constant, so it is the total sum of squares
-#' `summary.lm()` decomposes: \eqn{\sum_i w_i (y_i - o_i - \bar m)^2}, with
-#' \eqn{\bar m} the weighted mean of \eqn{y_i - o_i}, or
-#' \eqn{\sum_i w_i (y_i - o_i)^2} without a constant. The residuals are
-#' orthogonal to the fitted values and, with a constant, sum to zero, so it is
-#' the explained plus the residual sum of squares, and the ratio is the
-#' R-squared of `summary.lm()`, up to rounding.
+#' For such a `glm` it is the R-squared `summary.lm()` computes, applied to the
+#' `glm` itself. For this family and link the components `summary.lm()` reads
+#' hold what they hold in the equivalent `lm(..., weights = w)`, up to
+#' rounding: the fitted values, the residuals (the working residuals
+#' \eqn{y_i - \hat\mu_i}), the weights (the working weights, which are the
+#' prior weights), the offset, the terms and the rank. So it reports what
+#' `summary()` of the `lm` reports, in every version of R: since R 4.3.0
+#' `summary.lm()` takes the offset out of the fitted values before it computes
+#' the explained sum of squares, and before it did not. Without an offset it is
+#' one minus the ratio of the deviance of the `glm` to its null deviance.
 #'
 #' @param model A fitted model.
 #' @return Numeric scalar, or `NA` for a model that is not a least-squares fit
@@ -452,21 +451,18 @@ rleast_squares_weights <- function(model) {
 #' @keywords internal
 #' @noRd
 rleast_squares_r_squared <- function(model) {
-  if (!inherits(model, "glm")) {
-    r_sq <- tryCatch(summary(model)$r.squared, error = function(e) NULL)
-    return(if (is.numeric(r_sq) && length(r_sq) == 1L) r_sq else NA_real_)
+  summarise <- summary
+  if (inherits(model, "glm")) {
+    fam <- tryCatch(stats::family(model), error = function(e) NULL)
+    least_squares <- !inherits(model, "svyglm") && !is.null(fam) &&
+      identical(fam$family, "gaussian") && identical(fam$link, "identity")
+    if (!least_squares) {
+      return(NA_real_)
+    }
+    summarise <- stats::summary.lm
   }
-  fam <- tryCatch(stats::family(model), error = function(e) NULL)
-  least_squares <- !inherits(model, "svyglm") && !is.null(fam) &&
-    identical(fam$family, "gaussian") && identical(fam$link, "identity")
-  if (!least_squares) {
-    return(NA_real_)
-  }
-  ratio <- model$deviance / model$null.deviance
-  if (!is.numeric(ratio) || length(ratio) != 1L || !is.finite(ratio)) {
-    return(NA_real_)
-  }
-  1 - ratio
+  r_sq <- tryCatch(summarise(model)$r.squared, error = function(e) NULL)
+  if (is.numeric(r_sq) && length(r_sq) == 1L) r_sq else NA_real_
 }
 
 #' Residuals on the scale a variance test should see

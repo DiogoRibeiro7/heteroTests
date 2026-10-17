@@ -139,7 +139,8 @@ perfectly explained"), read from `summary()`, which reports none for a
 `cars$y <- 2 + 3 * cars$speed + rnorm(50, sd = 0.05)` (`set.seed(1)`),
 `performKoenkerTest(glm(y ~ speed, data = cars), cars)` returned 0.957
 (p = 0.328). They read the R-squared of the least-squares fit now, which for
-the `glm` is one minus its deviance over its null deviance, and refuse it.
+the `glm` is the R-squared `summary.lm()` computes from its fitted values,
+residuals, weights and offset, those of the `lm`, and refuse it.
 `checkModel(enhanced = TRUE)`, which stopped on any `glm` with "missing
 value where TRUE/FALSE needed", warns about such a fit as about the `lm`,
 and skips the check for a `glm` of another family. A Gaussian `glm` with a

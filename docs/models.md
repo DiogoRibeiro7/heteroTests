@@ -171,11 +171,13 @@ deviance; the family. For the three tests:
 | `performWhiteTestStreaming()` | $n R^2$ of the regression of $\tilde e_i^2$ on $x_i$, their squares and cross products, accumulated in chunks; $\chi^2$ under a constant variance (White, 1980). | The Pearson residuals; the `model.matrix()` of each chunk, from the `terms`, `contrasts` and `xlevels` of the fit, which a `glm` holds as an `lm` does. | Nothing in the statistic. The checks it runs read the R-squared of `summary()`, which a `glm` does not report, and stopped on a `glm` with "missing value where TRUE/FALSE needed": that is why it refused every `glm`. They read the R-squared of the least-squares fit now (below). |
 | `performVarianceFormTest()` | The F test of the added terms in the regression of the squared standardized residuals of the weighted refit on the score direction of the variance function, fitted to $\log e_i^2$ of the unweighted fit (Wooldridge, 1990, 1991). | `$residuals`, which for a `glm` are its working residuals, $y_i - \hat\mu_i$ for the identity link, the residuals of the `lm`; `model.frame()`, `model.matrix()`, `model.offset()`; the weights, to refuse those that did not come from `fitWLS()`. | It read the weights with `rprior_weights()`, so it would have taken a weighted `glm` for an unweighted one. It reads `rleast_squares_weights()`, and refuses a weighted `glm` as it refuses a weighted `lm`. |
 
-Once the `glm` is accepted, none of the three reads its dispersion, its QR
-decomposition, its working weights or its family. The checks they run read
-its residual degrees of freedom, for a warning, which are those of the `lm`,
-and its deviance and null deviance, for the R-squared below. The sources of
-the tests define them for the linear
+Once the `glm` is accepted, the code of the three reads none of its
+dispersion, its QR decomposition, its working weights or its family. The
+checks they run read its residual degrees of freedom, for a warning, which
+are those of the `lm`, and compute the R-squared below with `summary.lm()`,
+which reads its working residuals and weights: for this family and link,
+the response residuals and the prior weights. The sources of the tests
+define them for the linear
 regression model fitted by least squares: White (1980) for the disturbances
 of a linear regression model, Harrison and McCabe (1979) for ordinary
 least-squares residuals, which Harrison (1981), whom the package follows,
@@ -190,12 +192,14 @@ $R^2 > 0.999$, with "Model appears perfectly explained". The checks read
 $R^2$ from `summary()`, which reports none for a `glm`, so until 0.16.0 a
 near-perfect Gaussian `glm` escaped the refusal the same `lm` met, in 30
 tests. They read the $R^2$ of the least-squares fit now: for the `glm`,
-$1 - D / D_0$, its deviance over its null deviance, the weighted residual
-sum of squares over the weighted total sum of squares about the mean, or
-about zero without a constant, the offset subtracted, which is the R-squared
-of `summary.lm()`. Five tests do not run the check and give the `lm` and the
-`glm` a value: the spread-level, Pesaran, Breusch-Pagan random effects,
-Davidian-Carroll and RESET tests.
+`summary.lm()` applied to it, which reads its fitted values, residuals,
+weights and offset, those of the `lm`, so it reports what `summary()` of the
+`lm` reports, in every version of R. (Since R 4.3.0 `summary.lm()` takes the
+offset out of the fitted values; before, it did not, and $1 - D / D_0$, the
+deviance of the `glm` over its null deviance, which takes it out, gave
+another value for a model with an offset on R 4.1.) Five tests do not run the
+check and give the `lm` and the `glm` a value: the spread-level, Pesaran,
+Breusch-Pagan random effects, Davidian-Carroll and RESET tests.
 
 **`fitWLS()`.** `performVarianceFormTest()` tests the variance function of a
 `fitWLS()` fit, and refits any other model as `fitWLS()` would. `fitWLS()`

@@ -114,8 +114,9 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   \file{test-model-eligibility.R} compare them). \code{\link{performWhiteTestStreaming}()},
   \code{\link{performHarrisonMcCabeTest}()} and \code{\link{performVarianceFormTest}()} refused every \code{glm} until
   0.16.0, and \code{\link{fitWLS}()} refits it as that \code{lm} since then. The checks of the model read its R-squared,
-  which \code{summary()} of a \code{glm} does not report, as that of the \code{lm}, one minus the ratio of its deviance
-  to its null deviance, so that a near-perfect fit is refused as the \code{lm} is, since 0.16.0. The \emph{Supported
+  which \code{summary()} of a \code{glm} does not report, as that of the \code{lm}: \code{summary.lm()} applied to the
+  \code{glm}, whose fitted values, residuals, weights and offset are those of the \code{lm}, so that a near-perfect fit
+  is refused as the \code{lm} is, since 0.16.0. The \emph{Supported
   models} page of the documentation site sets out the argument and the references. The tests read its prior weights,
   \code{model$prior.weights}, and never \code{model$weights}, which holds the working weights of the last iteration of
   iteratively reweighted least squares, \eqn{w_i (d\mu_i/d\eta_i)^2 / V(\mu_i)}{w_i (dmu_i/deta_i)^2 / V(mu_i)}. For

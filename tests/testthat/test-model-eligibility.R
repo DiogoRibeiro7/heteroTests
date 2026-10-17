@@ -813,7 +813,11 @@ test_that("fitWLS() refits a Gaussian glm as the lm it is", {
 # summary() of a glm reports no R-squared. The checks of the model read that
 # of the least-squares fit: before 0.16.0 a near-perfect Gaussian glm escaped
 # the refusal the same lm met, and checkModel(enhanced = TRUE) stopped on any
-# glm with "missing value where TRUE/FALSE needed".
+# glm with "missing value where TRUE/FALSE needed". It is summary.lm() applied
+# to the glm, so it agrees with summary() of the lm on every version of R:
+# R 4.3.0 changed what summary.lm() reports for a model with an offset, and
+# one minus the deviance over the null deviance agreed with it on 4.3.0 and
+# later only.
 test_that("the R-squared of a Gaussian glm is that of the lm", {
   d <- eligibility_data()
   d$o <- 0.3 * d$x2
