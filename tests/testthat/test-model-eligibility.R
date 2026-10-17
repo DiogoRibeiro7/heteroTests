@@ -810,6 +810,40 @@ test_that("fitWLS() refits a Gaussian glm as the lm it is", {
   )
 })
 
+# fitWLS() keeps the call of the model it refits, for summary() and update().
+# Of a Gaussian glm it records the call of the lm: before, it kept the glm()
+# call, so update() fitted a glm again and summary() printed glm(...).
+test_that("fitWLS() of a Gaussian glm records the call of the lm", {
+  d <- eligibility_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit_glm <- glm(y ~ x1 + x2, family = gaussian(), data = d, weights = w,
+                 control = glm.control(epsilon = 1e-10), method = "glm.fit")
+  fit_lm <- lm(y ~ x1 + x2, data = d, weights = w)
+  from_glm <- fitWLS(fit_glm)
+  from_lm <- fitWLS(fit_lm)
+  # The arguments only glm() takes are left out.
+  expect_identical(from_glm$call, quote(stats::lm(formula = y ~ x1 + x2, data = d, weights = w)))
+  # The call of an lm is kept as it is.
+  expect_identical(from_lm$call, fit_lm$call)
+  # update() fits the call again, without the estimated weights, as for the lm.
+  refit_glm <- update(from_glm)
+  refit_lm <- update(from_lm)
+  expect_identical(class(refit_glm), "lm")
+  expect_equal(stats::coef(refit_glm), stats::coef(refit_lm), tolerance = 1e-10)
+  expect_equal(stats::weights(refit_glm), d$w)
+  # summary() prints the call, and its values are those of the lm's fit, as
+  # are the predictions.
+  expect_match(capture.output(print(summary(from_glm)))[3], "^stats::lm\\(formula = y ~ x1 \\+ x2")
+  expect_equal(summary(from_glm)$coefficients, summary(from_lm)$coefficients, tolerance = 1e-10)
+  expect_equal(summary(from_glm)$r.squared, summary(from_lm)$r.squared, tolerance = 1e-10)
+  expect_equal(stats::predict(from_glm, d[1:5, ]), stats::predict(from_lm, d[1:5, ]),
+               tolerance = 1e-10)
+  # A family given by position is matched by glm() and left out too.
+  positional <- fitWLS(glm(y ~ x1 + x2, gaussian, d))
+  expect_identical(positional$call, quote(stats::lm(formula = y ~ x1 + x2, data = d)))
+})
+
 # summary() of a glm reports no R-squared. The checks of the model read that
 # of the least-squares fit: before 0.16.0 a near-perfect Gaussian glm escaped
 # the refusal the same lm met, and checkModel(enhanced = TRUE) stopped on any

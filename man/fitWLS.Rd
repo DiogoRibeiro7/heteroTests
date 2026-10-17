@@ -111,9 +111,11 @@ their place, and \code{weights()} of the result returns them.
 
 A \code{glm} with the Gaussian family and the identity link is a least-squares
 fit, with the design and residuals of the \code{lm}, and since 0.16.0 the result
-for it is the \code{lm} returned for that \code{lm}, prior weights included; before,
-it kept the class of the \code{glm} without its family, which \code{summary()} could
-not read and every test refused. Any other \code{glm} is refused.
+for it is the \code{lm} returned for that \code{lm}, prior weights included, with the
+call of that \code{lm}: \code{stats::lm()}, without the arguments only \code{glm()} takes,
+so that \code{update()} fits an \code{lm} again. Before, it kept the class and the call
+of the \code{glm} without its family, which \code{summary()} could not read and every
+test refused. Any other \code{glm} is refused.
 }
 
 \examples{

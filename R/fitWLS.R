@@ -73,9 +73,11 @@
 #'
 #' A `glm` with the Gaussian family and the identity link is a least-squares
 #' fit, with the design and residuals of the `lm`, and since 0.16.0 the result
-#' for it is the `lm` returned for that `lm`, prior weights included; before,
-#' it kept the class of the `glm` without its family, which `summary()` could
-#' not read and every test refused. Any other `glm` is refused.
+#' for it is the `lm` returned for that `lm`, prior weights included, with the
+#' call of that `lm`: `stats::lm()`, without the arguments only `glm()` takes,
+#' so that `update()` fits an `lm` again. Before, it kept the class and the call
+#' of the `glm` without its family, which `summary()` could not read and every
+#' test refused. Any other `glm` is refused.
 #'
 #' @param model A fitted model of class `lm`, or a `glm` with the Gaussian
 #'   family and the identity link.
@@ -149,7 +151,7 @@ rweighted_refit <- function(model, variance) {
 
   fit <- stats::lm.wfit(design, response, w, offset = offset)
   fit$offset <- offset
-  fit$call <- model$call
+  fit$call <- rleast_squares_call(model)
   fit$terms <- stats::terms(model)
   fit$model <- mf
   fit$xlevels <- model$xlevels
@@ -175,6 +177,35 @@ rweighted_refit <- function(model, variance) {
   }
   attr(fit, "variance_function") <- record
   fit
+}
+
+#' The call of the lm a Gaussian glm is
+#'
+#' [fitWLS()] keeps the call of the model it refits, so that `summary()`
+#' prints it and `update()` fits it again, without the estimated weights. The
+#' refit of a Gaussian `glm` with the identity link is an `lm`, and its call is
+#' that of the `glm` with the function `stats::lm()`, without the arguments only
+#' `glm()` takes: `family`; `control`, `start`, `etastart` and `mustart`, which
+#' `lm()` would pass on to `lm.fit()`, which ignores them with a warning; and
+#' `method`, which names a fitting function for `glm()` and is an error in
+#' `lm()`. Before 0.16.0 it kept the call of the `glm`, so `update()` fitted a
+#' `glm` again and `summary()` printed `glm(...)` above the summary of an `lm`.
+#' `glm()` records its call with [match.call()], so every argument is named.
+#'
+#' @param model The model [fitWLS()] refits.
+#' @return The call to record in the refit: that of `model`, rewritten for a
+#'   `glm`.
+#' @keywords internal
+#' @noRd
+rleast_squares_call <- function(model) {
+  call <- model$call
+  if (!inherits(model, "glm") || !is.call(call)) {
+    return(call)
+  }
+  glm_only <- c("family", "control", "start", "etastart", "mustart", "method")
+  call <- call[!names(call) %in% glm_only]
+  call[[1L]] <- quote(stats::lm)
+  call
 }
 
 #' Data frame aligned with the rows a model was fitted to
