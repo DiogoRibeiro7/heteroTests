@@ -71,8 +71,10 @@ design, so the quantile regressions are fitted to the columns that were not alia
 value of the same model fitted without them. It refuses a weighted fit, a `fitWLS()` fit among
 them, as it refits the model without the weights, a `glm` of another family or link, a
 `survey::svyglm()` fit, a coefficient that is not finite for another reason, and `data`
-that lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+that lack rows or variables of the fit. It refuses a model with an offset, which
+`quantreg::rq()` leaves out, until the offset fix planned for 0.16.0 (decided 2026-10-17).
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
 
 ## References
 

@@ -49,7 +49,10 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+lack rows or variables of the fit. Until the offset fix planned for 0.16.0 (decided 2026-10-17) it
+refuses an offset given as an argument, which its refits of the segments leave out, and any offset
+on a weighted fit; an `offset()` term on an unweighted fit is evaluated again in each segment
+and accounted for. Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References
