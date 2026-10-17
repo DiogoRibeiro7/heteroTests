@@ -312,6 +312,78 @@ test_that("a resampling replicate that aliases a coefficient the fit estimated f
   expect_false(rrefit_aliases_estimated(rd, rd_estimated))
 })
 
+# The model without the aliased columns is the one lm() keeps: of an aliased
+# set, the column that comes last in the order of the terms is left out. Most
+# statistics depend only on the space the columns span; White's without its
+# cross products depends on which column is left out.
+test_that("the reduced model is the one lm() keeps, the later aliased column left out", {
+  set.seed(32)
+  n <- 160
+  d <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+  d$x_sum <- d$x1 + d$x2
+  d$y <- 1 + d$x1 + rnorm(n, sd = exp(0.4 * d$x1))
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  first <- lm(y ~ x1 + x2 + x_sum, d)
+  second <- lm(y ~ x_sum + x1 + x2, d)
+  expect_identical(raliased_coefficients(first), "x_sum")
+  expect_identical(raliased_coefficients(second), "x2")
+  squares <- function(m) performWhiteTest(m, d, cross_products = FALSE)
+  for (pair in list(list(first, lm(y ~ x1 + x2, d)), list(second, lm(y ~ x_sum + x1, d)))) {
+    expect_equal(unname(squares(pair[[1]])$statistic), unname(squares(pair[[2]])$statistic),
+                 tolerance = 1e-10)
+    expect_identical(unname(squares(pair[[1]])$parameter), unname(squares(pair[[2]])$parameter))
+  }
+  # Without the cross products the two orders differ; with them, they agree.
+  expect_false(isTRUE(all.equal(unname(squares(first)$statistic),
+                                unname(squares(second)$statistic))))
+  expect_equal(unname(performWhiteTest(first, d)$statistic),
+               unname(performWhiteTest(second, d)$statistic), tolerance = 1e-10)
+  expect_equal(unname(performKoenkerTest(first, d)$statistic),
+               unname(performKoenkerTest(second, d)$statistic), tolerance = 1e-10)
+})
+
+# The power form of the variance-form test takes the logarithms of every
+# column of the design, the aliased ones included. The logarithm of an
+# aliased column that is not proportional to another is not a combination of
+# the logarithms of the others, so the value is not that of the model without
+# it; kept so, decided in the review of 0.16.0, because it does not depend on
+# the order of the terms, as the value of the model without it does. The
+# exponential form, the default, gives the value of the model without it.
+test_that("the power form of the variance-form test uses every column of the design", {
+  set.seed(31)
+  n <- 160
+  d <- data.frame(x1 = runif(n, 1, 3), x4 = runif(n, 1, 3))
+  d$x14 <- d$x1 + d$x4
+  d$y <- 1 + d$x1 + d$x4 + rnorm(n, sd = d$x1)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fits <- list(
+    aliased = lm(y ~ x1 + x4 + x14, d), aliased_reordered = lm(y ~ x14 + x1 + x4, d),
+    reduced = lm(y ~ x1 + x4, d), reduced_other = lm(y ~ x14 + x1, d)
+  )
+  run <- function(m, form) performVarianceFormTest(m, d, form = form)
+  power <- lapply(fits, run, form = "power")
+  exponential <- lapply(fits, run, form = "exponential")
+  stat <- function(r) unname(r$statistic)
+  # Power: the aliased fits agree with each other, on 6 and 150 degrees of
+  # freedom, and with neither reduced fit, which differ from each other.
+  expect_equal(stat(power$aliased), 1.352, tolerance = 1e-3)
+  expect_equal(stat(power$aliased_reordered), stat(power$aliased), tolerance = 1e-10)
+  expect_identical(unname(power$aliased$parameter), c(6L, 150L))
+  expect_equal(stat(power$reduced), 2.015, tolerance = 1e-3)
+  expect_equal(stat(power$reduced_other), 1.343, tolerance = 1e-3)
+  expect_identical(unname(power$reduced$parameter), c(3L, 154L))
+  expect_identical(
+    power$aliased$variance_function$regressors, c("log(x1)", "log(x4)", "log(x14)")
+  )
+  # Exponential: all four agree, the value of the model without the alias.
+  for (fit in names(fits)) {
+    expect_equal(stat(exponential[[fit]]), stat(exponential$reduced), tolerance = 1e-10, info = fit)
+    expect_identical(unname(exponential[[fit]]$parameter), c(3L, 154L), info = fit)
+  }
+})
+
 # Zero prior weights -----------------------------------------------------------
 
 zero_weight_fits <- function() {
@@ -499,6 +571,33 @@ test_that("every route refuses a non-least-squares glm, a svyglm and data that d
       expect_error(runTimeSeriesTests(m, lags = 2), message, info = info("runTimeSeriesTests"))
     }
   }
+})
+
+# Anything but an lm or a glm is refused by every test with one message, which
+# names the class and the pooled lm a panel is tested as. Before 0.16.0 a plm
+# fit was refused with four different messages, depending on the test.
+test_that("every test refuses a plm fit with the same message", {
+  skip_if_not_installed("plm")
+  d <- eligibility_data()
+  pm <- plm::plm(y ~ x1 + x2, data = plm::pdata.frame(d, index = c("id", "time")),
+                 model = "pooling")
+  refusal <- function(fn) {
+    paste0(
+      "^Provide an object fitted with stats::lm\\(\\) or stats::glm\\(\\) before running ",
+      fn, "\\(\\) \\(received class: plm/panelmodel\\)\\. .*pooled lm\\(\\), with the units"
+    )
+  }
+  tests <- setdiff(names(contract_recipes), "performBoxMTest")
+  for (fn in tests) {
+    out <- eligibility_run(contract_recipes[[fn]], pm, d)
+    if (is.null(out)) next
+    # A deprecated name calls the test it stands for.
+    called <- switch(fn, performBreuschPaganTest = "performBPTest", fn)
+    expect_match(unclass(out), refusal(called), info = fn)
+  }
+  expect_error(performScatterDiagnostic(pm, d, "x1"), refusal("performScatterDiagnostic"))
+  expect_error(runPanelTests(pm, d, "id", "time"), refusal("runPanelTests"))
+  expect_error(runTimeSeriesTests(pm), refusal("runTimeSeriesTests"))
 })
 
 test_that("the runners that take no fitted model cannot be given one", {
