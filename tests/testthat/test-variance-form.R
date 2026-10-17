@@ -276,9 +276,21 @@ test_that("inputs are validated", {
     performVarianceFormTest(lm(y ~ x + z, data = d, weights = 1 / x^2)),
     "did not come from fitWLS"
   )
+  # A Gaussian glm with the identity link is a least-squares fit, accepted
+  # since 0.16.0 with the value of the lm; with prior weights it is refused as
+  # the weighted lm is, and any other glm is refused.
+  expect_equal(
+    unname(performVarianceFormTest(glm(y ~ x + z, data = d))$statistic),
+    unname(performVarianceFormTest(lm(y ~ x + z, data = d))$statistic),
+    tolerance = 1e-10
+  )
   expect_error(
-    performVarianceFormTest(glm(y ~ x + z, data = d)),
-    "performVarianceFormTest\\(\\) needs a model fitted by stats::lm\\(\\)"
+    performVarianceFormTest(glm(y ~ x + z, data = d, weights = 1 / x^2)),
+    "did not come from fitWLS"
+  )
+  expect_error(
+    performVarianceFormTest(glm(I(y > 10) ~ x + z, data = d, family = binomial)),
+    "performVarianceFormTest\\(\\) needs a model fitted by stats::lm\\(\\): a glm with the binomial"
   )
   expect_error(performVarianceFormTest(lm(y ~ x, data = d[1:20, ])))
 })

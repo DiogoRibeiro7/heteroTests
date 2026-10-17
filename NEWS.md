@@ -89,7 +89,8 @@ and so `runHeteroTests()`, `runDiagnostics()`, the registry, `test_factory`,
 "The model was fitted with zero or non-finite weights";
 `performWhiteTestBootstrap()` gives it instead of "Model residuals must be
 finite", and `performSpatialHeteroTest()` instead of "objects of different
-length". The three tests that refuse every `glm` refuse it as before. `performRESETTest()` accepts a zero weight, on
+length". The three tests that refused every `glm` refuse it with the message
+they give the `lm` (below). `performRESETTest()` accepts a zero weight, on
 an `lm` and on a `glm`, as before: its two fits are weighted least squares,
 in which a zero weight drops the observation from both, and its F statistic
 and degrees of freedom are those of the fit to the observations with positive
@@ -98,6 +99,77 @@ The residuals of a weighted Gaussian `glm` are still its deviance residuals,
 so no value of a `glm` with positive weights changes, and `plotBeforeAfter()`
 now labels them
 "(weighted residuals)", as it labels those of a weighted `lm`.
+
+**`performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
+`performVarianceFormTest()` accept a Gaussian `glm` with the identity link,
+and return the value of the `lm`.** They refused every `glm`, where the other
+tests accept this one. A Gaussian `glm` with the identity link and prior
+weights `w` is fitted by maximum likelihood, which for normal errors is
+weighted least squares: iteratively reweighted least squares has the
+working response `y` and the working weights `w` whatever the current
+estimate, so its first step is the fit of `lm(..., weights = w)` (Nelder and
+Wedderburn, 1972; McCullagh and Nelder, 1989; Green, 1984). Its design,
+residuals and weights are those of the `lm`, and the three statistics and
+their null distributions are functions of those alone; the *Supported models*
+page sets out the argument, test by test. The limit was in the code: the
+White streaming test runs checks that read the R-squared of `summary()`,
+which a `glm` does not report, and the other two read the weights through a
+helper that returns none for a `glm`. They read the prior weights now, and
+the checks the R-squared of the least-squares fit.
+`performWhiteTestStreaming(glm(mpg ~ wt + qsec, data = mtcars), mtcars)`
+stopped with "needs a model fitted by stats::lm()" and returns 11.82 on 5
+degrees of freedom (p = 0.037), the value of the `lm`;
+`performHarrisonMcCabeTest(..., order_by = "wt")` returns 0.5595
+(p = 0.693) and `performVarianceFormTest()` F = 1.765 on 3 and 26 degrees of
+freedom (p = 0.179), as for the `lm`. With prior weights `1 / wt` the first
+two give 14.52 and 0.6362, the values of the weighted `lm`, and the
+variance-form test refuses the weights, as it refuses those of the `lm`: they
+did not come from `fitWLS()`. `runHeteroTests()` on such a `glm`, when it
+takes its streaming path (data above `chunk_threshold_mb`), fell back on the
+simplified White test under the name `white`, tagged as a fallback: 10.52 on
+4 degrees of freedom (p = 0.033) for `glm(y ~ x1 + x2)` in the design of
+`contract_data()` (`tests/testthat/helper-test-recipes.R`). It returns the
+streaming White test now, 11.14 on 5 (p = 0.049), the value of the `lm`.
+The value is that of the `lm` when the two decide the rank of the design
+alike: `glm.fit()` aliases a column with the tolerance `1e-11` by default,
+`lm()` with `1e-7`, so on a nearly collinear column the `glm` gives the
+value of `lm(..., tol = 1e-11)` (the *Supported models* page). A `glm` of
+another family or link is refused,
+now with the message the other tests give, which names the family and the
+link. `tests/testthat/test-model-eligibility.R` compares the `glm` and the
+`lm` in the three tests on 34 calls (unweighted and weighted, with `na.omit`,
+a factor and a rank-deficient design) to `1e-10`; they differ by rounding,
+below `1e-12`. On 936 calls of every test on `lm`, weighted `lm`, `fitWLS()`
+and `MASS::rlm()` fits, every result is `identical()` to before.
+
+**A near-perfect Gaussian `glm` is refused as the same `lm` is.** The checks
+every test runs refuse a fit with an R-squared above 0.999 ("Model appears
+perfectly explained"), read from `summary()`, which reports none for a
+`glm`, so 30 tests gave such a `glm` a value: with
+`cars$y <- 2 + 3 * cars$speed + rnorm(50, sd = 0.05)` (`set.seed(1)`),
+`performKoenkerTest(glm(y ~ speed, data = cars), cars)` returned 0.957
+(p = 0.328). They read the R-squared of the least-squares fit now, which for
+the `glm` is the R-squared `summary.lm()` computes from its fitted values,
+residuals, weights and offset, those of the `lm`, and refuse it.
+`checkModel(enhanced = TRUE)`, which stopped on any `glm` with "missing
+value where TRUE/FALSE needed", warns about such a fit as about the `lm`,
+and skips the check for a `glm` of another family. A Gaussian `glm` with a
+zero prior weight no longer warns "observations with zero weight not used
+for calculating dispersion" before its refusal, which `summary()` of a `glm`
+gave.
+
+**`fitWLS()` refits a Gaussian `glm` as the `lm` it is, and refuses any other
+`glm`.** It refitted any `glm` and kept the class and the call of the `glm`
+without its family, which `summary()` could not read and every test refused.
+Of a Gaussian `glm` it now returns the `lm` it returns for the equivalent
+`lm`, with the prior weights of a weighted `glm` recorded and the call of
+that `lm`, `stats::lm()` without the arguments only `glm()` takes, so that
+`summary()` prints it and `update()` fits an `lm` again;
+`performVarianceFormTest(fitWLS(glm(mpg ~ wt + qsec, data = mtcars)))` gives
+F = 1.765, as for the `lm`. Of a binomial or Poisson `glm` it stops with
+"fitWLS() needs a model fitted by stats::lm()", and of a `survey::svyglm()`
+fit, which it returned with the class of the `svyglm`, with the message the
+tests give for one.
 
 **`performScatterDiagnostic()` refuses a `glm` that is not a least-squares
 fit, and data that lack a variable of the model.** Its absolute residuals vary

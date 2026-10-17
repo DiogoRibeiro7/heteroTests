@@ -897,11 +897,17 @@ after it.
         rank-deficient fit in `p` for its default cutoff, `4 / (n - p)`, and so
         `runDiagnostics()` does; the rank is the number of coefficients. Changes a
         value.
-    - The three tests that refuse every `glm`, `performWhiteTestStreaming()`,
-        `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, refuse a
+    - [x] The three tests that refused every `glm`, `performWhiteTestStreaming()`,
+        `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, refused a
         Gaussian `glm` with the identity link too, which is a least-squares fit
-        the others accept. Accepting it is a decision for the author; it makes
-        refusals values.
+        the others accept. Done in 0.16.0. The author's decision was to accept it
+        if the literature supports it, and it does: the *Supported models* page
+        sets out the argument and the references. They accept it and give the
+        value of the `lm`. The White streaming test's checks read the R-squared
+        of the least-squares fit, and the other two read the prior weights. With
+        it, the checks of every test refuse a near-perfect Gaussian `glm` as the
+        `lm`, and `fitWLS()` refits a Gaussian `glm` as the `lm` it is and
+        refuses any other `glm`. Refusals became values.
     - `generateHeteroRecommendations()` refuses a rank-deficient fit (it checks
         the model with the checks of `validateTestInputs()`), which the tests and
         `runHeteroTests()` accept since 0.16.0. Accepting it makes a refusal a
@@ -953,6 +959,21 @@ after it.
         its case weights are all 1. Keep accepting it, or refuse it. Deferred on
         2026-10-17 to the work on the model context; accepted as before until
         then.
+- [ ] **Found by the review of the Gaussian `glm` work (#136), recorded, not
+    fixed**:
+    - `performHarrisonMcCabeTest()` is not consistent with itself on a fit
+        whose rank was decided with a tolerance below `1e-7`: a Gaussian `glm`,
+        as `glm.fit()` decides it with `min(1e-7, epsilon / 1000)`, `1e-11` by
+        default, or `lm(..., tol = 1e-11)`. On a nearly collinear design, such as
+        `x3 = x1 + 1e-9 * rnorm(n)`, its residuals are those of the fit of rank
+        4, and its null distribution is computed from `qr()` of the design at the
+        default `1e-7` (R/performHarrisonMcCabeTest.R:239), of rank 3. Take the
+        rank, and the columns, from the fit. Changes a p-value.
+    - `bootstrapTestStatistic()` refuses every `glm`, because it refits each
+        replicate by least squares, which would drop a family and a link. A
+        Gaussian `glm` with the identity link is a least-squares fit (the
+        *Supported models* page), so the same justification lets it accept one
+        and bootstrap the `lm`. A refusal becomes a value.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
     release so that 0.14.0 changes no value. Each fix that changes a value is
     announced in bold in `NEWS.md`.

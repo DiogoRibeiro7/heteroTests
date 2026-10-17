@@ -323,7 +323,10 @@ checkModelEnhanced <- function(model, data = NULL) {
   }
 
   if (inherits(model, "lm")) {
-    r_sq <- tryCatch(summary(model)$r.squared, error = function(e) NA_real_)
+    # The R-squared of the least-squares fit, which summary() of a glm does
+    # not report: on a glm this stopped with "missing value where TRUE/FALSE
+    # needed" before 0.16.0.
+    r_sq <- rleast_squares_r_squared(model)
     if (is.finite(r_sq) && r_sq > 0.999) {
       warning(
         "Near-perfect fit detected - heteroscedasticity tests may be unreliable",
@@ -483,7 +486,10 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs,
   }
 
   if (inherits(model, "lm")) {
-    r_sq <- tryCatch(summary(model)$r.squared, error = function(e) NA_real_)
+    # The R-squared of the least-squares fit: for a Gaussian glm with the
+    # identity link, that of the lm, which summary() of a glm does not report.
+    # Before 0.16.0 such a glm escaped this refusal.
+    r_sq <- rleast_squares_r_squared(model)
     if (isTRUE(is.finite(r_sq) && r_sq > 0.999)) {
       message <- sprintf(
         "Model appears perfectly explained (R\u00b2 = %.3f). Heteroscedasticity diagnostics are unreliable for a perfect fit.",
