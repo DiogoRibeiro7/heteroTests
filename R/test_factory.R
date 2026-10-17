@@ -118,9 +118,9 @@ test_factory <- TestFactory$new()
 # The tests the package registers, by name. Each validates the model it is
 # given itself, and accepts a rank-deficient fit, computed on the estimable
 # part of its design, or refuses it with its own message, so run_test() leaves
-# such a fit to them (rfactory_test_validates()). A function a user registers
-# is not one of them, and the checks run_test() makes first still refuse such
-# a fit for it, as before 0.16.0.
+# such a fit to them, and to any function of the package
+# (rfactory_test_validates()). For a function a user writes, the checks
+# run_test() makes first still refuse such a fit, as before 0.16.0.
 .ht_factory_tests <- list(
   white = performWhiteTest,
   breusch_pagan = performBPTest,
@@ -147,9 +147,14 @@ test_factory <- TestFactory$new()
   }
 )
 
-# Is `fun` one of the tests the package registers?
+# Is `fun` a function of the package, such as one of the tests it registers?
+# Those are defined in its namespace. A function a user writes, even one that
+# calls a test of the package, is defined elsewhere. The environment is
+# compared rather than the function itself: an installed package lazy-loads
+# the list above apart from the functions, and covr rewrites the functions
+# of the namespace but not their copies in the list.
 rfactory_test_validates <- function(fun) {
-  any(vapply(.ht_factory_tests, identical, logical(1), fun))
+  is.function(fun) && identical(environment(fun), environment(rfactory_test_validates))
 }
 
 # Register core and validated tests
