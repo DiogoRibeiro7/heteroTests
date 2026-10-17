@@ -2,9 +2,10 @@
 #
 # The API reference, its part of the nav in mkdocs.yml, and the releases and
 # roadmap pages are generated from the Rd files, tools/reference-index.R,
-# NEWS.md and ROADMAP.md by tools/build-docs.R; the build fails if the
-# committed pages are out of date, and `mkdocs build --strict` fails on any
-# broken link.
+# NEWS.md and ROADMAP.md by tools/build-docs.R, with the pages that redirect
+# from the addresses of the pkgdown site, which also follow the vignettes; the
+# build fails if the committed pages are out of date, and
+# `mkdocs build --strict` fails on any broken link.
 #
 # The guide pages in docs/guide/ are rendered from the vignettes by
 # tools/render-guides.R, which this workflow does not run, so the freshness
@@ -27,6 +28,7 @@ on:
       - 'NEWS.md'
       - 'ROADMAP.md'
       - 'tools/**'
+      - 'vignettes/**'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
@@ -36,6 +38,7 @@ on:
       - 'NEWS.md'
       - 'ROADMAP.md'
       - 'tools/**'
+      - 'vignettes/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 

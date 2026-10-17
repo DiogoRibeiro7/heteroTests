@@ -69,11 +69,15 @@ script that wrote it:
 | The API reference, `docs/reference/`, and its part of the nav in `mkdocs.yml` | `tools/build-docs.R` | The help pages in `man/`, grouped by `tools/reference-index.R` |
 | Releases and Roadmap, `docs/releases.md` and `docs/roadmap.md` | `tools/build-docs.R` | `NEWS.md` and `ROADMAP.md` |
 | The user guide, `docs/guide/` | `tools/render-guides.R` | The vignettes, knitted with the package installed from the checkout |
+| Redirects from the addresses of the pkgdown site, such as `docs/reference/performWhiteTest.html` and `docs/news/index.html` | `tools/build-docs.R` | The help files and their aliases, the vignettes, and a list in the script of pkgdown's other pages |
 
-The other pages, this one included, are written by hand.
+The other pages, this one included, are written by hand. A redirect is a
+static HTML page that MkDocs copies as it is: the `mkdocs-redirects` plugin
+takes an old address as a Markdown file, and `--strict` fails on one that ends
+in `.html`.
 
 ```bash
-Rscript tools/build-docs.R      # after changing man/, NEWS.md or ROADMAP.md
+Rscript tools/build-docs.R      # after changing man/, NEWS.md or ROADMAP.md, or adding a vignette
 Rscript tools/render-guides.R   # after changing a vignette
 pip install -r docs/requirements.txt
 mkdocs serve                    # preview at http://127.0.0.1:8000

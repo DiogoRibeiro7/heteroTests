@@ -9,6 +9,8 @@ docs/releases.md        text eol=lf linguist-generated=true
 docs/roadmap.md         text eol=lf linguist-generated=true
 docs/guide/*.md         text eol=lf linguist-generated=true
 docs/guide/figures/*    binary linguist-generated=true
+# The pages that redirect from the addresses of the pkgdown site.
+docs/**/*.html          text eol=lf linguist-generated=true
 
 # tools/build-docs.R rewrites the API reference part of its nav.
 mkdocs.yml              text eol=lf
