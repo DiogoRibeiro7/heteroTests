@@ -810,6 +810,43 @@ test_that("fitWLS() refits a Gaussian glm as the lm it is", {
   )
 })
 
+# lm() decides the rank of the design with the tolerance 1e-7, glm.fit() with
+# min(1e-7, epsilon / 1000), 1e-11 by default. On a column within that margin
+# of a combination of the others the lm aliases it and the glm keeps it, and
+# the glm gets the values of lm(..., tol = 1e-11), not those of the default
+# lm (the Supported models page). Recorded, not changed.
+test_that("a Gaussian glm gives the value of the lm that decides the rank as it does", {
+  d <- contract_data()$d
+  set.seed(5)
+  d$x3 <- d$x1 + 1e-9 * stats::rnorm(nrow(d))
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit_glm <- glm(y ~ x1 + x2 + x3, data = d)
+  fit_lm <- lm(y ~ x1 + x2 + x3, data = d)
+  fit_lm_tol <- lm(y ~ x1 + x2 + x3, data = d, tol = 1e-11)
+  expect_identical(raliased_coefficients(fit_lm), "x3")
+  expect_identical(raliased_coefficients(fit_glm), character())
+  expect_identical(fit_glm$rank, fit_lm_tol$rank)
+  calls <- list(
+    hmc = function(m) performHarrisonMcCabeTest(m, d, order_by = "x1"),
+    koenker = function(m) performKoenkerTest(m, d)
+  )
+  # The design is ill-conditioned by construction, so the rounding of the two
+  # fits is amplified: they agree to about 1e-8 here, not 1e-13.
+  for (name in names(calls)) {
+    a <- calls[[name]](fit_lm_tol)
+    b <- calls[[name]](fit_glm)
+    expect_equal(unname(b$statistic), unname(a$statistic), tolerance = 1e-6, info = name)
+    expect_equal(b$p.value, a$p.value, tolerance = 1e-6, info = name)
+    expect_identical(b$parameter, a$parameter, info = name)
+    expect_false(isTRUE(all.equal(unname(calls[[name]](fit_lm)$statistic), unname(b$statistic),
+                                  tolerance = 1e-6)), info = name)
+  }
+  # Its checks warn about the collinear column (VIF > 10).
+  expect_error(suppressWarnings(performWhiteTestStreaming(fit_glm, d, progress = FALSE)),
+               "rank deficient")
+})
+
 # fitWLS() keeps the call of the model it refits, for summary() and update().
 # Of a Gaussian glm it records the call of the lm: before, it kept the glm()
 # call, so update() fitted a glm again and summary() printed glm(...).

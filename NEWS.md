@@ -124,7 +124,17 @@ degrees of freedom (p = 0.037), the value of the `lm`;
 freedom (p = 0.179), as for the `lm`. With prior weights `1 / wt` the first
 two give 14.52 and 0.6362, the values of the weighted `lm`, and the
 variance-form test refuses the weights, as it refuses those of the `lm`: they
-did not come from `fitWLS()`. A `glm` of another family or link is refused,
+did not come from `fitWLS()`. `runHeteroTests()` on such a `glm`, when it
+takes its streaming path (data above `chunk_threshold_mb`), fell back on the
+simplified White test under the name `white`, tagged as a fallback: 10.52 on
+4 degrees of freedom (p = 0.033) for `glm(y ~ x1 + x2)` in the design of
+`contract_data()` (`tests/testthat/helper-test-recipes.R`). It returns the
+streaming White test now, 11.14 on 5 (p = 0.049), the value of the `lm`.
+The value is that of the `lm` when the two decide the rank of the design
+alike: `glm.fit()` aliases a column with the tolerance `1e-11` by default,
+`lm()` with `1e-7`, so on a nearly collinear column the `glm` gives the
+value of `lm(..., tol = 1e-11)` (the *Supported models* page). A `glm` of
+another family or link is refused,
 now with the message the other tests give, which names the family and the
 link. `tests/testthat/test-model-eligibility.R` compares the `glm` and the
 `lm` in the three tests on 34 calls (unweighted and weighted, with `na.omit`,
@@ -149,13 +159,17 @@ for calculating dispersion" before its refusal, which `summary()` of a `glm`
 gave.
 
 **`fitWLS()` refits a Gaussian `glm` as the `lm` it is, and refuses any other
-`glm`.** It refitted any `glm` and kept the class of the `glm` without its
-family, which `summary()` could not read and every test refused. Of a
-Gaussian `glm` it now returns the `lm` it returns for the equivalent `lm`,
-with the prior weights of a weighted `glm` recorded, so
+`glm`.** It refitted any `glm` and kept the class and the call of the `glm`
+without its family, which `summary()` could not read and every test refused.
+Of a Gaussian `glm` it now returns the `lm` it returns for the equivalent
+`lm`, with the prior weights of a weighted `glm` recorded and the call of
+that `lm`, `stats::lm()` without the arguments only `glm()` takes, so that
+`summary()` prints it and `update()` fits an `lm` again;
 `performVarianceFormTest(fitWLS(glm(mpg ~ wt + qsec, data = mtcars)))` gives
-F = 1.765, as for the `lm`; of a binomial or Poisson `glm` it stops with
-"fitWLS() needs a model fitted by stats::lm()".
+F = 1.765, as for the `lm`. Of a binomial or Poisson `glm` it stops with
+"fitWLS() needs a model fitted by stats::lm()", and of a `survey::svyglm()`
+fit, which it returned with the class of the `svyglm`, with the message the
+tests give for one.
 
 **`performScatterDiagnostic()` refuses a `glm` that is not a least-squares
 fit, and data that lack a variable of the model.** Its absolute residuals vary

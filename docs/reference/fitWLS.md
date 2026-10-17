@@ -123,9 +123,11 @@ their place, and `weights()` of the result returns them.
 
 A `glm` with the Gaussian family and the identity link is a least-squares
 fit, with the design and residuals of the `lm`, and since 0.16.0 the result
-for it is the `lm` returned for that `lm`, prior weights included; before,
-it kept the class of the `glm` without its family, which `summary()` could
-not read and every test refused. Any other `glm` is refused.
+for it is the `lm` returned for that `lm`, prior weights included, with the
+call of that `lm`: `stats::lm()`, without the arguments only `glm()` takes,
+so that `update()` fits an `lm` again. Before, it kept the class and the call
+of the `glm` without its family, which `summary()` could not read and every
+test refused. Any other `glm` is refused.
 
 ## References
 
