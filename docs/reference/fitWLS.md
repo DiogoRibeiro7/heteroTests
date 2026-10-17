@@ -21,7 +21,8 @@ fitWLS(
 ## Arguments
 
 `model`
-:   A fitted model of class `lm`.
+:   A fitted model of class `lm`, or a `glm` with the Gaussian
+    family and the identity link.
 
 `data`
 :   Optional [base::data.frame](https://rdrr.io/r/base/data.frame.html) holding the variables named in
@@ -119,6 +120,12 @@ formula, `offset(o)`. Its coefficients, fitted values and residuals are
 those `lm()` returns for the same call with the estimated weights added.
 On a model fitted with weights, the refit uses the estimated weights in
 their place, and `weights()` of the result returns them.
+
+A `glm` with the Gaussian family and the identity link is a least-squares
+fit, with the design and residuals of the `lm`, and since 0.16.0 the result
+for it is the `lm` returned for that `lm`, prior weights included; before,
+it kept the class of the `glm` without its family, which `summary()` could
+not read and every test refused. Any other `glm` is refused.
 
 ## References
 

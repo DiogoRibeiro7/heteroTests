@@ -40,6 +40,12 @@ Poisson `glm`, a `survey::svyglm()` fit and a fit with a zero weight,
 which the tests refuse, each with its own message. Which test accepts which
 model is set out in [test\_results](test_results.md), under *Supported models*.
 
+The R-squared is that of the least-squares fit: for a `glm` with the
+Gaussian family and the identity link, that of the equivalent `lm`, which
+`summary()` of a `glm` does not report; for any other `glm` it is not
+checked. Before 0.16.0, `enhanced = TRUE` stopped on any `glm` with "missing
+value where TRUE/FALSE needed".
+
 ## References
 
 Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). *Regression Diagnostics:

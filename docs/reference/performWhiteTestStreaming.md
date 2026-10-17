@@ -76,9 +76,14 @@ are leveraged automatically for large chunks.
 
 ## Supported models
 
-It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and, since
-0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
-of the same model fitted without the aliased columns. It refuses every `glm`, a
+It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the identity
+link, unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
+same model fitted without the aliased columns. The Gaussian `glm` with prior weights `w`
+is the least-squares fit `lm(..., weights = w)`, with the same design and residuals, and the
+test gives the value of the `lm`. It refused every `glm` before 0.16.0, because the
+checks it runs read the R-squared of `summary()`, which a `glm` does not report; they read
+that of the least-squares fit now. It refuses a `glm` of another family or link, a
 `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, and `data` that lack rows or variables of the fit. It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which
