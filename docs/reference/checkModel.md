@@ -10,11 +10,6 @@ when the residual degrees of freedom fall below six, when a near-perfect fit
 is detected (R\(^2 > 0.999\)), or, when `data` is given, when a variance
 inflation factor exceeds 10 (Belsley et al., 1980).
 
-It does not check whether a test accepts `model`: it accepts a binomial or a
-Poisson `glm`, a `survey::svyglm()` fit and a fit with a zero weight,
-which the tests refuse, each with its own message. Which test accepts which
-model is set out in [`test_results`](test_results.md), under *Supported models*.
-
 ## Usage
 
 ```r
@@ -37,6 +32,13 @@ checkModel(model, data = NULL, enhanced = FALSE)
 ## Value
 
 Invisible `model` if valid, otherwise an error is thrown.
+
+## Details
+
+It does not check whether a test accepts `model`: it accepts a binomial or a
+Poisson `glm`, a `survey::svyglm()` fit and a fit with a zero weight,
+which the tests refuse, each with its own message. Which test accepts which
+model is set out in [test\_results](test_results.md), under *Supported models*.
 
 ## References
 

@@ -56,10 +56,28 @@ interaction can, fails, as it did when every test refused it. The White
 streaming test stops on the empty cell, because the squares of its dummies
 are collinear, as it stops on the model without the aliased column. A
 coefficient that is infinite, `NaN`, or `NA` without the fit being
-rank-deficient is still refused. `validateTestInputs()`, a function a user
-registers with `test_factory` and `generateHeteroRecommendations()` still
-refuse a rank-deficient fit, now with "cannot use a rank-deficient model: the
-coefficient of z2 is aliased (NA)".
+rank-deficient is still refused. `validateTestInputs()`, a function defined
+outside the package that a user registers with `test_factory`, and
+`generateHeteroRecommendations()` still refuse a rank-deficient fit, now with
+"cannot use a rank-deficient model: the coefficient of z2 is aliased (NA)";
+`test_factory` leaves it to any function of the package.
+
+The model without the aliased columns is the one `lm()` keeps: of an aliased
+set, the column that comes last in the order of the terms is left out. Most
+statistics depend only on the space the columns span; White's test without
+its cross products (`cross_products = FALSE`, `method = "reduced"` of
+`performWhiteTestRobust()`, or more regressors than `max_interactions`) and
+`performHighDimensionalTest()` when it keeps fewer components than columns
+depend on which column is left out, and so on the order of the terms. One
+test does not give the value of the model without the aliased columns:
+`performVarianceFormTest(form = "power")` takes the logarithms of every
+column of the design, the aliased ones included, and the logarithm of an
+aliased column is not a combination of the logarithms of the others. With
+`x14 = x1 + x4`, `lm(y ~ x1 + x4 + x14)` gives 1.352 on 6 and 150 degrees of
+freedom, where `lm(y ~ x1 + x4)` gives 2.015 on 3 and 154 and
+`lm(y ~ x14 + x1)` 1.343, in the design of `test-model-eligibility.R`; the
+value does not depend on the order of the terms. With the exponential form,
+the default, all three give 0.922 on 3 and 154.
 
 **A Gaussian `glm` with a zero prior weight is refused as the same `lm`
 is.** A zero weight removes an observation from the fit, and its residual is
@@ -112,8 +130,21 @@ workflow of `linear_reg()` with `recipe(mpg ~ wt + qsec, data = mtcars)` it
 returned 0.591 under `white` and `koenker`, and returns White's statistic,
 11.82 on 5 degrees of freedom, and Koenker's, 3.086 on 2, those of the `lm`.
 Given the data the workflow was fitted to it now stops, as the engine's fit
-names its response `..y`, which those data do not hold; it returned the same
-fallback.
+names its response `..y`, which those data do not hold, with a message that
+says so and to pass `data = NULL`; it returned the same fallback.
+
+**Calls that go through the tests change with them.** On data that lack rows
+or variables of the fit, `compareTestResults()` and
+`generateHeteroRecommendations()` stop, where they returned a data frame and a
+report built on the Cook-Weisberg fallback. `runAdvancedDiagnostics()` and
+`compareTestResults()` accept a rank-deficient fit and refuse a Gaussian `glm`
+with a zero prior weight, and `rcalculateEffectSize()` and
+`restimate_test_power()` accept a rank-deficient fit. `runDiagnostics()`
+returns for a rank-deficient fit, where it stopped: its variance inflation
+factors are all `Inf`, and the cutoff of its influence measures counts the
+aliased coefficient (recorded in the roadmap). `plotBeforeAfter()`,
+`plotResidualsFitted()` and the other plots of the residuals stop on a
+Gaussian `glm` with a zero prior weight, as on the same `lm`.
 
 Also:
 
@@ -125,6 +156,17 @@ Also:
     says so.
 - `checkModel()` checks the class of a model only, and says so: the tests
     decide which models they accept.
+- A model that is neither an `lm` nor a `glm`, such as a `plm::plm()` fit, is
+    refused by every test, `runPanelTests()` and `runTimeSeriesTests()` with one
+    message, which names the class received, as in `Provide an object fitted
+    with stats::lm() or stats::glm() before running performKoenkerTest()
+    (received class: plm/panelmodel)`, and goes on to say that a panel is tested
+    as its pooled `lm()`, with the units and the periods as columns of `data`. It
+    was refused with four different messages.
+- The *Supported models* page lists the four tests that ignore an offset
+    today (`performRESETTest()`, `performGQTest()`,
+    `performQuantileRegressionTest()` and the studentized Breusch-Pagan
+    statistic), recorded in the roadmap.
 - The valid calls of a corpus of 1,198 on the supported classes (an `lm`,
     weighted or not, a Gaussian `glm`, weighted or not, `MASS::rlm()` and
     `fitWLS()` fits, and seven other specifications, through every test and
