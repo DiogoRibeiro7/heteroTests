@@ -16,8 +16,6 @@ diag_model <- lm(y ~ x1 + x2, data = diagnostic_data)
 
 # Run White's test and get an htest object
 performWhiteTest(model, quakes)
-# [INFO] Running White test
-# [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 #
 # 	White's test for heteroscedasticity
 #
@@ -25,8 +23,6 @@ performWhiteTest(model, quakes)
 # X-squared = 125.56, df = 5, p-value < 2.2e-16
 # alternative hypothesis: heteroscedasticity present
 performWhiteTest(diag_model, diagnostic_data)
-# [INFO] Running White test
-# [INFO] White test completed: statistic = 1.5791 df = 5 p = 0.9038
 #
 # 	White's test for heteroscedasticity
 #
@@ -45,14 +41,12 @@ Many additional diagnostics follow the same interface and also return an
 # Breusch-Pagan and its robust Koenker version. The data argument must be
 # the data the model was fitted on.
 performBPTest(model, quakes)
-# [INFO] Running Breusch-Pagan test
 #
 # 	Breusch-Pagan test for heteroscedasticity
 #
 # data:  stations ~ mag + depth
 # X-squared = 191.93, df = 2, p-value < 2.2e-16
 performKoenkerTest(model, quakes)
-# [INFO] Running Koenker test
 #
 # 	Koenker studentized Breusch-Pagan test
 #
@@ -72,7 +66,6 @@ performLeveneTest(model, quakes_grouped, "depth_band")
 
 # ARCH effects in time series
 performArchLMTest(model, lags = 2)
-# [INFO] Running ARCH LM test
 #
 # 	Engle's ARCH LM test
 #
@@ -86,9 +79,6 @@ Several diagnostics can also be run together.
 ``` r
 # Alternatively run multiple tests at once
 runHeteroTests(model, quakes)
-# [INFO] Running White test
-# [INFO] White test completed: statistic = 125.558 df = 5 p = 0
-# [INFO] Running Koenker test
 # $white
 #
 # 	White's test for heteroscedasticity
@@ -123,8 +113,6 @@ runHeteroTests(model, quakes)
 # [1] "data.frame"
 # Choose a subset of diagnostics
 runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
-# [INFO] Running Cook-Weisberg test
-# [INFO] Running NCV score test
 # $white
 #
 # 	White's test for heteroscedasticity
@@ -571,10 +559,6 @@ fitRobust(model)
 # Degrees of freedom: 1000 total; 997 residual
 # Scale estimate: 9.68
 autoTransform(model)
-# [INFO] Running Breusch-Pagan test
-# [INFO] Running Breusch-Pagan test
-# [INFO] Running Breusch-Pagan test
-# [INFO] Running Breusch-Pagan test
 # $model
 #
 # Call:
@@ -1001,8 +985,6 @@ the residual spread.
 data(Theoph, package = "datasets")
 dose_model <- lm(conc ~ Time, data = Theoph)
 performWhiteTest(dose_model, Theoph)
-# [INFO] Running White test
-# [INFO] White test completed: statistic = 40.4104 df = 2 p = 0
 #
 # 	White's test for heteroscedasticity
 #
@@ -1436,9 +1418,6 @@ wls_model <- fitWLS(hd$model)
 
 # Re-test after remedy
 runDiagnostics(wls_model, quakes)
-# [INFO] Running White test
-# [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
-# [INFO] Running Koenker test
 # $white
 #
 # 	White's test for heteroscedasticity
@@ -1845,7 +1824,6 @@ model <- lm(mpg ~ wt + hp, data = mtcars)
 
 # Our implementation
 our_result <- performBPTest(model, mtcars)
-# [INFO] Running Breusch-Pagan test
 
 # Reference implementation
 ref_result <- bptest(model)

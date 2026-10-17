@@ -20,7 +20,7 @@ head(quakes)
 ## 6 -19.68 184.31   195 4.0       12
 ```
 
-## 1. Fit an initial model
+## 1. Fit an initial model {#fit-an-initial-model}
 
 
 ``` r
@@ -50,7 +50,7 @@ summary(base_model)
 ## F-statistic:  1422 on 2 and 997 DF,  p-value: < 2.2e-16
 ```
 
-## 2. Diagnose heteroscedasticity
+## 2. Diagnose heteroscedasticity {#diagnose-heteroscedasticity}
 
 
 ``` r
@@ -485,7 +485,7 @@ plot(hd)
 
 ![plot of chunk unnamed-chunk-3](figures/tutorial-unnamed-chunk-3-5.png)
 
-## 3. Apply a remedy
+## 3. Apply a remedy {#apply-a-remedy}
 
 
 ``` r
@@ -515,35 +515,11 @@ summary(wls_model)
 ## F-statistic: 931.6 on 2 and 997 DF,  p-value: < 2.2e-16
 ```
 
-## 4. Compare models
+## 4. Compare models {#compare-models}
 
 
 ``` r
 compareModelDiagnostics(list(base_model, wls_model))
-```
-
-```
-## [INFO] Running White test
-```
-
-```
-## [INFO] White test completed: statistic = 125.558 df = 5 p = 0
-```
-
-```
-## [INFO] Running Koenker test
-```
-
-```
-## [INFO] Running White test
-```
-
-```
-## [INFO] White test completed: statistic = 42.1531 df = 5 p = 0
-```
-
-```
-## [INFO] Running Koenker test
 ```
 
 ```
@@ -557,7 +533,7 @@ On a weighted fit the tests are computed from the standardized residuals, the
 raw residuals multiplied by the square root of their weights, so a drop in the
 statistics means that the weighting worked.
 
-## 5. Check the variance function
+## 5. Check the variance function {#check-the-variance-function}
 
 `fitWLS()` assumed that the log of the error variance is linear in the
 regressors. `performVarianceFormTest()` tests that shape against the squares
@@ -566,10 +542,6 @@ and products of the same regressors.
 
 ``` r
 performVarianceFormTest(wls_model)
-```
-
-```
-## [INFO] Running variance-function specification test (exponential form)
 ```
 
 ```

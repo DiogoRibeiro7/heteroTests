@@ -44,12 +44,8 @@ literature on this dataset.
 
 ``` r
 white_q <- performWhiteTest(quakes_model, quakes)
-#> [INFO] Running White test
-#> [INFO] White test completed: statistic = 125.558 df = 5 p = 0
 bp_q <- performBPTest(quakes_model, quakes)
-#> [INFO] Running Breusch-Pagan test
 koenker_q <- performKoenkerTest(quakes_model, quakes)
-#> [INFO] Running Koenker test
 list(White = white_q, Breusch_Pagan = bp_q, Koenker = koenker_q)
 #> $White
 #>
@@ -170,9 +166,6 @@ summary(survey_model)
 ``` r
 survey_diag <- HeteroDiagnostic(survey_model, hetero_data)
 runDiagnostics(survey_diag$model, survey_diag$data, tests = c("white", "breusch_pagan"))
-#> [INFO] Running White test
-#> [INFO] White test completed: statistic = 11.7509 df = 2 p = 0.0028
-#> [INFO] Running Breusch-Pagan test
 #> $white
 #>
 #> 	White's test for heteroscedasticity
@@ -246,7 +239,6 @@ runDiagnostics(survey_diag$model, survey_diag$data, tests = c("white", "breusch_
 #> $influence$cutoff
 #> [1] 0.04081633
 performGlejserTest(survey_model, hetero_data, "x")
-#> [INFO] Running Glejser test
 #>
 #> 	Glejser test for heteroscedasticity (robust to asymmetric errors)
 #>
@@ -284,8 +276,6 @@ engineering_model <- lm(y ~ x1 + x1_sq + x2, data = diagnostic_ext)
 engineer_results <- runDiagnostics(engineering_model, diagnostic_ext,
   tests = c("breusch_pagan", "koenker")
 )
-#> [INFO] Running Breusch-Pagan test
-#> [INFO] Running Koenker test
 safe_htest <- function(fn, method) {
   tryCatch(
     fn(),
@@ -308,24 +298,18 @@ white_engineering <- safe_htest(
   function() performWhiteTest(engineering_model, diagnostic_ext, cross_products = FALSE),
   "White test"
 )
-#> [INFO] Running White test
-#> [INFO] White test: dropped 1 collinear auxiliary term(s); using df = 5.
-#> [INFO] White test completed: statistic = 6.4178 df = 5 p = 0.2677
 bp_engineering <- safe_htest(
   function() performBPTest(engineering_model, diagnostic_ext),
   "Breusch-Pagan test"
 )
-#> [INFO] Running Breusch-Pagan test
 koenker_engineering <- safe_htest(
   function() performKoenkerTest(engineering_model, diagnostic_ext),
   "Koenker test"
 )
-#> [INFO] Running Koenker test
 harvey_engineering <- safe_htest(
   function() performHarveyTest(engineering_model),
   "Harvey test"
 )
-#> [INFO] Running Harvey test
 engineer_tests <- list(
   white = white_engineering,
   breusch_pagan = bp_engineering,

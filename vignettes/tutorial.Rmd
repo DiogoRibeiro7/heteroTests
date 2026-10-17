@@ -9,6 +9,8 @@ vignette: >
 
 ```{r setup, include=FALSE}
 library(heteroTests)
+# The tests log each run at the INFO level; this guide shows their results.
+heteroTests::ht_set_log_level("WARN")
 ```
 
 This vignette demonstrates the main workflow in greater depth. We use R's
@@ -18,14 +20,14 @@ built-in `quakes` dataset.
 head(quakes)
 ```
 
-## 1. Fit an initial model
+## 1. Fit an initial model {#fit-an-initial-model}
 
 ```{r}
 base_model <- lm(stations ~ mag + depth, data = quakes)
 summary(base_model)
 ```
 
-## 2. Diagnose heteroscedasticity
+## 2. Diagnose heteroscedasticity {#diagnose-heteroscedasticity}
 
 ```{r}
 hd <- HeteroDiagnostic(base_model, quakes)
@@ -33,14 +35,14 @@ runDiagnostics(hd$model, hd$data)
 plot(hd)
 ```
 
-## 3. Apply a remedy
+## 3. Apply a remedy {#apply-a-remedy}
 
 ```{r}
 wls_model <- fitWLS(base_model)
 summary(wls_model)
 ```
 
-## 4. Compare models
+## 4. Compare models {#compare-models}
 
 ```{r}
 compareModelDiagnostics(list(base_model, wls_model))
@@ -51,7 +53,7 @@ On a weighted fit the tests are computed from the standardized residuals, the
 raw residuals multiplied by the square root of their weights, so a drop in the
 statistics means that the weighting worked.
 
-## 5. Check the variance function
+## 5. Check the variance function {#check-the-variance-function}
 
 `fitWLS()` assumed that the log of the error variance is linear in the
 regressors. `performVarianceFormTest()` tests that shape against the squares
