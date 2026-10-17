@@ -30,6 +30,12 @@ It does not check whether a test accepts \code{model}: it accepts a binomial or 
 Poisson \code{glm}, a \code{survey::svyglm()} fit and a fit with a zero weight,
 which the tests refuse, each with its own message. Which test accepts which
 model is set out in \link{test_results}, under \emph{Supported models}.
+
+The R-squared is that of the least-squares fit: for a \code{glm} with the
+Gaussian family and the identity link, that of the equivalent \code{lm}, which
+\code{summary()} of a \code{glm} does not report; for any other \code{glm} it is not
+checked. Before 0.16.0, \code{enhanced = TRUE} stopped on any \code{glm} with "missing
+value where TRUE/FALSE needed".
 }
 \references{
 Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). \emph{Regression Diagnostics:

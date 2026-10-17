@@ -13,6 +13,12 @@
 #' which the tests refuse, each with its own message. Which test accepts which
 #' model is set out in [test_results], under *Supported models*.
 #'
+#' The R-squared is that of the least-squares fit: for a `glm` with the
+#' Gaussian family and the identity link, that of the equivalent `lm`, which
+#' `summary()` of a `glm` does not report; for any other `glm` it is not
+#' checked. Before 0.16.0, `enhanced = TRUE` stopped on any `glm` with "missing
+#' value where TRUE/FALSE needed".
+#'
 #' @param model An object to check.
 #' @param data Optional `data.frame` used when fitting `model`. With
 #'   `enhanced = TRUE` it enables the multicollinearity check through
@@ -417,6 +423,50 @@ rleast_squares_weights <- function(model) {
   }
   # lm() keeps its weights without names, as.vector(model.weights(mf)).
   as.vector(w)
+}
+
+#' R-squared of a least-squares fit, lm or Gaussian glm
+#'
+#' The checks of the model refuse a fit whose R-squared exceeds 0.999
+#' ([rvalidateModelInputs()]), and `checkModel(enhanced = TRUE)` warns about
+#' one. They read it from `summary()`, which reports none for a `glm`: before
+#' 0.16.0 a Gaussian `glm` with the identity link escaped the refusal that the
+#' same `lm` met, and `checkModel(enhanced = TRUE)` stopped on any `glm` with
+#' "missing value where TRUE/FALSE needed".
+#'
+#' For such a `glm` the R-squared of the equivalent `lm(..., weights = w)` is
+#' one minus the ratio of its deviance to its null deviance. The deviance is
+#' the weighted residual sum of squares \eqn{\sum_i w_i e_i^2}. The null
+#' deviance is that of the model with the constant and the offset alone, or the
+#' offset alone without a constant, so it is the total sum of squares
+#' `summary.lm()` decomposes: \eqn{\sum_i w_i (y_i - o_i - \bar m)^2}, with
+#' \eqn{\bar m} the weighted mean of \eqn{y_i - o_i}, or
+#' \eqn{\sum_i w_i (y_i - o_i)^2} without a constant. The residuals are
+#' orthogonal to the fitted values and, with a constant, sum to zero, so it is
+#' the explained plus the residual sum of squares, and the ratio is the
+#' R-squared of `summary.lm()`, up to rounding.
+#'
+#' @param model A fitted model.
+#' @return Numeric scalar, or `NA` for a model that is not a least-squares fit
+#'   or whose R-squared cannot be read.
+#' @keywords internal
+#' @noRd
+rleast_squares_r_squared <- function(model) {
+  if (!inherits(model, "glm")) {
+    r_sq <- tryCatch(summary(model)$r.squared, error = function(e) NULL)
+    return(if (is.numeric(r_sq) && length(r_sq) == 1L) r_sq else NA_real_)
+  }
+  fam <- tryCatch(stats::family(model), error = function(e) NULL)
+  least_squares <- !inherits(model, "svyglm") && !is.null(fam) &&
+    identical(fam$family, "gaussian") && identical(fam$link, "identity")
+  if (!least_squares) {
+    return(NA_real_)
+  }
+  ratio <- model$deviance / model$null.deviance
+  if (!is.numeric(ratio) || length(ratio) != 1L || !is.finite(ratio)) {
+    return(NA_real_)
+  }
+  1 - ratio
 }
 
 #' Residuals on the scale a variance test should see
