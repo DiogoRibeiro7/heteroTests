@@ -7,8 +7,9 @@
 #' function of them describes it. Here the variance function is the null
 #' hypothesis, and rejecting it means that the chosen shape is inadequate.
 #'
-#' @param model A fitted [stats::lm] object for the mean equation, or the result
-#'   of [fitWLS()]. In the second case the variance function that was fitted is
+#' @param model A fitted [stats::lm] object for the mean equation, or a
+#'   [stats::glm] with the Gaussian family and the identity link, or the result
+#'   of [fitWLS()]. In the last case the variance function that was fitted is
 #'   the one tested, and `var_formula` and `form` must be left at their
 #'   defaults.
 #' @param data Optional [base::data.frame] holding the variables named in
@@ -123,16 +124,22 @@
 #' variance functions.
 #'
 #' @section Supported models:
-#' It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, a
-#' rank-deficient fit. With the exponential form, the default, the variance
+#' It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, an
+#' unweighted `glm` with the Gaussian family and the identity link and a
+#' rank-deficient fit. The Gaussian `glm` is the least-squares fit `lm()`, with
+#' the same design and residuals, from which the variance function is estimated
+#' and the model refitted, so the test gives the value of the `lm`, and
+#' [fitWLS()] refits it as that `lm`; it refused every `glm` before 0.16.0.
+#' With the exponential form, the default, the variance
 #' regressors of a rank-deficient fit span the same space with or without its
 #' aliased columns, and the test gives the value of the same model fitted without
 #' them. With the power form they are the logarithms of every column of the
 #' design, the aliased ones included, and the logarithm of an aliased column is not
 #' a combination of the logarithms of the others, so the value is not that of the
 #' model without them; it does not depend on the order of the terms, as the value
-#' of the model without them does. It refuses every `glm`, weights that did not
-#' come from `fitWLS()`, a `survey::svyglm()` fit, a
+#' of the model without them does. It refuses weights that did not come from
+#' `fitWLS()`, the prior weights of a Gaussian `glm` among them, a `glm` of
+#' another family or link, a `survey::svyglm()` fit, a
 #' coefficient that is not finite for another reason, and `data` that lack rows or
 #' variables of the fit. Which model each test accepts, and why, is set out in
 #' [test_results], under *Supported models*.
@@ -166,7 +173,9 @@
 performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
                                     form = c("exponential", "power"),
                                     against = "squares") {
-  rrefuse_glm(model, "performVarianceFormTest")
+  # A Gaussian glm with the identity link is a least-squares fit, accepted
+  # since 0.16.0 (see the section on supported models); any other glm is not.
+  rrefuse_non_gaussian_glm(model, "performVarianceFormTest")
   # Data that lack rows of the fit or a variable of the model are refused, as
   # by the tests that read `data`. Before 0.15.0 they returned a value.
   rcheck_data_argument(data, "performVarianceFormTest", model, "Variance form test")
@@ -260,7 +269,9 @@ rresolve_variance_fit <- function(model, data, var_formula, form = NULL) {
     }
     weighted <- model
   } else {
-    if (!is.null(rprior_weights(model))) {
+    # The prior weights of an lm or of a Gaussian glm: weights given to
+    # glm() by hand have no variance function to re-estimate either.
+    if (!is.null(rleast_squares_weights(model))) {
       stop(
         "`model` was fitted with weights that did not come from fitWLS(), so ",
         "there is no variance function to re-estimate. Pass the unweighted ",

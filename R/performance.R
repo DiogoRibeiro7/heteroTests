@@ -256,12 +256,18 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' and a direct test for heteroscedasticity. *Econometrica, 48*(4), 817–838.
 #'
 #' @section Supported models:
-#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
-#' since 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+#' It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the
+#' identity link, unweighted or with positive weights, a `fitWLS()` fit and, since
+#' 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
 #' design: it gives the value of the same model fitted without the aliased columns.
-#' It refuses every `glm`, a `survey::svyglm()` fit, a fit with a zero weight, a
-#' coefficient that is not finite for another reason, and `data` that lack rows or
-#' variables of the fit. It stops when terms of its auxiliary regression are
+#' The Gaussian `glm` with prior weights `w` is the least-squares fit
+#' `lm(..., weights = w)`, with the same design and residuals, and the test gives
+#' the value of the `lm`. It refused every `glm` before 0.16.0, because the checks
+#' it runs read the R-squared of `summary()`, which a `glm` does not report; they
+#' read that of the least-squares fit now. It refuses a `glm` of another family or
+#' link, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is
+#' not finite for another reason, and `data` that lack rows or variables of the
+#' fit. It stops when terms of its auxiliary regression are
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
 #' drops. Which model each test accepts, and why, is set out in [test_results],
 #' under *Supported models*.
@@ -277,13 +283,13 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                       cross_products = TRUE, max_interactions = 10,
                                       progress = interactive()) {
-  rrefuse_model_class(model, "performWhiteTestStreaming")
+  # A Gaussian glm with the identity link is a least-squares fit, accepted
+  # since 0.16.0 (see the section on supported models); any other glm is not.
+  # It refused every glm before, because checkModel(enhanced = TRUE) read the
+  # R-squared of summary(), which a glm does not report; it reads that of the
+  # least-squares fit now (rleast_squares_r_squared()).
+  rrefuse_non_gaussian_glm(model, "performWhiteTestStreaming")
   data <- rdata_or_model_frame(model, data)
-  # checkModel(enhanced = TRUE) reads the R-squared of summary(), which a glm
-  # does not have, and stopped with "missing value where TRUE/FALSE needed".
-  if (inherits(model, "glm")) {
-    rrefuse_glm(model, "performWhiteTestStreaming")
-  }
   checkModel(model, data, enhanced = TRUE)
 
   model_terms <- stats::terms(model)

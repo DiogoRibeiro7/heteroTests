@@ -5,7 +5,8 @@
 #' is too small, or too large, for errors of constant variance. The p-value is
 #' exact under normal errors, given the regressors.
 #'
-#' @param model A fitted [stats::lm] object, with or without weights.
+#' @param model A fitted [stats::lm] object, with or without weights, or a
+#'   [stats::glm] with the Gaussian family and the identity link.
 #' @param data A [base::data.frame] containing the variables used to fit
 #'   `model` and the ordering variable named by `order_by`.
 #'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
@@ -87,7 +88,7 @@
 #' \eqn{\sqrt{w_i}\, \hat{e}_i}{sqrt(w) * e}, and the null distribution from
 #' the weighted design \eqn{\sqrt{w_i}\, x_i}{sqrt(w) * x}. Both are those of
 #' the equivalent unweighted regression, so the test asks whether the weights
-#' are adequate.
+#' are adequate. The weights of a Gaussian `glm` are its prior weights.
 #'
 #' @section Heavy tails:
 #' The null distribution assumes normal errors. In the designs of
@@ -123,13 +124,18 @@
 #' \doi{10.1093/biomet/48.3-4.419}
 #'
 #' @section Supported models:
-#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
-#' since 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+#' It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the
+#' identity link, unweighted or with positive weights, a `fitWLS()` fit and, since
+#' 0.16.0, a rank-deficient fit, which it tests on the estimable part of its
 #' design: it gives the value of the same model fitted without the aliased columns.
-#' It refuses every `glm`, as its null distribution is that of least-squares
-#' residuals, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient
-#' that is not finite for another reason, and `data` that lack rows or variables of
-#' the fit. Which model each test accepts, and why, is set out in [test_results],
+#' The Gaussian `glm` with prior weights `w` is the least-squares fit
+#' `lm(..., weights = w)`: it has the same design, residuals and weights, and it
+#' states the normal errors of constant variance, given the weights, under which
+#' the null distribution above is exact, so the test gives the value of the `lm`.
+#' It refused every `glm` before 0.16.0. It refuses a `glm` of another family or
+#' link, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is
+#' not finite for another reason, and `data` that lack rows or variables of the
+#' fit. Which model each test accepts, and why, is set out in [test_results],
 #' under *Supported models*.
 #'
 #' @examples
@@ -156,7 +162,9 @@
 #' @export
 performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
                                       alternative = c("less", "two.sided", "greater")) {
-  rrefuse_model_class(model, "performHarrisonMcCabeTest")
+  # A Gaussian glm with the identity link is a least-squares fit, accepted
+  # since 0.16.0 (see the section on supported models); any other glm is not.
+  rrefuse_non_gaussian_glm(model, "performHarrisonMcCabeTest")
   data <- rdata_or_model_frame(model, data)
   test_label <- "Harrison-McCabe test"
 
@@ -178,10 +186,6 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   }
 
   rvalidateModelInputs(model, test_name = "Harrison-McCabe", allow_aliased = TRUE)
-  rrefuse_glm(
-    model, "performHarrisonMcCabeTest",
-    "its null distribution is that of least-squares residuals."
-  )
 
   required_vars <- unique(c(all.vars(stats::terms(model)), order_by))
   prepared <- prepare_model_data_for_test(
@@ -209,7 +213,10 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   # Without the columns a rank-deficient fit aliased: its residual-maker is
   # that of the remaining columns, which span the same space.
   design <- rnon_aliased_columns(stats::model.matrix(model), model)
-  weights <- rprior_weights(model)
+  # The prior weights of an lm or of a Gaussian glm. rprior_weights(), read
+  # here before 0.16.0, returns none for a glm, which would have put the
+  # unweighted design under the Pearson residuals of a weighted glm.
+  weights <- rleast_squares_weights(model)
   if (!is.null(weights)) {
     design <- sqrt(weights) * design
   }

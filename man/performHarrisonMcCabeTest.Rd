@@ -13,7 +13,8 @@ performHarrisonMcCabeTest(
 )
 }
 \arguments{
-\item{model}{A fitted \link[stats:lm]{stats::lm} object, with or without weights.}
+\item{model}{A fitted \link[stats:lm]{stats::lm} object, with or without weights, or a
+\link[stats:glm]{stats::glm} with the Gaussian family and the identity link.}
 
 \item{data}{A \link[base:data.frame]{base::data.frame} containing the variables used to fit
 \code{model} and the ordering variable named by \code{order_by}.
@@ -109,7 +110,7 @@ On a fit with weights the statistic is computed from the Pearson residuals
 \eqn{\sqrt{w_i}\, \hat{e}_i}{sqrt(w) * e}, and the null distribution from
 the weighted design \eqn{\sqrt{w_i}\, x_i}{sqrt(w) * x}. Both are those of
 the equivalent unweighted regression, so the test asks whether the weights
-are adequate.
+are adequate. The weights of a Gaussian \code{glm} are its prior weights.
 }
 
 \section{Heavy tails}{
@@ -136,13 +137,17 @@ different p-value as well; \code{inst/validation/README.md} says why.
 }
 
 \section{Supported models}{
-It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit and, since
-0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
-of the same model fitted without the aliased columns. It refuses every \code{glm}, as its null
-distribution is that of least-squares residuals, a \code{survey::svyglm()} fit, a fit with a zero
-weight, a coefficient that is not finite for another reason, and \code{data} that lack rows or
-variables of the fit. Which model each test accepts, and why, is set out in
-\code{\link{test_results}}, under \emph{Supported models}.
+It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity
+link, unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
+same model fitted without the aliased columns. The Gaussian \code{glm} with prior weights \code{w}
+is the least-squares fit \code{lm(..., weights = w)}: it has the same design, residuals and
+weights, and it states the normal errors of constant variance, given the weights, under which the
+null distribution above is exact, so the test gives the value of the \code{lm}. It refused every
+\code{glm} before 0.16.0. It refuses a \code{glm} of another family or link, a
+\code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
+reason, and \code{data} that lack rows or variables of the fit. Which model each test accepts, and
+why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 data(mtcars)
