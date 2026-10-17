@@ -42,6 +42,8 @@ One line for each class and each answer in the table.
 | `MASS::rlm()` | as today | An `lm` by class, so 37 tests accept it, as before 0.16.0, and test its M-estimation residuals as if they were least-squares residuals. Whether that is a test of anything is an open decision (below). |
 | | no: weighted, no: not `fitWLS()`, no: refit differs | Its case weights, all 1 unless given, are read as weights; `bootstrapTestStatistic()` refits each replicate by least squares, which does not reproduce an M-estimate. |
 | `fitWLS()` | yes | A weighted `lm` whose weights were estimated. The reference distributions take the weights as known, so they are approximate; `performVarianceFormTest()` accounts for the estimation. |
+| A model with an offset | yes | The residuals of the fit include the offset, and the tests read them (see *Offsets* below). |
+| | **no: offset** | RESET, the quantile regression test and the studentized Breusch-Pagan statistic leave any offset out of a refit, and GQ an offset given as an argument, or any offset on a weighted fit; refused until the 0.16.0 offset fix (decided 2026-10-17). |
 
 Every test also refuses a coefficient that is infinite, `NaN`, or `NA` without
 the fit being rank-deficient, and `data` that lack rows or variables of the
@@ -72,70 +74,83 @@ These depend on which:
 ### Offsets
 
 An offset, given as `offset = o` or written as `offset(o)`, is part of the fit,
-and most tests read the residuals of the fit, which include it. Four ignore it
-today, so that on a model with an offset they do not give the value of the
-same model fitted to the response minus the offset:
+and most tests read the residuals of the fit, which include it: on a model
+with an offset they give the value of the same model fitted to the response
+minus the offset. Four leave it out of a refit, and returned a value that is
+not that of the model. Decided on 2026-10-17, they refuse exactly the offsets
+they leave out, until the offset fix planned for 0.16.0 makes them correct,
+with a message that says the test does not account for the offset yet and
+names the tests that do:
 
-- `performRESETTest()` refits the augmented model without the offset;
-- `performGQTest()` refits each segment without an offset given as an
-  argument, and, on a weighted fit, without any offset;
-- `performQuantileRegressionTest()` fits `quantreg::rq()`, which ignores an
-  offset;
-- the studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
-  of `performBPTestRobust()`, and the registered `"student_bp"`, refits the
-  design without the offset.
+| Test | Refuses | Accepts | Why |
+| --- | --- | --- | --- |
+| `performRESETTest()` | any offset | | It refits the model augmented with powers of the fitted values without the offset, so the two fits are not nested. |
+| `performGQTest()` | an offset given as an argument; on a weighted fit, any offset | an `offset()` term on an unweighted fit | It refits each segment of an unweighted fit from the formula, which evaluates an `offset()` term again but leaves out an argument; on a weighted fit it refits with `lm.wfit()` and no offset. |
+| `performQuantileRegressionTest()` | any offset | | `quantreg::rq()` leaves the offset out. |
+| `performStudentizedBPTest()`, `performBPTestRobust()` with `studentize = TRUE` (its default), the registered `"student_bp"` | any offset | `performBPTestRobust(studentize = FALSE)` | The studentized statistic refits the design without the offset; the classical one reads the residuals of the fit. |
 
-They are recorded in the roadmap; whether to correct them or refuse an offset
-is open. The tests built on the fitted values (the Cook-Weisberg, Spearman,
-spread-level and Davidian-Carroll tests, and Harvey's with
-`auxiliary = "fitted"`) read $X\hat\beta$ plus the offset, as the fit defines
-it.
+An offset that is zero everywhere changes nothing and is accepted. The
+runners report the refusal as they report a refusal of `data`, with no
+fallback on another test under its name, and `runDiagnostics()`, which runs
+RESET, stops on a model with an offset. The tests built on the fitted values
+(the Cook-Weisberg, Spearman, spread-level and Davidian-Carroll tests, and
+Harvey's with `auxiliary = "fitted"`) read $X\hat\beta$ plus the offset, as
+the fit defines it, so their value is not that of the model of `y - o`, by
+design.
+
+### RESET with a zero weight
+
+Decided on 2026-10-17: `performRESETTest()` keeps accepting a zero weight,
+the one exception to the refusal of a zero weight. Its two fits are weighted
+least squares, which leave the observation out, and its F statistic and
+degrees of freedom are those of the fit to the observations with positive
+weight.
 
 ## The table
 
-| Test | lm | lm, weights | lm, a zero weight | Gaussian glm | Gaussian glm, weights | Gaussian glm, a zero weight | binomial glm | Poisson glm | svyglm, Gaussian | svyglm, binomial | plm | rank-deficient lm | rank-deficient lm, weights | rank-deficient Gaussian glm | NA from an empty cell | MASS::rlm | fitWLS() |
-| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `performWhiteTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performWhiteTestStreaming()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | no: any glm | **error, as reduced** | as today | yes |
-| `performWhiteTestRobust()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBPTestStreaming()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBreuschPaganTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBPTestRobust()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performGQTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performKoenkerTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performKoenkerTestStreaming()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performParkTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performStudentizedBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performWhiteTestBootstrap()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performSzroeterTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performHarrisonMcCabeTest()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | as today | yes |
-| `performWildBootstrapTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performQuantileRegressionTest()` | yes | no: weighted | no: weighted | yes | no: weighted | no: weighted | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | no: weighted | **yes** | **yes** | no: weighted | no: weighted |
-| `performRankPermutationTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performHighDimensionalTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performSpatialHeteroTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performSpearmanTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performLeveneTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performGlejserTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBrownForsytheTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performFlignerKilleenTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBartlettTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performHarveyTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performArchLMTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performMcLeodLiTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performHartleyFmaxTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performOBrienTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performCookWeisbergTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performNCVTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performSpreadLevelTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performPesaranTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performBPRandomEffectsTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performDavidianCarrollTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performVarianceFormTest()` | yes | no: not fitWLS() | no: not fitWLS() | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **no: not fitWLS()** | no: any glm | **yes** | no: not fitWLS() | yes |
-| `performRESETTest()` | yes | yes | yes | yes | yes | yes | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes |
-| `performScatterDiagnostic()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | yes | yes | yes | yes | as today | yes |
-| `bootstrapTestStatistic()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | no: refit differs | yes |
+| Test | lm | lm, weights | lm, a zero weight | Gaussian glm | Gaussian glm, weights | Gaussian glm, a zero weight | binomial glm | Poisson glm | svyglm, Gaussian | svyglm, binomial | plm | rank-deficient lm | rank-deficient lm, weights | rank-deficient Gaussian glm | NA from an empty cell | MASS::rlm | fitWLS() | lm, offset = o | lm, + offset(o) | weighted lm, + offset(o) |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `performWhiteTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performWhiteTestStreaming()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | no: any glm | **error, as reduced** | as today | yes | yes | yes | yes |
+| `performWhiteTestRobust()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBPTestStreaming()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBreuschPaganTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBPTestRobust()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | **no: offset** | **no: offset** |
+| `performGQTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | yes | **no: offset** |
+| `performKoenkerTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performKoenkerTestStreaming()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performParkTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performStudentizedBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | **no: offset** | **no: offset** |
+| `performWhiteTestBootstrap()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performSzroeterTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performHarrisonMcCabeTest()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | as today | yes | yes | yes | yes |
+| `performWildBootstrapTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performQuantileRegressionTest()` | yes | no: weighted | no: weighted | yes | no: weighted | no: weighted | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | no: weighted | **yes** | **yes** | no: weighted | no: weighted | **no: offset** | **no: offset** | no: weighted |
+| `performRankPermutationTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performHighDimensionalTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performSpatialHeteroTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performSpearmanTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performLeveneTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performGlejserTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBrownForsytheTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performFlignerKilleenTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBartlettTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performHarveyTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performArchLMTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performMcLeodLiTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performHartleyFmaxTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performOBrienTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performCookWeisbergTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performNCVTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performSpreadLevelTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performPesaranTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performBPRandomEffectsTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performDavidianCarrollTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
+| `performVarianceFormTest()` | yes | no: not fitWLS() | no: not fitWLS() | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **no: not fitWLS()** | no: any glm | **yes** | no: not fitWLS() | yes | yes | yes | no: not fitWLS() |
+| `performRESETTest()` | yes | yes | yes | yes | yes | yes | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | **no: offset** | **no: offset** |
+| `performScatterDiagnostic()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | yes | yes | yes | yes | as today | yes | yes | yes | yes |
+| `bootstrapTestStatistic()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | no: refit differs | yes | yes | yes | yes |
 
 `performBreuschPaganTest()`, `performStudentizedBPTest()` and
 `rbootstrap_test_statistic()` are deprecated names; `bootstrapTestStatistic()`
@@ -186,4 +201,5 @@ diagnostics of the fit, not tests of its variance, and accept any `lm` or
 ## Open decisions
 
 - `MASS::rlm()`: keep accepting it, as above, or refuse it as 0.15.0 refused
-  a `glm` that is not a least-squares fit.
+  a `glm` that is not a least-squares fit. Deferred on 2026-10-17 to the work
+  on the model context; it is accepted as before until then.

@@ -89,7 +89,16 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   \item A zero weight: the observation is not part of the fit, and its residual is an artificial zero that a test would
   count. Refused by every test but \code{\link{performRESETTest}()}, an F test of two nested weighted least-squares
   fits, in which a zero weight drops the observation from both; it gives the value of the fit to the observations with
-  positive weight.
+  positive weight. Keeping that exception was decided on 2026-10-17.
+  \item An offset, given as \code{offset = o} or as an \code{offset()} term: the residuals of the fit include it, and
+  the tests that read them account for it. Four leave it out of a refit, and refuse, since 0.16.0 and until the offset
+  fix planned for it, exactly the offsets they leave out, with a message of class \code{heteroTests_offset_error}
+  that says so: \code{\link{performRESETTest}()}, \code{\link{performQuantileRegressionTest}()} and the studentized
+  Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with
+  \code{studentize = TRUE}, the registered \code{"student_bp"}) refuse any offset, and \code{\link{performGQTest}()} an
+  offset given as an argument, or any offset on a weighted fit; it reads an \code{offset()} term on an unweighted fit.
+  \code{\link{runHeteroTests}()} does not fall back on another test for this refusal. An offset that is zero everywhere
+  is accepted.
   \item A \code{glm} with the Gaussian family and the identity link is a least-squares fit: it gives the result of the
   \code{lm}, weighted or not, but \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()}
   and \code{\link{performVarianceFormTest}()} refuse every \code{glm}. The tests read its prior weights,
@@ -125,7 +134,7 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   \item A \code{MASS::rlm()} fit is an \code{lm} by class, so the tests accept it, as before 0.16.0, and test its
   M-estimation residuals as if they were least-squares ones; its case weights, all 1 unless given, are read as
   precision weights, so \code{\link{performQuantileRegressionTest}()} refuses it as a weighted fit. Whether to keep
-  accepting it or refuse it is an open decision.
+  accepting it or refuse it was deferred on 2026-10-17 to the work on the model context.
 }
 \code{\link{checkModel}()} checks the class of a model only, \code{lm} or \code{glm}; it does not check whether a test
 accepts it.

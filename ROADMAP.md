@@ -867,8 +867,9 @@ after it.
   keeps accepting a zero weight, on an `lm` and a `glm`: its two fits are
   weighted least squares, which drop the observation, and its F statistic and
   degrees of freedom are those of the fit to the positive weights
-  (`test-model-eligibility.R`). **For the author to confirm**, or to refuse
-  it as the other tests do, for consistency.
+  (`test-model-eligibility.R`). Decided on 2026-10-17: RESET keeps
+  accepting a zero weight, the documented exception on the *Supported
+  models* page.
 - [ ] **Found by the model-eligibility work (the *Supported models* page),
   recorded, not fixed**, as they change what a test computes rather than which
   models it accepts:
@@ -929,9 +930,15 @@ after it.
     any. With `o = 0.8 u`, `u` a regressor outside the model, RESET gave a
     negative F where the model of `y - o` gives 4.49 (p = 0.013), GQ 1.63
     against 2.38 and the quantile test 0.90 against 3.26 (found in the review
-    of the model-eligibility work). The *Supported models* page lists them.
-    Correct them, or refuse an offset: **a decision for the author**. Changes
-    values.
+    of the model-eligibility work). Decided on 2026-10-17: until they are
+    corrected, these three and the studentized statistic refuse exactly the
+    offsets they leave out (RESET, the quantile test and the studentized
+    statistic any offset; GQ an offset given as an argument, and any offset
+    on a weighted fit), with class `heteroTests_offset_error`, and the runners
+    do not fall back on another test for it (`rrefuse_offset()`). The offset
+    fix of 0.16.0 makes them account for the offset, as
+    `rweighted_refit()` and the bootstraps do, which turns these refusals back
+    into values; announce it in bold.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -939,7 +946,9 @@ after it.
     least-squares fit instead (9.04 against Koenker's 8.74 on the residuals of
     the M-estimate, in the design of the *Supported models* page); and
     `performQuantileRegressionTest()` refuses it as a weighted fit, because
-    its case weights are all 1. Keep accepting it, or refuse it.
+    its case weights are all 1. Keep accepting it, or refuse it. Deferred on
+    2026-10-17 to the work on the model context; accepted as before until
+    then.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for this
   release so that 0.14.0 changes no value. Each fix that changes a value is
   announced in bold in `NEWS.md`.
@@ -959,7 +968,9 @@ after it.
     `lm(y ~ x + z, offset = o)` in the design of
     `tests/testthat/test-fitwls-reestimation.R` it gives 19.91 where
     `performKoenkerTest()` gives 18.79. Found in the review of #129. Changes a
-    value.
+    value. Since 2026-10-17 (decided that day) it refuses a model with an
+    offset until it is fixed, with the three tests of the item on offsets
+    above; the fix turns the refusal back into a value.
   - [x] `performWildBootstrapTest()` and `performWhiteTestBootstrap()` accepted
     a non-Gaussian `glm` and returned a meaningless result. Done in 0.15.0 with
     the input validation: they refuse it, and read the prior weights of a
@@ -1087,7 +1098,7 @@ after it.
     `performVarianceFormTest()` takes the logarithms of every column, the
     aliased ones included, so its value is not that of the reduced model, and
     does not depend on the order of the terms (kept so, decided in the review).
-    **For the author to confirm.**
+    Decided on 2026-10-17: computed on the estimable part of the design.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

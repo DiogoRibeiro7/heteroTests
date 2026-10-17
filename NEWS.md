@@ -129,6 +129,51 @@ Given the data the workflow was fitted to it now stops, as the engine's fit
 names its response `..y`, which those data do not hold, with a message that
 says so and to pass `data = NULL`; it returned the same fallback.
 
+**Four tests refuse the offsets they ignored.** `performRESETTest()` refits
+its augmented model without the offset; `performGQTest()` refits each segment
+without an offset given as an argument, and, on a weighted fit, without any
+offset; `performQuantileRegressionTest()` fits `quantreg::rq()`, which leaves
+the offset out; and the studentized Breusch-Pagan statistic of
+`performStudentizedBPTest()`, of `performBPTestRobust()` with
+`studentize = TRUE`, its default, and of the registered `"student_bp"` refits
+the design without it. On a model with an offset they returned a value that
+is not that of the model. Decided on 2026-10-17: until the offset fix planned
+for 0.16.0 they refuse such a model, with a message that says the test does
+not account for the offset yet and which tests do. They refuse exactly the
+offsets they leave out: an `offset()` term on an unweighted fit, which the
+refits of GQ evaluate again, is accepted, as is the classical statistic of
+`performBPTestRobust(studentize = FALSE)`, and an offset that is zero
+everywhere. With
+
+```r
+set.seed(33); n <- 160
+d <- data.frame(x1 = runif(n, 1, 3), x2 = rnorm(n), u = rnorm(n))
+d$o <- 0.8 * d$u
+d$y <- 1 + d$x1 + d$o + rnorm(n, sd = d$x1)
+m <- lm(y ~ x1 + x2, data = d, offset = o)
+```
+
+and the same model fitted to the response minus the offset,
+`lm(I(y - o) ~ x1 + x2, data = d)`:
+
+| Call | 0.15.0, on `m` | On the model of `y - o` | Now, on `m` |
+| --- | ---: | ---: | --- |
+| `performRESETTest()` | F = -0.289 (p = 1) | F = 4.487 (p = 0.013) | Error: `performRESETTest() does not account for an offset yet: ...` |
+| `performGQTest(order_by = "x1")` | 1.634 | 2.383 | Error |
+| `performQuantileRegressionTest()` | 0.897 | 3.256 | Error |
+| `performStudentizedBPTest()` | 4.877 | 9.762, Koenker's statistic on `m` | Error |
+
+In the design of `test-fitwls-reestimation.R` the studentized statistic of
+`lm(y ~ x + z, offset = o)` was 19.91, where Koenker's is 18.79. The error has
+class `heteroTests_offset_error`, and `runHeteroTests()` and
+`runDiagnostics()` do not fall back on another test for it:
+`runHeteroTests(m, d, tests = "student_bp")` and `tests =
+"quantile_regression"` stop with it, as do `cachedTest()`, the registry,
+`test_factory` and `runHeteroTestsParallel()`, and with grouped data the test
+is returned as failed. `runDiagnostics()`, which runs RESET, stops on a model
+with an offset; its default battery, White's and Koenker's tests, accounts for
+the offset.
+
 **Calls that go through the tests change with them.** On data that lack rows
 or variables of the fit, `compareTestResults()` and
 `generateHeteroRecommendations()` stop, where they returned a data frame and a
@@ -159,10 +204,9 @@ Also:
   (received class: plm/panelmodel)`, and goes on to say that a panel is tested
   as its pooled `lm()`, with the units and the periods as columns of `data`. It
   was refused with four different messages.
-- The *Supported models* page lists the four tests that ignore an offset
-  today (`performRESETTest()`, `performGQTest()`,
-  `performQuantileRegressionTest()` and the studentized Breusch-Pagan
-  statistic), recorded in the roadmap.
+- The *Supported models* page lists, for each of the four tests above, the
+  offsets it refuses and those it accepts, and records that
+  `performRESETTest()` keeps accepting a zero weight (decided 2026-10-17).
 - The valid calls of a corpus of 1,198 on the supported classes (an `lm`,
   weighted or not, a Gaussian `glm`, weighted or not, `MASS::rlm()` and
   `fitWLS()` fits, and seven other specifications, through every test and
