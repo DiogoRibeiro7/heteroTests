@@ -24,9 +24,9 @@ Each test returns an `htest` object, whose fields `test_results` documents. The 
 | [Memory-efficient White test for large datasets](performWhiteTestStreaming.md) | `performWhiteTestStreaming()` |
 | [Perform Breusch-Pagan test for heteroscedasticity](performBPTest.md) | `performBPTest()`, `performBreuschPaganTest()` |
 | [Robust Breusch–Pagan test with bootstrap and effect sizes](performBPTestRobust.md) | `performBPTestRobust()` |
-| [Streaming Breusch\\–Pagan test for large datasets](performBPTestStreaming.md) | `performBPTestStreaming()` |
+| [Streaming Breusch-Pagan test for large datasets](performBPTestStreaming.md) | `performBPTestStreaming()` |
 | [Perform Koenker studentized Breusch-Pagan test](performKoenkerTest.md) | `performKoenkerTest()` |
-| [Streaming Koenker studentized Breusch\\–Pagan test](performKoenkerTestStreaming.md) | `performKoenkerTestStreaming()` |
+| [Streaming Koenker studentized Breusch-Pagan test](performKoenkerTestStreaming.md) | `performKoenkerTestStreaming()` |
 | [Studentized Breusch–Pagan test (deprecated)](performStudentizedBPTest.md) | `performStudentizedBPTest()` |
 | [Perform Cook-Weisberg test for heteroscedasticity](performCookWeisbergTest.md) | `performCookWeisbergTest()` |
 | [Perform the non-constant variance (NCV) score test (deprecated)](performNCVTest.md) | `performNCVTest()` |
