@@ -893,11 +893,17 @@ after it.
     rank-deficient fit in `p` for its default cutoff, `4 / (n - p)`, and so
     `runDiagnostics()` does; the rank is the number of coefficients. Changes a
     value.
-  - The three tests that refuse every `glm`, `performWhiteTestStreaming()`,
-    `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, refuse a
+  - [x] The three tests that refused every `glm`, `performWhiteTestStreaming()`,
+    `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, refused a
     Gaussian `glm` with the identity link too, which is a least-squares fit
-    the others accept. Accepting it is a decision for the author; it makes
-    refusals values.
+    the others accept. Done in 0.16.0. The author's decision was to accept it
+    if the literature supports it, and it does: the *Supported models* page
+    sets out the argument and the references. They accept it and give the
+    value of the `lm`. The White streaming test's checks read the R-squared
+    of the least-squares fit, and the other two read the prior weights. With
+    it, the checks of every test refuse a near-perfect Gaussian `glm` as the
+    `lm`, and `fitWLS()` refits a Gaussian `glm` as the `lm` it is and
+    refuses any other `glm`. Refusals became values.
   - `generateHeteroRecommendations()` refuses a rank-deficient fit (it checks
     the model with the checks of `validateTestInputs()`), which the tests and
     `runHeteroTests()` accept since 0.16.0. Accepting it makes a refusal a

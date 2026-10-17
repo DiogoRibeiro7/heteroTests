@@ -43,13 +43,15 @@ stats::lm()"); a model with a coefficient that is not finite, infinite, \code{Na
 rank-deficient ("Model coefficients must be finite"); \code{data} that lack rows the model was fitted to; and
 \code{data} that lack a variable of the model ("The following variables are missing from"). Until 0.16.0 the
 \code{NA} of an aliased term was refused too; since then a rank-deficient fit is tested on the estimable part of its
-design (see \emph{Supported models}). The model frame is accepted as \code{data} as it is. A \code{glm} with the Gaussian family and the identity link is accepted and gives the result of the \code{lm} up
-to rounding error, except that \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
-\code{\link{performVarianceFormTest}()} refuse every \code{glm}. With positive prior weights it gives the result of
+design (see \emph{Supported models}). The model frame is accepted as \code{data} as it is. A \code{glm} with the Gaussian family and the identity link is accepted by every test and gives the result of the \code{lm} up
+to rounding error; \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
+\code{\link{performVarianceFormTest}()} refused every \code{glm} until 0.16.0. With positive prior weights it gives the result of
 \code{lm(..., weights = w)}: \code{\link{performGQTest}()}, \code{\link{performRESETTest}()},
-\code{\link{performWhiteTestBootstrap}()} and \code{\link{performWildBootstrapTest}()}, which read the weights of an
+\code{\link{performWhiteTestBootstrap}()}, \code{\link{performWildBootstrapTest}()} and
+\code{\link{performHarrisonMcCabeTest}()}, which read the weights of an
 \code{lm}, read the prior weights of the \code{glm}, and \code{\link{performQuantileRegressionTest}()}, which refuses
-a weighted \code{lm}, refuses it with the same message. With a zero prior weight it is refused as the \code{lm} with a
+a weighted \code{lm}, and \code{\link{performVarianceFormTest}()}, which refuses weights that did not come from
+\code{\link{fitWLS}()}, refuse it with the same message. With a zero prior weight it is refused as the \code{lm} with a
 zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A \code{survey::svyglm()} fit is
 refused by every test ("The model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R}
 gives every test these inputs.
@@ -99,9 +101,22 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   offset given as an argument, or any offset on a weighted fit; it reads an \code{offset()} term on an unweighted fit.
   \code{\link{runHeteroTests}()} does not fall back on another test for this refusal. An offset that is zero everywhere
   is accepted.
-  \item A \code{glm} with the Gaussian family and the identity link is a least-squares fit: it gives the result of the
-  \code{lm}, weighted or not, but \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()}
-  and \code{\link{performVarianceFormTest}()} refuse every \code{glm}. The tests read its prior weights,
+  \item A \code{glm} with the Gaussian family and the identity link is a least-squares fit. With prior weights
+  \eqn{w_i}{w_i} it is fitted by maximum likelihood, which for normal errors of variance \eqn{\phi / w_i}{phi / w_i}
+  maximises \eqn{-\sum_i w_i (y_i - x_i^\top \beta)^2 / (2\phi)}{-sum(w_i (y_i - x_i'beta)^2) / (2 phi)}: weighted least
+  squares. Iteratively reweighted least squares, the algorithm of \code{glm()}, then has the working response \eqn{y_i}
+  and the working weights \eqn{w_i} whatever the current estimate, so its first step reaches the solution of
+  \code{lm(..., weights = w)} (Nelder and Wedderburn, 1972; McCullagh and Nelder, 1989, sections 2.5 and 3.6; Green,
+  1984, section 1.2, for a log-likelihood quadratic in \eqn{\beta}{beta}). Its design, coefficients, fitted values,
+  residuals and weights are those of the \code{lm}, up to rounding, so a test whose statistic and null distribution
+  are functions of those, under the assumptions of the linear model, which the \code{glm} states, gives the result of
+  the \code{lm}: every test does, weighted or not (\file{tests/testthat/test-input-validation.R} and
+  \file{test-model-eligibility.R} compare them). \code{\link{performWhiteTestStreaming}()},
+  \code{\link{performHarrisonMcCabeTest}()} and \code{\link{performVarianceFormTest}()} refused every \code{glm} until
+  0.16.0, and \code{\link{fitWLS}()} refits it as that \code{lm} since then. The checks of the model read its R-squared,
+  which \code{summary()} of a \code{glm} does not report, as that of the \code{lm}, one minus the ratio of its deviance
+  to its null deviance, so that a near-perfect fit is refused as the \code{lm} is, since 0.16.0. The \emph{Supported
+  models} page of the documentation site sets out the argument and the references. The tests read its prior weights,
   \code{model$prior.weights}, and never \code{model$weights}, which holds the working weights of the last iteration of
   iteratively reweighted least squares, \eqn{w_i (d\mu_i/d\eta_i)^2 / V(\mu_i)}{w_i (dmu_i/deta_i)^2 / V(mu_i)}. For
   this family and link the two are equal; for any other they depend on the fitted means.
