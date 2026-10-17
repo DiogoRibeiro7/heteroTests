@@ -62,6 +62,12 @@ testthat::test_that("tidymodels workflows are supported", {
     unname(res$white$statistic),
     unname(performWhiteTest(engine, stats::model.frame(engine))$statistic)
   )
+  # The data the workflow was fitted to lack the response the engine's fit
+  # names `..y`, and are refused with a message that says what to pass.
+  testthat::expect_error(
+    runHeteroTests(wf, mtcars, tests = "white"),
+    "and `data` lacks ..y. Pass `data = NULL`", fixed = TRUE
+  )
 })
 
 testthat::test_that("survey designs route through helper", {
