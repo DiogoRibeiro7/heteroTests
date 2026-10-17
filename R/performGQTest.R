@@ -64,6 +64,24 @@
 performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
                           alternative = c("greater", "two.sided", "less")) {
   rrefuse_non_gaussian_glm(model, "performGQTest")
+  # The segments are refitted from the formula, which evaluates an offset()
+  # term again but leaves out an offset given as an argument, or, on a
+  # weighted fit, with lm.wfit() and no offset at all: such offsets are
+  # refused until 0.16.0 accounts for them (decided 2026-10-17).
+  if (is.null(rleast_squares_weights(model))) {
+    rrefuse_offset(
+      model, "performGQTest", "argument",
+      how = paste(
+        "it refits each segment from the formula, which leaves out an offset given",
+        "as an argument (one written in the formula, offset(o), is read)"
+      )
+    )
+  } else {
+    rrefuse_offset(
+      model, "performGQTest",
+      how = "on a weighted fit it refits each segment without the offset"
+    )
+  }
   data <- rdata_or_model_frame(model, data)
   test_label <- "Goldfeld-Quandt test"
   alternative <- match.arg(alternative)

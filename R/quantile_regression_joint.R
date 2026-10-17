@@ -51,8 +51,10 @@
 #' them. It refuses a weighted fit, a `fitWLS()` fit among them, as it refits the
 #' model without the weights, a `glm` of another family or link, a
 #' `survey::svyglm()` fit, a coefficient that is not finite for another reason, and
-#' `data` that lack rows or variables of the fit. Which model each test accepts,
-#' and why, is set out in [test_results], under *Supported models*.
+#' `data` that lack rows or variables of the fit. It refuses a model with an
+#' offset, which `quantreg::rq()` leaves out, until the offset fix planned for
+#' 0.16.0 (decided 2026-10-17). Which model each test accepts, and why, is set out
+#' in [test_results], under *Supported models*.
 #'
 #' @examples
 #' if (requireNamespace("quantreg", quietly = TRUE)) {
@@ -72,6 +74,12 @@ performQuantileRegressionTest <- function(model, data = NULL,
     stop("Package 'quantreg' is required for the quantile regression test.", call. = FALSE)
   }
   rrefuse_weighted_fit(model, "performQuantileRegressionTest()")
+  # quantreg::rq() leaves the offset out: refused until 0.16.0 accounts for it
+  # (decided 2026-10-17).
+  rrefuse_offset(
+    model, "performQuantileRegressionTest",
+    how = "quantreg::rq() fits the quantile regressions without the offset"
+  )
   if (!is.numeric(taus) || length(taus) < 2L || anyNA(taus) ||
       any(!is.finite(taus)) || any(taus <= 0 | taus >= 1)) {
     stop("`taus` must contain at least two finite quantiles strictly between 0 and 1.", call. = FALSE)

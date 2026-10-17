@@ -233,8 +233,11 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit. With `studentize = TRUE`, the default, it
+#' refuses a model with an offset, which the studentized statistic leaves out when
+#' it refits the design, until the offset fix planned for 0.16.0 (decided
+#' 2026-10-17); with `studentize = FALSE` it accounts for it. Which model each
+#' test accepts, and why, is set out in [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -267,6 +270,18 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
   }
   if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
     stop("`studentize` must be a single logical value.", call. = FALSE)
+  }
+  # The studentized statistic refits the design without the offset; refused
+  # until 0.16.0 accounts for it (decided 2026-10-17). studentize = FALSE
+  # computes the classical statistic from the residuals of the fit.
+  if (isTRUE(studentize)) {
+    rrefuse_offset(
+      model, "performBPTestRobust",
+      how = paste(
+        "with studentize = TRUE, the default, it refits the design without the",
+        "offset (studentize = FALSE, the classical statistic, accounts for it)"
+      )
+    )
   }
 
   if (!is.logical(bootstrap) || length(bootstrap) != 1L || is.na(bootstrap)) {

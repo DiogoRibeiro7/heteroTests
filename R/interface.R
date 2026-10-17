@@ -834,6 +834,69 @@ rmodel_class_message <- function(model, who) {
   )
 }
 
+#' Refuse an offset that a test does not account for yet
+#'
+#' Four tests leave the offset of a model out of a refit, so that on a model
+#' with an offset they return a value that is not that of the model: RESET,
+#' Goldfeld-Quandt (an offset given as an argument, and any offset on a
+#' weighted fit), the quantile regression test and the studentized
+#' Breusch-Pagan statistic. Until the offset fix planned for 0.16.0 they
+#' refuse such a model, decided on 2026-10-17, rather than ignore its offset.
+#' An offset that is zero everywhere changes nothing and is not refused. The
+#' error has class `heteroTests_offset_error`, which [ht_analyse_failure()]
+#' treats as final: `runHeteroTests()` does not fall back on another test for
+#' it.
+#'
+#' @param model The fitted model.
+#' @param fn Character scalar naming the calling test.
+#' @param which `"any"` to refuse any offset, `"argument"` for an offset given
+#'   as the `offset` argument only.
+#' @param how Character scalar: what the test does with the offset.
+#' @param subtract Logical: is the test on the model fitted to the response
+#'   minus the offset the test the model asks for?
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_offset <- function(model, fn, which = c("any", "argument"), how, subtract = TRUE) {
+  which <- match.arg(which)
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.null(frame)) {
+    return(invisible(NULL))
+  }
+  offset <- if (identical(which, "argument")) {
+    frame[["(offset)"]]
+  } else {
+    stats::model.offset(frame)
+  }
+  if (is.null(offset) || all(offset == 0, na.rm = TRUE)) {
+    return(invisible(NULL))
+  }
+  instead <- paste0(
+    "performKoenkerTest(), performWhiteTest(), performBPTest() and the wild and ",
+    "White bootstraps account for an offset"
+  )
+  if (isTRUE(subtract)) {
+    instead <- paste0(
+      instead, "; so does ", fn, "() on the model fitted to the response minus ",
+      "the offset, such as lm(I(y - o) ~ x), which is the same fit"
+    )
+  }
+  stop(structure(
+    class = c("heteroTests_offset_error", "error", "condition"),
+    list(
+      message = sprintf(
+        paste0(
+          "%s() does not account for an offset yet: %s, so on this model it would ",
+          "return a wrong value, and it refuses the model rather than ignore its ",
+          "offset. %s."
+        ),
+        fn, how, instead
+      ),
+      call = NULL
+    )
+  ))
+}
+
 #' Refuse a glm in a test that needs least-squares residuals
 #'
 #' Three tests refuse every `glm` with this message. The others refuse a `glm`

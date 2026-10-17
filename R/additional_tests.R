@@ -137,8 +137,11 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit. It refuses a model with an offset, which the
+#' studentized statistic leaves out when it refits the design, until the offset
+#' fix planned for 0.16.0 (decided 2026-10-17); [performKoenkerTest()] accounts
+#' for it. Which model each test accepts, and why, is set out in [test_results],
+#' under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -166,6 +169,12 @@ performStudentizedBPTest <- function(model, data = NULL) {
 # is kept as it was, so that none of them changes value in 0.14.0.
 .studentized_bp_test <- function(model, data, data_name = deparse(substitute(model))) {
   test_label <- "Studentized BP"
+  # The residuals are recomputed by lm.wfit() below without the offset: an
+  # offset is refused until 0.16.0 accounts for it (decided 2026-10-17).
+  rrefuse_offset(
+    model, rtest_name(sys.parent(), "performStudentizedBPTest"),
+    how = "the studentized statistic refits the design without the offset"
+  )
   # The registry name "student_bp", its test_factory entry and
   # rvalidate_against_reference() call this implementation directly, not
   # performStudentizedBPTest(), so the rows of `data` are checked here too.
