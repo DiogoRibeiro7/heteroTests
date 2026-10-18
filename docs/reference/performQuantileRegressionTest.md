@@ -24,13 +24,18 @@ performQuantileRegressionTest(
 :   A fitted [stats::lm](https://rdrr.io/r/stats/lm.html) object describing the mean structure whose conditional quantile slopes are to be compared.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) containing the variables referenced in `model`.
-    When `NULL`, the default, the model frame of `model` is used. It holds the
-    terms of the model rather than its variables (`log(x)` rather than `x`), so
-    a model that transforms a variable needs `data`, as does a
-    model with an `offset()` term, and so may a fit whose `weights` or `offset`
-    argument is a column of the data, which the model frame holds as
-    `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default.
+    The response, design and offset are read from the fit itself, so a model
+    that transforms its variables, has an `offset()` term, or takes its
+    `offset` from a column of the data needs no `data`, and the model frame of
+    `model` is accepted as `data` (since 0.16.0; before, such models needed
+    `data`). Data that are given are matched to the observations of the fit:
+    rows with row names of their own by name, in any order; rows that only
+    number themselves (a tibble, a data.table, a data frame whose row names
+    were reset) by the row numbers of the fit, or in the order of the fit when
+    they hold one row per observation. The rows the fit dropped may be there
+    or not. Data whose rows cannot be shown to hold the observations of the
+    fit are refused; see [`test_results`](test_results.md).
 
 `taus`
 :   Numeric vector containing at least two distinct quantiles strictly between zero and one.
@@ -68,13 +73,15 @@ study, and has neither.
 It accepts an unweighted `lm` and an unweighted `glm` with the Gaussian family and the
 identity link and, since 0.16.0, a rank-deficient one: `quantreg::rq()` refuses a singular
 design, so the quantile regressions are fitted to the columns that were not aliased, which gives the
-value of the same model fitted without them. It refuses a weighted fit, a `fitWLS()` fit among
-them, as it refits the model without the weights, a `glm` of another family or link, a
-`survey::svyglm()` fit, a coefficient that is not finite for another reason, and `data`
-that lack rows or variables of the fit. It refuses a model with an offset, which
-`quantreg::rq()` leaves out, until the offset fix planned for 0.16.0 (decided 2026-10-17).
-Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
-*Supported models*.
+value of the same model fitted without them. Since 0.16.0 it also accepts a model with an offset:
+the quantile regressions are fitted to the response of the fit minus its offset, on the design of
+the fit, which is the model with the offset, since the offset shifts every conditional quantile as
+it shifts the mean; before, they were refitted from the formula, which left the offset out. It
+refuses a weighted fit, a `fitWLS()` fit among them, as it refits the model without the
+weights, a `glm` of another family or link, a `survey::svyglm()` fit, a coefficient that
+is not finite for another reason, and `data` that lack rows or variables of the fit. Which
+model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
+models*.
 
 ## References
 

@@ -205,50 +205,25 @@ Given the data the workflow was fitted to it now stops, as the engine's fit
 names its response `..y`, which those data do not hold, with a message that
 says so and to pass `data = NULL`; it returned the same fallback.
 
-**Four tests refuse the offsets they ignored.** `performRESETTest()` refits
-its augmented model without the offset; `performGQTest()` refits each segment
-without an offset given as an argument, and, on a weighted fit, without any
-offset; `performQuantileRegressionTest()` fits `quantreg::rq()`, which leaves
-the offset out; and the studentized Breusch-Pagan statistic of
-`performStudentizedBPTest()`, of `performBPTestRobust()` with
-`studentize = TRUE`, its default, and of the registered `"student_bp"` refits
-the design without it. On a model with an offset they returned a value that
-is not that of the model. Decided on 2026-10-17: until the offset fix planned
-for 0.16.0 they refuse such a model, with a message that says the test does
-not account for the offset yet and which tests do. They refuse exactly the
-offsets they leave out: an `offset()` term on an unweighted fit, which the
-refits of GQ evaluate again, is accepted, as is the classical statistic of
-`performBPTestRobust(studentize = FALSE)`, and an offset that is zero
-everywhere. With
-
-```r
-set.seed(33); n <- 160
-d <- data.frame(x1 = runif(n, 1, 3), x2 = rnorm(n), u = rnorm(n))
-d$o <- 0.8 * d$u
-d$y <- 1 + d$x1 + d$o + rnorm(n, sd = d$x1)
-m <- lm(y ~ x1 + x2, data = d, offset = o)
-```
-
-and the same model fitted to the response minus the offset,
-`lm(I(y - o) ~ x1 + x2, data = d)`:
-
-| Call | 0.15.0, on `m` | On the model of `y - o` | Now, on `m` |
-| --- | ---: | ---: | --- |
-| `performRESETTest()` | F = -0.289 (p = 1) | F = 4.487 (p = 0.013) | Error: `performRESETTest() does not account for an offset yet: ...` |
-| `performGQTest(order_by = "x1")` | 1.634 | 2.383 | Error |
-| `performQuantileRegressionTest()` | 0.897 | 3.256 | Error |
-| `performStudentizedBPTest()` | 4.877 | 9.762, Koenker's statistic on `m` | Error |
-
-In the design of `test-fitwls-reestimation.R` the studentized statistic of
-`lm(y ~ x + z, offset = o)` was 19.91, where Koenker's is 18.79. The error has
-class `heteroTests_offset_error`, and `runHeteroTests()` and
-`runDiagnostics()` do not fall back on another test for it:
-`runHeteroTests(m, d, tests = "student_bp")` and `tests =
-"quantile_regression"` stop with it, as do `cachedTest()`, the registry,
-`test_factory` and `runHeteroTestsParallel()`, and with grouped data the test
-is returned as failed. `runDiagnostics()`, which runs RESET, stops on a model
-with an offset; its default battery, White's and Koenker's tests, accounts for
-the offset.
+**Four tests account for the offsets they ignored.** `performRESETTest()`
+refitted its augmented model without the offset; `performGQTest()` refitted
+each segment without an offset given as an argument, and, on a weighted fit,
+without any offset; `performQuantileRegressionTest()` fitted
+`quantreg::rq()`, which leaves the offset out; and the studentized
+Breusch-Pagan statistic of `performStudentizedBPTest()`, of
+`performBPTestRobust()` with `studentize = TRUE`, its default, and of the
+registered `"student_bp"` refitted the design without it. On a model with an
+offset they returned a value that is not that of the model. Decided on
+2026-10-17, the development version refused such a model, with a message
+that said the test did not account for the offset yet and which tests did, of
+class `heteroTests_offset_error`, on which the runners did not fall back on
+another test, until the offset fix planned for 0.16.0. They refused exactly
+the offsets they left out: an `offset()` term on an unweighted fit, which the
+refits of GQ evaluated again, was accepted, as were the classical statistic of
+`performBPTestRobust(studentize = FALSE)` and an offset that is zero
+everywhere. The second step of the model context is that fix, and lifted the
+refusal before the release: the four now give the value of the model (*The
+model context*, below, with the values).
 
 **Calls that go through the tests change with them.** On data that lack rows
 or variables of the fit, `compareTestResults()` and
@@ -439,6 +414,179 @@ Also, for the five tests:
     591 calls of the changes above
     (`scripts/model-context-identity.R`); the rows of the five tests in the
     studies of `inst/validation/` that use them are reproduced byte for byte.
+
+The second step moves the studentized Breusch-Pagan statistic
+(`performStudentizedBPTest()`, `performBPTestRobust()` with
+`studentize = TRUE`, its default, the registered `"student_bp"`, its
+`test_factory` entry and `rvalidate_against_reference("studentized_bp")`),
+`performRESETTest()`, and so `runDiagnostics()`, which runs it,
+`performGQTest()` and `performQuantileRegressionTest()`, and so the registered
+`"quantile_regression"`, onto the model context. They read the response, the
+design, the weights and the total offset from the fit, and every refit
+carries the offset. Data that are given are matched as for the first five:
+named data in any order, numbered data in fit order. Goldfeld-Quandt reads its
+`order_by` at the confirmed rows of `data`, or, without `data`, from the model
+frame when it holds the variable under its own name. Without an offset,
+without a term that depends on the rows it is computed from, and on data
+that 0.15.0 accepted, every value is `identical()` to before, but for the
+two new refusals below.
+
+**On a model with an offset the four give the value of that model.** The
+refusals of the offsets they left out (*Four tests account for the offsets
+they ignored*, above) become values. Goldfeld-Quandt, the quantile regression
+test and the studentized statistic give the value of the model fitted to the
+response minus the offset; RESET gives the nested F test of the model with
+its offset against the model augmented with the squares and cubes of its
+fitted values, `X b + o`, both fitted with the offset and the weights of the
+fit (decided 2026-10-18). RESET of the model of `y - o` is another test,
+which augments that model with the powers of `X b` alone. With
+
+```r
+set.seed(33); n <- 160
+d <- data.frame(x1 = runif(n, 1, 3), x2 = rnorm(n), u = rnorm(n))
+d$o <- 0.8 * d$u
+d$y <- 1 + d$x1 + d$o + rnorm(n, sd = d$x1)
+m <- lm(y ~ x1 + x2, data = d, offset = o)
+```
+
+and the same model fitted to the response minus the offset,
+`lm(I(y - o) ~ x1 + x2, data = d)`:
+
+| Call | 0.15.0, on `m` | On the model of `y - o` | Development version, on `m` | Now, on `m` |
+| --- | ---: | ---: | --- | ---: |
+| `performRESETTest()` | F = -0.289 (p = 1) | F = 4.487 (p = 0.013) | Error: `performRESETTest() does not account for an offset yet: ...` | F = 0.112 (p = 0.894), the nested F test of `m` |
+| `performGQTest(order_by = "x1")` | 1.634 | 2.383 | Error | 2.383 (p = 0.00044) |
+| `performQuantileRegressionTest()` | 0.897 | 3.256 | Error | 3.256 (p = 0.040) |
+| `performStudentizedBPTest()`, `performBPTestRobust()` | 4.877 | 9.762, Koenker's statistic on `m` | Error | 9.762 (p = 0.0076), Koenker's |
+
+In the design of `test-fitwls-reestimation.R` the studentized statistic of
+`lm(y ~ x + z, offset = o)` was 19.91, and is Koenker's, 18.79. The values
+reach `performBPTestRobust()` with and without `bootstrap`,
+`runHeteroTests(m, d, tests = "student_bp")` and `tests =
+"quantile_regression"`, `cachedTest()`, the registry, `test_factory`,
+`runHeteroTestsParallel()` and grouped data, and `runDiagnostics()`, which
+runs RESET and returns for a model with an offset. `rrefuse_offset()` and the
+error class `heteroTests_offset_error` are gone. An offset that is zero
+everywhere changes nothing.
+
+**Goldfeld-Quandt fits each segment to the rows of the design of the fit.**
+It refitted the segments of an unweighted fit from the formula, which
+computed again, on the rows of each segment, a term that depends on the rows
+it is computed from: `ns()` and `bs()` placed their knots at quantiles of the
+segment, and `I(x > median(x))` took the median of the segment (decided
+2026-10-18). It now gives the value of `lmtest::gqtest()`, which fits the
+segments to the rows of the design, wherever the design of each segment has
+full rank:
+
+| Call, on `mtcars` (`fraction = 0.2`) | 0.15.0 | Now, as `lmtest::gqtest()` |
+| --- | ---: | ---: |
+| `performGQTest(lm(mpg ~ splines::ns(wt, 3) + qsec), order_by = "wt")` | 0.574 (p = 0.773) | 0.432 (p = 0.869) |
+| the same, `order_by = "qsec"` | 4.894 (p = 0.025) | 4.570 (p = 0.030) |
+| `lm(mpg ~ splines::bs(wt, df = 4) + qsec)`, `order_by = "qsec"` | 3.536 (p = 0.073) | 3.952 (p = 0.057) |
+| `lm(mpg ~ I(wt > median(wt)) + qsec)`, `order_by = "qsec"` | 2.034 (p = 0.150) | 2.241 (p = 0.120) |
+
+`poly()` computed another basis of the same columns on each segment, which
+changes the last bits only (by at most 8.1e-15 relative in the corpus below),
+and `log()` or `I(x^2)` the same columns. A weighted fit was already fitted on
+the design of the fit. A segment whose design is rank-deficient, as when a
+column of `bs()` or an indicator is zero on all its rows, takes its degrees of
+freedom from its rank, as before; `lmtest::gqtest()` takes them from the
+number of columns.
+
+**The quantile regression test fits its quantile regressions to the design
+of the fit.** It refitted them from the formula on the rows of the fit, which
+computed again a term that depends on the rows it is computed from. A fit with
+`cut(x, quantile(x))` drops the rows at the minimum, which fall outside the
+breaks, and the refit computed other breaks on the rows that were left and
+dropped others: on `lm(stations ~ cut(mag, quantile(mag)) + depth, data =
+quakes)`, a fit to 954 of the 1000 rows, it gave F = 16.44 on 4 and 1794
+degrees of freedom (p = 3.1e-13), and gives F = 17.61 on 4 and 1904
+(p = 3.4e-14), the value of the same fit with the factor computed beforehand.
+
+**A term computed from all the rows, on a fit that dropped rows, is tested as
+the fit computed it, by Goldfeld-Quandt and the quantile regression test
+too**, as by the first five (above): on the cell `I(x1 > median(x1))` with
+`na.omit` of the test matrix, Goldfeld-Quandt changes by 10% and the quantile
+regression test by 0.16%, each to the value of the same fit with the
+indicator computed beforehand.
+
+**RESET, Goldfeld-Quandt, the quantile regression test and the studentized
+Breusch-Pagan statistic refuse a penalised fit with smooth terms.** A Gaussian
+`mgcv::gam()` fit with smooth terms is not the least-squares fit of its
+design, and each of
+these tests fits that design again, which would test a regression the model
+is not. On `mgcv::gam(mpg ~ s(wt) + qsec, data = mtcars)` the studentized
+statistic returned 12.40 (p = 0.259) and RESET F = 2.463 (p = 0.112);
+Goldfeld-Quandt and the quantile test stopped with `could not find function
+"s"`. They now stop with `cannot test a penalised mgcv::gam() fit with smooth
+terms (s(wt))`, of class `heteroTests_model_context_error`, until
+the last step of the model context settles which tests take such a fit. The
+first five test it as before, and a `gam` without smooth terms is tested as
+the Gaussian `glm` it is.
+
+**RESET refuses a model frame that `model = FALSE` rebuilt from data changed
+after the fit.** It read that frame: with
+`m0 <- lm(mpg ~ wt + qsec, data = d0, model = FALSE)` for `d0 <- mtcars`, it
+gives F = 6.731 (p = 0.0043), and after `d0 <- mtcars[order(mtcars$wt), ]` it
+returned F = 0.136 (p = 0.874), the test of a response in another order. It
+now stops, as the other tests built on the context do ("cannot use the model
+frame of `model`").
+
+Also, for these four:
+
+- Errors that become values, as for the first five: weights or an offset
+    taken from a column of the data with `data` omitted or the model frame
+    given, transformed variables and `offset()` terms without `data`, numbered
+    data that hold the rows a fit with `na.omit` dropped, or only those it kept,
+    numbered again, the tibble a model was fitted on, a fit with `subset =`
+    given by index, and `cut(x, quantile(x))`. Goldfeld-Quandt without `data`
+    on a fit that transforms the variable it is ordered by stops with "The
+    following variables are missing from the model frame of `model`: x1. It
+    holds the terms of the model (...)", which says to pass `data`; it stopped
+    with "The following variables are missing from input data".
+- A fit with `model = FALSE` whose data are gone, given `data` that give its
+    response and fitted values: Goldfeld-Quandt and the studentized statistic
+    stopped with "object 'gone' not found", and are tested on `data`, as the
+    first five are. RESET, which builds its context without `data`, still
+    refuses it, now with the message of the context.
+- The function registered as `"student_bp"`, called with `data = NULL`, reads
+    the model frame, as the other routes and every other registered name do; it
+    stopped with "Expected a data.frame for input data".
+- A multivariate `lm` is refused with "... needs a model with one response;
+    `model` has 2.", as by the first five.
+- A call with an offset on data the guard refuses now stops with the refusal
+    of `data`, where it stopped with the refusal of the offset; the robust
+    Breusch-Pagan test, which keeps its own preparation of the data until a
+    later step, stops with its check of the variables of `data` where that
+    comes first.
+- RESET reads nothing from `data`: it builds its context without `data`, and
+    keeps the check of `data` of the tests computed from the model alone, for
+    the variables of the model and the row names of the fit, until the step that
+    moves those tests, so that its values on every form of `data` stay those of
+    0.15.0.
+- A fit with a zero weight is refused by Goldfeld-Quandt and the studentized
+    statistic, and accepted by RESET, as before.
+- Unchanged: every other value of a valid call, and every message the test
+    suite pins. A corpus of 13,527 calls, the four, their routes and every other
+    test on 265 combinations of fits, offsets, terms, forms of `data`, dropped
+    rows, row names and classes, the default battery and the registered names
+    `"student_bp"` and `"quantile_regression"` through `runHeteroTests()`, and
+    the examples of the ten help pages, returns what it returned before,
+    `identical()`, but for the 912 calls of the changes above
+    (`scripts/model-context-identity.R`);
+    each of the 701 that now return a value, or another one, gives the
+    value of its reference, the same call on the data frame of the fit, on the
+    fit to the complete rows or to the subset, on the fit with its terms
+    computed beforehand, on the model of `y - o`, or, for RESET, the nested F
+    test written out with `anova()`. The rows of the four tests in the studies
+    of `inst/validation/` that use them are reproduced byte for byte, and RESET
+    on the fit with an offset of `offset-refits-size.R` rejects 0.0492 of the
+    time under its null at 5000 replications, inside the release gate,
+    [0.042, 0.058]. The warnings of the calls of the corpus are those of before,
+    but for 39 calls that stopped and now return a value with the warning of
+    `quantreg::anova.rqs()` on the same design (`"non-positive fis"`), and the
+    multivariate `lm`, which `performStudentizedBPTest()` now refuses before its
+    deprecation warning.
 
 ### Packaging
 
