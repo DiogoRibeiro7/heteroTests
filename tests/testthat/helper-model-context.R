@@ -21,10 +21,15 @@
 
 # The functions built on the model context. Each increment of the migration
 # adds the functions it moves; the cells are run for these only, so no
-# expectation of a function that is not migrated is weakened.
+# expectation of a function that is not migrated is weakened. Increment 1:
+# the first five; increment 2: the studentized Breusch-Pagan statistic
+# (through its deprecated name), RESET, Goldfeld-Quandt and the quantile
+# regression test.
 context_migrated <- c(
   "performWhiteTest", "performBPTest", "performKoenkerTest",
-  "performRankPermutationTest", "performHighDimensionalTest"
+  "performRankPermutationTest", "performHighDimensionalTest",
+  "performStudentizedBPTest", "performRESETTest", "performGQTest",
+  "performQuantileRegressionTest"
 )
 
 # Fixture B of the design: contract_data() with weights, an offset outside the
@@ -92,6 +97,47 @@ context_model <- function(d, fit = "ols", offset = "none", terms = "none", ...) 
   )
 }
 
+# The columns of the terms computed beforehand, on all the rows of the data,
+# as the fit computes them, and the formulas that use them: the reference of a
+# term ("a term is the column it computes").
+context_precomputed <- function() {
+  d <- context_data()
+  pre <- d
+  pre$ly <- log(d$ypos)
+  pre$lx1 <- log(d$x1)
+  basis <- stats::poly(d$x1, 2)
+  pre$p1 <- basis[, 1]
+  pre$p2 <- basis[, 2]
+  spline <- splines::ns(d$x1, 3)
+  pre$n1 <- spline[, 1]
+  pre$n2 <- spline[, 2]
+  pre$n3 <- spline[, 3]
+  pre$x1sq <- d$x1^2
+  pre$high <- d$x1 > stats::median(d$x1)
+  pre$cx <- cut(d$x1, stats::quantile(d$x1))
+  list(
+    data = pre,
+    formulas = list(
+      log = ly ~ lx1 + x2, poly = y ~ p1 + p2 + x2, ns = y ~ n1 + n2 + n3 + x2,
+      square = y ~ x1 + x1sq + x2, median = y ~ high + x2, cut = y ~ cx + x2
+    )
+  )
+}
+
+# The fit of a term cell with its columns computed beforehand, and its data.
+context_precomputed_fit <- function(fit, terms) {
+  pre <- context_precomputed()
+  f <- pre$formulas[[terms]]
+  environment(f) <- environment()
+  data <- pre$data
+  m <- if (identical(fit, "wls")) {
+    stats::lm(f, data = data, weights = w)
+  } else {
+    stats::lm(f, data = data)
+  }
+  list(m = m, data = data)
+}
+
 # The forms of `data` and whether a test that reads `data` accepts them.
 context_forms <- c(
   "null", "data_frame", "shuffled", "tibble", "tibble_shuffled",
@@ -135,9 +181,21 @@ context_cell <- function(id, block, build, fit = "ols", offset = "none", terms =
 }
 
 # The defects of the design that a cell shows on the code before the context,
-# for the allow-list of scripts/model-context-identity.R and the NEWS.
+# for the allow-list of scripts/model-context-identity.R and the NEWS. B7: an
+# offset, which RESET, Goldfeld-Quandt, the quantile regression test and the
+# studentized Breusch-Pagan statistic left out of a refit, and refused until
+# increment 2. N1: a term that depends on the rows it is computed from, which
+# the segments of Goldfeld-Quandt, refitted from the formula on an unweighted
+# fit, computed again; for poly(), whose basis spans the same columns on any
+# rows, only the last bits changed.
 context_cell_defects <- function(fit, offset, terms, form) {
   defects <- character()
+  if (!identical(offset, "none")) {
+    defects <- c(defects, "B7")
+  }
+  if (terms %in% c("ns", "median", "cut") || identical(terms, "poly") && identical(fit, "ols")) {
+    defects <- c(defects, "N1")
+  }
   weighted_column <- fit %in% c("wls", "glm")
   if (form %in% c("null", "model_frame") && (weighted_column || identical(offset, "argument"))) {
     defects <- c(defects, if (identical(form, "null")) "B12" else "L2")
@@ -315,17 +373,46 @@ context_cells <- function() {
   add(context_cell("class/gam", "class", function() {
     list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
   }, needs = "mgcv", reference = "fit/ols/none/none/data_frame"))
+  # A penalised fit: the tests of increment 1 test it as before, and those of
+  # increment 2 refuse it until increment 11 settles which tests take it
+  # ("gam"). Goldfeld-Quandt and the quantile regression test, which refitted
+  # the formula, stopped on its smooth term outside mgcv.
   add(context_cell("class/gam_smooth", "class", function() {
     list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
-  }, needs = "mgcv"))
-  # A fit with model = FALSE whose data are gone, given its data.
+  }, needs = "mgcv", defect = "gam"))
+  # A zero weight leaves an observation out of the fit with a residual that is
+  # not one: refused by every test but RESET, whose two weighted fits both
+  # leave it out (decided 2026-10-17), for an lm and a Gaussian glm alike.
+  zero <- d
+  zero$w0 <- d$w
+  zero$w0[1] <- 0
+  add(context_cell("class/zero_weight", "class", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = zero, weights = w0), data = zero)
+  }, fit = "wls", expect = "zero or non-finite weights"))
+  add(context_cell("class/zero_weight_glm", "class", function() {
+    list(m = stats::glm(y ~ x1 + x2, data = zero, weights = w0), data = zero)
+  }, fit = "glm", expect = "zero or non-finite weights"))
+  # A fit with model = FALSE whose data are gone, given its data. The tests
+  # that read its model frame stopped ("object 'gone' not found"); the context
+  # builds the frame from `data` once `data` reproduces the fit ("frame").
   add(context_cell("class/model_false", "class", function() {
     env <- new.env()
     assign("gone", d, envir = env)
     m <- eval(quote(stats::lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
     rm("gone", envir = env)
     list(m = m, data = d)
-  }, reference = "fit/ols/none/none/data_frame"))
+  }, reference = "fit/ols/none/none/data_frame", defect = "frame"))
+  # A fit with model = FALSE whose data were reordered after the fit, without
+  # `data`: its model frame, rebuilt from the reordered data, no longer holds
+  # its response. RESET read it and returned a value (N6); every test built on
+  # the context refuses it.
+  add(context_cell("class/model_false_changed", "class", function() {
+    env <- new.env()
+    assign("changed", d, envir = env)
+    m <- eval(quote(stats::lm(y ~ x1 + x2, data = changed, model = FALSE)), env)
+    assign("changed", d[order(d$x1), ], envir = env)
+    list(m = m, data = NULL)
+  }, form = "null", expect = "cannot use the model frame of `model`", defect = "N6"))
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
 }
@@ -338,6 +425,90 @@ context_cran_cells <- c(
   "terms/ols/none/log/null", "missing/complete_renumbered", "missing/median_full",
   "subset/data_frame", "ident/front", "class/mlm"
 )
+
+# The tests of increment 2.
+context_increment2 <- c(
+  "performStudentizedBPTest", "performRESETTest", "performGQTest",
+  "performQuantileRegressionTest"
+)
+
+# The functions of `context_migrated` that can run here: the quantile
+# regression test needs quantreg, a suggested package.
+context_runnable <- function(fns = context_migrated) {
+  if (!requireNamespace("quantreg", quietly = TRUE)) {
+    fns <- setdiff(fns, "performQuantileRegressionTest")
+  }
+  fns
+}
+
+# The cell as one test sees it: where a migrated test departs from the
+# expectation of a cell by design, its own expectation, and the reference of a
+# value.
+#
+# - The tests of increment 2 refuse a penalised mgcv::gam() fit with smooth
+#   terms (context_increment2).
+# - The quantile regression test refuses a weighted fit, and a MASS::rlm()
+#   fit, whose weights it reads, once `data` is aligned.
+# - Goldfeld-Quandt orders by `x1`, which the model frame of a fit that
+#   transforms `x1` does not hold: without `data` it is refused with the
+#   message of the context (M1), and the model frame given as `data` lacks it.
+# - RESET reads nothing from `data`. It builds its context without `data` and
+#   keeps the check of `data` of the tests computed from the model alone
+#   (rcheck_data_argument()), which looks for the row names of the fit and
+#   compares no values, until increment 6 moves those tests. So it gives the
+#   value of the fit on the forms of data the guard refuses, refuses data
+#   whose row names lack those of the fit, refuses a model = FALSE fit whose
+#   data are gone, stops on the padded fitted values of na.exclude
+#   (increment 9), and accepts a zero weight.
+context_cell_for <- function(fn, cell) {
+  if (fn %in% context_increment2 && identical(cell$id, "class/gam_smooth")) {
+    cell$expect <- "cannot test a penalised mgcv::gam() fit with smooth terms (s(x1))"
+    return(cell)
+  }
+  weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls") || identical(cell$id, "class/rlm")
+  if (identical(fn, "performQuantileRegressionTest") && weighted &&
+        !identical(cell$expect, "guard")) {
+    cell$expect <- "does not support weighted fits"
+    cell$reference <- NULL
+  }
+  transformed <- cell$terms %in% c("log", "poly", "ns", "median", "cut")
+  # The cells without `data`: the form "null", and the fit that dropped rows.
+  no_data <- identical(cell$form, "null") || identical(cell$id, "missing/median_null")
+  if (identical(fn, "performGQTest") && transformed &&
+        (no_data || identical(cell$form, "model_frame")) && identical(cell$expect, "value")) {
+    cell$expect <- if (no_data) {
+      "The following variables are missing from the model frame of `model`: x1."
+    } else {
+      "The following variables are missing from input data: x1."
+    }
+    cell$reference <- NULL
+  }
+  if (identical(fn, "performRESETTest")) {
+    rows_lacking <- c(
+      "missing/complete_renumbered", "ident/repeated_fit_tibble",
+      "ident/character_names_tibble", "ident/repeated_names"
+    )
+    if (cell$id %in% rows_lacking) {
+      cell$expect <- "RESET requires `data` to contain the rows used to fit the model."
+      cell$reference <- NULL
+    } else if (identical(cell$expect, "guard")) {
+      cell$expect <- "value"
+      cell$reference <- if (cell$block %in% c("fit", "terms")) {
+        paste(cell$block, cell$fit, cell$offset, cell$terms, "data_frame", sep = "/")
+      } else {
+        "fit/ols/none/none/data_frame"
+      }
+    } else if (identical(cell$id, "class/model_false")) {
+      cell$expect <- "cannot use the model frame of `model`"
+      cell$reference <- NULL
+    } else if (identical(cell$id, "missing/na_exclude")) {
+      cell$expect <- "NA/NaN/Inf in 'x'"
+    } else if (cell$id %in% c("class/zero_weight", "class/zero_weight_glm")) {
+      cell$expect <- "value"
+    }
+  }
+  cell
+}
 
 # A cell run through one test: the result, or the error as a condition.
 context_run <- function(fn, cell, recipes = contract_recipes) {

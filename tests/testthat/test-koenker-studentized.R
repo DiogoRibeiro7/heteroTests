@@ -8,9 +8,10 @@
 # of the model fitWLS() refitted, and so computed the statistic of the
 # unweighted fit. Since 0.15.0 it reads the weights of the fit, and the two
 # agree on a fitWLS() fit too, which a test below asserts. On a model with an
-# offset, which the studentized statistic drops, it gave another value; since
-# 0.16.0 it refuses such a model (test-model-eligibility.R) until the offset
-# fix the roadmap lists under 0.16.0.
+# offset the studentized statistic refitted the design without it and gave
+# another value; since 0.16.0 the refit carries the offset (the model
+# context), and the two agree there too, which the designs with an offset
+# below assert.
 
 agreement_designs <- local({
   n <- 150L
@@ -44,6 +45,21 @@ agreement_designs <- local({
       d <- draw(function(x) x^2)
       d$w <- 1 / d$x^4
       list(m = lm(y ~ x + z, d, weights = w), d = d)
+    },
+    # An offset outside the span of the regressors, as an argument and as an
+    # offset() term.
+    offset_argument = function() {
+      d <- draw(function(x) x)
+      d$o <- 0.5 * d$x^2
+      d$y <- d$y + d$o
+      list(m = lm(y ~ x + z, d, offset = o), d = d)
+    },
+    offset_term = function() {
+      d <- draw(function(x) x)
+      d$o <- 0.5 * d$x^2
+      d$y <- d$y + d$o
+      d$w <- 1 / d$x^2
+      list(m = lm(y ~ x + z + offset(o), d, weights = w), d = d)
     }
   )
 })

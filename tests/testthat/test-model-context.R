@@ -4,9 +4,9 @@
 # expectations are relations between calls, not stored values: a test gives
 # on every form of `data` it accepts the value it gives on the data frame of
 # the fit, on a fit with an offset the value of the model fitted to the
-# response minus the offset, on a term the value of the same column computed
-# beforehand, and on a fit that dropped rows the value of the fit to the
-# complete rows.
+# response minus the offset (RESET: the nested F test of the model with its
+# offset), on a term the value of the same column computed beforehand, and on
+# a fit that dropped rows the value of the fit to the complete rows.
 
 context_same <- function(object, expected, info, tolerance = NULL) {
   expect_s3_class(object, "htest")
@@ -30,8 +30,9 @@ context_installed <- function(cell) {
 }
 
 # Runs `fns` on `ids` and checks each cell: its value against its reference,
-# `identical()`, or its refusal.
-context_check_matrix <- function(ids, fns = context_migrated) {
+# `identical()`, or its refusal, as the test sees the cell
+# (context_cell_for()).
+context_check_matrix <- function(ids, fns = context_runnable()) {
   cells <- context_cells()
   for (fn in fns) {
     results <- new.env(parent = emptyenv())
@@ -42,7 +43,7 @@ context_check_matrix <- function(ids, fns = context_migrated) {
       results[[id]][[1L]]
     }
     for (id in ids) {
-      cell <- cells[[id]]
+      cell <- context_cell_for(fn, cells[[id]])
       if (!context_installed(cell)) next
       out <- result_of(id)
       info <- paste(fn, id)
@@ -252,10 +253,12 @@ test_that("a fit changed after it was fitted is refused", {
   reweighted <- weighted
   reweighted$weights <- rev(reweighted$weights)
   reproduce <- "does not reproduce its residuals from its design and coefficients"
-  for (fn in context_migrated) {
+  for (fn in context_runnable()) {
     recipe <- contract_recipes[[fn]]
     expect_error(suppressWarnings(recipe(coefficient, d)), reproduce, fixed = TRUE, info = fn)
     expect_error(suppressWarnings(recipe(residual, d)), reproduce, fixed = TRUE, info = fn)
+    # The quantile regression test refuses a weighted fit first.
+    if (identical(fn, "performQuantileRegressionTest")) next
     expect_error(suppressWarnings(recipe(reweighted, d)),
                  "The weights of the model are not those its coefficients were fitted with",
                  fixed = TRUE, info = fn)
@@ -379,13 +382,20 @@ test_that("a fit with model = FALSE whose data are gone is tested on data that r
   env <- new.env()
   assign("gone", d, envir = env)
   m <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
-  expected <- lapply(context_migrated, function(fn) {
+  # RESET reads nothing from `data` and builds its context without it, so it
+  # cannot rebuild the frame from `data`, and refuses such a fit (below).
+  fns <- setdiff(context_runnable(), "performRESETTest")
+  expected <- lapply(fns, function(fn) {
     context_run(fn, list(build = function() list(m = m, data = d)))
   })
   rm("gone", envir = env)
   expect_error(stats::model.frame(m))
-  for (k in seq_along(context_migrated)) {
-    fn <- context_migrated[k]
+  refused <- context_run("performRESETTest", list(build = function() list(m = m, data = d)))
+  expect_s3_class(refused, "heteroTests_model_context_error")
+  expect_match(conditionMessage(refused),
+               "performRESETTest() cannot use the model frame of `model`", fixed = TRUE)
+  for (k in seq_along(fns)) {
+    fn <- fns[k]
     got <- context_run(fn, list(build = function() list(m = m, data = d)))
     context_same(got, expected[[k]], fn)
     shuffled <- context_run(fn, list(build = function() list(m = m, data = d[sample(nrow(d)), ])))
@@ -407,13 +417,22 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
   d <- context_data()
   plain <- mgcv::gam(y ~ x1 + x2, data = d)
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
-  for (fn in context_migrated) {
+  for (fn in context_runnable()) {
     for (data in list(d, NULL)) {
       context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                    paste(fn, "gam"), tolerance = 1e-10)
-      expect_s3_class(context_run(fn, list(build = function() list(m = smooth, data = data))),
-                      "htest")
+      out <- context_run(fn, list(build = function() list(m = smooth, data = data)))
+      if (fn %in% context_increment2) {
+        # A penalised fit is not the least-squares fit of its design: the tests
+        # of increment 2 refuse it, until increment 11 settles which tests
+        # take it.
+        expect_s3_class(out, "heteroTests_model_context_error")
+        refusal <- "%s() cannot test a penalised mgcv::gam() fit with smooth terms (s(x1))"
+        expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
+      } else {
+        expect_s3_class(out, "htest")
+      }
     }
   }
   expect_identical(rmodel_context(plain, fn = "f")$kind, "gam")
@@ -458,13 +477,16 @@ test_that("data in the order of the fit must tell apart the rows a test reads be
 })
 
 test_that("an offset is the model of the response minus the offset", {
-  # 125 calls, among them fitWLS() fits: with the full matrix, off CRAN.
+  # 400 calls, among them fitWLS() fits: with the full matrix, off CRAN.
   skip_on_cran()
   d <- context_data()
   shifted <- d
   shifted$y <- d$y - d$o
-  for (fn in context_migrated) {
-    for (fit in context_fits) {
+  # RESET is the nested F test of the model with its offset (below), and the
+  # quantile regression test refuses a weighted fit.
+  for (fn in setdiff(context_runnable(), "performRESETTest")) {
+    fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else context_fits
+    for (fit in fits) {
       expected <- context_run(fn, list(build = function() {
         m <- context_model(shifted, fit)
         list(m = m, data = shifted)
@@ -482,37 +504,59 @@ test_that("an offset is the model of the response minus the offset", {
   }
 })
 
+test_that("RESET with an offset is the nested F test of the model with its offset", {
+  # Decided on 2026-10-18: the restricted model is the fit, with its offset,
+  # and the augmented model adds the powers of its fitted values, X b + o,
+  # fitted with the same offset and weights. The reference is anova() of the
+  # two nested lm() fits, computed independently of the package.
+  d <- context_data()
+  for (fit in context_fits) {
+    for (offset in c("argument", "term")) {
+      m <- context_model(d, fit, offset)
+      ref <- d
+      ref$f2 <- stats::fitted(m)^2
+      ref$f3 <- stats::fitted(m)^3
+      weights_of_fit <- stats::weights(m)
+      ref$wt <- if (is.null(weights_of_fit)) rep(1, nrow(d)) else weights_of_fit
+      restricted <- stats::lm(y ~ x1 + x2, data = ref, weights = wt, offset = o)
+      augmented <- stats::lm(y ~ x1 + x2 + f2 + f3, data = ref, weights = wt, offset = o)
+      reference <- stats::anova(restricted, augmented)
+      for (form in c("data_frame", "null")) {
+        info <- paste(fit, offset, form)
+        out <- context_run("performRESETTest", list(build = function() {
+          list(m = m, data = context_form(form, m, d))
+        }))
+        expect_s3_class(out, "htest")
+        expect_equal(unname(out$statistic), reference$F[2], tolerance = 1e-10, info = info)
+        expect_equal(unname(out$parameter), c(reference$Df[2], reference$Res.Df[2]), info = info)
+        expect_equal(out$p.value, reference$`Pr(>F)`[2], tolerance = 1e-10, info = info)
+      }
+    }
+  }
+  # It is not RESET of the model of the response minus the offset, which
+  # augments that model with the powers of X b alone.
+  shifted <- d
+  shifted$y <- d$y - d$o
+  with_offset <- performRESETTest(lm(y ~ x1 + x2, data = d, offset = o))
+  without <- performRESETTest(lm(y ~ x1 + x2, data = shifted))
+  expect_gt(abs(unname(with_offset$statistic) - unname(without$statistic)), 1e-3)
+})
+
 test_that("a term is the column it computes, taken from the fit", {
   # 600 expectations: with the full matrix, off CRAN.
   skip_on_cran()
   d <- context_data()
-  pre <- d
-  pre$ly <- log(d$ypos)
-  pre$lx1 <- log(d$x1)
-  basis <- poly(d$x1, 2)
-  pre$p1 <- basis[, 1]
-  pre$p2 <- basis[, 2]
-  spline <- splines::ns(d$x1, 3)
-  pre$n1 <- spline[, 1]
-  pre$n2 <- spline[, 2]
-  pre$n3 <- spline[, 3]
-  pre$x1sq <- d$x1^2
-  pre$high <- d$x1 > stats::median(d$x1)
-  pre$cx <- cut(d$x1, stats::quantile(d$x1))
-  precomputed <- list(
-    log = ly ~ lx1 + x2, poly = y ~ p1 + p2 + x2, ns = y ~ n1 + n2 + n3 + x2,
-    square = y ~ x1 + x1sq + x2, median = y ~ high + x2, cut = y ~ cx + x2
-  )
-  for (fn in context_migrated) {
-    for (fit in c("ols", "wls")) {
+  precomputed <- context_precomputed()$formulas
+  for (fn in context_runnable()) {
+    fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else c("ols", "wls")
+    for (fit in fits) {
       for (terms in names(precomputed)) {
-        expected <- context_run(fn, list(build = function() {
-          f <- precomputed[[terms]]
-          m <- if (fit == "wls") lm(f, data = pre, weights = w) else lm(f, data = pre)
-          list(m = m, data = pre)
-        }))
+        expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
         tolerance <- if (terms == "poly") 1e-8 else 1e-10
-        for (form in c("data_frame", "null")) {
+        # Goldfeld-Quandt orders by x1, which the model frame of these fits
+        # does not hold: without `data` it is refused (the matrix checks it).
+        forms <- if (identical(fn, "performGQTest")) "data_frame" else c("data_frame", "null")
+        for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, "none", terms)
             list(m = m, data = context_form(form, m, d))
@@ -526,7 +570,8 @@ test_that("a term is the column it computes, taken from the fit", {
 
 test_that("weights are the weights of the fit, whatever holds them", {
   d <- context_data()
-  for (fn in context_migrated) {
+  # The quantile regression test refuses a weighted fit.
+  for (fn in setdiff(context_runnable(), "performQuantileRegressionTest")) {
     run <- function(m) context_run(fn, list(build = function() list(m = m, data = d)))
     wls <- run(context_model(d, "wls"))
     context_same(run(context_model(d, "glm")), wls, paste(fn, "glm"), tolerance = 1e-8)
@@ -541,7 +586,7 @@ test_that("models the tests do not take are refused first, with today's messages
   d <- context_data()
   d$high <- as.integer(d$y > stats::median(d$y))
   binomial_fit <- glm(high ~ x1 + x2, data = d, family = binomial)
-  for (fn in context_migrated) {
+  for (fn in context_runnable()) {
     recipe <- contract_recipes[[fn]]
     expect_error(recipe(binomial_fit, d), "needs a model fitted by stats::lm()", fixed = TRUE,
                  info = fn)
@@ -552,7 +597,7 @@ test_that("models the tests do not take are refused first, with today's messages
   skip_if_not_installed("survey")
   design <- survey::svydesign(ids = ~1, weights = ~w, data = d)
   survey_fit <- survey::svyglm(y ~ x1 + x2, design = design)
-  for (fn in context_migrated) {
+  for (fn in context_runnable()) {
     expect_error(contract_recipes[[fn]](survey_fit, d), "The model is a survey::svyglm() fit",
                  fixed = TRUE, info = fn)
   }
