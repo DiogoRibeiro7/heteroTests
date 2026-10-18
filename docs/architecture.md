@@ -38,6 +38,20 @@ that is not finite, and data that lack rows or variables of the fit. Which
 class of model each test accepts, and why, is the
 [Supported models](models.md) page.
 
+## The model context
+
+Since 0.16.0 the tests are moving, in steps, onto an internal model context
+(`R/model_context.R`): one validated object per call, built from the stored
+fit, from which a test reads the response, the design, the residuals, the
+weights, the offset and the rank, instead of rebuilding them from `data`. The
+rows of `data` are matched to the observations of the fit by the guard of
+0.15.0 before anything is read from them: named data in any order, numbered
+data in fit order. White's, Breusch-Pagan, Koenker's, the rank permutation and
+the high-dimensional tests are built on it; the others still go through
+`rdata_or_model_frame()`. [Design: the model context](design/model-context.md)
+sets out the contract, the representation, the plan, the test matrix and the
+decisions.
+
 ## The return contract
 
 A test returns a base-R `htest` object with five fields, `statistic`,
@@ -103,7 +117,7 @@ and its data together, for `summary()` and `plot()`.
 
 | Path | Holds |
 | --- | --- |
-| `R/` | One file per diagnostic, named after the function it defines, with no subdirectories. `R/interface.R` holds the calling convention and the checks of `data`; `R/validation.R` the input validation the tests share. |
+| `R/` | One file per diagnostic, named after the function it defines, with no subdirectories. `R/interface.R` holds the calling convention and the checks of `data`; `R/model_context.R` the model context; `R/validation.R` the input validation the tests share. |
 | `man/` | The help pages. 52 of the 133 are written by hand and roxygen2 generates the rest; see [Development](development.md). |
 | `tests/testthat/` | Unit tests, property-based tests and comparisons with reference implementations. |
 | `inst/validation/` | Simulated size and power of the tests, and the scripts that produce them. |

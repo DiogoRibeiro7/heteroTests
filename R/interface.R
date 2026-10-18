@@ -123,6 +123,12 @@ rdata_or_model_frame <- function(model, data) {
 #' [ht_analyse_failure()] treats as final: `runHeteroTests()` does not fall
 #' back on another test for it.
 #'
+#' Since 0.16.0 the guard is two steps, so that the model context
+#' (R/model_context.R), whose alignment step it is, can run the comparison on
+#' rows it found otherwise: [rdata_fit_rows()] picks the rows, and
+#' [rcheck_rows_at()] compares them with the model frame. This function, which
+#' the tests not yet built on the context call, runs the two as before.
+#'
 #' @param model The fitted model of the calling test. A model that is not an
 #'   `lm`, or whose model frame cannot be rebuilt, is left to the checks of the
 #'   test.
@@ -142,6 +148,31 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
     return(invisible(NULL))
   }
   rcheck_model_frame(model, frame, fn)
+  rows <- rdata_fit_rows(frame, data, fn)
+  if (is.null(rows)) {
+    return(invisible(NULL))
+  }
+  rows <- rcheck_rows_at(model, frame, data, rows, fn)
+  attr(rows, "compared") <- NULL
+  invisible(rows)
+}
+
+#' The rows of `data` that the row names pick for the observations of a fit
+#'
+#' The first step of [rcheck_data_rows()]: the rows by row name, and for data
+#' that number their rows (`.row_names_info(data) < 0`), by the original row
+#' numbers of the fit. Repeated row names, which say nothing about which row
+#' holds which observation, are refused.
+#'
+#' @param frame The model frame of the fit.
+#' @param data A data frame.
+#' @param fn Character scalar naming the calling test in the message, or
+#'   `NULL`.
+#' @return Integer vector, the row of `data` for each observation, or `NULL`
+#'   when a name of the fit is not a row name of `data`.
+#' @keywords internal
+#' @noRd
+rdata_fit_rows <- function(frame, data, fn = NULL) {
   numbered <- .row_names_info(data) < 0L
   # The row names as stored, integer or character: rownames() would turn
   # integers into strings on every call, and two integer row names are the
@@ -159,8 +190,33 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
     match(as.character(ids), as.character(data_rows))
   }
   if (anyNA(rows)) {
-    return(invisible(NULL))
+    return(NULL)
   }
+  rows
+}
+
+#' Refuse rows of `data` that do not reproduce the model frame
+#'
+#' The second step of [rcheck_data_rows()]: the rows `rows` of `data`, one per
+#' observation of the fit, are compared with every column of its model frame
+#' ([rdata_rows_checked()]), and refused when a compared column differs, or
+#' when the columns that can be compared leave rows of the fit that they cannot
+#' tell apart.
+#'
+#' @param model The fitted model.
+#' @param frame Its model frame.
+#' @param data A data frame.
+#' @param rows Integer vector, the row of `data` for each observation.
+#' @param fn Character scalar naming the calling test in the message, or
+#'   `NULL`.
+#' @param numbered Logical: does `data` number its rows? It decides the
+#'   message.
+#' @return `rows`, invisibly, with the names of the columns that were compared
+#'   as its attribute `compared`.
+#' @keywords internal
+#' @noRd
+rcheck_rows_at <- function(model, frame, data, rows, fn = NULL,
+                           numbered = .row_names_info(data) < 0L) {
   checked <- rdata_rows_checked(model, frame, data, rows)
   if (length(checked$differ) > 0L) {
     rstop_data_rows_unmatched(fn, if (numbered) "numbered" else "named", checked$differ)
@@ -181,6 +237,7 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
       skipped = checked$skipped, compared = checked$compared
     )
   }
+  attr(rows, "compared") <- checked$compared
   invisible(rows)
 }
 
@@ -634,6 +691,19 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
         "Pass the data the model was fitted on, with all its rows and the variables",
         "the model names, in the order of the fit or with its row names."
       )
+    ),
+    in_order_ties = c(
+      sprintf(
+        paste0(
+          "`data` has no row names of its own and does not hold the row numbers ",
+          "of the fit, so its rows are taken in the order of the fit; rows of the ",
+          "fit tie on every column of the model frame that is compared (%s), so ",
+          "they cannot be told apart, and the test reads columns of `data` ",
+          "beyond the model frame, which could then belong to other rows."
+        ),
+        listed(compared)
+      ),
+      "Pass a data frame with the row names of the fit."
     ),
     stale_frame = c(
       paste0(

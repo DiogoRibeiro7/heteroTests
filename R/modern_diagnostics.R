@@ -123,6 +123,15 @@
 #' [performVarianceFormTest()] allows for the estimation too.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param B Integer number of bootstrap replications. Defaults to `999`, which
 #'   is the default of every resampling test in the package since 0.15.0; it
 #'   was `499` before. The p-value is `(1 + #) / (B_eff + 1)`, so a test at
@@ -366,6 +375,21 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
 #' correlations imply systematic changes in residual spread.
 #'
 #' @inheritParams performBPTest
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`), unless `order_by` names a variable the model
+#'   frame does not hold, which is then read from `data`. Data that are given
+#'   are matched to the observations of the fit: rows with row names of their
+#'   own by name, in any order; rows that only number themselves (a tibble, a
+#'   data.table, a data frame whose row names were reset) by the row numbers
+#'   of the fit, or in the order of the fit when they hold one row per
+#'   observation and, when `order_by` is read from `data`, no two rows of the
+#'   fit tie on every column of its model frame. The rows the fit dropped may
+#'   be there or not. Data whose rows cannot be shown to hold the observations
+#'   of the fit are refused; see [test_results].
 #' @param order_by Optional name of a predictor variable used to rank the
 #'   observations. Defaults to the first non-intercept term in the model matrix.
 #' @param B Number of permutation replications used to approximate the null
@@ -399,8 +423,15 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
 #' @export
 performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 999,
                                        progress = interactive()) {
-  rrefuse_non_gaussian_glm(model, "performRankPermutationTest")
-  data <- rdata_or_model_frame(model, data)
+  test_label <- "Rank permutation"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  # `order_by` is read from the rows of `data`, so data taken in the order of
+  # the fit must tell its rows apart when it is not a column of the model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performRankPermutationTest", test_label = test_label,
+    reads = if (is.character(order_by)) order_by else character()
+  )
   if (!is.null(order_by)) {
     order_by <- enforce_character_scalar(order_by, "order_by")
   }
@@ -412,24 +443,19 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
     stop("`progress` must be a single logical value.", call. = FALSE)
   }
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "Rank permutation",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
-  residuals <- abs(prepared$residuals)
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- abs(rcontext_pearson(ctx))
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read, and where `order_by` is
+  # looked for first.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("rank_permutation", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  model_matrix <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  model_matrix <- rcontext_design(ctx)
   predictor_name <- if (is.null(order_by)) .pick_predictor(model_matrix) else order_by
   if (is.null(predictor_name)) {
     stop("Unable to determine ordering variable for permutation test.", call. = FALSE)
@@ -529,8 +555,10 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #' @export
 performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 0.9,
                                        max_components = NULL) {
-  rrefuse_non_gaussian_glm(model, "performHighDimensionalTest")
-  data <- rdata_or_model_frame(model, data)
+  test_label <- "High-dimensional"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performHighDimensionalTest", test_label = test_label)
   if (!is.numeric(variance_threshold) || length(variance_threshold) != 1L ||
     is.na(variance_threshold) || variance_threshold <= 0 || variance_threshold > 1) {
     stop("`variance_threshold` must be in (0, 1].", call. = FALSE)
@@ -539,26 +567,20 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
     max_components <- enforce_integer_scalar(max_components, "max_components", lower = 1L)
   }
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "High-dimensional",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("high_dimensional", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  # The principal components are those of the estimable part of the design:
-  # an aliased column would add its variance to the projection.
-  design_matrix <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  # The principal components are those of the estimable part of the design of
+  # the fit: an aliased column would add its variance to the projection.
+  design_matrix <- rcontext_design(ctx)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]
   } else {
@@ -607,6 +629,15 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' the squared residuals is evidence of spatially varying variance.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param listw Spatial weights in `spdep` \code{listw} format or a numeric
 #'   matrix coercible via \code{spdep::mat2listw()}.
 #' @param permutations Number of Monte Carlo permutations used to compute the

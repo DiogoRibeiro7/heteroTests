@@ -36,6 +36,15 @@ NULL
 #' intervals, effect size reporting, and power analysis.
 #'
 #' @inheritParams performWhiteTest
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param method Character string selecting the auxiliary specification.
 #'   "standard" retains squares and cross-products, while "reduced"
 #'   excludes cross-products for high-dimensional designs.
@@ -202,6 +211,15 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' diagnostics.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param studentize Logical, use studentized residuals for the auxiliary
 #'   regression (Koenker variant)? Defaults to `TRUE`. The name matches
 #'   `lmtest::bptest()` and [performHarveyTest()].

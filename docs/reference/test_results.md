@@ -110,6 +110,32 @@ any order, except by
 [`performScatterDiagnostic()`](performScatterDiagnostic.md), which read `data` by position and need its rows in the order of the
 fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
 
+Since 0.16.0 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md), [`performKoenkerTest()`](performKoenkerTest.md),
+[`performRankPermutationTest()`](performRankPermutationTest.md) and [`performHighDimensionalTest()`](performHighDimensionalTest.md) read the response, the
+design, the residuals, the weights and the offset from the fit, through the model context of the package, and read
+from `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page
+of the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). These five
+match numbered rows by the row numbers of the fit, or, when `data` holds one row per observation and its numbers
+are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
+before the match, so data that hold the rows a fit with `na.omit` dropped, or only the rows it kept, numbered
+again, are accepted. Named data in any order, numbered data in the order of the fit: numbered data in another order
+are refused, as by the other tests. They need no `data` for a model that transforms its variables, has an
+`offset()` term, or takes its weights or offset from a column of the data, and accept its model frame as
+`data`. They also refuse a multivariate `lm` ("needs a model with one response"), a fit whose coefficients,
+residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
+coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
+`model = FALSE` whose model frame can no longer be rebuilt, unless `data` gives its response and fitted
+values, on which it is then tested. The check of an edited fit is a guard against accidental edits, not a proof
+that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at `1e-7` of
+the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
+undetected once the response is above about `1e7`. These refusals have class `heteroTests_model_context_error`, which
+[`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) keep, as they keep that of a refusal of
+`data`, without running another test under the name of the one refused. The rank permutation test, when its
+`order_by` is a column of `data` the model frame does not hold, refuses numbered rows taken in the order of
+the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+reported may differ from before 0.16.0, since the rows of `data` are now matched before the checks of the model.
+`tests/testthat/test-model-context.R` checks them.
+
 ## Supported models
 
 The tests examine the residuals of a least-squares fit for a variance that is not constant, so they accept the models

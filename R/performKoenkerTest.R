@@ -8,14 +8,18 @@
 #'
 #' @param model A fitted [stats::lm] object supplying residuals and fitted values
 #'   for the diagnostic.
-#' @param data A [base::data.frame] containing the variables referenced in
-#'   `model`. The data must align with the observations used to fit `model`.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #'
 #' @return An object of class \code{htest} with the chi-squared statistic,
 #'   degrees of freedom, and p-value for the null hypothesis of homoskedasticity.
@@ -29,8 +33,9 @@
 #' except on a fit returned by [fitWLS()]). This implementation
 #' integrates the validation helpers
 #' to ensure: (i) sufficient sample size and finite residuals via
-#' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) complete data through \link[=rvalidateDataInputs]{rvalidateDataInputs()}
-#' and \link[=rhandleMissingValues]{rhandleMissingValues()}, (iii) satisfaction of Koenker-specific
+#' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) the response, design, residuals and
+#' weights of the fit itself, with the rows of `data` matched to its observations (the model
+#' context, since 0.16.0), (iii) satisfaction of Koenker-specific
 #' requirements using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, and (iv) a full-rank design
 #' matrix for the auxiliary regression.
 #'
@@ -85,27 +90,18 @@
 #' [performBPTest()] for the classical LM statistic using squared residuals,
 #' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
 performKoenkerTest <- function(model, data = NULL) {
-  rrefuse_non_gaussian_glm(model, "performKoenkerTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker studentized Breusch-Pagan test"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performKoenkerTest", test_label = test_label)
 
   rvalidateModelInputs(model, test_name = "Koenker", min_obs = 15L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("koenker", model = model, data = working_data)
   rprocessValidationResult(requirements)
@@ -134,9 +130,9 @@ performKoenkerTest <- function(model, data = NULL) {
 
   ht_log("INFO", "Running Koenker test")
 
-  # The design without the columns a rank-deficient fit aliased, so that the
-  # degrees of freedom are those of the estimable part of the design.
-  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  # The design of the fit without the columns a rank-deficient fit aliased, so
+  # that the degrees of freedom are those of the estimable part of the design.
+  X_full <- rcontext_design(ctx)
   if (nrow(X_full) != length(residuals)) {
     stop(
       sprintf(

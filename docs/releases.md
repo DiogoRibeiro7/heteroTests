@@ -289,6 +289,157 @@ Also:
     route) return what they returned in 0.15.0, `identical()`, but the label of
     `plotBeforeAfter()` for a weighted Gaussian `glm`.
 
+### The model context
+
+`performWhiteTest()`, `performBPTest()` and its deprecated name
+`performBreuschPaganTest()`, `performKoenkerTest()`,
+`performRankPermutationTest()` and `performHighDimensionalTest()` read the
+response, the design, the residuals, the weights and the offset from the
+fit, through an internal model context, and no longer rebuild the design from
+`data`. Data that are given are matched to the observations of the fit by
+the guard of 0.15.0 before anything is read from them, and nothing is
+dropped before the match: named data in any order, numbered data in fit
+order. This is the first of eleven steps; the design, the plan and the
+decisions are on the
+[design page](https://diogoribeiro7.github.io/heteroTests/design/model-context/)
+of the site. Through these tests the change reaches the base statistic of
+`performWhiteTestRobust()` and `performBPTestRobust(studentize = FALSE)`, the
+registry names `white`, `breusch_pagan`, `koenker`, `rank_permutation` and
+`high_dimensional`, and the default battery of `runHeteroTests()` and
+`runDiagnostics()`. `performWhiteTestBootstrap()` does not change: its
+observed statistic and its replicates keep the computation of 0.15.0, so that
+both come from the same kind of design, until a later step moves both; and
+above the 100 MB switch to the streaming tests, the five still rebuild the
+design chunk by chunk until the step that migrates the streaming tests.
+
+**A term computed from all the rows of the data is tested as the fit
+computed it.** A fit that drops rows computes a term such as
+`I(wt > median(wt))` on all the rows of the data before it drops the
+incomplete ones; the tests rebuilt the design on the rows the fit kept, where
+the median is another, so they tested a design the fit never used. With
+
+```r
+d <- mtcars
+d$qsec[c(15, 16, 17)] <- NA
+m <- lm(mpg ~ I(wt > median(wt)) + qsec, data = d)
+```
+
+the three heaviest cars are dropped, the median of `wt` on the 29 that are
+left is lower, and the indicator changed for the cars in between. The tests
+now give the value of the same fit with the indicator computed beforehand,
+`d$heavy <- d$wt > median(d$wt)` and `lm(mpg ~ heavy + qsec, data = d)`:
+
+| Call | 0.15.0 | Now |
+| --- | --- | --- |
+| `performWhiteTest(m, d)` | 9.634 (p = 0.047) | 10.00 (p = 0.040) |
+| `performBPTest(m, d)` | 8.463 (p = 0.0145) | 8.647 (p = 0.0133) |
+| `performKoenkerTest(m, d)` | 9.348 (p = 0.0093) | 9.551 (p = 0.0084) |
+| `performRankPermutationTest(m, d)`, `set.seed(1)` | -0.676 (p = 0.001) | -0.738 (p = 0.001) |
+| `performHighDimensionalTest(m, d)` | 2.841 (p = 0.092) | 2.877 (p = 0.090) |
+
+A term that does not depend on the rows it is computed from (`log()`,
+`poly()`, `ns()`, `scale()` through their `predvars`) gave the value of the
+fit already.
+
+**Without `data`, `runHeteroTests()` runs White's and Koenker's tests on a
+fit whose weights or offset are a column of the data.** On
+`d$w <- 1 / d$wt` and `m <- lm(mpg ~ wt + qsec, data = d, weights = w)` with
+`d <- mtcars`, `performWhiteTest(m)` and `performKoenkerTest(m)` stopped with
+"object 'w' not found", and `runHeteroTests(m)` returned the Cook-Weisberg
+statistic, 1.545 (p = 0.214), under the names `white` and `koenker`, tagged as
+a fallback, as did `runDiagnostics()`. It returns White's statistic, 14.52 on
+5 degrees of freedom (p = 0.013), and Koenker's, 4.413 on 2 (p = 0.110), the
+values with `data`. With an offset given as a column, `offset = o` for
+`d$o <- 0.1 * d$hp`, it returned the Cook-Weisberg statistic 2.552 under both
+names, and returns White's 17.91 (p = 0.0031) and Koenker's 0.294 (p = 0.863).
+
+Also, for the five tests:
+
+- Errors that become values. Weights or an offset taken from a column of the
+    data, with `data` omitted or the model frame given as `data`: Koenker's
+    statistic of the weighted fit above, 4.413, with
+    `performKoenkerTest(m)` and with `performKoenkerTest(m, model.frame(m))`.
+    Transformed variables and `offset()` terms without `data`:
+    `performKoenkerTest(lm(log(mpg) ~ log(wt) + qsec, data = mtcars))` stopped
+    with "The following variables are missing from input data: mpg, wt", and
+    gives 5.518 (p = 0.063), the value with `mtcars`; the same holds for
+    `poly()`, `ns()`, `I(wt > median(wt))` and `cut()`, which the model frame
+    holds as terms. Numbered data that hold the rows a fit with `na.omit`
+    dropped, or only the rows it kept, numbered again, a tibble with the rows
+    it dropped, the tibble the model was fitted on, and a tibble in the order of
+    a fit to data with character row names: they stopped with "Missing rows",
+    or with "numbers the rows that are left afresh", and give the value on the
+    rows of the fit. Numbered data with one row per observation are matched in
+    the order of the fit once their values reproduce it (decided on
+    2026-10-18). A fit with `subset =` given by index:
+    `performKoenkerTest(lm(mpg ~ wt + qsec, data = mtcars, subset = 3:32), mtcars)`
+    stopped with "could not align the design matrix with model residuals" and
+    gives 2.442, the value of the fit to `mtcars[3:32, ]`. A `cut(x, quantile(x))`
+    term: `performKoenkerTest(lm(mpg ~ cut(wt, quantile(wt)) + qsec, data = mtcars), mtcars)`
+    stopped with "factor ... has new levels" and gives 11.13 (p = 0.025), the
+    value of the same fit with `x = TRUE`.
+- A multivariate `lm`, `lm(cbind(mpg, qsec) ~ wt, data = mtcars)`, is refused
+    with ``performKoenkerTest() needs a model with one response; `model` has 2.``
+    instead of the coercion error "'length = 4' in coercion to 'logical(1)'",
+    also through `runHeteroTests()`.
+- On a fit with a `poly()` term the value equals, with `identical()`, what
+    0.15.0 computes on the fit's stored design (the model refitted with
+    `x = TRUE`); differences against the design 0.15.0 rebuilt are in the last
+    bits (measured up to 1.3e-15 relative on the statistic).
+- A fit whose coefficients, residuals or weights were changed after it was
+    fitted is refused ("The fitted model does not reproduce its residuals from
+    its design and coefficients", "The weights of the model are not those its
+    coefficients were fitted with"). A fit with `model = FALSE` whose data are
+    gone, so that its model frame can no longer be rebuilt, is tested on `data`
+    when `data` gives the response and the fitted values of the fit, as it was
+    tested before without that check, and refused otherwise, as with `data`
+    whose response was reversed, for which a value was returned.
+- These refusals have class `heteroTests_model_context_error`, and
+    `runHeteroTests()` and `runDiagnostics()` keep it and run no other test under
+    the name of the one refused, as for a refusal of `data`; on an edited fit
+    the runner put the Cook-Weisberg test under the names `white` and
+    `koenker`.
+- The rank permutation test, when its `order_by` names a column of `data`
+    that the model frame does not hold, refuses numbered data taken in the order
+    of the fit if two rows of the fit tie on every compared column, which could
+    then have been exchanged; such data stopped with "Missing rows" before.
+- **`bootstrapTestStatistic()`, `performWhiteTestRobust(bootstrap = TRUE)`
+    and `performBPTestRobust(bootstrap = TRUE)` refuse a fit whose model frame
+    cannot be rebuilt from `data` under the levels of the fit, as with
+    `cut(x, quantile(x))`.** They refit their replicates from the formula until
+    a later step, and those replicates would compute other breaks than the fit.
+    Where the base statistic already failed, the error changes from "factor
+    ... has new levels" to "`data` does not reproduce the fit". Some of these
+    calls returned a value before, for example
+    `bootstrapTestStatistic(performGlejserTest, ...)` on such a fit, and the
+    robust bootstraps on the same fit refitted with `x = TRUE` (White 11.32,
+    p = 0.184; Breusch-Pagan without studentizing 15.79, p = 0.0033). That
+    value compared the statistic of the fit with replicates of another design,
+    and these calls now stop. Calls that stopped in their base statistic and
+    now reach the checks of the bootstrap stop there instead, with its own
+    message.
+- The warning "Removed N observations due to missing values in ..." is still
+    given for the incomplete rows of `data`, which the fit left out, and nothing
+    is dropped. Koenker's test gives the warnings of the checks of the model
+    once; it gave them twice.
+- Unchanged: every other value of a valid call, every refusal of the guard of
+    0.15.0, numbered data in another order than the fit, which stay refused,
+    and every message the test suite pins; on a call with more than one defect,
+    the first one reported may differ, since the rows of `data` are matched
+    before the checks of the model. Data with fewer rows than the fit now
+    stop with "Missing rows: ..." instead of "Input Data contains only N
+    observations ...", for the same reason. `performWhiteTestRobust()` and
+    `performBPTestRobust()` keep their own preparation of the data until a
+    later step, so they still need `data` for a model that transforms its
+    variables, and a fit with `na.action = na.exclude` is still refused. A
+    corpus of 11,271 calls, every test and the bootstraps above on
+    262 combinations of fits, offsets, terms, forms of `data`,
+    dropped rows and row names, the default battery and the examples of the five
+    help pages, returns what it returned in 0.15.0, `identical()`, but for the
+    591 calls of the changes above
+    (`scripts/model-context-identity.R`); the rows of the five tests in the
+    studies of `inst/validation/` that use them are reproduced byte for byte.
+
 ### Packaging
 
 - The logo shows in the README, and the `R CMD check` NOTE
@@ -742,8 +893,9 @@ The error keeps the class of the refusal, `heteroTests_data_rows_error`.
 
 The guard is a stopgap. 0.16.0 replaces it with the model context of the
 roadmap, which takes the response, design and weights from the fit and
-matches the rows of `data` by name or by verified position, so that data in
-any order give the value on the data of the fit.
+matches the rows of `data` by name or by verified position, so that named
+data in any order, and numbered data in fit order, give the value on the data
+of the fit.
 
 ### Seeded resampling in parallel is reproducible
 

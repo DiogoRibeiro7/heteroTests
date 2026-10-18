@@ -7,15 +7,18 @@
 #'
 #' @param model A fitted [stats::lm] object describing the mean structure whose
 #'   residual variance is to be assessed.
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #'
 #' @return An object of class \code{htest} with the LM statistic, degrees of
 #'   freedom, and p-value for the null hypothesis of constant error variance.
@@ -34,8 +37,9 @@
 #' \enumerate{
 #'   \item ensure the fitted model has at least 15 observations and finite
 #'     residuals via \link[=rvalidateModelInputs]{rvalidateModelInputs()};
-#'   \item confirm `data` supplies all required variables and handle missing
-#'     cases through \link[=rvalidateDataInputs]{rvalidateDataInputs()} and \link[=rhandleMissingValues]{rhandleMissingValues()};
+#'   \item read the response, design, residuals and weights from the fit (the
+#'     model context, since 0.16.0), and match the rows of `data`, when it is
+#'     given, to the observations of the fit;
 #'   \item verify auxiliary regression conditions (sample size, rank, residual
 #'     variation) with \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} and bespoke checks; and
 #'   \item guard against alignment issues between residuals and the supplied data
@@ -85,14 +89,12 @@
 #' \eqn{n R^2} LM statistic that drops the normality assumption, and
 #' \link[=performBPTestRobust]{performBPTestRobust()} or [performWhiteTest()] for complementary diagnostics.
 performBPTest <- function(model, data = NULL) {
-  rrefuse_non_gaussian_glm(model, "performBPTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan test"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performBPTest", test_label = test_label)
   rvalidateModelInputs(model, test_name = "Breusch-Pagan", min_obs = 15L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 15L)
+  rvalidate_model_context(ctx)
 
   handle_validation_result <- function(result) {
     if (length(result$warnings) > 0) {
@@ -106,51 +108,11 @@ performBPTest <- function(model, data = NULL) {
     invisible(result)
   }
 
-  align_to_model <- function(clean_data, residuals) {
-    resid_names <- names(residuals)
-    data_rows <- rownames(clean_data)
-
-    if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
-      match_idx <- match(resid_names, data_rows)
-      if (anyNA(match_idx)) {
-        missing_rows <- resid_names[is.na(match_idx)]
-        stop(
-          sprintf(
-            "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
-            test_label,
-            paste(utils::head(missing_rows, 3L), collapse = ", ")
-          ),
-          call. = FALSE
-        )
-      }
-      # `data` and `cleaned` are those of the enclosing call: the rows before
-      # and after rhandleMissingValues().
-      rcheck_rows_after_cleaning(
-        data, cleaned, match_idx, resid_names,
-        fn = rtest_name(sys.parent()), test_label = test_label
-      )
-      aligned_data <- clean_data[match_idx, , drop = FALSE]
-      list(data = aligned_data, residuals = residuals)
-    } else {
-      if (nrow(clean_data) != length(residuals)) {
-        stop(
-          sprintf(
-            "%s requires `data` with %d observations to match the fitted model, got %d.",
-            test_label,
-            length(residuals),
-            nrow(clean_data)
-          ),
-          call. = FALSE
-        )
-      }
-      list(data = clean_data, residuals = residuals)
-    }
-  }
-
-  cleaned <- rhandleMissingValues(data, variables = required_vars)
-  aligned <- align_to_model(cleaned$data, rpearson_residuals(model))
-  working_data <- aligned$data
-  residuals <- aligned$residuals
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   handle_validation_result(requirements)
@@ -188,9 +150,9 @@ performBPTest <- function(model, data = NULL) {
     )
   }
 
-  # The design without the columns a rank-deficient fit aliased, so that the
-  # degrees of freedom are those of the estimable part of the design.
-  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  # The design of the fit without the columns a rank-deficient fit aliased, so
+  # that the degrees of freedom are those of the estimable part of the design.
+  X_full <- rcontext_design(ctx)
   if (nrow(X_full) != length(residuals)) {
     stop(
       sprintf(

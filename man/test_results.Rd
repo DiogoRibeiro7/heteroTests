@@ -77,6 +77,32 @@ any order, except by
 \code{\link{performPesaranTest}()}, \code{\link{performBPRandomEffectsTest}()} and
 \code{\link{performScatterDiagnostic}()}, which read \code{data} by position and need its rows in the order of the
 fit. \code{tests/testthat/test-data-alignment-guard.R} checks these refusals.
+
+Since 0.16.0 \code{\link{performWhiteTest}()}, \code{\link{performBPTest}()}, \code{\link{performKoenkerTest}()},
+\code{\link{performRankPermutationTest}()} and \code{\link{performHighDimensionalTest}()} read the response, the
+design, the residuals, the weights and the offset from the fit, through the model context of the package, and read
+from \code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page
+of the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). These five
+match numbered rows by the row numbers of the fit, or, when \code{data} holds one row per observation and its numbers
+are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
+before the match, so data that hold the rows a fit with \code{na.omit} dropped, or only the rows it kept, numbered
+again, are accepted. Named data in any order, numbered data in the order of the fit: numbered data in another order
+are refused, as by the other tests. They need no \code{data} for a model that transforms its variables, has an
+\code{offset()} term, or takes its weights or offset from a column of the data, and accept its model frame as
+\code{data}. They also refuse a multivariate \code{lm} ("needs a model with one response"), a fit whose coefficients,
+residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
+coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
+\code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
+values, on which it is then tested. The check of an edited fit is a guard against accidental edits, not a proof
+that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at \code{1e-7} of
+the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
+undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
+\code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
+\code{data}, without running another test under the name of the one refused. The rank permutation test, when its
+\code{order_by} is a column of \code{data} the model frame does not hold, refuses numbered rows taken in the order of
+the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+reported may differ from before 0.16.0, since the rows of \code{data} are now matched before the checks of the model.
+\code{tests/testthat/test-model-context.R} checks them.
 }
 \section{Supported models}{
 The tests examine the residuals of a least-squares fit for a variance that is not constant, so they accept the models
