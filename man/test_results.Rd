@@ -79,10 +79,17 @@ any order, except by
 fit. \code{tests/testthat/test-data-alignment-guard.R} checks these refusals.
 
 Since 0.16.0 \code{\link{performWhiteTest}()}, \code{\link{performBPTest}()}, \code{\link{performKoenkerTest}()},
-\code{\link{performRankPermutationTest}()} and \code{\link{performHighDimensionalTest}()} read the response, the
-design, the residuals, the weights and the offset from the fit, through the model context of the package, and read
-from \code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page
-of the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). These five
+\code{\link{performRankPermutationTest}()}, \code{\link{performHighDimensionalTest}()}, the studentized
+Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with
+\code{studentize = TRUE}, the registered \code{"student_bp"}), \code{\link{performRESETTest}()},
+\code{\link{performGQTest}()} and \code{\link{performQuantileRegressionTest}()} read the response, the design, the
+residuals, the weights and the offset from the fit, through the model context of the package, and read from
+\code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
+the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET reads
+nothing from \code{data}: it builds its context without it, and keeps the check of \code{data} of the tests computed
+from the model alone, for the variables of the model and the row names of the fit, until a later step.
+\code{\link{performGQTest}()} reads its \code{order_by} from the confirmed rows of \code{data}, or, without
+\code{data}, from the model frame when it holds the variable under its own name. These tests
 match numbered rows by the row numbers of the fit, or, when \code{data} holds one row per observation and its numbers
 are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
 before the match, so data that hold the rows a fit with \code{na.omit} dropped, or only the rows it kept, numbered
@@ -93,7 +100,10 @@ are refused, as by the other tests. They need no \code{data} for a model that tr
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 \code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
-values, on which it is then tested. The check of an edited fit is a guard against accidental edits, not a proof
+values, on which it is then tested (RESET, which builds its context without \code{data}, refuses it). RESET,
+Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse a penalised
+\code{mgcv::gam()} fit with smooth terms, which is not the least-squares fit of its design, until a later step
+settles which tests take it; the other five test it as before 0.16.0. The check of an edited fit is a guard against accidental edits, not a proof
 that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at \code{1e-7} of
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
@@ -121,14 +131,14 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   fits, in which a zero weight drops the observation from both; it gives the value of the fit to the observations with
   positive weight. Keeping that exception was decided on 2026-10-17.
   \item An offset, given as \code{offset = o} or as an \code{offset()} term: the residuals of the fit include it, and
-  the tests that read them account for it. Four leave it out of a refit, and refuse, since 0.16.0 and until the offset
-  fix planned for it, exactly the offsets they leave out, with a message of class \code{heteroTests_offset_error}
-  that says so: \code{\link{performRESETTest}()}, \code{\link{performQuantileRegressionTest}()} and the studentized
-  Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with
-  \code{studentize = TRUE}, the registered \code{"student_bp"}) refuse any offset, and \code{\link{performGQTest}()} an
-  offset given as an argument, or any offset on a weighted fit; it reads an \code{offset()} term on an unweighted fit.
-  \code{\link{runHeteroTests}()} does not fall back on another test for this refusal. An offset that is zero everywhere
-  is accepted.
+  the tests that read them account for it. Four left it out of a refit and returned a value that was not that of the
+  model; they refused it in the development of 0.16.0 (decided 2026-10-17), and since the offset fix of 0.16.0 they
+  read the offset from the fit and carry it in every refit: \code{\link{performGQTest}()},
+  \code{\link{performQuantileRegressionTest}()} and the studentized Breusch-Pagan statistic
+  (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with \code{studentize = TRUE}, the
+  registered \code{"student_bp"}) give the value of the model fitted to the response minus the offset, and
+  \code{\link{performRESETTest}()} the nested F test of the model with its offset against the model augmented with the
+  powers of its fitted values, \eqn{X\hat\beta + o}{X b + o} (decided 2026-10-18).
   \item A \code{glm} with the Gaussian family and the identity link is a least-squares fit. With prior weights
   \eqn{w_i}{w_i} it is fitted by maximum likelihood, which for normal errors of variance \eqn{\phi / w_i}{phi / w_i}
   maximises \eqn{-\sum_i w_i (y_i - x_i^\top \beta)^2 / (2\phi)}{-sum(w_i (y_i - x_i'beta)^2) / (2 phi)}: weighted least

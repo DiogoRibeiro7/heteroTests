@@ -948,7 +948,12 @@ after it.
     do not fall back on another test for it (`rrefuse_offset()`). The offset
     fix of 0.16.0 makes them account for the offset, as
     `rweighted_refit()` and the bootstraps do, which turns these refusals back
-    into values; announce it in bold.
+    into values; announce it in bold. Done in 0.16.0, by step 2 of the model
+    context (below): GQ and the quantile test give the value of the model of
+    `y - o` (2.38 and 3.26), and RESET the nested F test of the model with its
+    offset (decision 19), F = 0.112 (p = 0.894) on that fit, where RESET of
+    the model of `y - o`, another test, gives 4.49; `rrefuse_offset()` and the
+    class `heteroTests_offset_error` are gone.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -995,7 +1000,9 @@ after it.
     `performKoenkerTest()` gives 18.79. Found in the review of #129. Changes a
     value. Since 2026-10-17 (decided that day) it refuses a model with an
     offset until it is fixed, with the three tests of the item on offsets
-    above; the fix turns the refusal back into a value.
+    above; the fix turns the refusal back into a value. Done in 0.16.0, by
+    step 2 of the model context: its refit carries the offset, and it gives
+    Koenker's 18.79.
   - [x] `performWildBootstrapTest()` and `performWhiteTestBootstrap()` accepted
     a non-Gaussian `glm` and returned a meaningless result. Done in 0.15.0 with
     the input validation: they refuse it, and read the prior weights of a
@@ -1166,11 +1173,16 @@ after it.
       permutation test with `order_by = "z"` gives -0.02142 instead of
       -0.02619 in the order of the fit. Extend the rule on ties to rows
       matched by number when the call reads such a column.
-  - [ ] 2. The offsets: the studentized Breusch-Pagan statistic, RESET (the
+  - [x] 2. The offsets: the studentized Breusch-Pagan statistic, RESET (the
     nested F test of the offset model, decision 19, with one evidence cell of
-    5000 replications in `offset-refits-size.R` before release),
-    Goldfeld-Quandt on the stored design (decision 20) and the quantile test on
-    `y - offset`; `rrefuse_offset()` goes. Closes B7, N1, N6 for RESET, R5.
+    5000 replications in `offset-refits-size.R`: it rejects 0.0492, inside the
+    release gate), Goldfeld-Quandt on the stored design (decision 20) and the
+    quantile test on `y - offset`; `rrefuse_offset()` goes. Closes B7, N1, N6
+    for RESET, R5, and for these four the classes step 1 closed for its five
+    (B5, B12, B14, B15, L1, L2, N7, R4). RESET reads nothing from `data` and
+    builds its context without it, keeping its check of `data` until step 6;
+    the four refuse a penalised `mgcv::gam()` fit with smooth terms until
+    step 11. Done in 0.16.0.
   - [ ] 3. Glejser, Park, Szroeter, Harrison-McCabe (its rank at the fit's
     tolerance, decision 21), Hartley and the spatial test. Closes B14, B15, L1
     and M1 for these, N4.
@@ -1179,8 +1191,9 @@ after it.
     `id` and `time` read at the confirmed rows; repeated `(id, time)` pairs
     refused (decision 13). Closes B3, B4, B16, R2.
   - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
-    `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`.
-    Closes B9, R3, N6.
+    `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
+    and the check of `data` RESET keeps until then (`rcheck_data_argument()`).
+    Closes B9, R3, N6 for these.
   - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
     Closes B6.
   - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
@@ -1196,9 +1209,10 @@ after it.
     B11, N5.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
-    by class that the tests accept as before, is an input they justify: its
-    residuals are not orthogonal to its design, and the null distributions
-    assume least squares.
+    by class, is an input the tests justify: its residuals are not orthogonal
+    to its design, and the null distributions assume least squares. The five
+    tests of step 1 accept it as before; the four of step 2 refuse it until
+    this step settles it for every test together.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
