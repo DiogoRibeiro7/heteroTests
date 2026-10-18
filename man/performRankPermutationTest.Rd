@@ -21,13 +21,16 @@ The response, design, weights and offset are read from the fit itself, so
 a model that transforms its variables, has an \code{offset()} term, or takes
 its \code{weights} or \code{offset} from a column of the data needs no \code{data}, and
 the model frame of \code{model} is accepted as \code{data} (since 0.16.0; before,
-such models needed \code{data}). Data that are given are matched to the
-observations of the fit: rows with row names of their own by name, in any
-order; rows that only number themselves (a tibble, a data.table, a data
-frame whose row names were reset) by the row numbers of the fit, or in the
-order of the fit when they hold one row per observation. The rows the fit
-dropped may be there or not. Data whose rows cannot be shown to hold the
-observations of the fit are refused; see \link{test_results}.}
+such models needed \code{data}), unless \code{order_by} names a variable the model
+frame does not hold, which is then read from \code{data}. Data that are given
+are matched to the observations of the fit: rows with row names of their
+own by name, in any order; rows that only number themselves (a tibble, a
+data.table, a data frame whose row names were reset) by the row numbers
+of the fit, or in the order of the fit when they hold one row per
+observation and, when \code{order_by} is read from \code{data}, no two rows of the
+fit tie on every column of its model frame. The rows the fit dropped may
+be there or not. Data whose rows cannot be shown to hold the observations
+of the fit are refused; see \link{test_results}.}
 
 \item{order_by}{Optional name of a predictor variable used to rank the
 observations. Defaults to the first non-intercept term in the model matrix.}

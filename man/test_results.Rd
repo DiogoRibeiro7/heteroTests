@@ -92,8 +92,14 @@ are refused, as by the other tests. They need no \code{data} for a model that tr
 \code{data}. They also refuse a multivariate \code{lm} ("needs a model with one response"), a fit whose coefficients,
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
-\code{model = FALSE} whose model frame can no longer be rebuilt. \code{tests/testthat/test-model-context.R} checks
-them.
+\code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
+values, on which it is then tested. These refusals have class \code{heteroTests_model_context_error}, which
+\code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
+\code{data}, without running another test under the name of the one refused. The rank permutation test, when its
+\code{order_by} is a column of \code{data} the model frame does not hold, refuses numbered rows taken in the order of
+the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+reported may differ from before 0.16.0, since the rows of \code{data} are now matched before the checks of the model.
+\code{tests/testthat/test-model-context.R} checks them.
 }
 \section{Supported models}{
 The tests examine the residuals of a least-squares fit for a variance that is not constant, so they accept the models

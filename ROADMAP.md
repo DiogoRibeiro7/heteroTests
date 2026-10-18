@@ -1145,8 +1145,19 @@ after it.
     (`rdata_fit_rows()`, `rcheck_rows_at()`); `performWhiteTest()`,
     `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`,
     `performRankPermutationTest()` and `performHighDimensionalTest()` built on
-    it. Closes B5, B12 (direct calls and the runner), B14, B15, N7, R4/N9 and
-    R7 for these, and L1 and L2. Done in 0.16.0.
+    it, and through them the base statistic of `performWhiteTestRobust()` and
+    `performBPTestRobust(studentize = FALSE)`. Closes B5, B12 (direct calls and
+    the runner), B14, B15, N7, R4/N9 and R7 for these, and L1 and L2. The
+    refusals of the context are final in the runners (decision 6).
+    `performWhiteTestBootstrap()` keeps the computation of 0.15.0 for its
+    observed statistic and its replicates (`rwhite_test_rebuilt_design()`);
+    `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`
+    refuse a fit whose frame cannot be rebuilt from `data`. Done in 0.16.0.
+    - Follow-up, from the review of step 1: try the rows in the order of the
+      fit also when the rows picked by number fail the comparison and `data`
+      has one row per observation. That accepts a fit to `d[order(x), ]` given
+      the same data numbered again, and character row names that look like
+      numbers.
   - [ ] 2. The offsets: the studentized Breusch-Pagan statistic, RESET (the
     nested F test of the offset model, decision 19, with one evidence cell of
     5000 replications in `offset-refits-size.R` before release),
@@ -1165,13 +1176,21 @@ after it.
   - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
     Closes B6.
   - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
-    the stored design. Closes B12 for replicates, N8.
+    the stored design: the observed statistic and the replicates of
+    `performWhiteTestBootstrap()` move together, and
+    `rwhite_test_rebuilt_design()` goes; `bootstrapTestStatistic()` and
+    `performWhiteTestRobust(bootstrap = TRUE)` no longer need to refuse a fit
+    whose frame cannot be rebuilt from `data`. Closes B12 for replicates, N8.
   - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
   - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
     refused (decision 10), workflows with `data`;
     `prepare_model_data_for_test()` and `rdata_or_model_frame()` go. Closes
     B11, N5.
-  - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10.
+  - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
+    it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
+    by class that the tests accept as before, is an input they justify: its
+    residuals are not orthogonal to its design, and the null distributions
+    assume least squares.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

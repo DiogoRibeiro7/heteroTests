@@ -299,10 +299,14 @@ order. This is the first of eleven steps; the design, the plan and the
 decisions are on the
 [design page](https://diogoribeiro7.github.io/heteroTests/design/model-context/)
 of the site. Through these tests the change reaches the base statistic of
-`performWhiteTestRobust()`, the observed statistic of
-`performWhiteTestBootstrap()`, the registry names `white`, `breusch_pagan`,
-`koenker`, `rank_permutation` and `high_dimensional`, and the default battery
-of `runHeteroTests()` and `runDiagnostics()`.
+`performWhiteTestRobust()` and `performBPTestRobust(studentize = FALSE)`, the
+registry names `white`, `breusch_pagan`, `koenker`, `rank_permutation` and
+`high_dimensional`, and the default battery of `runHeteroTests()` and
+`runDiagnostics()`. `performWhiteTestBootstrap()` does not change: its
+observed statistic and its replicates keep the computation of 0.15.0, so that
+both come from the same kind of design, until a later step moves both; and
+above the 100 MB switch to the streaming tests, the five still rebuild the
+design chunk by chunk until the step that migrates the streaming tests.
 
 **A term computed from all the rows of the data is tested as the fit
 computed it.** A fit that drops rows computes a term such as
@@ -381,22 +385,44 @@ Also, for the five tests:
 - A fit whose coefficients, residuals or weights were changed after it was
   fitted is refused ("The fitted model does not reproduce its residuals from
   its design and coefficients", "The weights of the model are not those its
-  coefficients were fitted with"), and so is a fit with `model = FALSE` whose
-  model frame can no longer be rebuilt, given `data` or not.
+  coefficients were fitted with"). A fit with `model = FALSE` whose data are
+  gone, so that its model frame can no longer be rebuilt, is tested on `data`
+  when `data` gives the response and the fitted values of the fit, as it was
+  tested before without that check, and refused otherwise, as with `data`
+  whose response was reversed, for which a value was returned.
+- These refusals have class `heteroTests_model_context_error`, and
+  `runHeteroTests()` and `runDiagnostics()` keep it and run no other test under
+  the name of the one refused, as for a refusal of `data`; on an edited fit
+  the runner put the Cook-Weisberg test under the names `white` and
+  `koenker`.
+- The rank permutation test, when its `order_by` names a column of `data`
+  that the model frame does not hold, refuses numbered data taken in the order
+  of the fit if two rows of the fit tie on every compared column, which could
+  then have been exchanged; such data stopped with "Missing rows" before.
+- `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`
+  refit their replicates from the formula until a later step, and refuse a fit
+  whose model frame cannot be rebuilt from `data` under the levels of the fit,
+  as with `cut(x, quantile(x))`, whose replicates would compute other breaks:
+  the error changes from "factor ... has new levels" to "`data` does not
+  reproduce the fit". Calls that stopped in their base statistic and now reach
+  the checks of the bootstrap stop there instead, with its own message.
 - The warning "Removed N observations due to missing values in ..." is still
   given for the incomplete rows of `data`, which the fit left out, and nothing
   is dropped. Koenker's test gives the warnings of the checks of the model
   once; it gave them twice.
 - Unchanged: every other value of a valid call, every refusal of the guard of
   0.15.0, numbered data in another order than the fit, which stay refused,
-  and every message the test suite pins. `performWhiteTestRobust()` and
+  and every message the test suite pins; on a call with more than one defect,
+  the first one reported may differ, since the rows of `data` are matched
+  before the checks of the model. `performWhiteTestRobust()` and
   `performBPTestRobust()` keep their own preparation of the data until a
   later step, so they still need `data` for a model that transforms its
   variables, and a fit with `na.action = na.exclude` is still refused. A
-  corpus of 9,645 calls, every test on 241 combinations of fits, offsets,
-  terms, forms of `data`, dropped rows and row names, the default battery and
-  the examples of the five help pages, returns what it returned in 0.15.0,
-  `identical()`, but for the 503 calls of the changes above
+  corpus of 11,271 calls, every test and the bootstraps above on
+  262 combinations of fits, offsets, terms, forms of `data`,
+  dropped rows and row names, the default battery and the examples of the five
+  help pages, returns what it returned in 0.15.0, `identical()`, but for the
+  591 calls of the changes above
   (`scripts/model-context-identity.R`); the rows of the five tests in the
   studies of `inst/validation/` that use them are reproduced byte for byte.
 

@@ -375,6 +375,21 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
 #' correlations imply systematic changes in residual spread.
 #'
 #' @inheritParams performBPTest
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`), unless `order_by` names a variable the model
+#'   frame does not hold, which is then read from `data`. Data that are given
+#'   are matched to the observations of the fit: rows with row names of their
+#'   own by name, in any order; rows that only number themselves (a tibble, a
+#'   data.table, a data frame whose row names were reset) by the row numbers
+#'   of the fit, or in the order of the fit when they hold one row per
+#'   observation and, when `order_by` is read from `data`, no two rows of the
+#'   fit tie on every column of its model frame. The rows the fit dropped may
+#'   be there or not. Data whose rows cannot be shown to hold the observations
+#'   of the fit are refused; see [test_results].
 #' @param order_by Optional name of a predictor variable used to rank the
 #'   observations. Defaults to the first non-intercept term in the model matrix.
 #' @param B Number of permutation replications used to approximate the null
