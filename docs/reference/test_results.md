@@ -110,6 +110,23 @@ any order, except by
 [`performScatterDiagnostic()`](performScatterDiagnostic.md), which read `data` by position and need its rows in the order of the
 fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
 
+Since 0.16.0 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md), [`performKoenkerTest()`](performKoenkerTest.md),
+[`performRankPermutationTest()`](performRankPermutationTest.md) and [`performHighDimensionalTest()`](performHighDimensionalTest.md) read the response, the
+design, the residuals, the weights and the offset from the fit, through the model context of the package, and read
+from `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page
+of the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). These five
+match numbered rows by the row numbers of the fit, or, when `data` holds one row per observation and its numbers
+are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
+before the match, so data that hold the rows a fit with `na.omit` dropped, or only the rows it kept, numbered
+again, are accepted. Named data in any order, numbered data in the order of the fit: numbered data in another order
+are refused, as by the other tests. They need no `data` for a model that transforms its variables, has an
+`offset()` term, or takes its weights or offset from a column of the data, and accept its model frame as
+`data`. They also refuse a multivariate `lm` ("needs a model with one response"), a fit whose coefficients,
+residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
+coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
+`model = FALSE` whose model frame can no longer be rebuilt. `tests/testthat/test-model-context.R` checks
+them.
+
 ## Supported models
 
 The tests examine the residuals of a least-squares fit for a variance that is not constant, so they accept the models
