@@ -339,12 +339,6 @@ test_that("a tibble whose incomplete rows a test drops is not matched to other r
   tb <- dplyr::as_tibble(d)
   m <- lm(y ~ x1 + x2, data = tb[1:100, ])
   for (fn in c("performKoenkerTest", "performWhiteTest", "performBPTest", "performGlejserTest")) {
-    expect_error(
-      guard_run(fn, m, tb),
-      "numbers the rows that are left afresh",
-      class = "heteroTests_data_rows_error",
-      info = fn
-    )
     # As a data frame its row numbers survive the drop.
     expect_same_result(
       guard_run(fn, m, as.data.frame(tb)),
@@ -352,6 +346,23 @@ test_that("a tibble whose incomplete rows a test drops is not matched to other r
       info = fn
     )
   }
+  # The tests built on the model context (since 0.16.0) match the rows before
+  # they drop any, so the tibble holds the rows of the fit under its original
+  # row numbers and gives the value on the rows of the fit.
+  for (fn in c("performKoenkerTest", "performWhiteTest", "performBPTest")) {
+    expect_same_result(
+      guard_run(fn, m, tb),
+      guard_run(fn, m, as.data.frame(tb[1:100, ])),
+      info = fn
+    )
+  }
+  # The others still drop them first, and refuse the renumbered rows.
+  expect_error(
+    guard_run("performGlejserTest", m, tb),
+    "numbers the rows that are left afresh",
+    class = "heteroTests_data_rows_error",
+    info = "Glejser"
+  )
   # The group tests match before they drop rows, and were not affected.
   expect_same_result(
     guard_run("performBartlettTest", m, tb),
@@ -625,14 +636,15 @@ test_that("messages name the function called and say why", {
   )
   wide <- lm(y ~ x1 + x2 + w + o + ypos, data = d)
   expect_error(performKoenkerTest(wide, arranged), "y, x1, x2 and 3 more differ", fixed = TRUE)
-  # A tibble the test renumbered when it dropped incomplete rows.
+  # A tibble the test renumbered when it dropped incomplete rows. The tests
+  # built on the model context drop none and accept it (above).
   dn <- d
   dn$x2[c(3, 7)] <- NA
   tb <- dplyr::as_tibble(dn)
   m_short <- lm(y ~ x1 + x2, data = tb[1:100, ])
   expect_error(
-    suppressWarnings(performKoenkerTest(m_short, tb)),
-    "^performKoenkerTest\\(\\) cannot match.*afresh"
+    suppressWarnings(performGlejserTest(m_short, tb, "x1")),
+    "^performGlejserTest\\(\\) cannot match.*afresh"
   )
   # The scatter diagnostic reads by position and cannot match the names of a
   # fit to character row names against a tibble.
