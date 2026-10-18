@@ -124,8 +124,14 @@ are refused, as by the other tests. They need no `data` for a model that transfo
 `data`. They also refuse a multivariate `lm` ("needs a model with one response"), a fit whose coefficients,
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
-`model = FALSE` whose model frame can no longer be rebuilt. `tests/testthat/test-model-context.R` checks
-them.
+`model = FALSE` whose model frame can no longer be rebuilt, unless `data` gives its response and fitted
+values, on which it is then tested. These refusals have class `heteroTests_model_context_error`, which
+[`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) keep, as they keep that of a refusal of
+`data`, without running another test under the name of the one refused. The rank permutation test, when its
+`order_by` is a column of `data` the model frame does not hold, refuses numbered rows taken in the order of
+the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+reported may differ from before 0.16.0, since the rows of `data` are now matched before the checks of the model.
+`tests/testthat/test-model-context.R` checks them.
 
 ## Supported models
 
