@@ -751,7 +751,7 @@ after it.
   `performWhiteTestStreaming()` refuses a `glm` before calling it; the check
   itself should refuse it with a clear message or skip that step. Found on
   2026-10-15 and recorded, not fixed.
-- [ ] **A weighted fit without `data`.** On a fit `lm(..., weights = w)` whose
+- [x] **A weighted fit without `data`.** On a fit `lm(..., weights = w)` whose
   `w` is a column of the data, the tests that rebuild the design with
   `model.matrix(model, data = data)` (`performWhiteTest()`, `performBPTest()`,
   `performKoenkerTest()` and others) stop with "object 'w' not found" when
@@ -765,7 +765,11 @@ after it.
   0.15.0 release audit). Through `runHeteroTests()` and `runDiagnostics()`
   such a fit does not stop: White's and Koenker's tests fail and both names
   hold the Cook-Weisberg test the runner falls back on (below). A fix changes
-  what those runner calls return.
+  what those runner calls return. Done in 0.16.0 by the first step of the
+  model context (below): the five tests that rebuilt the design read it, the
+  weights and the offset from the fit, so the eight give the value they give
+  with `data`, and the runners return White's and Koenker's tests under their
+  names (announced in bold).
 - [ ] **The fallback of `runHeteroTests()`.** When a test stops, the runner
   runs the substitute registered for it in `.ht_fallback_registry` (for
   `"white"`: White's test without cross products, then the classical
@@ -1016,8 +1020,10 @@ after it.
     repeat, or when a fit with `model = FALSE` rebuilds a frame whose response
     or fitted values are not the fit's; `runHeteroTests()` and
     `runDiagnostics()` do not fall back on another test for it. The model
-    context replaces this guard, so that such data give the value on the data
-    of the fit. Changes a value for such data. Its cost on a valid call grows
+    context replaces this guard, so that named data in any order, and numbered
+    data in fit order, give the value on the data of the fit; numbered data in
+    another order stay refused (decision 3 of the design). Changes a value for
+    such data. Its cost on a valid call grows
     with the columns it computes again: at 100,000 rows it takes about 5 ms on
     `lm(y ~ x1 + x2 + g)` and about 43 ms on a weighted fit with `log()` and
     `poly()` terms, against 50 to 70 ms for the Glejser and Bartlett tests and
@@ -1071,7 +1077,9 @@ after it.
       a model fitted to data with character row names, which it cannot match
       by name.
     - `cut(x, quantile(x))` in the formula makes Koenker's test stop with
-      "factor has new levels", on main and with the guard alike.
+      "factor has new levels", on main and with the guard alike. Since the
+      first step of the model context the five tests built on it read the
+      design of the fit and return a value; the others follow their steps.
     - The second review of the guard measured it at about 20 to 40% of a
       cheap test (Bartlett, Glejser) at 100,000 rows.
     - A `model = FALSE` fit whose data changed after the fit is refused by
@@ -1093,7 +1101,9 @@ after it.
     model) and `cachedTest()` (about 25 KB per call) grow without bound, as the
     validation cache did before #97. No value changes.
   - A multivariate `lm`, `cbind(y, y2) ~ ...`, fails with a coercion error
-    instead of a clear refusal. No value changes.
+    instead of a clear refusal. No value changes. Since the first step of the
+    model context the five tests built on it refuse it with "needs a model
+    with one response"; the others follow their steps.
   - The unexported `performWhiteTestEnhanced(bootstrap = TRUE)`, through
     `bootstrap_white_test()`, takes the log of a log response twice, drops an
     offset given as an argument and takes rows by position. Remove it or fix
@@ -1120,6 +1130,48 @@ after it.
     aliased ones included, so its value is not that of the reduced model, and
     does not depend on the order of the terms (kept so, decided in the review).
     Decided on 2026-10-17: computed on the estimable part of the design.
+- [ ] **The model context.** One internal, validated object per call, built
+  from the stored fit, from which the tests read the response, the design, the
+  residuals, the weights, the offset and the rank, and which matches the rows of
+  `data` to the observations of the fit with the guard above before anything is
+  read from them: named data in any order, numbered data in fit order. The
+  design, the contract, the test matrix and the decisions of 2026-10-16 and
+  2026-10-18 are on the site, `docs/design/model-context.md`. Each step is one
+  pull request, checked by `scripts/model-context-identity.R` against `main`
+  (every call `identical()` but the cells of the defects the step closes) and
+  pinned by `tests/testthat/test-model-context.R`, whose `context_migrated`
+  lists the functions moved so far.
+  - [x] 1. The context (`R/model_context.R`) and the guard split in two
+    (`rdata_fit_rows()`, `rcheck_rows_at()`); `performWhiteTest()`,
+    `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`,
+    `performRankPermutationTest()` and `performHighDimensionalTest()` built on
+    it. Closes B5, B12 (direct calls and the runner), B14, B15, N7, R4/N9 and
+    R7 for these, and L1 and L2. Done in 0.16.0.
+  - [ ] 2. The offsets: the studentized Breusch-Pagan statistic, RESET (the
+    nested F test of the offset model, decision 19, with one evidence cell of
+    5000 replications in `offset-refits-size.R` before release),
+    Goldfeld-Quandt on the stored design (decision 20) and the quantile test on
+    `y - offset`; `rrefuse_offset()` goes. Closes B7, N1, N6 for RESET, R5.
+  - [ ] 3. Glejser, Park, Szroeter, Harrison-McCabe (its rank at the fit's
+    tolerance, decision 21), Hartley and the spatial test. Closes B14, B15, L1
+    and M1 for these, N4.
+  - [ ] 4. The five group tests; their copies of the alignment go.
+  - [ ] 5. The panel tests, the scatter diagnostic and `runPanelTests()`, with
+    `id` and `time` read at the confirmed rows; repeated `(id, time)` pairs
+    refused (decision 13). Closes B3, B4, B16, R2.
+  - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
+    `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`.
+    Closes B9, R3, N6.
+  - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
+    Closes B6.
+  - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
+    the stored design. Closes B12 for replicates, N8.
+  - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
+  - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
+    refused (decision 10), workflows with `data`;
+    `prepare_model_data_for_test()` and `rdata_or_model_frame()` go. Closes
+    B11, N5.
+  - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

@@ -123,6 +123,15 @@
 #' [performVarianceFormTest()] allows for the estimation too.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param B Integer number of bootstrap replications. Defaults to `999`, which
 #'   is the default of every resampling test in the package since 0.15.0; it
 #'   was `499` before. The p-value is `(1 + #) / (B_eff + 1)`, so a test at
@@ -600,6 +609,15 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' the squared residuals is evidence of spatially varying variance.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param listw Spatial weights in `spdep` \code{listw} format or a numeric
 #'   matrix coercible via \code{spdep::mat2listw()}.
 #' @param permutations Number of Monte Carlo permutations used to compute the

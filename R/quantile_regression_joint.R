@@ -25,6 +25,13 @@
 #' study, and has neither.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] containing the variables referenced in `model`.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param taus Numeric vector containing at least two distinct quantiles in
 #'   `(0, 1)`. Defaults to `c(0.25, 0.75)`.
 #' @param se_type Standard-error method used by [quantreg::anova.rqs()]. Supported

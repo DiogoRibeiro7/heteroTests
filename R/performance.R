@@ -233,6 +233,15 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' to scale to datasets that would otherwise exhaust available RAM.
 #'
 #' @inheritParams performWhiteTest
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param chunk_size Positive integer specifying the number of observations per
 #'   chunk. Smaller values reduce memory usage at the expense of additional
 #'   iteration overhead.
@@ -364,6 +373,15 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' implementation while substantially reducing peak memory usage.
 #'
 #' @inheritParams performBPTest
+#' @param data A [base::data.frame] (or compatible object) containing the
+#'   variables referenced in `model`. The data must include all observations used
+#'   to fit `model` and should not contain unresolved missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param chunk_size Positive integer giving the number of observations per
 #'   streaming chunk.
 #' @param progress Logical flag indicating whether a textual progress bar should
@@ -463,6 +481,14 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' allocating the full auxiliary regression matrix.
 #'
 #' @inheritParams performKoenkerTest
+#' @param data A [base::data.frame] containing the variables referenced in
+#'   `model`. The data must align with the observations used to fit `model`.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param chunk_size Positive integer giving the number of observations processed
 #'   per streaming chunk.
 #' @param progress Logical indicating whether to display a textual progress bar.

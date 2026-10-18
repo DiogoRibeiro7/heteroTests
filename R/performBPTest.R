@@ -7,15 +7,18 @@
 #'
 #' @param model A fitted [stats::lm] object describing the mean structure whose
 #'   residual variance is to be assessed.
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #'
 #' @return An object of class \code{htest} with the LM statistic, degrees of
 #'   freedom, and p-value for the null hypothesis of constant error variance.
@@ -34,8 +37,9 @@
 #' \enumerate{
 #'   \item ensure the fitted model has at least 15 observations and finite
 #'     residuals via \link[=rvalidateModelInputs]{rvalidateModelInputs()};
-#'   \item confirm `data` supplies all required variables and handle missing
-#'     cases through \link[=rvalidateDataInputs]{rvalidateDataInputs()} and \link[=rhandleMissingValues]{rhandleMissingValues()};
+#'   \item read the response, design, residuals and weights from the fit (the
+#'     model context, since 0.16.0), and match the rows of `data`, when it is
+#'     given, to the observations of the fit;
 #'   \item verify auxiliary regression conditions (sample size, rank, residual
 #'     variation) with \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} and bespoke checks; and
 #'   \item guard against alignment issues between residuals and the supplied data

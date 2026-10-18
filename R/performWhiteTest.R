@@ -8,15 +8,18 @@
 #'
 #' @param model A fitted [stats::lm] object representing the mean specification
 #'   to be diagnosed.
-#' @param data A [base::data.frame] (or object coercible to one) containing the
-#'   variables referenced by `model`. It must include the observations used to
-#'   fit `model` and will be checked for missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param cross_products Logical scalar indicating whether to include all
 #'   pairwise cross-products of the regressors in the auxiliary regression.
 #'   Defaults to `TRUE` and should remain enabled unless dimensionality makes
@@ -40,11 +43,11 @@
 #' \enumerate{
 #'   \item validates the model object with \link[=rvalidateModelInputs]{rvalidateModelInputs()} to ensure at
 #'     least 20 observations and finite residuals;
-#'   \item verifies the supplied data via \link[=rvalidateDataInputs]{rvalidateDataInputs()} and removes
-#'     incomplete cases through \link[=rhandleMissingValues]{rhandleMissingValues()}, emitting a consolidated
-#'     warning when rows are dropped;
-#'   \item aligns the cleaned data with the stored residuals, enforcing that the
-#'     augmented design matrix is full rank; and
+#'   \item reads the response, design, residuals and weights from the fit (the
+#'     model context, since 0.16.0), matches the rows of `data` to the
+#'     observations of the fit, and warns about rows of `data` with missing
+#'     values, which the fit left out;
+#'   \item drops the collinear columns of the auxiliary design; and
 #'   \item applies \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} so that sample-size and
 #'     conditioning rules specific to the White test are satisfied.
 #' }

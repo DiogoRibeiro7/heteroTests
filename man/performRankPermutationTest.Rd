@@ -16,15 +16,18 @@ performRankPermutationTest(
 \item{model}{A fitted \link[stats:lm]{stats::lm} object describing the mean structure whose
 residual variance is to be assessed.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} (or compatible object) containing the
-variables referenced in \code{model}. The data must include all observations used
-to fit \code{model} and should not contain unresolved missing values.
-When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
-terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, as does a
-model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
-argument is a column of the data, which the model frame holds as
-\code{(weights)} or \code{(offset)}.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default.
+The response, design, weights and offset are read from the fit itself, so
+a model that transforms its variables, has an \code{offset()} term, or takes
+its \code{weights} or \code{offset} from a column of the data needs no \code{data}, and
+the model frame of \code{model} is accepted as \code{data} (since 0.16.0; before,
+such models needed \code{data}). Data that are given are matched to the
+observations of the fit: rows with row names of their own by name, in any
+order; rows that only number themselves (a tibble, a data.table, a data
+frame whose row names were reset) by the row numbers of the fit, or in the
+order of the fit when they hold one row per observation. The rows the fit
+dropped may be there or not. Data whose rows cannot be shown to hold the
+observations of the fit are refused; see \link{test_results}.}
 
 \item{order_by}{Optional name of a predictor variable used to rank the
 observations. Defaults to the first non-intercept term in the model matrix.}

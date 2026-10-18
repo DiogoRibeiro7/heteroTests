@@ -320,6 +320,15 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' test statistic across many bootstrap replications.
 #'
 #' @inheritParams performWhiteTest
+#' @param data A [base::data.frame] (or object coercible to one) containing the
+#'   variables referenced by `model`. It must include the observations used to
+#'   fit `model` and will be checked for missing values.
+#'   When `NULL`, the default, the model frame of `model` is used. It holds the
+#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
+#'   a model that transforms a variable needs `data`, as does a
+#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
+#'   argument is a column of the data, which the model frame holds as
+#'   `(weights)` or `(offset)`.
 #' @param B Integer scalar giving the number of bootstrap replications.
 #'   Defaults to 999. The p-value is `(1 + #) / (B_eff + 1)`, where `B_eff` is
 #'   the number of replicates whose statistic is finite (`B` when every

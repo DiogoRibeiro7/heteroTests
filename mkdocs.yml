@@ -252,7 +252,9 @@ nav:
           - "safe_lm()": reference/safe_lm.md
           - "safe_var()": reference/safe_var.md
       # End of the generated API reference.
-  - Architecture: architecture.md
+  - Architecture:
+      - Overview: architecture.md
+      - "Design: the model context": design/model-context.md
   - Development: development.md
   - Roadmap: roadmap.md
   - Releases: releases.md
