@@ -93,7 +93,10 @@ are refused, as by the other tests. They need no \code{data} for a model that tr
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 \code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
-values, on which it is then tested. These refusals have class \code{heteroTests_model_context_error}, which
+values, on which it is then tested. The check of an edited fit is a guard against accidental edits, not a proof
+that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at \code{1e-7} of
+the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
+undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
 \code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
 \code{data}, without running another test under the name of the one refused. The rank permutation test, when its
 \code{order_by} is a column of \code{data} the model frame does not hold, refuses numbered rows taken in the order of

@@ -440,9 +440,11 @@ rcontext_variables <- function(ctx, data, need) {
 #' `lm` and Gaussian `glm` fits with 120 to 10,000 observations and responses
 #' up to `1e14`, the largest score of a valid fit was 0.04 of that term. A
 #' `mgcv::gam()` fit is penalised, so its residuals are not orthogonal to its
-#' design, and only its first check is made. An edited coefficient is seen by
-#' the first check, relative to the largest term, so only while the edit is
-#' above `1e-7` of the size of the response.
+#' design, and only its first check is made. An edited coefficient leaves the
+#' residuals unchanged, so only the first check sees it, at `1e-7` of the
+#' largest term: an edit of 0.5 goes undetected once the response is above
+#' about `1e7`. The checks guard against accidental edits; they are not a proof
+#' that a fit is unedited.
 #'
 #' The tests call it after [rvalidateModelInputs()], which refuses residuals
 #' and coefficients that are not finite with its own messages. Its refusals

@@ -125,7 +125,10 @@ are refused, as by the other tests. They need no `data` for a model that transfo
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 `model = FALSE` whose model frame can no longer be rebuilt, unless `data` gives its response and fitted
-values, on which it is then tested. These refusals have class `heteroTests_model_context_error`, which
+values, on which it is then tested. The check of an edited fit is a guard against accidental edits, not a proof
+that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at `1e-7` of
+the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
+undetected once the response is above about `1e7`. These refusals have class `heteroTests_model_context_error`, which
 [`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) keep, as they keep that of a refusal of
 `data`, without running another test under the name of the one refused. The rank permutation test, when its
 `order_by` is a column of `data` the model frame does not hold, refuses numbered rows taken in the order of
