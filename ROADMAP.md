@@ -1158,6 +1158,14 @@ after it.
       has one row per observation. That accepts a fit to `d[order(x), ]` given
       the same data numbered again, and character row names that look like
       numbers.
+    - Known limit, as in 0.15.0: the rule on ties covers data taken in the
+      order of the fit only. If the fit used numbered data with ties, and the
+      same data is given permuted within those ties, it is matched by number
+      and accepted, both before and after step 1. A test that reads a column
+      the model frame does not hold then sees the rows exchanged: the rank
+      permutation test with `order_by = "z"` gives -0.02142 instead of
+      -0.02619 in the order of the fit. Extend the rule on ties to rows
+      matched by number when the call reads such a column.
   - [ ] 2. The offsets: the studentized Breusch-Pagan statistic, RESET (the
     nested F test of the offset model, decision 19, with one evidence cell of
     5000 replications in `offset-refits-size.R` before release),

@@ -399,13 +399,21 @@ Also, for the five tests:
   that the model frame does not hold, refuses numbered data taken in the order
   of the fit if two rows of the fit tie on every compared column, which could
   then have been exchanged; such data stopped with "Missing rows" before.
-- `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`
-  refit their replicates from the formula until a later step, and refuse a fit
-  whose model frame cannot be rebuilt from `data` under the levels of the fit,
-  as with `cut(x, quantile(x))`, whose replicates would compute other breaks:
-  the error changes from "factor ... has new levels" to "`data` does not
-  reproduce the fit". Calls that stopped in their base statistic and now reach
-  the checks of the bootstrap stop there instead, with its own message.
+- **`bootstrapTestStatistic()`, `performWhiteTestRobust(bootstrap = TRUE)`
+  and `performBPTestRobust(bootstrap = TRUE)` refuse a fit whose model frame
+  cannot be rebuilt from `data` under the levels of the fit, as with
+  `cut(x, quantile(x))`.** They refit their replicates from the formula until
+  a later step, and those replicates would compute other breaks than the fit.
+  Where the base statistic already failed, the error changes from "factor
+  ... has new levels" to "`data` does not reproduce the fit". Some of these
+  calls returned a value before, for example
+  `bootstrapTestStatistic(performGlejserTest, ...)` on such a fit, and the
+  robust bootstraps on the same fit refitted with `x = TRUE` (White 11.32,
+  p = 0.184; Breusch-Pagan without studentizing 15.79, p = 0.0033). That
+  value compared the statistic of the fit with replicates of another design,
+  and these calls now stop. Calls that stopped in their base statistic and
+  now reach the checks of the bootstrap stop there instead, with its own
+  message.
 - The warning "Removed N observations due to missing values in ..." is still
   given for the incomplete rows of `data`, which the fit left out, and nothing
   is dropped. Koenker's test gives the warnings of the checks of the model
@@ -414,7 +422,9 @@ Also, for the five tests:
   0.15.0, numbered data in another order than the fit, which stay refused,
   and every message the test suite pins; on a call with more than one defect,
   the first one reported may differ, since the rows of `data` are matched
-  before the checks of the model. `performWhiteTestRobust()` and
+  before the checks of the model. Data with fewer rows than the fit now
+  stop with "Missing rows: ..." instead of "Input Data contains only N
+  observations ...", for the same reason. `performWhiteTestRobust()` and
   `performBPTestRobust()` keep their own preparation of the data until a
   later step, so they still need `data` for a model that transforms its
   variables, and a fit with `na.action = na.exclude` is still refused. A
