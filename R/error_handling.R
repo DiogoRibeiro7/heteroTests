@@ -97,6 +97,7 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     data_quality = "Data quality issue detected",
     data_rows = "Data do not match the model",
     offset = "Offset not supported",
+    model_context = "Model cannot be tested",
     "Diagnostic execution failed"
   )
   if (!is.null(test_name)) {
@@ -261,6 +262,24 @@ ht_analyse_failure <- function(test_name, error, model, data) {
       ),
       suggestions = character(),
       issue = "offset",
+      fallbacks = character()
+    ))
+  }
+  if (inherits(error, "heteroTests_model_context_error")) {
+    # The model context refused the model (R/model_context.R): a multivariate
+    # lm, a model frame that cannot be rebuilt, a fit changed after it was
+    # fitted. Any substitute would read the same model, or, as the
+    # Cook-Weisberg test does, another one under this name: no fallback
+    # (decision 6 of the design of the model context).
+    return(list(
+      raw_message = raw_message,
+      user_message = ht_format_failure_message(
+        "model_context",
+        raw_message,
+        test_name = ht_pretty_test_name(test_name)
+      ),
+      suggestions = character(),
+      issue = "model_context",
       fallbacks = character()
     ))
   }

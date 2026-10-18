@@ -30,13 +30,21 @@
 
 #' Build the model context of a test
 #'
-#' Runs the refusals every test makes first, in their order: a model that is
-#' not an `lm` or a least-squares `glm`, a `survey::svyglm()` fit
+#' Runs the refusals every test makes first: a model that is not an `lm` or a
+#' least-squares `glm`, a `survey::svyglm()` fit
 #' ([rrefuse_non_gaussian_glm()]), a multivariate `lm` ([rcontext_kind()]),
 #' and a model frame that `model = FALSE` rebuilt from data that changed after
 #' the fit ([rcheck_model_frame()], with or without `data`). It then takes the
 #' parts of the fit, and, when `data` is given, matches its rows to the
-#' observations ([rcontext_align()]).
+#' observations ([rcontext_align()]). The messages are those the tests gave;
+#' on a call with more than one defect, the first one reported may differ.
+#' The refusals of the context itself have class
+#' `heteroTests_model_context_error`, and those of `data` the class of the
+#' guard, `heteroTests_data_rows_error`: both are final in the runners.
+#'
+#' A fit with `model = FALSE` whose model frame can no longer be rebuilt from
+#' the data it refers to is tested on `data`, when `data` is given and gives
+#' the response and the fitted values of the fit ([rcontext_frame_from_data()]).
 #'
 #' @param model The fitted model of the calling test.
 #' @param data The `data` argument of the calling test, or `NULL`.
@@ -50,10 +58,15 @@
 #' @param need Character vector of the variables the test reads besides the
 #'   model, such as a grouping or ordering variable, named by the role they
 #'   play; see [rcontext_variables()].
+#' @param reads Character vector of the columns of `data` the test may read
+#'   itself, from [rcontext_rows()], such as the `order_by` of
+#'   [performRankPermutationTest()]. Those that are not columns of the model
+#'   frame make the alignment stricter for data taken in the order of the fit
+#'   ([rcontext_align()]).
 #' @return A list of class `ht_model_context`:
 #'   \describe{
 #'     \item{`model`}{the fit.}
-#'     \item{`kind`}{`"lm"`, `"glm_gaussian"`, `"fitwls"` or `"rlm"`.}
+#'     \item{`kind`}{`"lm"`, `"glm_gaussian"`, `"gam"`, `"fitwls"` or `"rlm"`.}
 #'     \item{`frame`}{the model frame, `stats::model.frame(model)`.}
 #'     \item{`obs_id`}{the names of the observations, in the order of the fit.}
 #'     \item{`na_action`}{`model$na.action`.}
@@ -83,7 +96,8 @@
 #'   }
 #' @keywords internal
 #' @noRd
-rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = character()) {
+rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = character(),
+                           reads = character()) {
   # The function the user called, named by the refusals of `data`. It is
   # looked for only when one is made, so a call that is not refused does not
   # search the stack (rtest_name()).
@@ -92,33 +106,45 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
   kind <- rcontext_kind(model, fn)
   frame <- tryCatch(stats::model.frame(model), error = function(e) e)
   if (inherits(frame, "error") || !is.data.frame(frame)) {
-    stop(
-      sprintf(
+    # A fit with `model = FALSE` whose data are gone: its frame is built from
+    # `data`, and used only if it gives the response and the fitted values of
+    # the fit (rcontext_frame_from_data()).
+    rebuilt <- if (is.data.frame(data)) rcontext_frame_from_data(model, data)
+    if (is.null(rebuilt)) {
+      rstop_model_context(sprintf(
         paste0(
-          "%s() cannot use the model frame of `model`: it cannot be rebuilt (%s). ",
+          "%s() cannot use the model frame of `model`: it cannot be rebuilt (%s)%s. ",
           "A model fitted with `model = FALSE` rebuilds it from the data it was ",
           "fitted on. Refit the model, or keep its model frame with `model = TRUE`, ",
           "the default."
         ),
         caller,
-        if (inherits(frame, "error")) conditionMessage(frame) else "not a data frame"
-      ),
-      call. = FALSE
-    )
+        if (inherits(frame, "error")) conditionMessage(frame) else "not a data frame",
+        if (is.data.frame(data)) {
+          ", and `data` does not give the response and the fitted values of the fit"
+        } else {
+          ""
+        }
+      ))
+    }
+    frame <- rebuilt
+    design <- stats::model.matrix(attr(frame, "terms"), frame, contrasts.arg = model$contrasts)
+  } else {
+    # A frame that model = FALSE rebuilt from data that changed after the fit,
+    # with or without `data` (#130).
+    rcheck_model_frame(model, frame, caller)
+    design <- stats::model.matrix(model)
   }
-  # A frame that model = FALSE rebuilt from data that changed after the fit,
-  # with or without `data` (#130).
-  rcheck_model_frame(model, frame, caller)
   offset <- stats::model.offset(frame)
   ctx <- structure(
     list(
       model = model,
       kind = kind,
       frame = frame,
-      obs_id = names(model$residuals),
+      obs_id = rcontext_ids(model, frame),
       na_action = model$na.action,
       response = stats::model.response(frame, "numeric"),
-      design = stats::model.matrix(model),
+      design = design,
       residuals = model$residuals,
       fitted = model$fitted.values,
       weights = rleast_squares_weights(model),
@@ -134,12 +160,80 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
     class = "ht_model_context"
   )
   if (!is.null(data)) {
-    aligned <- rcontext_align(ctx, data, caller, test_label)
+    # Does the test read columns of `data` beyond the model frame, which the
+    # comparison of the alignment cannot check?
+    beyond <- length(need) > 0L ||
+      (is.data.frame(data) && any(reads %in% setdiff(names(data), names(frame))))
+    aligned <- rcontext_align(ctx, data, caller, test_label, beyond)
     ctx$rows <- aligned$rows
     ctx$alignment <- aligned$alignment
   }
   ctx$variables <- rcontext_variables(ctx, data, need)
   ctx
+}
+
+# The refusals of the context are final, as decided on 2026-10-16 (decision 6
+# of the design): runHeteroTests() and runDiagnostics() run no other test
+# under the name of one the context refused (ht_analyse_failure()).
+rstop_model_context <- function(message) {
+  stop(structure(
+    class = c("heteroTests_model_context_error", "error", "condition"),
+    list(message = message, call = NULL)
+  ))
+}
+
+# The names of the observations, in the order of the fit: those of its
+# residuals, or, for a fit whose residuals carry none (mgcv::gam()), the row
+# names of its model frame, or their numbers.
+rcontext_ids <- function(model, frame) {
+  n <- length(model$residuals)
+  ids <- names(model$residuals)
+  if (length(ids) == n && !anyNA(ids)) {
+    return(ids)
+  }
+  ids <- rownames(frame)
+  if (length(ids) == n) {
+    return(ids)
+  }
+  as.character(seq_len(n))
+}
+
+#' The model frame of a fit with `model = FALSE`, from `data`
+#'
+#' A fit with `model = FALSE` keeps no model frame, and `model.frame()`
+#' rebuilds it from the data the fit refers to; when those are gone, it is
+#' rebuilt here from `data`, through the call of the fit and the `predvars` of
+#' its terms, and kept only if, on the rows of the fit, it gives the response
+#' of the fit and, times the coefficients plus its offset, the fitted linear
+#' predictor, the checks of [rcheck_model_frame()], to `1e-8`.
+#'
+#' @param model The fitted model.
+#' @param data The `data` argument of the calling test.
+#' @return The model frame, on the rows of the fit in its order, or `NULL`.
+#' @keywords internal
+#' @noRd
+rcontext_frame_from_data <- function(model, data) {
+  if (!inherits(model, "lm") || !is.null(model[["model"]])) {
+    return(NULL)
+  }
+  frame <- tryCatch(stats::model.frame(model, data = data), error = function(e) NULL)
+  ids <- names(model$residuals)
+  if (!is.data.frame(frame) || is.null(ids)) {
+    return(NULL)
+  }
+  rows <- match(ids, rownames(frame))
+  if (anyNA(rows)) {
+    return(NULL)
+  }
+  if (!identical(rows, seq_len(nrow(frame)))) {
+    model_terms <- attr(frame, "terms")
+    frame <- frame[rows, , drop = FALSE]
+    attr(frame, "terms") <- model_terms
+  }
+  if (!isTRUE(rframe_holds_response(model, frame)) || !isTRUE(rframe_holds_fit(model, frame))) {
+    return(NULL)
+  }
+  frame
 }
 
 #' The kind of fit, after the refusals of the model
@@ -151,20 +245,26 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
 #' inherits from `lm`, is refused next: the tests take one response, and before
 #' 0.16.0 they stopped on it with a coercion error.
 #'
+#' A Gaussian `mgcv::gam()` fit, a `glm` by class, is accepted as before
+#' 0.16.0; whether a penalised fit with smooth terms is an input the tests
+#' justify is left to the last step of the migration, with `MASS::rlm()`.
+#'
 #' @param model The fitted model.
 #' @param fn Character scalar naming the calling test.
-#' @return `"glm_gaussian"`, `"fitwls"` (a [fitWLS()] fit), `"rlm"` (a
-#'   `MASS::rlm()` fit) or `"lm"`.
+#' @return `"gam"` (an `mgcv::gam()` fit), `"glm_gaussian"`, `"fitwls"` (a
+#'   [fitWLS()] fit), `"rlm"` (a `MASS::rlm()` fit) or `"lm"`.
 #' @keywords internal
 #' @noRd
 rcontext_kind <- function(model, fn) {
   rrefuse_non_gaussian_glm(model, fn)
   if (inherits(model, "mlm") || is.matrix(model$residuals)) {
     responses <- NCOL(model$residuals)
-    stop(
-      sprintf("%s() needs a model with one response; `model` has %d.", fn, responses),
-      call. = FALSE
+    rstop_model_context(
+      sprintf("%s() needs a model with one response; `model` has %d.", fn, responses)
     )
+  }
+  if (inherits(model, "gam")) {
+    return("gam")
   }
   if (inherits(model, "glm")) {
     return("glm_gaussian")
@@ -194,16 +294,26 @@ rcontext_kind <- function(model, fn) {
 #' refused with the message of [rstop_data_rows()]. Nothing is matched by
 #' position without that comparison, and nothing is dropped before it.
 #'
+#' Rows taken in the order of the fit are confirmed only up to rows that tie
+#' on every column the comparison checked: two such rows could be exchanged
+#' without a trace in the model frame. That changes nothing a test computes
+#' from the model, but it changes the columns of `data` beyond the model frame,
+#' such as the variable a test orders by. So when the test reads such columns
+#' (`beyond`), data taken in the order of the fit are refused if any two rows
+#' of the fit tie on every compared column.
+#'
 #' @param ctx The model context, before its rows are set.
 #' @param data The `data` argument of the calling test, not `NULL`.
 #' @param fn Character scalar naming the function the user called.
 #' @param test_label Character scalar naming the test in the messages on
 #'   rows that `data` lacks.
+#' @param beyond Logical: does the test read columns of `data` beyond the
+#'   model frame?
 #' @return A list with `rows`, the row of `data` holding each observation, and
 #'   `alignment`.
 #' @keywords internal
 #' @noRd
-rcontext_align <- function(ctx, data, fn, test_label) {
+rcontext_align <- function(ctx, data, fn, test_label, beyond = FALSE) {
   frame <- ctx$frame
   # The model frame itself, given as `data`, holds the terms (`log(x)`) rather
   # than the variables (`x`), and is accepted as it is.
@@ -220,8 +330,35 @@ rcontext_align <- function(ctx, data, fn, test_label) {
   if (is.null(rows)) {
     rstop_data_rows(ctx$residuals, data, test_label)
   }
-  rcheck_rows_at(ctx$model, frame, data, rows, fn, numbered)
+  checked <- rcheck_rows_at(ctx$model, frame, data, rows, fn, numbered)
+  if (identical(alignment, "in_order") && isTRUE(beyond)) {
+    compared <- attr(checked, "compared")
+    if (rrows_repeat(frame, compared)) {
+      rstop_data_rows_unmatched(fn, "in_order_ties", compared = compared)
+    }
+  }
   list(rows = rows, alignment = alignment)
+}
+
+# Do two rows of the model frame tie on every column in `compared`? Factors
+# by their codes, numbers exactly.
+rrows_repeat <- function(frame, compared) {
+  if (nrow(frame) < 2L) {
+    return(FALSE)
+  }
+  keys <- list()
+  for (column in compared) {
+    v <- frame[[column]]
+    parts <- if (is.matrix(v)) lapply(seq_len(ncol(v)), function(j) v[, j]) else list(v)
+    for (p in parts) {
+      keys[[length(keys) + 1L]] <- if (is.factor(p)) as.integer(p) else p
+    }
+  }
+  if (length(keys) == 0L) {
+    return(TRUE)
+  }
+  names(keys) <- paste0("k", seq_along(keys))
+  anyDuplicated(as.data.frame(keys, stringsAsFactors = FALSE)) > 0L
 }
 
 #' The variables a test reads besides the model
@@ -254,18 +391,15 @@ rcontext_variables <- function(ctx, data, need) {
     held <- need %in% names(ctx$frame) & need %in% all.vars(stats::formula(ctx$model))
     if (!all(held)) {
       terms_held <- setdiff(names(ctx$frame), c("(weights)", "(offset)"))
-      stop(
-        sprintf(
-          paste(
-            "The following variables are missing from the model frame of `model`: %s.",
-            "It holds the terms of the model (%s), not the variables they are computed",
-            "from; pass the data the model was fitted to as `data`."
-          ),
-          paste(need[!held], collapse = ", "),
-          paste(terms_held, collapse = ", ")
+      rstop_model_context(sprintf(
+        paste(
+          "The following variables are missing from the model frame of `model`: %s.",
+          "It holds the terms of the model (%s), not the variables they are computed",
+          "from; pass the data the model was fitted to as `data`."
         ),
-        call. = FALSE
-      )
+        paste(need[!held], collapse = ", "),
+        paste(terms_held, collapse = ", ")
+      ))
     }
     return(stats::setNames(lapply(need, function(v) ctx$frame[[v]]), roles))
   }
@@ -297,8 +431,22 @@ rcontext_variables <- function(ctx, data, need) {
 #' QR decomposition makes errors of the order of the machine precision times
 #' those sizes, far below the tolerances.
 #'
+#' The orthogonality allows, besides `1e-6` of the norms of the column and of
+#' the residuals, a rounding term that grows with the size of the response,
+#' \eqn{\epsilon\, n\, \|X_j\|_W \|y\|_W}: a Gaussian `glm` computes its
+#' residuals as \eqn{y - \hat\mu}, which shifts them all by about
+#' \eqn{\epsilon |\bar y|}, so a response near `1e11` with a residual standard
+#' deviation of 2 leaves scores that the first term alone refuses. In a sweep of
+#' `lm` and Gaussian `glm` fits with 120 to 10,000 observations and responses
+#' up to `1e14`, the largest score of a valid fit was 0.04 of that term. A
+#' `mgcv::gam()` fit is penalised, so its residuals are not orthogonal to its
+#' design, and only its first check is made. An edited coefficient is seen by
+#' the first check, relative to the largest term, so only while the edit is
+#' above `1e-7` of the size of the response.
+#'
 #' The tests call it after [rvalidateModelInputs()], which refuses residuals
-#' and coefficients that are not finite with its own messages.
+#' and coefficients that are not finite with its own messages. Its refusals
+#' are final in the runners, as every refusal of the context is.
 #'
 #' @param ctx The model context.
 #' @param tol Relative tolerance of the first check; the second uses `1e-6`.
@@ -313,11 +461,12 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
     vapply(ctx$variables, NROW, integer(1)), length(ctx$rows %||% ctx$residuals)
   )
   if (any(lengths_of != n)) {
-    stop("Internal error: the parts of the model context differ in length.", call. = FALSE)
+    rstop_model_context("Internal error: the parts of the model context differ in length.")
   }
   if (anyDuplicated(ctx$rows) > 0L) {
-    stop("Internal error: two observations of the fit were matched to one row of `data`.",
-         call. = FALSE)
+    rstop_model_context(
+      "Internal error: two observations of the fit were matched to one row of `data`."
+    )
   }
   if (identical(ctx$kind, "rlm") || n == 0L) {
     return(invisible(ctx))
@@ -333,11 +482,13 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
   size <- max(abs(y), drop(abs(X) %*% abs(b)) + abs(offset), abs(e))
   error <- max(abs(y - linear - e))
   if (!isTRUE(error <= tol * size)) {
-    stop(
+    rstop_model_context(paste0(
       "The fitted model does not reproduce its residuals from its design and coefficients: ",
-      "it was changed after the fit. Refit the model.",
-      call. = FALSE
-    )
+      "it was changed after the fit. Refit the model."
+    ))
+  }
+  if (identical(ctx$kind, "gam")) {
+    return(invisible(ctx))
   }
   w <- ctx$weights %||% rep(1, n)
   # Norms scaled by the largest value, so that a residual near 1e-200 or a
@@ -347,13 +498,13 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
     if (!is.finite(top) || top == 0) top else top * sqrt(sum(w * (v / top)^2))
   }
   scores <- abs(drop(crossprod(X, w * e)))
-  bound <- 1e-6 * vapply(seq_len(ncol(X)), function(j) norm_w(X[, j]), numeric(1)) * norm_w(e)
+  columns <- vapply(seq_len(ncol(X)), function(j) norm_w(X[, j]), numeric(1))
+  bound <- columns * (1e-6 * norm_w(e) + .Machine$double.eps * n * norm_w(y))
   if (length(scores) > 0L && !isTRUE(all(scores <= bound))) {
-    stop(
+    rstop_model_context(paste0(
       "The weights of the model are not those its coefficients were fitted with: ",
-      "it was changed after the fit. Refit the model.",
-      call. = FALSE
-    )
+      "it was changed after the fit. Refit the model."
+    ))
   }
   invisible(ctx)
 }

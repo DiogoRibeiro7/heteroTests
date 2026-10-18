@@ -152,7 +152,9 @@ rcheck_data_rows <- function(model, data, fn = NULL) {
   if (is.null(rows)) {
     return(invisible(NULL))
   }
-  rcheck_rows_at(model, frame, data, rows, fn)
+  rows <- rcheck_rows_at(model, frame, data, rows, fn)
+  attr(rows, "compared") <- NULL
+  invisible(rows)
 }
 
 #' The rows of `data` that the row names pick for the observations of a fit
@@ -209,7 +211,8 @@ rdata_fit_rows <- function(frame, data, fn = NULL) {
 #'   `NULL`.
 #' @param numbered Logical: does `data` number its rows? It decides the
 #'   message.
-#' @return `rows`, invisibly.
+#' @return `rows`, invisibly, with the names of the columns that were compared
+#'   as its attribute `compared`.
 #' @keywords internal
 #' @noRd
 rcheck_rows_at <- function(model, frame, data, rows, fn = NULL,
@@ -234,6 +237,7 @@ rcheck_rows_at <- function(model, frame, data, rows, fn = NULL,
       skipped = checked$skipped, compared = checked$compared
     )
   }
+  attr(rows, "compared") <- checked$compared
   invisible(rows)
 }
 
@@ -687,6 +691,19 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
         "Pass the data the model was fitted on, with all its rows and the variables",
         "the model names, in the order of the fit or with its row names."
       )
+    ),
+    in_order_ties = c(
+      sprintf(
+        paste0(
+          "`data` has no row names of its own and does not hold the row numbers ",
+          "of the fit, so its rows are taken in the order of the fit; rows of the ",
+          "fit tie on every column of the model frame that is compared (%s), so ",
+          "they cannot be told apart, and the test reads columns of `data` ",
+          "beyond the model frame, which could then belong to other rows."
+        ),
+        listed(compared)
+      ),
+      "Pass a data frame with the row names of the fit."
     ),
     stale_frame = c(
       paste0(

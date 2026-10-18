@@ -411,7 +411,12 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
   test_label <- "Rank permutation"
   # The response, design, weights and residuals come from the fit; `data`, when
   # given, is matched to its observations and checked (R/model_context.R).
-  ctx <- rmodel_context(model, data, fn = "performRankPermutationTest", test_label = test_label)
+  # `order_by` is read from the rows of `data`, so data taken in the order of
+  # the fit must tell its rows apart when it is not a column of the model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performRankPermutationTest", test_label = test_label,
+    reads = if (is.character(order_by)) order_by else character()
+  )
   if (!is.null(order_by)) {
     order_by <- enforce_character_scalar(order_by, "order_by")
   }
