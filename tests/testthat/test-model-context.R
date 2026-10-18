@@ -49,7 +49,7 @@ context_check_matrix <- function(ids, fns = context_migrated) {
       if (identical(cell$expect, "value")) {
         expect_s3_class(out, "htest")
         if (!is.null(cell$reference) && context_installed(cells[[cell$reference]])) {
-          tolerance <- if (identical(id, "class/rank_deficient")) 1e-10
+          tolerance <- if (id %in% c("class/rank_deficient", "class/gam")) 1e-10
           context_same(out, result_of(cell$reference), info, tolerance)
         }
       } else if (identical(cell$expect, "guard")) {
@@ -74,6 +74,7 @@ test_that("a subset of the matrix runs on CRAN", {
 })
 
 test_that("the context holds the parts of the fit, one per observation", {
+  skip_on_cran()
   cells <- context_cells()
   ids <- names(cells)[vapply(cells, function(cell) {
     cell$block %in% c("fit", "terms") && identical(cell$form, "data_frame") ||
@@ -284,6 +285,178 @@ test_that("a fit changed after it was fitted is refused", {
                                                        fn = "f")))
 })
 
+test_that("the orthogonality of the residuals allows the rounding of a large response", {
+  # A Gaussian glm computes its residuals as y - mu, which shifts them all by
+  # about eps |mean(y)|: with a mean of 1e11 or 1e12 and a residual standard
+  # deviation of 2, the scores of a valid fit exceeded 1e-6 of the norms, and
+  # the fit was refused. The bound allows eps n ||X_j|| ||y|| as well.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  n <- 120
+  base <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n))
+  noise <- rnorm(n, sd = 2)
+  at <- function(mean) {
+    d <- base
+    d$y <- mean + 1 + d$x1 - d$x2 + noise
+    d
+  }
+  for (mean in c(1e11, 1e12)) {
+    d <- at(mean)
+    g <- glm(y ~ x1 + x2, data = d)
+    expect_s3_class(performKoenkerTest(g, d), "htest")
+    expect_equal(unname(performKoenkerTest(g, d)$statistic),
+                 unname(performKoenkerTest(lm(y ~ x1 + x2, data = d), d)$statistic),
+                 tolerance = 1e-3, info = mean)
+  }
+  for (mean in c(0, 1e6, 1e10, 1e12, 1e14)) {
+    d <- at(mean)
+    expect_silent(rvalidate_model_context(rmodel_context(lm(y ~ x1 + x2, data = d), fn = "f")))
+    expect_s3_class(performKoenkerTest(lm(y ~ x1 + x2, data = d), d), "htest")
+  }
+  # An edited coefficient is seen by the first check, relative to the size of
+  # the largest term, while the edit is above 1e-7 of the response.
+  edited <- function(m) {
+    m$coefficients[["x1"]] <- m$coefficients[["x1"]] + 0.5
+    m
+  }
+  for (mean in c(0, 1e3, 1e5)) {
+    d <- at(mean)
+    for (m in list(lm(y ~ x1 + x2, data = d), glm(y ~ x1 + x2, data = d))) {
+      expect_error(performKoenkerTest(edited(m), d), class = "heteroTests_model_context_error")
+    }
+  }
+  # Weights changed after the fit are seen by the orthogonality, also for a
+  # large response.
+  for (mean in c(0, 1e6, 1e11)) {
+    d <- at(mean)
+    d$w <- 1 / d$x1^2
+    m <- lm(y ~ x1 + x2, data = d, weights = w)
+    m$weights <- rev(m$weights)
+    expect_error(performKoenkerTest(m, d), "not those its coefficients were fitted with",
+                 class = "heteroTests_model_context_error")
+  }
+})
+
+test_that("the refusals of the context are final in the runners", {
+  d <- context_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  run <- function(m, data) {
+    suppressWarnings(runHeteroTests(m, data, use_cache = FALSE, progress = FALSE))
+  }
+  # A fit changed after it was fitted: the runner put the Cook-Weisberg test
+  # under the names of White's and Koenker's tests.
+  edited <- lm(y ~ x1 + x2, data = d)
+  edited$coefficients[["x1"]] <- edited$coefficients[["x1"]] + 0.5
+  expect_error(run(edited, d), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  expect_error(run(edited, NULL), class = "heteroTests_model_context_error")
+  expect_error(suppressWarnings(runDiagnostics(edited, d, use_cache = FALSE, progress = FALSE)),
+               class = "heteroTests_model_context_error")
+  # A multivariate lm.
+  expect_error(run(lm(cbind(y, ypos) ~ x1 + x2, data = d), d), "needs a model with one response",
+               class = "heteroTests_model_context_error")
+  # A model = FALSE fit whose data are gone and that `data` does not reproduce.
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  reversed <- d
+  reversed$y <- rev(reversed$y)
+  expect_error(run(m_false, reversed), "cannot use the model frame of `model`",
+               class = "heteroTests_model_context_error")
+  expect_error(run(m_false, NULL), class = "heteroTests_model_context_error")
+  # A Gaussian gam runs the tests the runner names.
+  skip_if_not_installed("mgcv")
+  out <- run(mgcv::gam(y ~ x1 + x2, data = d), d)
+  expect_identical(out$white$method, "White's test for heteroscedasticity")
+  expect_identical(out$koenker$method, "Koenker studentized Breusch-Pagan test")
+})
+
+test_that("a fit with model = FALSE whose data are gone is tested on data that reproduce it", {
+  d <- context_data()
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  expected <- lapply(context_migrated, function(fn) {
+    context_run(fn, list(build = function() list(m = m, data = d)))
+  })
+  rm("gone", envir = env)
+  expect_error(stats::model.frame(m))
+  for (k in seq_along(context_migrated)) {
+    fn <- context_migrated[k]
+    got <- context_run(fn, list(build = function() list(m = m, data = d)))
+    context_same(got, expected[[k]], fn)
+    shuffled <- context_run(fn, list(build = function() list(m = m, data = d[sample(nrow(d)), ])))
+    context_same(shuffled, expected[[k]], paste(fn, "shuffled"))
+    # Data that do not give the response of the fit, which were used unchecked.
+    reversed <- d
+    reversed$y <- rev(reversed$y)
+    refused <- context_run(fn, list(build = function() list(m = m, data = reversed)))
+    expect_s3_class(refused, "heteroTests_model_context_error")
+    expect_match(conditionMessage(refused), "`data` does not give the response and the fitted",
+                 fixed = TRUE, info = fn)
+    expect_s3_class(context_run(fn, list(build = function() list(m = m, data = NULL))),
+                    "heteroTests_model_context_error")
+  }
+})
+
+test_that("a Gaussian gam is tested as before, and without smooths it is the lm", {
+  skip_if_not_installed("mgcv")
+  d <- context_data()
+  plain <- mgcv::gam(y ~ x1 + x2, data = d)
+  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
+  for (fn in context_migrated) {
+    for (data in list(d, NULL)) {
+      context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
+                   context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
+                   paste(fn, "gam"), tolerance = 1e-10)
+      expect_s3_class(context_run(fn, list(build = function() list(m = smooth, data = data))),
+                      "htest")
+    }
+  }
+  expect_identical(rmodel_context(plain, fn = "f")$kind, "gam")
+  expect_identical(rmodel_context(plain, fn = "f")$obs_id, rownames(stats::model.frame(plain)))
+})
+
+test_that("data in the order of the fit must tell apart the rows a test reads beyond the frame", {
+  # Rows that tie on every compared column (y and x here) can be exchanged in
+  # data taken in the order of the fit without a trace in the model frame; a
+  # column beyond it, such as the variable the rank permutation test orders
+  # by, then belongs to other rows. Exchanged within such ties, z gave -0.02017
+  # where the data in the order of the fit give -0.02619, without an error.
+  set.seed(42)
+  n <- 60
+  named <- data.frame(x = rep(1:3, 20))
+  named$y <- round(named$x + rnorm(n))
+  named$z <- rnorm(n)
+  rownames(named) <- paste0("obs", seq_len(n))
+  m <- lm(y ~ x, data = named)
+  numbered <- named
+  rownames(numbered) <- NULL
+  exchanged <- numbered
+  groups <- split(seq_len(n), paste(numbered$y, numbered$x))
+  for (g in groups) {
+    if (length(g) > 1L) exchanged$z[g] <- exchanged$z[rev(g)]
+  }
+  expect_false(identical(exchanged$z, numbered$z))
+  run <- function(data, order_by) {
+    set.seed(1)
+    performRankPermutationTest(m, data, order_by = order_by, B = 19, progress = FALSE)
+  }
+  expected <- run(named, "z")
+  for (data in list(numbered, exchanged)) {
+    expect_error(run(data, "z"), "tie on every column of the model frame that is compared",
+                 class = "heteroTests_data_rows_error")
+  }
+  # A column of the model frame, or the default, is read from rows that the
+  # comparison confirmed, ties or not.
+  expect_identical(run(numbered, "x")$statistic, run(named, "x")$statistic)
+  expect_identical(run(numbered, NULL)$statistic, run(named, NULL)$statistic)
+  expect_identical(run(named, "z")$statistic, expected$statistic)
+})
+
 test_that("an offset is the model of the response minus the offset", {
   # 125 calls, among them fitWLS() fits: with the full matrix, off CRAN.
   skip_on_cran()
@@ -310,6 +483,8 @@ test_that("an offset is the model of the response minus the offset", {
 })
 
 test_that("a term is the column it computes, taken from the fit", {
+  # 600 expectations: with the full matrix, off CRAN.
+  skip_on_cran()
   d <- context_data()
   pre <- d
   pre$ly <- log(d$ypos)

@@ -39,7 +39,7 @@ context_data <- function() {
   d
 }
 
-context_terms <- c("none", "log", "poly", "ns", "square", "median", "cut")
+context_terms <- c("none", "log", "poly", "ns", "square", "median", "cut", "factor")
 context_fits <- c("ols", "wls", "wvec", "glm", "fitwls")
 context_offsets <- c("none", "argument", "term")
 
@@ -52,6 +52,7 @@ context_formula <- function(terms = "none", offset = "none") {
     square = y ~ x1 + I(x1^2) + x2,
     median = y ~ I(x1 > median(x1)) + x2,
     cut = y ~ cut(x1, quantile(x1)) + x2,
+    factor = y ~ x1 + group,
     stop("unknown terms: ", terms)
   )
   if (identical(offset, "term")) {
@@ -211,6 +212,10 @@ context_cells <- function() {
     list(m = stats::lm(y ~ x1 + x2, data = complete), data = complete)
   }, reference = NULL)
   missing_cell("full", function() list(m = stats::lm(y ~ x1 + x2, data = d_na), data = d_na))
+  missing_cell("full_shuffled", function() {
+    set.seed(3)
+    list(m = stats::lm(y ~ x1 + x2, data = d_na), data = d_na[sample(nrow(d_na)), ])
+  })
   missing_cell("complete_named", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na), data = complete)
   })
@@ -287,6 +292,10 @@ context_cells <- function() {
   add(context_cell("subset/data_frame", "subset", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d, subset = 21:120), data = d)
   }, reference = "subset/rows", defect = "B15"))
+  add(context_cell("subset/shuffled", "subset", function() {
+    set.seed(3)
+    list(m = stats::lm(y ~ x1 + x2, data = d, subset = 21:120), data = d[sample(nrow(d)), ])
+  }, form = "shuffled", reference = "subset/rows", defect = "B15"))
   add(context_cell("subset/null", "subset", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d, subset = 21:120), data = NULL)
   }, form = "null", reference = "subset/rows", defect = "B15"))
@@ -301,6 +310,22 @@ context_cells <- function() {
   add(context_cell("class/rlm", "class", function() {
     list(m = MASS::rlm(y ~ x1 + x2, data = d), data = d)
   }))
+  # A Gaussian mgcv::gam() is a glm by class, and is accepted as before 0.16.0;
+  # without smooth terms it is the lm.
+  add(context_cell("class/gam", "class", function() {
+    list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
+  }, needs = "mgcv", reference = "fit/ols/none/none/data_frame"))
+  add(context_cell("class/gam_smooth", "class", function() {
+    list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
+  }, needs = "mgcv"))
+  # A fit with model = FALSE whose data are gone, given its data.
+  add(context_cell("class/model_false", "class", function() {
+    env <- new.env()
+    assign("gone", d, envir = env)
+    m <- eval(quote(stats::lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+    rm("gone", envir = env)
+    list(m = m, data = d)
+  }, reference = "fit/ols/none/none/data_frame"))
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
 }
