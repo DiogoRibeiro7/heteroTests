@@ -511,7 +511,11 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 
   ht_log("INFO", "Running Bootstrap White test")
 
-  original_result <- performWhiteTest(model, working_data)
+  # The observed statistic and the replicates come from the same kind of
+  # design, rebuilt from the rows of the fit as before 0.16.0, until increment
+  # 8 of the model context builds the replicates on the stored design
+  # (rwhite_test_rebuilt_design()).
+  original_result <- rwhite_test_rebuilt_design(model, working_data)
   original_stat <- unname(original_result$statistic[1])
 
   # A weighted fit is ordinary least squares on sqrt(w) y and sqrt(w) X, whose
@@ -591,7 +595,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
     } else {
       boot_model <- rrefit_lm(boot_formula, boot_data, prior_weights, offset_argument)
     }
-    unname(performWhiteTest(boot_model, boot_data)$statistic[1])
+    unname(rwhite_test_rebuilt_design(boot_model, boot_data)$statistic[1])
   }
 
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {

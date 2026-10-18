@@ -636,9 +636,17 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' @param model A fitted `lm`.
 #' @param data Data frame holding the fitted rows.
 #' @param row_index For each row of `data`, the row of the fit it holds.
-#' @return `TRUE` when the residuals agree to a relative `1e-8`, or when the
-#'   model frame cannot be rebuilt from `data`, in which case the refits fail
-#'   on their own; `FALSE` otherwise.
+#' A model frame or design that cannot be rebuilt from `data` does not
+#' reproduce the fit. Before 0.16.0 it counted as reproducing it, on the
+#' grounds that the refits would then fail on their own; they do not when the
+#' failure is that of the levels of the fit, as with `cut(x, quantile(x))`,
+#' whose refits compute levels of their own. The observed statistic of such a
+#' fit failed first then; since the model context gives it from the stored
+#' design, the replicates would have come from another design.
+#'
+#' @return `TRUE` when the residuals agree to a relative `1e-8`; `FALSE`
+#'   otherwise, and when the model frame or the design cannot be rebuilt from
+#'   `data`.
 #' @keywords internal
 #' @noRd
 rdata_reproduces_fit <- function(model, data, row_index) {
@@ -649,7 +657,7 @@ rdata_reproduces_fit <- function(model, data, row_index) {
     error = function(e) NULL
   )
   if (is.null(rebuilt)) {
-    return(TRUE)
+    return(FALSE)
   }
   if (nrow(rebuilt) != length(row_index)) {
     return(FALSE)
@@ -660,7 +668,7 @@ rdata_reproduces_fit <- function(model, data, row_index) {
     error = function(e) NULL
   )
   if (is.null(y) || is.null(X)) {
-    return(TRUE)
+    return(FALSE)
   }
   offset <- stats::model.offset(rebuilt)
   argument <- roffset_argument(model)
