@@ -96,7 +96,6 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     perfect_separation = "Perfect separation detected",
     data_quality = "Data quality issue detected",
     data_rows = "Data do not match the model",
-    offset = "Offset not supported",
     model_context = "Model cannot be tested",
     "Diagnostic execution failed"
   )
@@ -249,22 +248,6 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
 
 ht_analyse_failure <- function(test_name, error, model, data) {
   raw_message <- conditionMessage(error)
-  if (inherits(error, "heteroTests_offset_error")) {
-    # The test does not account for the offset of the model (rrefuse_offset()).
-    # A substitute that does would be another test under this name, so there
-    # is no fallback.
-    return(list(
-      raw_message = raw_message,
-      user_message = ht_format_failure_message(
-        "offset",
-        raw_message,
-        test_name = ht_pretty_test_name(test_name)
-      ),
-      suggestions = character(),
-      issue = "offset",
-      fallbacks = character()
-    ))
-  }
   if (inherits(error, "heteroTests_model_context_error")) {
     # The model context refused the model (R/model_context.R): a multivariate
     # lm, a model frame that cannot be rebuilt, a fit changed after it was
