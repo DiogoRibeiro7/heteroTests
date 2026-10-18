@@ -94,16 +94,14 @@
 #' lower-dimensional Lagrange Multiplier alternative.
 #' @export
 performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_interactions = 10) {
-  rrefuse_non_gaussian_glm(model, "performWhiteTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "White test"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performWhiteTest", test_label = test_label)
   # A rank-deficient fit is tested on the estimable part of its design: as the
   # same model fitted without its aliased columns (rnon_aliased_columns()).
   rvalidateModelInputs(model, test_name = "White", min_obs = 20L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 20L)
+  rvalidate_model_context(ctx)
 
   handle_validation_result <- function(result) {
     if (length(result$warnings) > 0) {
@@ -117,51 +115,11 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
     invisible(result)
   }
 
-  align_to_model <- function(clean_data, residuals) {
-    resid_names <- names(residuals)
-    data_rows <- rownames(clean_data)
-
-    if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
-      match_idx <- match(resid_names, data_rows)
-      if (anyNA(match_idx)) {
-        missing_rows <- resid_names[is.na(match_idx)]
-        stop(
-          sprintf(
-            "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
-            test_label,
-            paste(utils::head(missing_rows, 3L), collapse = ", ")
-          ),
-          call. = FALSE
-        )
-      }
-      # `data` and `cleaned` are those of the enclosing call: the rows before
-      # and after rhandleMissingValues().
-      rcheck_rows_after_cleaning(
-        data, cleaned, match_idx, resid_names,
-        fn = rtest_name(sys.parent()), test_label = test_label
-      )
-      aligned_data <- clean_data[match_idx, , drop = FALSE]
-      list(data = aligned_data, residuals = residuals)
-    } else {
-      if (nrow(clean_data) != length(residuals)) {
-        stop(
-          sprintf(
-            "%s requires `data` with %d observations to match the fitted model, got %d.",
-            test_label,
-            length(residuals),
-            nrow(clean_data)
-          ),
-          call. = FALSE
-        )
-      }
-      list(data = clean_data, residuals = residuals)
-    }
-  }
-
-  cleaned <- rhandleMissingValues(data, variables = required_vars)
-  aligned <- align_to_model(cleaned$data, rpearson_residuals(model))
-  working_data <- aligned$data
-  residuals <- aligned$residuals
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("white", model = model, data = working_data)
   handle_validation_result(requirements)
@@ -199,9 +157,9 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
   e_squared <- residuals^2
   n <- length(e_squared)
 
-  # Get the model matrix (includes intercept), without the columns of a
+  # The design of the fit (with its intercept), without the columns of a
   # rank-deficient fit that it aliased
-  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  X_full <- rcontext_design(ctx)
 
   if (nrow(X_full) != n) {
     stop(

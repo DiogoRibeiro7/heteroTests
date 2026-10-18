@@ -85,27 +85,18 @@
 #' [performBPTest()] for the classical LM statistic using squared residuals,
 #' and \link[=performBPTestRobust]{performBPTestRobust()} for bootstrap-enhanced reporting.
 performKoenkerTest <- function(model, data = NULL) {
-  rrefuse_non_gaussian_glm(model, "performKoenkerTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker studentized Breusch-Pagan test"
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performKoenkerTest", test_label = test_label)
 
   rvalidateModelInputs(model, test_name = "Koenker", min_obs = 15L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("koenker", model = model, data = working_data)
   rprocessValidationResult(requirements)
@@ -134,9 +125,9 @@ performKoenkerTest <- function(model, data = NULL) {
 
   ht_log("INFO", "Running Koenker test")
 
-  # The design without the columns a rank-deficient fit aliased, so that the
-  # degrees of freedom are those of the estimable part of the design.
-  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
+  # The design of the fit without the columns a rank-deficient fit aliased, so
+  # that the degrees of freedom are those of the estimable part of the design.
+  X_full <- rcontext_design(ctx)
   if (nrow(X_full) != length(residuals)) {
     stop(
       sprintf(
