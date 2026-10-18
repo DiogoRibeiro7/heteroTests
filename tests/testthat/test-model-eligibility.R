@@ -13,6 +13,12 @@
 # - A glm that is not a least-squares fit, a survey::svyglm() fit and data
 #   that lack rows or variables of the fit are refused on every route.
 # - The prior weights of a glm, not its working weights, are read.
+# - The three tests that refused every glm until 0.16.0,
+#   performWhiteTestStreaming(), performHarrisonMcCabeTest() and
+#   performVarianceFormTest(), accept a Gaussian glm with the identity link
+#   and return the value of the lm; fitWLS() refits one as the lm it is; and
+#   the checks of the model read the R-squared of the least-squares fit, so a
+#   near-perfect Gaussian glm is refused as the same lm is.
 
 eligibility_data <- function() {
   d <- contract_data()$d
@@ -123,11 +129,12 @@ test_that("every test gives a rank-deficient fit the value of the fit without it
       compared <- compared + 1L
     }
   }
-  # Every test on the lm and the empty cell, but the White streaming test on
-  # the empty cell, whose auxiliary terms of the dummies are collinear (as on
-  # the reduced fit); every test but those that refuse a weighted fit on the
-  # weighted lm; every test but the three that refuse every glm on the glm.
-  expect_gte(compared, 140L)
+  # Every test on the lm, the glm and the empty cell, but the White streaming
+  # test on the empty cell, whose auxiliary terms of the dummies are collinear
+  # (as on the reduced fit); every test but those that refuse a weighted fit on
+  # the weighted lm. Until 0.16.0 the three tests that refused every glm were
+  # not compared on the glm.
+  expect_gte(compared, 143L)
 })
 
 test_that("auxiliary-regression tests and RESET give a rank-deficient fit the reduced value", {
@@ -535,12 +542,6 @@ test_that("a Gaussian glm with a zero prior weight is refused as the same lm is"
     a <- eligibility_run(contract_recipes[[fn]], z$lm, z$d)
     b <- eligibility_run(contract_recipes[[fn]], z$glm, z$d)
     if (is.null(a) || is.null(b)) next
-    if (fn %in% c("performWhiteTestStreaming", "performHarrisonMcCabeTest",
-                  "performVarianceFormTest")) {
-      # They refuse every glm, and the weighted lm for their own reasons.
-      expect_match(unclass(b), "needs a model fitted by stats::lm\\(\\)", info = fn)
-      next
-    }
     if (fn == "performRESETTest") {
       expect_false(inherits(b, "refused"), info = fn)
       next
@@ -553,8 +554,11 @@ test_that("a Gaussian glm with a zero prior weight is refused as the same lm is"
   # ("Model residuals must be finite"), the quantile regression test (a
   # weighted fit) and the spatial test, which stopped with another error. The
   # quantile regression and spatial tests are skipped without quantreg and
-  # spdep.
-  expect_gte(refused, 32L)
+  # spdep. Since 0.16.0 the three tests that refused every glm refuse it with
+  # the message they give the lm: the White streaming and Harrison-McCabe tests
+  # for the zero weight, the variance-form test for weights that did not come
+  # from fitWLS().
+  expect_gte(refused, 35L)
   expect_error(
     performKoenkerTest(z$glm, z$d),
     "The model was fitted with zero or non-finite weights", fixed = TRUE
@@ -624,6 +628,328 @@ test_that("the tests read the prior weights of a glm, not its working weights", 
   # deviance residuals, sqrt(w) (y - mu), which are the Pearson residuals.
   expect_identical(rpearson_residuals(gaussian), stats::residuals(gaussian))
   expect_equal(rpearson_residuals(gaussian), stats::residuals(gaussian, type = "pearson"))
+})
+
+# A Gaussian glm in the three tests that refused every glm ---------------------
+
+# performWhiteTestStreaming(), performHarrisonMcCabeTest() and
+# performVarianceFormTest() refused every glm until 0.16.0. A glm with the
+# Gaussian family, the identity link and prior weights w is fitted by maximum
+# likelihood, which for this family is weighted least squares: its design,
+# coefficients, fitted values, residuals and weights are those of
+# lm(..., weights = w), up to rounding, and each of the three statistics, and
+# its null distribution, is a function of those alone (the section "A Gaussian
+# glm is a least-squares fit" of the Supported models page). Since 0.16.0 they
+# accept it and return the value of the lm. The comparisons are to 1e-10 for
+# the statistic, the p-value and the estimate, which differ by rounding, and
+# identical() for everything else the tests return: the parameter, the
+# method, the alternative, the data name and what the variance-form test
+# records of its variance function.
+three_glm_tests <- list(
+  performWhiteTestStreaming = function(m, d) {
+    performWhiteTestStreaming(m, d, chunk_size = 25, progress = FALSE)
+  },
+  performHarrisonMcCabeTest = function(m, d) performHarrisonMcCabeTest(m, d, order_by = "x1"),
+  performHarrisonMcCabeTest_two_sided = function(m, d) {
+    performHarrisonMcCabeTest(m, d, order_by = "x2", point = 1 / 3, alternative = "two.sided")
+  },
+  performVarianceFormTest = function(m, d) performVarianceFormTest(m, d),
+  performVarianceFormTest_power = function(m, d) {
+    performVarianceFormTest(m, d, var_formula = ~x1, form = "power")
+  },
+  performVarianceFormTest_against = function(m, d) {
+    performVarianceFormTest(m, d, against = ~ x2 + I(x1^3))
+  }
+)
+
+# Each design fitted by lm() and by glm(), unweighted and with the prior
+# weights 1 / x1^2: plain, with three responses missing under na.omit, with a
+# factor regressor, and rank-deficient.
+three_glm_cases <- function() {
+  d <- eligibility_data()
+  d$y_na <- d$y
+  d$y_na[c(3, 50, 77)] <- NA
+  formulas <- list(
+    plain = y ~ x1 + x2,
+    na_omit = y_na ~ x1 + x2,
+    factor = y ~ x1 + x2 + group,
+    rank_deficient = y ~ x1 + x2 + x1_twice
+  )
+  cases <- list()
+  for (design in names(formulas)) {
+    f <- formulas[[design]]
+    cases[[design]] <- list(
+      lm = eval(bquote(lm(.(f), data = d, na.action = na.omit))),
+      glm = eval(bquote(glm(.(f), data = d, na.action = na.omit)))
+    )
+    cases[[paste0(design, "_weighted")]] <- list(
+      lm = eval(bquote(lm(.(f), data = d, weights = w, na.action = na.omit))),
+      glm = eval(bquote(glm(.(f), data = d, weights = w, na.action = na.omit)))
+    )
+  }
+  list(d = d, cases = cases)
+}
+
+expect_same_test_value <- function(a, b, info) {
+  expect_false(inherits(a, "refused"), info = paste(info, a))
+  expect_false(inherits(b, "refused"), info = paste(info, b))
+  rounded <- c("statistic", "p.value", "estimate", "r_squared", "bootstrap")
+  expect_identical(names(b), names(a), info = info)
+  expect_equal(unname(b$statistic), unname(a$statistic), tolerance = 1e-10, info = info)
+  expect_equal(b$p.value, a$p.value, tolerance = 1e-10, info = info)
+  expect_equal(b$estimate, a$estimate, tolerance = 1e-10, info = info)
+  expect_equal(b$r_squared, a$r_squared, tolerance = 1e-10, info = info)
+  # The replicates of a bootstrap, from the same seed.
+  expect_equal(b$bootstrap, a$bootstrap, tolerance = 1e-10, info = info)
+  expect_identical(b$parameter, a$parameter, info = info)
+  expect_identical(b[setdiff(names(b), rounded)], a[setdiff(names(a), rounded)], info = info)
+}
+
+test_that("the three tests give a Gaussian glm the value of the lm", {
+  s <- three_glm_cases()
+  compared <- 0L
+  refused <- 0L
+  for (case in names(s$cases)) {
+    for (fn in names(three_glm_tests)) {
+      a <- eligibility_run(three_glm_tests[[fn]], s$cases[[case]]$lm, s$d)
+      b <- eligibility_run(three_glm_tests[[fn]], s$cases[[case]]$glm, s$d)
+      info <- paste(fn, "on the", case, "Gaussian glm")
+      # The weighted lm is refused by the variance-form test, whose weights
+      # must come from fitWLS(), and the factor by the White streaming test,
+      # whose auxiliary regression holds the squares of its dummies; the glm
+      # is refused with the same message.
+      if (inherits(a, "refused")) {
+        expect_identical(b, a, info = info)
+        refused <- refused + 1L
+        next
+      }
+      expect_same_test_value(a, b, info)
+      compared <- compared + 1L
+    }
+  }
+  expect_identical(compared, 34L)
+  expect_identical(refused, 14L)
+})
+
+test_that("the three tests refuse a glm that is not a least-squares fit", {
+  d <- eligibility_data()
+  set.seed(77)
+  d$count <- stats::rpois(nrow(d), exp(0.2 + 0.3 * d$x1))
+  fits <- list(
+    binomial = glm(high ~ x1 + x2, data = d, family = binomial),
+    poisson = glm(count ~ x1 + x2, data = d, family = poisson),
+    gaussian_log = glm(count + 1 ~ x1 + x2, data = d, family = gaussian(link = "log"))
+  )
+  described <- c(
+    binomial = "a glm with the binomial family and the logit link",
+    poisson = "a glm with the poisson family and the log link",
+    gaussian_log = "a glm with the gaussian family and the log link"
+  )
+  for (fit in names(fits)) {
+    for (fn in c("performWhiteTestStreaming", "performHarrisonMcCabeTest",
+                 "performVarianceFormTest")) {
+      expect_error(
+        contract_recipes[[fn]](fits[[fit]], d),
+        paste0(
+          fn, "() needs a model fitted by stats::lm(): ", described[[fit]], " is not a ",
+          "least-squares fit. A glm with the gaussian family and the identity link is accepted."
+        ),
+        fixed = TRUE, info = paste(fn, fit)
+      )
+    }
+  }
+})
+
+# A Gaussian glm with prior weights given by hand has no variance function for
+# the variance-form test to re-estimate, as the lm with those weights has
+# none; fitWLS() of the glm is the fitWLS() of the lm, and is tested as it is.
+test_that("fitWLS() refits a Gaussian glm as the lm it is", {
+  s <- three_glm_cases()
+  d <- s$d
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  for (case in c("plain", "plain_weighted", "factor", "rank_deficient")) {
+    info <- case
+    from_lm <- fitWLS(s$cases[[case]]$lm)
+    from_glm <- fitWLS(s$cases[[case]]$glm)
+    # lm.wfit() fits both; before 0.16.0 the refit of a glm kept the class
+    # of the glm without its family.
+    expect_identical(class(from_glm), "lm", info = info)
+    expect_equal(stats::coef(from_glm), stats::coef(from_lm), tolerance = 1e-10, info = info)
+    expect_equal(stats::weights(from_glm), stats::weights(from_lm), tolerance = 1e-10, info = info)
+    expect_equal(stats::residuals(from_glm), stats::residuals(from_lm), tolerance = 1e-10,
+                 info = info)
+    expect_equal(attr(from_glm, "variance_function"), attr(from_lm, "variance_function"),
+                 tolerance = 1e-10, info = info)
+    # The prior weights of the weighted glm are recorded as those of the lm.
+    expect_identical(attr(from_glm, "variance_function")$initial_weights,
+                     attr(from_lm, "variance_function")$initial_weights, info = info)
+    expect_no_error(summary(from_glm))
+    expect_same_test_value(performVarianceFormTest(from_lm), performVarianceFormTest(from_glm),
+                           paste("variance form on fitWLS() of", info))
+    expect_same_test_value(performKoenkerTest(from_lm, d), performKoenkerTest(from_glm, d),
+                           paste("Koenker on fitWLS() of", info))
+  }
+  # The bootstrap that estimates the weights again reads the recorded prior
+  # weights of the weighted glm.
+  run <- function(m) {
+    set.seed(5)
+    performWildBootstrapTest(m, d, B = 49, progress = FALSE)
+  }
+  expect_same_test_value(run(fitWLS(s$cases$plain_weighted$lm)),
+                         run(fitWLS(s$cases$plain_weighted$glm)), "wild bootstrap")
+  # Any other glm is refused, where fitWLS() returned a fit no test accepted.
+  binomial_fit <- glm(high ~ x1 + x2, data = d, family = binomial)
+  expect_error(
+    fitWLS(binomial_fit),
+    "fitWLS() needs a model fitted by stats::lm(): a glm with the binomial family", fixed = TRUE
+  )
+  expect_error(
+    performVarianceFormTest(s$cases$plain_weighted$glm),
+    "`model` was fitted with weights that did not come from fitWLS()", fixed = TRUE
+  )
+})
+
+# lm() decides the rank of the design with the tolerance 1e-7, glm.fit() with
+# min(1e-7, epsilon / 1000), 1e-11 by default. On a column within that margin
+# of a combination of the others the lm aliases it and the glm keeps it, and
+# the glm gets the values of lm(..., tol = 1e-11), not those of the default
+# lm (the Supported models page). Recorded, not changed.
+test_that("a Gaussian glm gives the value of the lm that decides the rank as it does", {
+  d <- contract_data()$d
+  set.seed(5)
+  d$x3 <- d$x1 + 1e-9 * stats::rnorm(nrow(d))
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit_glm <- glm(y ~ x1 + x2 + x3, data = d)
+  fit_lm <- lm(y ~ x1 + x2 + x3, data = d)
+  fit_lm_tol <- lm(y ~ x1 + x2 + x3, data = d, tol = 1e-11)
+  expect_identical(raliased_coefficients(fit_lm), "x3")
+  expect_identical(raliased_coefficients(fit_glm), character())
+  expect_identical(fit_glm$rank, fit_lm_tol$rank)
+  calls <- list(
+    hmc = function(m) performHarrisonMcCabeTest(m, d, order_by = "x1"),
+    koenker = function(m) performKoenkerTest(m, d)
+  )
+  # The design is ill-conditioned by construction, so the rounding of the two
+  # fits is amplified: they agree to about 1e-8 here, not 1e-13.
+  for (name in names(calls)) {
+    a <- calls[[name]](fit_lm_tol)
+    b <- calls[[name]](fit_glm)
+    expect_equal(unname(b$statistic), unname(a$statistic), tolerance = 1e-6, info = name)
+    expect_equal(b$p.value, a$p.value, tolerance = 1e-6, info = name)
+    expect_identical(b$parameter, a$parameter, info = name)
+    expect_false(isTRUE(all.equal(unname(calls[[name]](fit_lm)$statistic), unname(b$statistic),
+                                  tolerance = 1e-6)), info = name)
+  }
+  # Its checks warn about the collinear column (VIF > 10).
+  expect_error(suppressWarnings(performWhiteTestStreaming(fit_glm, d, progress = FALSE)),
+               "rank deficient")
+})
+
+# fitWLS() keeps the call of the model it refits, for summary() and update().
+# Of a Gaussian glm it records the call of the lm: before, it kept the glm()
+# call, so update() fitted a glm again and summary() printed glm(...).
+test_that("fitWLS() of a Gaussian glm records the call of the lm", {
+  d <- eligibility_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  fit_glm <- glm(y ~ x1 + x2, family = gaussian(), data = d, weights = w,
+                 control = glm.control(epsilon = 1e-10), method = "glm.fit")
+  fit_lm <- lm(y ~ x1 + x2, data = d, weights = w)
+  from_glm <- fitWLS(fit_glm)
+  from_lm <- fitWLS(fit_lm)
+  # The arguments only glm() takes are left out.
+  expect_identical(from_glm$call, quote(stats::lm(formula = y ~ x1 + x2, data = d, weights = w)))
+  # The call of an lm is kept as it is.
+  expect_identical(from_lm$call, fit_lm$call)
+  # update() fits the call again, without the estimated weights, as for the lm.
+  refit_glm <- update(from_glm)
+  refit_lm <- update(from_lm)
+  expect_identical(class(refit_glm), "lm")
+  expect_equal(stats::coef(refit_glm), stats::coef(refit_lm), tolerance = 1e-10)
+  expect_equal(stats::weights(refit_glm), d$w)
+  # summary() prints the call, and its values are those of the lm's fit, as
+  # are the predictions.
+  expect_match(capture.output(print(summary(from_glm)))[3], "^stats::lm\\(formula = y ~ x1 \\+ x2")
+  expect_equal(summary(from_glm)$coefficients, summary(from_lm)$coefficients, tolerance = 1e-10)
+  expect_equal(summary(from_glm)$r.squared, summary(from_lm)$r.squared, tolerance = 1e-10)
+  expect_equal(stats::predict(from_glm, d[1:5, ]), stats::predict(from_lm, d[1:5, ]),
+               tolerance = 1e-10)
+  # A family given by position is matched by glm() and left out too.
+  positional <- fitWLS(glm(y ~ x1 + x2, gaussian, d))
+  expect_identical(positional$call, quote(stats::lm(formula = y ~ x1 + x2, data = d)))
+})
+
+# summary() of a glm reports no R-squared. The checks of the model read that
+# of the least-squares fit: before 0.16.0 a near-perfect Gaussian glm escaped
+# the refusal the same lm met, and checkModel(enhanced = TRUE) stopped on any
+# glm with "missing value where TRUE/FALSE needed". It is summary.lm() applied
+# to the glm, so it agrees with summary() of the lm on every version of R:
+# R 4.3.0 changed what summary.lm() reports for a model with an offset, and
+# one minus the deviance over the null deviance agreed with it on 4.3.0 and
+# later only.
+test_that("the R-squared of a Gaussian glm is that of the lm", {
+  d <- eligibility_data()
+  d$o <- 0.3 * d$x2
+  formulas <- list(y ~ x1 + x2, y ~ 0 + x1 + x2, y ~ x1 + x2 + offset(o), y ~ 0 + x1 + offset(o),
+                   y ~ x1 + x2 + x1_twice)
+  for (f in formulas) {
+    for (weighted in c(FALSE, TRUE)) {
+      info <- paste(deparse(f), if (weighted) "weighted" else "")
+      if (weighted) {
+        fit_lm <- eval(bquote(lm(.(f), data = d, weights = w)))
+        fit_glm <- eval(bquote(glm(.(f), data = d, weights = w)))
+      } else {
+        fit_lm <- eval(bquote(lm(.(f), data = d)))
+        fit_glm <- eval(bquote(glm(.(f), data = d)))
+      }
+      expect_identical(rleast_squares_r_squared(fit_lm), summary(fit_lm)$r.squared, info = info)
+      expect_equal(rleast_squares_r_squared(fit_glm), summary(fit_lm)$r.squared,
+                   tolerance = 1e-12, info = info)
+    }
+  }
+  expect_identical(rleast_squares_r_squared(glm(high ~ x1 + x2, data = d, family = binomial)),
+                   NA_real_)
+})
+
+test_that("a near-perfect Gaussian glm is refused as the same lm is", {
+  d <- eligibility_data()
+  set.seed(91)
+  d$y <- 1 + d$x1 - d$x2 + stats::rnorm(nrow(d), sd = 0.001)
+  fit_lm <- lm(y ~ x1 + x2, data = d)
+  fit_glm <- glm(y ~ x1 + x2, data = d)
+  expect_gt(summary(fit_lm)$r.squared, 0.999)
+  tests <- setdiff(names(contract_recipes), "performBoxMTest")
+  # These do not check the R-squared, and give the lm and the glm a value.
+  unchecked <- c("performSpreadLevelTest", "performPesaranTest", "performBPRandomEffectsTest",
+                 "performDavidianCarrollTest", "performRESETTest")
+  refused <- 0L
+  for (fn in tests) {
+    a <- eligibility_run(contract_recipes[[fn]], fit_lm, d)
+    b <- eligibility_run(contract_recipes[[fn]], fit_glm, d)
+    if (is.null(a) || is.null(b)) next
+    if (fn %in% unchecked) {
+      expect_same_test_value(a, b, info = fn)
+      next
+    }
+    expect_true(inherits(a, "refused"), info = fn)
+    expect_match(unclass(a), "Model appears perfectly explained", fixed = TRUE, info = fn)
+    expect_identical(b, a, info = fn)
+    refused <- refused + 1L
+  }
+  # Every other test but those skipped without quantreg and spdep. Before
+  # 0.16.0, 30 of these 34 gave the glm a value; the White bootstrap refused
+  # it with this message, and the three tests that refused every glm with
+  # theirs.
+  expect_gte(refused, 32L)
+  expect_error(performKoenkerTest(fit_glm, d), "Model appears perfectly explained", fixed = TRUE)
+  # checkModel(enhanced = TRUE) warns about it, as about the lm, and accepts
+  # any other glm, which it stopped on.
+  expect_warning(checkModel(fit_glm, d, enhanced = TRUE), "Near-perfect fit detected")
+  expect_warning(checkModel(fit_lm, d, enhanced = TRUE), "Near-perfect fit detected")
+  binomial_fit <- glm(high ~ x1 + x2, data = d, family = binomial)
+  expect_invisible(checkModel(binomial_fit, enhanced = TRUE))
 })
 
 # Refused models, on every route ----------------------------------------------

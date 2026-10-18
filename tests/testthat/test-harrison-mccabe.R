@@ -351,9 +351,21 @@ test_that("arguments are validated", {
 
   expect_error(performHarrisonMcCabeTest(list(), obj$data, "x1"),
                "Provide an object fitted with stats::lm() or stats::glm()", fixed = TRUE)
+  # A Gaussian glm with the identity link is a least-squares fit, accepted
+  # since 0.16.0 with the value of the lm; any other glm is refused.
   glm_fit <- glm(y ~ x1 + x2, data = obj$data)
-  expect_error(performHarrisonMcCabeTest(glm_fit, obj$data, "x1"),
-               "needs a model fitted by stats::lm")
+  expect_equal(
+    unname(quiet(performHarrisonMcCabeTest(glm_fit, obj$data, "x1"))$p.value),
+    unname(quiet(performHarrisonMcCabeTest(obj$model, obj$data, "x1"))$p.value),
+    tolerance = 1e-10
+  )
+  binomial_data <- obj$data
+  binomial_data$high <- as.integer(binomial_data$y > stats::median(binomial_data$y))
+  expect_error(
+    performHarrisonMcCabeTest(glm(high ~ x1 + x2, data = binomial_data, family = binomial),
+                              binomial_data, "x1"),
+    "needs a model fitted by stats::lm\\(\\): a glm with the binomial family"
+  )
 
   exact <- data.frame(x = 1:20, z = 20:1)
   exact$y <- 2 + 3 * exact$x

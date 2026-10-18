@@ -63,9 +63,14 @@ reducing peak memory usage. When \code{Matrix} is installed, sparse cross-produc
 are leveraged automatically for large chunks.
 }
 \section{Supported models}{
-It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit and, since
-0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
-of the same model fitted without the aliased columns. It refuses every \code{glm}, a
+It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity
+link, unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
+same model fitted without the aliased columns. The Gaussian \code{glm} with prior weights \code{w}
+is the least-squares fit \code{lm(..., weights = w)}, with the same design and residuals, and the
+test gives the value of the \code{lm}. It refused every \code{glm} before 0.16.0, because the
+checks it runs read the R-squared of \code{summary()}, which a \code{glm} does not report; they read
+that of the least-squares fit now. It refuses a \code{glm} of another family or link, a
 \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, and \code{data} that lack rows or variables of the fit. It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which

@@ -27,9 +27,9 @@ One line for each class and each answer in the table.
 | | no: not `fitWLS()` | `performVarianceFormTest()` tests the variance function `fitWLS()` estimated; weights given by hand have none to test. |
 | An `lm` with a zero weight | no: zero weight | The observation is not part of the fit, and its residual is an artificial zero that the test would count as an observation. |
 | | yes | `performRESETTest()` compares two weighted least-squares fits, which both leave the observation out: its value is that of the fit to the observations with positive weight. |
-| Gaussian `glm`, identity link | yes | A least-squares fit: its coefficients, fitted values and residuals are those of `lm()`, up to rounding, and the tests give the result of the `lm`. |
-| | no: any `glm` | `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and `performVarianceFormTest()` refuse every `glm`, as they did before 0.15.0. This is a restriction of their code, not of their mathematics: a Gaussian `glm` with the identity link is a least-squares fit. |
+| Gaussian `glm`, identity link | yes | A least-squares fit: its coefficients, fitted values and residuals are those of `lm()`, up to rounding, and every `perform*Test()` gives the result of the `lm` (see *A Gaussian glm is a least-squares fit* below), when the two decide the rank of the design alike. `performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and `performVarianceFormTest()` refused every `glm` until 0.16.0; `bootstrapTestStatistic()` refuses every `glm`. |
 | Gaussian `glm` with prior weights | yes | Its prior weights, `prior.weights`, are the weights of `lm(..., weights = w)`, and the tests read them. Its `weights` are the working weights of the last iteration of iteratively reweighted least squares, $w_i (d\mu_i / d\eta_i)^2 / V(\mu_i)$, which for this family and link are the prior weights; the tests do not read them. |
+| | no: not `fitWLS()` | `performVarianceFormTest()` refuses prior weights given to `glm()` as it refuses weights given to `lm()`: they have no variance function to test. |
 | Gaussian `glm` with a zero prior weight | no: zero weight | As for the `lm`. Before 0.16.0 most tests read no weights for a `glm` and tested the artificial zero. |
 | Binomial, Poisson or any other `glm` | no: not least squares | The variance of its residuals depends on the mean by construction, so a test of constant variance tests nothing. |
 | `survey::svyglm()` | no: survey | Its residuals are scaled by the sampling weights, which are not precision weights: a homoscedastic model is rejected whenever they vary with the regressors. `runSurveyHeteroTests()` fits the model by least squares to the data of the design instead. |
@@ -42,6 +42,7 @@ One line for each class and each answer in the table.
 | `MASS::rlm()` | as today | An `lm` by class, so 37 tests accept it, as before 0.16.0, and test its M-estimation residuals as if they were least-squares residuals. Whether that is a test of anything is an open decision (below). |
 | | no: weighted, no: not `fitWLS()`, no: refit differs | Its case weights, all 1 unless given, are read as weights; `bootstrapTestStatistic()` refits each replicate by least squares, which does not reproduce an M-estimate. |
 | `fitWLS()` | yes | A weighted `lm` whose weights were estimated. The reference distributions take the weights as known, so they are approximate; `performVarianceFormTest()` accounts for the estimation. |
+| `fitWLS()` of a Gaussian `glm` | yes | Since 0.16.0 it is the `lm` that `fitWLS()` returns for the equivalent `lm`, with the call of that `lm`, and is tested as that. Before, it kept the class and the call of the `glm` without its family, which `summary()` could not read and every test refused; `fitWLS()` refuses any other `glm`, and a `survey::svyglm()` fit, now. |
 | A model with an offset | yes | The residuals of the fit include the offset, and the tests read them (see *Offsets* below). |
 | | **no: offset** | RESET, the quantile regression test and the studentized Breusch-Pagan statistic leave any offset out of a refit, and GQ an offset given as an argument, or any offset on a weighted fit; refused until the 0.16.0 offset fix (decided 2026-10-17). |
 
@@ -106,12 +107,189 @@ least squares, which leave the observation out, and its F statistic and
 degrees of freedom are those of the fit to the observations with positive
 weight.
 
+### A Gaussian glm is a least-squares fit
+
+Every `perform*Test()` function accepts a `glm` with the Gaussian family and
+the identity link, and gives it the value of the `lm` with the same prior
+weights. Until 0.16.0 `performWhiteTestStreaming()`,
+`performHarrisonMcCabeTest()` and `performVarianceFormTest()` refused every
+`glm`; this section is why they need not, and
+`tests/testthat/test-model-eligibility.R` is the evidence.
+`bootstrapTestStatistic()` still refuses every `glm`, as it refits each
+replicate by least squares, which would drop a family and a link; the same
+argument would let it accept this one (roadmap).
+
+**The fit.** With prior weights $w_i$, all 1 when none are given, such a
+`glm` states that the $y_i$ are independent and normal, with mean
+$x_i^\top \beta$ and variance $\phi / w_i$: the normal linear model that
+`lm(..., weights = w)` fits, with $\sigma^2 = \phi$. `glm()` fits it by
+maximum likelihood, and the log-likelihood
+
+$$
+\ell(\beta, \phi) = -\frac{1}{2\phi} \sum_i w_i (y_i - x_i^\top \beta)^2
+  - \frac{n}{2} \log \phi + \text{terms free of } \beta \text{ and } \phi
+$$
+
+is maximised in $\beta$ by weighted least squares. The algorithm of `glm()`,
+iteratively reweighted least squares, regresses the working response
+$z_i = \eta_i + (y_i - \mu_i)\, d\eta_i / d\mu_i$ on $x_i$ with the working
+weights $w_i (d\mu_i / d\eta_i)^2 / V(\mu_i)$ (Nelder and Wedderburn, 1972;
+McCullagh and Nelder, 1989, section 2.5). With the identity link
+$d\mu / d\eta = 1$, and for the Gaussian family $V(\mu) = 1$, so
+$z_i = y_i$ and the working weights are the prior weights, whatever the
+current estimate: the first step is the weighted least-squares fit, and it is
+a fixed point. In the terms of Green (1984, section 1.2): Newton-Raphson
+converges in one step from any start when the log-likelihood is quadratic in
+$\beta$, as it is here; iteratively reweighted least squares is Fisher
+scoring, Newton-Raphson with the information replaced by its expectation;
+and for the identity link, the canonical link of the Gaussian family, the
+information $X^\top W X / \phi$ does not depend on $y$, so it equals its
+expectation and scoring is Newton-Raphson, which converges in one step.
+`glm.fit()` takes a second iteration to see that the deviance no longer
+changes, which moves the fitted values by rounding only. McCullagh and
+Nelder (1989) treat the normal linear model as this generalized linear model
+in their chapter 3, *Models for continuous data with constant variance*
+(section 3.6, *Estimation*; section 3.8, *Algorithms for least squares*).
+
+So the `glm` and `lm(..., weights = w)` have the same design matrix $X$
+(`model.matrix()`), response and model frame; the same coefficients, fitted
+values $\hat\mu = X \hat\beta$ and response residuals $e = y - \hat\mu$, up
+to rounding (about $10^{-14}$ in the tests); the same weights, as the prior
+weights of the `glm`, `prior.weights`, are the weights of the `lm`, which
+the tests read, and its working weights, `weights`, equal them up to
+rounding (`glm.fit()` stores the squares of their square roots, which
+differ from them by up to about $2 \times 10^{-15}$); the same rank and
+residual degrees of freedom, when the two decide the rank alike (below);
+and the same estimate of the error variance, as the dispersion
+$\hat\phi = \sum_i w_i e_i^2 / (n - p)$ is $\hat\sigma^2$. Its deviance
+residuals, which `residuals()` returns, are
+$\operatorname{sign}(e_i) \sqrt{w_i e_i^2} = \sqrt{w_i}\, e_i$, the Pearson
+residuals of the `lm`, which the tests read.
+
+**The rank.** `lm()` decides the rank of the design in its QR
+decomposition with the tolerance `tol = 1e-7`; `glm.fit()` with
+`min(1e-7, epsilon / 1000)`, which is `1e-11` with the default
+`epsilon = 1e-8` of `glm.control()`. A column that is a combination of the
+others to within that margin is aliased by the `lm` and kept by the `glm`,
+and the `glm` then has the residuals, the rank and the test values of
+`lm(..., tol = 1e-11)`, not those of the default `lm`. With
+`x3 = x1 + 1e-9 * rnorm(120)` added to `contract_data()` (seed 5), the `lm`
+aliases `x3` and the `glm` does not: Harrison-McCabe gives 0.3184 for the
+`lm` and 0.3199 for the `glm` (that of `lm(..., tol = 1e-11)`), Koenker
+9.04 on 2 degrees of freedom against 9.25 on 3, and the White streaming test
+refuses the `glm`, whose auxiliary regression is then rank-deficient. The
+equivalence above holds when the two decide the rank alike, as they do
+unless a column is that close to a combination of the others; the behaviour
+is not changed. On such a fit Harrison-McCabe is not consistent with itself:
+its residuals are those of the fit of rank 4, and its null distribution is
+computed from the design at the default tolerance, of rank 3 (roadmap).
+
+**The tests.** A test is a statistic of $(X, y, w, e)$, and possibly of an
+ordering of the observations or of the fitted values, with a null
+distribution derived under the assumptions of the linear model. The `glm`
+has the same $(X, y, w, e)$ and states the same model, normal errors
+included, so the statistic, its null distribution and the p-value are the
+same. That holds for a test whose code reads only those quantities, or the
+quantities of the `lm` they equal, and never one a `glm` holds with another
+value or not at all: `summary()`, whose result for a `glm` reports a
+dispersion and no R-squared; `$weights` read as prior weights; the
+deviance; the family. For the three tests:
+
+| Test | Statistic and null distribution | What it reads | What had to change |
+| --- | --- | --- | --- |
+| `performHarrisonMcCabeTest()` | The share $b$ of $\sum_i \tilde e_i^2$ in the first $m$ observations in the order of `order_by`, with $\tilde e_i = \sqrt{w_i}\, e_i$; exact under normal errors of variance $\sigma^2 / w_i$, from the residual-maker of $\sqrt{w_i}\, x_i$ in that order. | The Pearson residuals (the deviance residuals of the `glm`), `model.matrix()`, the prior weights, the ordering column. | It read the weights with `rprior_weights()`, which returns none for a `glm`, so a weighted `glm` would have had the unweighted design under weighted residuals. It reads `rleast_squares_weights()`, the prior weights of an `lm` or of a Gaussian `glm`. |
+| `performWhiteTestStreaming()` | $n R^2$ of the regression of $\tilde e_i^2$ on $x_i$, their squares and cross products, accumulated in chunks; $\chi^2$ under a constant variance (White, 1980). | The Pearson residuals; the `model.matrix()` of each chunk, from the `terms`, `contrasts` and `xlevels` of the fit, which a `glm` holds as an `lm` does. | Nothing in the statistic. The checks it runs read the R-squared of `summary()`, which a `glm` does not report, and stopped on a `glm` with "missing value where TRUE/FALSE needed": that is why it refused every `glm`. They read the R-squared of the least-squares fit now (below). |
+| `performVarianceFormTest()` | The F test of the added terms in the regression of the squared standardized residuals of the weighted refit on the score direction of the variance function, fitted to $\log e_i^2$ of the unweighted fit (Wooldridge, 1990, 1991). | `$residuals`, which for a `glm` are its working residuals, $y_i - \hat\mu_i$ for the identity link, the residuals of the `lm`; `model.frame()`, `model.matrix()`, `model.offset()`; the weights, to refuse those that did not come from `fitWLS()`. | It read the weights with `rprior_weights()`, so it would have taken a weighted `glm` for an unweighted one. It reads `rleast_squares_weights()`, and refuses a weighted `glm` as it refuses a weighted `lm`. |
+
+Once the `glm` is accepted, the code of the three reads none of its
+dispersion, its QR decomposition, its working weights or its family. The
+checks they run read its residual degrees of freedom, for a warning, which
+are those of the `lm`, and compute the R-squared below with `summary.lm()`,
+which reads its working residuals and weights: for this family and link,
+the response residuals and the prior weights. The sources of the tests
+define them for the linear
+regression model fitted by least squares: White (1980) for the disturbances
+of a linear regression model, Harrison and McCabe (1979) for ordinary
+least-squares residuals, which Harrison (1981), whom the package follows,
+restates, and Wooldridge (1990, 1991) for models of conditional means and
+variances, of which the least-squares fit and its weighted refit are one. A
+Gaussian `glm` with the identity link is that model, fitted by that
+estimator; the weighted forms are the package's own, and apply to the `glm`
+as to the `lm`.
+
+**The checks of the model.** Every test refuses a near-perfect fit,
+$R^2 > 0.999$, with "Model appears perfectly explained". The checks read
+$R^2$ from `summary()`, which reports none for a `glm`, so until 0.16.0 a
+near-perfect Gaussian `glm` escaped the refusal the same `lm` met, in 30
+tests. They read the $R^2$ of the least-squares fit now: for the `glm`,
+`summary.lm()` applied to it, which reads its fitted values, residuals,
+weights and offset, those of the `lm`, so it reports what `summary()` of the
+`lm` reports, in every version of R. (Since R 4.3.0 `summary.lm()` takes the
+offset out of the fitted values; before, it did not, and $1 - D / D_0$, the
+deviance of the `glm` over its null deviance, which takes it out, gave
+another value for a model with an offset on R 4.1.) Five tests do not run the
+check and give the `lm` and the `glm` a value: the spread-level, Pesaran,
+Breusch-Pagan random effects, Davidian-Carroll and RESET tests.
+
+**`fitWLS()`.** `performVarianceFormTest()` tests the variance function of a
+`fitWLS()` fit, and refits any other model as `fitWLS()` would. `fitWLS()`
+of a Gaussian `glm` is the `lm` that `fitWLS()` returns for the equivalent
+`lm`, with the prior weights of a weighted `glm` recorded as the weights of
+the model it refitted and the call of that `lm`, `stats::lm()` without the
+arguments only `glm()` takes, so that `update()` fits an `lm` again. The test
+gives the two the same value.
+
+**Prior weights of 1.** A `glm` fitted with weights that are all 1 has the
+`prior.weights` of a `glm` fitted without weights, as `glm()` records no
+weights as weights of 1. Its model frame tells the two apart, as it holds a
+`(weights)` column, which `model.weights()` reads, but the tests read the
+weights of a `glm` from `prior.weights` (`rleast_squares_weights()`), so
+they take it for an unweighted fit, where `lm(..., weights = rep(1, n))` is a
+weighted one. The two tests that refuse a weighted fit therefore accept the
+`glm` and refuse the `lm`: `performVarianceFormTest()`, whose weights must
+come from `fitWLS()`, since 0.16.0, when it accepts a Gaussian `glm`; and
+`performQuantileRegressionTest()`, which refits without the weights, since
+0.15.0. So does `runHeteroTests()` with `tests = "variance_form"`, which
+stops on the `lm`, and with `tests = "quantile_regression"`, which falls
+back on another test for the `lm`. `bootstrapTestStatistic()` refuses every
+`glm`, so the two are not compared there. The behaviour is kept.
+
+References:
+
+- Green, P. J. (1984). Iteratively reweighted least squares for maximum
+  likelihood estimation, and some robust and resistant alternatives.
+  *Journal of the Royal Statistical Society, Series B, 46*(2), 149--192.
+  [doi:10.1111/j.2517-6161.1984.tb01288.x](https://doi.org/10.1111/j.2517-6161.1984.tb01288.x)
+- Harrison, M. J. (1981). A comparison of the bounds, beta-approximate, and
+  exact variants of two tests for heteroscedasticity based on ordinary least
+  squares residuals. *The Economic and Social Review, 12*(4), 235--252.
+- Harrison, M. J., & McCabe, B. P. M. (1979). A test for heteroscedasticity
+  based on ordinary least squares residuals. *Journal of the American
+  Statistical Association, 74*(366a), 494--499.
+  [doi:10.1080/01621459.1979.10482544](https://doi.org/10.1080/01621459.1979.10482544)
+- McCullagh, P., & Nelder, J. A. (1989). *Generalized Linear Models* (2nd
+  ed.). Chapman & Hall. The section numbers and titles above are those of its
+  table of contents.
+- Nelder, J. A., & Wedderburn, R. W. M. (1972). Generalized linear models.
+  *Journal of the Royal Statistical Society, Series A, 135*(3), 370--384.
+  [doi:10.2307/2344614](https://doi.org/10.2307/2344614)
+- White, H. (1980). A heteroskedasticity-consistent covariance matrix
+  estimator and a direct test for heteroskedasticity. *Econometrica, 48*(4),
+  817--838. [doi:10.2307/1912934](https://doi.org/10.2307/1912934)
+- Wooldridge, J. M. (1990). A unified approach to robust, regression-based
+  specification tests. *Econometric Theory, 6*(1), 17--43.
+  [doi:10.1017/S0266466600004898](https://doi.org/10.1017/S0266466600004898)
+- Wooldridge, J. M. (1991). On the application of robust, regression-based
+  diagnostics to models of conditional means and conditional variances.
+  *Journal of Econometrics, 47*(1), 5--46.
+  [doi:10.1016/0304-4076(91)90076-P](https://doi.org/10.1016/0304-4076(91)90076-P)
+
 ## The table
 
 | Test | lm | lm, weights | lm, a zero weight | Gaussian glm | Gaussian glm, weights | Gaussian glm, a zero weight | binomial glm | Poisson glm | svyglm, Gaussian | svyglm, binomial | plm | rank-deficient lm | rank-deficient lm, weights | rank-deficient Gaussian glm | NA from an empty cell | MASS::rlm | fitWLS() | lm, offset = o | lm, + offset(o) | weighted lm, + offset(o) |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | `performWhiteTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
-| `performWhiteTestStreaming()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | no: any glm | **error, as reduced** | as today | yes | yes | yes | yes |
+| `performWhiteTestStreaming()` | yes | yes | no: zero weight | **yes** | **yes** | **no: zero weight** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **error, as reduced** | as today | yes | yes | yes | yes |
 | `performWhiteTestRobust()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performBPTestStreaming()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
@@ -124,7 +302,7 @@ weight.
 | `performStudentizedBPTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | **no: offset** | **no: offset** |
 | `performWhiteTestBootstrap()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performSzroeterTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
-| `performHarrisonMcCabeTest()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | as today | yes | yes | yes | yes |
+| `performHarrisonMcCabeTest()` | yes | yes | no: zero weight | **yes** | **yes** | **no: zero weight** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performWildBootstrapTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performQuantileRegressionTest()` | yes | no: weighted | no: weighted | yes | no: weighted | no: weighted | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | no: weighted | **yes** | **yes** | no: weighted | no: weighted | **no: offset** | **no: offset** | no: weighted |
 | `performRankPermutationTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
@@ -147,7 +325,7 @@ weight.
 | `performPesaranTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performBPRandomEffectsTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
 | `performDavidianCarrollTest()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | yes | yes | yes |
-| `performVarianceFormTest()` | yes | no: not fitWLS() | no: not fitWLS() | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: survey | no: survey | no: not lm | **yes** | **no: not fitWLS()** | no: any glm | **yes** | no: not fitWLS() | yes | yes | yes | no: not fitWLS() |
+| `performVarianceFormTest()` | yes | no: not fitWLS() | no: not fitWLS() | **yes** | **no: not fitWLS()** | **no: not fitWLS()** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | **yes** | **no: not fitWLS()** | **yes** | **yes** | no: not fitWLS() | yes | yes | yes | no: not fitWLS() |
 | `performRESETTest()` | yes | yes | yes | yes | yes | yes | no: not least squares | no: not least squares | no: survey | no: survey | no: not lm | **yes** | **yes** | **yes** | **yes** | as today | yes | **no: offset** | **no: offset** | **no: offset** |
 | `performScatterDiagnostic()` | yes | yes | no: zero weight | yes | yes | **no: zero weight** | **no: not least squares** | **no: not least squares** | no: survey | no: survey | no: not lm | yes | yes | yes | yes | as today | yes | yes | yes | yes |
 | `bootstrapTestStatistic()` | yes | yes | no: zero weight | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: any glm | no: not lm | **yes** | **yes** | **no: any glm** | **yes** | no: refit differs | yes | yes | yes | yes |

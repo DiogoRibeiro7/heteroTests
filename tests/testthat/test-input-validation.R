@@ -55,11 +55,6 @@ validation_messages <- c(
   svyglm = "The model is a survey::svyglm\\(\\) fit"
 )
 
-# These three refuse every glm, the Gaussian one included.
-validation_glm_refused <- c(
-  "performWhiteTestStreaming", "performHarrisonMcCabeTest", "performVarianceFormTest"
-)
-
 # These read the weights of an lm, to refit with them or, in the quantile
 # regression test, to refuse a weighted fit. Before 0.15.0 they took a weighted
 # Gaussian glm for an unweighted fit; since then they read its prior weights,
@@ -106,6 +101,9 @@ test_that("every exported test refuses a survey::svyglm() fit", {
 # fitted values and residuals of lm(), up to rounding, so a test returns for
 # it what it returns for the lm. The comparison is of the statistic and the
 # p-value, signed, and of the parameter, on the seed the recipe is run with.
+# Since 0.16.0 every test is compared: performWhiteTestStreaming(),
+# performHarrisonMcCabeTest() and performVarianceFormTest() refused every glm
+# before (test-model-eligibility.R).
 validation_compare_fits <- function(recipe, a, b, d) {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -131,7 +129,7 @@ validation_gaussian_glm_cases <- function() {
 
 test_that("a Gaussian glm with the identity link gives the result of the lm", {
   cases <- validation_gaussian_glm_cases()
-  tests <- setdiff(names(contract_recipes), c("performBoxMTest", validation_glm_refused))
+  tests <- setdiff(names(contract_recipes), "performBoxMTest")
   for (case in names(cases)) {
     for (fn in tests) {
       out <- validation_compare_fits(contract_recipes[[fn]], cases[[case]]$lm,
@@ -258,14 +256,6 @@ test_that("the five tests that read weights give the lm's result for a weighted 
     performQuantileRegressionTest(glm(y ~ x1 + x2, data = d, weights = w), d),
     "performQuantileRegressionTest() does not support weighted fits", fixed = TRUE
   )
-})
-
-test_that("the three tests that refuse every glm refuse the Gaussian one too", {
-  cases <- validation_gaussian_glm_cases()
-  for (fn in validation_glm_refused) {
-    out <- validation_outcome(contract_recipes[[fn]], cases$unweighted$glm, cases$unweighted$d)
-    expect_match(out, "needs a model fitted by stats::lm\\(\\)", info = fn)
-  }
 })
 
 test_that("a glm of another family is refused whatever its link", {

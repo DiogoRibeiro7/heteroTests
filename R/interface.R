@@ -899,11 +899,13 @@ rrefuse_offset <- function(model, fn, which = c("any", "argument"), how, subtrac
 
 #' Refuse a glm in a test that needs least-squares residuals
 #'
-#' Three tests refuse every `glm` with this message. The others refuse a `glm`
-#' that is not a least-squares fit with the same message, through
-#' [rrefuse_non_gaussian_glm()], so that the refusal reads the same
-#' everywhere. A `survey::svyglm()` fit is refused with the message of
-#' [rrefuse_survey_fit()] instead, as by every other test.
+#' The tests refuse a `glm` that is not a least-squares fit with this message,
+#' through [rrefuse_non_gaussian_glm()], so that the refusal reads the same
+#' everywhere. Until 0.16.0 three tests, `performWhiteTestStreaming()`,
+#' `performHarrisonMcCabeTest()` and `performVarianceFormTest()`, called it
+#' directly and refused every `glm`, the Gaussian one with the identity link
+#' included; since then no test does. A `survey::svyglm()` fit is refused with
+#' the message of [rrefuse_survey_fit()] instead, as by every other test.
 #'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.

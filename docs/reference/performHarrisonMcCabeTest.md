@@ -24,7 +24,8 @@ performHarrisonMcCabeTest(
 ## Arguments
 
 `model`
-:   A fitted [stats::lm](https://rdrr.io/r/stats/lm.html) object, with or without weights.
+:   A fitted [stats::lm](https://rdrr.io/r/stats/lm.html) object, with or without weights, or a
+    [stats::glm](https://rdrr.io/r/stats/glm.html) with the Gaussian family and the identity link.
 
 `data`
 :   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) containing the variables used to fit
@@ -125,7 +126,7 @@ On a fit with weights the statistic is computed from the Pearson residuals
 \(\sqrt{w_i}\, \hat{e}_i\), and the null distribution from
 the weighted design \(\sqrt{w_i}\, x_i\). Both are those of
 the equivalent unweighted regression, so the test asks whether the weights
-are adequate.
+are adequate. The weights of a Gaussian `glm` are its prior weights.
 
 ## Heavy tails
 
@@ -150,13 +151,17 @@ different p-value as well; `inst/validation/README.md` says why.
 
 ## Supported models
 
-It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and, since
-0.16.0, a rank-deficient fit, which it tests on the estimable part of its design: it gives the value
-of the same model fitted without the aliased columns. It refuses every `glm`, as its null
-distribution is that of least-squares residuals, a `survey::svyglm()` fit, a fit with a zero
-weight, a coefficient that is not finite for another reason, and `data` that lack rows or
-variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the identity
+link, unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
+same model fitted without the aliased columns. The Gaussian `glm` with prior weights `w`
+is the least-squares fit `lm(..., weights = w)`: it has the same design, residuals and
+weights, and it states the normal errors of constant variance, given the weights, under which the
+null distribution above is exact, so the test gives the value of the `lm`. It refused every
+`glm` before 0.16.0. It refuses a `glm` of another family or link, a
+`survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
+reason, and `data` that lack rows or variables of the fit. Which model each test accepts, and
+why, is set out in [`test_results`](test_results.md), under *Supported models*.
 
 ## References
 
