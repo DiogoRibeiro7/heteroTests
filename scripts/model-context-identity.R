@@ -18,7 +18,10 @@
 #     and the recipes of `identity_extra_recipes` below, under set.seed(7), on
 #     every cell of the matrix of tests/testthat/helper-model-context.R;
 #   - the default battery of runHeteroTests() on every cell, and the
-#     registered names of increment 2 (`identity_registry_tests`);
+#     registered names of increments 2 and 3 (`identity_registry_tests`,
+#     `identity_registry_runner_szroeter`, `identity_registry_runner_spatial`);
+#   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
+#     every recipe;
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -69,6 +72,29 @@ if (length(args) < 3L || !args[1L] %in% c("run", "compare")) {
 # and the quantile regression test. Its runner record runs them on every cell.
 identity_registry_tests <- c("student_bp", "quantile_regression")
 identity_registry_runner <- "runHeteroTests(tests = c(\"student_bp\", \"quantile_regression\"))"
+# Increment 3: the registered Szroeter test, which orders by the fitted
+# values, on every cell, and the spatial test, which reads its weights from
+# `attr(data, "listw")` (identity_with_listw()), on every cell with `data`:
+# without `data` the runner gives it the model frame, which has no weights.
+identity_registry_runner_szroeter <- "runHeteroTests(tests = \"szroeter\")"
+identity_registry_runner_spatial <- "runHeteroTests(tests = \"spatial_hetero\")"
+identity_registry_runner3 <- c(identity_registry_runner_szroeter, identity_registry_runner_spatial)
+
+# The spatial weights of the recipe of performSpatialHeteroTest()
+# (helper-test-recipes.R), one per observation of the fit, attached to `data`
+# for the registered spatial test.
+identity_listw <- function(m) {
+  set.seed(1)
+  coords <- cbind(stats::runif(stats::nobs(m)), stats::runif(stats::nobs(m)))
+  suppressWarnings(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(coords, k = 4))))
+}
+identity_with_listw <- function(m, d) {
+  testthat::skip_if_not_installed("spdep")
+  if (!is.null(d)) {
+    attr(d, "listw") <- identity_listw(m)
+  }
+  d
+}
 
 # Recipes beyond those of helper-test-recipes.R: the calls that compute a
 # statistic through the functions built on the context. Increment 1: the
@@ -108,6 +134,23 @@ identity_extra_recipes <- list(
   },
   `runDiagnostics()$reset` = function(m, d) {
     runDiagnostics(m, d, use_cache = FALSE, progress = FALSE)$reset
+  },
+  # Increment 3: the registered Szroeter test and its test_factory entry,
+  # which calls performSzroeterTest() without an ordering (N13, outside the
+  # context), and the registered spatial test with its test_factory entry.
+  `registry szroeter` = function(m, d) {
+    get("szroeter", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `test_factory szroeter` = function(m, d) test_factory$run_test("szroeter", m, d),
+  `registry spatial_hetero` = function(m, d) {
+    d <- identity_with_listw(m, d)
+    set.seed(7)
+    get("spatial_hetero", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `test_factory spatial_hetero` = function(m, d) {
+    d <- identity_with_listw(m, d)
+    set.seed(7)
+    test_factory$run_test("spatial_hetero", m, d)
   }
 )
 # The functions whose values may change: those built on the context, the
@@ -121,7 +164,10 @@ identity_affected <- c(
   "performRankPermutationTest", "performHighDimensionalTest", "performWhiteTestRobust",
   "performStudentizedBPTest", "performBPTestRobust", "performRESETTest", "performGQTest",
   "performQuantileRegressionTest",
-  names(identity_extra_recipes), "runHeteroTests", identity_registry_runner
+  "performGlejserTest", "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
+  "performHartleyFmaxTest", "performSpatialHeteroTest",
+  names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
+  identity_registry_runner3
 )
 # The bootstrap recipes, whose replicates refit the formula until increment 8.
 identity_bootstraps <- c(
@@ -143,6 +189,19 @@ identity_increment2 <- c(
   identity_studentized, identity_quantile, identity_reset, "performGQTest",
   identity_registry_runner
 )
+# The calls of increment 3: its six tests, the registered Szroeter and spatial
+# tests with their test_factory entries, and the runner that runs the two.
+# `identity_reads_data` are those that read a column of `data` besides the
+# model: the variable Glejser's and Park's tests regress on, the ordering of
+# Szroeter's and Harrison-McCabe's, the groups of Hartley's.
+identity_reads_data <- c(
+  "performGlejserTest", "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
+  "performHartleyFmaxTest"
+)
+identity_increment3 <- c(
+  identity_reads_data, "performSpatialHeteroTest", "registry szroeter", "test_factory szroeter",
+  "registry spatial_hetero", "test_factory spatial_hetero", identity_registry_runner3
+)
 # The defects of the design whose cells may change, by the kind of change.
 # Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
 # every test built on it, and so for those of increment 2 too. Increment 2:
@@ -155,21 +214,29 @@ identity_increment2 <- c(
 # (identity_null_routes, below); and "gam", an mgcv::gam() fit with smooth
 # terms, which the tests of increment 2 refuse until increment 11 settles which
 # tests take it (decided 2026-10-18). R4, a multivariate lm, which RESET tested
-# without `data`, is refused by every test built on the context.
+# without `data`, is refused by every test built on the context. Increment 3:
+# N4, the rank of Harrison-McCabe's null distribution, decided at the
+# tolerance of the fit (the cells of context_rank_cells()); N17, an
+# mgcv::gam() fit, whose residuals carry no names and to which the tests that
+# read a column of `data` matched `data` by position, given the rows of the
+# fit in another order under their own names (approved on 2026-10-19); and
+# "frame" and "null" for the tests and routes of increment 3.
 identity_allowed <- list(
   error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
-  value_change = c("B5", "N1"),
+  value_change = c("B5", "N1", "N4", "N17"),
   value_to_error = c("N6", "gam", "R4", "frame")
 )
-# The defects of increment 2 apply to the calls of the tests they concern
-# only: on any other call such a change is unexpected.
+# The defects of increments 2 and 3 apply to the calls of the tests they
+# concern only: on any other call such a change is unexpected.
 identity_defect_scope <- list(
   B7 = identity_increment2,
   N1 = c("performGQTest", identity_quantile, identity_registry_runner),
-  frame = identity_increment2,
+  frame = c(identity_increment2, identity_increment3),
   N6 = identity_reset,
-  null = "registry student_bp",
-  gam = identity_increment2
+  null = c("registry student_bp", "registry szroeter"),
+  gam = identity_increment2,
+  N4 = "performHarrisonMcCabeTest",
+  N17 = identity_reads_data
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -185,8 +252,10 @@ identity_bootstrap_allowed <- list(
 # refused `data = NULL` ("Expected a data.frame for input data"), where every
 # other route reads the model frame; built on the context, it reads the model
 # frame too. On a cell without `data` its error may become a value, or the
-# refusal of the context.
-identity_null_routes <- "registry student_bp"
+# refusal of the context. The registered Szroeter test (increment 3) matched
+# its fitted values to the row names of `data`, and refused `data = NULL`
+# ("Missing rows"); it reads the model frame too.
+identity_null_routes <- c("registry student_bp", "registry szroeter")
 # A value of the runner that fell back on another test, or stopped, where the
 # test it names now runs.
 identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame")
@@ -201,8 +270,12 @@ identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", 
 # message of the context ("frame"); for `data = NULL` given to the registered
 # function of "student_bp", which stopped on `NULL`, the refusal the test makes
 # of the fit, read from its model frame: a stale frame, a zero weight, a
-# multivariate lm, a smooth term ("null"). Any other change of a message is
-# unexpected.
+# multivariate lm, a smooth term ("null"). Increment 3: for a test that reads
+# a column of `data` beyond the model frame, numbered data with one row per
+# observation whose rows tie on every compared column are refused by the
+# guard (the rule on ties), where they lacked rows of the fit before (B14).
+# Any other change of a message is unexpected, but those of identity_m1()
+# below.
 identity_messages <- list(
   R4 = "needs a model with one response",
   B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
@@ -213,13 +286,66 @@ identity_messages <- list(
     "cannot use the model frame of `model`", "zero or non-finite weights",
     "needs a model with one response", "cannot test an mgcv::gam() fit with smooth terms"
   ),
-  gam = "cannot test an mgcv::gam() fit with smooth terms"
+  gam = "cannot test an mgcv::gam() fit with smooth terms",
+  B14 = "tie on every column of the model frame that is compared"
 )
 identity_message_scope <- list(
-  B7 = identity_increment2, L1 = "performGQTest", L2 = "performGQTest",
-  frame = identity_increment2, null = "registry student_bp",
-  gam = identity_increment2
+  B7 = identity_increment2, L1 = c("performGQTest", identity_reads_data),
+  L2 = c("performGQTest", identity_reads_data),
+  frame = c(identity_increment2, identity_increment3),
+  null = c("registry student_bp", "registry szroeter"),
+  gam = identity_increment2, B14 = identity_reads_data
 )
+# M1, for the tests that read a variable of `data` besides the model (the
+# variable, ordering or groups they name): a call that stopped because `data`,
+# or the model frame without `data`, lacked variables ("The following
+# variables are missing from input data: o, group") now names only those
+# among them that the test still lacks, from the model frame (M1) or from
+# `data`. The model frame holds the terms of the model and is accepted as it
+# is, so the variables of an offset() term, which the test needs no more, are
+# no longer named. A message that names any other variable is unexpected.
+identity_m1_scope <- c("performGQTest", identity_reads_data)
+# The registered Szroeter test matched the row names of `data` to its fitted
+# values, and restricted `data` to those rows, before performSzroeterTest()
+# compared them with the fit: the guard then saw the rows it had picked, under
+# their row names, and a row name absent from `data` stopped it with "Missing
+# rows". Built on the context, it gives `data` to the guard as it is. A
+# refusal of `data` by the guard, or by that match, stays a refusal of the
+# guard, with its class, and its message may change to the one the guard gives
+# performSzroeterTest() on the same data; on no other route.
+identity_rows_scope <- c("registry szroeter", identity_registry_runner_szroeter)
+identity_rows <- function(record, before, after) {
+  if (!record$fn %in% identity_rows_scope) {
+    return(FALSE)
+  }
+  refused <- c(
+    "cannot match the rows of `data`",
+    "Szroeter test requires `data` to contain the rows used to fit the model. Missing rows"
+  )
+  a <- before$value$message
+  b <- after$value$message
+  any(vapply(refused, grepl, logical(1), x = a, fixed = TRUE)) &&
+    grepl("cannot match the rows of `data`", b, fixed = TRUE) &&
+    "heteroTests_data_rows_error" %in% after$value$class
+}
+identity_m1 <- function(record, before, after) {
+  if (!record$fn %in% identity_m1_scope) {
+    return(FALSE)
+  }
+  lacked <- "^The following variables are missing from input data: (.*?)\\. "
+  lacks <- paste0(
+    "^The following variables are missing from (input data|the model frame of `model`): ",
+    "(.*?)\\. "
+  )
+  a <- before$value$message
+  b <- after$value$message
+  if (!grepl(lacked, a) || !grepl(lacks, b)) {
+    return(FALSE)
+  }
+  named_before <- strsplit(sub(paste0(lacked, ".*$"), "\\1", a), ", ", fixed = TRUE)[[1L]]
+  named_after <- strsplit(sub(paste0(lacks, ".*$"), "\\2", b), ", ", fixed = TRUE)[[1L]]
+  length(named_after) > 0L && all(named_after %in% named_before)
+}
 # Decision 1 for Goldfeld-Quandt on an unweighted fit: main refitted each
 # segment from the formula, which computed a poly() basis again on the rows of
 # the segment, so it has no stored-design value there. The basis spans the
@@ -280,8 +406,13 @@ identity_outcome <- function(f) {
   value <- withCallingHandlers(
     tryCatch(
       f(),
+      # A missing argument has class "getvarError" in byte-compiled code, as
+      # in an installed package, and "evalError" in code that
+      # pkgload::load_all() leaves uncompiled: neither says anything of the
+      # call, and both are left out.
       error = function(e) {
-        list(.error = TRUE, class = setdiff(class(e), "simpleError"), message = conditionMessage(e))
+        list(.error = TRUE, class = setdiff(class(e), c("simpleError", "getvarError", "evalError")),
+             message = conditionMessage(e))
       },
       skip = function(e) list(.skip = TRUE, message = conditionMessage(e))
     ),
@@ -353,6 +484,12 @@ identity_base_fn <- function(fn) {
   if (fn %in% identity_reset) {
     return("performRESETTest")
   }
+  # The test_factory entry of the spatial test calls it as the registered
+  # spatial test does, with the weights of `data` and the default number of
+  # permutations, from the same seed.
+  if (identical(fn, "test_factory spatial_hetero")) {
+    return("registry spatial_hetero")
+  }
   fn
 }
 
@@ -363,7 +500,7 @@ identity_chain_reference <- function(fn, cell) {
     return(NULL)
   }
   base <- identity_base_fn(fn)
-  if (base %in% context_increment2) context_cell_for(base, cell)$reference else cell$reference
+  if (base %in% context_migrated) context_cell_for(base, cell)$reference else cell$reference
 }
 
 # The references outside the matrix that the call must reproduce.
@@ -383,6 +520,16 @@ identity_external_ids <- function(fn, cell) {
     })
   }
   ids
+}
+
+# The external reference of a cell of Harrison-McCabe's rank (N4): the test
+# written out with the rank of the fit (context_hmc_by_hand()).
+identity_rank_reference <- function(fn, cell) {
+  if (identical(fn, "performHarrisonMcCabeTest") && startsWith(cell$id, "rank/")) {
+    sub("^rank/", "byhand/", cell$id)
+  } else {
+    character()
+  }
 }
 
 # RESET of a fit with an offset written out: anova() of the fit, with its
@@ -427,7 +574,7 @@ identity_run <- function(where, out, root = ".") {
     records[[id]] <<- c(
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
            defect = cell$defect, reference = identity_chain_reference(fn, cell),
-           externals = identity_external_ids(fn, cell)),
+           externals = c(identity_external_ids(fn, cell), identity_rank_reference(fn, cell))),
       outcome
     )
   }
@@ -453,6 +600,22 @@ identity_run <- function(where, out, root = ".") {
         progress = FALSE
       ))
     }))
+    add(runner_kind, identity_registry_runner_szroeter, cell, identity_outcome(function() {
+      set.seed(7)
+      identity_runner_summary(runHeteroTests(
+        built$m, built$data, tests = "szroeter", use_cache = FALSE, progress = FALSE
+      ))
+    }))
+    add(runner_kind, identity_registry_runner_spatial, cell, identity_outcome(function() {
+      if (is.null(built$data)) {
+        testthat::skip("the runner gives the spatial test no weights without `data`")
+      }
+      data <- identity_with_listw(built$m, built$data)
+      set.seed(7)
+      identity_runner_summary(runHeteroTests(
+        built$m, data, tests = "spatial_hetero", use_cache = FALSE, progress = FALSE
+      ))
+    }))
   }
   for (cell in cells) {
     built <- suppressWarnings(suppressMessages(cell$build()))
@@ -472,7 +635,7 @@ identity_run <- function(where, out, root = ".") {
   # with their columns computed beforehand, the fits with an offset as the
   # model of the response minus the offset, and RESET of those fits written
   # out as the nested F test of anova().
-  verified_fns <- intersect(names(recipes), identity_increment2)
+  verified_fns <- intersect(names(recipes), c(identity_increment2, identity_increment3))
   reference_cell <- function(id) list(id = id, form = "data_frame", defect = character())
   for (fit in c("ols", "wls")) {
     for (terms in names(context_precomputed()$formulas)) {
@@ -496,12 +659,23 @@ identity_run <- function(where, out, root = ".") {
       }
     }
   }
+  # The cells of Harrison-McCabe's rank (N4), run through every recipe, and
+  # their reference, the test written out with the rank of the fit.
+  for (cell in context_rank_cells()) {
+    built <- suppressWarnings(suppressMessages(cell$build()))
+    run_cell(cell, built, names(recipes), "recipe", "runner")
+    add("reference", "performHarrisonMcCabeTest",
+        reference_cell(sub("^rank/", "byhand/", cell$id)),
+        identity_outcome(function() context_hmc_by_hand(built$m, built$data)))
+  }
   # The examples of the help pages, each expression whose value is a test.
   scratch <- dirname(normalizePath(out, mustWork = FALSE))
   for (topic in c("performWhiteTest", "performBPTest", "performKoenkerTest",
                   "performRankPermutationTest", "performHighDimensionalTest",
                   "performStudentizedBPTest", "performBPTestRobust", "performRESETTest",
-                  "performGQTest", "performQuantileRegressionTest")) {
+                  "performGQTest", "performQuantileRegressionTest", "performGlejserTest",
+                  "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
+                  "performHartleyFmaxTest", "performSpatialHeteroTest")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -576,7 +750,9 @@ identity_classify <- function(before, after) {
 # no such value for it (it refused the call on the stored design too, or the
 # runner fell back on another test) and the other rules decide.
 identity_stored_verdict <- function(record, verdict, after, stored) {
-  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  # A call that stopped or was skipped, as the runner of the spatial test is
+  # without `data`, has no value on the stored design.
+  failed <- function(v) is.list(v) && (isTRUE(v$.error) || isTRUE(v$.skip))
   if (is.null(stored) || failed(stored$value) || failed(after$value)) {
     return(NULL)
   }
@@ -667,6 +843,12 @@ identity_allow <- function(record, verdict, after, stored = NULL) {
     }
     if (length(own) > 0L &&
           any(vapply(own, grepl, logical(1), x = after$value$message, fixed = TRUE))) {
+      return("allowed")
+    }
+    if (identical(record$kind, "recipe") && identity_m1(record, record, after)) {
+      return("allowed")
+    }
+    if (identity_rows(record, record, after)) {
       return("allowed")
     }
     return("unexpected")
@@ -761,9 +943,12 @@ identity_verify <- function(record, main, branch, seen = character()) {
   for (external in record$externals) {
     reference <- branch[[paste(reference_kind, record$fn, external, sep = " | ")]]
     tolerance <- if (grepl("/poly$", external)) 1e-8 else 1e-10
-    # The nested F test written out has the statistic, the degrees of freedom
-    # and the p-value only.
-    fields <- if (startsWith(external, "nested/")) c("statistic", "parameter", "p.value")
+    # The nested F test written out, and Harrison-McCabe's test written out
+    # with the rank of the fit, have the statistic, the degrees of freedom or
+    # the sizes of the parts, and the p-value only.
+    fields <- if (startsWith(external, "nested/") || startsWith(external, "byhand/")) {
+      c("statistic", "parameter", "p.value")
+    }
     if (!is.null(reference) &&
           identity_same_key(identity_key(branch[[record$id]]$value, fields),
                             identity_key(reference$value, fields), tolerance)) {
