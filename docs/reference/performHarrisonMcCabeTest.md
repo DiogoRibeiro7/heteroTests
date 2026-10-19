@@ -28,13 +28,20 @@ performHarrisonMcCabeTest(
     [stats::glm](https://rdrr.io/r/stats/glm.html) with the Gaussian family and the identity link.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) containing the variables used to fit
-    `model` and the ordering variable named by `order_by`.
-    When `NULL`, the default, the model frame of `model` is used, so `order_by`
-    must then be a variable of the model. The model frame holds the terms of
-    the model rather than its variables (`log(x)` rather than `x`), so a model
-    that transforms a variable needs `data`, as does a
-    model with an `offset()` term.
+:   The data frame `model` was fitted to, or `NULL`, the default. The
+    residuals, design, weights and rank are read from the fit itself (since
+    0.16.0), and `order_by` from the rows of `data` that hold the observations
+    of the fit. Without `data` it is read from the model frame of `model`,
+    which holds it only when it is a variable of the model under its own name
+    (`x`, not `log(x)`); a model that transforms the variable it is ordered by
+    needs `data`, as does an ordering variable the model does not use. Data
+    that are given are matched to the observations of the fit: rows with row
+    names of their own by name, in any order; rows that only number themselves
+    (a tibble, a data.table, a data frame whose row names were reset) by the
+    row numbers of the fit, or in the order of the fit when they hold one row
+    per observation. The rows the fit dropped may be there or not. Data whose
+    rows cannot be shown to hold the observations of the fit are refused; see
+    [`test_results`](test_results.md).
 
 `order_by`
 :   Character scalar naming the column of `data` that orders the
@@ -111,6 +118,19 @@ a p-value of 0.
 The p-value depends only on the space spanned by the regressors, so it does
 not change with the parametrisation of the model.
 
+## The rank
+
+\(k\) is the rank of the fit, the number of its coefficients that are
+not aliased, decided at the tolerance the fit used: `1e-7` for an `lm`, or
+the `tol` it was given, and `1e-11` for a `glm` (since 0.16.0). Before, the
+rank was decided again at `1e-7`, so a Gaussian `glm`, or an `lm` fitted
+with a smaller `tol`, whose design holds a column that is a combination of
+the others to within `1e-7` but not to within its own tolerance, was given
+a null distribution of a smaller rank than its residuals. With
+`x3 = x1 + 1e-9 * rnorm(120)` the `glm` has rank 4, and its p-value is
+0.002273 where it was 0.002288, computed with rank 3. On every other fit
+the two ranks agree and the value is unchanged.
+
 ## Direction of the alternative
 
 In [`performGQTest()`](performGQTest.md) and [`performSzroeterTest()`](performSzroeterTest.md) the statistic grows when
@@ -151,17 +171,26 @@ different p-value as well; `inst/validation/README.md` says why.
 
 ## Supported models
 
-It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the identity
-link, unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
-rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
-same model fitted without the aliased columns. The Gaussian `glm` with prior weights `w`
-is the least-squares fit `lm(..., weights = w)`: it has the same design, residuals and
-weights, and it states the normal errors of constant variance, given the weights, under which the
-null distribution above is exact, so the test gives the value of the `lm`. It refused every
-`glm` before 0.16.0. It refuses a `glm` of another family or link, a
-`survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, and `data` that lack rows or variables of the fit. Which model each test accepts, and
-why, is set out in [`test_results`](test_results.md), under *Supported models*.
+It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the
+identity link, unweighted or with positive weights, a `fitWLS()` fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+design: it gives the value of the same model fitted without the aliased columns.
+The Gaussian `glm` with prior weights `w` is the least-squares fit
+`lm(..., weights = w)`: it has the same design, residuals and weights, and it
+states the normal errors of constant variance, given the weights, under which
+the null distribution above is exact, so the test gives the value of the `lm`
+when the two decide the rank alike (see the section on the rank). It refused
+every `glm` before 0.16.0. It refuses a `glm` of another family or link, a
+`survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not
+finite for another reason, and `data` that lack rows or variables of the fit.
+It refuses a multivariate `lm` ("needs a model with one response"), since
+0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+tested as before 0.16.0, with smooth terms too, until a later step settles
+which tests take such a fit; since 0.16.0 its observations are matched to the
+rows of `data` by the row names of its model frame. Before, they were matched
+by position, since the residuals of a `gam` carry no names, and `data` with
+the rows of the fit in another order gave a wrong value. Which model each test
+accepts, and why, is set out in [`test_results`](test_results.md), under *Supported models*.
 
 ## References
 

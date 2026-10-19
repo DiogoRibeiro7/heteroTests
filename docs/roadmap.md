@@ -977,7 +977,10 @@ after it.
         `x3 = x1 + 1e-9 * rnorm(n)`, its residuals are those of the fit of rank
         4, and its null distribution is computed from `qr()` of the design at the
         default `1e-7` (R/performHarrisonMcCabeTest.R:239), of rank 3. Take the
-        rank, and the columns, from the fit. Changes a p-value.
+        rank, and the columns, from the fit. Changes a p-value. Done in 0.16.0 by
+        the third step of the model context (decision 21): the test takes the
+        rank of the fit, at its tolerance, and the `glm` above gives p 0.002273
+        where it gave 0.002288.
     - `bootstrapTestStatistic()` refuses every `glm`, because it refits each
         replicate by least squares, which would drop a family and a link. A
         Gaussian `glm` with the identity link is a least-squares fit (the
@@ -1187,25 +1190,38 @@ after it.
         builds its context without it, keeping its check of `data` until step 6;
         the four refuse an `mgcv::gam()` fit with smooth terms until
         step 11. Done in 0.16.0.
-    - [ ] 3. Glejser, Park, Szroeter, Harrison-McCabe (its rank at the fit's
-        tolerance, decision 21), Hartley and the spatial test. Closes B14, B15, L1
-        and M1 for these, N4.
-    - [ ] 4. The five group tests; their copies of the alignment go.
+    - [x] 3. Glejser, Park, Szroeter with the registered `"szroeter"`, which
+        reads its fitted values from the context, Harrison-McCabe (its rank at
+        the fit's tolerance, decision 21), Hartley and the spatial test. Closes
+        B14, L1, L2 and M1 for these, N4, and N17 for the five that read a column
+        of `data`; B15 gave values already. The six test a `gam` with smooth
+        terms as before. Done in 0.16.0.
+        - Found in step 3 (N17): the residuals of an `mgcv::gam()` fit carry no
+            names, and the tests that read a column of `data` beyond the model match
+            `data` to them by position, so named data in another order than the fit
+            give a wrong value without an error. Step 3 closes it for its five; the
+            five group tests (Levene's, Brown-Forsythe's, Fligner-Killeen's,
+            Bartlett's and O'Brien's) still have it until step 4, the panel tests
+            until step 5, the three streaming tests until step 7 and the replicates
+            of `performWhiteTestBootstrap()` until step 8.
+    - [ ] 4. The five group tests; their copies of the alignment go. Closes N17
+        for these.
     - [ ] 5. The panel tests, the scatter diagnostic and `runPanelTests()`, with
         `id` and `time` read at the confirmed rows; repeated `(id, time)` pairs
-        refused (decision 13). Closes B3, B4, B16, R2.
+        refused (decision 13). Closes B3, B4, B16, R2, and N17 for these.
     - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
         `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
         and the check of `data` RESET keeps until then (`rcheck_data_argument()`).
         Closes B9, R3, N6 for these.
     - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
-        Closes B6.
+        Closes B6, and N17 for these.
     - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
         the stored design: the observed statistic and the replicates of
         `performWhiteTestBootstrap()` move together, and
         `rwhite_test_rebuilt_design()` goes; `bootstrapTestStatistic()` and
         `performWhiteTestRobust(bootstrap = TRUE)` no longer need to refuse a fit
-        whose frame cannot be rebuilt from `data`. Closes B12 for replicates, N8.
+        whose frame cannot be rebuilt from `data`. Closes B12 for replicates, N8,
+        and N17 for the replicates of the White bootstrap.
     - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
     - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
         refused (decision 10), workflows with `data`;
@@ -1215,8 +1231,8 @@ after it.
         it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
         by class, is an input the tests justify: its residuals are not orthogonal
         to its design, and the null distributions assume least squares. The five
-        tests of step 1 accept it as before; the four of step 2 refuse it until
-        this step settles it for every test together.
+        tests of step 1 and the six of step 3 accept it as before; the four of
+        step 2 refuse it until this step settles it for every test together.
 - [ ] **Dependencies.**
     - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
     - `R6` goes if `TestFactory` leaves the API, since it is the only user.

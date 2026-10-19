@@ -114,14 +114,22 @@ Since 0.16.0 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](pe
 [`performRankPermutationTest()`](performRankPermutationTest.md), [`performHighDimensionalTest()`](performHighDimensionalTest.md), the studentized
 Breusch-Pagan statistic ([`performStudentizedBPTest()`](performStudentizedBPTest.md), [`performBPTestRobust()`](performBPTestRobust.md) with
 `studentize = TRUE`, the registered `"student_bp"`), [`performRESETTest()`](performRESETTest.md),
-[`performGQTest()`](performGQTest.md) and [`performQuantileRegressionTest()`](performQuantileRegressionTest.md) read the response, the design, the
+[`performGQTest()`](performGQTest.md), [`performQuantileRegressionTest()`](performQuantileRegressionTest.md), [`performGlejserTest()`](performGlejserTest.md),
+[`performParkTest()`](performParkTest.md), [`performSzroeterTest()`](performSzroeterTest.md) with the registered `"szroeter"`,
+[`performHarrisonMcCabeTest()`](performHarrisonMcCabeTest.md), [`performHartleyFmaxTest()`](performHartleyFmaxTest.md) and
+[`performSpatialHeteroTest()`](performSpatialHeteroTest.md) read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
 the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET reads
 nothing from `data`: it builds its context without it, and keeps the check of `data` of the tests computed
 from the model alone, for the variables of the model and the row names of the fit, until a later step.
-[`performGQTest()`](performGQTest.md) reads its `order_by` from the confirmed rows of `data`, or, without
-`data`, from the model frame when it holds the variable under its own name. These tests
+The Goldfeld-Quandt, Szroeter and Harrison-McCabe tests read their `order_by`, Glejser's and Park's their
+`variable` and Hartley's its `group` from the confirmed rows of `data`, or, without `data`, from
+the model frame when it holds the variable under its own name ("The following variables are missing from the model
+frame of `model`" otherwise). The registered `"szroeter"` orders by the fitted values, which it computes
+from the fit, and the spatial test reads no column of `data`: its `listw` lists the observations of the
+fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (`1e-7` for an
+`lm`, `1e-11` for a `glm`). These tests
 match numbered rows by the row numbers of the fit, or, when `data` holds one row per observation and its numbers
 are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
 before the match, so data that hold the rows a fit with `na.omit` dropped, or only the rows it kept, numbered
@@ -135,14 +143,19 @@ coefficients", "The weights of the model are not those its coefficients were fit
 values, on which it is then tested (RESET, which builds its context without `data`, refuses it). RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
 `mgcv::gam()` fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
-fit of its design, until a later step settles which tests take it; the other five test it as before 0.16.0. The check of an edited fit is a guard against accidental edits, not a proof
+fit of its design, until a later step settles which tests take it; the other eleven test it as before 0.16.0. The
+residuals of a `gam` carry no names, and these tests match `data` to its observations by the row names of
+its model frame; the tests that are not built on the context yet and read a column of `data` match them by
+position. The check of an edited fit is a guard against accidental edits, not a proof
 that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at `1e-7` of
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about `1e7`. These refusals have class `heteroTests_model_context_error`, which
 [`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) keep, as they keep that of a refusal of
-`data`, without running another test under the name of the one refused. The rank permutation test, when its
-`order_by` is a column of `data` the model frame does not hold, refuses numbered rows taken in the order of
-the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+`data`, without running another test under the name of the one refused. A test that reads a column of
+`data` the model frame does not hold, as the rank permutation, Goldfeld-Quandt, Szroeter and
+Harrison-McCabe tests do with their `order_by`, Glejser's and Park's with their `variable` and Hartley's
+with its `group`, refuses numbered rows taken in the order of the fit if two rows of the fit tie on every
+compared column. On a call with more than one defect, the first one
 reported may differ from before 0.16.0, since the rows of `data` are now matched before the checks of the model.
 `tests/testthat/test-model-context.R` checks them.
 

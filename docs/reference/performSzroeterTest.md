@@ -22,14 +22,20 @@ performSzroeterTest(model, data = NULL, order_by,
     study.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or compatible tibble) containing the
-    variables used to fit `model` and the ordering variable supplied via
-    `order_by`.
-    When `NULL`, the default, the model frame of `model` is used, so `order_by`
-    must then be a variable of the model. The model frame holds the terms of
-    the model rather than its variables (`log(x)` rather than `x`), so a model
-    that transforms a variable needs `data`, as does a
-    model with an `offset()` term.
+:   The data frame `model` was fitted to, or `NULL`, the default. The
+    residuals and weights are read from the fit itself (since 0.16.0), and
+    `order_by` from the rows of `data` that hold the observations of the fit.
+    Without `data` it is read from the model frame of `model`, which holds it
+    only when it is a variable of the model under its own name (`x`, not
+    `log(x)`); a model that transforms the variable it is ordered by needs
+    `data`, as does an ordering variable the model does not use. Data that are
+    given are matched to the observations of the fit: rows with row names of
+    their own by name, in any order; rows that only number themselves (a
+    tibble, a data.table, a data frame whose row names were reset) by the row
+    numbers of the fit, or in the order of the fit when they hold one row per
+    observation. The rows the fit dropped may be there or not. Data whose rows
+    cannot be shown to hold the observations of the fit are refused; see
+    [`test_results`](test_results.md).
 
 `order_by`
 :   Character scalar naming the column that defines the ordering of
@@ -70,8 +76,9 @@ Q = \frac{h - (n + 1) / 2}{\sqrt{(n^2 - 1) / (6n)}}
 is asymptotically standard normal. Variance that grows with `order_by` shifts
 weight onto the high ranks and drives \(Q\) upwards.
 
-The implementation relies on the package validation helpers to align the
-supplied data with the model residuals, check that the ordering variable is
+The residuals and weights are those of the fit, and `order_by` is read from
+the rows of `data` that hold its observations (the model context, since
+0.16.0); the package validation helpers check that the ordering variable is
 present, and ensure sufficient sample size and variability in the squared
 residuals.
 
@@ -88,7 +95,12 @@ single regressor that is the order of the regressor when its slope is
 positive and the reverse order when it is negative. The fitted values are
 computed from the coefficients, so observations with the same regressors
 tie exactly, as they do under a factor or a binary regressor, and the ties
-are broken as above.
+are broken as above. Since 0.16.0 they are read from the fit, in its order,
+and `data` is matched to the observations of the fit as this function
+matches it: without `data` the registered test reads the model frame, and
+data in the order of the fit whose row numbers are not those of the fit are
+taken. Before, it matched the fitted values to the row names of `data`, and
+refused both ("Missing rows").
 
 ## Validation
 
@@ -101,13 +113,22 @@ power against any alternative; see `NEWS.md`.
 
 ## Supported models
 
-It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
-or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+`glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit.
+It refuses a multivariate `lm` ("needs a model with one response"), since
+0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+tested as before 0.16.0, with smooth terms too, until a later step settles
+which tests take such a fit; since 0.16.0 its observations are matched to the
+rows of `data` by the row names of its model frame. Before, they were matched
+by position, since the residuals of a `gam` carry no names, and `data` with
+the rows of the fit in another order gave a wrong value.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
 
 ## References
 
