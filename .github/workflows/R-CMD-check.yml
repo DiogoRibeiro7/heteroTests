@@ -82,6 +82,12 @@ jobs:
           # anything about the package's own compatibility with its minimum.
           dependencies: '"hard"'
           extra-packages: any::rcmdcheck, any::testthat
+          # The action decides whether to install pandoc by resolving every
+          # direct dependency, Suggests included, with pak::pkg_deps(). Since
+          # readxl, a Suggest, needs R >= 4.2, that resolution fails on R 4.1
+          # before anything is installed. This job builds no vignettes, so it
+          # needs no pandoc: say so, and skip that resolution.
+          install-pandoc: false
       - name: Check package (no vignettes; knitr is a Suggest)
         uses: r-lib/actions/check-r-package@v2
         with:
