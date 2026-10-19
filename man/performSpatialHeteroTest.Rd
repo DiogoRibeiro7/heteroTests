@@ -16,18 +16,25 @@ performSpatialHeteroTest(
 \item{model}{A fitted \link[stats:lm]{stats::lm} object describing the mean structure whose
 residual variance is to be assessed.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} (or compatible object) containing the
-variables referenced in \code{model}. The data must include all observations used
-to fit \code{model} and should not contain unresolved missing values.
-When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
-terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, as does a
-model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
-argument is a column of the data, which the model frame holds as
-\code{(weights)} or \code{(offset)}.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default. The
+residuals and weights are read from the fit itself, so a model that
+transforms its variables, has an \code{offset()} term, or takes its \code{weights} or
+\code{offset} from a column of the data needs no \code{data}, and the model frame of
+\code{model} is accepted as \code{data} (since 0.16.0; before, such models needed
+\code{data}). The test reads no column of \code{data}, and \code{listw} is matched to the
+observations of the fit, not to the rows of \code{data}. Data that are given are
+matched to the observations of the fit: rows with row names of their own by
+name, in any order; rows that only number themselves (a tibble, a
+data.table, a data frame whose row names were reset) by the row numbers of
+the fit, or in the order of the fit when they hold one row per observation.
+The rows the fit dropped may be there or not. Data whose rows cannot be
+shown to hold the observations of the fit are refused; see \code{\link{test_results}}.}
 
 \item{listw}{Spatial weights in \code{spdep} \code{listw} format or a numeric
-matrix coercible via \code{spdep::mat2listw()}.}
+matrix coercible via \code{spdep::mat2listw()}. They list the observations
+of the fit, one per residual, in the order of the rows \code{model} was fitted
+to after \code{subset} and after \code{na.omit} dropped incomplete rows, whatever the
+order of \code{data}, as before 0.16.0.}
 
 \item{permutations}{Number of Monte Carlo permutations used to compute the
 reference distribution. Defaults to 999, the default of every resampling
@@ -46,13 +53,20 @@ permutation reference distribution. Significant positive autocorrelation in
 the squared residuals is evidence of spatially varying variance.
 }
 \section{Supported models}{
-It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
-or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-\code{\link{test_results}}, under \emph{Supported models}.
+
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link,
+unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+\code{glm} of another family or link, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that
+lack rows or variables of the fit.
+It refuses a multivariate \code{lm} ("needs a model with one response"), since
+0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is
+tested as before 0.16.0, with smooth terms too, until a later step settles
+which tests take such a fit.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+\emph{Supported models}.
 }
 \examples{
 if (requireNamespace("spdep", quietly = TRUE)) {

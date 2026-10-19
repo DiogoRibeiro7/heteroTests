@@ -39,8 +39,8 @@ One line for each class and each answer in the table.
 | | yes, not the reduced value | `performVarianceFormTest(form = "power")` takes the logarithms of every column of the design, the aliased ones included; the logarithm of an aliased column is not a combination of the logarithms of the others, so the value is not that of the model without the aliased columns. It does not depend on the order of the terms, as the value of that model does. With the exponential form, the default, the value is that of the model without them. |
 | An `NA` from an empty cell | yes | The dummy of a cell of an interaction that no observation falls in is aliased: as for any rank-deficient fit. |
 | | error, as reduced | The squares of the dummies are collinear, and `performWhiteTestStreaming()` stops, as it does on the model fitted without the aliased column; `performWhiteTest()` drops such terms. |
-| Gaussian `mgcv::gam()` | yes | A `glm` by class. Without smooth terms it is the least-squares fit of its design, and the tests give the value of the Gaussian `glm`. |
-| Gaussian `mgcv::gam()` with smooth terms | as today | A smooth term is penalised unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not the least-squares fit of its design. White's, the Breusch-Pagan, Koenker's, the rank permutation and the high-dimensional tests test it as before 0.16.0; whether the tests take such a fit is an open decision, settled for every test together in the last step of the model context, with `MASS::rlm()`. |
+| Gaussian `mgcv::gam()` | yes | A `glm` by class. Without smooth terms it is the least-squares fit of its design, and the tests give the value of the Gaussian `glm`. Its residuals carry no names: since 0.16.0 the tests built on the model context match the rows of `data` to its observations by the row names of its model frame, where Glejser's, Park's, Szroeter's, Harrison-McCabe's and Hartley's tests matched them by position and returned a wrong value on data in another order than the fit; the other tests that read a column of `data` (the group tests, the panel tests, the streaming tests) still do until their step of the model context. |
+| Gaussian `mgcv::gam()` with smooth terms | as today | A smooth term is penalised unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not the least-squares fit of its design. White's, the Breusch-Pagan, Koenker's, the rank permutation, the high-dimensional, Glejser's, Park's, Szroeter's, Harrison-McCabe's, Hartley's and the spatial tests test it as before 0.16.0; whether the tests take such a fit is an open decision, settled for every test together in the last step of the model context, with `MASS::rlm()`. |
 | | **no: smooth terms** | Since 0.16.0 RESET, Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse it until then, fixed smooths included: each fits the design of the fit again, by least squares or by quantile regression, which would test a regression the model is not. RESET and the studentized statistic returned a value before; Goldfeld-Quandt and the quantile test stopped on the smooth term, which they evaluated outside mgcv. |
 | `MASS::rlm()` | as today | An `lm` by class, so 37 tests accept it, as before 0.16.0, and test its M-estimation residuals as if they were least-squares residuals. Whether that is a test of anything is an open decision (below). |
 | | no: weighted, no: not `fitWLS()`, no: refit differs | Its case weights, all 1 unless given, are read as weights; `bootstrapTestStatistic()` refits each replicate by least squares, which does not reproduce an M-estimate. |
@@ -182,9 +182,11 @@ aliases `x3` and the `glm` does not: Harrison-McCabe gives 0.3184 for the
 refuses the `glm`, whose auxiliary regression is then rank-deficient. The
 equivalence above holds when the two decide the rank alike, as they do
 unless a column is that close to a combination of the others; the behaviour
-is not changed. On such a fit Harrison-McCabe is not consistent with itself:
-its residuals are those of the fit of rank 4, and its null distribution is
-computed from the design at the default tolerance, of rank 3 (roadmap).
+is not changed. Harrison-McCabe takes the rank of the fit, decided at the
+fit's tolerance, since 0.16.0: its residuals are those of the fit of rank 4,
+and its null distribution was computed from the design at the default
+tolerance, of rank 3, which gave the `glm` above a p-value of 0.002288 for
+0.002273 with its own rank.
 
 **The tests.** A test is a statistic of $(X, y, w, e)$, and possibly of an
 ordering of the observations or of the fitted values, with a null
