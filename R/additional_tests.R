@@ -148,7 +148,13 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' weight, a coefficient that is not finite for another reason, and `data` that
 #' lack rows or variables of the fit. A model with an offset is accepted since
 #' 0.16.0: the refit of the design carries the offset, as [performKoenkerTest()]
-#' accounts for it. Which model each test accepts, and why, is set out in
+#' accounts for it.
+#' It refuses a multivariate `lm` ("needs a model with one response"), and,
+#' since 0.16.0, an `mgcv::gam()` fit with smooth terms: a smooth term is
+#' usually penalised, and a penalised fit is not the least-squares fit of the
+#' design the test fits again. A later step settles which tests take such a
+#' fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+#' Which model each test accepts, and why, is set out in
 #' [test_results], under *Supported models*.
 #'
 #' @examples

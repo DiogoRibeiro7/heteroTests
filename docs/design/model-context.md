@@ -111,7 +111,7 @@ guard as its alignment step and removes the rebuilding behind it.
   weight; and an 80-observation fit given 10 rows reports "Missing rows" where
   it reported the minimum number of rows, which `runHeteroTests()` classifies
   as a data quality issue, as it does every "Missing rows" message.
-- **A penalised `mgcv::gam()` with smooth terms** is refused by the tests of
+- **An `mgcv::gam()` fit with smooth terms**, usually penalised, is refused by the tests of
   increment 2 (`rrefuse_smooth_gam()`, class
   `heteroTests_model_context_error`): it is not the least-squares fit of its
   design, which they fit again. The five of increment 1 test it as before
@@ -169,7 +169,7 @@ The functions of `R/model_context.R`:
 | `rcontext_rows(ctx, data)` | The confirmed rows of `data`, in fit order and under the names of the fit, or the model frame without `data`: what a test hands to its checks of the data and to a test it calls. |
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`. |
 | `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
-| `rrefuse_smooth_gam(ctx, fn)` | Refuses a penalised `mgcv::gam()` fit with smooth terms, in the tests of increment 2 (decision 23). |
+| `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
@@ -325,11 +325,17 @@ For the functions built on the context in increment 2:
   RESET on a `model = FALSE` fit whose data are gone, the frame message of the
   context; a call with an offset on data the guard refuses, the guard's
   refusal where it stopped with the refusal of the offset.
-- **New refusals.** RESET on a model frame that `model = FALSE` rebuilt from
-  data changed after the fit (N6), which it read; a penalised `mgcv::gam()` fit
-  with smooth terms in the four (decision 23), on which the studentized
-  statistic and RESET returned a value and Goldfeld-Quandt and the quantile
-  test stopped on the smooth term.
+- **New refusals** of calls that returned a value (decision 14). RESET on a
+  model frame that `model = FALSE` rebuilt from data changed after the fit
+  (N6), which it read; RESET on a multivariate `lm` without `data`, M7, where
+  it returned an F statistic of neither response; an `mgcv::gam()` fit with
+  smooth terms in the four (decision 23), on which the studentized statistic
+  and RESET returned a value, and so did the routes that run them, the
+  runner with `"student_bp"`, `runDiagnostics()`, `test_factory`, while
+  Goldfeld-Quandt and the quantile test stopped on the smooth term; and the
+  runner with `"student_bp"` and `"quantile_regression"` on a `model = FALSE`
+  fit whose data are gone, without `data`, where it put the Cook-Weisberg
+  fallback under their names.
 - **RESET without `data`** (decision 24). RESET reads nothing from `data`: it
   builds its context without `data` and keeps the check of `data` of the tests
   computed from the model alone (`rcheck_data_argument()`), the variables of
@@ -404,29 +410,35 @@ Increment 2 adds the routes of its four tests to the corpus (the registry,
 `test_factory`, `rvalidate_against_reference("studentized_bp")`,
 `performBPTestRobust(bootstrap = TRUE)`, `runDiagnostics()$reset`, and
 `runHeteroTests()` with the registered `"student_bp"` and
-`"quantile_regression"`), the examples of their help pages, and three cells,
-an `lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit
-whose data were reordered after the fit. Every allowed change to a value is
-also verified against a reference (`identity_verify()`): the same call on the
-cell it must reproduce, itself unchanged from `main` or verified in turn; the
-test a route computes on the same cell; the fit with the columns of its terms
-computed beforehand; the model of `y - o`; for RESET, the nested F test
-written out with `anova()`; or `main`'s value on the stored design. An
-allowed change that is not verified counts as unexpected. Goldfeld-Quandt on
+`"quantile_regression"`), the examples of their help pages, and 13 cells: an
+`lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit whose
+data were reordered after the fit, and, from the review of increment 2, the
+classes whose answer differs between the tests (the multivariate `lm`, the
+`gam` with a smooth, the zero weights, the `model = FALSE` fit whose data are
+gone) without `data` and with their rows shuffled. Every allowed change to a
+value is also verified against a reference (`identity_verify()`), on every
+number of the result, its estimates, replicates and robust details included:
+the same call on the cell it must reproduce, itself unchanged from `main` or
+verified in turn; the test a route computes on the same cell; the fit with
+the columns of its terms computed beforehand; the model of `y - o`; for
+RESET, the nested F test written out with `anova()`; or `main`'s value on the
+stored design. An allowed change that is not verified counts as unexpected. Goldfeld-Quandt on
 an unweighted fit refitted its segments from the formula on `main`, so `main`
 has no stored-design value of it on a `poly()` term; there the branch must
 equal `main` to `1e-12` relative.
 
-Increment 2: 13,527 calls on 265 cells, of which 12,615 identical, 912 allowed
-changes (649 errors that become values, 52 values that change, 202 messages,
-9 new refusals) and 0 unexpected; the 701 changes to a value are each
+Increment 2: 14,037 calls on 275 cells, of which 13,071 identical, 966 allowed
+changes (655 errors that become values, 53 values that change, 234 messages,
+24 new refusals) and 0 unexpected; the 708 changes to a value are each
 verified against a reference. The 171 `poly()` calls of the functions built on
 the context that `main` computes on the stored design are `identical()` to
 it; Goldfeld-Quandt's 7 `poly()` calls on an unweighted fit differ from `main`
-by at most 8.1e-15 relative. The warnings are those of `main` but for 40
+by at most 8.1e-15 relative. The warnings are those of `main` but for 43
 calls: 39 that stopped and now return a value with the warning of
-`quantreg::anova.rqs()` on the same design, and the multivariate `lm`, which
-`performStudentizedBPTest()` now refuses before its deprecation warning. The
+`quantreg::anova.rqs()` on the same design, and four calls of
+`performStudentizedBPTest()` on a multivariate `lm` and on a `model = FALSE`
+fit whose data are gone, without `data`, which it now refuses before its
+deprecation warning. The
 rows of the four tests in the full sweep, Pass A, block 1 of the weighted fits
 and the Goldfeld-Quandt rows of the Harrison-McCabe study use no offset and no
 term that depends on its rows, and are reproduced byte for byte. One cell is
@@ -461,7 +473,8 @@ the span of the regressors, and a positive response `ypos`.
   and `wls`, each crossed with the eight forms of data; the blocks of missing
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
   an `lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit
-  whose data changed after the fit (increment 2): 265 cells, run through each
+  whose data changed after the fit (increment 2), and the classes whose answer
+  differs between the tests, also without `data` and shuffled: 275 cells, run through each
   of the nine functions, with `B = 19` for the resampling test. Where a test
   departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
@@ -558,8 +571,8 @@ that fixes each.
 | 20 | Goldfeld-Quandt segments come from the stored design. | 2026-10-18 |
 | 21 | Harrison-McCabe takes its rank at the fit's tolerance, in increment 3. | 2026-10-18 |
 | 22 | N2 and N3 are separate pull requests in 0.16.0, outside the context. | 2026-10-18 |
-| 23 | The tests of increment 2 refuse a penalised `mgcv::gam()` fit with smooth terms, with a final class, until increment 11 settles which tests take it; the five of increment 1 test it as before. | 2026-10-18 |
-| 24 | RESET builds its context without `data` and keeps `rcheck_data_argument()` until increment 6, so that its values on every form of `data` are those of 0.15.0. | 2026-10-18 |
+| 23 | The tests of increment 2 refuse an `mgcv::gam()` fit with smooth terms, usually penalised, fixed ones included, with a final class, until increment 11 settles which tests take it; the five of increment 1 test it as before. Confirmed by the author on 2026-10-19. | 2026-10-18 |
+| 24 | RESET builds its context without `data` and keeps `rcheck_data_argument()` until increment 6, so that its values on every form of `data` are those of 0.15.0. Confirmed by the author on 2026-10-19. | 2026-10-18 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

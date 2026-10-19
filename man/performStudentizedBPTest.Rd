@@ -82,8 +82,12 @@ tests on the estimable part of its design: it gives the value of the same model 
 aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit. A model with an offset is accepted since 0.16.0: the refit of
-the design carries the offset, as \code{\link{performKoenkerTest}()} accounts for it. Which model
-each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
+the design carries the offset, as \code{\link{performKoenkerTest}()} accounts for it.
+It refuses a multivariate \code{lm} ("needs a model with one response"), and, since 0.16.0, an
+\code{mgcv::gam()} fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
 models}.
 }
 \examples{

@@ -101,9 +101,9 @@ residuals or weights were changed after it was fitted ("does not reproduce its r
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 \code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
 values, on which it is then tested (RESET, which builds its context without \code{data}, refuses it). RESET,
-Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse a penalised
-\code{mgcv::gam()} fit with smooth terms, which is not the least-squares fit of its design, until a later step
-settles which tests take it; the other five test it as before 0.16.0. The check of an edited fit is a guard against accidental edits, not a proof
+Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
+\code{mgcv::gam()} fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
+fit of its design, until a later step settles which tests take it; the other five test it as before 0.16.0. The check of an edited fit is a guard against accidental edits, not a proof
 that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at \code{1e-7} of
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which

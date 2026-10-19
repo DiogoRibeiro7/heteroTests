@@ -67,8 +67,12 @@ the fit, which is the model with the offset, since the offset shifts every condi
 it shifts the mean; before, they were refitted from the formula, which left the offset out. It
 refuses a weighted fit, a \code{fitWLS()} fit among them, as it refits the model without the
 weights, a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a coefficient that
-is not finite for another reason, and \code{data} that lack rows or variables of the fit. Which
-model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
+is not finite for another reason, and \code{data} that lack rows or variables of the fit.
+It refuses a multivariate \code{lm} ("needs a model with one response"), and, since 0.16.0, an
+\code{mgcv::gam()} fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
 models}.
 }
 \examples{

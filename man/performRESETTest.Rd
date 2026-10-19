@@ -20,8 +20,13 @@ leave the observation out, and gives the value of the fit to the observations wi
 a coefficient that is not finite for another reason, \code{data} that lack rows or variables of
 the fit, and, since 0.16.0, a fit with \code{model = FALSE} whose model frame, rebuilt from the
 data it was fitted to, no longer holds its response, because those data changed after the fit:
-it read that frame and returned a value. Which
-model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
+it read that frame and returned a value.
+It refuses a multivariate \code{lm} ("needs a model with one response"), which it tested without
+\code{data} before 0.16.0, and, since 0.16.0, an \code{mgcv::gam()} fit with smooth terms: a
+smooth term is usually penalised, and a penalised fit is not the least-squares fit of the design
+the test fits again. A later step settles which tests take such a fit; a \code{gam} without smooth
+terms is tested as the Gaussian \code{glm} it is.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
 models}.
 }
 \examples{data(mtcars)
