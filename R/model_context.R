@@ -184,17 +184,19 @@ rstop_model_context <- function(message) {
   ))
 }
 
-#' Refuse a penalised `mgcv::gam()` fit with smooth terms
+#' Refuse an `mgcv::gam()` fit with smooth terms
 #'
 #' A Gaussian `mgcv::gam()` fit without smooth terms is the least-squares fit
-#' of its design, the fit of the Gaussian `glm`. With smooth terms it is a
-#' penalised fit: its coefficients do not solve the least-squares equations of
-#' its design, and a test that refits that design, its segments or its
-#' quantiles, tests an unpenalised regression the model is not. Whether the
-#' tests take such a fit is a question of the contract left to the last step of
-#' the migration, with `MASS::rlm()` (increment 11 of the design of the model
-#' context); until then the tests of increment 2 refuse it, decided on
-#' 2026-10-18, and those of increment 1 test it as before 0.16.0.
+#' of its design, the fit of the Gaussian `glm`. A smooth term is penalised
+#' unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not the
+#' least-squares fit of its design: its coefficients do not solve the
+#' least-squares equations, and a test that fits that design again, its
+#' segments or its quantiles, tests an unpenalised regression the model is not.
+#' Whether the tests take such a fit is a question of the contract left to the
+#' last step of the migration, with `MASS::rlm()` (increment 11 of the design
+#' of the model context); until then the tests of increment 2 refuse every fit
+#' with smooth terms, fixed ones included, decided on 2026-10-18, and those of
+#' increment 1 test it as before 0.16.0.
 #'
 #' @param ctx The model context.
 #' @param fn Character scalar naming the calling test.
@@ -210,11 +212,11 @@ rrefuse_smooth_gam <- function(ctx, fn) {
   labels <- vapply(smooths, function(s) as.character(s$label %||% "a smooth"), character(1))
   rstop_model_context(sprintf(
     paste0(
-      "%s() cannot test a penalised mgcv::gam() fit with smooth terms (%s): it is not ",
-      "the least-squares fit of its design, so the test, which fits that design again, ",
-      "would test a regression that was not fitted. Whether the tests take such a fit is ",
-      "left to a later step of the package. Refit the model with lm() or glm(), with a ",
-      "parametric term such as splines::ns() in place of each smooth."
+      "%s() cannot test an mgcv::gam() fit with smooth terms (%s): a smooth term is ",
+      "usually penalised, and a penalised fit is not the least-squares fit of its design, ",
+      "which the test fits again. Whether the tests take such a fit is left to a later ",
+      "step of the package. Refit the model with lm() or glm(), with a parametric term ",
+      "such as splines::ns() in place of each smooth."
     ),
     fn, paste(labels, collapse = ", ")
   ))

@@ -68,7 +68,13 @@
 #' fit, a `fitWLS()` fit among them, as it refits the
 #' model without the weights, a `glm` of another family or link, a
 #' `survey::svyglm()` fit, a coefficient that is not finite for another reason, and
-#' `data` that lack rows or variables of the fit. Which model each test accepts,
+#' `data` that lack rows or variables of the fit.
+#' It refuses a multivariate `lm` ("needs a model with one response"), and,
+#' since 0.16.0, an `mgcv::gam()` fit with smooth terms: a smooth term is
+#' usually penalised, and a penalised fit is not the least-squares fit of the
+#' design the test fits again. A later step settles which tests take such a
+#' fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+#' Which model each test accepts,
 #' and why, is set out in [test_results], under *Supported models*.
 #'
 #' @examples
@@ -119,6 +125,15 @@ performQuantileRegressionTest <- function(model, data = NULL,
   )
   rprocessValidationResult(requirements)
 
+  # The test compares the slopes across quantiles, and a model without a
+  # regressor beyond the intercept has none.
+  if (all(colnames(rcontext_design(ctx)) == "(Intercept)")) {
+    stop(
+      "performQuantileRegressionTest() needs a regressor beyond the intercept: it tests ",
+      "whether the slopes of the model differ across quantiles.",
+      call. = FALSE
+    )
+  }
   formula <- stats::formula(model)
   rq_fit <- rrq_estimable(ctx, taus)
   if (!inherits(rq_fit, "rqs")) {

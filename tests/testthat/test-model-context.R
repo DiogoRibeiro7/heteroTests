@@ -424,11 +424,11 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
                    paste(fn, "gam"), tolerance = 1e-10)
       out <- context_run(fn, list(build = function() list(m = smooth, data = data)))
       if (fn %in% context_increment2) {
-        # A penalised fit is not the least-squares fit of its design: the tests
-        # of increment 2 refuse it, until increment 11 settles which tests
-        # take it.
+        # A smooth term is usually penalised, and a penalised fit is not the
+        # least-squares fit of its design: the tests of increment 2 refuse it,
+        # until increment 11 settles which tests take it.
         expect_s3_class(out, "heteroTests_model_context_error")
-        refusal <- "%s() cannot test a penalised mgcv::gam() fit with smooth terms (s(x1))"
+        refusal <- "%s() cannot test an mgcv::gam() fit with smooth terms (s(x1))"
         expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
       } else {
         expect_s3_class(out, "htest")

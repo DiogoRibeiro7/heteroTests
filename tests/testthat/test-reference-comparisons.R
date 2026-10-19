@@ -108,6 +108,43 @@ test_that("performGQTest() on a term that depends on its rows matches lmtest::gq
   )
 })
 
+# Ordered by x1, the indicator I(x1 > median(x1)) is constant on each segment,
+# and a basis function of bs() can be zero on a whole segment: the design of
+# the segment is then rank-deficient. Its degrees of freedom are its rows minus
+# its rank, as lm.fit() gives them, which with normal errors makes the ratio
+# of the two mean squares exactly F; lmtest::gqtest() subtracts the number of
+# columns instead.
+test_that("performGQTest() takes the degrees of freedom of a segment from its rank", {
+  set.seed(404)
+  n <- 150
+  df <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n))
+  df$y <- 1 + sin(2 * df$x1) - df$x2 + rnorm(n, sd = df$x1)
+  models <- list(
+    median = lm(y ~ I(x1 > median(x1)) + x2, data = df),
+    bs = lm(y ~ splines::bs(x1, df = 4) + x2, data = df)
+  )
+  for (nm in names(models)) {
+    m <- models[[nm]]
+    ours <- performGQTest(m, df, order_by = "x1")
+    X <- model.matrix(m)
+    y <- model.response(model.frame(m))
+    ord <- order(df$x1)
+    point1 <- floor(0.4 * n)
+    point2 <- ceiling(0.6 * n + 0.01)
+    segment <- function(rows) lm.fit(X[ord[rows], , drop = FALSE], y[ord[rows]])
+    first <- segment(seq_len(point1))
+    second <- segment(seq.int(point2, n))
+    expect_true(first$rank < ncol(X) || second$rank < ncol(X), info = nm)
+    expect_identical(unname(ours$parameter), c(second$df.residual, first$df.residual), info = nm)
+    statistic <- (sum(second$residuals^2) / second$df.residual) /
+      (sum(first$residuals^2) / first$df.residual)
+    expect_equal(unname(ours$statistic), statistic, tolerance = 1e-12, info = nm)
+    expect_equal(ours$p.value,
+                 stats::pf(statistic, second$df.residual, first$df.residual, lower.tail = FALSE),
+                 tolerance = 1e-12, info = nm)
+  }
+})
+
 # lmtest::gqtest() leaves the offset out, so the reference of a fit with an
 # offset is lmtest::gqtest() of the same model fitted to the response minus
 # the offset; performGQTest() fits each segment with the offset of the fit

@@ -358,10 +358,33 @@ context_cells <- function() {
     list(m = stats::lm(y ~ x1 + x2, data = d, subset = 21:120), data = NULL)
   }, form = "null", reference = "subset/rows", defect = "B15"))
 
-  # Classes of model.
-  add(context_cell("class/mlm", "class", function() {
-    list(m = stats::lm(cbind(y, ypos) ~ x1 + x2, data = d), data = d)
-  }, expect = "needs a model with one response; `model` has 2", defect = "R4"))
+  # Classes of model. Those whose answer differs between the tests are run with
+  # the data frame of the fit, without `data`, and with the same rows shuffled
+  # under their own row names (class_forms()).
+  set.seed(3)
+  class_perm <- sample(nrow(d))
+  class_forms <- function(id, build, expect = "value", defect = character(), needs = character(),
+                          fit = "ols", expect_null = expect) {
+    for (form in c("null", "shuffled")) {
+      local({
+        form <- form
+        cell_expect <- if (identical(form, "null")) expect_null else expect
+        built_form <- function() {
+          built <- build()
+          built$data <- if (identical(form, "shuffled")) built$data[class_perm, , drop = FALSE]
+          built
+        }
+        add(context_cell(paste0("class/", id, "_", form), "class", built_form, fit = fit,
+                         form = form, needs = needs, expect = cell_expect, defect = defect,
+                         reference = if (identical(cell_expect, "value")) paste0("class/", id)))
+      })
+    }
+  }
+  mlm_fit <- function() list(m = stats::lm(cbind(y, ypos) ~ x1 + x2, data = d), data = d)
+  add(context_cell("class/mlm", "class", mlm_fit,
+                   expect = "needs a model with one response; `model` has 2", defect = "R4"))
+  class_forms("mlm", mlm_fit, expect = "needs a model with one response; `model` has 2",
+              defect = "R4")
   add(context_cell("class/rank_deficient", "class", function() {
     list(m = stats::lm(y ~ x1 + x2 + I(2 * x2), data = d), data = d)
   }, reference = "fit/ols/none/none/data_frame"))
@@ -373,35 +396,46 @@ context_cells <- function() {
   add(context_cell("class/gam", "class", function() {
     list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
   }, needs = "mgcv", reference = "fit/ols/none/none/data_frame"))
-  # A penalised fit: the tests of increment 1 test it as before, and those of
-  # increment 2 refuse it until increment 11 settles which tests take it
-  # ("gam"). Goldfeld-Quandt and the quantile regression test, which refitted
+  # A smooth term, usually penalised: the tests of increment 1 test the fit as
+  # before, and those of increment 2 refuse it until increment 11 settles which
+  # tests take it ("gam"). Goldfeld-Quandt and the quantile regression test, which refitted
   # the formula, stopped on its smooth term outside mgcv.
-  add(context_cell("class/gam_smooth", "class", function() {
-    list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
-  }, needs = "mgcv", defect = "gam"))
+  gam_smooth_fit <- function() list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
+  add(context_cell("class/gam_smooth", "class", gam_smooth_fit, needs = "mgcv", defect = "gam"))
+  class_forms("gam_smooth", gam_smooth_fit, needs = "mgcv", defect = "gam")
   # A zero weight leaves an observation out of the fit with a residual that is
   # not one: refused by every test but RESET, whose two weighted fits both
   # leave it out (decided 2026-10-17), for an lm and a Gaussian glm alike.
   zero <- d
   zero$w0 <- d$w
   zero$w0[1] <- 0
-  add(context_cell("class/zero_weight", "class", function() {
+  zero_lm <- function() {
     list(m = stats::lm(y ~ x1 + x2, data = zero, weights = w0), data = zero)
-  }, fit = "wls", expect = "zero or non-finite weights"))
-  add(context_cell("class/zero_weight_glm", "class", function() {
+  }
+  zero_glm <- function() {
     list(m = stats::glm(y ~ x1 + x2, data = zero, weights = w0), data = zero)
-  }, fit = "glm", expect = "zero or non-finite weights"))
+  }
+  add(context_cell("class/zero_weight", "class", zero_lm, fit = "wls",
+                   expect = "zero or non-finite weights"))
+  class_forms("zero_weight", zero_lm, fit = "wls", expect = "zero or non-finite weights")
+  add(context_cell("class/zero_weight_glm", "class", zero_glm, fit = "glm",
+                   expect = "zero or non-finite weights"))
+  class_forms("zero_weight_glm", zero_glm, fit = "glm", expect = "zero or non-finite weights")
   # A fit with model = FALSE whose data are gone, given its data. The tests
   # that read its model frame stopped ("object 'gone' not found"); the context
   # builds the frame from `data` once `data` reproduces the fit ("frame").
-  add(context_cell("class/model_false", "class", function() {
+  # Without `data` its frame cannot be built, and every test refuses it.
+  model_false_fit <- function() {
     env <- new.env()
     assign("gone", d, envir = env)
     m <- eval(quote(stats::lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
     rm("gone", envir = env)
     list(m = m, data = d)
-  }, reference = "fit/ols/none/none/data_frame", defect = "frame"))
+  }
+  add(context_cell("class/model_false", "class", model_false_fit,
+                   reference = "fit/ols/none/none/data_frame", defect = "frame"))
+  class_forms("model_false", model_false_fit, defect = "frame",
+              expect_null = "cannot use the model frame of `model`")
   # A fit with model = FALSE whose data were reordered after the fit, without
   # `data`: its model frame, rebuilt from the reordered data, no longer holds
   # its response. RESET read it and returned a value (N6); every test built on
@@ -445,7 +479,7 @@ context_runnable <- function(fns = context_migrated) {
 # expectation of a cell by design, its own expectation, and the reference of a
 # value.
 #
-# - The tests of increment 2 refuse a penalised mgcv::gam() fit with smooth
+# - The tests of increment 2 refuse an mgcv::gam() fit with smooth
 #   terms (context_increment2).
 # - The quantile regression test refuses a weighted fit, and a MASS::rlm()
 #   fit, whose weights it reads, once `data` is aligned.
@@ -461,8 +495,8 @@ context_runnable <- function(fns = context_migrated) {
 #   data are gone, stops on the padded fitted values of na.exclude
 #   (increment 9), and accepts a zero weight.
 context_cell_for <- function(fn, cell) {
-  if (fn %in% context_increment2 && identical(cell$id, "class/gam_smooth")) {
-    cell$expect <- "cannot test a penalised mgcv::gam() fit with smooth terms (s(x1))"
+  if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth")) {
+    cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
   }
   weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls") || identical(cell$id, "class/rlm")
@@ -498,12 +532,12 @@ context_cell_for <- function(fn, cell) {
       } else {
         "fit/ols/none/none/data_frame"
       }
-    } else if (identical(cell$id, "class/model_false")) {
+    } else if (cell$id %in% c("class/model_false", "class/model_false_shuffled")) {
       cell$expect <- "cannot use the model frame of `model`"
       cell$reference <- NULL
     } else if (identical(cell$id, "missing/na_exclude")) {
       cell$expect <- "NA/NaN/Inf in 'x'"
-    } else if (cell$id %in% c("class/zero_weight", "class/zero_weight_glm")) {
+    } else if (startsWith(cell$id, "class/zero_weight")) {
       cell$expect <- "value"
     }
   }
