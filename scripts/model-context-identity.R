@@ -149,16 +149,17 @@ identity_increment2 <- c(
 # B7, the offsets that four tests left out of a refit, refused until now; N1,
 # the segments of Goldfeld-Quandt refitted from the formula, and the quantile
 # regressions refitted from it; "frame", a fit with model = FALSE whose data
-# are gone, whose model frame the context builds from `data`; N6, the stale
-# model frame RESET read, now refused; "null", `data = NULL` given to the
-# registered function of "student_bp" (identity_null_routes, below); and
-# "gam", a penalised mgcv::gam() fit with smooth terms, which the tests of
-# increment 2 refuse until increment 11 settles which tests take it (decided
-# 2026-10-18).
+# are gone, whose model frame the context builds from `data`, and which it
+# refuses without `data`; N6, the stale model frame RESET read, now refused;
+# "null", `data = NULL` given to the registered function of "student_bp"
+# (identity_null_routes, below); and "gam", an mgcv::gam() fit with smooth
+# terms, which the tests of increment 2 refuse until increment 11 settles which
+# tests take it (decided 2026-10-18). R4, a multivariate lm, which RESET tested
+# without `data`, is refused by every test built on the context.
 identity_allowed <- list(
   error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
   value_change = c("B5", "N1"),
-  value_to_error = c("N6", "gam")
+  value_to_error = c("N6", "gam", "R4", "frame")
 )
 # The defects of increment 2 apply to the calls of the tests they concern
 # only: on any other call such a change is unexpected.
@@ -198,20 +199,25 @@ identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", 
 # does not hold under its own name (L1, L2), the message of the context (M1)
 # or the variable alone; for a fit whose model frame cannot be rebuilt, the
 # message of the context ("frame"); for `data = NULL` given to the registered
-# function of "student_bp", the refusal of the model frame by the context
-# ("null"). Any other change of a message is unexpected.
+# function of "student_bp", which stopped on `NULL`, the refusal the test makes
+# of the fit, read from its model frame: a stale frame, a zero weight, a
+# multivariate lm, a smooth term ("null"). Any other change of a message is
+# unexpected.
 identity_messages <- list(
   R4 = "needs a model with one response",
   B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
   L1 = "The following variables are missing from the model frame of `model`: x1.",
   L2 = "The following variables are missing from input data: x1.",
   frame = "cannot use the model frame of `model`",
-  null = "cannot use the model frame of `model`",
-  gam = "cannot test a penalised mgcv::gam() fit with smooth terms"
+  null = c(
+    "cannot use the model frame of `model`", "zero or non-finite weights",
+    "needs a model with one response", "cannot test an mgcv::gam() fit with smooth terms"
+  ),
+  gam = "cannot test an mgcv::gam() fit with smooth terms"
 )
 identity_message_scope <- list(
   B7 = identity_increment2, L1 = "performGQTest", L2 = "performGQTest",
-  frame = identity_reset, null = "registry student_bp",
+  frame = identity_increment2, null = "registry student_bp",
   gam = identity_increment2
 )
 # Decision 1 for Goldfeld-Quandt on an unweighted fit: main refitted each
@@ -224,7 +230,12 @@ identity_segment_refits <- "performGQTest"
 # A call refused by a new refusal (value_to_error) must give this message.
 identity_new_refusals <- list(
   N6 = "cannot use the model frame of `model`",
-  gam = "cannot test a penalised mgcv::gam() fit with smooth terms"
+  gam = "cannot test an mgcv::gam() fit with smooth terms",
+  # RESET tested a multivariate lm without `data`, and returned a value.
+  R4 = "needs a model with one response",
+  # The registered names, without `data`, on a fit with model = FALSE whose
+  # data are gone: the runner put the Cook-Weisberg fallback under them.
+  frame = "cannot use the model frame of `model`"
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
@@ -683,30 +694,38 @@ identity_allow <- function(record, verdict, after, stored = NULL) {
   "unexpected"
 }
 
-# The numbers a call returns that its verification compares, and what a
-# runner ran: the statistic, parameter and p-values of a test, of the test
-# inside a comparison with a reference implementation, or of each test of a
-# runner, with the test it ran and its status.
-identity_key <- function(value) {
+# What a call returns that its verification compares: every number of the
+# result, the statistic, parameter and p-values and also the estimates, the
+# replicates and the robust details, with the names of its parts; of the test
+# inside a comparison with a reference implementation; or of each test of a
+# runner, with the test it ran and its status. The metadata test_factory adds
+# (`test_metadata`) and the labels that name the call (`method`, `data.name`)
+# are left out, so that a route compares with the test it computes. `fields`
+# restricts the comparison to some parts, for a reference that has no others.
+identity_key <- function(value, fields = NULL) {
   if (!is.list(value) || isTRUE(value$.error) || isTRUE(value$.skip)) {
     return(NULL)
   }
   if (is.list(value$ours)) {
     value <- value$ours
   }
-  numbers <- function(v) {
-    as.double(unlist(v[intersect(c("statistic", "parameter", "p.value", "p.value_bootstrap"),
-                                 names(v))]))
+  core <- function(v) {
+    v <- v[setdiff(names(v), c("test_metadata", "method", "data.name"))]
+    if (!is.null(fields)) {
+      v <- v[intersect(fields, names(v))]
+    }
+    v
   }
   if (!is.null(value$statistic)) {
-    return(list(numbers = numbers(value), labels = character()))
+    part <- core(value)
+    return(list(numbers = identity_numbers(part), labels = names(part)))
   }
   parts <- Filter(function(e) is.list(e) && !is.null(e$statistic), value)
   if (length(parts) == 0L || length(parts) != length(value)) {
     return(NULL)
   }
   list(
-    numbers = unlist(lapply(parts, numbers), use.names = FALSE),
+    numbers = unlist(lapply(parts, function(e) identity_numbers(core(e))), use.names = FALSE),
     labels = vapply(parts, function(e) paste(c(e$diagnostic, e$status), collapse = " "), "")
   )
 }
@@ -742,7 +761,12 @@ identity_verify <- function(record, main, branch, seen = character()) {
   for (external in record$externals) {
     reference <- branch[[paste(reference_kind, record$fn, external, sep = " | ")]]
     tolerance <- if (grepl("/poly$", external)) 1e-8 else 1e-10
-    if (!is.null(reference) && identity_same_key(key, identity_key(reference$value), tolerance)) {
+    # The nested F test written out has the statistic, the degrees of freedom
+    # and the p-value only.
+    fields <- if (startsWith(external, "nested/")) c("statistic", "parameter", "p.value")
+    if (!is.null(reference) &&
+          identity_same_key(identity_key(branch[[record$id]]$value, fields),
+                            identity_key(reference$value, fields), tolerance)) {
       return(sub("/.*$", "", external))
     }
   }
