@@ -11,12 +11,19 @@
 #' the default up to 0.14.0.
 #'
 #' @param model A fitted [stats::lm] object whose residuals are examined.
-#' @param data [base::data.frame] used to fit `model`.
-#'   When `NULL`, the default, the model frame of `model` is used, so `variable`
-#'   must then be a variable of the model. The model frame holds the terms of
-#'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default. The
+#'   residuals and weights are read from the fit itself (since 0.16.0), and
+#'   `variable` from the rows of `data` that hold the observations of the fit.
+#'   Without `data` it is read from the model frame of `model`, which holds it
+#'   only when it is a variable of the model under its own name (`x`, not
+#'   `log(x)`); a model that transforms the variable needs `data`, as does a
+#'   variable the model does not use. Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param variable Character scalar giving the column suspected of driving the
 #'   heteroscedasticity.
 #' @param transformation Character scalar selecting the transformation applied to
@@ -39,9 +46,11 @@
 #' Glejser suggested modelling heteroscedastic variance by regressing the
 #' absolute residuals on transformations of the explanatory variable believed to
 #' govern the error scale. The test explores several functional forms (absolute,
-#' square root, inverse, inverse square root). This implementation validates the
-#' fitted model and data through \link[=rvalidateModelInputs]{rvalidateModelInputs()}, \link[=rvalidateDataInputs]{rvalidateDataInputs()},
-#' and \link[=rhandleMissingValues]{rhandleMissingValues()}, then enforces transformation-specific
+#' square root, inverse, inverse square root). This implementation reads the
+#' residuals and weights from the fit and `variable` from the rows of `data`
+#' that hold its observations (the model context, since 0.16.0), validates the
+#' fitted model through \link[=rvalidateModelInputs]{rvalidateModelInputs()},
+#' then enforces transformation-specific
 #' requirements via \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}. The resulting t statistic tests
 #' the null hypothesis of no relationship between the transformed regressor and
 #' the absolute residuals, corrected for asymmetry by default.
@@ -160,9 +169,16 @@
 performGlejserTest <- function(model, data = NULL, variable,
                                transformation = c("abs", "sqrt", "inverse", "inverse_sqrt"),
                                robust = TRUE) {
-  rrefuse_non_gaussian_glm(model, "performGlejserTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Glejser test"
+  # The residuals and weights come from the fit; `data`, when given, is matched
+  # to its observations and checked (R/model_context.R). `variable` is read
+  # from the rows of `data` that hold the observations, so data taken in the
+  # order of the fit must tell those rows apart when it is not a column of the
+  # model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performGlejserTest", test_label = test_label,
+    reads = if (!missing(variable) && is.character(variable)) variable else character()
+  )
 
   if (!is.character(variable) || length(variable) != 1L || is.na(variable) || !nzchar(variable)) {
     stop("`variable` must be supplied as a single column name.", call. = FALSE)
@@ -172,24 +188,22 @@ performGlejserTest <- function(model, data = NULL, variable,
   }
 
   rvalidateModelInputs(model, test_name = "Glejser", min_obs = 12L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(c(all.vars(model_terms), variable))
+  rvalidate_model_context(ctx)
 
   transformation <- match.arg(transformation)
 
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 12L,
-    min_obs_data = 12L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  # The variable, one value per observation in the order of the fit: from the
+  # confirmed rows of `data`, or without `data` from the model frame when it
+  # holds it under its own name (rcontext_variables()).
+  x <- rcontext_variables(ctx, data, c(variable = variable))$variable
+  rwarn_incomplete_rows(data, model, also = variable)
+  # The Pearson residuals of the fit; a fit with a zero weight is refused
+  # there, as before 0.16.0.
+  residuals <- rcontext_pearson(ctx)
+  rstop_missing_variable(ctx, x, variable, "variable", test_label)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   assumption_cfg <- list()
   if (transformation == "inverse_sqrt") {
@@ -206,7 +220,6 @@ performGlejserTest <- function(model, data = NULL, variable,
 
   ht_log("INFO", "Running Glejser test")
 
-  x <- working_data[[variable]]
   if (!is.numeric(x)) {
     .std_error(
       "rassumption_violation",

@@ -629,17 +629,24 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' the squared residuals is evidence of spatially varying variance.
 #'
 #' @inheritParams performBPTest
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default. The
+#'   residuals and weights are read from the fit itself, so a model that
+#'   transforms its variables, has an `offset()` term, or takes its `weights` or
+#'   `offset` from a column of the data needs no `data`, and the model frame of
+#'   `model` is accepted as `data` (since 0.16.0; before, such models needed
+#'   `data`). The test reads no column of `data`, and `listw` is matched to the
+#'   observations of the fit, not to the rows of `data`. Data that are given are
+#'   matched to the observations of the fit: rows with row names of their own by
+#'   name, in any order; rows that only number themselves (a tibble, a
+#'   data.table, a data frame whose row names were reset) by the row numbers of
+#'   the fit, or in the order of the fit when they hold one row per observation.
+#'   The rows the fit dropped may be there or not. Data whose rows cannot be
+#'   shown to hold the observations of the fit are refused; see [test_results].
 #' @param listw Spatial weights in `spdep` \code{listw} format or a numeric
-#'   matrix coercible via \code{spdep::mat2listw()}.
+#'   matrix coercible via \code{spdep::mat2listw()}. They list the observations
+#'   of the fit, one per residual, in the order of the rows `model` was fitted
+#'   to after `subset` and after `na.omit` dropped incomplete rows, whatever the
+#'   order of `data`, as before 0.16.0.
 #' @param permutations Number of Monte Carlo permutations used to compute the
 #'   reference distribution. Defaults to 999, the default of every resampling
 #'   test in the package since 0.15.0; it was 499 before.
@@ -662,8 +669,13 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit.
+#' It refuses a multivariate `lm` ("needs a model with one response"), since
+#' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+#' tested as before 0.16.0, with smooth terms too, until a later step settles
+#' which tests take such a fit.
+#' Which model each test accepts, and why, is set out in [test_results], under
+#' *Supported models*.
 #'
 #' @examples
 #' if (requireNamespace("spdep", quietly = TRUE)) {
@@ -678,8 +690,11 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' @export
 performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 999,
                                      zero.policy = NULL) {
-  rrefuse_non_gaussian_glm(model, "performSpatialHeteroTest")
-  data <- rdata_or_model_frame(model, data)
+  test_label <- "Spatial heteroscedasticity"
+  # The residuals and weights come from the fit; `data`, when given, is matched
+  # to its observations and checked (R/model_context.R). The test reads no
+  # column of `data`: `listw` lists the observations of the fit, in its order.
+  ctx <- rmodel_context(model, data, fn = "performSpatialHeteroTest", test_label = test_label)
   if (!requireNamespace("spdep", quietly = TRUE)) {
     stop("Package 'spdep' is required for the spatial heteroscedasticity test.", call. = FALSE)
   }
@@ -691,19 +706,15 @@ performSpatialHeteroTest <- function(model, data = NULL, listw, permutations = 9
   }
   permutations <- as.integer(permutations)
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "Spatial heteroscedasticity",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # The Pearson residuals of the fit, in its order; a fit with a zero weight is
+  # refused there, as before 0.16.0.
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("spatial_hetero", model = model, data = working_data)
   rprocessValidationResult(requirements)
