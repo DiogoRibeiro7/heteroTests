@@ -79,8 +79,12 @@ the fit, which is the model with the offset, since the offset shifts every condi
 it shifts the mean; before, they were refitted from the formula, which left the offset out. It
 refuses a weighted fit, a `fitWLS()` fit among them, as it refits the model without the
 weights, a `glm` of another family or link, a `survey::svyglm()` fit, a coefficient that
-is not finite for another reason, and `data` that lack rows or variables of the fit. Which
-model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
+is not finite for another reason, and `data` that lack rows or variables of the fit.
+It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
+`mgcv::gam()` fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
 models*.
 
 ## References

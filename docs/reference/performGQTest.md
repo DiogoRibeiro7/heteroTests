@@ -53,7 +53,12 @@ aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
 lack rows or variables of the fit. It accepts a model with an offset, given as an argument or as an
 `offset()` term, weighted or not, and gives the value of the model fitted to the response minus
-the offset (since 0.16.0). Which model each test accepts, and why, is set out in
+the offset (since 0.16.0).
+It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
+`mgcv::gam()` fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References

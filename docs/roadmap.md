@@ -1185,7 +1185,7 @@ after it.
         for RESET, R5, and for these four the classes step 1 closed for its five
         (B5, B12, B14, B15, L1, L2, N7, R4). RESET reads nothing from `data` and
         builds its context without it, keeping its check of `data` until step 6;
-        the four refuse a penalised `mgcv::gam()` fit with smooth terms until
+        the four refuse an `mgcv::gam()` fit with smooth terms until
         step 11. Done in 0.16.0.
     - [ ] 3. Glejser, Park, Szroeter, Harrison-McCabe (its rank at the fit's
         tolerance, decision 21), Hartley and the spatial test. Closes B14, B15, L1

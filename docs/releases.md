@@ -428,8 +428,11 @@ named data in any order, numbered data in fit order. Goldfeld-Quandt reads its
 `order_by` at the confirmed rows of `data`, or, without `data`, from the model
 frame when it holds the variable under its own name. Without an offset,
 without a term that depends on the rows it is computed from, and on data
-that 0.15.0 accepted, every value is `identical()` to before, but for the
-two new refusals below.
+that 0.15.0 accepted, every value is `identical()` to before, but on the
+calls the four now refuse, in bold below: an `mgcv::gam()` fit with smooth
+terms, a model frame rebuilt from changed data, a multivariate `lm` without
+`data` in RESET, and, through the runner, a `model = FALSE` fit whose data
+are gone.
 
 **On a model with an offset the four give the value of that model.** The
 refusals of the offsets they left out (*Four tests account for the offsets
@@ -511,18 +514,25 @@ regression test by 0.16%, each to the value of the same fit with the
 indicator computed beforehand.
 
 **RESET, Goldfeld-Quandt, the quantile regression test and the studentized
-Breusch-Pagan statistic refuse a penalised fit with smooth terms.** A Gaussian
-`mgcv::gam()` fit with smooth terms is not the least-squares fit of its
-design, and each of
-these tests fits that design again, which would test a regression the model
-is not. On `mgcv::gam(mpg ~ s(wt) + qsec, data = mtcars)` the studentized
-statistic returned 12.40 (p = 0.259) and RESET F = 2.463 (p = 0.112);
-Goldfeld-Quandt and the quantile test stopped with `could not find function
-"s"`. They now stop with `cannot test a penalised mgcv::gam() fit with smooth
-terms (s(wt))`, of class `heteroTests_model_context_error`, until
-the last step of the model context settles which tests take such a fit. The
-first five test it as before, and a `gam` without smooth terms is tested as
-the Gaussian `glm` it is.
+Breusch-Pagan statistic refuse a fit with smooth terms, and so do the calls
+that run them.** A smooth term of a Gaussian `mgcv::gam()` fit is usually
+penalised, and a penalised fit is not the least-squares fit of its design,
+which each of these tests fits again: it would test a regression the model
+is not. The four refuse every fit with smooth terms, fixed ones
+(`s(x, fx = TRUE)`) included. On
+`m <- mgcv::gam(stations ~ s(mag) + depth, data = quakes)` the studentized
+statistic returned 117.0 (p = 2.1e-20), as did
+`runHeteroTests(m, quakes, tests = "student_bp")`, `performBPTestRobust()`,
+`test_factory` and `rvalidate_against_reference("studentized_bp")`, and RESET
+F = 14.03 (p = 9.8e-07); `runDiagnostics(m, quakes)`, which runs RESET,
+returned its list with that value; Goldfeld-Quandt and the quantile test
+stopped with
+`could not find function "s"`. They now stop with `cannot test an mgcv::gam()
+fit with smooth terms (s(mag))`, of class `heteroTests_model_context_error`,
+which the runners keep, so `runDiagnostics()` stops on such a fit too, until
+the last step of the model context settles which tests take it. The first
+five test it as before, and a `gam` without smooth terms is tested as the
+Gaussian `glm` it is.
 
 **RESET refuses a model frame that `model = FALSE` rebuilt from data changed
 after the fit.** It read that frame: with
@@ -531,6 +541,25 @@ gives F = 6.731 (p = 0.0043), and after `d0 <- mtcars[order(mtcars$wt), ]` it
 returned F = 0.136 (p = 0.874), the test of a response in another order. It
 now stops, as the other tests built on the context do ("cannot use the model
 frame of `model`").
+
+**RESET refuses a multivariate `lm`.** Without `data` it tested
+`lm(cbind(mpg, qsec) ~ wt + hp, data = mtcars)` and returned F = 7.197 on 2
+and 25 degrees of freedom (p = 0.0034), a statistic of neither response. It
+now stops with ``performRESETTest() needs a model with one response; `model`
+has 2.``, as the other tests built on the context do; with `data` it stopped
+already, with "RESET requires `data` with 64 observations to match the fitted
+model, got 32."
+
+**The registered `"student_bp"` and `"quantile_regression"` refuse, without
+`data`, a fit with `model = FALSE` whose data are gone.** Its model frame
+cannot be rebuilt. On `lm(stations ~ mag + depth, data = gone, model = FALSE)`
+for `gone <- quakes`, removed after the fit,
+`runHeteroTests(m, tests = c("student_bp", "quantile_regression"))` returned
+the Cook-Weisberg statistic, 188 (p = 8.8e-43), under both names, tagged as a
+fallback. It now stops with "... cannot use the model frame of `model`: it
+cannot be rebuilt ...", of class `heteroTests_model_context_error`, as its
+default battery already did. Given `data` that give the response and the
+fitted values of the fit, the tests run on them (below).
 
 Also, for these four:
 
@@ -552,8 +581,10 @@ Also, for these four:
 - The function registered as `"student_bp"`, called with `data = NULL`, reads
     the model frame, as the other routes and every other registered name do; it
     stopped with "Expected a data.frame for input data".
-- A multivariate `lm` is refused with "... needs a model with one response;
-    `model` has 2.", as by the first five.
+- A multivariate `lm` given with `data` is refused with "... needs a model
+    with one response; `model` has 2.", as by the first five, where the tests
+    stopped with a coercion error, and RESET with the count of the rows of
+    `data`.
 - A call with an offset on data the guard refuses now stops with the refusal
     of `data`, where it stopped with the refusal of the offset; the robust
     Breusch-Pagan test, which keeps its own preparation of the data until a
@@ -567,26 +598,27 @@ Also, for these four:
 - A fit with a zero weight is refused by Goldfeld-Quandt and the studentized
     statistic, and accepted by RESET, as before.
 - Unchanged: every other value of a valid call, and every message the test
-    suite pins. A corpus of 13,527 calls, the four, their routes and every other
-    test on 265 combinations of fits, offsets, terms, forms of `data`, dropped
+    suite pins. A corpus of 14,037 calls, the four, their routes and every other
+    test on 275 combinations of fits, offsets, terms, forms of `data`, dropped
     rows, row names and classes, the default battery and the registered names
     `"student_bp"` and `"quantile_regression"` through `runHeteroTests()`, and
     the examples of the ten help pages, returns what it returned before,
-    `identical()`, but for the 912 calls of the changes above
-    (`scripts/model-context-identity.R`);
-    each of the 701 that now return a value, or another one, gives the
-    value of its reference, the same call on the data frame of the fit, on the
-    fit to the complete rows or to the subset, on the fit with its terms
-    computed beforehand, on the model of `y - o`, or, for RESET, the nested F
-    test written out with `anova()`. The rows of the four tests in the studies
+    `identical()`, but for the 966 calls of the changes above
+    (`scripts/model-context-identity.R`), 24 of them the new refusals in bold;
+    each of the 708 that now return a value, or another one, gives the
+    value of its reference, compared on every number of the result: the same
+    call on the data frame of the fit, on the fit to the complete rows or to the
+    subset, on the fit with its terms computed beforehand, on the model of
+    `y - o`, or, for RESET, the nested F test written out with `anova()`. The rows of the four tests in the studies
     of `inst/validation/` that use them are reproduced byte for byte, and RESET
     on the fit with an offset of `offset-refits-size.R` rejects 0.0492 of the
     time under its null at 5000 replications, inside the release gate,
     [0.042, 0.058]. The warnings of the calls of the corpus are those of before,
     but for 39 calls that stopped and now return a value with the warning of
-    `quantreg::anova.rqs()` on the same design (`"non-positive fis"`), and the
-    multivariate `lm`, which `performStudentizedBPTest()` now refuses before its
-    deprecation warning.
+    `quantreg::anova.rqs()` on the same design (`"non-positive fis"`), and four
+    calls of `performStudentizedBPTest()` on a multivariate `lm` and on a
+    `model = FALSE` fit whose data are gone, without `data`, which it now refuses
+    before its deprecation warning.
 
 ### Packaging
 
