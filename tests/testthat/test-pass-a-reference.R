@@ -267,7 +267,18 @@ test_that("Harvey and Park warn when residuals are floored before taking logs", 
   model$residuals[1] <- 0
 
   expect_warning(performHarveyTest(model), "numerically zero")
-  expect_warning(performParkTest(model, d, "x"), "numerically zero")
+  # Since 0.16.0 Park's test reads the fit through the model context, which
+  # refuses a fit whose residuals were changed after it was fitted. An
+  # observation that lies on the regression of the others has a residual that
+  # is zero but for rounding, in a fit that is not edited.
+  expect_error(performParkTest(model, d, "x"), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  on_line <- d
+  on_line$y[1] <- unname(stats::predict(lm(y ~ x, data = d[-1, ]), d[1, , drop = FALSE]))
+  fitted_on_line <- lm(y ~ x, data = on_line)
+  expect_lt(abs(unname(stats::residuals(fitted_on_line)[1])), sqrt(.Machine$double.eps))
+  expect_warning(performHarveyTest(fitted_on_line), "numerically zero")
+  expect_warning(performParkTest(fitted_on_line, on_line, "x"), "numerically zero")
 })
 
 # --- diagnostic workflow ----------------------------------------------------

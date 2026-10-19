@@ -419,6 +419,9 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
   for (fn in context_runnable()) {
     for (data in list(d, NULL)) {
+      # Hartley's test groups by a variable of `data` that the model frame
+      # does not hold: without `data` it is refused (M1), as the matrix checks.
+      if (is.null(data) && fn %in% context_group_readers()) next
       context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                    paste(fn, "gam"), tolerance = 1e-10)
@@ -431,6 +434,7 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
         refusal <- "%s() cannot test an mgcv::gam() fit with smooth terms (s(x1))"
         expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
       } else {
+        # Those of increments 1 and 3 test it as before 0.16.0.
         expect_s3_class(out, "htest")
       }
     }
@@ -476,6 +480,275 @@ test_that("data in the order of the fit must tell apart the rows a test reads be
   expect_identical(run(named, "z")$statistic, expected$statistic)
 })
 
+test_that("the tests of increment 3 read their variable at rows the comparison tells apart", {
+  # The case of the review of increment 1, for each test that reads a column
+  # of `data` besides the model: the rows of a fit to named data, in its
+  # order, numbered again, tie on every compared column (y and x), and data
+  # taken in the order of the fit could exchange the rows within those ties
+  # without a trace in the model frame; a column beyond it, the variable a
+  # test regresses on, orders by or groups by, would then belong to other
+  # rows. Such data are refused, and so is the same data with the column
+  # exchanged within the ties.
+  set.seed(42)
+  n <- 60
+  named <- data.frame(x = rep(1:3, 20))
+  named$y <- round(named$x + rnorm(n))
+  named$z <- runif(n, 1, 2)
+  named$g <- factor(rep(c("a", "b", "c", "d"), 15))
+  rownames(named) <- paste0("obs", seq_len(n))
+  m <- lm(y ~ x, data = named)
+  numbered <- named
+  rownames(numbered) <- NULL
+  exchanged <- numbered
+  for (tied in split(seq_len(n), paste(numbered$y, numbered$x))) {
+    if (length(tied) > 1L) {
+      exchanged$z[tied] <- exchanged$z[rev(tied)]
+      exchanged$g[tied] <- exchanged$g[rev(tied)]
+    }
+  }
+  expect_false(identical(exchanged$z, numbered$z))
+  expect_false(identical(exchanged$g, numbered$g))
+  refused <- list(numbered, exchanged)
+  if (requireNamespace("dplyr", quietly = TRUE)) {
+    refused <- c(refused, list(dplyr::as_tibble(numbered), dplyr::as_tibble(exchanged)))
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  calls <- list(
+    performGlejserTest = function(model, data, v) performGlejserTest(model, data, v),
+    performParkTest = function(model, data, v) performParkTest(model, data, v),
+    performSzroeterTest = function(model, data, v) performSzroeterTest(model, data, order_by = v),
+    performHarrisonMcCabeTest = function(model, data, v) {
+      performHarrisonMcCabeTest(model, data, order_by = v)
+    },
+    performHartleyFmaxTest = function(model, data, v) performHartleyFmaxTest(model, data, v)
+  )
+  beyond <- c(performGlejserTest = "z", performParkTest = "z", performSzroeterTest = "z",
+              performHarrisonMcCabeTest = "z", performHartleyFmaxTest = "g")
+  for (fn in names(calls)) {
+    run <- function(model, data, v) suppressWarnings(calls[[fn]](model, data, v))
+    expect_s3_class(run(m, named, beyond[[fn]]), "htest")
+    for (data in refused) {
+      expect_error(run(m, data, beyond[[fn]]),
+                   "tie on every column of the model frame that is compared",
+                   class = "heteroTests_data_rows_error", info = fn)
+    }
+    # A column of the model frame is read from rows that the comparison
+    # confirmed, ties or not.
+    if (identical(fn, "performHartleyFmaxTest")) {
+      grouped <- lm(y ~ x + g, data = named)
+      expect_identical(run(grouped, numbered, "g")$statistic, run(grouped, named, "g")$statistic)
+    } else {
+      expect_identical(run(m, numbered, "x")$statistic, run(m, named, "x")$statistic, info = fn)
+    }
+  }
+  # The spatial test reads no column of `data`: its weights list the
+  # observations of the fit, in its order, so data in the order of the fit are
+  # taken, ties or not.
+  skip_if_not_installed("spdep")
+  set.seed(1)
+  coords <- cbind(runif(n), runif(n))
+  lw <- suppressWarnings(spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(coords, k = 4))))
+  spatial <- function(data) {
+    set.seed(7)
+    performSpatialHeteroTest(m, data, listw = lw, permutations = 19)
+  }
+  expected <- spatial(named)
+  for (data in refused) {
+    context_same(spatial(data), expected, "spatial")
+  }
+})
+
+test_that("a gam is matched to `data` by the row names of its model frame", {
+  # The residuals of an mgcv::gam() fit carry no names. Before 0.16.0 the
+  # tests that read a column of `data` then matched `data` to them by
+  # position, and given the rows of the fit in another order under their own
+  # names returned a wrong value without an error (N17): Glejser's test gave
+  # -0.322 for 3.626 on the gam without smooth terms. The context matches the
+  # rows by the row names of the model frame.
+  skip_if_not_installed("mgcv")
+  d <- context_data()
+  set.seed(3)
+  shuffled <- d[sample(nrow(d)), ]
+  for (m in list(mgcv::gam(y ~ x1 + x2, data = d), mgcv::gam(y ~ s(x1) + x2, data = d))) {
+    for (fn in context_runnable(context_increment3)) {
+      expected <- context_run(fn, list(build = function() list(m = m, data = d)))
+      expect_s3_class(expected, "htest")
+      context_same(context_run(fn, list(build = function() list(m = m, data = shuffled))),
+                   expected, paste(fn, deparse(stats::formula(m))))
+    }
+  }
+})
+
+test_that("Harrison-McCabe takes the rank of the fit, decided at its tolerance (N4)", {
+  # Decided on 2026-10-18 (decision 21). A Gaussian glm decides its rank at
+  # 1e-11, and an lm at the `tol` it is given; with x3 = x1 + 1e-9 z both keep
+  # x3, a rank of 4. Before 0.16.0 the test decided the rank again at 1e-7 and
+  # put a null distribution of rank 3 under residuals of rank 4: p 0.002288
+  # where the fit's rank gives 0.002273. The reference writes the test out
+  # with the rank of the fit (context_hmc_by_hand()).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  cells <- context_rank_cells()
+  ranks <- c(glm = 4L, glm_weighted = 4L, lm_tol = 4L, lm = 3L, glm_conditioned = 3L)
+  for (cell in cells) {
+    built <- cell$build()
+    id <- sub("^rank/", "", cell$id)
+    expect_identical(built$m$rank, ranks[[id]], info = id)
+    for (args in list(list(order_by = "x1"), list(order_by = "x2", point = 1 / 3))) {
+      out <- do.call(performHarrisonMcCabeTest, c(list(built$m, built$data), args))
+      reference <- do.call(context_hmc_by_hand, c(list(built$m, built$data), args))
+      info <- paste(id, args$order_by)
+      expect_equal(unname(out$statistic), unname(reference$statistic), tolerance = 1e-12,
+                   info = info)
+      expect_identical(unname(out$parameter), unname(reference$parameter), info = info)
+      expect_equal(out$p.value, reference$p.value, tolerance = 1e-10, info = info)
+    }
+  }
+  # Each part of the ordered sample needs as many observations as the fit has
+  # coefficients: four for the glm.
+  glm_cell <- cells[["rank/glm"]]$build()
+  expect_error(performHarrisonMcCabeTest(glm_cell$m, glm_cell$data, "x1", point = 3),
+               "Each part needs at least 4, the number of coefficients.", fixed = TRUE)
+  # The same glm with the rank decided at 1e-7, as before: another p-value.
+  ctx <- rmodel_context(glm_cell$m, glm_cell$data, fn = "f")
+  ordered <- rcontext_design(ctx)[order(glm_cell$data$x1), , drop = FALSE]
+  expect_identical(qr(ordered)$rank, 3L)
+  expect_identical(qr(ordered, tol = ctx$qr_tol)$rank, 4L)
+  e <- unname(rcontext_pearson(ctx))[order(glm_cell$data$x1)]
+  share <- sum(e[1:60]^2) / sum(e^2)
+  before <- rhmc_tails(share, rhmc_spectrum(qr(ordered), 60L))[["lower"]]
+  after <- performHarrisonMcCabeTest(glm_cell$m, glm_cell$data, "x1")$p.value
+  expect_gt(abs(after - before), 1e-5)
+})
+
+test_that("the registered Szroeter test orders by the fitted values of the context", {
+  d <- context_data()
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  fits <- list(
+    ols = lm(y ~ x1 + x2, data = d), wls = lm(y ~ x1 + x2, data = d, weights = w),
+    argument = lm(y ~ x1 + x2, data = d, offset = o),
+    term = lm(y ~ x1 + x2 + offset(o), data = d),
+    both = lm(y ~ x1 + x2 + offset(o), data = d, offset = o),
+    glm = glm(y ~ x1 + x2, data = d, weights = w),
+    glm_offset = glm(y ~ x1 + x2, data = d, offset = o),
+    rank_deficient = lm(y ~ x1 + x2 + I(2 * x2), data = d),
+    factor = lm(y ~ x1 + group, data = d),
+    fitwls = fitWLS(lm(y ~ x1 + x2, data = d)), rlm = MASS::rlm(y ~ x1 + x2, data = d),
+    na_omit = lm(y ~ x1 + x2, data = d_na)
+  )
+  if (requireNamespace("mgcv", quietly = TRUE)) {
+    fits$gam <- mgcv::gam(y ~ x1 + x2, data = d)
+    fits$gam_smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
+  }
+  # The values predict(type = "response") computes, which the registered test
+  # read before 0.16.0: the same numbers, so ties are broken as before.
+  for (nm in names(fits)) {
+    ctx <- rmodel_context(fits[[nm]], fn = "f")
+    predicted <- unname(as.vector(stats::predict(fits[[nm]], type = "response")))
+    expect_identical(rcontext_mean(ctx), predicted, info = nm)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  szroeter <- get("szroeter", envir = heteroTests:::.diagnostic_registry)
+  m <- fits$na_omit
+  expected <- szroeter(m, d_na)
+  fit_rows <- d_na[names(m$residuals), ]
+  fit_rows$fv <- rcontext_mean(rmodel_context(m, fn = "f"))
+  expect_identical(unname(expected$statistic),
+                   unname(performSzroeterTest(m, fit_rows, order_by = "fv")$statistic))
+  # Without `data` it reads the model frame, where it stopped with "Missing
+  # rows"; the complete rows numbered again are taken in the order of the
+  # fit, where they were matched by row name and refused.
+  expect_identical(szroeter(m, NULL)$statistic, expected$statistic)
+  complete <- d_na[stats::complete.cases(d_na[, c("y", "x1", "x2")]), ]
+  rownames(complete) <- NULL
+  expect_identical(szroeter(m, complete)$statistic, expected$statistic)
+  # A fit with model = FALSE whose data are gone is tested on data that give
+  # its response and fitted values; predict() could not rebuild its frame.
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  expect_identical(szroeter(m_false, d)$statistic, szroeter(fits$ols, d)$statistic)
+  # Data the guard refuses are refused, with its class.
+  arranged <- d[order(d$x1), ]
+  rownames(arranged) <- NULL
+  expect_error(szroeter(fits$ols, arranged), class = "heteroTests_data_rows_error")
+})
+
+test_that("the registered tests of increment 3 keep the refusals of the context final", {
+  d <- context_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  run <- function(m, data, tests) {
+    suppressWarnings(runHeteroTests(m, data, tests = tests, use_cache = FALSE, progress = FALSE))
+  }
+  edited <- lm(y ~ x1 + x2, data = d)
+  edited$coefficients[["x1"]] <- edited$coefficients[["x1"]] + 0.5
+  mlm <- lm(cbind(y, ypos) ~ x1 + x2, data = d)
+  arranged <- d[order(d$x1), ]
+  rownames(arranged) <- NULL
+  expect_error(run(edited, d, "szroeter"), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  expect_error(run(mlm, d, "szroeter"), "needs a model with one response",
+               class = "heteroTests_model_context_error")
+  expect_error(run(lm(y ~ x1 + x2, data = d), arranged, "szroeter"),
+               class = "heteroTests_data_rows_error")
+  # The spatial test has fallbacks in the runner, Breusch-Pagan and White, which
+  # it does not run under its name after a refusal of the context.
+  skip_if_not_installed("spdep")
+  with_weights <- function(data) {
+    set.seed(1)
+    coords <- cbind(runif(nrow(d)), runif(nrow(d)))
+    attr(data, "listw") <- suppressWarnings(
+      spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(coords, k = 4)))
+    )
+    data
+  }
+  expect_error(run(edited, with_weights(d), "spatial_hetero"), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  expect_error(run(mlm, with_weights(d), "spatial_hetero"), "needs a model with one response",
+               class = "heteroTests_model_context_error")
+  expect_error(run(lm(y ~ x1 + x2, data = d), with_weights(arranged), "spatial_hetero"),
+               class = "heteroTests_data_rows_error")
+  spatial <- get("spatial_hetero", envir = heteroTests:::.diagnostic_registry)
+  expect_error(spatial(edited, with_weights(d)), class = "heteroTests_model_context_error")
+  out <- run(lm(y ~ x1 + x2, data = d), with_weights(d), "spatial_hetero")$spatial_hetero
+  expect_identical(out$method, "Spatial heteroscedasticity test (Moran's I on squared residuals)")
+})
+
+test_that("a fit with a zero weight is refused on every route of increment 3", {
+  # The tests refused it before 0.16.0 by the Pearson residuals of the fit,
+  # and still do, with data, without and with the rows shuffled; Hartley's
+  # test without `data` lacks its groups first (the matrix checks it).
+  zero <- context_data()
+  zero$w0 <- zero$w
+  zero$w0[1] <- 0
+  set.seed(3)
+  shuffled <- zero[sample(nrow(zero)), ]
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  szroeter <- get("szroeter", envir = heteroTests:::.diagnostic_registry)
+  for (m in list(lm(y ~ x1 + x2, data = zero, weights = w0),
+                 glm(y ~ x1 + x2, data = zero, weights = w0))) {
+    for (data in list(zero, NULL, shuffled)) {
+      for (fn in context_runnable(context_increment3)) {
+        if (is.null(data) && fn %in% context_group_readers()) next
+        expect_error(suppressWarnings(contract_recipes[[fn]](m, data)),
+                     "zero or non-finite weights", info = fn)
+      }
+      expect_error(szroeter(m, data), "zero or non-finite weights")
+      expect_error(
+        suppressWarnings(runHeteroTests(m, data, tests = "szroeter", use_cache = FALSE,
+                                        progress = FALSE)),
+        "zero or non-finite weights"
+      )
+    }
+  }
+})
+
 test_that("an offset is the model of the response minus the offset", {
   # 400 calls, among them fitWLS() fits: with the full matrix, off CRAN.
   skip_on_cran()
@@ -486,13 +759,15 @@ test_that("an offset is the model of the response minus the offset", {
   # quantile regression test refuses a weighted fit.
   for (fn in setdiff(context_runnable(), "performRESETTest")) {
     fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else context_fits
+    # Hartley's test groups by a variable the model frame does not hold.
+    forms <- if (fn %in% context_group_readers()) "data_frame" else c("data_frame", "null")
     for (fit in fits) {
       expected <- context_run(fn, list(build = function() {
         m <- context_model(shifted, fit)
         list(m = m, data = shifted)
       }))
       for (offset in c("argument", "term")) {
-        for (form in c("data_frame", "null")) {
+        for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, offset)
             list(m = m, data = context_form(form, m, d))
@@ -553,9 +828,11 @@ test_that("a term is the column it computes, taken from the fit", {
       for (terms in names(precomputed)) {
         expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
         tolerance <- if (terms == "poly") 1e-8 else 1e-10
-        # Goldfeld-Quandt orders by x1, which the model frame of these fits
-        # does not hold: without `data` it is refused (the matrix checks it).
-        forms <- if (identical(fn, "performGQTest")) "data_frame" else c("data_frame", "null")
+        # Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read x1,
+        # which the model frame of these fits does not hold, and Hartley's
+        # test groups by a variable it does not hold either: without `data`
+        # they are refused (the matrix checks it).
+        forms <- if (fn %in% names(context_reads)) "data_frame" else c("data_frame", "null")
         for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, "none", terms)

@@ -349,7 +349,7 @@ test_that("a tibble whose incomplete rows a test drops is not matched to other r
   # The tests built on the model context (since 0.16.0) match the rows before
   # they drop any, so the tibble holds the rows of the fit under its original
   # row numbers and gives the value on the rows of the fit.
-  for (fn in c("performKoenkerTest", "performWhiteTest", "performBPTest")) {
+  for (fn in c("performKoenkerTest", "performWhiteTest", "performBPTest", "performGlejserTest")) {
     expect_same_result(
       guard_run(fn, m, tb),
       guard_run(fn, m, as.data.frame(tb[1:100, ])),
@@ -358,10 +358,10 @@ test_that("a tibble whose incomplete rows a test drops is not matched to other r
   }
   # The others still drop them first, and refuse the renumbered rows.
   expect_error(
-    guard_run("performGlejserTest", m, tb),
+    guard_run("performWildBootstrapTest", m, tb),
     "numbers the rows that are left afresh",
     class = "heteroTests_data_rows_error",
-    info = "Glejser"
+    info = "wild bootstrap"
   )
   # The group tests match before they drop rows, and were not affected.
   expect_same_result(
@@ -643,8 +643,8 @@ test_that("messages name the function called and say why", {
   tb <- dplyr::as_tibble(dn)
   m_short <- lm(y ~ x1 + x2, data = tb[1:100, ])
   expect_error(
-    suppressWarnings(performGlejserTest(m_short, tb, "x1")),
-    "^performGlejserTest\\(\\) cannot match.*afresh"
+    suppressWarnings(performWildBootstrapTest(m_short, tb, B = 9, progress = FALSE)),
+    "^performWildBootstrapTest\\(\\) cannot match.*afresh"
   )
   # The scatter diagnostic reads by position and cannot match the names of a
   # fit to character row names against a tibble.

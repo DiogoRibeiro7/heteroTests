@@ -204,14 +204,20 @@ test_that("the registered Szroeter test uses the rows the model used, and says n
   expect_equal(unname(res50$statistic), unname(szroeter_q(m50, key(m50))["q"]),
                tolerance = 1e-10)
 
-  # Data that lack rows of the fit: here the model has its own row names and
-  # the data the default ones. That is an error, and nothing before it is
-  # reported as a missing value.
+  # The model has its own row names and the data the default ones. Since
+  # 0.16.0 data that number their rows and hold one row per observation are
+  # taken in the order of the fit once they reproduce it, as by
+  # performSzroeterTest(); before, the registered test matched the fitted
+  # values by row name and stopped with "Missing rows: r1, r2, r3". Data that
+  # lack rows of the fit are an error, and nothing before it is reported as a
+  # missing value.
   named <- `rownames<-`(d, paste0("r", seq_len(n)))
   m_named <- lm(y ~ x1 + x2, data = named)
+  expect_warning(res_named <- run_szroeter(m_named, d), NA)
+  expect_identical(unname(res_named$statistic), unname(run_szroeter(m_named, named)$statistic))
   expect_warning(
     expect_error(
-      run_szroeter(m_named, d),
+      run_szroeter(m_named, named[-(1:3), ]),
       "requires `data` to contain the rows used to fit the model. Missing rows: r1, r2, r3",
       fixed = TRUE
     ),
