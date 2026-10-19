@@ -56,3 +56,14 @@ test_that("performQuantileRegressionTest validates quantile inputs", {
     "single non-missing logical"
   )
 })
+
+test_that("performQuantileRegressionTest refuses a model without a slope", {
+  skip_if_not_installed("quantreg")
+  # It compares the slopes across quantiles; before 0.16.0 an intercept-only
+  # model stopped with "argument is of length zero".
+  expect_error(
+    performQuantileRegressionTest(lm(stations ~ 1, data = quakes), quakes),
+    "needs a regressor beyond the intercept",
+    fixed = TRUE
+  )
+})

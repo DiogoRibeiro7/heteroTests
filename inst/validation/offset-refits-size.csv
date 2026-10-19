@@ -8,3 +8,4 @@
 "rbootstrap_test_statistic","before","argument","x + z","fitted order","normal",100,199,2000,0.047,0.00473238840333293,2000,0
 "rbootstrap_test_statistic","before","argument","x + z","another order","normal",100,199,2000,0.2565,0.00976493087533138,2000,0
 "rbootstrap_test_statistic","corrected","argument","x + z","fitted order","normal",100,999,5000,0.046,0.00296256645495084,5000,0
+"performRESETTest","corrected","argument","x + z","fitted order","normal",100,NA,5000,0.0492,0.00305873699425106,5000,0

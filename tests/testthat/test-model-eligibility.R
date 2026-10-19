@@ -393,9 +393,14 @@ test_that("the power form of the variance-form test uses every column of the des
 
 # Offsets ----------------------------------------------------------------------
 
-# Four tests leave the offset out of a refit and, on a model with an offset,
-# returned a value that is not that of the model. Decided on 2026-10-17: they
-# refuse exactly the offsets they ignore, until the offset fix of 0.16.0.
+# Four tests left the offset out of a refit and, on a model with an offset,
+# returned a value that is not that of the model; decided on 2026-10-17, they
+# refused the offsets they ignored until the offset fix of 0.16.0. Since then
+# they read the offset from the fit (the model context, R/model_context.R):
+# Goldfeld-Quandt, the quantile regression test and the studentized
+# Breusch-Pagan statistic give the value of the model fitted to the response
+# minus the offset, and RESET the nested F test of the model with its offset
+# (decided 2026-10-18).
 offset_fits <- function() {
   d <- contract_data()$d
   set.seed(33)
@@ -418,108 +423,160 @@ offset_fits <- function() {
   )
 }
 
-offset_refusal <- "does not account for an offset yet"
+# The fit of the response minus the offset that a fit with an offset stands
+# for.
+offset_reference <- function(f, k) {
+  if (startsWith(k, "weighted")) f$weighted_reference else f$reference
+}
 
-test_that("the tests that ignore an offset refuse it, and only the offsets they ignore", {
+# RESET of a fit with an offset, written out: anova() of the fit, with its
+# offset and weights, against the fit augmented with the squares and cubes of
+# its fitted values X b + o, with the same offset and weights.
+offset_reset_reference <- function(m, d) {
+  ref <- d
+  ref$f2 <- stats::fitted(m)^2
+  ref$f3 <- stats::fitted(m)^3
+  weights_of_fit <- stats::weights(m)
+  ref$wt <- if (is.null(weights_of_fit)) rep(1, nrow(d)) else weights_of_fit
+  restricted <- stats::lm(y ~ x1 + x2, data = ref, weights = wt, offset = o)
+  augmented <- stats::lm(y ~ x1 + x2 + f2 + f3, data = ref, weights = wt, offset = o)
+  stats::anova(restricted, augmented)
+}
+
+expect_same_htest <- function(object, expected, info, tolerance = 1e-10) {
+  expect_s3_class(object, "htest")
+  expect_equal(unname(object$statistic), unname(expected$statistic), tolerance = tolerance,
+               info = info)
+  expect_equal(unname(object$parameter), unname(expected$parameter), info = info)
+  expect_equal(object$p.value, expected$p.value, tolerance = tolerance, info = info)
+}
+
+test_that("the four tests give a model with an offset the value of that model", {
   f <- offset_fits()
   d <- f$d
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   offsets <- c("argument", "term", "weighted_argument", "weighted_term")
-  refuse_all <- list(
-    performRESETTest = function(m) performRESETTest(m),
+  # The studentized Breusch-Pagan statistic is that of the model of y - o, and
+  # Koenker's statistic of the model with the offset.
+  studentized <- list(
     performStudentizedBPTest = function(m) without_deprecation(performStudentizedBPTest(m, d)),
-    performBPTestRobust = function(m) performBPTestRobust(m, d)
+    performBPTestRobust = function(m) performBPTestRobust(m, d),
+    .studentized_bp_test = function(m) .studentized_bp_test(m, d),
+    performGQTest = function(m) performGQTest(m, d, order_by = "x1")
   )
-  for (fn in names(refuse_all)) {
+  for (fn in names(studentized)) {
     for (k in offsets) {
-      expect_error(refuse_all[[fn]](f[[k]]), offset_refusal,
-                   class = "heteroTests_offset_error", info = paste(fn, k))
+      out <- studentized[[fn]](f[[k]])
+      expect_same_htest(out, studentized[[fn]](offset_reference(f, k)), paste(fn, k))
+      if (!identical(fn, "performGQTest")) {
+        koenker <- performKoenkerTest(f[[k]], d)
+        expect_equal(unname(out$statistic), unname(koenker$statistic), tolerance = 1e-10,
+                     info = paste(fn, k))
+      }
     }
   }
-  # The registered name and the implementation behind them refuse it too.
-  expect_error(.studentized_bp_test(f$argument, d), offset_refusal)
+  # Without `data`, from the model frame, which holds an offset given as an
+  # argument as "(offset)", and an offset() term with `data`.
+  expect_same_htest(without_deprecation(performStudentizedBPTest(f$argument)),
+                    without_deprecation(performStudentizedBPTest(f$reference)), "NULL")
+  expect_same_htest(performGQTest(f$weighted_argument, order_by = "x1"),
+                    performGQTest(f$weighted_reference, order_by = "x1"), "GQ NULL")
   if (requireNamespace("quantreg", quietly = TRUE)) {
+    # quantreg::anova.rqs() warns about the sparsity estimates of this design
+    # ("non-positive fis"), as on the fit of y - o.
+    quantile <- function(m, data = NULL) {
+      suppressWarnings(performQuantileRegressionTest(m, data))
+    }
     for (k in c("argument", "term")) {
-      expect_error(performQuantileRegressionTest(f[[k]], d), offset_refusal,
-                   class = "heteroTests_offset_error", info = k)
+      expect_same_htest(quantile(f[[k]], d), quantile(f$reference, d), paste("quantile", k))
+      expect_same_htest(quantile(f[[k]]), quantile(f$reference, d), paste("quantile NULL", k))
     }
   }
-  # GQ refits an unweighted segment from the formula, which evaluates an
-  # offset() term again: that offset is accounted for, and accepted.
-  for (k in c("argument", "weighted_argument", "weighted_term")) {
-    expect_error(performGQTest(f[[k]], d, order_by = "x1"), offset_refusal,
-                 class = "heteroTests_offset_error", info = k)
+  # RESET is the nested F test of the model with its offset, not RESET of
+  # the model of y - o, which augments it with the powers of X b alone.
+  for (k in offsets) {
+    out <- performRESETTest(f[[k]], d)
+    reference <- offset_reset_reference(f[[k]], d)
+    expect_equal(unname(out$statistic), reference$F[2], tolerance = 1e-10, info = k)
+    expect_equal(unname(out$parameter), c(reference$Df[2], reference$Res.Df[2]), info = k)
+    expect_equal(out$p.value, reference$`Pr(>F)`[2], tolerance = 1e-10, info = k)
+    expect_identical(performRESETTest(f[[k]])$statistic, out$statistic, info = k)
   }
-  gq <- performGQTest(f$term, d, order_by = "x1")
-  expect_equal(unname(gq$statistic),
-               unname(performGQTest(f$reference, d, order_by = "x1")$statistic),
-               tolerance = 1e-10)
-  # The classical statistic of performBPTestRobust() accounts for an offset.
+  expect_gt(abs(unname(performRESETTest(f$argument)$statistic) -
+                  unname(performRESETTest(f$reference)$statistic)), 0.1)
+  # The classical statistic of performBPTestRobust() accounted for an offset
+  # already.
   classical <- performBPTestRobust(f$argument, d, studentize = FALSE)
   expect_equal(unname(classical$statistic),
                unname(performBPTestRobust(f$reference, d, studentize = FALSE)$statistic),
                tolerance = 1e-10)
-  # An offset that is zero everywhere changes nothing and is not refused.
+  # An offset that is zero everywhere changes nothing.
   expect_identical(performRESETTest(f$zero)$statistic, performRESETTest(f$plain)$statistic)
   expect_equal(unname(performGQTest(f$zero, d, order_by = "x1")$statistic),
                unname(performGQTest(f$plain, d, order_by = "x1")$statistic), tolerance = 1e-12)
-  # The message says what the test does with the offset and what accounts for it.
-  expect_error(
-    performGQTest(f$argument, d, order_by = "x1"),
-    paste0(
-      "performGQTest() does not account for an offset yet: it refits each segment from ",
-      "the formula, which leaves out an offset given as an argument"
-    ),
-    fixed = TRUE
-  )
-  expect_error(performRESETTest(f$argument), "performKoenkerTest(), performWhiteTest()",
-               fixed = TRUE)
+  # Nothing in the package refuses an offset any more.
+  expect_false(exists("rrefuse_offset", envir = asNamespace("heteroTests"), inherits = FALSE))
 })
 
-test_that("the routes report a refused offset without a fallback", {
+test_that("the routes return the value of a model with an offset", {
   f <- offset_fits()
   d <- f$d
   m <- f$argument
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
+  # quantreg::anova.rqs() warns about the sparsity estimates of this design
+  # ("non-positive fis"), on the model and on the fit of y - o alike.
+  quiet <- function(expr) suppressWarnings(expr)
+  expected <- list(
+    student_bp = performKoenkerTest(m, d),
+    quantile_regression = if (requireNamespace("quantreg", quietly = TRUE)) {
+      quiet(performQuantileRegressionTest(f$reference, d))
+    }
+  )
   names <- "student_bp"
   if (requireNamespace("quantreg", quietly = TRUE)) {
     names <- c(names, "quantile_regression")
   }
-  for (name in names) {
-    expect_error(
-      without_deprecation(runHeteroTests(m, d, tests = name, use_cache = FALSE)),
-      offset_refusal, class = "heteroTests_offset_error", info = name
-    )
-    expect_error(
-      without_deprecation(runHeteroTests(m, d, tests = name, use_cache = TRUE)),
-      offset_refusal, class = "heteroTests_offset_error", info = name
-    )
-    expect_error(without_deprecation(cachedTest(name, m, d, use_cache = FALSE)), offset_refusal,
-                 info = name)
-    expect_error(get(name, envir = .diagnostic_registry)(m, d), offset_refusal, info = name)
-    expect_error(test_factory$run_test(name, m, d), offset_refusal, info = name)
-    expect_error(runHeteroTestsParallel(m, d, tests = name, n_cores = 1), offset_refusal,
-                 info = name)
+  same <- function(object, name, how) {
+    expect_equal(unname(object$statistic), unname(expected[[name]]$statistic),
+                 tolerance = 1e-10, info = paste(name, how))
   }
-  # runDiagnostics() runs RESET, which refuses the offset.
-  expect_error(runDiagnostics(m, d, use_cache = FALSE), offset_refusal,
-               class = "heteroTests_offset_error")
-  # The default battery accounts for the offset.
+  for (name in names) {
+    for (use_cache in c(FALSE, TRUE)) {
+      res <- quiet(runHeteroTests(m, d, tests = name, use_cache = use_cache))
+      same(res[[name]], name, paste("runHeteroTests, use_cache =", use_cache))
+      expect_null(attr(res[[name]], "extras")$status, info = name)
+    }
+    same(quiet(cachedTest(name, m, d, use_cache = FALSE)), name, "cachedTest")
+    same(quiet(get(name, envir = .diagnostic_registry)(m, d)), name, "registry")
+    same(quiet(test_factory$run_test(name, m, d)), name, "test_factory")
+    same(quiet(runHeteroTestsParallel(m, d, tests = name, n_cores = 1))[[name]], name,
+         "parallel")
+  }
+  # runDiagnostics() runs RESET, the nested F test of the model with its offset.
+  reference <- offset_reset_reference(m, d)
+  diagnostics <- runDiagnostics(m, d, use_cache = FALSE)
+  expect_equal(unname(diagnostics$reset$statistic), reference$F[2], tolerance = 1e-10)
+  # The default battery accounts for the offset, as before.
   res <- runHeteroTests(m, d, use_cache = FALSE)
   expect_equal(unname(res$koenker$statistic),
                unname(performKoenkerTest(f$reference, d)$statistic), tolerance = 1e-10)
-  # Grouped data return the test as failed, with its refusal, and no fallback.
+  # Grouped data return the statistic of each group's fit, with its offset.
   skip_if_not_installed("dplyr")
   d$half <- rep(c("a", "b"), length.out = nrow(d))
   grouped <- without_deprecation(runHeteroTests(lm(y ~ x1 + x2, d, offset = o),
                                                 dplyr::group_by(d, half), tests = "student_bp"))
-  for (suite in grouped) {
-    extras <- attr(suite$student_bp, "extras")
-    expect_identical(extras$status, "error")
-    expect_identical(extras$issue, "offset")
-    expect_match(extras$message, offset_refusal)
+  halves <- attr(grouped, "group_keys")$half
+  expect_setequal(halves, c("a", "b"))
+  for (k in seq_along(grouped)) {
+    half <- halves[k]
+    rows <- d[d$half == half, ]
+    suite <- grouped[[k]]
+    expect_null(attr(suite$student_bp, "extras")$status, info = half)
+    expect_equal(unname(suite$student_bp$statistic),
+                 unname(performKoenkerTest(lm(y ~ x1 + x2, rows, offset = o), rows)$statistic),
+                 tolerance = 1e-10, info = half)
   }
 })
 

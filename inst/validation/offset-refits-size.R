@@ -1,4 +1,4 @@
-# The resampling tests on a fit with an offset ---------------------------------
+# The resampling tests, and RESET, on a fit with an offset ----------------------
 #
 # Run from the package root:
 #   Rscript inst/validation/offset-refits-size.R
@@ -54,6 +54,17 @@
 # reproduces the package's replicates, so that the dropped offset and the
 # positions are the only differences. The wild bootstrap is not in this
 # block: it stopped with an error on every one of these fits.
+#
+# Block 3, RESET. performRESETTest() on the same fit, since 0.16.0 the nested
+# F test of the model with its offset against the model augmented with the
+# squares and cubes of its fitted values X b + o, fitted with the same offset
+# (decided 2026-10-18, decision 19 of the design of the model context). The
+# model is linear in x and z, so the null hypothesis of RESET, a correct form
+# of the mean, holds, and the rejection rate is its size. It has no
+# bootstrap, so its B is NA; it is the tenth scenario, added after the others
+# so that their seeds stay as they were. Before 0.16.0 RESET fitted the
+# augmented model without the offset, so the two models were not nested; it
+# is not repeated as it was.
 #
 # Each replication starts by clearing the package's validation cache. The
 # tests store the result of every input validation, keyed by the model and
@@ -252,6 +263,11 @@ scenarios <- rbind(scenarios, data.frame(
   test = "rbootstrap_test_statistic", version = "corrected", terms = "x + z",
   rows = "fitted order", B = 999L, chunk = 125L, stringsAsFactors = FALSE
 ))
+# Added after those: RESET, which has no bootstrap (block 3).
+scenarios <- rbind(scenarios, data.frame(
+  test = "performRESETTest", version = "corrected", terms = "x + z",
+  rows = "fitted order", B = NA_integer_, chunk = chunk_size, stringsAsFactors = FALSE
+))
 
 p_value <- function(s, o) {
   if (s$version == "before") {
@@ -259,6 +275,7 @@ p_value <- function(s, o) {
     return(resample_by_hand(o, scheme, keep_offset = FALSE, by_name = FALSE, B = s$B))
   }
   switch(s$test,
+    performRESETTest = performRESETTest(o$model, o$data),
     performWildBootstrapTest = performWildBootstrapTest(o$model, o$data, B = s$B,
                                                         progress = FALSE),
     performWhiteTestBootstrap = performWhiteTestBootstrap(o$model, o$data, B = s$B),
@@ -301,8 +318,10 @@ units <- do.call(rbind, lapply(selected, function(i) {
 # The slowest chunks go first, so that the workers finish together. The order
 # changes no value.
 cost <- c(performWildBootstrapTest = 0.3, performWhiteTestBootstrap = 1.3,
-          rbootstrap_test_statistic = 1.5)
-units$cost <- units$size * scenarios$B[units$scenario] / n_boot *
+          rbootstrap_test_statistic = 1.5, performRESETTest = 0.001)
+replicates_of <- scenarios$B[units$scenario]
+replicates_of[is.na(replicates_of)] <- n_boot
+units$cost <- units$size * replicates_of / n_boot *
   ifelse(scenarios$version[units$scenario] == "corrected",
          cost[scenarios$test[units$scenario]], 0.4)
 units <- units[order(-units$cost, units$scenario, units$chunk), ]

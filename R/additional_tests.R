@@ -73,9 +73,9 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' weights, and before 0.15.0 `performStudentizedBPTest()` read them from
 #' there, so it computed the statistic of the unweighted fit. Since 0.15.0 it
 #' reads the weights of the fit, as [performKoenkerTest()] does, and the two
-#' agree. On a model with an offset they still differ:
-#' `performStudentizedBPTest()` drops the offset, which is to be fixed in
-#' 0.16.0, and [performKoenkerTest()] is the correct one.
+#' agree. On a model with an offset they agree since 0.16.0: before, the refit
+#' of the design left the offset out, and `performStudentizedBPTest()`
+#' returned the statistic of another model.
 #'
 #' Computes Koenker's (1981) studentized form of the Breusch–Pagan Lagrange
 #' multiplier statistic, \eqn{n R^2} from the regression of the squared
@@ -86,14 +86,18 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #'
 #' @param model A fitted [stats::lm] object providing the residuals and design
 #'   matrix for the auxiliary regression.
-#' @param data A [base::data.frame] containing the variables used to fit
-#'   `model`. It must include all observations referenced by the model object.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #'
 #' @return An object of class \code{htest} reporting the chi-squared statistic
 #'   and p-value for the null hypothesis of constant error variance.
@@ -112,12 +116,17 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' residual \eqn{\sqrt{w_i}} times the raw residual and the auxiliary
 #' regression is unweighted; see the section on weighted fits in
 #' [performKoenkerTest()]. This departs from `lmtest::bptest()`, which keeps the
-#' raw residuals and weights the auxiliary regression. The implementation
+#' raw residuals and weights the auxiliary regression. The residuals are those
+#' of the refit of the design of the fit to its response, with its weights and
+#' its offset, so on a model with an offset the statistic is that of the model
+#' fitted to the response minus the offset, Koenker's statistic of the model
+#' (since 0.16.0). The implementation
 #' shares the validation
-#' helpers used across the package to ensure that: (i) the model and data satisfy
-#' minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()} and
-#' \link[=rvalidateDataInputs]{rvalidateDataInputs()}, (ii) missing values are handled by
-#' \link[=rhandleMissingValues]{rhandleMissingValues()}, and (iii) the
+#' helpers used across the package to ensure that: (i) the model satisfies
+#' minimum sample-size thresholds via \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) the
+#' response, design, weights and offset are those of the fit itself, with the
+#' rows of `data` matched to its observations (the model context, since
+#' 0.16.0), and (iii) the
 #' requirements registered for this test in
 #' \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
 #'
@@ -137,11 +146,16 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. It refuses a model with an offset, which the
-#' studentized statistic leaves out when it refits the design, until the offset
-#' fix planned for 0.16.0 (decided 2026-10-17); [performKoenkerTest()] accounts
-#' for it. Which model each test accepts, and why, is set out in [test_results],
-#' under *Supported models*.
+#' lack rows or variables of the fit. A model with an offset is accepted since
+#' 0.16.0: the refit of the design carries the offset, as [performKoenkerTest()]
+#' accounts for it.
+#' It refuses a multivariate `lm` ("needs a model with one response"), and,
+#' since 0.16.0, an `mgcv::gam()` fit with smooth terms: a smooth term is
+#' usually penalised, and a penalised fit is not the least-squares fit of the
+#' design the test fits again. A later step settles which tests take such a
+#' fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+#' Which model each test accepts, and why, is set out in
+#' [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -159,63 +173,57 @@ prepare_model_data_for_test <- function(model, data, required_vars, test_label,
 #' @export
 performStudentizedBPTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
-  data <- rdata_or_model_frame(model, data)
+  # The model and `data` are checked before the deprecation warning, as
+  # before 0.16.0 (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performStudentizedBPTest", test_label = "Studentized BP")
   .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
-  .studentized_bp_test(model, data, data_name = deparse(substitute(model)))
+  .studentized_bp_test(model, data, data_name = deparse(substitute(model)), ctx = ctx)
 }
 
 # The implementation behind the deprecated performStudentizedBPTest(), the
-# "student_bp" registry name and performBPTestRobust(studentize = TRUE). It
-# is kept as it was, so that none of them changes value in 0.14.0.
-.studentized_bp_test <- function(model, data, data_name = deparse(substitute(model))) {
+# "student_bp" registry name and performBPTestRobust(studentize = TRUE). Since
+# 0.16.0 it is built on the model context (R/model_context.R): the response,
+# design, weights and offset come from the fit, and the refit of the design
+# carries the offset, so that on a model with an offset it gives Koenker's
+# statistic, as it does without one. `ctx` is the context its caller built, or
+# `NULL`.
+.studentized_bp_test <- function(model, data, data_name = deparse(substitute(model)),
+                                 ctx = NULL) {
   test_label <- "Studentized BP"
-  # The residuals are recomputed by lm.wfit() below without the offset: an
-  # offset is refused until 0.16.0 accounts for it (decided 2026-10-17).
-  rrefuse_offset(
-    model, rtest_name(sys.parent(), "performStudentizedBPTest"),
-    how = "the studentized statistic refits the design without the offset"
-  )
   # The registry name "student_bp", its test_factory entry and
   # rvalidate_against_reference() call this implementation directly, not
-  # performStudentizedBPTest(), so the rows of `data` are checked here too.
-  if (!is.null(data)) {
-    rcheck_data_rows(model, data, fn = rtest_name(sys.parent(), "performStudentizedBPTest"))
+  # performStudentizedBPTest(), so the model and the rows of `data` are
+  # checked here too.
+  if (is.null(ctx)) {
+    ctx <- rmodel_context(model, data, fn = "performStudentizedBPTest", test_label = test_label)
   }
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
+  rrefuse_smooth_gam(ctx, rtest_name(sys.parent(), "performStudentizedBPTest"))
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # A fit with a zero weight is refused where it was before 0.16.0, by the
+  # Pearson residuals of the fit (rpearson_residuals()).
+  rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("studentized_bp", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   ht_log("INFO", "Running Studentized Breusch-Pagan test")
 
-  model_frame <- stats::model.frame(model)
-  if (nrow(model_frame) == 0) {
+  if (length(ctx$residuals) == 0L) {
     .std_error(
       "rassumption_violation",
       assumption = "Studentized BP test requires observations in the model frame"
     )
   }
 
-  response <- stats::model.response(model_frame)
-  # model.matrix(model), not model.matrix(model, data = model_frame): the
-  # latter re-evaluates the model call against the model frame, where a weights
-  # column is stored as "(weights)" and the name used in the call is gone, so
-  # every weighted fit failed with "object not found". Without the columns a
-  # rank-deficient fit aliased (rnon_aliased_columns()).
-  design_matrix <- rnon_aliased_columns(stats::model.matrix(model), model)
+  response <- ctx$response
+  # The design of the fit, without the columns a rank-deficient fit aliased
+  # (rcontext_design()).
+  design_matrix <- rcontext_design(ctx)
 
   if (ncol(design_matrix) < 2L) {
     stop(
@@ -229,8 +237,8 @@ performStudentizedBPTest <- function(model, data = NULL) {
   # model's weights, or none, and not the estimated weights: before 0.15.0 the
   # statistic of a fitWLS() fit was that of the unweighted fit. They are read
   # as the other tests read them, which for a Gaussian glm are its prior
-  # weights.
-  weights <- rleast_squares_weights(model)
+  # weights (rleast_squares_weights()).
+  weights <- ctx$weights
   if (is.null(weights)) {
     weights <- rep.int(1, nrow(design_matrix))
   }
@@ -256,8 +264,10 @@ performStudentizedBPTest <- function(model, data = NULL) {
   # no weights this is the ordinary residual vector. Before 0.12.0 the raw
   # residuals were used and the auxiliary regression was weighted instead, the
   # lmtest::bptest() treatment, which tests the raw residuals for constant
-  # variance and so rejects a correctly weighted fit.
-  base_fit <- stats::lm.wfit(design_matrix, response, weights)
+  # variance and so rejects a correctly weighted fit. The refit carries the
+  # total offset of the fit; before 0.16.0 it left the offset out, and a model
+  # with an offset was refused.
+  base_fit <- stats::lm.wfit(design_matrix, response, weights, offset = ctx$offset)
   residuals <- sqrt(weights) * base_fit$residuals
 
   if (length(residuals) != nrow(working_data)) {

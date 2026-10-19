@@ -384,6 +384,31 @@ test_that("fitWLS() records the weights of a weighted model it refits", {
                    weights(weighted$base))
 })
 
+test_that("the studentized statistic of a model with an offset is Koenker's", {
+  # Its refit of the design left the offset out: on lm(y ~ x + z, offset = o)
+  # in this design it gave 19.91, where Koenker's statistic is 18.79. Since
+  # 0.16.0 the refit carries the offset, and the two agree, on the model and
+  # on its fitWLS() fit.
+  for (variant in list(c(FALSE, TRUE), c(TRUE, TRUE))) {
+    obj <- make_fgls_fit(weights = variant[1], offset = variant[2])
+    d <- obj$data
+    label <- sprintf("weights = %s", variant[1])
+    for (model in list(obj$base, obj$fit)) {
+      koenker <- quiet(performKoenkerTest(model, d))
+      for (r in list(quiet(performStudentizedBPTest(model, d)),
+                     quiet(heteroTests:::.studentized_bp_test(model, d)),
+                     quiet(performBPTestRobust(model, d)))) {
+        expect_equal(unname(r$statistic), unname(koenker$statistic), tolerance = 1e-10,
+                     label = label)
+        expect_equal(r$p.value, koenker$p.value, tolerance = 1e-10, label = label)
+      }
+    }
+  }
+  obj <- make_fgls_fit(offset = TRUE)
+  expect_equal(unname(quiet(performStudentizedBPTest(obj$base, obj$data))$statistic), 18.79065,
+               tolerance = 1e-6)
+})
+
 test_that("a fit made before 0.15.0 is estimated again from the weights in its model frame", {
   # fitWLS() before 0.15.0 recorded no initial_weights. Its model frame is the
   # frame of the model it refitted, which holds those weights as (weights).

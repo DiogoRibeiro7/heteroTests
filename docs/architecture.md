@@ -47,8 +47,10 @@ weights, the offset and the rank, instead of rebuilding them from `data`. The
 rows of `data` are matched to the observations of the fit by the guard of
 0.15.0 before anything is read from them: named data in any order, numbered
 data in fit order. White's, Breusch-Pagan, Koenker's, the rank permutation and
-the high-dimensional tests are built on it; the others still go through
-`rdata_or_model_frame()`. [Design: the model context](design/model-context.md)
+the high-dimensional tests are built on it, and so are the studentized
+Breusch-Pagan statistic, RESET, Goldfeld-Quandt and the quantile regression
+test, which carry the offset of the fit in their refits; the others still go
+through `rdata_or_model_frame()`. [Design: the model context](design/model-context.md)
 sets out the contract, the representation, the plan, the test matrix and the
 decisions.
 

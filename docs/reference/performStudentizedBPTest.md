@@ -12,9 +12,9 @@ and warns, and returns what it returned before except on a fit returned by
 weights, and before 0.15.0 `performStudentizedBPTest()` read them from
 there, so it computed the statistic of the unweighted fit. Since 0.15.0 it
 reads the weights of the fit, as [`performKoenkerTest()`](performKoenkerTest.md) does, and the two
-agree. On a model with an offset they still differ:
-`performStudentizedBPTest()` drops the offset, which is to be fixed in
-0.16.0, and [`performKoenkerTest()`](performKoenkerTest.md) is the correct one.
+agree. On a model with an offset they agree since 0.16.0: before, the refit
+of the design left the offset out, and `performStudentizedBPTest()`
+returned the statistic of another model.
 
 ## Usage
 
@@ -29,14 +29,18 @@ performStudentizedBPTest(model, data = NULL)
     matrix for the auxiliary regression.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) containing the variables used to fit
-    `model`. It must include all observations referenced by the model object.
-    When `NULL`, the default, the model frame of `model` is used. It holds the
-    terms of the model rather than its variables (`log(x)` rather than `x`), so
-    a model that transforms a variable needs `data`, as does a
-    model with an `offset()` term, and so may a fit whose `weights` or `offset`
-    argument is a column of the data, which the model frame holds as
-    `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default.
+    The response, design, weights and offset are read from the fit itself, so
+    a model that transforms its variables, has an `offset()` term, or takes
+    its `weights` or `offset` from a column of the data needs no `data`, and
+    the model frame of `model` is accepted as `data` (since 0.16.0; before,
+    such models needed `data`). Data that are given are matched to the
+    observations of the fit: rows with row names of their own by name, in any
+    order; rows that only number themselves (a tibble, a data.table, a data
+    frame whose row names were reset) by the row numbers of the fit, or in the
+    order of the fit when they hold one row per observation. The rows the fit
+    dropped may be there or not. Data whose rows cannot be shown to hold the
+    observations of the fit are refused; see [`test_results`](test_results.md).
 
 ## Value
 
@@ -65,12 +69,17 @@ whether or not the errors are normal. On a weighted fit \(e_i\) is the Pearson
 residual \(\sqrt{w_i}\) times the raw residual and the auxiliary
 regression is unweighted; see the section on weighted fits in
 [`performKoenkerTest()`](performKoenkerTest.md). This departs from `lmtest::bptest()`, which keeps the
-raw residuals and weights the auxiliary regression. The implementation
+raw residuals and weights the auxiliary regression. The residuals are those
+of the refit of the design of the fit to its response, with its weights and
+its offset, so on a model with an offset the statistic is that of the model
+fitted to the response minus the offset, Koenker's statistic of the model
+(since 0.16.0). The implementation
 shares the validation
-helpers used across the package to ensure that: (i) the model and data satisfy
-minimum sample-size thresholds via [rvalidateModelInputs()](rvalidateModelInputs.md) and
-[rvalidateDataInputs()](rvalidateDataInputs.md), (ii) missing values are handled by
-[rhandleMissingValues()](rhandleMissingValues.md), and (iii) the
+helpers used across the package to ensure that: (i) the model satisfies
+minimum sample-size thresholds via [rvalidateModelInputs()](rvalidateModelInputs.md), (ii) the
+response, design, weights and offset are those of the fit itself, with the
+rows of `data` matched to its observations (the model context, since
+0.16.0), and (iii) the
 requirements registered for this test in
 [rvalidateTestRequirements()](rvalidateTestRequirements.md) are met.
 
@@ -81,10 +90,14 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. It refuses a model with an offset, which the studentized
-statistic leaves out when it refits the design, until the offset fix planned for 0.16.0 (decided
-2026-10-17); [`performKoenkerTest()`](performKoenkerTest.md) accounts for it. Which model each test accepts, and
-why, is set out in [`test_results`](test_results.md), under *Supported models*.
+lack rows or variables of the fit. A model with an offset is accepted since 0.16.0: the refit of
+the design carries the offset, as [`performKoenkerTest()`](performKoenkerTest.md) accounts for it.
+It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
+`mgcv::gam()` fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
+models*.
 
 ## References
 

@@ -6,7 +6,10 @@
 # It runs a corpus of calls on two versions of the package, each in its own R
 # process, and lists, call by call, whether the two results are identical().
 # A result that differs must be one of the defects the increment closes, in
-# the allow-list below; any other difference is unexpected. No value is
+# the allow-list below; any other difference is unexpected. An allowed change
+# to a value must also be verified against a reference, the value of the call
+# the oracles of tests/testthat/test-model-context.R relate it to (see
+# identity_verify()); one that is not verified is unexpected too. No value is
 # stored in the repository: each run writes an .rds file where it is told.
 #
 # The corpus:
@@ -14,7 +17,8 @@
 #     perform*Test() but performBoxMTest(), which tests data, not a model),
 #     and the recipes of `identity_extra_recipes` below, under set.seed(7), on
 #     every cell of the matrix of tests/testthat/helper-model-context.R;
-#   - the default battery of runHeteroTests() on every cell;
+#   - the default battery of runHeteroTests() on every cell, and the
+#     registered names of increment 2 (`identity_registry_tests`);
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -31,7 +35,11 @@
 # unexpected. Where runHeteroTests() falls back on another test on the stored
 # design too, as without `data` on a poly() fit before the context, main has
 # no stored-design value of the test it names, and those tests are judged by
-# the rules of the runner below.
+# the rules of the runner below. Nor has main one of Goldfeld-Quandt on an
+# unweighted fit, whose segments it refitted from the formula, computing the
+# poly() basis again on the rows of each segment (N1): the basis spans the
+# same columns, and the branch must equal main to `identity_last_bits`
+# relative on every number.
 #
 # Usage, from the root of the checkout whose corpus is run:
 #
@@ -54,10 +62,21 @@ if (length(args) < 3L || !args[1L] %in% c("run", "compare")) {
   )
 }
 
-# --- the functions built on the context, and the defects increment 1 closes --
+# --- the functions built on the context, and the defects the increments close -
+
+# The registered names of the tests built on the context in increment 2 that
+# runHeteroTests() runs when asked: the studentized Breusch-Pagan statistic
+# and the quantile regression test. Its runner record runs them on every cell.
+identity_registry_tests <- c("student_bp", "quantile_regression")
+identity_registry_runner <- "runHeteroTests(tests = c(\"student_bp\", \"quantile_regression\"))"
 
 # Recipes beyond those of helper-test-recipes.R: the calls that compute a
-# statistic through the functions built on the context.
+# statistic through the functions built on the context. Increment 1: the
+# robust Breusch-Pagan test without studentizing and the bootstraps of
+# Koenker's and White's tests. Increment 2: the routes of the studentized
+# Breusch-Pagan statistic (the registry, test_factory, the comparison with
+# lmtest::bptest(), the robust test's bootstrap), of the quantile regression
+# test (the registry, test_factory) and of RESET (runDiagnostics()).
 identity_extra_recipes <- list(
   `performBPTestRobust(studentize = FALSE)` = function(m, d) {
     performBPTestRobust(m, d, studentize = FALSE)
@@ -67,42 +86,161 @@ identity_extra_recipes <- list(
   },
   `performWhiteTestRobust(bootstrap = TRUE)` = function(m, d) {
     performWhiteTestRobust(m, d, bootstrap = TRUE, B = 19)
+  },
+  `registry student_bp` = function(m, d) {
+    get("student_bp", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `test_factory student_bp` = function(m, d) test_factory$run_test("student_bp", m, d),
+  `rvalidate_against_reference(studentized_bp)` = function(m, d) {
+    testthat::skip_if_not_installed("lmtest")
+    suppressWarnings(rvalidate_against_reference("studentized_bp", m, d))
+  },
+  `performBPTestRobust(bootstrap = TRUE)` = function(m, d) {
+    performBPTestRobust(m, d, bootstrap = TRUE, B = 19)
+  },
+  `registry quantile_regression` = function(m, d) {
+    testthat::skip_if_not_installed("quantreg")
+    get("quantile_regression", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `test_factory quantile_regression` = function(m, d) {
+    testthat::skip_if_not_installed("quantreg")
+    test_factory$run_test("quantile_regression", m, d)
+  },
+  `runDiagnostics()$reset` = function(m, d) {
+    runDiagnostics(m, d, use_cache = FALSE, progress = FALSE)$reset
   }
 )
 # The functions whose values may change: those built on the context, the
-# deprecated name and the wrappers that compute their statistic through them,
-# and the runner, whose default battery is White's and Koenker's tests.
-# performWhiteTestBootstrap() is not among them: it keeps the computation of
-# 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), so any change of
-# it is unexpected.
+# deprecated name and the wrappers and routes that compute their statistic
+# through them, and the runner, whose default battery is White's and
+# Koenker's tests. performWhiteTestBootstrap() is not among them: it keeps the
+# computation of 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), so
+# any change of it is unexpected.
 identity_affected <- c(
   "performWhiteTest", "performBPTest", "performBreuschPaganTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest", "performWhiteTestRobust",
-  names(identity_extra_recipes), "runHeteroTests"
+  "performStudentizedBPTest", "performBPTestRobust", "performRESETTest", "performGQTest",
+  "performQuantileRegressionTest",
+  names(identity_extra_recipes), "runHeteroTests", identity_registry_runner
 )
 # The bootstrap recipes, whose replicates refit the formula until increment 8.
 identity_bootstraps <- c(
-  "bootstrapTestStatistic(performKoenkerTest)", "performWhiteTestRobust(bootstrap = TRUE)"
+  "bootstrapTestStatistic(performKoenkerTest)", "performWhiteTestRobust(bootstrap = TRUE)",
+  "performBPTestRobust(bootstrap = TRUE)"
+)
+# The calls of increment 2, by the test they compute.
+identity_studentized <- c(
+  "performStudentizedBPTest", "performBPTestRobust", "registry student_bp",
+  "test_factory student_bp", "rvalidate_against_reference(studentized_bp)",
+  "performBPTestRobust(bootstrap = TRUE)"
+)
+identity_quantile <- c(
+  "performQuantileRegressionTest", "registry quantile_regression",
+  "test_factory quantile_regression"
+)
+identity_reset <- c("performRESETTest", "runDiagnostics()$reset")
+identity_increment2 <- c(
+  identity_studentized, identity_quantile, identity_reset, "performGQTest",
+  identity_registry_runner
 )
 # The defects of the design whose cells may change, by the kind of change.
+# Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
+# every test built on it, and so for those of increment 2 too. Increment 2:
+# B7, the offsets that four tests left out of a refit, refused until now; N1,
+# the segments of Goldfeld-Quandt refitted from the formula, and the quantile
+# regressions refitted from it; "frame", a fit with model = FALSE whose data
+# are gone, whose model frame the context builds from `data`, and which it
+# refuses without `data`; N6, the stale model frame RESET read, now refused;
+# "null", `data = NULL` given to the registered function of "student_bp"
+# (identity_null_routes, below); and "gam", an mgcv::gam() fit with smooth
+# terms, which the tests of increment 2 refuse until increment 11 settles which
+# tests take it (decided 2026-10-18). R4, a multivariate lm, which RESET tested
+# without `data`, is refused by every test built on the context.
 identity_allowed <- list(
-  error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7"),
-  value_change = c("B5")
+  error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
+  value_change = c("B5", "N1"),
+  value_to_error = c("N6", "gam", "R4", "frame")
+)
+# The defects of increment 2 apply to the calls of the tests they concern
+# only: on any other call such a change is unexpected.
+identity_defect_scope <- list(
+  B7 = identity_increment2,
+  N1 = c("performGQTest", identity_quantile, identity_registry_runner),
+  frame = identity_increment2,
+  N6 = identity_reset,
+  null = "registry student_bp",
+  gam = identity_increment2
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
-# refused it with another message: only that change is allowed for them.
-identity_bootstrap_allowed <- list(error_to_value = c("B12", "L1", "L2", "B15"))
+# refused it with another message: only that change is allowed for them. The
+# robust Breusch-Pagan bootstrap with an offset, refused before, now runs, as
+# it does on a fit with model = FALSE whose data are gone, whose base
+# statistic stopped before.
+identity_bootstrap_allowed <- list(
+  error_to_value = c("B12", "L1", "L2", "B15", "B7", "frame")
+)
+# The registered function of "student_bp" called the implementation behind
+# performStudentizedBPTest() directly, which read `data` as it was given and
+# refused `data = NULL` ("Expected a data.frame for input data"), where every
+# other route reads the model frame; built on the context, it reads the model
+# frame too. On a cell without `data` its error may become a value, or the
+# refusal of the context.
+identity_null_routes <- "registry student_bp"
 # A value of the runner that fell back on another test, or stopped, where the
 # test it names now runs.
-identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5")
+identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame")
 # A message, of a test or of the runner that runs it, that changes only to the
 # test's own documented refusal: M7, a model with more than one response
-# (R4/N9). Any other change of a message is unexpected.
-identity_messages <- list(R4 = "needs a model with one response")
+# (R4/N9); for an offset that was refused first (B7), the refusal the call
+# meets next, of `data` by the guard or of the variables of `data` by the
+# robust Breusch-Pagan test, which keeps its own preparation of the data until
+# increment 8; for Goldfeld-Quandt ordered by a variable that the model frame
+# does not hold under its own name (L1, L2), the message of the context (M1)
+# or the variable alone; for a fit whose model frame cannot be rebuilt, the
+# message of the context ("frame"); for `data = NULL` given to the registered
+# function of "student_bp", which stopped on `NULL`, the refusal the test makes
+# of the fit, read from its model frame: a stale frame, a zero weight, a
+# multivariate lm, a smooth term ("null"). Any other change of a message is
+# unexpected.
+identity_messages <- list(
+  R4 = "needs a model with one response",
+  B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
+  L1 = "The following variables are missing from the model frame of `model`: x1.",
+  L2 = "The following variables are missing from input data: x1.",
+  frame = "cannot use the model frame of `model`",
+  null = c(
+    "cannot use the model frame of `model`", "zero or non-finite weights",
+    "needs a model with one response", "cannot test an mgcv::gam() fit with smooth terms"
+  ),
+  gam = "cannot test an mgcv::gam() fit with smooth terms"
+)
+identity_message_scope <- list(
+  B7 = identity_increment2, L1 = "performGQTest", L2 = "performGQTest",
+  frame = identity_increment2, null = "registry student_bp",
+  gam = identity_increment2
+)
+# Decision 1 for Goldfeld-Quandt on an unweighted fit: main refitted each
+# segment from the formula, which computed a poly() basis again on the rows of
+# the segment, so it has no stored-design value there. The basis spans the
+# same columns, and the branch may differ from main by rounding only: every
+# number to this relative tolerance.
+identity_last_bits <- 1e-12
+identity_segment_refits <- "performGQTest"
+# A call refused by a new refusal (value_to_error) must give this message.
+identity_new_refusals <- list(
+  N6 = "cannot use the model frame of `model`",
+  gam = "cannot test an mgcv::gam() fit with smooth terms",
+  # RESET tested a multivariate lm without `data`, and returned a value.
+  R4 = "needs a model with one response",
+  # The registered names, without `data`, on a fit with model = FALSE whose
+  # data are gone: the runner put the Cook-Weisberg fallback under them.
+  frame = "cannot use the model frame of `model`"
+)
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
-# N7), the call now reaches the checks of the bootstrap itself, and is refused
-# by one of them, as it was refused before by the base statistic: a frame that
+# N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
+# call now reaches the checks of the bootstrap itself, and is refused by one
+# of them, as it was refused before by the base statistic: a frame that
 # cannot be rebuilt from `data` (a cut() term, or the model frame given as
 # `data`), a glm (N8, increment 8), a transformed response under null-imposed
 # resampling. Only these messages are allowed.
@@ -110,7 +248,7 @@ identity_bootstrap_messages <- c(
   "does not reproduce the fit", "supports Gaussian `lm` models only",
   "Null-imposed resampling needs a plain response variable"
 )
-identity_bootstrap_defects <- c("B12", "L1", "L2", "N7")
+identity_bootstrap_defects <- c("B12", "L1", "L2", "N7", "B7")
 
 # --- canonical results ---------------------------------------------------------
 
@@ -193,6 +331,76 @@ identity_trace <- function(on) {
   }
 }
 
+# --- the references of a call ----------------------------------------------------
+
+# Every allowed change to a value is verified against a reference
+# (identity_verify()): the call on the cell the value must reproduce (the data
+# frame of the fit, the fit to the complete rows, the fit to the subset, the
+# fit to repeated rows), itself unchanged from main or verified; the fit with
+# the columns of its terms computed beforehand ("precomputed"); the model of
+# the response minus the offset ("shifted"); for RESET, the nested F test of
+# the model with its offset, from anova() ("nested"); or main's value on the
+# stored design. These are the oracles of tests/testthat/test-model-context.R.
+
+# The test a call computes.
+identity_base_fn <- function(fn) {
+  if (fn %in% identity_studentized) {
+    return("performStudentizedBPTest")
+  }
+  if (fn %in% identity_quantile) {
+    return("performQuantileRegressionTest")
+  }
+  if (fn %in% identity_reset) {
+    return("performRESETTest")
+  }
+  fn
+}
+
+# The cell whose value the call must reproduce, as the test sees the cell
+# (context_cell_for(), helper-model-context.R).
+identity_chain_reference <- function(fn, cell) {
+  if (is.null(cell$block)) {
+    return(NULL)
+  }
+  base <- identity_base_fn(fn)
+  if (base %in% context_increment2) context_cell_for(base, cell)$reference else cell$reference
+}
+
+# The references outside the matrix that the call must reproduce.
+identity_external_ids <- function(fn, cell) {
+  if (is.null(cell$block) || !identical(cell$form, "data_frame")) {
+    return(character())
+  }
+  ids <- character()
+  if (identical(cell$block, "terms") && cell$terms %in% names(context_precomputed()$formulas)) {
+    ids <- c(ids, paste("precomputed", cell$fit, cell$terms, sep = "/"))
+  }
+  if (identical(cell$block, "fit") && !identical(cell$offset, "none")) {
+    ids <- c(ids, if (fn %in% identity_reset) {
+      paste("nested", cell$fit, cell$offset, sep = "/")
+    } else {
+      paste("shifted", cell$fit, sep = "/")
+    })
+  }
+  ids
+}
+
+# RESET of a fit with an offset written out: anova() of the fit, with its
+# offset and weights, against the fit augmented with the squares and cubes of
+# its fitted values, X b + o, with the same offset and weights.
+identity_nested_reset <- function(m, d) {
+  ref <- d
+  ref$f2 <- stats::fitted(m)^2
+  ref$f3 <- stats::fitted(m)^3
+  weights_of_fit <- stats::weights(m)
+  ref$wt <- if (is.null(weights_of_fit)) rep(1, nrow(d)) else weights_of_fit
+  restricted <- stats::lm(y ~ x1 + x2, data = ref, weights = wt, offset = o)
+  augmented <- stats::lm(y ~ x1 + x2 + f2 + f3, data = ref, weights = wt, offset = o)
+  a <- stats::anova(restricted, augmented)
+  list(statistic = c(F = a$F[2]), parameter = c(df1 = a$Df[2], df2 = a$Res.Df[2]),
+       p.value = a$`Pr(>F)`[2])
+}
+
 # --- run -----------------------------------------------------------------------
 
 identity_run <- function(where, out, root = ".") {
@@ -217,7 +425,10 @@ identity_run <- function(where, out, root = ".") {
   add <- function(kind, fn, cell, outcome) {
     id <- paste(kind, fn, cell$id, sep = " | ")
     records[[id]] <<- c(
-      list(id = id, kind = kind, fn = fn, cell = cell$id, defect = cell$defect), outcome
+      list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
+           defect = cell$defect, reference = identity_chain_reference(fn, cell),
+           externals = identity_external_ids(fn, cell)),
+      outcome
     )
   }
   started <- Sys.time()
@@ -234,6 +445,14 @@ identity_run <- function(where, out, root = ".") {
         runHeteroTests(built$m, built$data, use_cache = FALSE, progress = FALSE)
       )
     }))
+    add(runner_kind, identity_registry_runner, cell, identity_outcome(function() {
+      testthat::skip_if_not_installed("quantreg")
+      set.seed(7)
+      identity_runner_summary(runHeteroTests(
+        built$m, built$data, tests = identity_registry_tests, use_cache = FALSE,
+        progress = FALSE
+      ))
+    }))
   }
   for (cell in cells) {
     built <- suppressWarnings(suppressMessages(cell$build()))
@@ -249,10 +468,40 @@ identity_run <- function(where, out, root = ".") {
     }
   }
   identity_trace(FALSE)
+  # The references of the verification (identity_verify()): the term cells
+  # with their columns computed beforehand, the fits with an offset as the
+  # model of the response minus the offset, and RESET of those fits written
+  # out as the nested F test of anova().
+  verified_fns <- intersect(names(recipes), identity_increment2)
+  reference_cell <- function(id) list(id = id, form = "data_frame", defect = character())
+  for (fit in c("ols", "wls")) {
+    for (terms in names(context_precomputed()$formulas)) {
+      built <- suppressWarnings(suppressMessages(context_precomputed_fit(fit, terms)))
+      run_cell(reference_cell(paste("precomputed", fit, terms, sep = "/")), built, verified_fns,
+               "reference", "reference_runner")
+    }
+  }
+  d <- context_data()
+  shifted <- d
+  shifted$y <- d$y - d$o
+  for (fit in context_fits) {
+    built <- suppressWarnings(suppressMessages(list(m = context_model(shifted, fit),
+                                                    data = shifted)))
+    run_cell(reference_cell(paste("shifted", fit, sep = "/")), built, verified_fns,
+             "reference", "reference_runner")
+    for (offset in c("argument", "term")) {
+      nested <- identity_outcome(function() identity_nested_reset(context_model(d, fit, offset), d))
+      for (fn in intersect(verified_fns, identity_reset)) {
+        add("reference", fn, reference_cell(paste("nested", fit, offset, sep = "/")), nested)
+      }
+    }
+  }
   # The examples of the help pages, each expression whose value is a test.
   scratch <- dirname(normalizePath(out, mustWork = FALSE))
   for (topic in c("performWhiteTest", "performBPTest", "performKoenkerTest",
-                  "performRankPermutationTest", "performHighDimensionalTest")) {
+                  "performRankPermutationTest", "performHighDimensionalTest",
+                  "performStudentizedBPTest", "performBPTestRobust", "performRESETTest",
+                  "performGQTest", "performQuantileRegressionTest")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -338,9 +587,15 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
     if (length(own) == 0L) {
       return(NULL)
     }
-    identical(after$value[own], stored$value[own]) &&
-      (length(own) == length(stored$value) ||
-         any(record$defect %in% identity_runner_allowed))
+    if (!identical(after$value[own], stored$value[own])) {
+      return("unexpected")
+    }
+    # The tests it fell back on have no stored-design value of the tests they
+    # stand for: the rules of the runner decide the call.
+    if (length(own) < length(stored$value)) {
+      return(NULL)
+    }
+    TRUE
   } else {
     identical(after$value, stored$value)
   }
@@ -350,14 +605,46 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
   if (identical(verdict$change, "identical")) "identical" else "allowed"
 }
 
+# The defects of a cell that concern the call: those of increment 2 apply to
+# the calls of the tests they concern only (`scope`).
+identity_defects <- function(record, scope = identity_defect_scope) {
+  defects <- record$defect
+  if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
+    defects <- c(defects, "null")
+  }
+  keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
+                 logical(1))
+  defects[keep]
+}
+
+# Decision 1 for a test that refitted the formula on each segment (N1): the
+# branch must be main's value but for rounding. "identical" or "allowed", or
+# "unexpected" beyond `identity_last_bits`; NULL when one of the two stopped,
+# and the other rules decide.
+identity_last_bits_verdict <- function(verdict) {
+  if (identical(verdict$change, "identical")) {
+    return("identical")
+  }
+  if (!identical(verdict$change, "value_change")) {
+    return(NULL)
+  }
+  if (isTRUE(verdict$everything <= identity_last_bits)) "allowed" else "unexpected"
+}
+
 # `stored` is main's value on the stored design, for a cell of decision 1, or
 # NULL.
 identity_allow <- function(record, verdict, after, stored = NULL) {
-  defects <- record$defect
+  defects <- identity_defects(record)
   # Decision 1: a value on a poly() term must be main's value on the stored
-  # design, identical(), whether or not it is main's on its rebuilt one.
+  # design, identical(), whether or not it is main's on its rebuilt one; for a
+  # test that refitted the segments from the formula, main's value but for
+  # rounding.
   if ("decision1" %in% defects && record$fn %in% identity_affected) {
-    decided <- identity_stored_verdict(record, verdict, after, stored)
+    decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects) {
+      identity_last_bits_verdict(verdict)
+    } else {
+      identity_stored_verdict(record, verdict, after, stored)
+    }
     if (!is.null(decided)) {
       return(decided)
     }
@@ -371,10 +658,22 @@ identity_allow <- function(record, verdict, after, stored = NULL) {
   bootstrap <- record$fn %in% identity_bootstraps
   # A message that changes only to the function's own documented refusal.
   if (identical(verdict$change, "message_change")) {
-    own <- unlist(identity_messages[intersect(defects, names(identity_messages))])
+    message_defects <- identity_defects(
+      list(defect = defects, fn = record$fn), identity_message_scope
+    )
+    own <- unlist(identity_messages[intersect(message_defects, names(identity_messages))])
     if (bootstrap && any(defects %in% identity_bootstrap_defects)) {
       own <- c(own, identity_bootstrap_messages)
     }
+    if (length(own) > 0L &&
+          any(vapply(own, grepl, logical(1), x = after$value$message, fixed = TRUE))) {
+      return("allowed")
+    }
+    return("unexpected")
+  }
+  # A new refusal must be the refusal of its defect.
+  if (identical(verdict$change, "value_to_error")) {
+    own <- unlist(identity_new_refusals[intersect(defects, identity_allowed$value_to_error)])
     if (length(own) > 0L &&
           any(vapply(own, grepl, logical(1), x = after$value$message, fixed = TRUE))) {
       return("allowed")
@@ -395,6 +694,116 @@ identity_allow <- function(record, verdict, after, stored = NULL) {
   "unexpected"
 }
 
+# What a call returns that its verification compares: every number of the
+# result, the statistic, parameter and p-values and also the estimates, the
+# replicates and the robust details, with the names of its parts; of the test
+# inside a comparison with a reference implementation; or of each test of a
+# runner, with the test it ran and its status. The metadata test_factory adds
+# (`test_metadata`) and the labels that name the call (`method`, `data.name`)
+# are left out, so that a route compares with the test it computes. `fields`
+# restricts the comparison to some parts, for a reference that has no others.
+identity_key <- function(value, fields = NULL) {
+  if (!is.list(value) || isTRUE(value$.error) || isTRUE(value$.skip)) {
+    return(NULL)
+  }
+  if (is.list(value$ours)) {
+    value <- value$ours
+  }
+  core <- function(v) {
+    v <- v[setdiff(names(v), c("test_metadata", "method", "data.name"))]
+    if (!is.null(fields)) {
+      v <- v[intersect(fields, names(v))]
+    }
+    v
+  }
+  if (!is.null(value$statistic)) {
+    part <- core(value)
+    return(list(numbers = identity_numbers(part), labels = names(part)))
+  }
+  parts <- Filter(function(e) is.list(e) && !is.null(e$statistic), value)
+  if (length(parts) == 0L || length(parts) != length(value)) {
+    return(NULL)
+  }
+  list(
+    numbers = unlist(lapply(parts, function(e) identity_numbers(core(e))), use.names = FALSE),
+    labels = vapply(parts, function(e) paste(c(e$diagnostic, e$status), collapse = " "), "")
+  )
+}
+
+identity_same_key <- function(a, b, tolerance) {
+  if (is.null(a) || is.null(b) || !identical(a$labels, b$labels) ||
+        length(a$numbers) != length(b$numbers)) {
+    return(FALSE)
+  }
+  if (tolerance == 0) {
+    return(identical(a$numbers, b$numbers))
+  }
+  isTRUE(identity_relative(a$numbers, b$numbers) <= tolerance)
+}
+
+# The reference that verifies the value the branch gives a call, or NA: main's
+# value on the stored design, a reference outside the matrix (to 1e-10, 1e-8
+# for a poly() basis), or the call on the cell it must reproduce,
+# `identical()` (1e-10 for the rank-deficient fit and the gam, as in the
+# matrix), when that call is unchanged from main or verified in turn.
+identity_verify <- function(record, main, branch, seen = character()) {
+  key <- identity_key(branch[[record$id]]$value)
+  if (is.null(key)) {
+    return(NA_character_)
+  }
+  stored_id <- sub("^runner \\| ", "stored_runner | ", sub("^recipe \\| ", "stored | ", record$id))
+  stored <- main[[stored_id]]
+  if (!is.null(stored) && !is.null(identity_key(stored$value)) &&
+        identical(branch[[record$id]]$value, stored$value)) {
+    return("stored design")
+  }
+  reference_kind <- if (identical(record$kind, "runner")) "reference_runner" else "reference"
+  for (external in record$externals) {
+    reference <- branch[[paste(reference_kind, record$fn, external, sep = " | ")]]
+    tolerance <- if (grepl("/poly$", external)) 1e-8 else 1e-10
+    # The nested F test written out has the statistic, the degrees of freedom
+    # and the p-value only.
+    fields <- if (startsWith(external, "nested/")) c("statistic", "parameter", "p.value")
+    if (!is.null(reference) &&
+          identity_same_key(identity_key(branch[[record$id]]$value, fields),
+                            identity_key(reference$value, fields), tolerance)) {
+      return(sub("/.*$", "", external))
+    }
+  }
+  # A route gives the value of the test it computes, on the same cell: a route
+  # with checks of its own, as test_factory has, may refuse the cell the test
+  # reproduces and accept this one.
+  base <- identity_base_fn(record$fn)
+  base_id <- paste("recipe", base, record$cell, sep = " | ")
+  if (identical(record$kind, "recipe") && !identical(base, record$fn) && !base_id %in% seen &&
+        !is.null(branch[[base_id]]) &&
+        identity_same_key(key, identity_key(branch[[base_id]]$value), 0)) {
+    if (identical(main[[base_id]]$value, branch[[base_id]]$value)) {
+      return("test")
+    }
+    deeper <- identity_verify(main[[base_id]], main, branch, c(seen, base_id))
+    if (!is.na(deeper)) {
+      return(paste("test", deeper, sep = ", "))
+    }
+  }
+  reference <- record$reference
+  if (is.null(reference) || reference %in% seen) {
+    return(NA_character_)
+  }
+  reference_id <- paste(record$kind, record$fn, reference, sep = " | ")
+  before <- main[[reference_id]]
+  after <- branch[[reference_id]]
+  tolerance <- if (record$cell %in% c("class/rank_deficient", "class/gam")) 1e-10 else 0
+  if (is.null(after) || !identity_same_key(key, identity_key(after$value), tolerance)) {
+    return(NA_character_)
+  }
+  if (identical(before$value, after$value)) {
+    return("cell")
+  }
+  deeper <- identity_verify(before, main, branch, c(seen, record$cell))
+  if (is.na(deeper)) NA_character_ else paste("cell", deeper, sep = ", ")
+}
+
 identity_compare <- function(main_file, branch_file, csv = NULL) {
   main <- readRDS(main_file)
   branch <- readRDS(branch_file)
@@ -404,8 +813,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     stop("The two runs have different corpora: ",
          paste(utils::head(missing_ids, 5L), collapse = "; "), call. = FALSE)
   }
-  # The records on the stored design are references, not calls.
-  stored_kinds <- c("stored", "stored_runner")
+  # The records on the stored design, and those of the verification, are
+  # references, not calls.
+  stored_kinds <- c("stored", "stored_runner", "reference", "reference_runner")
   ids <- ids[!vapply(main$records[ids], function(r) r$kind %in% stored_kinds, logical(1))]
   stored_id <- function(id) {
     sub("^runner \\| ", "stored_runner | ", sub("^recipe \\| ", "stored | ", id))
@@ -415,18 +825,35 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     after <- branch$records[[id]]
     stored <- main$records[[stored_id(id)]]
     verdict <- identity_classify(before, after)
-    decided <- if ("decision1" %in% before$defect && before$fn %in% identity_affected) {
+    decision1 <- "decision1" %in% before$defect && before$fn %in% identity_affected
+    by_segments <- decision1 && before$fn %in% identity_segment_refits &&
+      "N1" %in% identity_defects(before)
+    decided <- if (decision1 && !by_segments) {
       identity_stored_verdict(before, verdict, after, stored)
     }
+    rounded <- if (by_segments) identity_last_bits_verdict(verdict)
     checked <- !is.null(decided)
+    allowed <- identity_allow(before, verdict, after, stored)
+    # An allowed change to a value must be verified against a reference.
+    to_value <- identical(allowed, "allowed") &&
+      verdict$change %in% c("error_to_value", "value_change")
+    verified <- if (to_value) identity_verify(before, main$records, branch$records) else NA
+    if (to_value && is.na(verified)) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("not verified against a reference:", verdict$detail)
+    }
     data.frame(
       id = id, kind = before$kind, fn = before$fn, cell = before$cell,
-      defect = paste(before$defect, collapse = " "),
+      # The defects of the cell that concern the call (identity_defects()).
+      defect = paste(identity_defects(before), collapse = " "),
       change = verdict$change,
-      verdict = identity_allow(before, verdict, after, stored),
+      verdict = allowed,
+      verified_by = if (to_value) verified else NA_character_,
       statistic_relative = if (is.null(verdict$statistic)) NA_real_ else verdict$statistic,
+      everything_relative = if (is.null(verdict$everything)) NA_real_ else verdict$everything,
       stored_checked = checked,
       stored_identical = checked && !identical(decided, "unexpected"),
+      last_bits_checked = !is.null(rounded),
       warnings_differ = !identical(before$warnings, after$warnings),
       detail = substr(gsub("\n", " ", verdict$detail), 1L, 160L),
       stringsAsFactors = FALSE
@@ -463,6 +890,30 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     )
     cat(sprintf(template, nrow(checked), sum(checked$stored_identical), nrow(changed_poly),
                 largest))
+  }
+  segments <- calls[calls$last_bits_checked, , drop = FALSE]
+  if (nrow(segments) > 0L) {
+    rounded <- segments[segments$change == "value_change", , drop = FALSE]
+    largest <- if (nrow(rounded) > 0L) max(rounded$everything_relative) else 0
+    template <- paste0(
+      "Decision 1, segments refitted from the formula before (N1): %d poly() calls with ",
+      "a value, %d identical() to main, %d differing by at most %.2g relative on any number\n"
+    )
+    cat(sprintf(template, nrow(segments), sum(segments$change == "identical"), nrow(rounded),
+                largest))
+  }
+  to_value <- calls[calls$verdict != "identical" &
+                      calls$change %in% c("error_to_value", "value_change"), , drop = FALSE]
+  if (nrow(to_value) > 0L) {
+    verified <- to_value[!is.na(to_value$verified_by), , drop = FALSE]
+    cat(sprintf(paste0(
+      "\nChanges to a value: %d allowed and verified against a reference, %d allowed and ",
+      "not verified (counted as unexpected)\n"
+    ), nrow(verified), nrow(to_value) - nrow(verified)))
+    if (nrow(verified) > 0L) {
+      verified$calls <- 1L
+      print(stats::aggregate(calls ~ verified_by, data = verified, FUN = sum), row.names = FALSE)
+    }
   }
   cat(sprintf("\nCalls whose warnings differ (not counted above): %d\n",
               sum(calls$warnings_differ)))

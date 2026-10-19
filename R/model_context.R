@@ -24,8 +24,10 @@
 # tests in increments, and the decisions behind it. Since 0.16.0 (increment 1)
 # performWhiteTest(), performBPTest() and performBreuschPaganTest(),
 # performKoenkerTest(), performRankPermutationTest() and
-# performHighDimensionalTest() are built on it; the other tests still prepare
-# the model and data with rdata_or_model_frame() and
+# performHighDimensionalTest() are built on it, and (increment 2) the
+# studentized Breusch-Pagan statistic (.studentized_bp_test()),
+# performRESETTest(), performGQTest() and performQuantileRegressionTest(); the
+# other tests still prepare the model and data with rdata_or_model_frame() and
 # prepare_model_data_for_test().
 
 #' Build the model context of a test
@@ -179,6 +181,44 @@ rstop_model_context <- function(message) {
   stop(structure(
     class = c("heteroTests_model_context_error", "error", "condition"),
     list(message = message, call = NULL)
+  ))
+}
+
+#' Refuse an `mgcv::gam()` fit with smooth terms
+#'
+#' A Gaussian `mgcv::gam()` fit without smooth terms is the least-squares fit
+#' of its design, the fit of the Gaussian `glm`. A smooth term is penalised
+#' unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not the
+#' least-squares fit of its design: its coefficients do not solve the
+#' least-squares equations, and a test that fits that design again, its
+#' segments or its quantiles, tests an unpenalised regression the model is not.
+#' Whether the tests take such a fit is a question of the contract left to the
+#' last step of the migration, with `MASS::rlm()` (increment 11 of the design
+#' of the model context); until then the tests of increment 2 refuse every fit
+#' with smooth terms, fixed ones included, decided on 2026-10-18, and those of
+#' increment 1 test it as before 0.16.0.
+#'
+#' @param ctx The model context.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error, of class
+#'   `heteroTests_model_context_error`.
+#' @keywords internal
+#' @noRd
+rrefuse_smooth_gam <- function(ctx, fn) {
+  smooths <- ctx$model$smooth
+  if (!identical(ctx$kind, "gam") || length(smooths) == 0L) {
+    return(invisible(NULL))
+  }
+  labels <- vapply(smooths, function(s) as.character(s$label %||% "a smooth"), character(1))
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() cannot test an mgcv::gam() fit with smooth terms (%s): a smooth term is ",
+      "usually penalised, and a penalised fit is not the least-squares fit of its design, ",
+      "which the test fits again. Whether the tests take such a fit is left to a later ",
+      "step of the package. Refit the model with lm() or glm(), with a parametric term ",
+      "such as splines::ns() in place of each smooth."
+    ),
+    fn, paste(labels, collapse = ", ")
   ))
 }
 
@@ -584,14 +624,17 @@ rcontext_rows <- function(ctx, data) {
 #'
 #' @param data The `data` argument of the calling test, or `NULL`.
 #' @param model The fitted model.
+#' @param also Character vector of the other variables the test reads from
+#'   `data`, such as the `order_by` of [performGQTest()], which the tests
+#'   checked for missing values with those of the model.
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
 #' @noRd
-rwarn_incomplete_rows <- function(data, model) {
+rwarn_incomplete_rows <- function(data, model, also = character()) {
   if (!is.data.frame(data)) {
     return(invisible(NULL))
   }
-  variables <- intersect(unique(all.vars(stats::terms(model))), names(data))
+  variables <- intersect(unique(c(all.vars(stats::terms(model)), also)), names(data))
   if (length(variables) == 0L) {
     return(invisible(NULL))
   }

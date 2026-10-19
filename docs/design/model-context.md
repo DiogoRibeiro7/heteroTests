@@ -21,7 +21,11 @@ under [Compatibility](#compatibility) and in the
 `performWhiteTest()`, `performBPTest()` (with its deprecated name
 `performBreuschPaganTest()`), `performKoenkerTest()`,
 `performRankPermutationTest()` and `performHighDimensionalTest()` built on
-it. Increments 2 to 11 are planned; see [Migration plan](#migration-plan).
+it. Increment 2 is in 0.16.0 too: the studentized Breusch-Pagan statistic
+(`.studentized_bp_test()`), `performRESETTest()`, `performGQTest()` and
+`performQuantileRegressionTest()` built on it, with the offset of the fit in
+every refit. Increments 3 to 11 are planned; see
+[Migration plan](#migration-plan).
 
 ## The problem
 
@@ -82,7 +86,11 @@ guard as its alignment step and removes the rebuilding behind it.
   A fit with a zero weight is refused where the tests refused it before;
   `performRESETTest()` keeps accepting one (decided 2026-10-17).
 - **Offsets.** The context holds the total offset, the `offset` argument plus
-  any `offset()` terms. A refit through the context carries it.
+  any `offset()` terms. A refit through the context carries it: on a model
+  with an offset a test gives the value of the model fitted to the response
+  minus the offset, and RESET the nested F test of the model with its offset
+  against the model augmented with the powers of its fitted values
+  $X\hat\beta + o$, fitted with the same offset and weights (decision 19).
 - **Rank.** The rank of the fit, its aliased coefficients and the tolerance
   its rank was decided with (`1e-7` for an `lm`, `1e-11` for a `glm`); a
   rank-deficient fit is tested on the estimable part of its design, as since
@@ -103,6 +111,11 @@ guard as its alignment step and removes the rebuilding behind it.
   weight; and an 80-observation fit given 10 rows reports "Missing rows" where
   it reported the minimum number of rows, which `runHeteroTests()` classifies
   as a data quality issue, as it does every "Missing rows" message.
+- **An `mgcv::gam()` fit with smooth terms**, usually penalised, is refused by the tests of
+  increment 2 (`rrefuse_smooth_gam()`, class
+  `heteroTests_model_context_error`): it is not the least-squares fit of its
+  design, which they fit again. The five of increment 1 test it as before
+  0.16.0, and increment 11 settles it for every test (decision 23).
 - **Refusals are final** (decision 6). The refusals of the context have class
   `heteroTests_model_context_error`, and those of `data` the class of the
   guard, `heteroTests_data_rows_error`; `runHeteroTests()` and
@@ -155,7 +168,8 @@ The functions of `R/model_context.R`:
 | `rcontext_design(ctx)` | The design without its aliased columns. |
 | `rcontext_rows(ctx, data)` | The confirmed rows of `data`, in fit order and under the names of the fit, or the model frame without `data`: what a test hands to its checks of the data and to a test it calls. |
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`. |
-| `rwarn_incomplete_rows(data, model)` | The "Removed N observations" warning, dropping nothing. |
+| `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
+| `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
@@ -277,6 +291,60 @@ For the functions built on the context, in increment 1:
   smooth terms is an input the tests justify is a question of the contract,
   left to increment 11 with `MASS::rlm()`.
 
+For the functions built on the context in increment 2:
+
+- **What the change reaches.** The studentized Breusch-Pagan statistic
+  (`performStudentizedBPTest()`, `performBPTestRobust()` with
+  `studentize = TRUE`, its default, the registered `"student_bp"`, its
+  `test_factory` entry and `rvalidate_against_reference("studentized_bp")`),
+  `performRESETTest()` and `runDiagnostics()`, which runs it,
+  `performGQTest()`, and `performQuantileRegressionTest()` with the registered
+  `"quantile_regression"`. `performBPTestRobust()` keeps its own preparation
+  of the data until increment 8, and its bootstrap refits its replicates from
+  the formula.
+- **Offsets (B7, R5).** The refusals of #134 become values: Goldfeld-Quandt,
+  the quantile regression test and the studentized statistic give the value of
+  the model fitted to `y - o`, and RESET the nested F test of the model with
+  its offset (decision 19). `rrefuse_offset()` and the class
+  `heteroTests_offset_error` are gone.
+- **Values that change.** Goldfeld-Quandt on an unweighted fit with a term
+  that depends on the rows it is computed from, `ns()`, `bs()`,
+  `I(x > median(x))`, `cut(x, quantile(x))` (N1, decision 20); `poly()`
+  changes in the last bits. The quantile regression test on
+  `cut(x, quantile(x))`, whose refit from the formula computed other breaks on
+  the rows the fit kept (N1). Both on a term computed from all the rows on a
+  fit that dropped rows (B5).
+- **Errors that become values**, as for the five: B12, B14, B15, L1, L2, N7.
+  A fit with `model = FALSE` whose data are gone, given `data` that give its
+  response and fitted values: Goldfeld-Quandt and the studentized statistic
+  stopped with "object not found" and are tested on `data` ("frame"). The
+  registered `"student_bp"` called with `data = NULL` reads the model frame,
+  where it stopped with "Expected a data.frame".
+- **Messages.** M7 for a multivariate `lm`; Goldfeld-Quandt without `data`
+  ordered by a variable the model frame does not hold under its own name, M1;
+  RESET on a `model = FALSE` fit whose data are gone, the frame message of the
+  context; a call with an offset on data the guard refuses, the guard's
+  refusal where it stopped with the refusal of the offset.
+- **New refusals** of calls that returned a value (decision 14). RESET on a
+  model frame that `model = FALSE` rebuilt from data changed after the fit
+  (N6), which it read; RESET on a multivariate `lm` without `data`, M7, where
+  it returned an F statistic of neither response; an `mgcv::gam()` fit with
+  smooth terms in the four (decision 23), on which the studentized statistic
+  and RESET returned a value, and so did the routes that run them, the
+  runner with `"student_bp"`, `runDiagnostics()`, `test_factory`, while
+  Goldfeld-Quandt and the quantile test stopped on the smooth term; and the
+  runner with `"student_bp"` and `"quantile_regression"` on a `model = FALSE`
+  fit whose data are gone, without `data`, where it put the Cook-Weisberg
+  fallback under their names.
+- **RESET without `data`** (decision 24). RESET reads nothing from `data`: it
+  builds its context without `data` and keeps the check of `data` of the tests
+  computed from the model alone (`rcheck_data_argument()`), the variables of
+  the model and the row names of the fit, until increment 6, so that its value
+  on every form of `data` is that of 0.15.0.
+- **Unchanged**: every other value on valid calls, the zero-weight refusals of
+  Goldfeld-Quandt and the studentized statistic and RESET's acceptance of a
+  zero weight, and every message the test suite pins.
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -287,16 +355,16 @@ migrations that keep every value, then the riskier resampling and
 | # | Functions | Closes | Status |
 | --- | --- | --- | --- |
 | 1 | `R/model_context.R`; the guard split in two; `performWhiteTest()`, `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`, `performRankPermutationTest()`, `performHighDimensionalTest()`, and through them the base statistic of `performWhiteTestRobust()`, `performBPTestRobust(studentize = FALSE)`, the registry names and the default battery | B5, B12, B14, B15, N7, R4/N9, R7 for these; L1, L2 | **Done, 0.16.0** |
-| 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5 | Planned |
+| 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5; B5, B12, B14, B15, L1, L2, N7, R4 for these | **Done, 0.16.0** |
 | 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, B15, L1, M1 for `variable`, `order_by`, `group`; N4 | Planned |
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go | the character-named fit with its tibble; R7 | Planned |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `variable` read at the confirmed rows | B3, B4, B16, R2 (decision 13) | Planned |
-| 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them); Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
+| 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
 | 7 | The three streaming tests, chunk by chunk from the stored design | B6; B12, B14, L1 for these | Planned |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design: `performWhiteTestBootstrap()`, whose observed statistic and replicates move together, and `rwhite_test_rebuilt_design()`, which keeps them on the rebuilt design until then, goes; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`, which refuse a fit whose frame cannot be rebuilt from `data` until then | B12 for replicates, N8 | Planned |
 | 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned |
 | 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()` and the copies of the old preparation go | B11, N5 | Planned |
-| 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, accepted as before until then | R6, N10 | Planned |
+| 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned |
 
 Outside the context, as separate pull requests: White's degrees of freedom
 when the auxiliary columns span the constant (N2) and White streaming on
@@ -338,6 +406,46 @@ Koenker's and White's tests, and the White bootstrap on a transformed
 response) use data in fit order and no `poly()` terms, and their rows for the
 five functions are reproduced byte for byte.
 
+Increment 2 adds the routes of its four tests to the corpus (the registry,
+`test_factory`, `rvalidate_against_reference("studentized_bp")`,
+`performBPTestRobust(bootstrap = TRUE)`, `runDiagnostics()$reset`, and
+`runHeteroTests()` with the registered `"student_bp"` and
+`"quantile_regression"`), the examples of their help pages, and 13 cells: an
+`lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit whose
+data were reordered after the fit, and, from the review of increment 2, the
+classes whose answer differs between the tests (the multivariate `lm`, the
+`gam` with a smooth, the zero weights, the `model = FALSE` fit whose data are
+gone) without `data` and with their rows shuffled. Every allowed change to a
+value is also verified against a reference (`identity_verify()`), on every
+number of the result, its estimates, replicates and robust details included:
+the same call on the cell it must reproduce, itself unchanged from `main` or
+verified in turn; the test a route computes on the same cell; the fit with
+the columns of its terms computed beforehand; the model of `y - o`; for
+RESET, the nested F test written out with `anova()`; or `main`'s value on the
+stored design. An allowed change that is not verified counts as unexpected. Goldfeld-Quandt on
+an unweighted fit refitted its segments from the formula on `main`, so `main`
+has no stored-design value of it on a `poly()` term; there the branch must
+equal `main` to `1e-12` relative.
+
+Increment 2: 14,037 calls on 275 cells, of which 13,071 identical, 966 allowed
+changes (655 errors that become values, 53 values that change, 234 messages,
+24 new refusals) and 0 unexpected; the 708 changes to a value are each
+verified against a reference. The 171 `poly()` calls of the functions built on
+the context that `main` computes on the stored design are `identical()` to
+it; Goldfeld-Quandt's 7 `poly()` calls on an unweighted fit differ from `main`
+by at most 8.1e-15 relative. The warnings are those of `main` but for 43
+calls: 39 that stopped and now return a value with the warning of
+`quantreg::anova.rqs()` on the same design, and four calls of
+`performStudentizedBPTest()` on a multivariate `lm` and on a `model = FALSE`
+fit whose data are gone, without `data`, which it now refuses before its
+deprecation warning. The
+rows of the four tests in the full sweep, Pass A, block 1 of the weighted fits
+and the Goldfeld-Quandt rows of the Harrison-McCabe study use no offset and no
+term that depends on its rows, and are reproduced byte for byte. One cell is
+added to `offset-refits-size.R` (decision 19): RESET on the fit with an offset
+rejects 0.0492 of the time under its null at 5000 replications, inside the
+release gate, [0.042, 0.058].
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -363,9 +471,16 @@ the span of the regressors, and a positive response `ypos`.
   `model = FALSE` fit whose data are gone.
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
-  rows, of identifiers, of `subset =` and of model classes on `ols`: 262 cells,
-  run through each of the five functions, with `B = 19` for the resampling
-  test. The full matrix runs under `skip_on_cran()`, a 12-cell subset on CRAN.
+  rows, of identifiers, of `subset =` and of model classes on `ols`, among them
+  an `lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit
+  whose data changed after the fit (increment 2), and the classes whose answer
+  differs between the tests, also without `data` and shuffled: 275 cells, run through each
+  of the nine functions, with `B = 19` for the resampling test. Where a test
+  departs from a cell by design, its own expectation applies
+  (`context_cell_for()`): the quantile regression test refuses a weighted fit;
+  Goldfeld-Quandt without `data` ordered by a variable the model frame does not
+  hold gives M1; RESET reads nothing from `data` (decision 24); and the tests
+  of increment 2 refuse a `gam` with smooth terms (decision 23). The full matrix runs under `skip_on_cran()`, a 12-cell subset on CRAN.
   Tibbles and data.tables come from `dplyr` and `data.table` under
   `skip_if_not_installed()`.
 - **Oracles** (relations between calls, not stored values):
@@ -375,7 +490,8 @@ the span of the regressors, and a positive response `ypos`.
 | invariance over the accepted forms of data | `identical()` to the data frame of the fit |
 | `NULL` and the model frame | `identical()` to the call with data |
 | refused order | the guard's error, class `heteroTests_data_rows_error` |
-| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10` |
+| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10`; RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
+| Goldfeld-Quandt | against `lmtest::gqtest()`, which fits the segments to the rows of the design, on `ns()`, `bs()`, `I(x > median(x))` and `poly()` terms, and on the fit of `y - o` for an offset, to `1e-10` |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8` |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8`; workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
@@ -399,30 +515,31 @@ that fixes each.
 | --- | --- | --- |
 | B1, B2 | Numbered data in another order, or with rows in front | Refused since 0.15.0; stays refused (decision 3) |
 | B3, B4 | The panel tests and the scatter diagnostic read `data` by position | Refused since 0.15.0; values in increment 5 |
-| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five; the others follow their increments |
+| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five, in increment 2 for its four; the others follow their increments |
 | B6 | Streaming evaluates terms per chunk | Increment 7 |
-| B7 | Offsets left out of a refit | Refused since #134; values in increment 2 |
+| B7 | Offsets left out of a refit | Refused by #134; fixed in increment 2 |
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
 | B9 | A second formula matched by position | Increment 6 |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
-| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner; replicates in increment 8 |
+| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; replicates in increment 8 |
 | B13 | `na.exclude` | Increment 9 |
-| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five |
-| B15 | `subset =` by index | Fixed in increment 1 for the five |
+| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four |
+| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four |
 | B16 | The panel tests on a fit that dropped rows | Increment 5 |
-| R1, R5 | Data whose values are not the fit's; the quantile test with an offset | Refused since 0.15.0 and 0.16.0 |
+| R1 | Data whose values are not the fit's | Refused since 0.15.0 |
+| R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Increment 5 (decision 13) |
 | R3 | `var_formula` variables from the workspace | Increment 6 |
-| R4 | A multivariate `lm` | M7 in increment 1 for the five |
+| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five |
-| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five |
-| N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`) | Increment 2 (decision 20) |
+| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four |
+| N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2, N3 | White's degrees of freedom when the auxiliary columns span the constant; White streaming on collinear terms | Separate pull requests (decision 22) |
 | N4 | Harrison-McCabe's rank is not the fit's | Increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
-| N6 | RESET reads a stale `model = FALSE` frame | Increments 2 and 6 |
-| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five |
+| N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET; increment 6 for the other tests computed from the model alone |
+| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four |
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
@@ -437,7 +554,7 @@ that fixes each.
 | 2 | The response alone is not enough to confirm rows: superseded by the 0.15.0 guard, which compares every column of the model frame. | 2026-10-16 |
 | 3 | Numbered data in another order than the fit are refused, not matched by position. | 2026-10-16 |
 | 4 | `MASS::rlm()` is refused, in increment 11. | 2026-10-18 |
-| 5 | The quantile regression test refuses an offset until it accounts for it; increment 2 is the fix. | 2026-10-17 |
+| 5 | The quantile regression test refuses an offset until it accounts for it; increment 2 is the fix (done). | 2026-10-17 |
 | 6 | A refusal of the context inside `runHeteroTests()` is final: no fallback test runs under its name. | 2026-10-16 |
 | 7 | The "Removed N observations" warning is kept, and nothing is dropped. | 2026-10-16 |
 | 8 | An extra variable that is `NA` for a fitted row: each test keeps its behaviour, with a message that names the variable and the rows. | 2026-10-18 |
@@ -454,6 +571,8 @@ that fixes each.
 | 20 | Goldfeld-Quandt segments come from the stored design. | 2026-10-18 |
 | 21 | Harrison-McCabe takes its rank at the fit's tolerance, in increment 3. | 2026-10-18 |
 | 22 | N2 and N3 are separate pull requests in 0.16.0, outside the context. | 2026-10-18 |
+| 23 | The tests of increment 2 refuse an `mgcv::gam()` fit with smooth terms, usually penalised, fixed ones included, with a final class, until increment 11 settles which tests take it; the five of increment 1 test it as before. Confirmed by the author on 2026-10-19. | 2026-10-18 |
+| 24 | RESET builds its context without `data` and keeps `rcheck_data_argument()` until increment 6, so that its values on every form of `data` are those of 0.15.0. Confirmed by the author on 2026-10-19. | 2026-10-18 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

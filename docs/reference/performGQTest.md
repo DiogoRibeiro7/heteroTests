@@ -19,7 +19,7 @@ performGQTest(model, data = NULL, order_by, fraction = 0.2,
 :   an object of class `lm`.
 
 `data`
-:   data frame used to fit `model`. When `NULL`, the default, the model frame of `model` is used, so `order_by` must then be a variable of the model. The model frame holds the terms of the model rather than its variables (`log(x)` rather than `x`), so a model that transforms a variable needs `data`, as does a model with an `offset()` term.
+:   the data frame `model` was fitted to, or `NULL`, the default. The response, design, weights and offset are read from the fit itself (since 0.16.0), and `order_by` from the rows of `data` that hold the observations of the fit. Without `data` it is read from the model frame of `model`, which holds it only when it is a variable of the model under its own name (`x`, not `log(x)`); a model that transforms the variable it is ordered by needs `data`. Data that are given are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
 
 `order_by`
 :   single column name used to order observations.
@@ -36,7 +36,9 @@ An object of class `htest` containing the directional GQ statistic, p-value, deg
 
 ## Details
 
-Observations are ordered by a suspected variance-driving variable. With the split point fixed at the sample midpoint, a central fraction is omitted and the original model is re-estimated on the lower and upper segments. The statistic is the residual mean square of segment 2 divided by the residual mean square of segment 1 and is therefore directional rather than being forced above one. Split arithmetic and p-value conventions match `lmtest::gqtest(..., point = 0.5)`.
+Observations are ordered by a suspected variance-driving variable. With the split point fixed at the sample midpoint, a central fraction is omitted and the model is fitted again on the lower and upper segments: each segment is fitted to its rows of the design, the response and the offset of the fit, as `lmtest::gqtest()` fits them to the rows of the design. The statistic is the residual mean square of segment 2 divided by the residual mean square of segment 1 and is therefore directional rather than being forced above one. Split arithmetic and p-value conventions match `lmtest::gqtest(..., point = 0.5)`.
+
+Before 0.16.0 the segments of an unweighted fit were refitted from the formula, which computed again, on the rows of each segment, a term that depends on the rows it is computed from: `ns(x)` and `bs(x)` placed their knots at quantiles of the segment, and `I(x > median(x))` took its median, so the segments were fitted to columns the fit never used; `poly(x)` computed another basis of the same columns, which changed the last bits only. The refit also left out an offset given as an argument, and a weighted fit was refitted without its offset.
 
 ## Weighted fits
 
@@ -49,10 +51,14 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Until the offset fix planned for 0.16.0 (decided 2026-10-17) it
-refuses an offset given as an argument, which its refits of the segments leave out, and any offset
-on a weighted fit; an `offset()` term on an unweighted fit is evaluated again in each segment
-and accounted for. Which model each test accepts, and why, is set out in
+lack rows or variables of the fit. It accepts a model with an offset, given as an argument or as an
+`offset()` term, weighted or not, and gives the value of the model fitted to the response minus
+the offset (since 0.16.0).
+It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
+`mgcv::gam()` fit with smooth terms: a smooth term is usually penalised, and a penalised fit
+is not the least-squares fit of the design the test fits again. A later step settles which tests
+take such a fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References
