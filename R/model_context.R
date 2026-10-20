@@ -589,16 +589,19 @@ rcontext_pearson <- function(ctx) {
 
 #' The fitted mean, computed from the coefficients
 #'
-#' What `predict(model, type = "response")` returns without new data, one
-#' value per observation, in the order of the fit and without the padding of
-#' `na.exclude`: for an `lm`, a `fitWLS()` fit, a `MASS::rlm()` fit and an
+#' The fitted values of the fit, the linear predictor with the total offset,
+#' one value per observation, in the order of the fit and without the padding
+#' of `na.exclude`: for an `lm`, a `fitWLS()` fit, a `MASS::rlm()` fit and an
 #' `mgcv::gam()` fit, the design times the coefficients that were not aliased,
 #' in the order of the pivot of the fit, plus the offset, as
-#' `stats::predict.lm()` computes it; for a Gaussian `glm`, its fitted values,
-#' which `stats::predict.glm()` returns. Unlike the fitted values an `lm`
-#' stores, \eqn{y - e}, observations with the same design row get the same
-#' value, so that their rounding errors, which depend on the residuals, do not
-#' order them.
+#' `stats::predict.lm()` computes it; for a Gaussian `glm`, its fitted values.
+#' They are what `fitted()` holds, and so what `predict(type = "response")`
+#' returns without new data, except on an `mgcv::gam()` fit with an offset
+#' given as the `offset` argument, which `predict.gam()` leaves out (its
+#' documentation says so) and `fitted()` includes. Unlike the fitted values an
+#' `lm` stores, \eqn{y - e}, which equal them up to rounding, observations with
+#' the same design row get the same value, so that their rounding errors,
+#' which depend on the residuals, do not order them.
 #'
 #' @param ctx The model context.
 #' @return Numeric vector, one value per observation.
