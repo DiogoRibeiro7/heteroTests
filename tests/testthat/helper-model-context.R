@@ -410,6 +410,17 @@ context_cells <- function() {
     built$data <- built$data[class_perm, , drop = FALSE]
     built
   }, form = "shuffled", needs = "mgcv", reference = "class/gam", defect = "N17"))
+  # A gam with an offset given as an argument, which predict.gam() leaves out
+  # of its predictions: the registered Szroeter test, which ordered by
+  # predict() before 0.16.0, ordered such a fit by X b without the offset
+  # ("gam_offset"); it orders by the fitted values with the offset, those of
+  # the same gam with an offset() term.
+  add(context_cell("class/gam_offset_term", "class", function() {
+    list(m = mgcv::gam(y ~ x1 + x2 + offset(o), data = d), data = d)
+  }, needs = "mgcv", reference = "fit/ols/term/none/data_frame"))
+  add(context_cell("class/gam_offset", "class", function() {
+    list(m = mgcv::gam(y ~ x1 + x2, data = d, offset = o), data = d)
+  }, needs = "mgcv", reference = "class/gam_offset_term", defect = "gam_offset"))
   # A smooth term, usually penalised: the tests of increments 1 and 3 test the
   # fit as before, and those of increment 2 refuse it until increment 11
   # settles which tests take it ("gam"). Goldfeld-Quandt and the quantile
@@ -452,6 +463,17 @@ context_cells <- function() {
                    reference = "fit/ols/none/none/data_frame", defect = "frame"))
   class_forms("model_false", model_false_fit, defect = "frame",
               expect_null = "cannot use the model frame of `model`")
+  # The same fit given its data as a tibble in another order. Numbered data in
+  # another order than the fit are refused (decision 3): the frame built from
+  # them does not give the response of the fit, and the tests built on the
+  # context refuse the fit. The tests of increment 3 returned a value before,
+  # the wrong one for those that read a column of `data` ("frame").
+  add(context_cell("class/model_false_tibble", "class", function() {
+    built <- model_false_fit()
+    built$data <- dplyr::as_tibble(built$data)[class_perm, ]
+    built
+  }, form = "tibble_shuffled", needs = "dplyr",
+  expect = "cannot use the model frame of `model`", defect = "frame"))
   # A fit with model = FALSE whose data were reordered after the fit, without
   # `data`: its model frame, rebuilt from the reordered data, no longer holds
   # its response. RESET read it and returned a value (N6); every test built on
@@ -468,34 +490,32 @@ context_cells <- function() {
 }
 
 # Harrison-McCabe's statistic and its lower tail written out with the rank of
-# the fit, independently of the package (N4; decided 2026-10-18): the Pearson
-# residuals of the fit and its weighted design without the aliased columns,
-# both in the order of `order_by`; the residual-maker of the first `rank`
-# columns of an orthonormal basis of that design, computed at the tolerance
-# the fit decided its rank with; the eigenvalues of the quadratic form of the
-# statistic on the full n x n matrices; and Imhof's formula integrated over u,
-# as in test-harrison-mccabe.R. Before 0.16.0 the test took the rank of the
-# design again at 1e-7, which on a Gaussian glm (1e-11) or an lm fitted with a
-# smaller `tol` can be smaller than the fit's.
+# the fit, independently of the package (N4; decided 2026-10-18), from the
+# decomposition the fit itself made: the Pearson residuals of the fit, which
+# are those the test reads; the residual-maker of the first `rank` columns of
+# the orthonormal basis of the fit's own QR decomposition (`m$qr`, rows in the
+# order of the fit, of the weighted design, at the fit's tolerance), so that
+# the null distribution and the residuals have the same rank; both put in the
+# order of `order_by`; the eigenvalues of the quadratic form of the statistic
+# on the full n x n matrices; and Imhof's formula integrated over u, as in
+# test-harrison-mccabe.R. The package decomposes the design again, in the
+# order of `order_by`. Before 0.16.0 it did so at 1e-7, which on a Gaussian
+# glm (1e-11) or an lm fitted with a smaller `tol` can give a smaller rank
+# than the fit's.
 context_hmc_by_hand <- function(m, d, order_by = "x1", point = 0.5) {
-  e <- unname(stats::residuals(m, type = "pearson"))
-  design <- stats::model.matrix(m)[, !is.na(stats::coef(m)), drop = FALSE]
-  w <- stats::weights(m)
-  if (!is.null(w)) {
-    design <- sqrt(w) * design
-  }
-  ord <- order(d[[order_by]][match(names(stats::residuals(m)), rownames(d))])
+  e <- stats::residuals(m, type = "pearson")
+  ord <- order(d[[order_by]][match(names(e), rownames(d))])
+  e <- unname(e)[ord]
   n <- length(e)
   first <- floor(point * n)
-  e <- e[ord]
-  tol <- if (is.null(m$qr$tol)) 1e-7 else m$qr$tol
-  basis <- qr.Q(qr(design[ord, , drop = FALSE], tol = tol))[, seq_len(m$rank), drop = FALSE]
-  resid_maker <- diag(n) - tcrossprod(basis)
+  basis <- qr.Q(m$qr)[, seq_len(m$rank), drop = FALSE]
+  resid_maker <- (diag(n) - tcrossprod(basis))[ord, ord]
   statistic <- sum(e[seq_len(first)]^2) / sum(e^2)
   selector <- diag(c(rep(1, first), rep(0, n - first)))
-  lambda <- eigen(resid_maker %*% selector %*% resid_maker - statistic * resid_maker,
-                  symmetric = TRUE, only.values = TRUE)$values
-  lambda <- lambda[abs(lambda) > 1e-12]
+  form <- resid_maker %*% (selector - statistic * diag(n)) %*% resid_maker
+  lambda <- eigen((form + t(form)) / 2, symmetric = TRUE, only.values = TRUE)$values
+  lambda <- lambda[abs(lambda) > 1e-12 * max(abs(lambda))]
+  lambda <- lambda / sqrt(sum(lambda^2))
   integrand <- function(u) {
     vapply(u, function(v) {
       sin(0.5 * sum(atan(lambda * v))) / (v * prod((1 + lambda^2 * v^2)^0.25))
@@ -529,6 +549,12 @@ context_rank_cells <- function() {
          build = function() list(m = fit(), data = d))
   })
 }
+
+# The cells whose reference is another fit of the same model, which equals
+# them up to rounding: the rank-deficient fit and the gam fits, against the lm.
+context_rounded_cells <- c(
+  "class/rank_deficient", "class/gam", "class/gam_offset_term", "class/gam_offset"
+)
 
 # The cells run on CRAN: no package beyond the hard dependencies, and a few of
 # each block.

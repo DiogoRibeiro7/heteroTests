@@ -653,13 +653,19 @@ model `y ~ x1 + x2 + x3`:
 | `lm()`, `order_by = "x1"` | 3, `1e-7` (aliases `x3`) | 0.31840 | 0.0021134 | 0.0021134 |
 | `glm(y ~ x1 + x2)`, `order_by = "x1"` | 3, `1e-11` | 0.31840 | 0.0021134 | 0.0021134 |
 
-Each new value equals, to 3e-13, the test written out with the rank of the
-fit: the residual-maker of an orthonormal basis of the ordered design at the
-fit's tolerance, the eigenvalues of the quadratic form on the full matrices,
-and Imhof's formula integrated independently
-(`context_hmc_by_hand()` in `tests/testthat/helper-model-context.R`). On every
-other fit the two ranks agree and the value is unchanged: a `gam` keeps the
-rank of its design at `1e-7`, as before.
+Each new value equals the test written out from the fit's own QR
+decomposition, with its rank: the residual-maker of that basis, the
+eigenvalues of the quadratic form on the full matrices, and Imhof's formula
+integrated independently (`context_hmc_by_hand()` in
+`tests/testthat/helper-model-context.R`), to 1e-8 relative on these designs,
+the precision to which either decomposition fixes the direction that a column
+at 1e-9 of the others adds, and to rounding on a well-conditioned fit. With the
+rank of the fit, each part of the ordered sample needs at least as many
+observations as the fit has coefficients: on the `glm` above, `point = 3` and
+`point = 117` returned p = 0.0891 and 0.1227, and now stop with "Each part
+needs at least 4, the number of coefficients."; `point = 116` gives 0.11379,
+where it gave 0.11151. On every other fit the two ranks agree and the value is
+unchanged: a `gam` keeps the rank of its design at `1e-7`, as before.
 
 **A `gam` given its data in another order is matched to them by row name.**
 The residuals of an `mgcv::gam()` fit carry no names, and the Glejser, Park,
@@ -690,6 +696,37 @@ three streaming tests, and the replicates of `performWhiteTestBootstrap()`;
 the roadmap records them. The
 spatial test reads no column of `data` and gave the value already.
 
+**The registered `"szroeter"` orders a `gam` with an `offset` argument by its
+fitted values, offset included.** It ordered the observations by
+`predict(type = "response")`, which for an `mgcv::gam()` fit leaves out an
+offset given as the `offset` argument, as its help page says, so it ordered such a
+fit by `X b` alone. It now orders by the fitted values of the fit, `X b + o`,
+which `fitted()` holds, as it orders the same `gam` with an `offset()` term
+and the `lm` with that offset (decided 2026-10-20). With `set.seed(1)`,
+`mtcars$o <- rnorm(32)` and
+`m <- mgcv::gam(mpg ~ wt + qsec, data = mtcars, offset = o)`,
+`runHeteroTests(m, mtcars, tests = "szroeter")` returned Q = 0.800386
+(p = 0.2117), and returns 0.962844 (p = 0.1678), the value of
+`gam(mpg ~ wt + qsec + offset(o))` and of `lm(mpg ~ wt + qsec, offset = o)`.
+
+**A fit with `model = FALSE` whose data are gone, given numbered data in
+another order than the fit, is refused by the six.** Such data, a tibble or a
+data frame whose row names were reset, in another order, cannot be matched to
+the observations of the fit (named data in any order, numbered data in fit
+order), and the model frame built from them does not give the response of the
+fit: the six stop with "... cannot use the model frame of `model`: it cannot
+be rebuilt (...), and `data` does not give the response and the fitted values
+of the fit", of class `heteroTests_model_context_error`, as the first nine do,
+directly, through the registered names, `test_factory` and the runner. They
+returned a value. On `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120
+observations of `contract_data()`, with `gone` removed after the fit and the
+data given as `dplyr::as_tibble(d)[sample(120), ]` after `set.seed(3)`,
+Glejser's test returned -0.322 where the data in the order of the fit give
+3.626, Park's 0.118 for 3.263, Szroeter's -0.537 for 3.185 and Hartley's 2.185
+for 3.080, values of other rows; the spatial test, which reads no column of
+`data`, returned its value, 0.0938, and is refused too. The Harrison-McCabe test
+stopped already, with "object 'gone' not found".
+
 **`runHeteroTests(tests = "spatial_hetero")` runs the spatial test on data it
 stopped on.** On a fit whose model frame holds terms rather than variables,
 given that model frame as `data` with its weights in
@@ -718,19 +755,21 @@ Also, for these six:
   the test reads is a column of the model frame, where it stopped with "The
   following variables are missing from input data: o", and so is, by the
   spatial test, which reads no variable, a model that transforms its
-  variables; the model frame given as `data` is accepted as it is. A fit with `model = FALSE` whose data are gone is tested
-  on `data` that give its response and fitted values by the Harrison-McCabe
-  test too, which stopped with "object 'gone' not found" (the other five
-  tested it already). A fit with `subset =` given by index gave its value
-  already.
+  variables; the model frame given as `data` is accepted as it is. A fit
+  with `model = FALSE` whose data are gone is tested on `data` that give its
+  response and fitted values by the Harrison-McCabe test, and by the
+  registered `"szroeter"` and `runHeteroTests(tests = "szroeter")`, which
+  stopped with "object 'gone' not found" (the other five tests tested it
+  already). A fit with `subset =` given by index gave its value already.
 - The registered `"szroeter"` reads its fitted values from the fit, and gives
   `data` to the test as it is: called with `data = NULL` it reads the model
   frame, where it stopped with "Missing rows", and numbered data in the order
   of the fit whose numbers are not those of the fit, such as the complete rows
   of a fit with `na.omit` numbered again, are taken in that order, where they
-  were refused with "Missing rows". The fitted values are those
-  `predict(type = "response")` computed, the same numbers, so ties are broken
-  as before. Data it matched by row name before the comparison of the guard
+  were refused with "Missing rows". The fitted values are the linear
+  predictor of the fit with its offset, which `fitted()` holds: the numbers
+  `predict(type = "response")` computed, so ties are broken as before, but on
+  a `gam` with an `offset` argument (above). Data it matched by row name before the comparison of the guard
   are refused by the guard as `performSzroeterTest()` refuses them, with that
   message.
 - Without `data`, a variable the model frame does not hold under its own name
@@ -766,24 +805,26 @@ Also, for these six:
   runner. An `mgcv::gam()` fit with smooth terms is tested by the six as
   before, until the last step settles which tests take it.
 - Unchanged: every other value of a valid call, every refusal of the guard,
-  and every message the test suite pins. A corpus of 16,041 calls, the six, their routes and every other test
-  on 276 combinations of fits, offsets, terms, forms of `data`, dropped rows,
-  row names and classes and on the five fits of the table of the Harrison-McCabe
-  rank, the default battery and the registered names through
-  `runHeteroTests()`, and the examples of the sixteen help pages, returns
-  what it returned before, `identical()`, but for the 580 calls of the
-  changes above (`scripts/model-context-identity.R`), none of them a new
-  refusal; each of the 262 that now return a value, or another one, gives the
-  value of its reference, compared on every number of the result: the same
-  call on the data frame of the fit, on the fit to the complete rows, on the
-  data of the fit in its order, through the registered spatial test, or, for
-  the rank of the Harrison-McCabe test, the test written out with the rank of
-  the fit. The rows of the six tests in Pass A, the Glejser study and the
-  Harrison-McCabe study of `inst/validation/` are reproduced byte for byte at
-  the settings of the committed tables (5000 replications, and 100,000 samples
-  for the null distribution of the Harrison-McCabe test). The warnings of the calls of the
-  corpus are those of before, but for three calls of Hartley's test that
-  stopped and now return a value with its warning on unequal groups.
+  and every message the test suite pins. A corpus of 16,212 calls, the six,
+  their routes and every other test on 279 combinations of fits, offsets,
+  terms, forms of `data`, dropped rows, row names and classes and on the five
+  fits of the table of the Harrison-McCabe rank, the default battery and the
+  registered names through `runHeteroTests()`, and the examples of the sixteen
+  help pages, returns what it returned before, `identical()`, but for the 594
+  calls of the changes above (`scripts/model-context-identity.R`), eight of
+  them the new refusals in bold; each of the 264 that now return a value, or
+  another one, gives the value of its reference, compared on every number of
+  the result: the same call on the data frame of the fit, on the fit to the
+  complete rows, on the data of the fit in its order, on the same `gam` with
+  an `offset()` term, through the registered spatial test, or, for the rank of
+  the Harrison-McCabe test, the test written out from the fit's own
+  decomposition. The rows of the six tests in Pass A, the Glejser study and
+  the Harrison-McCabe study of `inst/validation/` are reproduced byte for byte
+  at the settings of the committed tables (5000 replications, and 100,000
+  samples for the null distribution of the Harrison-McCabe test). The warnings
+  of the calls of the corpus are those of before, but for three calls of
+  Hartley's test that stopped and now return a value with its warning on
+  unequal groups.
 
 ### Packaging
 

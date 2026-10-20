@@ -106,13 +106,17 @@ registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBoot
 # with the mean. With a single regressor that is the order of the regressor
 # when its slope is positive and the reverse order when it is negative.
 #
-# The fitted values are those predict(type = "response") computes, X b (plus
-# any offset), read from the model context (rcontext_mean()). They are not
-# those an lm stores, y - e: rows with the same design row would then differ
-# in their last bits by an amount that depends on the residual, and those
-# rounding errors would decide the order within the ties. Computed from the
-# coefficients, such rows tie exactly and keep the order of the rows the model
-# was fitted to.
+# The fitted values are the linear predictor of the fit with its total
+# offset, X b + o, read from the model context (rcontext_mean()): what
+# fitted() holds, and so what predict(type = "response") returns, except on
+# an mgcv::gam() fit with an `offset` argument, which predict.gam() leaves
+# out. Before 0.16.0 they came from predict(), so on such a gam the test
+# ordered by X b alone. They are computed from the coefficients, not taken
+# from those an lm stores, y - e: rows with the same design row would then
+# differ in their last bits by an amount that depends on the residual, and
+# those rounding errors would decide the order within the ties. Computed from
+# the coefficients, such rows tie exactly and keep the order of the rows the
+# model was fitted to.
 #
 # Since 0.16.0 they are in the order of the fit, and `data` is matched to the
 # observations of the fit as performSzroeterTest() matches it, so nothing is
