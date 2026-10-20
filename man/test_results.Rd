@@ -82,14 +82,22 @@ Since 0.16.0 \code{\link{performWhiteTest}()}, \code{\link{performBPTest}()}, \c
 \code{\link{performRankPermutationTest}()}, \code{\link{performHighDimensionalTest}()}, the studentized
 Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with
 \code{studentize = TRUE}, the registered \code{"student_bp"}), \code{\link{performRESETTest}()},
-\code{\link{performGQTest}()} and \code{\link{performQuantileRegressionTest}()} read the response, the design, the
+\code{\link{performGQTest}()}, \code{\link{performQuantileRegressionTest}()}, \code{\link{performGlejserTest}()},
+\code{\link{performParkTest}()}, \code{\link{performSzroeterTest}()} with the registered \code{"szroeter"},
+\code{\link{performHarrisonMcCabeTest}()}, \code{\link{performHartleyFmaxTest}()} and
+\code{\link{performSpatialHeteroTest}()} read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 \code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
 the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET reads
 nothing from \code{data}: it builds its context without it, and keeps the check of \code{data} of the tests computed
 from the model alone, for the variables of the model and the row names of the fit, until a later step.
-\code{\link{performGQTest}()} reads its \code{order_by} from the confirmed rows of \code{data}, or, without
-\code{data}, from the model frame when it holds the variable under its own name. These tests
+The Goldfeld-Quandt, Szroeter and Harrison-McCabe tests read their \code{order_by}, Glejser's and Park's their
+\code{variable} and Hartley's its \code{group} from the confirmed rows of \code{data}, or, without \code{data}, from
+the model frame when it holds the variable under its own name ("The following variables are missing from the model
+frame of \code{model}" otherwise). The registered \code{"szroeter"} orders by the fitted values, which it computes
+from the fit, and the spatial test reads no column of \code{data}: its \code{listw} lists the observations of the
+fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (\code{1e-7} for an
+\code{lm}, \code{1e-11} for a \code{glm}). These tests
 match numbered rows by the row numbers of the fit, or, when \code{data} holds one row per observation and its numbers
 are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
 before the match, so data that hold the rows a fit with \code{na.omit} dropped, or only the rows it kept, numbered
@@ -103,14 +111,19 @@ coefficients", "The weights of the model are not those its coefficients were fit
 values, on which it is then tested (RESET, which builds its context without \code{data}, refuses it). RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
 \code{mgcv::gam()} fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
-fit of its design, until a later step settles which tests take it; the other five test it as before 0.16.0. The check of an edited fit is a guard against accidental edits, not a proof
+fit of its design, until a later step settles which tests take it; the other eleven test it as before 0.16.0. The
+residuals of a \code{gam} carry no names, and these tests match \code{data} to its observations by the row names of
+its model frame; the tests that are not built on the context yet and read a column of \code{data} match them by
+position. The check of an edited fit is a guard against accidental edits, not a proof
 that a fit is unedited: an edited coefficient leaves the residuals unchanged, so it is seen only at \code{1e-7} of
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
 \code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
-\code{data}, without running another test under the name of the one refused. The rank permutation test, when its
-\code{order_by} is a column of \code{data} the model frame does not hold, refuses numbered rows taken in the order of
-the fit if two rows of the fit tie on every compared column. On a call with more than one defect, the first one
+\code{data}, without running another test under the name of the one refused. A test that reads a column of
+\code{data} the model frame does not hold, as the rank permutation, Goldfeld-Quandt, Szroeter and
+Harrison-McCabe tests do with their \code{order_by}, Glejser's and Park's with their \code{variable} and Hartley's
+with its \code{group}, refuses numbered rows taken in the order of the fit if two rows of the fit tie on every
+compared column. On a call with more than one defect, the first one
 reported may differ from before 0.16.0, since the rows of \code{data} are now matched before the checks of the model.
 \code{tests/testthat/test-model-context.R} checks them.
 }

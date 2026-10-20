@@ -24,11 +24,14 @@
 # tests in increments, and the decisions behind it. Since 0.16.0 (increment 1)
 # performWhiteTest(), performBPTest() and performBreuschPaganTest(),
 # performKoenkerTest(), performRankPermutationTest() and
-# performHighDimensionalTest() are built on it, and (increment 2) the
+# performHighDimensionalTest() are built on it, (increment 2) the
 # studentized Breusch-Pagan statistic (.studentized_bp_test()),
-# performRESETTest(), performGQTest() and performQuantileRegressionTest(); the
-# other tests still prepare the model and data with rdata_or_model_frame() and
-# prepare_model_data_for_test().
+# performRESETTest(), performGQTest() and performQuantileRegressionTest(), and
+# (increment 3) performGlejserTest(), performParkTest(), performSzroeterTest()
+# with the registered "szroeter" (.szroeter_test()),
+# performHarrisonMcCabeTest(), performHartleyFmaxTest() and
+# performSpatialHeteroTest(); the other tests still prepare the model and data
+# with rdata_or_model_frame() and prepare_model_data_for_test().
 
 #' Build the model context of a test
 #'
@@ -582,6 +585,80 @@ rcontext_unpad <- function(ctx, x) {
 #' @noRd
 rcontext_pearson <- function(ctx) {
   rcontext_unpad(ctx, rpearson_residuals(ctx$model))
+}
+
+#' The fitted mean, computed from the coefficients
+#'
+#' What `predict(model, type = "response")` returns without new data, one
+#' value per observation, in the order of the fit and without the padding of
+#' `na.exclude`: for an `lm`, a `fitWLS()` fit, a `MASS::rlm()` fit and an
+#' `mgcv::gam()` fit, the design times the coefficients that were not aliased,
+#' in the order of the pivot of the fit, plus the offset, as
+#' `stats::predict.lm()` computes it; for a Gaussian `glm`, its fitted values,
+#' which `stats::predict.glm()` returns. Unlike the fitted values an `lm`
+#' stores, \eqn{y - e}, observations with the same design row get the same
+#' value, so that their rounding errors, which depend on the residuals, do not
+#' order them.
+#'
+#' @param ctx The model context.
+#' @return Numeric vector, one value per observation.
+#' @keywords internal
+#' @noRd
+rcontext_mean <- function(ctx) {
+  if (identical(ctx$kind, "glm_gaussian")) {
+    return(unname(ctx$fitted))
+  }
+  coefs <- stats::coef(ctx$model)
+  pivot <- ctx$model$qr$pivot
+  used <- if (!is.null(pivot) && length(ctx$rank) == 1L) {
+    pivot[seq_len(ctx$rank)]
+  } else {
+    which(!is.na(coefs))
+  }
+  mean <- drop(ctx$design[, used, drop = FALSE] %*% coefs[used])
+  if (!is.null(ctx$offset)) {
+    mean <- mean + ctx$offset
+  }
+  unname(mean)
+}
+
+#' Refuse an extra variable that is missing at an observation of the fit
+#'
+#' A test that reads a variable of `data` besides the model, such as the
+#' variable it orders by, groups by or regresses on, needs its value at every
+#' observation of the fit. Before 0.16.0 the tests dropped the rows of `data`
+#' with a missing value and then lacked those rows; they still refuse them,
+#' with the message they gave, which now also names the variable (decided on
+#' 2026-10-18).
+#'
+#' @param ctx The model context.
+#' @param values The variable, one value per observation
+#'   ([rcontext_variables()]).
+#' @param variable Character scalar, the name of the variable.
+#' @param argument Character scalar, the argument of the test that names it.
+#' @param test_label Character scalar naming the test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_missing_variable <- function(ctx, values, variable, argument, test_label) {
+  absent <- if (is.matrix(values) || is.data.frame(values)) {
+    !stats::complete.cases(values)
+  } else {
+    is.na(values)
+  }
+  if (!any(absent)) {
+    return(invisible(NULL))
+  }
+  stop(
+    sprintf(
+      paste0(
+        "%s requires `data` to contain the rows used to fit the model. Missing rows: %s, ",
+        "where %s, the `%s` variable, is missing."
+      ),
+      test_label, paste(utils::head(ctx$obs_id[absent], 3L), collapse = ", "), variable, argument
+    ),
+    call. = FALSE
+  )
 }
 
 #' The design of the fit without its aliased columns

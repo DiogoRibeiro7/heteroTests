@@ -16,13 +16,20 @@ performHarrisonMcCabeTest(
 \item{model}{A fitted \link[stats:lm]{stats::lm} object, with or without weights, or a
 \link[stats:glm]{stats::glm} with the Gaussian family and the identity link.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} containing the variables used to fit
-\code{model} and the ordering variable named by \code{order_by}.
-When \code{NULL}, the default, the model frame of \code{model} is used, so \code{order_by}
-must then be a variable of the model. The model frame holds the terms of
-the model rather than its variables (\code{log(x)} rather than \code{x}), so a model
-that transforms a variable needs \code{data}, as does a
-model with an \code{offset()} term.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default. The
+residuals, design, weights and rank are read from the fit itself (since
+0.16.0), and \code{order_by} from the rows of \code{data} that hold the observations
+of the fit. Without \code{data} it is read from the model frame of \code{model},
+which holds it only when it is a variable of the model under its own name
+(\code{x}, not \code{log(x)}); a model that transforms the variable it is ordered by
+needs \code{data}, as does an ordering variable the model does not use. Data
+that are given are matched to the observations of the fit: rows with row
+names of their own by name, in any order; rows that only number themselves
+(a tibble, a data.table, a data frame whose row names were reset) by the
+row numbers of the fit, or in the order of the fit when they hold one row
+per observation. The rows the fit dropped may be there or not. Data whose
+rows cannot be shown to hold the observations of the fit are refused; see
+\code{\link{test_results}}.}
 
 \item{order_by}{Character scalar naming the column of \code{data} that orders the
 observations. Tied values keep the order the observations have in the
@@ -94,6 +101,19 @@ a p-value of 0.
 The p-value depends only on the space spanned by the regressors, so it does
 not change with the parametrisation of the model.
 }
+\section{The rank}{
+
+\eqn{k} is the rank of the fit, the number of its coefficients that are
+not aliased, decided at the tolerance the fit used: \code{1e-7} for an \code{lm}, or
+the \code{tol} it was given, and \code{1e-11} for a \code{glm} (since 0.16.0). Before, the
+rank was decided again at \code{1e-7}, so a Gaussian \code{glm}, or an \code{lm} fitted
+with a smaller \code{tol}, whose design holds a column that is a combination of
+the others to within \code{1e-7} but not to within its own tolerance, was given
+a null distribution of a smaller rank than its residuals. With
+\code{x3 = x1 + 1e-9 * rnorm(120)} the \code{glm} has rank 4, and its p-value is
+0.002273 where it was 0.002288, computed with rank 3. On every other fit
+the two ranks agree and the value is unchanged.
+}
 \section{Direction of the alternative}{
 
 In \code{\link[=performGQTest]{performGQTest()}} and \code{\link[=performSzroeterTest]{performSzroeterTest()}} the statistic grows when
@@ -137,17 +157,27 @@ different p-value as well; \code{inst/validation/README.md} says why.
 }
 
 \section{Supported models}{
-It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity
-link, unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
-rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
-same model fitted without the aliased columns. The Gaussian \code{glm} with prior weights \code{w}
-is the least-squares fit \code{lm(..., weights = w)}: it has the same design, residuals and
-weights, and it states the normal errors of constant variance, given the weights, under which the
-null distribution above is exact, so the test gives the value of the \code{lm}. It refused every
-\code{glm} before 0.16.0. It refuses a \code{glm} of another family or link, a
-\code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, and \code{data} that lack rows or variables of the fit. Which model each test accepts, and
-why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
+
+It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the
+identity link, unweighted or with positive weights, a \code{fitWLS()} fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+design: it gives the value of the same model fitted without the aliased columns.
+The Gaussian \code{glm} with prior weights \code{w} is the least-squares fit
+\code{lm(..., weights = w)}: it has the same design, residuals and weights, and it
+states the normal errors of constant variance, given the weights, under which
+the null distribution above is exact, so the test gives the value of the \code{lm}
+when the two decide the rank alike (see the section on the rank). It refused
+every \code{glm} before 0.16.0. It refuses a \code{glm} of another family or link, a
+\code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not
+finite for another reason, and \code{data} that lack rows or variables of the fit.
+It refuses a multivariate \code{lm} ("needs a model with one response"), since
+0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is
+tested as before 0.16.0, with smooth terms too, until a later step settles
+which tests take such a fit; since 0.16.0 its observations are matched to the
+rows of \code{data} by the row names of its model frame. Before, they were matched
+by position, since the residuals of a \code{gam} carry no names, and \code{data} with
+the rows of the fit in another order gave a wrong value. Which model each test
+accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 data(mtcars)

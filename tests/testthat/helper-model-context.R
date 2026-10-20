@@ -24,12 +24,15 @@
 # expectation of a function that is not migrated is weakened. Increment 1:
 # the first five; increment 2: the studentized Breusch-Pagan statistic
 # (through its deprecated name), RESET, Goldfeld-Quandt and the quantile
-# regression test.
+# regression test; increment 3: Glejser, Park, Szroeter, Harrison-McCabe,
+# Hartley and the spatial test.
 context_migrated <- c(
   "performWhiteTest", "performBPTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest",
   "performStudentizedBPTest", "performRESETTest", "performGQTest",
-  "performQuantileRegressionTest"
+  "performQuantileRegressionTest",
+  "performGlejserTest", "performParkTest", "performSzroeterTest",
+  "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest"
 )
 
 # Fixture B of the design: contract_data() with weights, an offset outside the
@@ -360,15 +363,17 @@ context_cells <- function() {
 
   # Classes of model. Those whose answer differs between the tests are run with
   # the data frame of the fit, without `data`, and with the same rows shuffled
-  # under their own row names (class_forms()).
+  # under their own row names (class_forms()); `shuffled_defect` names the
+  # defects of the shuffled cell alone.
   set.seed(3)
   class_perm <- sample(nrow(d))
   class_forms <- function(id, build, expect = "value", defect = character(), needs = character(),
-                          fit = "ols", expect_null = expect) {
+                          fit = "ols", expect_null = expect, shuffled_defect = character()) {
     for (form in c("null", "shuffled")) {
       local({
         form <- form
         cell_expect <- if (identical(form, "null")) expect_null else expect
+        defect <- if (identical(form, "shuffled")) c(defect, shuffled_defect) else defect
         built_form <- function() {
           built <- build()
           built$data <- if (identical(form, "shuffled")) built$data[class_perm, , drop = FALSE]
@@ -393,16 +398,27 @@ context_cells <- function() {
   }))
   # A Gaussian mgcv::gam() is a glm by class, and is accepted as before 0.16.0;
   # without smooth terms it is the lm.
-  add(context_cell("class/gam", "class", function() {
-    list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
-  }, needs = "mgcv", reference = "fit/ols/none/none/data_frame"))
-  # A smooth term, usually penalised: the tests of increment 1 test the fit as
-  # before, and those of increment 2 refuse it until increment 11 settles which
-  # tests take it ("gam"). Goldfeld-Quandt and the quantile regression test, which refitted
-  # the formula, stopped on its smooth term outside mgcv.
+  gam_fit <- function() list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
+  add(context_cell("class/gam", "class", gam_fit, needs = "mgcv",
+                   reference = "fit/ols/none/none/data_frame"))
+  # The residuals of a gam carry no names, and the tests that read a column of
+  # `data` matched `data` to them by position: given the rows of the fit in
+  # another order under their own names, they returned a wrong value (N17).
+  # The context matches them by the row names of the model frame.
+  add(context_cell("class/gam_shuffled", "class", function() {
+    built <- gam_fit()
+    built$data <- built$data[class_perm, , drop = FALSE]
+    built
+  }, form = "shuffled", needs = "mgcv", reference = "class/gam", defect = "N17"))
+  # A smooth term, usually penalised: the tests of increments 1 and 3 test the
+  # fit as before, and those of increment 2 refuse it until increment 11
+  # settles which tests take it ("gam"). Goldfeld-Quandt and the quantile
+  # regression test, which refitted the formula, stopped on its smooth term
+  # outside mgcv.
   gam_smooth_fit <- function() list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
   add(context_cell("class/gam_smooth", "class", gam_smooth_fit, needs = "mgcv", defect = "gam"))
-  class_forms("gam_smooth", gam_smooth_fit, needs = "mgcv", defect = "gam")
+  class_forms("gam_smooth", gam_smooth_fit, needs = "mgcv", defect = "gam",
+              shuffled_defect = "N17")
   # A zero weight leaves an observation out of the fit with a residual that is
   # not one: refused by every test but RESET, whose two weighted fits both
   # leave it out (decided 2026-10-17), for an lm and a Gaussian glm alike.
@@ -451,6 +467,69 @@ context_cells <- function() {
   cells
 }
 
+# Harrison-McCabe's statistic and its lower tail written out with the rank of
+# the fit, independently of the package (N4; decided 2026-10-18): the Pearson
+# residuals of the fit and its weighted design without the aliased columns,
+# both in the order of `order_by`; the residual-maker of the first `rank`
+# columns of an orthonormal basis of that design, computed at the tolerance
+# the fit decided its rank with; the eigenvalues of the quadratic form of the
+# statistic on the full n x n matrices; and Imhof's formula integrated over u,
+# as in test-harrison-mccabe.R. Before 0.16.0 the test took the rank of the
+# design again at 1e-7, which on a Gaussian glm (1e-11) or an lm fitted with a
+# smaller `tol` can be smaller than the fit's.
+context_hmc_by_hand <- function(m, d, order_by = "x1", point = 0.5) {
+  e <- unname(stats::residuals(m, type = "pearson"))
+  design <- stats::model.matrix(m)[, !is.na(stats::coef(m)), drop = FALSE]
+  w <- stats::weights(m)
+  if (!is.null(w)) {
+    design <- sqrt(w) * design
+  }
+  ord <- order(d[[order_by]][match(names(stats::residuals(m)), rownames(d))])
+  n <- length(e)
+  first <- floor(point * n)
+  e <- e[ord]
+  tol <- if (is.null(m$qr$tol)) 1e-7 else m$qr$tol
+  basis <- qr.Q(qr(design[ord, , drop = FALSE], tol = tol))[, seq_len(m$rank), drop = FALSE]
+  resid_maker <- diag(n) - tcrossprod(basis)
+  statistic <- sum(e[seq_len(first)]^2) / sum(e^2)
+  selector <- diag(c(rep(1, first), rep(0, n - first)))
+  lambda <- eigen(resid_maker %*% selector %*% resid_maker - statistic * resid_maker,
+                  symmetric = TRUE, only.values = TRUE)$values
+  lambda <- lambda[abs(lambda) > 1e-12]
+  integrand <- function(u) {
+    vapply(u, function(v) {
+      sin(0.5 * sum(atan(lambda * v))) / (v * prod((1 + lambda^2 * v^2)^0.25))
+    }, numeric(1))
+  }
+  lower <- 0.5 - stats::integrate(integrand, 0, Inf, rel.tol = 1e-12, abs.tol = 1e-15,
+                                  subdivisions = 5000L)$value / pi
+  list(statistic = c(HMC = statistic), parameter = c(m = first, n = n), p.value = lower)
+}
+
+# The cells of Harrison-McCabe's rank (N4): a design with a column that is
+# nearly a combination of the others, `x3 = x1 + 1e-9 z` (seed 5), fitted by
+# a Gaussian glm, unweighted and weighted, which decide their rank at 1e-11,
+# by an lm with `tol = 1e-11`, and by an lm at its default 1e-7, which aliases
+# x3; and the well-conditioned Gaussian glm, which keeps its value.
+context_rank_cells <- function() {
+  d <- context_data()
+  set.seed(5)
+  d$x3 <- d$x1 + 1e-9 * stats::rnorm(nrow(d))
+  f <- y ~ x1 + x2 + x3
+  fits <- list(
+    glm = function() stats::glm(f, data = d),
+    glm_weighted = function() stats::glm(f, data = d, weights = w),
+    lm_tol = function() stats::lm(f, data = d, tol = 1e-11),
+    lm = function() stats::lm(f, data = d),
+    glm_conditioned = function() stats::glm(y ~ x1 + x2, data = d)
+  )
+  lapply(stats::setNames(names(fits), paste0("rank/", names(fits))), function(id) {
+    fit <- fits[[id]]
+    list(id = paste0("rank/", id), form = "data_frame", defect = "N4",
+         build = function() list(m = fit(), data = d))
+  })
+}
+
 # The cells run on CRAN: no package beyond the hard dependencies, and a few of
 # each block.
 context_cran_cells <- c(
@@ -466,11 +545,36 @@ context_increment2 <- c(
   "performQuantileRegressionTest"
 )
 
+# The tests of increment 3.
+context_increment3 <- c(
+  "performGlejserTest", "performParkTest", "performSzroeterTest",
+  "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest"
+)
+
+# The variable of `data` each test reads besides the model, in its recipe
+# (helper-test-recipes.R): the variable it orders by, regresses on or groups
+# by.
+context_reads <- c(
+  performGQTest = "x1", performGlejserTest = "x1", performParkTest = "x1",
+  performSzroeterTest = "x1", performHarrisonMcCabeTest = "x1",
+  performHartleyFmaxTest = "group"
+)
+
+# The migrated tests that group by `group`, which the model frame of
+# `y ~ x1 + x2` does not hold.
+context_group_readers <- function() {
+  names(context_reads)[context_reads == "group"]
+}
+
 # The functions of `context_migrated` that can run here: the quantile
-# regression test needs quantreg, a suggested package.
+# regression test needs quantreg, and the spatial test spdep, suggested
+# packages.
 context_runnable <- function(fns = context_migrated) {
   if (!requireNamespace("quantreg", quietly = TRUE)) {
     fns <- setdiff(fns, "performQuantileRegressionTest")
+  }
+  if (!requireNamespace("spdep", quietly = TRUE)) {
+    fns <- setdiff(fns, "performSpatialHeteroTest")
   }
   fns
 }
@@ -483,9 +587,15 @@ context_runnable <- function(fns = context_migrated) {
 #   terms (context_increment2).
 # - The quantile regression test refuses a weighted fit, and a MASS::rlm()
 #   fit, whose weights it reads, once `data` is aligned.
-# - Goldfeld-Quandt orders by `x1`, which the model frame of a fit that
-#   transforms `x1` does not hold: without `data` it is refused with the
-#   message of the context (M1), and the model frame given as `data` lacks it.
+# - Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read `x1`,
+#   which the model frame of a fit that transforms `x1` does not hold, and
+#   Hartley's test `group`, which only the model with the factor holds:
+#   without `data` they are refused with the message of the context (M1), also
+#   on a fit with a zero weight, which it refuses next, and the model frame
+#   given as `data` lacks the variable. Data in the order of the fit whose rows
+#   tie on every compared column are refused (the guard) when the variable is
+#   not a column of the model frame, as for the fit to repeated rows given as
+#   a tibble.
 # - RESET reads nothing from `data`. It builds its context without `data` and
 #   keeps the check of `data` of the tests computed from the model alone
 #   (rcheck_data_argument()), which looks for the row names of the fit and
@@ -508,14 +618,26 @@ context_cell_for <- function(fn, cell) {
   transformed <- cell$terms %in% c("log", "poly", "ns", "median", "cut")
   # The cells without `data`: the form "null", and the fit that dropped rows.
   no_data <- identical(cell$form, "null") || identical(cell$id, "missing/median_null")
-  if (identical(fn, "performGQTest") && transformed &&
-        (no_data || identical(cell$form, "model_frame")) && identical(cell$expect, "value")) {
-    cell$expect <- if (no_data) {
-      "The following variables are missing from the model frame of `model`: x1."
-    } else {
-      "The following variables are missing from input data: x1."
+  if (fn %in% names(context_reads)) {
+    variable <- context_reads[[fn]]
+    held <- if (identical(variable, "group")) identical(cell$terms, "factor") else !transformed
+    first <- identical(cell$expect, "value") ||
+      no_data && identical(cell$expect, "zero or non-finite weights")
+    if (!held && first && (no_data || identical(cell$form, "model_frame"))) {
+      cell$expect <- sprintf(
+        if (no_data) {
+          "The following variables are missing from the model frame of `model`: %s."
+        } else {
+          "The following variables are missing from input data: %s."
+        },
+        variable
+      )
+      cell$reference <- NULL
     }
-    cell$reference <- NULL
+    if (!held && identical(cell$id, "ident/repeated_fit_tibble")) {
+      cell$expect <- "guard"
+      cell$reference <- NULL
+    }
   }
   if (identical(fn, "performRESETTest")) {
     rows_lacking <- c(

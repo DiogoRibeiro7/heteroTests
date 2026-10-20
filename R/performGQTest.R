@@ -138,19 +138,7 @@ performGQTest <- function(model, data = NULL, order_by, fraction = 0.2,
   # observation without a place in the order. Before 0.16.0 the test dropped
   # the rows of `data` with a missing value and then lacked those rows; it
   # still refuses them, and says why.
-  if (anyNA(ordering)) {
-    stop(
-      sprintf(
-        paste0(
-          "%s requires `data` to contain the rows used to fit the model. Missing rows: %s, ",
-          "where %s, the `order_by` variable, is missing."
-        ),
-        test_label, paste(utils::head(ctx$obs_id[is.na(ordering)], 3L), collapse = ", "),
-        order_by
-      ),
-      call. = FALSE
-    )
-  }
+  rstop_missing_variable(ctx, ordering, order_by, "order_by", test_label)
   # The rows of `data` that hold the observations, in the order of the fit,
   # or the model frame: what the checks below read.
   working_data <- rcontext_rows(ctx, data)

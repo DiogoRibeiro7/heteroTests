@@ -7,13 +7,20 @@
 #'
 #' @param model A fitted [stats::lm] object, with or without weights, or a
 #'   [stats::glm] with the Gaussian family and the identity link.
-#' @param data A [base::data.frame] containing the variables used to fit
-#'   `model` and the ordering variable named by `order_by`.
-#'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
-#'   must then be a variable of the model. The model frame holds the terms of
-#'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default. The
+#'   residuals, design, weights and rank are read from the fit itself (since
+#'   0.16.0), and `order_by` from the rows of `data` that hold the observations
+#'   of the fit. Without `data` it is read from the model frame of `model`,
+#'   which holds it only when it is a variable of the model under its own name
+#'   (`x`, not `log(x)`); a model that transforms the variable it is ordered by
+#'   needs `data`, as does an ordering variable the model does not use. Data
+#'   that are given are matched to the observations of the fit: rows with row
+#'   names of their own by name, in any order; rows that only number themselves
+#'   (a tibble, a data.table, a data frame whose row names were reset) by the
+#'   row numbers of the fit, or in the order of the fit when they hold one row
+#'   per observation. The rows the fit dropped may be there or not. Data whose
+#'   rows cannot be shown to hold the observations of the fit are refused; see
+#'   [test_results].
 #' @param order_by Character scalar naming the column of `data` that orders the
 #'   observations. Tied values keep the order the observations have in the
 #'   fitted model.
@@ -75,6 +82,18 @@
 #' The p-value depends only on the space spanned by the regressors, so it does
 #' not change with the parametrisation of the model.
 #'
+#' @section The rank:
+#' \eqn{k} is the rank of the fit, the number of its coefficients that are
+#' not aliased, decided at the tolerance the fit used: `1e-7` for an `lm`, or
+#' the `tol` it was given, and `1e-11` for a `glm` (since 0.16.0). Before, the
+#' rank was decided again at `1e-7`, so a Gaussian `glm`, or an `lm` fitted
+#' with a smaller `tol`, whose design holds a column that is a combination of
+#' the others to within `1e-7` but not to within its own tolerance, was given
+#' a null distribution of a smaller rank than its residuals. With
+#' `x3 = x1 + 1e-9 * rnorm(120)` the `glm` has rank 4, and its p-value is
+#' 0.002273 where it was 0.002288, computed with rank 3. On every other fit
+#' the two ranks agree and the value is unchanged.
+#'
 #' @section Direction of the alternative:
 #' In [performGQTest()] and [performSzroeterTest()] the statistic grows when
 #' the variance increases along the ordering, and in this test it shrinks. The
@@ -131,12 +150,19 @@
 #' The Gaussian `glm` with prior weights `w` is the least-squares fit
 #' `lm(..., weights = w)`: it has the same design, residuals and weights, and it
 #' states the normal errors of constant variance, given the weights, under which
-#' the null distribution above is exact, so the test gives the value of the `lm`.
-#' It refused every `glm` before 0.16.0. It refuses a `glm` of another family or
-#' link, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is
-#' not finite for another reason, and `data` that lack rows or variables of the
-#' fit. Which model each test accepts, and why, is set out in [test_results],
-#' under *Supported models*.
+#' the null distribution above is exact, so the test gives the value of the `lm`
+#' when the two decide the rank alike (see the section on the rank). It refused
+#' every `glm` before 0.16.0. It refuses a `glm` of another family or link, a
+#' `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not
+#' finite for another reason, and `data` that lack rows or variables of the fit.
+#' It refuses a multivariate `lm` ("needs a model with one response"), since
+#' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+#' tested as before 0.16.0, with smooth terms too, until a later step settles
+#' which tests take such a fit; since 0.16.0 its observations are matched to the
+#' rows of `data` by the row names of its model frame. Before, they were matched
+#' by position, since the residuals of a `gam` carry no names, and `data` with
+#' the rows of the fit in another order gave a wrong value. Which model each test
+#' accepts, and why, is set out in [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -162,11 +188,18 @@
 #' @export
 performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
                                       alternative = c("less", "two.sided", "greater")) {
-  # A Gaussian glm with the identity link is a least-squares fit, accepted
-  # since 0.16.0 (see the section on supported models); any other glm is not.
-  rrefuse_non_gaussian_glm(model, "performHarrisonMcCabeTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Harrison-McCabe test"
+  # The residuals, design, weights and rank come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R). A
+  # Gaussian glm with the identity link is a least-squares fit, accepted since
+  # 0.16.0 (see the section on supported models); any other glm is refused
+  # there. `order_by` is read from the rows of `data` that hold the
+  # observations, so data taken in the order of the fit must tell those rows
+  # apart when it is not a column of the model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performHarrisonMcCabeTest", test_label = test_label,
+    reads = if (!missing(order_by) && is.character(order_by)) order_by else character()
+  )
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
     stop("`order_by` must be supplied as a single column name.", call. = FALSE)
@@ -186,37 +219,36 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   }
 
   rvalidateModelInputs(model, test_name = "Harrison-McCabe", allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  required_vars <- unique(c(all.vars(stats::terms(model)), order_by))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
+  # The ordering variable, one value per observation in the order of the fit:
+  # from the confirmed rows of `data`, or without `data` from the model frame
+  # when it holds it under its own name (rcontext_variables()).
+  ordering <- rcontext_variables(ctx, data, c(order_by = order_by))$order_by
+  rwarn_incomplete_rows(data, model, also = order_by)
+  # The residuals and the design of the equivalent unweighted regression: the
+  # Pearson residuals sqrt(w) * e and the rows sqrt(w) * x on a weighted fit,
+  # the ordinary ones otherwise. A fit with a zero weight is refused by the
+  # first, as before 0.16.0.
+  residuals <- unname(rcontext_pearson(ctx))
+  rstop_missing_variable(ctx, ordering, order_by, "order_by", test_label)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("harrison_mccabe", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  if (!order_by %in% names(working_data)) {
-    .std_error("missing_variable", variable = order_by)
-  }
-
   ht_log("INFO", "Running Harrison-McCabe test")
 
-  # The residuals and the design of the equivalent unweighted regression: the
-  # Pearson residuals sqrt(w) * e and the rows sqrt(w) * x on a weighted fit,
-  # the ordinary ones otherwise.
-  residuals <- unname(prepared$residuals)
-  # Without the columns a rank-deficient fit aliased: its residual-maker is
-  # that of the remaining columns, which span the same space.
-  design <- rnon_aliased_columns(stats::model.matrix(model), model)
+  # The design of the fit without the columns a rank-deficient fit aliased:
+  # its residual-maker is that of the remaining columns, which span the same
+  # space.
+  design <- rcontext_design(ctx)
   # The prior weights of an lm or of a Gaussian glm. rprior_weights(), read
   # here before 0.16.0, returns none for a glm, which would have put the
   # unweighted design under the Pearson residuals of a weighted glm.
-  weights <- rleast_squares_weights(model)
+  weights <- ctx$weights
   if (!is.null(weights)) {
     design <- sqrt(weights) * design
   }
@@ -233,11 +265,19 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
 
   # The residuals and the design are put in the same order: the null
   # distribution depends on which rows of the design fall in the first part.
-  ord <- order(working_data[[order_by]])
+  ord <- order(ordering)
   e <- residuals[ord]
   design <- design[ord, , drop = FALSE]
-  basis <- qr(design)
-  k <- basis$rank
+  # The rank is the fit's, decided at the tolerance the fit used (1e-7 for an
+  # lm, 1e-11 for a glm; decided on 2026-10-18), so that the null distribution
+  # is that of the residuals the fit gave. Before 0.16.0 the rank was decided
+  # again at 1e-7 whatever the fit, so a Gaussian glm, or an lm fitted with a
+  # smaller `tol`, whose design holds a column that is nearly a combination
+  # of the others, had residuals of one rank and a null distribution of a
+  # smaller one. The design has as many columns as the fit's rank, and its
+  # orthonormal basis spans them all.
+  basis <- qr(design, tol = ctx$qr_tol)
+  k <- rhmc_rank(ctx, basis)
 
   m <- if (point < 1) floor(point * n) else point
   if (m < k || m > n - k) {
@@ -264,7 +304,7 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   }
 
   statistic <- sum(e[seq_len(m)]^2) / total
-  tails <- rhmc_tails(statistic, rhmc_spectrum(basis, m))
+  tails <- rhmc_tails(statistic, rhmc_spectrum(basis, m, k))
 
   p_value <- switch(alternative,
     "less" = tails[["lower"]],
@@ -291,6 +331,29 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
   )
 }
 
+#' The rank of the Harrison-McCabe null distribution
+#'
+#' The residuals the test reads are those of the fit, so the null distribution
+#' takes the rank of the fit (decided on 2026-10-18), which its design without
+#' the aliased columns has as its number of columns. A penalised
+#' `mgcv::gam()` fit with smooth terms is not the least-squares fit of its
+#' design, and its rank is not that of one: it keeps the rank of its design
+#' decided at `1e-7`, as before 0.16.0, until the last step of the migration
+#' to the model context settles which tests take such a fit.
+#'
+#' @param ctx The model context.
+#' @param basis The QR decomposition of the design, at the tolerance of the
+#'   fit.
+#' @return Integer scalar.
+#' @keywords internal
+#' @noRd
+rhmc_rank <- function(ctx, basis) {
+  if (identical(ctx$kind, "gam")) {
+    return(basis$rank)
+  }
+  ctx$rank
+}
+
 #' Eigenvalues of the Harrison-McCabe quadratic form
 #'
 #' With \eqn{M} the residual-maker of the ordered design and \eqn{D} the
@@ -304,12 +367,12 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
 #' @param basis The QR decomposition of the design, rows in the order of the
 #'   test.
 #' @param m Number of observations in the first part, with `k <= m <= n - k`.
+#' @param k The rank of the design, by default that of `basis`.
 #' @return A list with `values` and `multiplicity`.
 #' @keywords internal
 #' @noRd
-rhmc_spectrum <- function(basis, m) {
+rhmc_spectrum <- function(basis, m, k = basis$rank) {
   n <- nrow(basis$qr)
-  k <- basis$rank
   q1 <- qr.Q(basis)[seq_len(m), seq_len(k), drop = FALSE]
   s2 <- svd(q1, nu = 0L, nv = 0L)$d^2
   s2 <- pmin(pmax(s2, 0), 1)

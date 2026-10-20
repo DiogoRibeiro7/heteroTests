@@ -24,8 +24,11 @@ under [Compatibility](#compatibility) and in the
 it. Increment 2 is in 0.16.0 too: the studentized Breusch-Pagan statistic
 (`.studentized_bp_test()`), `performRESETTest()`, `performGQTest()` and
 `performQuantileRegressionTest()` built on it, with the offset of the fit in
-every refit. Increments 3 to 11 are planned; see
-[Migration plan](#migration-plan).
+every refit. Increment 3 is in 0.16.0 too: `performGlejserTest()`,
+`performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`,
+`performHarrisonMcCabeTest()`, with the rank of the fit (decision 21),
+`performHartleyFmaxTest()` and `performSpatialHeteroTest()` built on it.
+Increments 4 to 11 are planned; see [Migration plan](#migration-plan).
 
 ## The problem
 
@@ -74,8 +77,10 @@ guard as its alignment step and removes the rebuilding behind it.
   order of the fit are confirmed only up to rows that tie on every compared
   column, which could be exchanged without a trace; so when a test reads a
   column of `data` beyond the model frame, such as the `order_by` of the rank
-  permutation test, such data are refused if two rows of the fit tie so (a
-  finding of the review of increment 1).
+  permutation, Goldfeld-Quandt, Szroeter and Harrison-McCabe tests, the
+  `variable` of Glejser's and Park's tests or the `group` of Hartley's, such
+  data are refused if two rows of the fit tie so (a finding of the review of
+  increment 1).
 - **Named data in any order, numbered data in fit order** (decision 17). Data
   with row names of their own are matched by name in any order. Numbered data
   in another order than the fit, or with rows in front of those of the fit,
@@ -94,7 +99,8 @@ guard as its alignment step and removes the rebuilding behind it.
 - **Rank.** The rank of the fit, its aliased coefficients and the tolerance
   its rank was decided with (`1e-7` for an `lm`, `1e-11` for a `glm`); a
   rank-deficient fit is tested on the estimable part of its design, as since
-  0.16.0.
+  0.16.0. A test that decomposes the design takes the rank of the fit, at its
+  tolerance (Harrison-McCabe, decision 21).
 - **Refusals.** A test builds the context first. The context refuses a model
   that is not an `lm` or a least-squares `glm` and a `survey::svyglm()` fit
   (`rrefuse_non_gaussian_glm()`), a multivariate `lm`, a model frame that
@@ -114,8 +120,11 @@ guard as its alignment step and removes the rebuilding behind it.
 - **An `mgcv::gam()` fit with smooth terms**, usually penalised, is refused by the tests of
   increment 2 (`rrefuse_smooth_gam()`, class
   `heteroTests_model_context_error`): it is not the least-squares fit of its
-  design, which they fit again. The five of increment 1 test it as before
-  0.16.0, and increment 11 settles it for every test (decision 23).
+  design, which they fit again. The five of increment 1 and the six of
+  increment 3 test it as before 0.16.0, and increment 11 settles it for every
+  test (decision 23). The residuals of a `gam` carry no names; its
+  observations are those of the row names of its model frame
+  (`rcontext_ids()`), and `data` is matched to them by those names (N17).
 - **Refusals are final** (decision 6). The refusals of the context have class
   `heteroTests_model_context_error`, and those of `data` the class of the
   guard, `heteroTests_data_rows_error`; `runHeteroTests()` and
@@ -170,6 +179,8 @@ The functions of `R/model_context.R`:
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`. |
 | `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
 | `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
+| `rcontext_mean(ctx)` | The fitted mean, computed from the coefficients as `predict(type = "response")` computes it, in fit order: what the registered `"szroeter"` orders by (increment 3). |
+| `rstop_missing_variable(ctx, values, variable, argument, test_label)` | Refuses an extra variable that is `NA` at an observation of the fit, with the "Missing rows" message of before, naming the variable (decision 8). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
@@ -345,6 +356,79 @@ For the functions built on the context in increment 2:
   Goldfeld-Quandt and the studentized statistic and RESET's acceptance of a
   zero weight, and every message the test suite pins.
 
+For the functions built on the context in increment 3:
+
+- **What the change reaches.** `performGlejserTest()`, `performParkTest()`,
+  `performSzroeterTest()` and the registered `"szroeter"`, which orders by the
+  fitted values it computes from the context (`rcontext_mean()`), the same
+  numbers `predict(type = "response")` gave, `performHarrisonMcCabeTest()`,
+  `performHartleyFmaxTest()`, `performSpatialHeteroTest()` with the registered
+  `"spatial_hetero"`, their `test_factory` entries, and `runHeteroTests()` with
+  these names. Glejser, Park, Szroeter, Harrison-McCabe and Hartley read the
+  variable they name (`variable`, `order_by`, `group`) at the confirmed rows of
+  `data` (`reads`, so data in the order of the fit that tie are refused), or
+  without `data` from the model frame when it holds it under its own name (M1
+  otherwise). The spatial test reads no column of `data`: its `listw` lists the
+  observations of the fit in their order, after `subset` and `na.omit`, as
+  before, so it passes no `reads` and the rule on ties does not apply to it.
+- **Values that change.** Harrison-McCabe takes the rank of the fit, decided at
+  its tolerance (decision 21, N4): on a Gaussian `glm`, or an `lm` fitted with
+  a `tol` below `1e-7`, whose design holds a column that is a combination of
+  the others to within `1e-7` but not to within its own tolerance, the null
+  distribution has the rank of the residuals. With `x3 = x1 + 1e-9 z` (seed 5)
+  on `contract_data()`:
+
+  | Fit of `y ~ x1 + x2 + x3` | Rank | Before | After |
+  | --- | --- | ---: | ---: |
+  | `glm()`, `order_by = "x1"` | 4 at `1e-11` | 0.0022879 | 0.0022734 |
+  | `glm()`, `order_by = "x2"`, `point = 1/3`, two-sided | 4 at `1e-11` | 0.91344 | 0.91217 |
+  | `glm(weights = w)`, `order_by = "x1"` | 4 at `1e-11` | 0.79089 | 0.80233 |
+  | `glm(weights = w)`, `order_by = "x2"`, `point = 1/3`, two-sided | 4 at `1e-11` | 0.58886 | 0.59106 |
+  | `lm(tol = 1e-11)`, `order_by = "x1"` | 4 at `1e-11` | 0.0022879 | 0.0022734 |
+  | `lm()`, `order_by = "x1"` | 3 at `1e-7` | 0.0021134 | 0.0021134 |
+
+  The statistic does not change; each new p-value equals the test written out
+  with the rank of the fit (`context_hmc_by_hand()`) to 3e-13 relative. A `gam`,
+  which has no QR decomposition, keeps the rank of its design at `1e-7`, as
+  before. And an `mgcv::gam()` fit given its data in another order (N17): its
+  residuals carry no names, and the five tests that read a column of `data`
+  matched `data` to them by position, returning a wrong value without an error
+  (Glejser -0.322 for 3.626 on the `gam` without smooth terms, -0.429 for
+  3.583 with `s(x1)`); they match by the row names of its model frame (approved
+  on 2026-10-19). `runHeteroTests(tests = "spatial_hetero")`, on data the
+  spatial test stopped on before (the model frame of a transformed fit as
+  `data`, numbered data of B14), put the Breusch-Pagan fallback under its name,
+  and runs the spatial test.
+- **Errors that become values**: B14, L1 and L2 for these (an `offset()` term
+  without `data`, the model frame as `data`; for the spatial test, which reads
+  no variable, the transformed models too), "frame" for Harrison-McCabe, which
+  read `model.matrix(model)` (the other five tested such a fit already), and
+  the registered `"szroeter"` given `data = NULL` or numbered data in fit
+  order, which it matched to its fitted values by row name ("null"). B15 gave
+  values already for these six.
+- **Messages.** M7 for a multivariate `lm`; M1 without `data` for a variable
+  the model frame does not hold under its own name, and, with the model frame
+  as `data`, the message of `data`, each naming only the variables the test
+  still lacks; the refusal of ties for Hartley on the tibble of a fit to
+  repeated rows, which stopped with "Missing rows"; the frame message; and,
+  for the registered `"szroeter"`, the refusals of the guard on the data as
+  given, where it matched them by row name first.
+- **New refusals**: none in the corpus. Outside it, a fit whose
+  coefficients, residuals or weights were changed after it was fitted (M8),
+  from which the six computed a value, is refused as by the first nine,
+  announced in bold (decision 14): `tests/testthat/test-pass-a-reference.R`,
+  which set a residual of Park's test to zero by hand, makes it zero with an
+  observation on the regression of the others instead.
+- **Unchanged**: every other value on valid calls, the zero-weight refusals on
+  every route, with `data`, without and shuffled, a smooth `gam` tested as
+  before (decision 23), and every message the test suite pins. The known limit
+  of numbered data permuted within ties and matched by number (ROADMAP) is the
+  same for these tests.
+- **Still matched by position** (N17): the group tests (increment 4), Pesaran
+  and the random-effects test (5), the three streaming tests (7) and the
+  replicates of the White bootstrap (8) on a `gam` given data in another
+  order; each is closed by its increment.
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -356,7 +440,7 @@ migrations that keep every value, then the riskier resampling and
 | --- | --- | --- | --- |
 | 1 | `R/model_context.R`; the guard split in two; `performWhiteTest()`, `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`, `performRankPermutationTest()`, `performHighDimensionalTest()`, and through them the base statistic of `performWhiteTestRobust()`, `performBPTestRobust(studentize = FALSE)`, the registry names and the default battery | B5, B12, B14, B15, N7, R4/N9, R7 for these; L1, L2 | **Done, 0.16.0** |
 | 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5; B5, B12, B14, B15, L1, L2, N7, R4 for these | **Done, 0.16.0** |
-| 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, B15, L1, M1 for `variable`, `order_by`, `group`; N4 | Planned |
+| 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, B15, L1, M1 for `variable`, `order_by`, `group`; N4; N17 for these | **Done, 0.16.0** |
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go | the character-named fit with its tibble; R7 | Planned |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `variable` read at the confirmed rows | B3, B4, B16, R2 (decision 13) | Planned |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
@@ -446,6 +530,38 @@ added to `offset-refits-size.R` (decision 19): RESET on the fit with an offset
 rejects 0.0492 of the time under its null at 5000 replications, inside the
 release gate, [0.042, 0.058].
 
+Increment 3 adds the routes of its tests to the corpus (the registered
+`"szroeter"` and `"spatial_hetero"`, their `test_factory` entries, and
+`runHeteroTests()` with each name, the spatial test given its weights as
+`attr(data, "listw")`), the examples of their six help pages, a cell (the `gam`
+without smooth terms given its rows shuffled, N17), and the five cells of
+Harrison-McCabe's rank (`context_rank_cells()`), run through every recipe,
+whose reference is the test written out with the rank of the fit
+(`context_hmc_by_hand()`). A missing argument has class `getvarError` in the
+byte code of the installed package and `evalError` under
+`pkgload::load_all()`; the harness leaves both out.
+
+Increment 3: 16,041 calls on 276 cells, the 5 cells of Harrison-McCabe's rank
+and the examples of sixteen help pages, of which 15,461 identical, 580 allowed
+changes (229 errors that become values, 33 values that change, 318 messages,
+no new refusal) and 0 unexpected; the 262 changes to a value are each verified
+against a reference: 238 against the call on the cell they reproduce, 3
+through two cells, 18 through the registered spatial test on the same cell,
+and the 3 of Harrison-McCabe's rank against the test written out with the rank
+of the fit, to `1e-10` (they agree to 3e-13). The 33 values that change are
+the 3 of N4, the 10 of N17, and 20 calls of
+`runHeteroTests(tests = "spatial_hetero")` on the model frame as `data` and on
+numbered data in fit order, where the spatial test stopped and the runner put
+its Breusch-Pagan fallback under its name. The 256 `poly()` calls that `main`
+computes on the stored design are `identical()` to it. The warnings are those
+of `main` but for 3 calls of Hartley's test that stopped and now return a
+value with its warning on unequal groups. The rows of the six tests in Pass A
+(75,000 p-values of Park's, Glejser's and Szroeter's tests at 5000
+replications), the Glejser study (440,000 at 5000) and the Harrison-McCabe
+study (blocks 2 to 5 at 5000 replications, 280,000 p-values, and the null
+distribution of block 1 at 100,000 samples) are `identical()` to `main`,
+replication by replication, and reproduce the committed tables row for row.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -474,12 +590,16 @@ the span of the regressors, and a positive response `ypos`.
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
   an `lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit
   whose data changed after the fit (increment 2), and the classes whose answer
-  differs between the tests, also without `data` and shuffled: 275 cells, run through each
-  of the nine functions, with `B = 19` for the resampling test. Where a test
-  departs from a cell by design, its own expectation applies
+  differs between the tests, also without `data` and shuffled, and (increment 3)
+  the `gam` without smooth terms with its rows shuffled: 276 cells, run through
+  each of the fifteen functions, with `B = 19` for the resampling test. Where a
+  test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
-  Goldfeld-Quandt without `data` ordered by a variable the model frame does not
-  hold gives M1; RESET reads nothing from `data` (decision 24); and the tests
+  a test that reads a variable the model frame does not hold (`context_reads`:
+  the `x1` of Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe,
+  the `group` of Hartley) gives M1 without `data`, and the message of `data`
+  given the model frame, and refuses the tibble of a fit to repeated rows,
+  whose rows tie; RESET reads nothing from `data` (decision 24); and the tests
   of increment 2 refuse a `gam` with smooth terms (decision 23). The full matrix runs under `skip_on_cran()`, a 12-cell subset on CRAN.
   Tibbles and data.tables come from `dplyr` and `data.table` under
   `skip_if_not_installed()`.
@@ -492,6 +612,9 @@ the span of the regressors, and a positive response `ypos`.
 | refused order | the guard's error, class `heteroTests_data_rows_error` |
 | offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10`; RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
 | Goldfeld-Quandt | against `lmtest::gqtest()`, which fits the segments to the rows of the design, on `ns()`, `bs()`, `I(x > median(x))` and `poly()` terms, and on the fit of `y - o` for an offset, to `1e-10` |
+| Harrison-McCabe's rank | against the test written out with the rank of the fit at its tolerance, on a Gaussian `glm`, weighted or not, and `lm(tol = 1e-11)` with a nearly collinear column, to `1e-10` |
+| the registered Szroeter test | its fitted values `identical()` to `predict(type = "response")` on every class; the value of `performSzroeterTest()` ordered by them |
+| ties | for each test of increment 3 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8` |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8`; workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
@@ -523,8 +646,8 @@ that fixes each.
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
 | B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; replicates in increment 8 |
 | B13 | `na.exclude` | Increment 9 |
-| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four |
-| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four |
+| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six |
+| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3 gave values already |
 | B16 | The panel tests on a fit that dropped rows | Increment 5 |
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
@@ -533,18 +656,19 @@ that fixes each.
 | R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five |
-| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four |
+| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six (a variable the model frame does not hold gives M1) |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2, N3 | White's degrees of freedom when the auxiliary columns span the constant; White streaming on collinear terms | Separate pull requests (decision 22) |
-| N4 | Harrison-McCabe's rank is not the fit's | Increment 3 (decision 21) |
+| N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET; increment 6 for the other tests computed from the model alone |
 | N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four |
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
-| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests |
+| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3 |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
+| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley; the group tests in increment 4, the panel tests in 5, the streaming tests in 7, the White bootstrap's replicates in 8 |
 
 ## Decisions
 

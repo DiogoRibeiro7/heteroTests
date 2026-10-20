@@ -666,14 +666,20 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' scheme proposed by Szroeter (1978).
 #'
 #' @inheritParams performHarveyTest
-#' @param data A [base::data.frame] (or compatible tibble) containing the
-#'   variables used to fit `model` and the ordering variable supplied via
-#'   `order_by`.
-#'   When `NULL`, the default, the model frame of `model` is used, so `order_by`
-#'   must then be a variable of the model. The model frame holds the terms of
-#'   the model rather than its variables (`log(x)` rather than `x`), so a model
-#'   that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default. The
+#'   residuals and weights are read from the fit itself (since 0.16.0), and
+#'   `order_by` from the rows of `data` that hold the observations of the fit.
+#'   Without `data` it is read from the model frame of `model`, which holds it
+#'   only when it is a variable of the model under its own name (`x`, not
+#'   `log(x)`); a model that transforms the variable it is ordered by needs
+#'   `data`, as does an ordering variable the model does not use. Data that are
+#'   given are matched to the observations of the fit: rows with row names of
+#'   their own by name, in any order; rows that only number themselves (a
+#'   tibble, a data.table, a data frame whose row names were reset) by the row
+#'   numbers of the fit, or in the order of the fit when they hold one row per
+#'   observation. The rows the fit dropped may be there or not. Data whose rows
+#'   cannot be shown to hold the observations of the fit are refused; see
+#'   [test_results].
 #' @param order_by Character scalar naming the column that defines the ordering of
 #'   observations prior to computing the statistic. The column must be numeric or
 #'   coercible to an orderable vector.
@@ -699,8 +705,9 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' is asymptotically standard normal. Variance that grows with `order_by` shifts
 #' weight onto the high ranks and drives \eqn{Q} upwards.
 #'
-#' The implementation relies on the package validation helpers to align the
-#' supplied data with the model residuals, check that the ordering variable is
+#' The residuals and weights are those of the fit, and `order_by` is read from
+#' the rows of `data` that hold its observations (the model context, since
+#' 0.16.0); the package validation helpers check that the ordering variable is
 #' present, and ensure sufficient sample size and variability in the squared
 #' residuals.
 #'
@@ -717,7 +724,12 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' positive and the reverse order when it is negative. The fitted values are
 #' computed from the coefficients, so observations with the same regressors
 #' tie exactly, as they do under a factor or a binary regressor, and the ties
-#' are broken as above.
+#' are broken as above. Since 0.16.0 they are read from the fit, in its order,
+#' and `data` is matched to the observations of the fit as this function
+#' matches it: without `data` the registered test reads the model frame, and
+#' data in the order of the fit whose row numbers are not those of the fit are
+#' taken. Before, it matched the fitted values to the row names of `data`, and
+#' refused both ("Missing rows").
 #'
 #' @section Validation:
 #' The statistic and its null variance are checked against an independent
@@ -742,8 +754,16 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit.
+#' It refuses a multivariate `lm` ("needs a model with one response"), since
+#' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+#' tested as before 0.16.0, with smooth terms too, until a later step settles
+#' which tests take such a fit; since 0.16.0 its observations are matched to the
+#' rows of `data` by the row names of its model frame. Before, they were matched
+#' by position, since the residuals of a `gam` carry no names, and `data` with
+#' the rows of the fit in another order gave a wrong value.
+#' Which model each test accepts, and why, is set out in [test_results], under
+#' *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -768,41 +788,62 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' @export
 performSzroeterTest <- function(model, data = NULL, order_by,
                                 alternative = c("greater", "two.sided", "less")) {
-  rrefuse_non_gaussian_glm(model, "performSzroeterTest")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Szroeter test"
+  # The residuals and weights come from the fit; `data`, when given, is matched
+  # to its observations and checked (R/model_context.R). `order_by` is read
+  # from the rows of `data` that hold the observations, so data taken in the
+  # order of the fit must tell those rows apart when it is not a column of the
+  # model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performSzroeterTest", test_label = test_label,
+    reads = if (!missing(order_by) && is.character(order_by)) order_by else character()
+  )
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
     stop("`order_by` must be supplied as a single column name.", call. = FALSE)
   }
 
   alternative <- match.arg(alternative)
+  .szroeter_test(ctx, data, order_by, alternative, data_name = deparse(substitute(model)))
+}
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(c(all.vars(model_terms), order_by))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
+# The test behind performSzroeterTest() and the registered "szroeter", given
+# the model context of the call. The registered test orders the observations
+# by the fitted values of the model (`by_mean = TRUE`, with `order_by` the
+# name the result gives them), which are computed from the fit
+# (rcontext_mean()) and read nothing from `data`.
+.szroeter_test <- function(ctx, data, order_by, alternative, data_name, by_mean = FALSE) {
+  test_label <- "Szroeter test"
+  model <- ctx$model
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  # The ordering, one value per observation in the order of the fit: the
+  # fitted values, or the variable read from the confirmed rows of `data`,
+  # or without `data` from the model frame when it holds it under its own
+  # name (rcontext_variables()). The registered test read the fitted values
+  # with predict(), and restricted `data` to the rows of the fit before the
+  # checks below, so it warned of no row the fit left out.
+  if (by_mean) {
+    ordering <- rcontext_mean(ctx)
+  } else {
+    ordering <- rcontext_variables(ctx, data, c(order_by = order_by))$order_by
+    rwarn_incomplete_rows(data, model, also = order_by)
+  }
+  # The Pearson residuals of the fit; a fit with a zero weight is refused
+  # there, as before 0.16.0.
+  residuals <- rcontext_pearson(ctx)
+  rstop_missing_variable(ctx, ordering, order_by, "order_by", test_label)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("szroeter", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  if (!order_by %in% names(working_data)) {
-    .std_error("missing_variable", variable = order_by)
-  }
-
   ht_log("INFO", "Running Szroeter test")
 
-  ord <- order(working_data[[order_by]])
+  ord <- order(ordering)
   e_ordered <- residuals[ord]
   n <- length(e_ordered)
 
@@ -855,7 +896,7 @@ performSzroeterTest <- function(model, data = NULL, order_by,
       estimate = c(h = h_stat),
       p.value = p_value,
       method = "Szroeter test for ordered heteroscedasticity",
-      data.name = deparse(substitute(model)),
+      data.name = data_name,
       alternative = alternative_label
     ),
     class = "htest"
