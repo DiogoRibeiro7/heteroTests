@@ -179,7 +179,7 @@ The functions of `R/model_context.R`:
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`. |
 | `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
 | `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
-| `rcontext_mean(ctx)` | The fitted mean, computed from the coefficients as `predict(type = "response")` computes it, in fit order: what the registered `"szroeter"` orders by (increment 3). |
+| `rcontext_mean(ctx)` | The fitted values, the linear predictor with the total offset, computed from the coefficients as `predict.lm()` computes it, in fit order: what `fitted()` holds (an `lm` up to rounding, as `y - e`), and so what `predict(type = "response")` returns, but on a `gam` with an `offset` argument, which `predict.gam()` leaves out. The registered `"szroeter"` orders by it (increment 3). |
 | `rstop_missing_variable(ctx, values, variable, argument, test_label)` | Refuses an extra variable that is `NA` at an observation of the fit, with the "Missing rows" message of before, naming the variable (decision 8). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
@@ -360,8 +360,9 @@ For the functions built on the context in increment 3:
 
 - **What the change reaches.** `performGlejserTest()`, `performParkTest()`,
   `performSzroeterTest()` and the registered `"szroeter"`, which orders by the
-  fitted values it computes from the context (`rcontext_mean()`), the same
-  numbers `predict(type = "response")` gave, `performHarrisonMcCabeTest()`,
+  fitted values with the offset, which it computes from the context
+  (`rcontext_mean()`), the numbers `predict(type = "response")` gave but on a
+  `gam` with an `offset` argument, `performHarrisonMcCabeTest()`,
   `performHartleyFmaxTest()`, `performSpatialHeteroTest()` with the registered
   `"spatial_hetero"`, their `test_factory` entries, and `runHeteroTests()` with
   these names. Glejser, Park, Szroeter, Harrison-McCabe and Hartley read the
@@ -388,9 +389,18 @@ For the functions built on the context in increment 3:
   | `lm()`, `order_by = "x1"` | 3 at `1e-7` | 0.0021134 | 0.0021134 |
 
   The statistic does not change; each new p-value equals the test written out
-  with the rank of the fit (`context_hmc_by_hand()`) to 3e-13 relative. A `gam`,
-  which has no QR decomposition, keeps the rank of its design at `1e-7`, as
-  before. And an `mgcv::gam()` fit given its data in another order (N17): its
+  from the fit's own QR decomposition with its rank (`context_hmc_by_hand()`)
+  to 1e-8 relative, the precision to which a column at 1e-9 of the others is
+  fixed in either decomposition (to rounding on a well-conditioned fit). With
+  `k = 4`, `point = 3` and `point = 117`, which gave p = 0.0891 and 0.1227 on
+  the `glm`, stop: each part needs as many observations as the fit has
+  coefficients. A `gam`, which has no QR decomposition, keeps the rank of its
+  design at `1e-7`, as before. The registered `"szroeter"` on a `gam` with an
+  `offset` argument (the review of increment 3; decided by the coordinator on
+  2026-10-20): it ordered by `predict()`, which leaves that offset out, and
+  orders by the fitted values with it, 0.800386 (p 0.2117) becoming 0.962844
+  (p 0.1678) on the fit of `mtcars` in NEWS, the value of the same `gam` with
+  an `offset()` term ("gam_offset"). And an `mgcv::gam()` fit given its data in another order (N17): its
   residuals carry no names, and the five tests that read a column of `data`
   matched `data` to them by position, returning a wrong value without an error
   (Glejser -0.322 for 3.626 on the `gam` without smooth terms, -0.429 for
@@ -413,12 +423,20 @@ For the functions built on the context in increment 3:
   repeated rows, which stopped with "Missing rows"; the frame message; and,
   for the registered `"szroeter"`, the refusals of the guard on the data as
   given, where it matched them by row name first.
-- **New refusals**: none in the corpus. Outside it, a fit whose
-  coefficients, residuals or weights were changed after it was fitted (M8),
-  from which the six computed a value, is refused as by the first nine,
-  announced in bold (decision 14): `tests/testthat/test-pass-a-reference.R`,
+- **New refusals**, announced in bold (decision 14). A fit with
+  `model = FALSE` whose data are gone, given numbered data in another order
+  than the fit (a shuffled tibble), from which the six computed a value (a
+  wrong one for the five that read a column: Szroeter -0.537 for 3.185 in
+  fit order): the frame built from such data does not give the response of
+  the fit, and the six refuse it with the frame message, directly, through
+  the registered names, `test_factory` and the runner, as the first nine did
+  ("frame"; the cell `class/model_false_tibble`, from the review of increment
+  3). And, outside the corpus, a fit whose coefficients, residuals or weights
+  were changed after it was fitted (M8), from which the six computed a value,
+  is refused as by the first nine: `tests/testthat/test-pass-a-reference.R`,
   which set a residual of Park's test to zero by hand, makes it zero with an
-  observation on the regression of the others instead.
+  observation on the regression of the others instead. Harrison-McCabe on the
+  nearly collinear `glm` with `point = 3` or `117` (above).
 - **Unchanged**: every other value on valid calls, the zero-weight refusals on
   every route, with `data`, without and shuffled, a smooth `gam` tested as
   before (decision 23), and every message the test suite pins. The known limit
@@ -440,7 +458,7 @@ migrations that keep every value, then the riskier resampling and
 | --- | --- | --- | --- |
 | 1 | `R/model_context.R`; the guard split in two; `performWhiteTest()`, `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`, `performRankPermutationTest()`, `performHighDimensionalTest()`, and through them the base statistic of `performWhiteTestRobust()`, `performBPTestRobust(studentize = FALSE)`, the registry names and the default battery | B5, B12, B14, B15, N7, R4/N9, R7 for these; L1, L2 | **Done, 0.16.0** |
 | 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5; B5, B12, B14, B15, L1, L2, N7, R4 for these | **Done, 0.16.0** |
-| 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, B15, L1, M1 for `variable`, `order_by`, `group`; N4; N17 for these | **Done, 0.16.0** |
+| 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, L1, L2, M1 for `variable`, `order_by`, `group`; N4; N17 for these (B15 gave values already) | **Done, 0.16.0** |
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go | the character-named fit with its tibble; R7 | Planned |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `variable` read at the confirmed rows | B3, B4, B16, R2 (decision 13) | Planned |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
@@ -536,20 +554,30 @@ Increment 3 adds the routes of its tests to the corpus (the registered
 `attr(data, "listw")`), the examples of their six help pages, a cell (the `gam`
 without smooth terms given its rows shuffled, N17), and the five cells of
 Harrison-McCabe's rank (`context_rank_cells()`), run through every recipe,
-whose reference is the test written out with the rank of the fit
-(`context_hmc_by_hand()`). A missing argument has class `getvarError` in the
+whose reference is the test written out with the rank of the fit from the
+fit's own QR decomposition (`context_hmc_by_hand()`), to `1e-6` (they agree to
+1e-8 on a column at 1e-9 of the others). From the review of increment 3, two
+cells of the class block: a `gam` with an `offset` argument, with the same
+`gam` with an `offset()` term as its reference ("gam_offset", for the
+registered Szroeter test), and a fit with `model = FALSE` whose data are gone,
+given them as a shuffled tibble ("frame"). A missing argument has class `getvarError` in the
 byte code of the installed package and `evalError` under
 `pkgload::load_all()`; the harness leaves both out.
 
-Increment 3: 16,041 calls on 276 cells, the 5 cells of Harrison-McCabe's rank
-and the examples of sixteen help pages, of which 15,461 identical, 580 allowed
-changes (229 errors that become values, 33 values that change, 318 messages,
-no new refusal) and 0 unexpected; the 262 changes to a value are each verified
-against a reference: 238 against the call on the cell they reproduce, 3
-through two cells, 18 through the registered spatial test on the same cell,
-and the 3 of Harrison-McCabe's rank against the test written out with the rank
-of the fit, to `1e-10` (they agree to 3e-13). The 33 values that change are
-the 3 of N4, the 10 of N17, and 20 calls of
+Increment 3, with the cells of its review: 16,212 calls on 279 cells, the 5
+cells of Harrison-McCabe's rank and the examples of sixteen help pages, of
+which 15,618 identical, 594 allowed changes (229 errors that become values, 35
+values that change, 322 messages, 8 new refusals) and 0 unexpected; the 264
+changes to a value are each verified against a reference: 240 against the
+call on the cell they reproduce, 3 through two cells, 18 through the
+registered spatial test on the same cell, and the 3 of Harrison-McCabe's rank
+against the test written out from the fit's own decomposition, to `1e-6`. The
+8 new refusals are those of the `model = FALSE` fit given a shuffled tibble:
+five of the six tests (Harrison-McCabe stopped already), the registered
+spatial test, its `test_factory` entry and the runner with it. The 35 values
+that change are the 3 of N4, the 10 of N17, the 2 of the registered Szroeter
+test on the `gam` with an `offset` argument, directly and through the runner,
+and 20 calls of
 `runHeteroTests(tests = "spatial_hetero")` on the model frame as `data` and on
 numbered data in fit order, where the spatial test stopped and the runner put
 its Breusch-Pagan fallback under its name. The 256 `poly()` calls that `main`
@@ -590,8 +618,10 @@ the span of the regressors, and a positive response `ypos`.
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
   an `lm` and a Gaussian `glm` with a zero weight and a `model = FALSE` fit
   whose data changed after the fit (increment 2), and the classes whose answer
-  differs between the tests, also without `data` and shuffled, and (increment 3)
-  the `gam` without smooth terms with its rows shuffled: 276 cells, run through
+  differs between the tests, also without `data` and shuffled, and (increment 3
+  and its review) the `gam` without smooth terms with its rows shuffled, a
+  `gam` with an offset as an argument and as an `offset()` term, and the
+  `model = FALSE` fit whose data are gone given a shuffled tibble: 279 cells, run through
   each of the fifteen functions, with `B = 19` for the resampling test. Where a
   test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
@@ -612,8 +642,8 @@ the span of the regressors, and a positive response `ypos`.
 | refused order | the guard's error, class `heteroTests_data_rows_error` |
 | offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10`; RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
 | Goldfeld-Quandt | against `lmtest::gqtest()`, which fits the segments to the rows of the design, on `ns()`, `bs()`, `I(x > median(x))` and `poly()` terms, and on the fit of `y - o` for an offset, to `1e-10` |
-| Harrison-McCabe's rank | against the test written out with the rank of the fit at its tolerance, on a Gaussian `glm`, weighted or not, and `lm(tol = 1e-11)` with a nearly collinear column, to `1e-10` |
-| the registered Szroeter test | its fitted values `identical()` to `predict(type = "response")` on every class; the value of `performSzroeterTest()` ordered by them |
+| Harrison-McCabe's rank | against the test written out from the fit's own QR decomposition, with its rank, on a Gaussian `glm`, weighted or not, and `lm(tol = 1e-11)` with a nearly collinear column, to `1e-6` (they agree to 1e-8, the conditioning of a column at 1e-9), and on well-conditioned fits to `1e-12` |
+| the registered Szroeter test | its fitted values `identical()` to `predict(type = "response")` on every class, and equal to `fitted()` to `1e-12`; on a `gam` with an `offset` argument, which `predict.gam()` leaves out, `identical()` to `fitted()` and to the same `gam` with an `offset()` term; the value of `performSzroeterTest()` ordered by them |
 | ties | for each test of increment 3 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8` |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8`; workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
