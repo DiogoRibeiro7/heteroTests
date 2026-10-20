@@ -50,7 +50,7 @@ context_check_matrix <- function(ids, fns = context_runnable()) {
       if (identical(cell$expect, "value")) {
         expect_s3_class(out, "htest")
         if (!is.null(cell$reference) && context_installed(cells[[cell$reference]])) {
-          tolerance <- if (id %in% c("class/rank_deficient", "class/gam")) 1e-10
+          tolerance <- if (id %in% context_rounded_cells) 1e-10
           context_same(out, result_of(cell$reference), info, tolerance)
         }
       } else if (identical(cell$expect, "guard")) {
@@ -586,11 +586,19 @@ test_that("Harrison-McCabe takes the rank of the fit, decided at its tolerance (
   # x3, a rank of 4. Before 0.16.0 the test decided the rank again at 1e-7 and
   # put a null distribution of rank 3 under residuals of rank 4: p 0.002288
   # where the fit's rank gives 0.002273. The reference writes the test out
-  # with the rank of the fit (context_hmc_by_hand()).
+  # with the rank of the fit, from the fit's own QR decomposition
+  # (context_hmc_by_hand()). On a well-conditioned fit the two agree to
+  # rounding. With x3 = x1 + 1e-9 z the direction x3 adds to the column space
+  # is fixed only to about eps / 1e-9, some 1e-7 relative, in each
+  # decomposition, the fit's, in the order of the fit, and the test's, in the
+  # order of `order_by`: the p-values agree to 1e-8 relative (measured), so
+  # they are compared to 1e-6 on those fits, which still tells the rank of
+  # the fit, 0.002273, from the rank of 1e-7, 0.002288.
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   cells <- context_rank_cells()
   ranks <- c(glm = 4L, glm_weighted = 4L, lm_tol = 4L, lm = 3L, glm_conditioned = 3L)
+  near_collinear <- c("glm", "glm_weighted", "lm_tol")
   for (cell in cells) {
     built <- cell$build()
     id <- sub("^rank/", "", cell$id)
@@ -602,14 +610,20 @@ test_that("Harrison-McCabe takes the rank of the fit, decided at its tolerance (
       expect_equal(unname(out$statistic), unname(reference$statistic), tolerance = 1e-12,
                    info = info)
       expect_identical(unname(out$parameter), unname(reference$parameter), info = info)
-      expect_equal(out$p.value, reference$p.value, tolerance = 1e-10, info = info)
+      tolerance <- if (id %in% near_collinear) 1e-6 else 1e-12
+      expect_equal(out$p.value, reference$p.value, tolerance = tolerance, info = info)
     }
   }
   # Each part of the ordered sample needs as many observations as the fit has
   # coefficients: four for the glm.
+  # Before 0.16.0, with the rank 3 of 1e-7, `point = 3` and `point = 117`
+  # gave p-values (0.0891 and 0.1227); they now stop.
   glm_cell <- cells[["rank/glm"]]$build()
-  expect_error(performHarrisonMcCabeTest(glm_cell$m, glm_cell$data, "x1", point = 3),
-               "Each part needs at least 4, the number of coefficients.", fixed = TRUE)
+  for (point in c(3, 117)) {
+    expect_error(performHarrisonMcCabeTest(glm_cell$m, glm_cell$data, "x1", point = point),
+                 "Each part needs at least 4, the number of coefficients.", fixed = TRUE,
+                 info = point)
+  }
   # The same glm with the rank decided at 1e-7, as before: another p-value.
   ctx <- rmodel_context(glm_cell$m, glm_cell$data, fn = "f")
   ordered <- rcontext_design(ctx)[order(glm_cell$data$x1), , drop = FALSE]
@@ -641,13 +655,40 @@ test_that("the registered Szroeter test orders by the fitted values of the conte
   if (requireNamespace("mgcv", quietly = TRUE)) {
     fits$gam <- mgcv::gam(y ~ x1 + x2, data = d)
     fits$gam_smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
+    fits$gam_offset_term <- mgcv::gam(y ~ x1 + x2 + offset(o), data = d)
   }
-  # The values predict(type = "response") computes, which the registered test
-  # read before 0.16.0: the same numbers, so ties are broken as before.
+  # The fitted values of the fit, the linear predictor with the offset, which
+  # fitted() holds (an lm up to rounding, as y - e), are the values
+  # predict(type = "response") computes, which the registered test read before
+  # 0.16.0: the same numbers, so ties are broken as before.
   for (nm in names(fits)) {
     ctx <- rmodel_context(fits[[nm]], fn = "f")
     predicted <- unname(as.vector(stats::predict(fits[[nm]], type = "response")))
     expect_identical(rcontext_mean(ctx), predicted, info = nm)
+    expect_equal(rcontext_mean(ctx), unname(as.vector(stats::fitted(fits[[nm]]))),
+                 tolerance = 1e-12, info = nm)
+  }
+  # But predict.gam() leaves out an offset given as the `offset` argument, as
+  # mgcv documents, and fitted() does not: the registered test ordered such a
+  # gam by X b alone, and orders it by X b + o, as the same gam with an
+  # offset() term and the lm with that offset.
+  if (requireNamespace("mgcv", quietly = TRUE)) {
+    argument <- mgcv::gam(y ~ x1 + x2, data = d, offset = o)
+    ctx <- rmodel_context(argument, fn = "f")
+    expect_identical(rcontext_mean(ctx), unname(as.vector(stats::fitted(argument))))
+    term_ctx <- rmodel_context(fits$gam_offset_term, fn = "f")
+    expect_identical(rcontext_mean(ctx), rcontext_mean(term_ctx))
+    expect_false(isTRUE(all.equal(rcontext_mean(ctx),
+                                  unname(as.vector(stats::predict(argument, type = "response"))))))
+    mt <- mtcars
+    set.seed(1)
+    mt$o <- stats::rnorm(32)
+    szroeter_registered <- get("szroeter", envir = heteroTests:::.diagnostic_registry)
+    on_gam <- szroeter_registered(mgcv::gam(mpg ~ wt + qsec, data = mt, offset = o), mt)
+    on_lm <- szroeter_registered(lm(mpg ~ wt + qsec, data = mt, offset = o), mt)
+    # 0.800386 (p = 0.2117) before 0.16.0, ordered by X b alone.
+    expect_equal(unname(on_gam$statistic), unname(on_lm$statistic), tolerance = 1e-10)
+    expect_equal(unname(on_gam$statistic), 0.962844, tolerance = 1e-6)
   }
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)

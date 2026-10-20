@@ -220,10 +220,16 @@ identity_increment3 <- c(
 # mgcv::gam() fit, whose residuals carry no names and to which the tests that
 # read a column of `data` matched `data` by position, given the rows of the
 # fit in another order under their own names (approved on 2026-10-19); and
-# "frame" and "null" for the tests and routes of increment 3.
+# "frame" and "null" for the tests and routes of increment 3. From the review
+# of increment 3: "gam_offset", the registered Szroeter test on a gam with an
+# `offset` argument, which predict.gam() leaves out: it ordered such a fit by
+# X b alone, and orders it by its fitted values, X b + o (decided by the
+# coordinator on 2026-10-20); and "frame" on a fit with model = FALSE whose
+# data are gone, given numbered data in another order, which the tests of
+# increment 3 used, and refuse.
 identity_allowed <- list(
   error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
-  value_change = c("B5", "N1", "N4", "N17"),
+  value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
   value_to_error = c("N6", "gam", "R4", "frame")
 )
 # The defects of increments 2 and 3 apply to the calls of the tests they
@@ -236,7 +242,8 @@ identity_defect_scope <- list(
   null = c("registry student_bp", "registry szroeter"),
   gam = identity_increment2,
   N4 = "performHarrisonMcCabeTest",
-  N17 = identity_reads_data
+  N17 = identity_reads_data,
+  gam_offset = c("registry szroeter", identity_registry_runner_szroeter)
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -257,8 +264,11 @@ identity_bootstrap_allowed <- list(
 # ("Missing rows"); it reads the model frame too.
 identity_null_routes <- c("registry student_bp", "registry szroeter")
 # A value of the runner that fell back on another test, or stopped, where the
-# test it names now runs.
-identity_runner_allowed <- c("B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame")
+# test it names now runs; and the registered Szroeter test on a gam with an
+# `offset` argument, which the runner runs ("gam_offset").
+identity_runner_allowed <- c(
+  "B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame", "gam_offset"
+)
 # A message, of a test or of the runner that runs it, that changes only to the
 # test's own documented refusal: M7, a model with more than one response
 # (R4/N9); for an offset that was refused first (B7), the refusal the call
@@ -352,6 +362,12 @@ identity_m1 <- function(record, before, after) {
 # same columns, and the branch may differ from main by rounding only: every
 # number to this relative tolerance.
 identity_last_bits <- 1e-12
+# The cells whose reference is another fit of the same model, equal to it up
+# to rounding, as context_rounded_cells of helper-model-context.R, which the
+# comparison does not source: the rank-deficient fit and the gam fits.
+identity_rounded_cells <- c(
+  "class/rank_deficient", "class/gam", "class/gam_offset_term", "class/gam_offset"
+)
 identity_segment_refits <- "performGQTest"
 # A call refused by a new refusal (value_to_error) must give this message.
 identity_new_refusals <- list(
@@ -360,7 +376,8 @@ identity_new_refusals <- list(
   # RESET tested a multivariate lm without `data`, and returned a value.
   R4 = "needs a model with one response",
   # The registered names, without `data`, on a fit with model = FALSE whose
-  # data are gone: the runner put the Cook-Weisberg fallback under them.
+  # data are gone: the runner put the Cook-Weisberg fallback under them. The
+  # tests of increment 3 on such a fit given numbered data in another order.
   frame = "cannot use the model frame of `model`"
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
@@ -942,7 +959,18 @@ identity_verify <- function(record, main, branch, seen = character()) {
   reference_kind <- if (identical(record$kind, "runner")) "reference_runner" else "reference"
   for (external in record$externals) {
     reference <- branch[[paste(reference_kind, record$fn, external, sep = " | ")]]
-    tolerance <- if (grepl("/poly$", external)) 1e-8 else 1e-10
+    # Harrison-McCabe written out from the fit's own decomposition agrees with
+    # the test, which decomposes the design again in the order of `order_by`,
+    # to 1e-8 relative on a design with a column at 1e-9 of the others, the
+    # precision to which either decomposition fixes that direction
+    # (context_hmc_by_hand()).
+    tolerance <- if (grepl("/poly$", external)) {
+      1e-8
+    } else if (startsWith(external, "byhand/")) {
+      1e-6
+    } else {
+      1e-10
+    }
     # The nested F test written out, and Harrison-McCabe's test written out
     # with the rank of the fit, have the statistic, the degrees of freedom or
     # the sizes of the parts, and the p-value only.
@@ -978,7 +1006,7 @@ identity_verify <- function(record, main, branch, seen = character()) {
   reference_id <- paste(record$kind, record$fn, reference, sep = " | ")
   before <- main[[reference_id]]
   after <- branch[[reference_id]]
-  tolerance <- if (record$cell %in% c("class/rank_deficient", "class/gam")) 1e-10 else 0
+  tolerance <- if (record$cell %in% identity_rounded_cells) 1e-10 else 0
   if (is.null(after) || !identity_same_key(key, identity_key(after$value), tolerance)) {
     return(NA_character_)
   }
