@@ -63,7 +63,9 @@ performFlignerKilleenTest <- function(model, data = NULL, group) {
   rvalidateModelInputs(model, test_name = "Fligner-Killeen", min_obs = 6L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
 
-  if (missing(group) || length(group) != 1L) {
+  # An NA or empty name is refused here, before it reaches the checks of
+  # `data` (rcontext_group_rows()), as by performOBrienTest().
+  if (missing(group) || length(group) != 1L || is.na(group) || !nzchar(as.character(group))) {
     stop("`group` must be a single column name.", call. = FALSE)
   }
 

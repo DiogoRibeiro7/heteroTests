@@ -1158,6 +1158,37 @@ test_that("a missing group leaves its observation out, with the warning of befor
   }
 })
 
+test_that("an NA or empty group name is refused before the checks of data", {
+  # From the review of increment 4. Levene's, Brown-Forsythe's,
+  # Fligner-Killeen's and Bartlett's tests checked only the length of
+  # `group`, so an NA name reached rvalidateDataInputs() as a required
+  # variable. The cache key of that check drops the NA and is then the key of
+  # the check without variables, which the alignment makes: on data that lack
+  # the columns of the model frame of the fit, the refusal of the NA name was
+  # cached, and the next call of any test on those data stopped with "missing
+  # from input data: NA". The name is now refused first, as O'Brien's test
+  # refuses it.
+  clearValidationCache()
+  on.exit(clearValidationCache(), add = TRUE)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  d <- data.frame(y = rnorm(60) + 5, x1 = runif(60, 1, 2), x2 = rnorm(60), group = gl(3, 20))
+  d$ypos <- exp(d$y / 5)
+  transformed <- lm(log(ypos) ~ x1, d)
+  m <- lm(y ~ x1 + x2, d)
+  white <- function() unname(suppressWarnings(performWhiteTest(m, d))$statistic)
+  expected <- white()
+  for (fn in context_increment4) {
+    for (bad in list(NA_character_, "")) {
+      clearValidationCache()
+      expect_error(get(fn)(transformed, d, bad),
+                   "`group` must be (supplied as )?a single column name", info = fn)
+      expect_identical(white(), expected, info = paste(fn, bad))
+    }
+  }
+})
+
 test_that("a group test run by the runner keeps the refusals of the context final", {
   # The five group tests are not registered under a name of the runner, but a
   # diagnostic can be registered that calls one (registerDiagnostic()). Its
