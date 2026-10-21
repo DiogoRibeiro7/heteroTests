@@ -94,6 +94,275 @@ test_that("performWhiteTest drops collinear auxiliary terms instead of aborting"
   expect_gt(result$parameter[["df"]], 0)
 })
 
+# --- Degrees of freedom ---------------------------------------------------------
+#
+# The auxiliary regression of e^2 on Z, the regressors, their squares and their
+# cross-products, has an intercept, so the degrees of freedom of n R^2 are the
+# rank of [1, Z] minus one (N2 of docs/design/model-context.md). In 0.15.0
+# they were the rank of Z, one more when the columns of Z span the constant,
+# with the same statistic. The designs are on the data of contract_data()
+# (helper-test-recipes.R); `spans` says, with and without the cross products,
+# whether the auxiliary columns span the constant.
+white_df_designs <- function() {
+  d <- contract_data()$d
+  n <- nrow(d)
+  d$half <- factor(ifelse(seq_len(n) %% 2 == 0, "even", "odd"))
+  d$s <- ifelse(d$half == "even", 1, -1)
+  d$h <- factor(rep(c("p", "q", "r"), each = n / 3))
+  d$sub <- factor(rep(1:2, each = 4, length.out = n))
+  d$v <- 1 / d$x1
+  # No observation in the cell of the baseline levels, (even, p), or in (odd, r).
+  empty <- d[!(d$half == "even" & d$h == "p"), ]
+  other_empty <- d[!(d$half == "odd" & d$h == "r"), ]
+  sum_group <- list(group = "contr.sum")
+  list(
+    sum2 = list(m = lm(y ~ x1 + half, data = d, contrasts = list(half = "contr.sum")),
+                d = d, spans = c(TRUE, TRUE)),
+    sum4 = list(m = lm(y ~ x1 + group, data = d, contrasts = sum_group), d = d,
+                spans = c(TRUE, TRUE)),
+    helmert4 = list(m = lm(y ~ x1 + group, data = d, contrasts = list(group = "contr.helmert")),
+                    d = d, spans = c(TRUE, TRUE)),
+    nested_helmert = list(
+      m = lm(y ~ x1 + group / sub, data = d,
+             contrasts = list(group = "contr.helmert", sub = "contr.helmert")),
+      d = d, spans = c(TRUE, TRUE)
+    ),
+    empty_cell = list(m = lm(y ~ x1 + half * h, data = empty), d = empty,
+                      spans = c(TRUE, FALSE)),
+    no_intercept = list(m = lm(y ~ 0 + group + x1, data = d), d = d, spans = c(TRUE, TRUE)),
+    poly = list(m = lm(y ~ poly(x1, 2) + x2, data = d), d = d, spans = c(TRUE, TRUE)),
+    plus_minus_one = list(m = lm(y ~ x1 + s, data = d), d = d, spans = c(TRUE, TRUE)),
+    sum4_weighted = list(m = lm(y ~ x1 + group, data = d, weights = v, contrasts = sum_group),
+                         d = d, spans = c(TRUE, TRUE)),
+    continuous = list(m = lm(y ~ x1 + x2, data = d), d = d, spans = c(FALSE, FALSE)),
+    treatment = list(m = lm(y ~ x1 + group, data = d), d = d, spans = c(FALSE, FALSE)),
+    other_empty_cell = list(m = lm(y ~ x1 + half * h, data = other_empty), d = other_empty,
+                            spans = c(FALSE, FALSE)),
+    no_intercept_continuous = list(m = lm(y ~ 0 + x1 + x2, data = d), d = d,
+                                   spans = c(FALSE, FALSE)),
+    continuous_weighted = list(m = lm(y ~ x1 + x2, data = d, weights = v), d = d,
+                               spans = c(FALSE, FALSE)),
+    treatment_weighted = list(m = lm(y ~ x1 + group, data = d, weights = v), d = d,
+                              spans = c(FALSE, FALSE))
+  )
+}
+
+# The auxiliary design built from the fit, without the package: the columns the
+# fit estimated, without the intercept, their squares and, with
+# `cross_products` and at most `max_interactions` columns, their products.
+white_df_aux <- function(model, cross_products = TRUE, max_interactions = 10) {
+  X <- stats::model.matrix(model)
+  X <- X[, !is.na(stats::coef(model)), drop = FALSE]
+  X <- X[, colnames(X) != "(Intercept)", drop = FALSE]
+  p <- ncol(X)
+  Z <- cbind(X, X^2)
+  if (cross_products && p > 1 && p <= max_interactions) {
+    for (i in seq_len(p - 1L)) {
+      for (j in seq.int(i + 1L, p)) Z <- cbind(Z, X[, i] * X[, j])
+    }
+  }
+  colnames(Z) <- paste0("z", seq_len(ncol(Z)))
+  rownames(Z) <- rownames(X)
+  Z
+}
+
+# The Pearson residuals sqrt(w) e that the test reads.
+white_df_residuals <- function(model) {
+  w <- stats::weights(model)
+  e <- stats::residuals(model)
+  if (is.null(w)) e else sqrt(w) * e
+}
+
+# White's test written out: lm(e^2 ~ Z), n R^2, the rank of lm() minus one.
+white_df_by_hand <- function(model, cross_products = TRUE, max_interactions = 10) {
+  Z <- white_df_aux(model, cross_products, max_interactions)
+  e2 <- white_df_residuals(model)^2
+  aux <- stats::lm(e2 ~ Z)
+  statistic <- length(e2) * summary(aux)$r.squared
+  df <- aux$rank - 1L
+  list(statistic = statistic, df = df,
+       p.value = stats::pchisq(statistic, df, lower.tail = FALSE),
+       rank_z = qr(Z)$rank, rank_1z = qr(cbind(1, Z))$rank)
+}
+
+# lmtest::bptest() with the same squares and cross-products as `varformula`:
+# its studentized statistic is n R^2 of the regression of e^2 on them, with an
+# intercept, on the rank of that regression minus one. A weighted fit is given
+# as the unweighted regression of sqrt(w) y on sqrt(w) X, whose residuals are
+# the Pearson residuals White's test reads; bptest() of the weighted fit itself
+# would test its raw residuals.
+white_df_bptest <- function(model, cross_products = TRUE, max_interactions = 10) {
+  Z <- as.data.frame(white_df_aux(model, cross_products, max_interactions))
+  varformula <- stats::reformulate(names(Z))
+  w <- stats::weights(model)
+  if (is.null(w)) {
+    return(lmtest::bptest(model, varformula = varformula, data = Z))
+  }
+  sw <- sqrt(w)
+  sy <- sw * stats::model.response(stats::model.frame(model))
+  sX <- sw * stats::model.matrix(model)
+  lmtest::bptest(stats::lm(sy ~ 0 + sX), varformula = varformula, data = Z)
+}
+
+test_that("White's degrees of freedom are those of lm(e^2 ~ Z), with or without cross products", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  designs <- white_df_designs()
+  for (name in names(designs)) {
+    des <- designs[[name]]
+    for (k in 1:2) {
+      cross_products <- k == 1L
+      info <- paste(name, if (cross_products) "with" else "without", "cross products")
+      ours <- performWhiteTest(des$m, des$d, cross_products = cross_products)
+      ref <- white_df_by_hand(des$m, cross_products)
+      # The design spans the constant, or does not, as it says.
+      expect_identical(ref$rank_z == ref$rank_1z, des$spans[k], info = info)
+      expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10, info = info)
+      expect_identical(unname(ours$parameter[["df"]]), ref$df, info = info)
+      expect_identical(attr(ours, "auxiliary_regressors"), ref$df, info = info)
+      expect_equal(ours$p.value, ref$p.value, tolerance = 1e-10, info = info)
+      # The degrees of freedom are the rank of [1, Z] minus one, which is the
+      # rank of Z when Z does not span the constant and one less when it does.
+      expect_identical(ref$df, ref$rank_1z - 1L, info = info)
+    }
+  }
+})
+
+test_that("White's test is lmtest::bptest() with its squares and cross products", {
+  skip_if_not_installed("lmtest")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  designs <- white_df_designs()
+  for (name in names(designs)) {
+    des <- designs[[name]]
+    for (cross_products in c(TRUE, FALSE)) {
+      info <- paste(name, if (cross_products) "with" else "without", "cross products")
+      ours <- performWhiteTest(des$m, des$d, cross_products = cross_products)
+      bp <- white_df_bptest(des$m, cross_products)
+      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = 1e-10, info = info)
+      expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
+      expect_equal(ours$p.value, unname(bp$p.value), tolerance = 1e-10, info = info)
+    }
+  }
+})
+
+test_that("White's p-values change where the auxiliary columns span the constant, and only there", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  designs <- white_df_designs()
+  # The statistic, which does not change, the degrees of freedom and p-value of
+  # 0.15.0, and those of now. Under the default treatment contrasts the four
+  # levels of `group` give the model of contr.sum, of contr.helmert and of the
+  # model without an intercept, and its 8 degrees of freedom.
+  pins <- data.frame(
+    design = c("sum2", "sum4", "helmert4", "no_intercept", "nested_helmert", "empty_cell",
+               "poly", "sum4_weighted", "sum4", "treatment", "continuous", "empty_cell"),
+    cross_products = c(rep(TRUE, 8), FALSE, TRUE, TRUE, FALSE),
+    statistic = c(6.190502, 17.830176, 17.830176, 17.830176, 19.407384, 17.682087,
+                  11.950445, 16.280548, 13.788111, 17.830176, 11.144838, 12.248134),
+    df_before = c(5L, 9L, 9L, 9L, 17L, 11L, 9L, 9L, 6L, 8L, 5L, 6L),
+    p_before = c(0.28812116, 0.03719571, 0.03719571, 0.03719571, 0.30565583, 0.08925654,
+                 0.21611740, 0.06124917, 0.03209475, 0.02253635, 0.04858271, 0.05665671),
+    df = c(4L, 8L, 8L, 8L, 16L, 10L, 8L, 8L, 5L, 8L, 5L, 6L),
+    p = c(0.18536600, 0.02253635, 0.02253635, 0.02253635, 0.24810447, 0.06056910,
+          0.15342862, 0.03853617, 0.01701289, 0.02253635, 0.04858271, 0.05665671),
+    stringsAsFactors = FALSE
+  )
+  for (i in seq_len(nrow(pins))) {
+    pin <- pins[i, ]
+    des <- designs[[pin$design]]
+    info <- paste(pin$design, if (pin$cross_products) "with" else "without", "cross products")
+    ours <- performWhiteTest(des$m, des$d, cross_products = pin$cross_products)
+    expect_equal(unname(ours$statistic), pin$statistic, tolerance = 1e-6, info = info)
+    expect_identical(unname(ours$parameter[["df"]]), pin$df, info = info)
+    expect_equal(ours$p.value, pin$p, tolerance = 1e-6, info = info)
+    # The count of 0.15.0 was the rank of the auxiliary columns alone.
+    Z <- white_df_aux(des$m, pin$cross_products)
+    expect_identical(qr(Z)$rank, pin$df_before, info = info)
+    expect_equal(stats::pchisq(pin$statistic, pin$df_before, lower.tail = FALSE), pin$p_before,
+                 tolerance = 1e-6, info = info)
+  }
+})
+
+test_that("every route to White's test takes the degrees of freedom of the exact test", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  designs <- white_df_designs()
+  df_of <- function(x) unname(x$parameter[["df"]])
+  for (name in c("sum4", "poly", "empty_cell", "continuous")) {
+    des <- designs[[name]]
+    m <- des$m
+    d <- des$d
+    full <- white_df_by_hand(m, cross_products = TRUE)
+    reduced <- white_df_by_hand(m, cross_products = FALSE)
+    expect_identical(df_of(performWhiteTest(m)), full$df, info = name)
+    # More regressors than max_interactions: no cross products.
+    suppressMessages(expect_warning(capped <- performWhiteTest(m, d, max_interactions = 1)))
+    expect_identical(df_of(capped), reduced$df, info = name)
+    robust <- performWhiteTestRobust(m, d)
+    expect_identical(df_of(robust), full$df, info = name)
+    expect_equal(unname(robust$robust_details$confidence_interval$estimate),
+                 stats::qchisq(c(0.025, 0.975), full$df), info = name)
+    expect_identical(df_of(performWhiteTestRobust(m, d, method = "reduced")), reduced$df,
+                     info = name)
+    registered <- get("white", envir = heteroTests:::.diagnostic_registry)
+    expect_identical(df_of(registered(m, d)), full$df, info = name)
+    expect_identical(df_of(heteroTests:::.ht_custom_fallbacks$white_simplified(m, d)),
+                     reduced$df, info = name)
+    suite <- runHeteroTests(m, d, tests = "white", use_cache = FALSE, progress = FALSE)
+    expect_identical(df_of(suite$white), full$df, info = name)
+    expect_equal(suite$white$p.value, full$p.value, tolerance = 1e-10, info = name)
+    expect_identical(df_of(heteroTests:::rwhite_test_rebuilt_design(m, d)), full$df, info = name)
+    # The bootstrap's p-value depends on its observed statistic, White's, alone.
+    set.seed(1)
+    boot <- performWhiteTestBootstrap(m, d, B = 9)
+    expect_equal(unname(boot$statistic), full$statistic, tolerance = 1e-10, info = name)
+  }
+})
+
+test_that("the White streaming test gives the degrees of freedom of the exact test", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  designs <- white_df_designs()
+  # It stops when terms of its auxiliary regression are collinear, as the
+  # squares of dummies are, and so on every design whose auxiliary columns span
+  # the constant, which are collinear with its intercept. Where it gives a
+  # value, its degrees of freedom are those of performWhiteTest(). Its checks
+  # of the model warn about the collinearity of the dummies on the way.
+  values <- 0L
+  for (name in names(designs)) {
+    des <- designs[[name]]
+    for (cross_products in c(TRUE, FALSE)) {
+      info <- paste(name, if (cross_products) "with" else "without", "cross products")
+      streaming <- suppressWarnings(tryCatch(
+        performWhiteTestStreaming(des$m, des$d, chunk_size = 50,
+                                  cross_products = cross_products, progress = FALSE),
+        error = function(e) NULL
+      ))
+      if (is.null(streaming)) next
+      values <- values + 1L
+      exact <- performWhiteTest(des$m, des$d, cross_products = cross_products)
+      expect_identical(unname(streaming$parameter[["df"]]), unname(exact$parameter[["df"]]),
+                       info = info)
+      expect_equal(unname(streaming$statistic), unname(exact$statistic), tolerance = 1e-10,
+                   info = info)
+    }
+  }
+  # The designs with continuous regressors only.
+  expect_identical(values, 6L)
+})
+
+test_that("the log names the auxiliary terms White's test drops and its degrees of freedom", {
+  old <- ht_set_log_level("INFO")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  des <- white_df_designs()$sum2
+  suppressMessages(expect_message(
+    performWhiteTest(des$m, des$d),
+    "dropped 1 auxiliary term(s) collinear with the intercept and the other terms; using df = 4.",
+    fixed = TRUE
+  ))
+})
+
 test_that("performWhiteTest aborts for perfect fits", {
   df <- data.frame(
     x = seq_len(25),

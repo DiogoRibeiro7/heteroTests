@@ -38,8 +38,8 @@
 #' squares, and (optionally) their cross-products. Under the null hypothesis of
 #' homoskedasticity and mild regularity conditions, the statistic
 #' \eqn{n \times R^2} from this auxiliary model converges to a chi-squared
-#' distribution with degrees of freedom equal to the number of regressors (minus
-#' the intercept). The function:
+#' distribution whose degrees of freedom are the rank of the auxiliary
+#' regression less its intercept (see *Degrees of freedom*). The function:
 #' \enumerate{
 #'   \item validates the model object with \link[=rvalidateModelInputs]{rvalidateModelInputs()} to ensure at
 #'     least 20 observations and finite residuals;
@@ -47,7 +47,8 @@
 #'     model context, since 0.16.0), matches the rows of `data` to the
 #'     observations of the fit, and warns about rows of `data` with missing
 #'     values, which the fit left out;
-#'   \item drops the collinear columns of the auxiliary design; and
+#'   \item drops the columns of the auxiliary design that are linearly
+#'     dependent on the intercept and the other columns; and
 #'   \item applies \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} so that sample-size and
 #'     conditioning rules specific to the White test are satisfied.
 #' }
@@ -58,6 +59,36 @@
 #' deteriorate when the number of regressors is large relative to the sample
 #' size. In such situations consider disabling `cross_products` or switching to
 #' the robust variants provided by the package.
+#'
+#' @section Degrees of freedom:
+#' Let \eqn{Z} hold the regressors, their squares and their cross-products.
+#' The auxiliary regression of \eqn{\hat{e}^2} on \eqn{Z} has an intercept, and
+#' the degrees of freedom are the rank of \eqn{[1, Z]} minus one, as
+#' `lmtest::bptest()` counts them given the same terms as `varformula`. A column
+#' of \eqn{Z} that is a linear combination of the intercept and the columns
+#' before it, at the default tolerance of [qr()], is dropped. That happens
+#' when the columns of \eqn{Z} span the constant: the squares of the dummies of
+#' `contr.sum` or `contr.helmert` contrasts, the dummies of every level of a
+#' factor in a model without an intercept, an interaction with an empty cell
+#' such as that of the baseline levels, or the squares of an orthogonal
+#' `poly()` basis. In 0.15.0 the degrees of freedom were the rank of
+#' \eqn{Z} alone, one more on such a design, with the same statistic and a
+#' larger p-value: on `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))`,
+#' with a factor of two levels, 5 where `lmtest::bptest()` gives 4. On a
+#' design whose auxiliary columns do not span the constant, such as continuous
+#' regressors or factors with the default treatment contrasts, nothing
+#' changed. The same holds with `cross_products = FALSE` or more regressors
+#' than `max_interactions`, and for the tests computed through this function:
+#' \link[=performWhiteTestRobust]{performWhiteTestRobust()}, whose interval,
+#' effect size and power follow the degrees of freedom, and the registered
+#' `"white"` of [runHeteroTests()]. The p-value of
+#' [performWhiteTestBootstrap()] depends on the statistic alone and does not
+#' change; [performWhiteTestStreaming()] stops on such a design, whose
+#' auxiliary columns are collinear with its intercept, and otherwise gives
+#' these degrees of freedom. On an auxiliary design whose columns are nearly
+#' collinear, as the squares and products of the basis of a smooth term can
+#' be, the columns kept are those `lm(e^2 ~ Z)` keeps, which can differ from
+#' those kept in 0.15.0, so the statistic can change too.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
@@ -237,18 +268,32 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
 
   # Drop linearly dependent auxiliary columns rather than aborting. Factor dummies
   # are a common cause: a 0/1 indicator squared equals itself, so its "_sq" column
-  # is perfectly collinear with the original. We keep a maximal set of independent
-  # columns via QR pivoting and base the degrees of freedom on the realised rank,
-  # matching the behaviour of established implementations (e.g. lmtest::bptest).
-  qr_aux <- qr(aux_matrix)
-  aux_rank <- qr_aux$rank
+  # is perfectly collinear with the original. The auxiliary regression below has
+  # an intercept, so a column is dependent when it is a combination of the
+  # intercept and the columns before it: the columns of Z can span the constant,
+  # as the squares of contr.sum or Helmert dummies, the dummies of every level
+  # of a factor without an intercept, or the squares of an orthogonal poly()
+  # basis do, and a column of Z that adds only the constant adds nothing to the
+  # regression. The columns kept are those that QR pivoting of [1, Z] keeps, at
+  # the default tolerance of qr(), and the degrees of freedom are the rank of
+  # [1, Z] minus one, the rank of the auxiliary regression less its intercept,
+  # as in lmtest::bptest(). In 0.15.0 the rank was that of Z alone, one too
+  # many when Z spans the constant; the statistic was the same, but on a
+  # nearly collinear Z, where QR pivoting with and without the intercept can
+  # keep different columns.
+  qr_aux <- qr(cbind(1, aux_matrix))
+  aux_rank <- qr_aux$rank - 1L
   if (aux_rank < ncol(aux_matrix)) {
-    keep <- sort(qr_aux$pivot[seq_len(aux_rank)])
+    # The intercept is the first column and is never pivoted out.
+    keep <- setdiff(sort(qr_aux$pivot[seq_len(qr_aux$rank)]), 1L) - 1L
     dropped <- ncol(aux_matrix) - aux_rank
     aux_matrix <- aux_matrix[, keep, drop = FALSE]
     aux_names <- aux_names[keep]
     ht_log("INFO", sprintf(
-      "White test: dropped %d collinear auxiliary term(s); using df = %d.",
+      paste(
+        "White test: dropped %d auxiliary term(s) collinear with the intercept",
+        "and the other terms; using df = %d."
+      ),
       dropped, aux_rank
     ))
   }
@@ -284,7 +329,8 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   }
 
   test_statistic <- n * r_squared
-  df <- ncol(aux_matrix)  # Degrees of freedom = number of auxiliary regressors
+  # The rank of [1, Z] minus one: the number of auxiliary regressors kept.
+  df <- aux_rank
   p_value <- pchisq(test_statistic, df, lower.tail = FALSE)
 
   # Create result object
