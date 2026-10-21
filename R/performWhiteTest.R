@@ -83,12 +83,13 @@
 #' effect size and power follow the degrees of freedom, and the registered
 #' `"white"` of [runHeteroTests()]. The p-value of
 #' [performWhiteTestBootstrap()] depends on the statistic alone and does not
-#' change; [performWhiteTestStreaming()] stops on such a design, whose
-#' auxiliary columns are collinear with its intercept, and otherwise gives
-#' these degrees of freedom. On an auxiliary design whose columns are nearly
-#' collinear, as the squares and products of the basis of a smooth term can
-#' be, the columns kept are those `lm(e^2 ~ Z)` keeps, which can differ from
-#' those kept in 0.15.0, so the statistic can change too.
+#' change on such a design; [performWhiteTestStreaming()] stops on such a
+#' design, whose auxiliary columns are collinear with its intercept, and
+#' otherwise gives these degrees of freedom. On an auxiliary design whose
+#' columns are nearly collinear, as the squares and products of the basis of
+#' a smooth term can be, the columns kept are those `lm(e^2 ~ Z)` keeps,
+#' which can differ from those kept in 0.15.0, so the statistic can change
+#' too.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals

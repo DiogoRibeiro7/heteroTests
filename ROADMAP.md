@@ -916,18 +916,22 @@ after it.
     fitted to, because the engine's fit names its response `..y`; without
     `data` it uses the model frame of that fit (0.16.0), and the refusal says
     to pass `data = NULL`. Map the columns instead. An error becomes a value.
-  - `performWhiteTest()` counts one degree of freedom too many when its
-    auxiliary columns span the constant (R/performWhiteTest.R:272, 316): it
-    takes the rank of the auxiliary design without the intercept, where the
-    regression has one. With a factor under `contr.sum`, as in
-    `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))` with four levels, the
-    squares of its columns sum to a constant, and the df is 9 where
-    `lmtest::bptest()` on the same terms gives 8, with the same statistic.
-    The review of the model-eligibility work, which found it, reports 15
-    against 14 with nested Helmert contrasts and 24 against 23 on a design
-    with an empty cell (the empty cell of the *Supported models* page, under
-    treatment contrasts, gives the right 23). Take the rank of the auxiliary
-    design with its constant, minus one. Changes p-values.
+  - [x] `performWhiteTest()` counted one degree of freedom too many when its
+    auxiliary columns span the constant: it took the rank of the auxiliary
+    design without the intercept, where the regression has one. With a factor
+    under `contr.sum`, as in `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))`
+    with four levels, the squares of its columns sum to a constant, and the df
+    was 9 where `lmtest::bptest()` on the same terms gives 8, with the same
+    statistic. The review of the model-eligibility work, which found it,
+    reported 15 against 14 with nested Helmert contrasts and 24 against 23 on
+    a design with an empty cell (the empty cell of the *Supported models*
+    page, under treatment contrasts, gives the right 23). Done in 0.16.0,
+    outside the model context (N2, decision 22 of its design): the degrees of
+    freedom are the rank of the auxiliary design with its constant, minus one,
+    and the columns the constant makes redundant are dropped, so that every
+    route to White's test gives the value of `lmtest::bptest()` on the same
+    terms. Changes p-values; on a nearly collinear auxiliary design, such as
+    that of a smooth term, the statistic too.
   - Three more tests ignore an offset, besides the studentized statistic
     above, so that on `lm(y ~ x1 + x2, offset = o)`, or with `+ offset(o)`,
     they do not give the value of the same model fitted to `y - o`:
