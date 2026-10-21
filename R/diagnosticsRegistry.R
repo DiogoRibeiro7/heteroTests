@@ -5,10 +5,21 @@
 #' custom diagnostics via \code{registerDiagnostic()}.
 ".diagnostic_registry" <- new.env(parent = emptyenv())
 ".plot_registry" <- new.env(parent = emptyenv())
+# What each test the package registers does with random numbers, by name:
+# "deterministic" (draws none, and its result is a function of the model, the
+# data and its arguments), "random" (draws them: a bootstrap or a
+# permutation test), or "data" (tests data rather than a model). Only the
+# deterministic ones are cached (rcache_cacheable(), R/cache.R). A name has
+# no flag once registerDiagnostic() registers it, whoever does.
+".diagnostic_kind" <- new.env(parent = emptyenv())
 #' Register a diagnostic function
 #'
 #' @param name Name of the diagnostic.
 #' @param fun Function taking a model and data and returning a result.
+#' @details A diagnostic registered this way is never cached by
+#'   [cachedTest()] or [runHeteroTests()], nor is a test of the package
+#'   registered again under its name: whether it draws random numbers, or
+#'   reads anything besides the model and the data, cannot be known.
 #' @return Invisibly returns \code{NULL}.
 #' @seealso [listDiagnostics()] for the names already registered.
 #' @examples
@@ -22,6 +33,21 @@ registerDiagnostic <- function(name, fun) {
     stop("`fun` must be a function")
   }
   assign(name, fun, envir = .diagnostic_registry)
+  # A diagnostic a user registers, or registers again under a name of the
+  # package, is never cached: whether it draws random numbers, or reads
+  # anything besides the model and the data, cannot be known.
+  if (exists(name, envir = .diagnostic_kind, inherits = FALSE)) {
+    rm(list = name, envir = .diagnostic_kind)
+  }
+  invisible(NULL)
+}
+
+# Register a test of the package, with what it does with random numbers
+# ("deterministic", "random" or "data"; see .diagnostic_kind above).
+rregister_package_diagnostic <- function(name, fun, kind = c("deterministic", "random", "data")) {
+  kind <- match.arg(kind)
+  registerDiagnostic(name, fun)
+  assign(name, kind, envir = .diagnostic_kind)
   invisible(NULL)
 }
 
@@ -76,12 +102,19 @@ registerPlot <- function(name, fun) {
   )
 }
 
-# preset built-in diagnostics
-registerDiagnostic("white", function(model, data) performWhiteTest(model, data))
-registerDiagnostic("breusch_pagan", function(model, data) performBPTest(model, data))
-registerDiagnostic("koenker", function(model, data) performKoenkerTest(model, data))
-registerDiagnostic("cook_weisberg", function(model, data) performCookWeisbergTest(model, data))
-registerDiagnostic("ncv", function(model, data) {
+# preset built-in diagnostics. The kind of each was read from its code and
+# is checked by tests/testthat/test-cache-contract.R, which runs every one
+# and compares .Random.seed before and after: the resampling tests
+# ("white_bootstrap", "wild_bootstrap", "rank_permutation", and
+# "spatial_hetero", whose p-value is the permutation test of
+# spdep::moran.mc()) draw random numbers, the others none.
+rregister_package_diagnostic("white", function(model, data) performWhiteTest(model, data))
+rregister_package_diagnostic("breusch_pagan", function(model, data) performBPTest(model, data))
+rregister_package_diagnostic("koenker", function(model, data) performKoenkerTest(model, data))
+rregister_package_diagnostic(
+  "cook_weisberg", function(model, data) performCookWeisbergTest(model, data)
+)
+rregister_package_diagnostic("ncv", function(model, data) {
   rrefuse_non_gaussian_glm(model, "performNCVTest")
   # The data it is given are checked against the model, as performNCVTest()
   # checks them, since 0.16.0. Before, data that lacked rows or variables of
@@ -91,15 +124,19 @@ registerDiagnostic("ncv", function(model, data) {
   rcheck_data_argument(data, "performNCVTest", model, "NCV")
   .ncv_test(model)
 })
-registerDiagnostic("spread_level", function(model, data) performSpreadLevelTest(model, data))
+rregister_package_diagnostic(
+  "spread_level", function(model, data) performSpreadLevelTest(model, data)
+)
 # performBoxMTest() tests the data, not a model, and is the documented
 # exception to the (model, data, ...) convention.
-registerDiagnostic("box_m", function(data, group) performBoxMTest(data, group))
-registerDiagnostic("student_bp", function(model, data) {
+rregister_package_diagnostic("box_m", function(data, group) performBoxMTest(data, group), "data")
+rregister_package_diagnostic("student_bp", function(model, data) {
   rrefuse_non_gaussian_glm(model, "performStudentizedBPTest")
   .studentized_bp_test(model, data)
 })
-registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data))
+rregister_package_diagnostic(
+  "white_bootstrap", function(model, data) performWhiteTestBootstrap(model, data), "random"
+)
 # performSzroeterTest() needs an ordering of the observations and a registry
 # entry is called with the model and the data only. The ordering comes from
 # the model: the fitted values, so the alternative is that the variance rises
@@ -128,7 +165,7 @@ registerDiagnostic("white_bootstrap", function(model, data) performWhiteTestBoot
 # with the message performSzroeterTest() gives for it. The result calls the
 # ordering "fitted values", or, when `data` has a column of that name, that
 # name with dots in front.
-registerDiagnostic(
+rregister_package_diagnostic(
   "szroeter",
   function(model, data) {
     ctx <- rmodel_context(model, data, fn = "performSzroeterTest", test_label = "Szroeter test")
@@ -139,12 +176,22 @@ registerDiagnostic(
     .szroeter_test(ctx, data, column, "greater", data_name = "model", by_mean = TRUE)
   }
 )
-registerDiagnostic("wild_bootstrap", function(model, data) performWildBootstrapTest(model, data))
-registerDiagnostic("quantile_regression", function(model, data) performQuantileRegressionTest(model, data))
-registerDiagnostic("rank_permutation", function(model, data) performRankPermutationTest(model, data))
-registerDiagnostic("high_dimensional", function(model, data) performHighDimensionalTest(model, data))
-registerDiagnostic("variance_form", function(model, data) performVarianceFormTest(model, data))
-registerDiagnostic(
+rregister_package_diagnostic(
+  "wild_bootstrap", function(model, data) performWildBootstrapTest(model, data), "random"
+)
+rregister_package_diagnostic(
+  "quantile_regression", function(model, data) performQuantileRegressionTest(model, data)
+)
+rregister_package_diagnostic(
+  "rank_permutation", function(model, data) performRankPermutationTest(model, data), "random"
+)
+rregister_package_diagnostic(
+  "high_dimensional", function(model, data) performHighDimensionalTest(model, data)
+)
+rregister_package_diagnostic(
+  "variance_form", function(model, data) performVarianceFormTest(model, data)
+)
+rregister_package_diagnostic(
   "spatial_hetero",
   function(model, data) {
     listw <- attr(data, "listw")
@@ -155,7 +202,8 @@ registerDiagnostic(
       )
     }
     performSpatialHeteroTest(model, data, listw = listw)
-  }
+  },
+  "random"
 )
 
 # preset built-in plots
