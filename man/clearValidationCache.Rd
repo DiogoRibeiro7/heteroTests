@@ -11,4 +11,10 @@ Clears the internal validation cache so that subsequent checks recompute
 their diagnostics. This helper is primarily used in automated tests where
 deterministic behaviour is required.
 }
+\details{
+The cache holds at most \code{getOption("heteroTests.validation_cache_size", 1000)} results and drops the one used least recently;
+\code{options(heteroTests.validation_cache_size = 0)} turns it off. A check
+that draws random numbers, as the check of normality does on a variable
+longer than its \code{sample_limit}, is not stored.
+}
 \keyword{internal}

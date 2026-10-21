@@ -967,6 +967,129 @@ Also, for these five:
     are those of before, but for five calls that stopped and now return a value
     with the warning on the missing group.
 
+### The caches
+
+The caches of `cachedTest()` and of `runHeteroTests(use_cache = TRUE)`, its
+default, and the cache of the checks the tests make first, follow a contract
+decided on 2026-10-21, set out on `?cachedTest` and in the *Architecture*
+page. The changes in bold change what calls return.
+
+**A cached result is the result of its own call.** The two caches kept a
+result under a key of the test, the coefficients and the residuals of the
+model and `data`, and fits that shared those shared one entry: the second
+call returned the result of the first. `lm(mpg ~ wt + offset(qsec), data =
+mtcars)` and `lm(I(mpg - qsec) ~ wt, data = mtcars)` have the same
+coefficients and residuals to the last bit and other fitted values; after
+the first, `cachedTest("cook_weisberg", <second>, mtcars)` returned 0.747
+(p = 0.388) in place of its own 0.0728 (p = 0.787), `"spread_level"` 0.650
+in place of 1.413 and `"szroeter"` 1.111 in place of 0.673, and
+`runHeteroTests()` returned the battery of the first fit with the first fit
+as `attr(, "model")`. A fit whose weights were changed after the fit, which
+the tests refuse ("The weights of the model are not those its coefficients
+were fitted with"), returned the result of the fit before the change
+(Koenker's 0.481 for `lm(mpg ~ wt, data = mtcars, weights = 1 / wt)` with
+its weights reversed), and so did a fit with `model = FALSE` whose data
+changed after the fit, which the tests refuse too. The key now holds
+everything that determines the result: the test and its arguments; the
+class, family and link of the model; from the model context of the fit, its
+model frame, response, design, residuals and fitted values, prior weights,
+total offset, rank, aliased coefficients, the names of its observations and
+its `na.action`; its coefficients, the weights it stores, its terms with
+their `predvars`, call, contrasts, levels, residual degrees of freedom and
+attributes, and whether it keeps its model frame; and `data`, whole. Each
+such call computes its own result.
+
+**The checks of the model are those of the model.** The checks the tests
+make first are kept in a cache whose key held the class, the coefficients,
+the residuals and the residual degrees of freedom of the model. A fit that
+shares those with another and has other fitted values passed, on a hit, the
+refusal of a fit with an R-squared above 0.999 that it meets alone: with the
+same coefficients on a regressor scaled by 100, `performKoenkerTest()`
+returned the value of the first fit, 2.047 (p = 0.153), where alone it stops
+with "Model appears perfectly explained (R² = 1.000)". The key holds the
+fitted values, the weights, the prior weights, the offset, the family, the
+link, the rank and the intercept too. The checks of `data` sorted in their
+key the names they were given, which drops NA: after a check of an NA name,
+refused, every check of the same columns with no names was answered with its
+refusal, and `performKoenkerTest(lm(mpg ~ wt + qsec, data = mtcars),
+mtcars)` stopped with "The following variables are missing from input data:
+NA". The key keeps the names as they are given, NA, empty names and their
+order included, which the message on the missing ones keeps; and the checks
+of the sample size and of the requirements of a test are keyed on the name
+of the test as it is given, which they report, rather than in lower case.
+
+- A test that draws random numbers is never cached. The package flags each
+    test it registers: `"wild_bootstrap"`, `"white_bootstrap"`,
+    `"rank_permutation"` and `"spatial_hetero"` draw them, and run on every
+    call, through `cachedTest()`, `runHeteroTests()`, the registry and
+    `runHeteroTestsParallel()` alike, and a battery that includes one is not
+    stored as a whole. Before, a call with another seed returned the
+    replicates of the first, and a call answered from the cache drew no random
+    numbers, so that those drawn after it were not those of a call without the
+    cache. A seeded call now returns what it returns without the cache and
+    leaves the generator where it leaves it, which
+    `tests/testthat/test-cache-contract.R` checks for each of the four, with a
+    draw after each call. A diagnostic added with `registerDiagnostic()` or
+    `test_factory$register()`, or a name of the package registered again, is
+    not cached either, since what it draws or reads cannot be known; `"box_m"`,
+    which tests data, neither. A result whose computation moved `.Random.seed`
+    is not stored.
+- The check of normality of the validation cache, which tests a random
+    sample of `sample_limit` values of a longer variable (the Bartlett test on
+    more than 5,000 observations makes it), is not stored: a later call draws
+    its sample again, as without the cache, instead of drawing nothing.
+- Each cache is bounded and drops the entry used least recently: those of
+    `cachedTest()` and of whole calls of `runHeteroTests()` hold at most
+    `getOption("heteroTests.cache_size", 100)` results each, the validation
+    cache `getOption("heteroTests.validation_cache_size", 1000)`, which it held
+    since #97 but by overwriting the entry stored first. `0` turns a cache
+    off. The two caches of results grew without bound, by about 33 KB per new
+    model for `runHeteroTests()` and 25 KB per call for `cachedTest()`; an
+    entry now keeps the result without the model it carries (3.4 KB for White's
+    test on `mtcars`, 31 KB with it), and the model of the call is put back on
+    a hit. The keys were the names of variables of an environment, which R
+    never frees, and each left 0.2 to 0.3 KB after `clearTestCache()` and
+    `clearAnalysisCache()`: a call of `runHeteroTests()` left three, 0.6 KB
+    on a model of two regressors, the 0.8 KB per call that long simulations
+    kept. The keys are a character vector now, and a cleared cache leaves
+    nothing.
+- The key holds values, not environments: a model refitted to the same data
+    in another environment is answered from the cache, with the model of the
+    call as `attr(, "model")`, `identical()` to the result the test computes.
+    It is built from the model context without `data`, and hashed with
+    xxhash64 once per call of `runHeteroTests()`, where 0.15.0 hashed the
+    residuals and the data once for the call and once for each test: about
+    0.7 ms on a fit of 1,000 observations, 2.3 ms on 10,000 and 20 ms on
+    100,000, against 0.2, 1.5 and 15 ms for the key of 0.15.0 and 2.6, 8.4 and
+    80 ms for the Cook-Weisberg test.
+- `runHeteroTests(use_cache = TRUE)` on a Gaussian `glm` with a zero prior
+    weight, which the tests refuse, no longer warns "observations with zero
+    weight not used for calculating dispersion": the warning came from the key
+    of 0.15.0, which called `sigma()` on the model. A fit with `model = FALSE`
+    whose data are gone, whose model frame the tests rebuild from `data`, runs
+    without the cache, since its key cannot be built without `data`.
+- Unchanged: every value computed without the cache, and every value read
+    from it on the call that stored it. On the 342 cells of the matrix of the
+    model context and of the rank of the Harrison-McCabe test, 16,524 records
+    (the default battery of `runHeteroTests()` and `cachedTest()` with each of
+    the eleven deterministic tests, without the cache, on empty caches and once
+    more, and the three resampling tests on twelve cells) are `identical()` to
+    those of 0.15.0, value, warnings and the random numbers drawn after the
+    call, but for three groups. In a pass over all the cells that never clears
+    the caches, 558 calls (63 batteries, 495 single tests) that 0.15.0
+    answered with the entry of another cell, such as a fit with an `offset()`
+    term with that of the same fit with an `offset` argument, or a fit
+    weighted by a vector of the workspace with that of the same fit weighted
+    by a column of the data, now compute their own value, which equals the
+    call without the cache. 26 resampling calls
+    repeated from the same seed, which 0.15.0 answered from the cache, draw
+    their replicates again, and the numbers drawn after them are those of a
+    call without the cache. And the warnings of the five cells of the zero
+    prior weight and of two calls of the quantile regression test on a fit
+    with `model = FALSE` whose data are gone (above). No call answered from
+    the cache returns a value other than the same call without it; such a call
+    gives none of the warnings of the call that stored its result, as before.
+
 ### Packaging
 
 - The logo shows in the README, and the `R CMD check` NOTE

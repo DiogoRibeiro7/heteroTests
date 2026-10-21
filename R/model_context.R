@@ -18,7 +18,9 @@
 # one call and dropped when the call returns: it is never stored, returned,
 # exported or cached, and it holds no global or mutable state. It is not the
 # validation cache of R/validation.R, whose checks the tests keep calling as
-# before, with the same keys.
+# before. Since 0.16.0 the caches of results (R/cache.R) hash its parts, built
+# without `data`, into the key of a fit (rcache_fit_key()); the context itself
+# is dropped there too.
 #
 # docs/design/model-context.md sets out the contract, the migration of the
 # tests in increments, and the decisions behind it. Since 0.16.0 (increment 1)

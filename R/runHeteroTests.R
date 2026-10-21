@@ -32,8 +32,22 @@
 #'   again in each replicate, as [performWildBootstrapTest()] and
 #'   [performWhiteTestBootstrap()] do by default since 0.15.0; to hold them
 #'   fixed, call those functions with `reestimate_weights = FALSE`.
-#' @param use_cache Logical, reuse cached diagnostic results when available.
-#'   Requires the **digest** package for hashing inputs and defaults to `TRUE`.
+#' @param use_cache Logical, reuse the results of an earlier call on the same
+#'   inputs? Requires the **digest** package for hashing inputs and defaults
+#'   to `TRUE`. Only deterministic tests are cached, under a key that holds
+#'   everything that determines their result (see [cachedTest()]): the
+#'   resampling tests `"wild_bootstrap"`, `"white_bootstrap"`,
+#'   `"rank_permutation"` and `"spatial_hetero"`, and diagnostics added with
+#'   `registerDiagnostic()`, run on every call, so a seeded call gives what it
+#'   gives with `use_cache = FALSE` and leaves the random number generator
+#'   where it leaves it, and a call that runs one is not stored as a whole.
+#'   Each test is kept in the cache of [cachedTest()], and each call whose
+#'   tests are all deterministic in a second cache ([clearAnalysisCache()]);
+#'   each holds at most `getOption("heteroTests.cache_size", 100)` results and
+#'   drops the one used least recently, and
+#'   `options(heteroTests.cache_size = 0)` turns both off. Before 0.16.0 the
+#'   resampling tests were cached too, and two fits with the same coefficients
+#'   and residuals shared their results.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
 #'   streaming implementations are preferred for supported diagnostics.
 #' @param chunk_size Integer number of observations processed per chunk when
@@ -133,21 +147,20 @@ runHeteroTests <- function(model, data = NULL,
     )
   }
 
-  cache_key <- if (isTRUE(use_cache)) {
-    analysis_key <- .analysis_cache_key(model, data, tests,
-      streaming = use_streaming,
-      chunk_size = chunk_size
-    )
-    if (!is.null(analysis_key)) {
-      cached <- .analysis_cache_get(analysis_key)
-      if (!is.null(cached)) {
-        return(cached$results)
-      }
-    }
-    analysis_key
-  } else {
-    NULL
+  # The caches hold deterministic tests only (R/cache.R): a resampling test,
+  # or a diagnostic a user registered, runs on every call, and a call that
+  # runs one is not stored as a whole. The keys of the model and the data are
+  # computed once for the call, and those of its tests from them.
+  cacheable <- vapply(tests, rcache_cacheable, logical(1))
+  inputs <- if (isTRUE(use_cache) && any(cacheable)) rcache_inputs(model, data)
+  cache_key <- if (all(cacheable)) {
+    rcache_analysis_key(tests, use_streaming, chunk_size, inputs)
   }
+  cached <- rcache_get(.analysis_cache, cache_key)
+  if (!is.null(cached)) {
+    return(rcache_attach(cached, model))
+  }
+  rng_before <- rrng_state()
 
   streaming_map <- list(
     white = function(model, data) {
@@ -190,7 +203,7 @@ runHeteroTests <- function(model, data = NULL,
     result <- tryCatch(
       {
         if (identical(runner, available[[test_name]]) && isTRUE(use_cache)) {
-          cachedTest(test_name, model, data)
+          rcached_diagnostic(test_name, model, data, if (cacheable[[i]]) inputs)
         } else {
           runner(model, data)
         }
@@ -265,16 +278,9 @@ runHeteroTests <- function(model, data = NULL,
     data_source = if (is.null(data)) NA_character_ else class(data)[1]
   )
 
-  if (!is.null(cache_key)) {
-    .analysis_cache_set(cache_key, list(
-      results = output,
-      timestamp = Sys.time(),
-      parameters = list(
-        streaming = use_streaming,
-        chunk_size = chunk_size,
-        tests = tests
-      )
-    ))
+  # Not stored if a test drew random numbers after all, as a fallback could.
+  if (!is.null(cache_key) && identical(rng_before, rrng_state())) {
+    rcache_put(.analysis_cache, cache_key, rcache_detach(output, model), rcache_result_limit())
   }
 
   output

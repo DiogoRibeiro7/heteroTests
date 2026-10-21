@@ -8,66 +8,50 @@
 # The cache keeps the result of each validation under a hash of its inputs, so
 # that validating the same model and data again skips the checks. A simulation
 # validates a new model on every call and never hits it, so the cache holds at
-# most `.validation_cache_max` results, in a ring of slots that overwrites the
-# oldest. The keys are kept in a character vector, not as the names of an
-# environment: R never frees a name once it has been used as one, so an
-# environment keyed by hash grows by every key it has held, removed or not.
+# most getOption("heteroTests.validation_cache_size", 1000) results and drops
+# the one used least recently (since 0.16.0; from #97 it overwrote the one
+# stored first). It is the store of the caches of results (R/cache.R): the
+# keys are kept in a character vector, not as the names of an environment, as
+# R never frees a name once it has been used as one, so an environment keyed
+# by hash grows by every key it has held, removed or not. A validation whose
+# computation draws random numbers, as the check of normality does on more
+# than `sample_limit` values, is not stored: a later call draws them again,
+# as it would without the cache (rvalidateDistributionalAssumptions(),
+# rvalidateTestRequirements()).
 .validation_cache_max <- 1000L
-.validation_cache <- new.env(parent = emptyenv())
+.validation_cache <- rcache_new()
+
+.validation_cache_limit <- function() {
+  rcache_limit("heteroTests.validation_cache_size", .validation_cache_max)
+}
 
 .validation_cache_reset <- function() {
-  .validation_cache$keys <- character(.validation_cache_max)
-  .validation_cache$values <- vector("list", .validation_cache_max)
-  # The slot written most recently.
-  .validation_cache$last <- 0L
-  invisible(NULL)
+  rcache_clear(.validation_cache)
 }
-.validation_cache_reset()
 
 .validation_cache_size <- function() {
-  sum(nzchar(.validation_cache$keys))
+  rcache_size(.validation_cache)
 }
 
 .validation_cache_enabled <- function() {
-  requireNamespace("digest", quietly = TRUE)
+  .validation_cache_limit() > 0 && requireNamespace("digest", quietly = TRUE)
 }
 
 .validation_cache_key <- function(scope, ...) {
   if (!.validation_cache_enabled()) {
+    # Turned off: what the cache held is dropped too.
+    .validation_cache_reset()
     return(NULL)
   }
-  digest::digest(list(scope = scope, ...), algo = "xxhash64")
+  rcache_hash(list(scope = scope, ...))
 }
 
 .validation_cache_get <- function(key) {
-  if (is.null(key)) {
-    return(NULL)
-  }
-  slot <- match(key, .validation_cache$keys)
-  if (is.na(slot)) {
-    return(NULL)
-  }
-  .validation_cache$values[[slot]]
+  rcache_get(.validation_cache, key)
 }
 
 .validation_cache_set <- function(key, value) {
-  if (is.null(key)) {
-    return(invisible(value))
-  }
-  cache <- .validation_cache
-  slot <- match(key, cache$keys)
-  if (is.na(slot)) {
-    slot <- cache$last %% .validation_cache_max + 1L
-    cache$keys[[slot]] <- key
-    cache$last <- slot
-  }
-  # Taken out of the environment first, the list has a single reference and
-  # is changed in place rather than copied on every store.
-  values <- cache$values
-  cache$values <- NULL
-  values[slot] <- list(value)
-  cache$values <- values
-  invisible(value)
+  rcache_put(.validation_cache, key, value, .validation_cache_limit())
 }
 
 #' Reset cached validation results
@@ -75,6 +59,12 @@
 #' Clears the internal validation cache so that subsequent checks recompute
 #' their diagnostics. This helper is primarily used in automated tests where
 #' deterministic behaviour is required.
+#'
+#' The cache holds at most `getOption("heteroTests.validation_cache_size",
+#' 1000)` results and drops the one used least recently;
+#' `options(heteroTests.validation_cache_size = 0)` turns it off. A check
+#' that draws random numbers, as the check of normality does on a variable
+#' longer than its `sample_limit`, is not stored.
 #'
 #' @keywords internal
 clearValidationCache <- function() {
@@ -165,12 +155,30 @@ enforce_integer_scalar <- function(value, arg_name, lower = 0L) {
   as.integer(value)
 }
 
+# What the validations read from the model, for the keys of the validation
+# cache: its class, coefficients, residuals and residual degrees of freedom,
+# and, since 0.16.0, what the R-squared of the fit (rleast_squares_r_squared())
+# and its aliased coefficients are computed from: its fitted values, weights,
+# prior weights, offset, family and link, rank and intercept. Before, two fits
+# with the same coefficients and residuals and other fitted values, such as a
+# fit and the same coefficients on a regressor scaled by 100, shared the
+# result of the check that refuses a fit with an R-squared above 0.999. No
+# validation reads the names of the residuals, which are left out.
 model_signature <- function(model) {
+  part <- function(read) tryCatch(read(), error = function(e) NULL)
+  family <- if (inherits(model, "glm")) part(function() stats::family(model))
   list(
     class = class(model),
-    coefficients = tryCatch(stats::coef(model), error = function(e) NULL),
-    residuals = tryCatch(stats::residuals(model), error = function(e) NULL),
-    df_residual = tryCatch(model$df.residual, error = function(e) NA_real_)
+    coefficients = part(function() stats::coef(model)),
+    residuals = part(function() unname(stats::residuals(model))),
+    df_residual = tryCatch(model$df.residual, error = function(e) NA_real_),
+    fitted = part(function() unname(model$fitted.values)),
+    weights = part(function() unname(model$weights)),
+    prior_weights = part(function() unname(model$prior.weights)),
+    offset = part(function() unname(model$offset)),
+    family = if (!is.null(family)) c(family$family, family$link),
+    rank = part(function() model$rank),
+    intercept = part(function() attr(stats::terms(model), "intercept"))
   )
 }
 
@@ -513,7 +521,13 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
       min_obs = min_obs,
       columns = names(data),
       n_rows = nrow(data),
-      required = sort(unique(as.character(required_vars)))
+      # The names as the checks read them: in their order, which the message
+      # on the missing ones keeps, NA and "" included, and NULL apart from
+      # character(0). Before 0.16.0 they were sorted, which drops NA, so a
+      # call with `required_vars = NA`, refused, stored its refusal under the
+      # key of `required_vars = NULL`, and later calls on the same columns
+      # were refused with "missing from input data: NA".
+      required = if (!is.null(required_vars)) unique(as.character(required_vars))
     )
   } else {
     NULL
@@ -1002,6 +1016,7 @@ rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
     return(cached)
   }
 
+  rng_before <- rrng_state()
   numeric_columns <- names(data)[vapply(data, is.numeric, logical(1))]
   result <- new_validation_result("distributional_assumptions", cache_key)
 
@@ -1025,6 +1040,13 @@ rvalidateDistributionalAssumptions <- function(data, assumptions = list()) {
     result <- validation_merge(result, outlier_result)
   }
 
+  # The check of normality tests a random sample of `sample_limit` values of
+  # a longer variable: such a result is not stored, so that a later call
+  # draws its sample, as it would without the cache. Before 0.16.0 it was, and
+  # the call that read it drew no random numbers.
+  if (!identical(rng_before, rrng_state())) {
+    return(result)
+  }
   .validation_cache_set(cache_key, result)
 }
 
@@ -1173,7 +1195,8 @@ rvalidateSampleSize <- function(test_name, model = NULL, data = NULL, groups = N
 
   cache_key <- .validation_cache_key(
     "sample_size",
-    test = test_key,
+    # As given, not test_key: the messages name it so.
+    test = test_name,
     model = model_signature(model),
     data = if (!is.null(data)) data else NULL,
     groups = if (!is.null(groups)) groups else NULL,
@@ -1360,7 +1383,8 @@ rvalidateTestRequirements <- function(test_name, model, data, ...) {
   extra <- list(...)
   cache_key <- .validation_cache_key(
     "test_requirements",
-    test = tolower(trimws(test_name)),
+    # As given, not in lower case: the result and its messages name it so.
+    test = test_name,
     model = model_signature(model),
     data = data,
     extra = extra
@@ -1370,6 +1394,7 @@ rvalidateTestRequirements <- function(test_name, model, data, ...) {
     return(cached)
   }
 
+  rng_before <- rrng_state()
   result <- new_validation_result("test_requirements", cache_key)
   result <- validation_add_detail(result, "test_name", test_name)
 
@@ -1484,6 +1509,11 @@ rvalidateTestRequirements <- function(test_name, model, data, ...) {
     result <- validation_merge(result, assumptions_result)
   }
 
+  # The check of normality drew random numbers (a sample of more than
+  # `sample_limit` values): not stored, so that a later call draws them again.
+  if (!identical(rng_before, rrng_state())) {
+    return(result)
+  }
   .validation_cache_set(cache_key, result)
 }
 

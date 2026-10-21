@@ -1107,9 +1107,17 @@ after it.
       test given `data` on a `fitWLS()` fit of a weighted model would be
       refused; the model context, which takes the weights from the fit, avoids
       it, and this guard must then skip that column for such fits.
-  - The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
+  - [x] The caches of `runHeteroTests(use_cache = TRUE)` (about 33 KB per new
     model) and `cachedTest()` (about 25 KB per call) grow without bound, as the
-    validation cache did before #97. No value changes.
+    validation cache did before #97. No value changes. Done in 0.16.0, with
+    the contract decided on 2026-10-21: each cache holds at most
+    `getOption("heteroTests.cache_size", 100)` results, the validation cache
+    `getOption("heteroTests.validation_cache_size", 1000)`, each dropping the
+    entry used least recently, and `0` turns a cache off; an entry keeps no
+    copy of the model. The key holds everything that determines a result, so
+    two fits with the same coefficients and residuals no longer share one
+    (that changed values, announced in bold), and a test that draws random
+    numbers is never cached.
   - A multivariate `lm`, `cbind(y, y2) ~ ...`, fails with a coercion error
     instead of a clear refusal. No value changes. Since the first step of the
     model context the five tests built on it refuse it with "needs a model
@@ -1118,8 +1126,13 @@ after it.
     `bootstrap_white_test()`, takes the log of a log response twice, drops an
     offset given as an argument and takes rows by position. Remove it or fix
     it. No exported value changes.
-  - About 0.8 KB per test call on a new model still persists after the
+  - [x] About 0.8 KB per test call on a new model still persists after the
     validation cache is cleared, as seen in long simulations. No value changes.
+    Done in 0.16.0: they were the keys of the caches of `cachedTest()` and
+    `runHeteroTests()`, the names of variables of an environment, which R
+    never frees (about 0.2 to 0.3 KB each, three per call of
+    `runHeteroTests()`). The keys are a character vector now, as those of the
+    validation cache since #97, and a cleared cache leaves nothing.
   - [x] On a rank-deficient fit (`z2 = 2 * z`, the design in
     `tests/testthat/test-koenker-studentized.R`) both `performKoenkerTest()`
     and `performStudentizedBPTest()` refuse with "Model coefficients must be

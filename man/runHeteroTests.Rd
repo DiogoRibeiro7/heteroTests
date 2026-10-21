@@ -46,8 +46,17 @@ runHeteroTests(
   \code{"wild_bootstrap"} and \code{"white_bootstrap"} estimate the weights again in each replicate, as
   \code{\link{performWildBootstrapTest}()} and \code{\link{performWhiteTestBootstrap}()} do by default since 0.15.0; to hold
   them fixed, call those functions with \code{reestimate_weights = FALSE}.}
-  \item{use_cache}{logical indicating whether cached results should be reused when available. Requires the \pkg{digest}
-  package and defaults to \code{TRUE}.}
+  \item{use_cache}{logical: reuse the results of an earlier call on the same inputs? Requires the \pkg{digest}
+  package and defaults to \code{TRUE}. Only deterministic tests are cached, under a key that holds everything that
+  determines their result (see \code{\link{cachedTest}}): the resampling tests \code{"wild_bootstrap"},
+  \code{"white_bootstrap"}, \code{"rank_permutation"} and \code{"spatial_hetero"}, and diagnostics added with
+  \code{registerDiagnostic}, run on every call, so a seeded call gives what it gives with \code{use_cache = FALSE} and
+  leaves the random number generator where it leaves it, and a call that runs one is not stored as a whole. Each test
+  is kept in the cache of \code{\link{cachedTest}}, and each call whose tests are all deterministic in a second cache
+  (\code{\link{clearAnalysisCache}}); each holds at most \code{getOption("heteroTests.cache_size", 100)} results and
+  drops the one used least recently, and \code{options(heteroTests.cache_size = 0)} turns both off. Before 0.16.0
+  the resampling tests were cached too, and two fits with the same coefficients and residuals shared their
+  results.}
   \item{chunk_threshold_mb}{numeric threshold (in megabytes) above which streaming implementations are preferred for supported
   diagnostics.}
   \item{chunk_size}{integer number of observations processed per chunk when streaming diagnostics.}
