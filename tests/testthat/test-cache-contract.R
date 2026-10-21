@@ -185,16 +185,12 @@ test_that("runHeteroTests() runs a resampling test on every call and does not st
   cache_reset()
   first <- run(TRUE)
   second <- run(TRUE)
-  expect_identical(second$out, first$out)
+  # The battery is the call without the cache, identical(), on a first and
+  # on a second call, and so are the numbers drawn after it.
+  expect_identical(first$out, off$out)
+  expect_identical(second$out, off$out)
   expect_identical(first$draw, off$draw)
   expect_identical(second$draw, off$draw)
-  # The numbers of the resampling test are those of the call without the
-  # cache. (A call with use_cache = FALSE marks each result with
-  # `extras$streaming`, which the cached route has never added.)
-  fields <- c("statistic", "parameter", "p.value", "method")
-  expect_identical(
-    unclass(second$out$wild_bootstrap)[fields], unclass(off$out$wild_bootstrap)[fields]
-  )
   # The two deterministic tests are cached one by one; the battery is not.
   expect_identical(cache_sizes(), c(test = 2L, analysis = 0L))
 
@@ -453,11 +449,13 @@ test_that("an identical call hits, and so does the same model refitted in anothe
     runs$n <- runs$n + 1L
     performKoenkerTest(model, data)
   })
-  # The rule: a call is answered from the cache exactly when every value the
-  # test can read is the same as in the call that stored it. The key holds
-  # values, not environments, so a refit of the same formula to the same data
-  # in another environment hits; the result carries the model of the call,
-  # and is identical() to the one the test computes on the refit.
+  # The rule: a call is answered from the cache when the test, its arguments,
+  # the values of the fit the key holds and the data are those of the call
+  # that stored it (?cachedTest says what the key leaves out: the environment
+  # of the formula and the options). The key holds values, not environments,
+  # so a refit of the same formula to the same data in another environment
+  # hits; the result carries the model of the call, and is identical() to the
+  # one the test computes on the refit.
   fit_in <- function(data) lm(y ~ x + z, data = data)
   ma <- fit_in(d)
   mb <- fit_in(d)
@@ -691,4 +689,123 @@ test_that("the validation cache is bounded by its option, and stores no random d
   short <- long[1:100, , drop = FALSE]
   heteroTests:::rvalidateDistributionalAssumptions(short, list(normality = list(variables = "r")))
   expect_identical(size(), 1L)
+})
+
+test_that("runHeteroTests() returns the same suite with and without the cache", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("withr")
+  cache_silent()
+  on.exit(cache_reset(), add = TRUE)
+  d <- cache_fixture()
+  fits <- list(
+    lm(y ~ x + z, data = d), lm(y ~ x + z, data = d, weights = w), glm(y ~ x + z, data = d)
+  )
+  batteries <- list(c("white", "koenker"), c("cook_weisberg", "szroeter", "spread_level"))
+  for (k in seq_along(fits)) {
+    for (data in list(d, NULL)) {
+      for (tests in batteries) {
+        info <- paste(k, paste(tests, collapse = "+"), is.null(data))
+        run <- function(use_cache) {
+          quiet(runHeteroTests(fits[[k]], data, tests = tests, use_cache = use_cache,
+                               progress = FALSE))
+        }
+        cache_reset()
+        off <- run(FALSE)
+        cache_reset()
+        miss <- run(TRUE)
+        hit <- run(TRUE)
+        expect_identical(miss, off, info = info)
+        expect_identical(hit, off, info = info)
+        expect_identical(attr(hit[[1]], "extras")$streaming, FALSE, info = info)
+      }
+    }
+  }
+})
+
+test_that("a call that falls back on a diagnostic the caches may not hold is not stored", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("withr")
+  cache_silent()
+  on.exit(cache_reset(), add = TRUE)
+  registry <- heteroTests:::.diagnostic_registry
+  original <- get("breusch_pagan", envir = registry)
+  withr::defer(heteroTests:::rregister_package_diagnostic("breusch_pagan", original))
+  runs <- new.env()
+  runs$n <- 0L
+  # A user's diagnostic under the name of a fallback of White's test.
+  registerDiagnostic("breusch_pagan", function(model, data) {
+    runs$n <- runs$n + 1L
+    structure(
+      list(statistic = c(X = runs$n), parameter = c(df = 1), p.value = 0.5,
+           method = paste("user BP", runs$n), data.name = "model"),
+      class = "htest"
+    )
+  })
+  set.seed(9)
+  small <- data.frame(x = stats::runif(15), z = stats::rnorm(15))
+  small$y <- 1 + small$x + stats::rnorm(15)
+  ms <- lm(y ~ x + z, data = small)
+  # White's test needs 20 observations; so does its form without cross
+  # products, and the runner falls back on "breusch_pagan".
+  cache_reset()
+  first <- quiet(runHeteroTests(ms, small, tests = "white", progress = FALSE))
+  second <- quiet(runHeteroTests(ms, small, tests = "white", progress = FALSE))
+  expect_identical(first$white$method, "user BP 1")
+  expect_identical(attr(first$white, "extras")$status, "fallback")
+  expect_identical(second$white$method, "user BP 2")
+  expect_identical(cache_sizes(), c(test = 0L, analysis = 0L))
+  # The package's own fallbacks may be kept.
+  heteroTests:::rregister_package_diagnostic("breusch_pagan", original)
+  cache_reset()
+  kept <- quiet(runHeteroTests(ms, small, tests = "white", progress = FALSE))
+  expect_identical(attr(kept$white, "diagnostic"), "breusch_pagan")
+  expect_identical(cache_sizes()[["analysis"]], 1L)
+  expect_identical(quiet(runHeteroTests(ms, small, tests = "white", progress = FALSE)), kept)
+
+  # A fallback on a resampling test: the quantile regression test refuses a
+  # weighted fit and the runner falls back on the rank permutation test.
+  skip_if_not_installed("quantreg")
+  d <- cache_fixture()
+  mw <- lm(y ~ x + z, data = d, weights = w)
+  run <- function(use_cache) {
+    set.seed(1)
+    out <- quiet(runHeteroTests(mw, d, tests = "quantile_regression", progress = FALSE,
+                                use_cache = use_cache))
+    list(out = out, draw = stats::runif(2))
+  }
+  cache_reset()
+  off <- run(FALSE)
+  cache_reset()
+  a <- run(TRUE)
+  b <- run(TRUE)
+  expect_identical(attr(off$out$quantile_regression, "diagnostic"), "rank_permutation")
+  expect_identical(a, off)
+  expect_identical(b, off)
+  expect_identical(cache_sizes()[["analysis"]], 0L)
+})
+
+test_that("the names of the quantile estimates do not depend on options(digits)", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("withr")
+  skip_if_not_installed("quantreg")
+  cache_silent()
+  on.exit(cache_reset(), add = TRUE)
+  d <- cache_fixture()
+  m <- lm(y ~ x + z, data = d)
+  taus <- c(0.25, 0.75)
+  reference <- quiet(performQuantileRegressionTest(m, d, taus = taus))
+  # The names of the default options, as before 0.16.0.
+  expect_identical(colnames(reference$estimate), paste0("tau_", format(taus, trim = TRUE)))
+  expect_identical(colnames(reference$estimate), c("tau_0.25", "tau_0.75"))
+  withr::with_options(list(digits = 1, scipen = -5, OutDec = ","), {
+    expect_identical(quiet(performQuantileRegressionTest(m, d, taus = taus)), reference)
+  })
+  # A result read from the cache is the one the call computes.
+  cache_reset()
+  cachedTest("quantile_regression", m, d)
+  withr::with_options(list(digits = 1), {
+    hit <- quiet(cachedTest("quantile_regression", m, d))
+    expect_identical(hit, quiet(cachedTest("quantile_regression", m, d, use_cache = FALSE)))
+  })
+  expect_identical(colnames(hit$estimate), c("tau_0.25", "tau_0.75"))
 })

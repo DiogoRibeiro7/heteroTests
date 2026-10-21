@@ -34,18 +34,21 @@
 #'   fixed, call those functions with `reestimate_weights = FALSE`.
 #' @param use_cache Logical, reuse the results of an earlier call on the same
 #'   inputs? Requires the **digest** package for hashing inputs and defaults
-#'   to `TRUE`. Only deterministic tests are cached, under a key that holds
-#'   everything that determines their result (see [cachedTest()]): the
-#'   resampling tests `"wild_bootstrap"`, `"white_bootstrap"`,
-#'   `"rank_permutation"` and `"spatial_hetero"`, and diagnostics added with
-#'   `registerDiagnostic()`, run on every call, so a seeded call gives what it
-#'   gives with `use_cache = FALSE` and leaves the random number generator
-#'   where it leaves it, and a call that runs one is not stored as a whole.
-#'   Each test is kept in the cache of [cachedTest()], and each call whose
-#'   tests are all deterministic in a second cache ([clearAnalysisCache()]);
-#'   each holds at most `getOption("heteroTests.cache_size", 100)` results and
-#'   drops the one used least recently, and
-#'   `options(heteroTests.cache_size = 0)` turns both off. Before 0.16.0 the
+#'   to `TRUE`. Only deterministic tests are cached, under a key that holds the
+#'   test and the parts of the model and the data it reads (see
+#'   [cachedTest()], which also says what the key leaves out): the resampling
+#'   tests `"wild_bootstrap"`, `"white_bootstrap"`, `"rank_permutation"` and
+#'   `"spatial_hetero"`, and diagnostics added with `registerDiagnostic()`, run
+#'   on every call, and a call that runs one, or falls back on one, is not
+#'   stored as a whole. A seeded call returns what it returns with
+#'   `use_cache = FALSE`, `identical()`, and leaves the random number generator
+#'   where it leaves it. Each test is kept in the cache of [cachedTest()], and
+#'   each call whose tests are all deterministic in a second cache
+#'   ([clearAnalysisCache()]); each holds at most
+#'   `getOption("heteroTests.cache_size", 100)` results and drops the one used
+#'   least recently, and `options(heteroTests.cache_size = 0)` turns both off.
+#'   The checks the tests make first have a cache of their own, bounded by
+#'   `getOption("heteroTests.validation_cache_size", 1000)`. Before 0.16.0 the
 #'   resampling tests were cached too, and two fits with the same coefficients
 #'   and residuals shared their results.
 #' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
@@ -200,9 +203,10 @@ runHeteroTests <- function(model, data = NULL,
     }
 
     failure_context <- NULL
+    cached_route <- identical(runner, available[[test_name]]) && isTRUE(use_cache)
     result <- tryCatch(
       {
-        if (identical(runner, available[[test_name]]) && isTRUE(use_cache)) {
+        if (cached_route) {
           rcached_diagnostic(test_name, model, data, if (cacheable[[i]]) inputs)
         } else {
           runner(model, data)
@@ -223,6 +227,12 @@ runHeteroTests <- function(model, data = NULL,
           progress = progress
         )
         if (!is.null(fallback)) {
+          # A substitute the caches may not hold, such as a diagnostic a user
+          # registered under the name of a fallback, or a resampling test,
+          # keeps the call out of the cache of whole calls (#144 review).
+          if (!rcache_fallback_cacheable(fallback)) {
+            cache_key <<- NULL
+          }
           return(fallback)
         }
 
@@ -251,6 +261,16 @@ runHeteroTests <- function(model, data = NULL,
     )
 
     if (inherits(result, "hetero_test")) {
+      if (cached_route && is.null(failure_context)) {
+        # The result of the route through the cache, decorated by
+        # .run_registered_diagnostic(), is marked as the route without it marks
+        # it, so that use_cache = TRUE and FALSE return the same suite. Before
+        # 0.16.0 it lacked `extras$streaming`.
+        attr(result, "extras") <- utils::modifyList(
+          attr(result, "extras") %||% list(),
+          list(streaming = FALSE)
+        )
+      }
       res[[i]] <- result
     } else {
       extras <- list(streaming = use_streaming && test_name %in% names(streaming_map))

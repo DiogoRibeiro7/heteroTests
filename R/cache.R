@@ -11,13 +11,17 @@
 #   alike. Its result, and the stream of random numbers after it, are then
 #   those of a call without the cache. As a second guard, a result whose
 #   computation moved the generator (.Random.seed) is not stored.
-# - A deterministic test is cached under a key that holds everything that
-#   determines its result (rcache_fit_key(), rcache_data_key()): the test and
-#   its arguments; the class, family and link of the model; the parts of the
-#   model context the tests read (rmodel_context()); the terms, the call and
-#   the other parts of the fit; and `data`, whole. The key holds values, never
-#   environments, so a model refitted to the same data in another environment
-#   has the same key, and the result returned carries the model of the call.
+# - A deterministic test is cached under a key that holds the test and its
+#   arguments and what it reads of the model and the data
+#   (rcache_fit_key(), rcache_data_key()): the class, family and link of the
+#   model; the parts of the model context the tests read (rmodel_context());
+#   the terms, the call and the other parts of the fit; and `data`, whole. The
+#   key holds values, never environments, so a model refitted to the same
+#   data in another environment has the same key, and the result returned
+#   carries the model of the call. It does not hold the environment of the
+#   formula (a function or variable of it changed after the fit) nor the
+#   options of the session (?cachedTest). A call of runHeteroTests() that
+#   falls back on a test the caches may not hold is not stored.
 # - Each cache holds at most getOption("heteroTests.cache_size", 100) results
 #   and evicts the one used least recently; 0 turns both caches off. The keys
 #   are kept in a character vector, never as the names of an environment: R
@@ -402,6 +406,27 @@ rcache_attach <- function(entry, model) {
     attr(x, "model") <- model
   }
   x
+}
+
+#' May the result of a fallback be kept in the cache of whole calls?
+#'
+#' A test of `runHeteroTests()` that fails is replaced by a fallback
+#' ([ht_attempt_fallback()]): a function of the package
+#' (`.ht_custom_fallbacks`, such as White's test without cross products), or
+#' the runner of another registered name, which may be a diagnostic a user
+#' registered or a resampling test. Only the first, and names flagged
+#' deterministic ([rcache_cacheable()]), may be kept.
+#'
+#' @param fallback The result [ht_attempt_fallback()] returned.
+#' @return `TRUE` or `FALSE`.
+#' @keywords internal
+#' @noRd
+rcache_fallback_cacheable <- function(fallback) {
+  strategy <- attr(fallback, "extras")$fallback_strategy
+  if (!is.null(strategy)) {
+    return(isTRUE(strategy %in% names(.ht_custom_fallbacks)))
+  }
+  rcache_cacheable(attr(fallback, "diagnostic"))
 }
 
 #' Run a registered test through the cache of `cachedTest()`
