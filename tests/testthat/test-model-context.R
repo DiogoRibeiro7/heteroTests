@@ -826,8 +826,8 @@ test_that("an offset is the model of the response minus the offset", {
     forms <- if (fn %in% context_group_readers()) "data_frame" else c("data_frame", "null")
     # The fit of y - o is another fit of the model, whose rounding can leave
     # a tie of Fligner-Killeen's ranks at a group median exact where the fit
-    # with the offset breaks it (N15): measured 1.5e-7 of the statistic on the
-    # Gaussian glm on Linux.
+    # with the offset breaks it (N15): measured on the Gaussian glm, 1.5e-7 of
+    # the statistic on Linux and 1.9e-6 on macOS (context_fligner_tolerance).
     fligner <- identical(fn, "performFlignerKilleenTest")
     tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (fit in fits) {

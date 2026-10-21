@@ -493,13 +493,26 @@ For the functions built on the context in increment 4:
   already: the group tests read no weights from `data` and matched the
   subset by row name.
 - **Messages.** M1 without `data`, where they stopped with "missing from input
-  data", naming the variables of the model too (R7); the message of `data`
+  data", naming the variables of the model too (R7: "ypos, x1, g3" for
+  `log(ypos) ~ log(x1) + x2` grouped by a `g3` it does not use); numbered data
+  in another order for a fit to character-named data, such as its tibble
+  shuffled, the guard's refusal ("... y, x1, x2 differ from the model
+  frame"), where they stopped with "Missing rows: obs1, obs2, obs3", rows the
+  data hold (R7); the message of `data`
   naming the group alone with the model frame as `data`; the refusal of ties
   on the tibble of a fit to repeated rows, where they stopped with "Missing
   rows"; M7 for a multivariate `lm`; the frame message for a `model = FALSE`
   fit whose data are gone, without `data`, where they stopped with "Expected a
-  data.frame"; and M8 for an edited fit without `data` or with its model
-  frame, where they lacked the group first.
+  data.frame"; M8 for an edited fit without `data` or with its model
+  frame, where they lacked the group first; and, from the review of increment
+  4, an `NA` or empty `group`, refused by the check of the argument of four of
+  them as by O'Brien's ("`group` must be a single column name."), where an
+  `NA` reached `rvalidateDataInputs()` as a required variable: its cache key,
+  which drops the `NA`, was that of the check without variables that the
+  alignment makes on data holding the columns of the model frame, so the
+  later calls of the tests built on the context on the same data met the
+  cached refusal (`performWhiteTest()` stopped with "missing from input data:
+  NA"). The key itself is left to the pull request on the validation cache.
 - **New refusals**, announced in bold (decision 14): a fit with
   `model = FALSE` whose data are gone, given a shuffled tibble ("frame"), from
   which the five computed the value of other rows (Levene 1.373 for 3.459);
@@ -749,7 +762,7 @@ the span of the regressors, and a positive response `ypos`.
   deviations from the group medians, and the two residuals in the middle of a
   group of even size tie at the median exactly on one fit of a model and not,
   by rounding, on another (the `lm`, the `gam`, the Gaussian `glm`; N15): its
-  statistic moves by up to 2.6e-6 and its p-value by up to 1.1e-5 (measured on Windows; 1.5e-7 of the statistic between a Gaussian `glm` with an offset and the `glm` of `y - o` on Linux), so against
+  statistic moves by up to 2.6e-6 and its p-value by up to 1.1e-5 (measured on Windows; between a Gaussian `glm` with an offset and the `glm` of `y - o`, equal on Windows to `1e-10`, 1.5e-7 of the statistic on Linux and 1.9e-6 on macOS, in the CI run before the tolerance applied there), so against
   another fit of the same model it is compared to `1e-4`
   (`context_fligner_tolerance`). The full
   matrix runs under `skip_on_cran()`, a 13-cell subset on CRAN.
