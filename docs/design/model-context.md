@@ -749,7 +749,7 @@ the span of the regressors, and a positive response `ypos`.
   deviations from the group medians, and the two residuals in the middle of a
   group of even size tie at the median exactly on one fit of a model and not,
   by rounding, on another (the `lm`, the `gam`, the Gaussian `glm`; N15): its
-  statistic moves by up to 2.6e-6 and its p-value by up to 1.1e-5, so against
+  statistic moves by up to 2.6e-6 and its p-value by up to 1.1e-5 (measured on Windows; 1.5e-7 of the statistic between a Gaussian `glm` with an offset and the `glm` of `y - o` on Linux), so against
   another fit of the same model it is compared to `1e-4`
   (`context_fligner_tolerance`). The full
   matrix runs under `skip_on_cran()`, a 13-cell subset on CRAN.
@@ -762,15 +762,15 @@ the span of the regressors, and a positive response `ypos`.
 | invariance over the accepted forms of data | `identical()` to the data frame of the fit |
 | `NULL` and the model frame | `identical()` to the call with data |
 | refused order | the guard's error, class `heteroTests_data_rows_error` |
-| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10`; RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
+| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10` (Fligner-Killeen to `1e-4`, N15); RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
 | Goldfeld-Quandt | against `lmtest::gqtest()`, which fits the segments to the rows of the design, on `ns()`, `bs()`, `I(x > median(x))` and `poly()` terms, and on the fit of `y - o` for an offset, to `1e-10` |
 | Harrison-McCabe's rank | against the test written out from the fit's own QR decomposition, with its rank, on a Gaussian `glm`, weighted or not, and `lm(tol = 1e-11)` with a nearly collinear column, to `1e-6` (they agree to 1e-8, the conditioning of a column at 1e-9), and on well-conditioned fits to `1e-12` |
 | the registered Szroeter test | its fitted values `identical()` to `predict(type = "response")` on every class, and equal to `fitted()` to `1e-12`; on a `gam` with an `offset` argument, which `predict.gam()` leaves out, `identical()` to `fitted()` and to the same `gam` with an `offset()` term; the value of `performSzroeterTest()` ordered by them |
 | ties | for each test of increments 3 and 4 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
 | the group tests | against the test computed without the package, on the residuals of the fit (`weighted.residuals()` for a weighted fit) and the groups of the data it was fitted to, in its order: `car::leveneTest()` centred at the means (Levene) and at the medians (Brown-Forsythe), `stats::fligner.test()`, `stats::bartlett.test()` and O'Brien's transformation written out with `anova()` of `lm()` (`context_group_oracle()`), to `1e-10`, on a `gam` with and without smooth terms or an `offset` argument given its data shuffled, the character-named fit given its tibble, the complete rows renumbered, a model of the group without `data` and with its model frame, a weighted fit, and missing groups, left out |
 | missing groups | the five group tests on a group missing at observations of the fit: the warning "Removed N observations due to missing values in group" and the value of the data frame of the fit on every accepted form of data; a group missing at a row the fit dropped is not counted |
-| term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8` |
-| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8`; workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
+| term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
+| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |

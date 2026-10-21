@@ -821,8 +821,15 @@ test_that("an offset is the model of the response minus the offset", {
   # quantile regression test refuses a weighted fit.
   for (fn in setdiff(context_runnable(), "performRESETTest")) {
     fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else context_fits
-    # Hartley's test groups by a variable the model frame does not hold.
+    # Hartley's test and the group tests group by a variable the model frame
+    # does not hold.
     forms <- if (fn %in% context_group_readers()) "data_frame" else c("data_frame", "null")
+    # The fit of y - o is another fit of the model, whose rounding can leave
+    # a tie of Fligner-Killeen's ranks at a group median exact where the fit
+    # with the offset breaks it (N15): measured 1.5e-7 of the statistic on the
+    # Gaussian glm on Linux.
+    fligner <- identical(fn, "performFlignerKilleenTest")
+    tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (fit in fits) {
       expected <- context_run(fn, list(build = function() {
         m <- context_model(shifted, fit)
@@ -834,7 +841,7 @@ test_that("an offset is the model of the response minus the offset", {
             m <- context_model(d, fit, offset)
             list(m = m, data = context_form(form, m, d))
           }))
-          context_same(out, expected, paste(fn, fit, offset, form), tolerance = 1e-10)
+          context_same(out, expected, paste(fn, fit, offset, form), tolerance = tolerance)
         }
       }
     }
@@ -889,7 +896,16 @@ test_that("a term is the column it computes, taken from the fit", {
     for (fit in fits) {
       for (terms in names(precomputed)) {
         expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
-        tolerance <- if (terms == "poly") 1e-8 else 1e-10
+        # The fit with the columns computed beforehand is another fit of the
+        # model: Fligner-Killeen's ranks may tie at a group median on one and
+        # not on the other (N15).
+        tolerance <- if (identical(fn, "performFlignerKilleenTest")) {
+          context_fligner_tolerance
+        } else if (terms == "poly") {
+          1e-8
+        } else {
+          1e-10
+        }
         # Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read x1,
         # which the model frame of these fits does not hold, and Hartley's
         # test groups by a variable it does not hold either: without `data`
