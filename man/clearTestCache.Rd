@@ -19,8 +19,9 @@ The cache is bounded and holds no test that draws random numbers (see
 \code{\link[=cachedTest]{cachedTest()}}), so clearing it is needed neither to bound the memory of a
 long session nor to draw new replicates with another seed. It is needed
 after a change the key does not see, such as a function or a variable of
-the environment of a model's formula. \code{\link[=clearAnalysisCache]{clearAnalysisCache()}} empties the
-cache of whole calls of \code{\link[=runHeteroTests]{runHeteroTests()}}.
+the environment of a model's formula; call \code{\link[=clearAnalysisCache]{clearAnalysisCache()}} then too,
+since the cache of whole calls of \code{\link[=runHeteroTests]{runHeteroTests()}} keeps the results of
+such a model as well.
 }
 \seealso{
 \code{\link[=cachedTest]{cachedTest()}} for invoking diagnostics with memoisation.

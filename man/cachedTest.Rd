@@ -47,8 +47,8 @@ the resampling tests included: a call with another seed returned the
 replicates of the first, and the random numbers drawn after it were not
 those of a call without the cache.
 
-\strong{The key.} The test, its arguments, and every part of the model and of
-the data the test can read: the class of the model, its family and link;
+\strong{The key.} The test, its arguments, and the parts of the model and of the
+data the test reads: the class of the model, its family and link;
 from the model context of the fit, its model frame, response, design,
 residuals and fitted values, prior weights, total offset, rank and aliased
 coefficients, the names of its observations and its \code{na.action}; its
@@ -65,11 +65,23 @@ model of the call as \code{attr(result, "model")}, so that the result is
 reading it, such as a fit with \code{model = FALSE} whose data changed after the
 fit, has no key and is refused as without the cache; so has a fit with
 \code{model = FALSE} whose data are gone, whose model frame the tests rebuild
-from \code{data}, and it runs without the cache. The key does not hold
-the environment of the formula: a test that evaluates the formula on \code{data}
-again, as the check of the rows of \code{data} does, reads the functions and
-variables of that environment as they are, so clear the cache after
-changing one of them.
+from \code{data}, and it runs without the cache.
+
+\strong{What the key leaves out.} The key does not hold the environment of the
+formula: a test that evaluates the formula on \code{data} again, as the check of
+the rows of \code{data} does, reads the functions and variables of that
+environment as they are, so that after \code{f} is defined again a model
+\code{y ~ f(x)} is answered with the result computed with the old \code{f}, where
+without the cache the check may refuse \code{data}. Clear both caches, with
+\code{\link[=clearTestCache]{clearTestCache()}} and \code{\link[=clearAnalysisCache]{clearAnalysisCache()}}, after changing one of them.
+Nor does it hold the options of the session: a result read from the cache
+gives none of the warnings and messages of the call that computed it, so
+a call made under \code{options(warn = 2)} after one that stored its result is
+answered with that result, where without the cache a warning of the test,
+turned into an error, stops it. The
+results of the tests otherwise do not depend on the options; the names of
+the estimates of the quantile regression test depended on
+\code{options(digits)} before 0.16.0.
 
 Before 0.16.0 the key held only the test, the coefficients, the residuals,
 \code{data} and the arguments. Fits that share those shared one entry, and the
@@ -85,7 +97,10 @@ least recently to store another; \code{options(heteroTests.cache_size = 0)}
 turns it off, together with the cache of \code{\link[=runHeteroTests]{runHeteroTests()}}. A stored result
 keeps no copy of the model. Before 0.16.0 the cache grew without bound, by
 about 25 KB per call on a new model, and kept about 0.3 KB per call after
-\code{\link[=clearTestCache]{clearTestCache()}}.
+\code{\link[=clearTestCache]{clearTestCache()}}. The checks the tests make first keep their results in a
+cache of their own, of at most
+\code{getOption("heteroTests.validation_cache_size", 1000)} results, which \code{0}
+turns off; it holds no check that drew random numbers.
 
 A result read from the cache is returned without running the test, so the
 call gives none of the warnings and messages of the call that computed it.

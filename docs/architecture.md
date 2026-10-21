@@ -128,7 +128,11 @@ decided on 2026-10-21:
   deterministic (`R/diagnosticsRegistry.R`): `white`, `breusch_pagan`,
   `koenker`, `cook_weisberg`, `ncv`, `spread_level`, `student_bp`, `szroeter`,
   `quantile_regression`, `high_dimensional` and `variance_form`. A call of
-  `runHeteroTests()` is stored as a whole only when all its tests are.
+  `runHeteroTests()` is stored as a whole only when all its tests are, and
+  when no test fell back on one the caches may not hold (a diagnostic a user
+  registered under the name of a fallback, or a resampling test). A call
+  returns the same suite, `identical()`, with `use_cache = TRUE` and
+  `FALSE`.
 - **What is not.** A test that draws random numbers is never cached:
   `wild_bootstrap`, `white_bootstrap`, `rank_permutation` and `spatial_hetero`
   run on every call, through `cachedTest()`, `runHeteroTests()`, the registry
@@ -153,7 +157,11 @@ decided on 2026-10-21:
   The key holds values, not environments: the same model refitted in another
   environment hits, and the result returned carries the model of the call, so
   that it is `identical()` to the one the test computes. A model the context
-  refuses has no key and runs uncached. The keys of the validation cache hold
+  refuses has no key and runs uncached. The key leaves out the environment of
+  the formula (a function or variable of it defined again after the fit) and
+  the options of the session (`options(warn = 2)`, under which a call answered
+  from the cache gives no warning to turn into an error); `?cachedTest` sets
+  them out. The keys of the validation cache hold
   what each check reads, including the fitted values, weights, offset and
   family of the model, and the names a check is given as they are, NA and
   order included.
@@ -168,8 +176,9 @@ decided on 2026-10-21:
 Building the key costs about 0.7 ms on a fit of 1,000 observations, 2.3 ms
 on one of 10,000 and 20 ms on one of 100,000, against 2.6, 8.4 and 80 ms for
 the Cook-Weisberg test, one of the cheapest; most of it is hashing the vectors,
-which `rcache_hash()` serializes in the native byte order. A hit costs the
-key and little more.
+which `rcache_hash()` serializes in the native byte order, into one raw vector
+the size of the frame, the design and the data together. A hit costs the key
+and little more.
 
 ## Where things are
 

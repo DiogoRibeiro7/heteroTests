@@ -667,8 +667,8 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #' replicates of the first, and the random numbers drawn after it were not
 #' those of a call without the cache.
 #'
-#' **The key.** The test, its arguments, and every part of the model and of
-#' the data the test can read: the class of the model, its family and link;
+#' **The key.** The test, its arguments, and the parts of the model and of the
+#' data the test reads: the class of the model, its family and link;
 #' from the model context of the fit, its model frame, response, design,
 #' residuals and fitted values, prior weights, total offset, rank and aliased
 #' coefficients, the names of its observations and its `na.action`; its
@@ -685,11 +685,23 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #' reading it, such as a fit with `model = FALSE` whose data changed after the
 #' fit, has no key and is refused as without the cache; so has a fit with
 #' `model = FALSE` whose data are gone, whose model frame the tests rebuild
-#' from `data`, and it runs without the cache. The key does not hold
-#' the environment of the formula: a test that evaluates the formula on `data`
-#' again, as the check of the rows of `data` does, reads the functions and
-#' variables of that environment as they are, so clear the cache after
-#' changing one of them.
+#' from `data`, and it runs without the cache.
+#'
+#' **What the key leaves out.** The key does not hold the environment of the
+#' formula: a test that evaluates the formula on `data` again, as the check of
+#' the rows of `data` does, reads the functions and variables of that
+#' environment as they are, so that after `f` is defined again a model
+#' `y ~ f(x)` is answered with the result computed with the old `f`, where
+#' without the cache the check may refuse `data`. Clear both caches, with
+#' [clearTestCache()] and [clearAnalysisCache()], after changing one of them.
+#' Nor does it hold the options of the session: a result read from the cache
+#' gives none of the warnings and messages of the call that computed it, so
+#' a call made under `options(warn = 2)` after one that stored its result is
+#' answered with that result, where without the cache a warning of the test,
+#' turned into an error, stops it. The
+#' results of the tests otherwise do not depend on the options; the names of
+#' the estimates of the quantile regression test depended on
+#' `options(digits)` before 0.16.0.
 #'
 #' Before 0.16.0 the key held only the test, the coefficients, the residuals,
 #' `data` and the arguments. Fits that share those shared one entry, and the
@@ -705,7 +717,10 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #' turns it off, together with the cache of [runHeteroTests()]. A stored result
 #' keeps no copy of the model. Before 0.16.0 the cache grew without bound, by
 #' about 25 KB per call on a new model, and kept about 0.3 KB per call after
-#' [clearTestCache()].
+#' [clearTestCache()]. The checks the tests make first keep their results in a
+#' cache of their own, of at most
+#' `getOption("heteroTests.validation_cache_size", 1000)` results, which `0`
+#' turns off; it holds no check that drew random numbers.
 #'
 #' A result read from the cache is returned without running the test, so the
 #' call gives none of the warnings and messages of the call that computed it.
@@ -748,8 +763,9 @@ cachedTest <- function(test_name, model, data, ..., use_cache = TRUE) {
 #' [cachedTest()]), so clearing it is needed neither to bound the memory of a
 #' long session nor to draw new replicates with another seed. It is needed
 #' after a change the key does not see, such as a function or a variable of
-#' the environment of a model's formula. [clearAnalysisCache()] empties the
-#' cache of whole calls of [runHeteroTests()].
+#' the environment of a model's formula; call [clearAnalysisCache()] then too,
+#' since the cache of whole calls of [runHeteroTests()] keeps the results of
+#' such a model as well.
 #'
 #' @return `NULL`, invisibly.
 #' @seealso
