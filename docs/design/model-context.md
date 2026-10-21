@@ -547,7 +547,7 @@ migrations that keep every value, then the riskier resampling and
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned |
 
 Outside the context, as separate pull requests: White's degrees of freedom
-when the auxiliary columns span the constant (N2) and White streaming on
+when the auxiliary columns span the constant (N2, done) and White streaming on
 collinear auxiliary terms (N3) (decision 22), and N11 to N15.
 
 ### How each increment shows `identical()`
@@ -825,7 +825,8 @@ that fixes each.
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five, in increment 4 for the group tests |
 | L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1) |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
-| N2, N3 | White's degrees of freedom when the auxiliary columns span the constant; White streaming on collinear terms | Separate pull requests (decision 22) |
+| N2 | White's degrees of freedom when the auxiliary columns span the constant | Fixed in 0.16.0 by a separate pull request (decision 22): the rank of the auxiliary design with its intercept, minus one, as `lmtest::bptest()` with the same terms; the harness allows the changes on the cells where main's count was wrong (the `poly()` fits, and the `gam` with a smooth term, whose auxiliary regression lost a column to its intercept and whose statistic changes by 0.28%) and verifies each against White's test written out (`identity_white_by_hand()`) |
+| N3 | White streaming on collinear terms | A separate pull request (decision 22) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET; increment 6 for the other tests computed from the model alone |
