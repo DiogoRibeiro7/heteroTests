@@ -26,6 +26,12 @@ concurrency:
     github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# The full model-context matrix, about 30,000 expectations, runs in one job:
+# ubuntu-latest (R release), whose matrix entry sets full-matrix. Every other
+# job runs the cells CRAN runs (tests/testthat/helper-model-context.R).
+env:
+  HETEROTESTS_FULL_MATRIX: 'false'
+
 jobs:
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
@@ -35,13 +41,14 @@ jobs:
       matrix:
         config:
           - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest, r: 'release'}
+          - {os: ubuntu-latest, r: 'release', full-matrix: 'true'}
           - {os: ubuntu-latest, r: 'oldrel-1'}
           - {os: macos-latest, r: 'release'}
           - {os: windows-latest, r: 'release'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      HETEROTESTS_FULL_MATRIX: ${{ matrix.config.full-matrix || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-pandoc@v2

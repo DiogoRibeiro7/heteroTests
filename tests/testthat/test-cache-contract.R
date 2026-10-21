@@ -116,6 +116,11 @@ test_that("every registered test is flagged, and only the deterministic ones are
 })
 
 test_that("the flags agree with what each registered test draws", {
+  # Every registered test at its default replications, and this test and the
+  # next take most of the suite's time after the model-context matrix: they
+  # run where the full matrix runs (skip_unless_full_matrix(),
+  # helper-model-context.R).
+  skip_unless_full_matrix()
   skip_if_not_installed("digest")
   skip_if_not_installed("withr")
   cache_silent()
@@ -134,6 +139,9 @@ test_that("the flags agree with what each registered test draws", {
 })
 
 test_that("a test that draws random numbers is never cached and leaves the generator alone", {
+  # Each resampling test five times at its default replications: where the full
+  # matrix runs (skip_unless_full_matrix()).
+  skip_unless_full_matrix()
   skip_if_not_installed("digest")
   skip_if_not_installed("withr")
   cache_silent()

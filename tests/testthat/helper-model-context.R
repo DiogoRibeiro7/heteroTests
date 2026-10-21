@@ -656,6 +656,42 @@ context_cran_cells <- c(
   "subset/data_frame", "ident/front", "class/mlm", "group/na_shuffled"
 )
 
+# Whether the full matrix runs, or only the cells CRAN runs. The full matrix
+# is about 30,000 expectations, the largest part of the suite's time, so CI
+# runs it in one job rather than in every job and again under covr. The
+# environment variable HETEROTESTS_FULL_MATRIX decides:
+#
+#   "true"   the full matrix;
+#   "false"  the CRAN cells only (context_cran_cells);
+#   unset    the full matrix off CRAN, that is with NOT_CRAN=true, which
+#            devtools::test(), testthat::test_local() and the CI jobs set, and
+#            the CRAN cells on CRAN.
+#
+# A developer running the tests therefore gets the full matrix unless they set
+# it to false. CI sets it to false in every job except ubuntu-latest (R
+# release) in R-CMD-check.yml, where it is true (docs/development.md). The two
+# tests of test-cache-contract.R that run every resampling test at its default
+# replications, the next largest cost, are gated the same way.
+context_full_matrix <- function() {
+  value <- tolower(Sys.getenv("HETEROTESTS_FULL_MATRIX"))
+  if (identical(value, "")) {
+    return(identical(Sys.getenv("NOT_CRAN"), "true"))
+  }
+  if (!value %in% c("true", "false")) {
+    stop("HETEROTESTS_FULL_MATRIX must be \"true\" or \"false\", or unset; it is \"",
+         Sys.getenv("HETEROTESTS_FULL_MATRIX"), "\".", call. = FALSE)
+  }
+  identical(value, "true")
+}
+
+# Skips a test of the full matrix when context_full_matrix() is FALSE.
+skip_unless_full_matrix <- function() {
+  if (!context_full_matrix()) {
+    testthat::skip("the full matrix is off (HETEROTESTS_FULL_MATRIX, helper-model-context.R)")
+  }
+  invisible(TRUE)
+}
+
 # The tests of increment 2.
 context_increment2 <- c(
   "performStudentizedBPTest", "performRESETTest", "performGQTest",
