@@ -50,7 +50,9 @@ context_check_matrix <- function(ids, fns = context_runnable()) {
       if (identical(cell$expect, "value")) {
         expect_s3_class(out, "htest")
         if (!is.null(cell$reference) && context_installed(cells[[cell$reference]])) {
-          tolerance <- if (id %in% context_rounded_cells) 1e-10
+          tolerance <- if (id %in% context_rounded_cells) {
+            if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-10
+          }
           context_same(out, result_of(cell$reference), info, tolerance)
         }
       } else if (identical(cell$expect, "guard")) {
@@ -418,13 +420,18 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
   plain <- mgcv::gam(y ~ x1 + x2, data = d)
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
   for (fn in context_runnable()) {
+    # Fligner-Killeen's ranks tie at a group median on one fit and not, by
+    # rounding, on the other (N15, context_fligner_tolerance).
+    fligner <- identical(fn, "performFlignerKilleenTest")
+    tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (data in list(d, NULL)) {
-      # Hartley's test groups by a variable of `data` that the model frame
-      # does not hold: without `data` it is refused (M1), as the matrix checks.
+      # Hartley's test and the group tests group by a variable of `data` that
+      # the model frame does not hold: without `data` they are refused (M1), as
+      # the matrix checks.
       if (is.null(data) && fn %in% context_group_readers()) next
       context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
-                   paste(fn, "gam"), tolerance = 1e-10)
+                   paste(fn, "gam"), tolerance = tolerance)
       out <- context_run(fn, list(build = function() list(m = smooth, data = data)))
       if (fn %in% context_increment2) {
         # A smooth term is usually penalised, and a penalised fit is not the
@@ -480,7 +487,7 @@ test_that("data in the order of the fit must tell apart the rows a test reads be
   expect_identical(run(named, "z")$statistic, expected$statistic)
 })
 
-test_that("the tests of increment 3 read their variable at rows the comparison tells apart", {
+test_that("the tests of increments 3 and 4 read their variable at rows told apart", {
   # The case of the review of increment 1, for each test that reads a column
   # of `data` besides the model: the rows of a fit to named data, in its
   # order, numbered again, tie on every compared column (y and x), and data
@@ -488,7 +495,7 @@ test_that("the tests of increment 3 read their variable at rows the comparison t
   # without a trace in the model frame; a column beyond it, the variable a
   # test regresses on, orders by or groups by, would then belong to other
   # rows. Such data are refused, and so is the same data with the column
-  # exchanged within the ties.
+  # exchanged within the ties. Increment 4 adds the five group tests.
   set.seed(42)
   n <- 60
   named <- data.frame(x = rep(1:3, 20))
@@ -521,10 +528,17 @@ test_that("the tests of increment 3 read their variable at rows the comparison t
     performHarrisonMcCabeTest = function(model, data, v) {
       performHarrisonMcCabeTest(model, data, order_by = v)
     },
-    performHartleyFmaxTest = function(model, data, v) performHartleyFmaxTest(model, data, v)
+    performHartleyFmaxTest = function(model, data, v) performHartleyFmaxTest(model, data, v),
+    performLeveneTest = function(model, data, v) performLeveneTest(model, data, v),
+    performBrownForsytheTest = function(model, data, v) performBrownForsytheTest(model, data, v),
+    performFlignerKilleenTest = function(model, data, v) performFlignerKilleenTest(model, data, v),
+    performBartlettTest = function(model, data, v) performBartlettTest(model, data, v),
+    performOBrienTest = function(model, data, v) performOBrienTest(model, data, v)
   )
   beyond <- c(performGlejserTest = "z", performParkTest = "z", performSzroeterTest = "z",
-              performHarrisonMcCabeTest = "z", performHartleyFmaxTest = "g")
+              performHarrisonMcCabeTest = "z", performHartleyFmaxTest = "g",
+              performLeveneTest = "g", performBrownForsytheTest = "g",
+              performFlignerKilleenTest = "g", performBartlettTest = "g", performOBrienTest = "g")
   for (fn in names(calls)) {
     run <- function(model, data, v) suppressWarnings(calls[[fn]](model, data, v))
     expect_s3_class(run(m, named, beyond[[fn]]), "htest")
@@ -535,7 +549,7 @@ test_that("the tests of increment 3 read their variable at rows the comparison t
     }
     # A column of the model frame is read from rows that the comparison
     # confirmed, ties or not.
-    if (identical(fn, "performHartleyFmaxTest")) {
+    if (beyond[[fn]] == "g") {
       grouped <- lm(y ~ x + g, data = named)
       expect_identical(run(grouped, numbered, "g")$statistic, run(grouped, named, "g")$statistic)
     } else {
@@ -565,13 +579,19 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
   # position, and given the rows of the fit in another order under their own
   # names returned a wrong value without an error (N17): Glejser's test gave
   # -0.322 for 3.626 on the gam without smooth terms. The context matches the
-  # rows by the row names of the model frame.
+  # rows by the row names of the model frame. Increment 4: the five group
+  # tests, which matched it by position too (Bartlett 4.548 for 12.38), and a
+  # gam with an `offset` argument.
   skip_if_not_installed("mgcv")
   d <- context_data()
   set.seed(3)
   shuffled <- d[sample(nrow(d)), ]
-  for (m in list(mgcv::gam(y ~ x1 + x2, data = d), mgcv::gam(y ~ s(x1) + x2, data = d))) {
-    for (fn in context_runnable(context_increment3)) {
+  fits <- list(
+    mgcv::gam(y ~ x1 + x2, data = d), mgcv::gam(y ~ s(x1) + x2, data = d),
+    mgcv::gam(y ~ x1 + x2, data = d, offset = o)
+  )
+  for (m in fits) {
+    for (fn in context_runnable(c(context_increment3, context_increment4))) {
       expected <- context_run(fn, list(build = function() list(m = m, data = d)))
       expect_s3_class(expected, "htest")
       context_same(context_run(fn, list(build = function() list(m = m, data = shuffled))),
@@ -760,10 +780,11 @@ test_that("the registered tests of increment 3 keep the refusals of the context 
   expect_identical(out$method, "Spatial heteroscedasticity test (Moran's I on squared residuals)")
 })
 
-test_that("a fit with a zero weight is refused on every route of increment 3", {
+test_that("a fit with a zero weight is refused on every route of increments 3 and 4", {
   # The tests refused it before 0.16.0 by the Pearson residuals of the fit,
   # and still do, with data, without and with the rows shuffled; Hartley's
-  # test without `data` lacks its groups first (the matrix checks it).
+  # test and the five group tests without `data` lack their groups first (the
+  # matrix checks it).
   zero <- context_data()
   zero$w0 <- zero$w
   zero$w0[1] <- 0
@@ -775,7 +796,7 @@ test_that("a fit with a zero weight is refused on every route of increment 3", {
   for (m in list(lm(y ~ x1 + x2, data = zero, weights = w0),
                  glm(y ~ x1 + x2, data = zero, weights = w0))) {
     for (data in list(zero, NULL, shuffled)) {
-      for (fn in context_runnable(context_increment3)) {
+      for (fn in context_runnable(c(context_increment3, context_increment4))) {
         if (is.null(data) && fn %in% context_group_readers()) next
         expect_error(suppressWarnings(contract_recipes[[fn]](m, data)),
                      "zero or non-finite weights", info = fn)
@@ -892,7 +913,10 @@ test_that("weights are the weights of the fit, whatever holds them", {
   for (fn in setdiff(context_runnable(), "performQuantileRegressionTest")) {
     run <- function(m) context_run(fn, list(build = function() list(m = m, data = d)))
     wls <- run(context_model(d, "wls"))
-    context_same(run(context_model(d, "glm")), wls, paste(fn, "glm"), tolerance = 1e-8)
+    # Fligner-Killeen's ranks tie at a group median on one fit and not, by
+    # rounding, on the other (N15, context_fligner_tolerance).
+    tolerance <- if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-8
+    context_same(run(context_model(d, "glm")), wls, paste(fn, "glm"), tolerance = tolerance)
     context_same(run(context_model(d, "wvec")), wls, paste(fn, "wvec"))
     estimated <- context_model(d, "fitwls")
     context_same(run(estimated), run(lm(y ~ x1 + x2, data = d, weights = weights(estimated))),
@@ -950,5 +974,214 @@ test_that("weighted or offset fits without data run the test the runner names", 
                      unname(performKoenkerTest(m, d)$statistic))
     expect_identical(unname(out$white$statistic),
                      unname(suppressWarnings(performWhiteTest(m, d))$statistic))
+  }
+})
+
+# The five group tests computed independently of the package: Levene's and
+# Brown-Forsythe's tests by car::leveneTest(), centred at the group means and
+# medians, Fligner-Killeen's and Bartlett's by stats::fligner.test() and
+# stats::bartlett.test(), and O'Brien's transformation written out, with the
+# F test of anova() of lm(); each on residuals `r` and groups `g` given in
+# the same order. The statistic and the p-value.
+context_group_oracle <- function(fn, r, g) {
+  g <- droplevels(factor(g))
+  r <- unname(r)
+  levene <- function(center) {
+    t <- car::leveneTest(r, g, center = center)
+    c(t$`F value`[1], t$`Pr(>F)`[1])
+  }
+  switch(fn,
+    performLeveneTest = levene(mean),
+    performBrownForsytheTest = levene(stats::median),
+    performFlignerKilleenTest = {
+      t <- stats::fligner.test(r, g)
+      c(t$statistic, t$p.value)
+    },
+    performBartlettTest = {
+      t <- stats::bartlett.test(r, g)
+      c(t$statistic, t$p.value)
+    },
+    performOBrienTest = {
+      v <- numeric(length(r))
+      for (level in levels(g)) {
+        i <- which(g == level)
+        n_i <- length(i)
+        v[i] <- ((n_i - 1.5) * n_i * (r[i] - mean(r[i]))^2 - 0.5 * (n_i - 1) * stats::var(r[i])) /
+          ((n_i - 1) * (n_i - 2))
+      }
+      t <- stats::anova(stats::lm(v ~ g))
+      c(t$`F value`[1], t$`Pr(>F)`[1])
+    }
+  )
+}
+
+test_that("the group tests give the value of an independent implementation of each", {
+  # Increment 4. On the forms of `data` whose rows the context now matches,
+  # and those it matched before, each of the five gives the test computed
+  # without the package (context_group_oracle()) on the residuals of the fit
+  # and the groups of the data frame it was fitted to, in the order of the
+  # fit: a gam, with and without a smooth term or an offset argument, given
+  # its data in another order (N17), the character-named fit given its
+  # tibble, the complete rows of an na.omit fit numbered again, a model of the
+  # group without `data` and with its model frame, a weighted fit, whose
+  # Pearson residuals are sqrt(w) e (weighted.residuals()), and groups missing
+  # at observations of the fit, which are left out.
+  skip_if_not_installed("car")
+  skip_if_not_installed("mgcv")
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  set.seed(3)
+  perm <- sample(nrow(d))
+  named <- d
+  rownames(named) <- paste0("obs", seq_len(nrow(d)))
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  complete <- d_na[stats::complete.cases(d_na[, c("y", "x1", "x2")]), ]
+  renumbered <- complete
+  rownames(renumbered) <- NULL
+  d_g <- d
+  d_g$group[c(5, 50)] <- NA
+  d_gn <- d_na
+  d_gn$group[c(5, 7)] <- NA
+  kept_g <- !is.na(d_g$group)
+  fit_gn <- stats::lm(y ~ x1 + x2, data = d_gn)
+  # The groups of the observations of the fit, by the names of its residuals.
+  g_gn <- d_gn$group[match(names(stats::residuals(fit_gn)), rownames(d_gn))]
+  kept_gn <- !is.na(g_gn)
+  wls <- stats::lm(y ~ x1 + x2, data = d, weights = w)
+  grouped_offset <- stats::lm(y ~ x1 + group + offset(o), data = d)
+  cases <- list(
+    lm_shuffled = list(m = stats::lm(y ~ x1 + x2, data = d), data = d[perm, ], g = d$group),
+    gam_shuffled = list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d[perm, ], g = d$group),
+    gam_smooth_shuffled = list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d[perm, ],
+                               g = d$group),
+    gam_offset_shuffled = list(m = mgcv::gam(y ~ x1 + x2, data = d, offset = o), data = d[perm, ],
+                               g = d$group),
+    character_names_tibble = list(m = stats::lm(y ~ x1 + x2, data = named),
+                                  data = dplyr::as_tibble(named), g = named$group),
+    complete_renumbered = list(m = stats::lm(y ~ x1 + x2, data = d_na), data = renumbered,
+                               g = complete$group),
+    log_factor_null = list(m = stats::lm(log(ypos) ~ log(x1) + group, data = d), data = NULL,
+                           g = d$group),
+    offset_factor_frame = list(m = grouped_offset, data = stats::model.frame(grouped_offset),
+                               g = d$group),
+    wls_shuffled = list(m = wls, data = d[perm, ], g = d$group,
+                        r = stats::weighted.residuals(wls)),
+    group_na_shuffled = list(m = stats::lm(y ~ x1 + x2, data = d_g), data = d_g[perm, ],
+                             g = d_g$group[kept_g], keep = kept_g),
+    group_na_dropped = list(m = fit_gn, data = d_gn, g = g_gn[kept_gn], keep = kept_gn)
+  )
+  for (nm in names(cases)) {
+    case <- cases[[nm]]
+    r <- if (is.null(case$r)) stats::residuals(case$m) else case$r
+    if (!is.null(case$keep)) r <- r[case$keep]
+    for (fn in context_increment4) {
+      out <- suppressWarnings(contract_recipes[[fn]](case$m, case$data))
+      expect_s3_class(out, "htest")
+      expected <- context_group_oracle(fn, r, case$g)
+      expect_equal(unname(c(out$statistic, out$p.value)), unname(expected), tolerance = 1e-10,
+                   info = paste(fn, nm))
+    }
+  }
+})
+
+test_that("a missing group leaves its observation out, with the warning of before", {
+  # Before 0.16.0 the five group tests matched the rows of `data` to the
+  # residuals and then left out the observations of the fit whose group is
+  # missing, with the warning "Removed N observations due to missing values in
+  # group" (decision 8: each test keeps its behaviour). They still do, on every
+  # form of `data` that holds the rows of the fit, with the same warning and
+  # the same statistic; a group missing at a row the fit dropped is not
+  # counted. Hartley's test refuses such data (the matrix checks it).
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  warnings_of <- function(expr) {
+    caught <- character()
+    value <- withCallingHandlers(expr, warning = function(w) {
+      caught <<- c(caught, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+    list(value = value, warnings = caught)
+  }
+  d <- context_data()
+  set.seed(3)
+  perm <- sample(nrow(d))
+  d_g <- d
+  d_g$group[c(5, 50)] <- NA
+  m <- stats::lm(y ~ x1 + x2, data = d_g)
+  d_gn <- d_g
+  d_gn$group[50] <- d$group[50]
+  d_gn$group[7] <- NA
+  d_gn$x2[c(3, 7, 11)] <- NA
+  m_gn <- stats::lm(y ~ x1 + x2, data = d_gn)
+  complete <- d_gn[stats::complete.cases(d_gn[, c("y", "x1", "x2")]), ]
+  rownames(complete) <- NULL
+  for (fn in context_increment4) {
+    recipe <- contract_recipes[[fn]]
+    expected <- warnings_of(recipe(m, d_g))
+    expect_true("Removed 2 observations due to missing values in group" %in% expected$warnings,
+                info = fn)
+    for (data in list(d_g[perm, ], dplyr::as_tibble(d_g))) {
+      got <- warnings_of(recipe(m, data))
+      expect_identical(got$warnings, expected$warnings, info = fn)
+      context_same(got$value, expected$value, fn)
+    }
+    dropped <- warnings_of(recipe(m_gn, d_gn))
+    expect_true("Removed 1 observations due to missing values in group" %in% dropped$warnings,
+                info = fn)
+    got <- warnings_of(recipe(m_gn, complete))
+    expect_identical(got$warnings, dropped$warnings, info = fn)
+    context_same(got$value, dropped$value, paste(fn, "renumbered"))
+    # Every group missing: nothing is left to test.
+    gone <- d
+    gone$group <- factor(NA, levels = levels(d$group))
+    expect_error(suppressWarnings(recipe(stats::lm(y ~ x1 + x2, data = d), gone)), info = fn)
+  }
+})
+
+test_that("a group test run by the runner keeps the refusals of the context final", {
+  # The five group tests are not registered under a name of the runner, but a
+  # diagnostic can be registered that calls one (registerDiagnostic()). Its
+  # refusals by the context, of the model and of `data`, are final there: the
+  # runner runs no other test under its name and keeps the class.
+  d <- context_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  registry <- heteroTests:::.diagnostic_registry
+  on.exit(rm(list = intersect(ls(registry), paste0("context_", context_increment4)),
+             envir = registry), add = TRUE)
+  run <- function(m, data, test) {
+    suppressWarnings(runHeteroTests(m, data, tests = test, use_cache = FALSE, progress = FALSE))
+  }
+  edited <- lm(y ~ x1 + x2, data = d)
+  edited$coefficients[["x1"]] <- edited$coefficients[["x1"]] + 0.5
+  mlm <- lm(cbind(y, ypos) ~ x1 + x2, data = d)
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  reversed <- d
+  reversed$y <- rev(reversed$y)
+  arranged <- d[order(d$x1), ]
+  rownames(arranged) <- NULL
+  plain <- lm(y ~ x1 + x2, data = d)
+  for (fn in context_increment4) {
+    name <- paste0("context_", fn)
+    recipe <- contract_recipes[[fn]]
+    registerDiagnostic(name, recipe)
+    expect_error(run(edited, d, name), "does not reproduce its residuals",
+                 class = "heteroTests_model_context_error")
+    expect_error(run(mlm, d, name), "needs a model with one response",
+                 class = "heteroTests_model_context_error")
+    expect_error(run(m_false, reversed, name), "cannot use the model frame of `model`",
+                 class = "heteroTests_model_context_error")
+    expect_error(run(plain, arranged, name), "cannot match the rows of `data`",
+                 class = "heteroTests_data_rows_error")
+    out <- run(plain, d, name)[[name]]
+    expect_identical(unname(out$statistic), unname(suppressWarnings(recipe(plain, d))$statistic),
+                     info = fn)
   }
 })
