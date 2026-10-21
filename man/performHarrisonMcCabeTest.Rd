@@ -17,19 +17,21 @@ performHarrisonMcCabeTest(
 \link[stats:glm]{stats::glm} with the Gaussian family and the identity link.}
 
 \item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default. The
-residuals, design, weights and rank are read from the fit itself (since
-0.16.0), and \code{order_by} from the rows of \code{data} that hold the observations
-of the fit. Without \code{data} it is read from the model frame of \code{model},
-which holds it only when it is a variable of the model under its own name
-(\code{x}, not \code{log(x)}); a model that transforms the variable it is ordered by
-needs \code{data}, as does an ordering variable the model does not use. Data
-that are given are matched to the observations of the fit: rows with row
-names of their own by name, in any order; rows that only number themselves
-(a tibble, a data.table, a data frame whose row names were reset) by the
-row numbers of the fit, or in the order of the fit when they hold one row
-per observation. The rows the fit dropped may be there or not. Data whose
-rows cannot be shown to hold the observations of the fit are refused; see
-\code{\link{test_results}}.}
+residuals, design and weights are read from the fit itself, and so, since
+0.16.0, is its rank, decided at the tolerance of the fit (see the section
+on the rank), where the test decided the rank of the design again at
+\code{1e-7}; \code{order_by} is read from the rows of \code{data} that hold the
+observations of the fit. Without \code{data} it is read from the model frame of
+\code{model}, which holds it only when it is a variable of the model under its
+own name (\code{x}, not \code{log(x)}); a model that transforms the variable it is
+ordered by needs \code{data}, as does an ordering variable the model does not
+use. Since 0.16.0, data that are given are matched to the observations of
+the fit: rows with row names of their own by name, in any order; rows that
+only number themselves (a tibble, a data.table, a data frame whose row
+names were reset) by the row numbers of the fit, or in the order of the fit
+when they hold one row per observation. The rows the fit dropped may be
+there or not. Data whose rows cannot be shown to hold the observations of
+the fit are refused; see \code{\link{test_results}}.}
 
 \item{order_by}{Character scalar naming the column of \code{data} that orders the
 observations. Tied values keep the order the observations have in the

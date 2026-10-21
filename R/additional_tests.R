@@ -667,19 +667,18 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #'
 #' @inheritParams performHarveyTest
 #' @param data The data frame `model` was fitted to, or `NULL`, the default. The
-#'   residuals and weights are read from the fit itself (since 0.16.0), and
-#'   `order_by` from the rows of `data` that hold the observations of the fit.
-#'   Without `data` it is read from the model frame of `model`, which holds it
-#'   only when it is a variable of the model under its own name (`x`, not
-#'   `log(x)`); a model that transforms the variable it is ordered by needs
-#'   `data`, as does an ordering variable the model does not use. Data that are
-#'   given are matched to the observations of the fit: rows with row names of
-#'   their own by name, in any order; rows that only number themselves (a
-#'   tibble, a data.table, a data frame whose row names were reset) by the row
-#'   numbers of the fit, or in the order of the fit when they hold one row per
-#'   observation. The rows the fit dropped may be there or not. Data whose rows
-#'   cannot be shown to hold the observations of the fit are refused; see
-#'   [test_results].
+#'   residuals and weights are read from the fit itself, and `order_by` from the
+#'   rows of `data` that hold the observations of the fit. Without `data` it is
+#'   read from the model frame of `model`, which holds it only when it is a
+#'   variable of the model under its own name (`x`, not `log(x)`); a model that
+#'   transforms the variable it is ordered by needs `data`, as does an ordering
+#'   variable the model does not use. Since 0.16.0, data that are given are
+#'   matched to the observations of the fit: rows with row names of their own by
+#'   name, in any order; rows that only number themselves (a tibble, a
+#'   data.table, a data frame whose row names were reset) by the row numbers of
+#'   the fit, or in the order of the fit when they hold one row per observation.
+#'   The rows the fit dropped may be there or not. Data whose rows cannot be
+#'   shown to hold the observations of the fit are refused; see [test_results].
 #' @param order_by Character scalar naming the column that defines the ordering of
 #'   observations prior to computing the statistic. The column must be numeric or
 #'   coercible to an orderable vector.

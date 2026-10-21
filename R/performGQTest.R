@@ -7,19 +7,25 @@
 #'
 #' @param model A fitted [stats::lm] object representing the regression of
 #'   interest.
-#' @param data The data frame `model` was fitted to, or `NULL`, the default.
-#'   The response, design, weights and offset are read from the fit itself
-#'   (since 0.16.0), and `order_by` from the rows of `data` that hold the
-#'   observations of the fit. Without `data` it is read from the model frame of
-#'   `model`, which holds it only when it is a variable of the model under its
-#'   own name (`x`, not `log(x)`); a model that transforms the variable it is
-#'   ordered by needs `data`. Data that are given are matched to the
-#'   observations of the fit: rows with row names of their own by name, in any
-#'   order; rows that only number themselves (a tibble, a data.table, a data
-#'   frame whose row names were reset) by the row numbers of the fit, or in the
-#'   order of the fit when they hold one row per observation. The rows the fit
-#'   dropped may be there or not. Data whose rows cannot be shown to hold the
-#'   observations of the fit are refused; see [test_results].
+#' @param data The data frame `model` was fitted to, or `NULL`, the default. The
+#'   response, design, weights and offset are read from the fit itself, and
+#'   `order_by` from the rows of `data` that hold the observations of the fit.
+#'   Without `data` it is read from the model frame of `model`, which holds it
+#'   only when it is a variable of the model under its own name (`x`, not
+#'   `log(x)`); a model that transforms the variable it is ordered by needs
+#'   `data`. Since 0.16.0 the two parts are fitted to their rows of the stored
+#'   design, with the offset of the fit; before, an unweighted fit was refitted
+#'   from its formula on each part of `data`, which computed again a term that
+#'   depends on the rows it is computed from, such as `ns()` or
+#'   `I(x > median(x))`, and an offset was left out: an `offset =` argument of
+#'   an unweighted fit, any offset of a weighted one. Since 0.16.0, data that
+#'   are given are matched to the observations of the fit: rows with row names
+#'   of their own by name, in any order; rows that only number themselves (a
+#'   tibble, a data.table, a data frame whose row names were reset) by the row
+#'   numbers of the fit, or in the order of the fit when they hold one row per
+#'   observation. The rows the fit dropped may be there or not. Data whose rows
+#'   cannot be shown to hold the observations of the fit are refused; see
+#'   [test_results].
 #' @param order_by Character scalar giving the name of the variable that orders
 #'   the data prior to forming the two subsamples.
 #' @param fraction Numeric scalar in \((0, 1)\) specifying the fraction of central
