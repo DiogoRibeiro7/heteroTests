@@ -6,9 +6,20 @@
 clearAnalysisCache()
 }
 \description{
-Removes memoised outputs stored by \code{\link{runHeteroTests}} when called with
-\code{use_cache = TRUE}. Useful for deterministic test runs or after mutating the
-underlying data/model so cached summaries should be invalidated.
+Removes the results of whole calls that \code{\link{runHeteroTests}} stored with
+\code{use_cache = TRUE}, so that later calls run their tests again.
+}
+\details{
+A call is stored only when every test it runs is deterministic, under a key
+that holds the tests, whether they are streamed and in chunks of what size,
+and every part of the model and the data they read (see \code{\link{cachedTest}}).
+The cache holds at most \code{getOption("heteroTests.cache_size", 100)} calls
+and drops the one used least recently; \code{0} turns it off. Each test of the
+call is also kept in the cache of \code{\link{cachedTest}}, which
+\code{\link{clearTestCache}} empties.
+}
+\value{
+\code{NULL}, invisibly.
 }
 \seealso{
 \code{\link{runHeteroTests}}, \code{\link{clearTestCache}}

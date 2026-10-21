@@ -98,10 +98,10 @@ build on. For each call it:
    not know;
 3. swaps in the streaming versions of the White, Breusch–Pagan and Koenker
    tests when the data are larger than `chunk_threshold_mb`;
-4. runs each test, through the result cache when `use_cache = TRUE`. A test
-   that fails is logged and a fallback that suits the error is tried; if none
-   works the run stops with a message that says why, except with grouped data,
-   where the failure is recorded in that group's result;
+4. runs each test, through the caches of results when `use_cache = TRUE`
+   (below). A test that fails is logged and a fallback that suits the error is
+   tried; if none works the run stops with a message that says why, except
+   with grouped data, where the failure is recorded in that group's result;
 5. marks each result as a `hetero_test`, an `htest` with the attributes
    `diagnostic`, `nobs`, `model`, `data_source` and `extras`, and returns them
    as a `hetero_test_suite`, or a `hetero_grouped_suite` with one suite per
@@ -114,6 +114,62 @@ runs registered tests on a socket cluster, each test drawing from its own
 L'Ecuyer-CMRG stream, so a seeded call gives the same value with any number of
 workers. [`HeteroDiagnostic()`](reference/HeteroDiagnostic.md) keeps a model
 and its data together, for `summary()` and `plot()`.
+
+## The caches
+
+Three caches keep results within a session, each in `R/cache.R`'s bounded
+store: the results of single tests, read and written by
+[`cachedTest()`](reference/cachedTest.md) and by each test of
+`runHeteroTests(use_cache = TRUE)`; the results of whole calls of
+`runHeteroTests()`; and the checks of `R/validation.R`. Their contract was
+decided on 2026-10-21:
+
+- **What is cached.** Only the tests the package registers and flags as
+  deterministic (`R/diagnosticsRegistry.R`): `white`, `breusch_pagan`,
+  `koenker`, `cook_weisberg`, `ncv`, `spread_level`, `student_bp`, `szroeter`,
+  `quantile_regression`, `high_dimensional` and `variance_form`. A call of
+  `runHeteroTests()` is stored as a whole only when all its tests are.
+- **What is not.** A test that draws random numbers is never cached:
+  `wild_bootstrap`, `white_bootstrap`, `rank_permutation` and `spatial_hetero`
+  run on every call, through `cachedTest()`, `runHeteroTests()`, the registry
+  and `runHeteroTestsParallel()` alike, so a seeded call returns what it
+  returns without the cache and leaves the generator where it leaves it. Nor
+  is `box_m`, which tests data, or a diagnostic added with
+  `registerDiagnostic()` or `test_factory$register()`, or a name of the package
+  registered again. A result whose computation moved `.Random.seed` is not
+  stored either, and a check of `R/validation.R` that draws random numbers
+  (the check of normality on more than `sample_limit` values) neither.
+  `tests/testthat/test-cache-contract.R` runs every registered test and checks
+  its flag against what it draws.
+- **The key.** The test and its arguments; the class, family and link of the
+  model; the parts of the model context the tests read, built without `data`
+  (`rmodel_context()`): the model frame, the response, the design, the
+  residuals and fitted values, the prior weights, the total offset, the rank
+  and the aliased columns, the names of the observations and `na.action`; the
+  coefficients, the weights the fit stores, the terms with their `predvars`,
+  the call, the contrasts and levels, the residual degrees of freedom, whether
+  the fit keeps its model frame, and its attributes; and `data`, whole. They
+  are hashed with xxhash64 (**digest**), once per call of `runHeteroTests()`.
+  The key holds values, not environments: the same model refitted in another
+  environment hits, and the result returned carries the model of the call, so
+  that it is `identical()` to the one the test computes. A model the context
+  refuses has no key and runs uncached. The keys of the validation cache hold
+  what each check reads, including the fitted values, weights, offset and
+  family of the model, and the names a check is given as they are, NA and
+  order included.
+- **The bounds.** Each cache of results holds at most
+  `getOption("heteroTests.cache_size", 100)` entries and the validation cache
+  `getOption("heteroTests.validation_cache_size", 1000)`, each dropping the
+  entry used least recently; `0` turns a cache off. An entry keeps no copy of
+  the model. The keys are a character vector, never the names of an
+  environment, which R would never free. `clearTestCache()`,
+  `clearAnalysisCache()` and the internal `clearValidationCache()` empty them.
+
+Building the key costs about 0.7 ms on a fit of 1,000 observations, 2.3 ms
+on one of 10,000 and 20 ms on one of 100,000, against 2.6, 8.4 and 80 ms for
+the Cook-Weisberg test, one of the cheapest; most of it is hashing the vectors,
+which `rcache_hash()` serializes in the native byte order. A hit costs the
+key and little more.
 
 ## Where things are
 

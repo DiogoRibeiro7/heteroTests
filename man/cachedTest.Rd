@@ -7,8 +7,8 @@
 cachedTest(test_name, model, data, ..., use_cache = TRUE)
 }
 \arguments{
-\item{test_name}{Character scalar naming the diagnostic registered in
-\code{.diagnostic_registry} or \code{.test_factory}.}
+\item{test_name}{Character scalar naming a diagnostic of the registry
+(\code{\link[=listDiagnostics]{listDiagnostics()}}) or of \code{test_factory}.}
 
 \item{model}{Fitted model object supplied to the diagnostic.}
 
@@ -16,25 +16,81 @@ cachedTest(test_name, model, data, ..., use_cache = TRUE)
 
 \item{...}{Additional arguments forwarded to the diagnostic.}
 
-\item{use_cache}{Logical scalar indicating whether cached results may be used
-(defaults to \code{TRUE}).}
+\item{use_cache}{Logical scalar: may the result be read from the cache and
+stored in it? \code{FALSE} runs the diagnostic. Defaults to \code{TRUE}.}
 }
 \value{
 The diagnostic result, either retrieved from cache or freshly
 computed.
 }
 \description{
-Avoids recomputing expensive diagnostics by hashing their inputs and reusing
-stored results.
+Runs a registered diagnostic, and returns the result of an earlier call on
+the same inputs instead when the diagnostic is deterministic.
 }
 \details{
-The cache key is created by hashing the test name, model coefficients,
-residuals, data, and additional arguments. When the key already exists in the
-cache environment the stored result is returned immediately; otherwise the
-diagnostic is executed and its output stored for future calls. Set
-\code{use_cache = FALSE} to force recomputation when the underlying model has
-changed.
+\strong{What is cached.} Only the deterministic tests the package registers:
+\code{"white"}, \code{"breusch_pagan"}, \code{"koenker"}, \code{"cook_weisberg"}, \code{"ncv"},
+\code{"spread_level"}, \code{"student_bp"}, \code{"szroeter"}, \code{"quantile_regression"},
+\code{"high_dimensional"} and \code{"variance_form"}.
+
+\strong{What is not.} A test that draws random numbers is never cached:
+\code{"wild_bootstrap"}, \code{"white_bootstrap"}, \code{"rank_permutation"} and
+\code{"spatial_hetero"} run on every call, so a seeded call returns what it
+returns without the cache, and leaves the random number generator where it
+leaves it without the cache. Nor is \code{"box_m"}, which tests data rather than
+a model, a diagnostic added with \code{\link[=registerDiagnostic]{registerDiagnostic()}} or
+\code{test_factory$register()}, or one registered again under a name of the
+package: the package cannot know whether it draws random numbers or reads
+anything besides its inputs. A result whose computation moved the random
+number generator is not stored either. Before 0.16.0 every name was cached,
+the resampling tests included: a call with another seed returned the
+replicates of the first, and the random numbers drawn after it were not
+those of a call without the cache.
+
+\strong{The key.} The test, its arguments, and every part of the model and of
+the data the test can read: the class of the model, its family and link;
+from the model context of the fit, its model frame, response, design,
+residuals and fitted values, prior weights, total offset, rank and aliased
+coefficients, the names of its observations and its \code{na.action}; its
+coefficients, the weights it stores, its terms (with their \code{predvars}),
+call, contrasts and levels, residual degrees of freedom, whether it keeps
+its model frame, and its attributes, such as the variance function of a
+\code{\link[=fitWLS]{fitWLS()}} fit; and \code{data}, whole: its values, row names, class and
+attributes. The key is an xxhash64 digest of those values (from the
+\strong{digest} package; without it nothing is cached). It holds values, not
+environments: a model refitted to the same data, in another environment or
+another session, has the same key and is answered from the cache, with the
+model of the call as \code{attr(result, "model")}, so that the result is
+\code{identical()} to the one the test computes. A model the tests refuse before
+reading it, such as a fit with \code{model = FALSE} whose data changed after the
+fit, has no key and is refused as without the cache; so has a fit with
+\code{model = FALSE} whose data are gone, whose model frame the tests rebuild
+from \code{data}, and it runs without the cache. The key does not hold
+the environment of the formula: a test that evaluates the formula on \code{data}
+again, as the check of the rows of \code{data} does, reads the functions and
+variables of that environment as they are, so clear the cache after
+changing one of them.
+
+Before 0.16.0 the key held only the test, the coefficients, the residuals,
+\code{data} and the arguments. Fits that share those shared one entry, and the
+second call returned the result of the first: \code{lm(y ~ x + offset(o))} and
+\code{lm(I(y - o) ~ x)}, which have the same coefficients and residuals and
+other fitted values; a fit and the same fit with its weights changed, which
+the tests refuse; or a fit with \code{model = FALSE} before and after its data
+changed, which they refuse too.
+
+\strong{The bound.} The cache holds at most
+\code{getOption("heteroTests.cache_size", 100)} results, and drops the one used
+least recently to store another; \code{options(heteroTests.cache_size = 0)}
+turns it off, together with the cache of \code{\link[=runHeteroTests]{runHeteroTests()}}. A stored result
+keeps no copy of the model. Before 0.16.0 the cache grew without bound, by
+about 25 KB per call on a new model, and kept about 0.3 KB per call after
+\code{\link[=clearTestCache]{clearTestCache()}}.
+
+A result read from the cache is returned without running the test, so the
+call gives none of the warnings and messages of the call that computed it.
 }
 \seealso{
-\code{\link[=clearTestCache]{clearTestCache()}} resets the cache between analysis sessions.
+\code{\link[=clearTestCache]{clearTestCache()}} empties the cache; \code{\link[=runHeteroTests]{runHeteroTests()}} uses it with
+\code{use_cache = TRUE}.
 }
