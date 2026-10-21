@@ -1139,26 +1139,32 @@ a design, whose auxiliary columns are collinear with its intercept, as on any
 design with collinear auxiliary terms, and where it gives a value its
 degrees of freedom were and are those of the exact test.
 
-On an auxiliary design whose columns are nearly collinear the columns kept
-are now those `lm(e^2 ~ Z)` keeps, and the statistic can change too. On the
+**On a nearly collinear auxiliary design the statistic changes too.** The
+columns kept are now those `lm(e^2 ~ Z)` keeps. On the
 `mgcv::gam(y ~ s(x1) + x2)` fit of the matrix of the model context
 (`tests/testthat/helper-model-context.R`), whose 65 auxiliary columns have
-rank 60 at the tolerance of `qr()`, the auxiliary regression of 0.15.0 had
-59 regressors, `lm()` having aliased one of its columns given the intercept,
-and its degrees of freedom counted 60: the test gave 45.92 on 60 degrees of
-freedom (p = 0.910), and gives 46.05 on 60 (p = 0.908), the value of
-`lmtest::bptest()` with the same terms.
+rank 60 at the tolerance of `qr()`, the auxiliary regression of 0.15.0
+silently lost a column: of the 60 columns its decomposition without the
+intercept kept, `lm()` aliased one given the intercept, so the regression
+had 59 regressors and was scored on 60 degrees of freedom. The test gave
+45.92 on 60 degrees of freedom (p = 0.910); it now gives 46.05 on 60
+(p = 0.908), 0.28% more, the value of `lm(e^2 ~ Z)` and of
+`lmtest::bptest()` with the same terms. No computation keeps the statistic
+of 0.15.0 and gives the value of those references: its columns without the
+lost one give 45.92 on 59, which is neither.
 
 `tests/testthat/test-performWhiteTest.R` compares White's test on fifteen
 designs, with and without cross products, with `lm(e^2 ~ Z)` written out and
 with `lmtest::bptest()`, and pins the values above. Unchanged: every other
 value, as on continuous regressors and factors with treatment contrasts,
 where the auxiliary regression of 0.15.0 had the degrees of freedom it
-counted. A corpus of 19,523
-calls, that of the model context (`scripts/model-context-identity.R`),
-returns what it returned before, `identical()`, but for 44 calls of White's
-test, its robust form and the runner on the fits with a `poly()` term and the
-`gam` with a smooth term; a corpus of 504 calls of every route to White's
+counted. A corpus of 19,523 calls, that of the model context
+(`scripts/model-context-identity.R`), returns what it returned before,
+`identical()`, but for 44 calls of White's test, its robust form and the
+runner on the fits with a `poly()` term and the `gam` with a smooth term,
+which the harness allows as N2 and verifies, each, against White's test
+written out on the cell to `1e-10`, with the statistic `identical()` to
+before on the `poly()` fits; a corpus of 504 calls of every route to White's
 test on 28 designs, `identical()` but for 204 calls on designs that span the
 constant, each with the statistic `identical()` and the degrees of freedom
 and p-value of `lm(e^2 ~ Z)` and of `lmtest::bptest()`. The studies of
