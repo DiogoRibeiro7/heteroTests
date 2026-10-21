@@ -89,7 +89,10 @@
 #' columns are nearly collinear, as the squares and products of the basis of
 #' a smooth term can be, the columns kept are those `lm(e^2 ~ Z)` keeps,
 #' which can differ from those kept in 0.15.0, so the statistic can change
-#' too.
+#' too: there the auxiliary regression of 0.15.0 could silently lose a column
+#' to its intercept while its degrees of freedom still counted it, as on a
+#' `mgcv::gam(y ~ s(x1) + x2)` fit whose statistic moves by 0.28\%, to the
+#' value of `lmtest::bptest()` with the same terms.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
