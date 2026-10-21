@@ -164,7 +164,13 @@ performQuantileRegressionTest <- function(model, data = NULL,
   } else {
     matrix(numeric(), nrow = 0L, ncol = length(taus))
   }
-  colnames(slope_estimates) <- paste0("tau_", format(taus, trim = TRUE))
+  # Named with the digits, the penalty for scientific notation and the decimal
+  # mark of R's defaults, not of the session's options (since 0.16.0; before,
+  # `options(digits = 1)` named c(0.25, 0.75) "tau_0.2" and "tau_0.8", and a
+  # result read from the cache kept the names of the call that stored it).
+  colnames(slope_estimates) <- paste0(
+    "tau_", format(taus, trim = TRUE, digits = 7L, scientific = 0L, decimal.mark = ".")
+  )
 
   structure(
     list(
