@@ -690,14 +690,11 @@ shuffled, `d[sample(120), ]` after `set.seed(3)`:
 | `performHartleyFmaxTest(m, data, "group")` | 2.185 | 3.080 | 1.867 | 2.773 |
 
 Each new value is that of the same call on `d`, which is unchanged. The other
-tests that read a column of `data` beyond the model still match a `gam` by
-position until the step that moves them: the five group tests,
-`performLeveneTest()`, `performBrownForsytheTest()`,
-`performFlignerKilleenTest()`, `performBartlettTest()` and
-`performOBrienTest()` (Bartlett 4.548 for 12.38 on the plain `gam` above), the
+tests that read a column of `data` beyond the model matched a `gam` by
+position too: the five group tests until the fourth step, below, and the
 panel tests, `performPesaranTest()` and `performBPRandomEffectsTest()`, the
-three streaming tests, and the replicates of `performWhiteTestBootstrap()`;
-the roadmap records them. The
+three streaming tests, and the replicates of `performWhiteTestBootstrap()`
+until the steps that move them; the roadmap records them. The
 spatial test reads no column of `data` and gave the value already.
 
 **The registered `"szroeter"` orders a `gam` with an `offset` argument by its
@@ -829,6 +826,136 @@ Also, for these six:
     of the calls of the corpus are those of before, but for three calls of
     Hartley's test that stopped and now return a value with its warning on
     unequal groups.
+
+The fourth step moves the five group tests, `performLeveneTest()`,
+`performBrownForsytheTest()`, `performFlignerKilleenTest()`,
+`performBartlettTest()` and `performOBrienTest()`, onto the model context.
+Each matched `data` to the residuals with its own copy of the alignment, by
+row name, or by position when the residuals carry no names; the copies are
+gone. They read the Pearson residuals and the weights from the fit, and the
+`group` at the rows of `data` the comparison confirmed, or, without `data`,
+from the model frame when it holds the group under its own name. The
+observations of the fit whose group is missing are left out with the warning
+"Removed N observations due to missing values in group", as before, on the
+same rows, so the statistic is the one of before. Data that are given are
+matched as for the first fifteen: named data in any order, numbered data in
+fit order. None of the five is registered with the runner, so the change
+reaches their direct calls, and a diagnostic registered with
+`registerDiagnostic()` that calls one, whose refusals by the context are final
+in `runHeteroTests()`, as for the registered names. Every value is
+`identical()` to before but for the changes in bold below.
+
+**A `gam` given its data in another order is matched to them by row name, by
+the group tests too.** The residuals of an `mgcv::gam()` fit carry no names,
+and the five matched `data` to them by position, without an error: given the
+rows of the fit in another order under their own row names, they put each
+residual in the group of another row and returned a wrong value. They now
+match the rows by the row names of the model frame of the fit, and give the
+value on the data in the order of the fit. On `contract_data()`, with the data
+of the fit shuffled, `d[sample(120), ]` after `set.seed(3)`:
+
+| Call, on `d[sample(120), ]` | `gam(y ~ x1 + x2)`, 0.15.0 | Now | `gam(y ~ s(x1) + x2)`, 0.15.0 | Now |
+| --- | ---: | ---: | ---: | ---: |
+| `performLeveneTest(m, data, "group")` | 1.373 | 3.459 | 1.167 | 2.352 |
+| `performBrownForsytheTest(m, data, "group")` | 1.132 | 3.180 | 1.029 | 2.107 |
+| `performFlignerKilleenTest(m, data, "group")` | 3.572 | 9.367 | 2.951 | 5.402 |
+| `performBartlettTest(m, data, "group")` | 4.548 | 12.380 | 3.401 | 9.916 |
+| `performOBrienTest(m, data, "group")` | 1.187 | 3.580 | 1.042 | 3.137 |
+
+Each new value is `identical()` to that of the same call on `d`, which is
+unchanged, and equals, to `1e-10`, the test computed without the package on
+the residuals of the fit and the groups of `d` (`car::leveneTest()` centred at
+the means and at the medians, `stats::fligner.test()`,
+`stats::bartlett.test()`, and O'Brien's transformation written out); so does
+the value on a `gam` with an `offset` argument given its data shuffled. The
+panel tests, the three streaming tests and the replicates of
+`performWhiteTestBootstrap()` still match a `gam` by position until the steps
+that move them; the roadmap records them.
+
+**A fit with `model = FALSE` whose data are gone, given numbered data in
+another order than the fit, is refused by the five.** As by the fifteen tests
+of the first three steps: such data, a tibble or a data frame whose row names
+were reset, in another order, cannot be matched to the observations of the fit
+(named data in any order, numbered data in fit order), and the model frame
+built from them does not give the response of the fit, so the five stop with
+"... cannot use the model frame of `model`: it cannot be rebuilt (...), and
+`data` does not give the response and the fitted values of the fit", of class
+`heteroTests_model_context_error`. They returned a value, that of other rows:
+on `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120 observations of
+`contract_data()`, with `gone` removed after the fit and the data given as
+`dplyr::as_tibble(d)[sample(120), ]` after `set.seed(3)`, Levene's test
+returned 1.373 where the data in the order of the fit give 3.459, the
+Brown-Forsythe test 1.132 for 3.180, the Fligner-Killeen test 3.572 for 9.367,
+Bartlett's 4.548 for 12.380 and O'Brien's 1.187 for 3.580.
+
+**A fit whose coefficients, residuals or weights were changed after it was
+fitted is refused by the five, as by the first fifteen** ("The fitted model
+does not reproduce its residuals from its design and coefficients", "The
+weights of the model are not those its coefficients were fitted with", of
+class `heteroTests_model_context_error`). They returned a value computed from
+the edited fit: on `lm(mpg ~ wt + qsec, data = mtcars)` with 0.5 added to the
+coefficient of `wt`, and `cyl` as a factor, `performLeveneTest(m, mtcars,
+"cyl")` returned F = 3.276 (p = 0.0522), `performBrownForsytheTest()` F = 2.639
+(p = 0.0886), `performFlignerKilleenTest()` 4.811 (p = 0.0902),
+`performBartlettTest()` 5.838 (p = 0.0540) and `performOBrienTest()` F = 1.990
+(p = 0.155), the values of the fit before the edit, whose residuals the edit
+leaves unchanged.
+
+Also, for these five:
+
+- Errors that become values. Numbered data that hold only the rows a fit with
+    `na.omit` kept, numbered again, and the tibble in fit order of a fit to data
+    with character row names, stopped with "Missing rows" although they hold
+    every row of the fit, and give the value on the rows of the fit; a group
+    missing at a row of such data is left out, with its warning, as on the data
+    of the fit. A model of the group with an `offset()` term or a transformed
+    variable, such as `log(ypos) ~ log(x1) + group`, stopped without `data` with
+    "The following variables are missing from input data: o" (or the variables
+    of its terms), and is tested on its model frame; the model frame given as
+    `data` is accepted as it is. Weights taken from a column of the data, and a
+    fit with `subset =` given by index, gave their values already.
+- Without `data`, a group the model frame does not hold is refused with "The
+    following variables are missing from the model frame of `model`: group. It
+    holds the terms of the model (...)", which says to pass `data`; they
+    stopped with "The following variables are missing from input data", which
+    also named the variables of the model the tests do not read (`ypos`, `x1`
+    and `group` for the model above). With the model frame of such a fit as
+    `data`,
+    the message names the group alone.
+- Numbered data with one row per observation are taken in the order of the
+    fit, and refused when the group is not a column of the model frame and two
+    rows of the fit tie on every compared column, as by Hartley's test: on the
+    tibble of a fit to repeated rows the five stop with that refusal, where they
+    stopped with "Missing rows".
+- A multivariate `lm` is refused with "... needs a model with one response;
+    `model` has 2.", where they stopped with a coercion error, and a fit with
+    `model = FALSE` whose data are gone, without `data`, with the message of the
+    context, where they stopped with "Expected a data.frame for input data".
+- A fit with a zero weight is refused by the five as before, with `data` and
+    on shuffled rows; without `data`, or given its model frame, they name the
+    group the model frame lacks first, as before. An `mgcv::gam()` fit with
+    smooth terms is tested by the five as before, until the last step settles
+    which tests take it.
+- Unchanged: every other value of a valid call, the observations left out
+    for a missing group and their warning, every refusal of the guard, and
+    every message the test suite pins. A corpus of 19,523 calls, the five and
+    every other test on 337 combinations of fits, offsets, terms, forms of
+    `data`, dropped rows, missing groups, row names and classes and on the five
+    fits of the table of the Harrison-McCabe rank, the default battery and the
+    registered names through `runHeteroTests()`, and the examples of the
+    twenty-one help pages, returns what it returned before, `identical()`, but
+    for the 375 calls of the changes above (`scripts/model-context-identity.R`),
+    15 of them the new refusals in bold; each of the 70 that now return a
+    value, or another one, gives the value of its reference, compared on every
+    number of the result: the same call on the data frame of the fit, on the
+    fit to the complete rows, on the data of the fit in its order, or of a model
+    of the group on its data. The rows of the five in Pass B (125,000 p-values
+    at 5000 replications), the full sweep and block 1 of the weighted fits
+    (8,000 at 400) of `inst/validation/` are `identical()` to before,
+    replication by replication, and reproduce the committed tables row for row,
+    the table of Pass B byte for byte. The warnings of the calls of the corpus
+    are those of before, but for five calls that stopped and now return a value
+    with the warning on the missing group.
 
 ### Packaging
 
