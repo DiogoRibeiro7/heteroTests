@@ -4,15 +4,28 @@
 
 <small>Source: [`R/performance.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/performance.R) · Help: `?clearAnalysisCache`</small>
 
-Removes memoised outputs stored by [`runHeteroTests`](runHeteroTests.md) when called with
-`use_cache = TRUE`. Useful for deterministic test runs or after mutating the
-underlying data/model so cached summaries should be invalidated.
+Removes the results of whole calls that [`runHeteroTests`](runHeteroTests.md) stored with
+`use_cache = TRUE`, so that later calls run their tests again.
 
 ## Usage
 
 ```r
 clearAnalysisCache()
 ```
+
+## Value
+
+`NULL`, invisibly.
+
+## Details
+
+A call is stored only when every test it runs is deterministic, under a key
+that holds the tests, whether they are streamed and in chunks of what size,
+and every part of the model and the data they read (see [`cachedTest`](cachedTest.md)).
+The cache holds at most `getOption("heteroTests.cache_size", 100)` calls
+and drops the one used least recently; `0` turns it off. Each test of the
+call is also kept in the cache of [`cachedTest`](cachedTest.md), which
+[`clearTestCache`](clearTestCache.md) empties.
 
 ## See also
 

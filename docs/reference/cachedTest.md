@@ -4,8 +4,8 @@
 
 <small>Source: [`R/performance.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/performance.R) · Help: `?cachedTest`</small>
 
-Avoids recomputing expensive diagnostics by hashing their inputs and reusing
-stored results.
+Runs a registered diagnostic, and returns the result of an earlier call on
+the same inputs instead when the diagnostic is deterministic.
 
 ## Usage
 
@@ -16,8 +16,8 @@ cachedTest(test_name, model, data, ..., use_cache = TRUE)
 ## Arguments
 
 `test_name`
-:   Character scalar naming the diagnostic registered in
-    `.diagnostic_registry` or `.test_factory`.
+:   Character scalar naming a diagnostic of the registry
+    ([`listDiagnostics()`](listDiagnostics.md)) or of `test_factory`.
 
 `model`
 :   Fitted model object supplied to the diagnostic.
@@ -29,8 +29,8 @@ cachedTest(test_name, model, data, ..., use_cache = TRUE)
 :   Additional arguments forwarded to the diagnostic.
 
 `use_cache`
-:   Logical scalar indicating whether cached results may be used
-    (defaults to `TRUE`).
+:   Logical scalar: may the result be read from the cache and
+    stored in it? `FALSE` runs the diagnostic. Defaults to `TRUE`.
 
 ## Value
 
@@ -39,13 +39,69 @@ computed.
 
 ## Details
 
-The cache key is created by hashing the test name, model coefficients,
-residuals, data, and additional arguments. When the key already exists in the
-cache environment the stored result is returned immediately; otherwise the
-diagnostic is executed and its output stored for future calls. Set
-`use_cache = FALSE` to force recomputation when the underlying model has
-changed.
+**What is cached.** Only the deterministic tests the package registers:
+`"white"`, `"breusch_pagan"`, `"koenker"`, `"cook_weisberg"`, `"ncv"`,
+`"spread_level"`, `"student_bp"`, `"szroeter"`, `"quantile_regression"`,
+`"high_dimensional"` and `"variance_form"`.
+
+**What is not.** A test that draws random numbers is never cached:
+`"wild_bootstrap"`, `"white_bootstrap"`, `"rank_permutation"` and
+`"spatial_hetero"` run on every call, so a seeded call returns what it
+returns without the cache, and leaves the random number generator where it
+leaves it without the cache. Nor is `"box_m"`, which tests data rather than
+a model, a diagnostic added with [`registerDiagnostic()`](registerDiagnostic.md) or
+`test_factory$register()`, or one registered again under a name of the
+package: the package cannot know whether it draws random numbers or reads
+anything besides its inputs. A result whose computation moved the random
+number generator is not stored either. Before 0.16.0 every name was cached,
+the resampling tests included: a call with another seed returned the
+replicates of the first, and the random numbers drawn after it were not
+those of a call without the cache.
+
+**The key.** The test, its arguments, and every part of the model and of
+the data the test can read: the class of the model, its family and link;
+from the model context of the fit, its model frame, response, design,
+residuals and fitted values, prior weights, total offset, rank and aliased
+coefficients, the names of its observations and its `na.action`; its
+coefficients, the weights it stores, its terms (with their `predvars`),
+call, contrasts and levels, residual degrees of freedom, whether it keeps
+its model frame, and its attributes, such as the variance function of a
+[`fitWLS()`](fitWLS.md) fit; and `data`, whole: its values, row names, class and
+attributes. The key is an xxhash64 digest of those values (from the
+**digest** package; without it nothing is cached). It holds values, not
+environments: a model refitted to the same data, in another environment or
+another session, has the same key and is answered from the cache, with the
+model of the call as `attr(result, "model")`, so that the result is
+`identical()` to the one the test computes. A model the tests refuse before
+reading it, such as a fit with `model = FALSE` whose data changed after the
+fit, has no key and is refused as without the cache; so has a fit with
+`model = FALSE` whose data are gone, whose model frame the tests rebuild
+from `data`, and it runs without the cache. The key does not hold
+the environment of the formula: a test that evaluates the formula on `data`
+again, as the check of the rows of `data` does, reads the functions and
+variables of that environment as they are, so clear the cache after
+changing one of them.
+
+Before 0.16.0 the key held only the test, the coefficients, the residuals,
+`data` and the arguments. Fits that share those shared one entry, and the
+second call returned the result of the first: `lm(y ~ x + offset(o))` and
+`lm(I(y - o) ~ x)`, which have the same coefficients and residuals and
+other fitted values; a fit and the same fit with its weights changed, which
+the tests refuse; or a fit with `model = FALSE` before and after its data
+changed, which they refuse too.
+
+**The bound.** The cache holds at most
+`getOption("heteroTests.cache_size", 100)` results, and drops the one used
+least recently to store another; `options(heteroTests.cache_size = 0)`
+turns it off, together with the cache of [`runHeteroTests()`](runHeteroTests.md). A stored result
+keeps no copy of the model. Before 0.16.0 the cache grew without bound, by
+about 25 KB per call on a new model, and kept about 0.3 KB per call after
+[`clearTestCache()`](clearTestCache.md).
+
+A result read from the cache is returned without running the test, so the
+call gives none of the warnings and messages of the call that computed it.
 
 ## See also
 
-[`clearTestCache()`](clearTestCache.md) resets the cache between analysis sessions.
+[`clearTestCache()`](clearTestCache.md) empties the cache; [`runHeteroTests()`](runHeteroTests.md) uses it with
+`use_cache = TRUE`.

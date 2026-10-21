@@ -13,3 +13,10 @@ deterministic behaviour is required.
 ```r
 clearValidationCache()
 ```
+
+## Details
+
+The cache holds at most `getOption("heteroTests.validation_cache_size", 1000)` results and drops the one used least recently;
+`options(heteroTests.validation_cache_size = 0)` turns it off. A check
+that draws random numbers, as the check of normality does on a variable
+longer than its `sample_limit`, is not stored.

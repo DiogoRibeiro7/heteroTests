@@ -4,14 +4,28 @@
 
 <small>Source: [`R/performance.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/performance.R) · Help: `?clearTestCache`</small>
 
-Removes all objects from the internal cache environment so that subsequent
-diagnostic calls recompute their statistics.
+Removes every result from the cache of [`cachedTest()`](cachedTest.md), which
+[`runHeteroTests()`](runHeteroTests.md) also uses for each test with `use_cache = TRUE`, so that
+later calls compute them again.
 
 ## Usage
 
 ```r
 clearTestCache()
 ```
+
+## Value
+
+`NULL`, invisibly.
+
+## Details
+
+The cache is bounded and holds no test that draws random numbers (see
+[`cachedTest()`](cachedTest.md)), so clearing it is needed neither to bound the memory of a
+long session nor to draw new replicates with another seed. It is needed
+after a change the key does not see, such as a function or a variable of
+the environment of a model's formula. [`clearAnalysisCache()`](clearAnalysisCache.md) empties the
+cache of whole calls of [`runHeteroTests()`](runHeteroTests.md).
 
 ## See also
 

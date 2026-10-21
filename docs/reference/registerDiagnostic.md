@@ -24,6 +24,12 @@ registerDiagnostic(name, fun)
 
 Invisibly returns `NULL`.
 
+## Details
+
+A diagnostic registered this way is never cached by [`cachedTest`](cachedTest.md) or [`runHeteroTests`](runHeteroTests.md),
+nor is a test of the package registered again under its name: whether it draws random numbers, or reads anything
+besides the model and the data, cannot be known.
+
 ## See also
 
 [`listDiagnostics`](listDiagnostics.md) for the names already registered.
