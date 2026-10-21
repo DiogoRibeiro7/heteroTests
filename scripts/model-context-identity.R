@@ -166,6 +166,8 @@ identity_affected <- c(
   "performQuantileRegressionTest",
   "performGlejserTest", "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
   "performHartleyFmaxTest", "performSpatialHeteroTest",
+  "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
+  "performBartlettTest", "performOBrienTest",
   names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
   identity_registry_runner3
 )
@@ -202,6 +204,13 @@ identity_increment3 <- c(
   identity_reads_data, "performSpatialHeteroTest", "registry szroeter", "test_factory szroeter",
   "registry spatial_hetero", "test_factory spatial_hetero", identity_registry_runner3
 )
+# The calls of increment 4: the five group tests, which read the `group` of
+# `data` besides the model. None of them is registered, in test_factory or in
+# a runner, so their calls are the direct ones.
+identity_increment4 <- c(
+  "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
+  "performBartlettTest", "performOBrienTest"
+)
 # The defects of the design whose cells may change, by the kind of change.
 # Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
 # every test built on it, and so for those of increment 2 too. Increment 2:
@@ -226,24 +235,28 @@ identity_increment3 <- c(
 # X b alone, and orders it by its fitted values, X b + o (decided by the
 # coordinator on 2026-10-20); and "frame" on a fit with model = FALSE whose
 # data are gone, given numbered data in another order, which the tests of
-# increment 3 used, and refuse.
+# increment 3 used, and refuse. Increment 4: N17 and "frame" for the five
+# group tests, which matched a gam by position too and used such data; and
+# M8, a fit whose coefficients were changed after the fit, which the five
+# tested and refuse, as every test built on the context does.
 identity_allowed <- list(
   error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8")
 )
-# The defects of increments 2 and 3 apply to the calls of the tests they
+# The defects of increments 2, 3 and 4 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
 identity_defect_scope <- list(
   B7 = identity_increment2,
   N1 = c("performGQTest", identity_quantile, identity_registry_runner),
-  frame = c(identity_increment2, identity_increment3),
+  frame = c(identity_increment2, identity_increment3, identity_increment4),
   N6 = identity_reset,
   null = c("registry student_bp", "registry szroeter"),
   gam = identity_increment2,
   N4 = "performHarrisonMcCabeTest",
-  N17 = identity_reads_data,
-  gam_offset = c("registry szroeter", identity_registry_runner_szroeter)
+  N17 = c(identity_reads_data, identity_increment4),
+  gam_offset = c("registry szroeter", identity_registry_runner_szroeter),
+  M8 = identity_increment4
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -284,8 +297,14 @@ identity_runner_allowed <- c(
 # a column of `data` beyond the model frame, numbered data with one row per
 # observation whose rows tie on every compared column are refused by the
 # guard (the rule on ties), where they lacked rows of the fit before (B14).
-# Any other change of a message is unexpected, but those of identity_m1()
-# below.
+# Increment 4: the same for the five group tests, and M8 for an edited fit
+# without `data` or with its model frame, where the five lacked the group of
+# `data` first. Any other change of a message is unexpected, but those of
+# identity_m1() below.
+identity_m8 <- c(
+  "does not reproduce its residuals from its design and coefficients",
+  "not those its coefficients were fitted with"
+)
 identity_messages <- list(
   R4 = "needs a model with one response",
   B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
@@ -297,14 +316,16 @@ identity_messages <- list(
     "needs a model with one response", "cannot test an mgcv::gam() fit with smooth terms"
   ),
   gam = "cannot test an mgcv::gam() fit with smooth terms",
-  B14 = "tie on every column of the model frame that is compared"
+  B14 = "tie on every column of the model frame that is compared",
+  M8 = identity_m8
 )
 identity_message_scope <- list(
   B7 = identity_increment2, L1 = c("performGQTest", identity_reads_data),
   L2 = c("performGQTest", identity_reads_data),
-  frame = c(identity_increment2, identity_increment3),
+  frame = c(identity_increment2, identity_increment3, identity_increment4),
   null = c("registry student_bp", "registry szroeter"),
-  gam = identity_increment2, B14 = identity_reads_data
+  gam = identity_increment2, B14 = c(identity_reads_data, identity_increment4),
+  M8 = identity_increment4
 )
 # M1, for the tests that read a variable of `data` besides the model (the
 # variable, ordering or groups they name): a call that stopped because `data`,
@@ -314,7 +335,8 @@ identity_message_scope <- list(
 # `data`. The model frame holds the terms of the model and is accepted as it
 # is, so the variables of an offset() term, which the test needs no more, are
 # no longer named. A message that names any other variable is unexpected.
-identity_m1_scope <- c("performGQTest", identity_reads_data)
+# Increment 4: the five group tests, which read `group`.
+identity_m1_scope <- c("performGQTest", identity_reads_data, identity_increment4)
 # The registered Szroeter test matched the row names of `data` to its fitted
 # values, and restricted `data` to those rows, before performSzroeterTest()
 # compared them with the fit: the guard then saw the rows it had picked, under
@@ -377,8 +399,12 @@ identity_new_refusals <- list(
   R4 = "needs a model with one response",
   # The registered names, without `data`, on a fit with model = FALSE whose
   # data are gone: the runner put the Cook-Weisberg fallback under them. The
-  # tests of increment 3 on such a fit given numbered data in another order.
-  frame = "cannot use the model frame of `model`"
+  # tests of increments 3 and 4 on such a fit given numbered data in another
+  # order.
+  frame = "cannot use the model frame of `model`",
+  # The five group tests on a fit whose coefficients were changed after the
+  # fit (increment 4).
+  M8 = identity_m8
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
@@ -692,7 +718,9 @@ identity_run <- function(where, out, root = ".") {
                   "performStudentizedBPTest", "performBPTestRobust", "performRESETTest",
                   "performGQTest", "performQuantileRegressionTest", "performGlejserTest",
                   "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
-                  "performHartleyFmaxTest", "performSpatialHeteroTest")) {
+                  "performHartleyFmaxTest", "performSpatialHeteroTest", "performLeveneTest",
+                  "performBrownForsytheTest", "performFlignerKilleenTest", "performBartlettTest",
+                  "performOBrienTest")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
