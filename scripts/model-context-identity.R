@@ -45,10 +45,14 @@
 # relative on every number.
 #
 # N2, outside the context: White's degrees of freedom, the rank of its
-# auxiliary regression with the intercept less one. Each run also records
-# White's test written out on every cell (identity_white_by_hand()); a change
-# of White's test is allowed only on a cell where main's count was wrong, and
-# only when the branch gives that reference (identity_n2_check()).
+# auxiliary regression with the intercept less one, decided since its
+# follow-up on the design of the centred regressors, with the refusal of a
+# saturated auxiliary regression. Each run also records White's test written
+# out on every cell (identity_white_by_hand()) and runs the cells of the
+# follow-up (identity_white_cells()); a change of White's test is allowed only
+# on a cell where the two versions count differently, and only when the
+# branch gives that reference, with every other number of its result main's
+# or computed from it (identity_n2_check()).
 #
 # The data.name of the runner, outside the context: since 0.16.0 a test that
 # runHeteroTests() runs and that reported "model" reports the formula of the
@@ -431,36 +435,62 @@ identity_bootstrap_messages <- c(
 )
 identity_bootstrap_defects <- c("B12", "L1", "L2", "N7", "B7")
 
-# N2, outside the context (decision 22): White's degrees of freedom are the
-# rank of its auxiliary regression with the intercept, [1, Z], minus one,
-# where main took the rank of Z alone. A call of White's test may change on a
-# cell where main's count was wrong: where the columns of Z span the constant,
-# its df is one too many and the statistic must stay identical() to main's;
-# where Z is so nearly collinear that main's decomposition without the
-# intercept kept a column that lm() then aliased given the intercept (the gam
-# with a smooth term), main's regression lost that column without its df
-# losing it, and the statistic may change too, to the columns lm(e^2 ~ Z)
-# keeps. Either way the branch must give White's test written out on the
-# cell, identity_white_by_hand(): the statistic, the degrees of freedom and
-# the p-value to `identity_n2_tolerance`, relative. The routes are those of
-# the corpus that compute White's test: the test, its robust form, with and
-# without the bootstrap, and the default battery of the runner, whose other
-# tests must not change. The streaming test and the White bootstrap compute
-# nothing that changes on these cells, and are not among them.
+# N2 and its follow-up, outside the context (decision 22): White's degrees of
+# freedom are the rank of its auxiliary regression with the intercept less
+# one, decided on the auxiliary design of the centred regressors. The kinds of
+# cell on which a call of White's test may change, read from the reference of
+# the cell (identity_white_by_hand()):
+#   "spans"     the columns of Z span the constant, and a count of the rank of
+#               Z alone (0.15.0) was one too many, with the same statistic,
+#               which must stay identical();
+#   "lost"      Z is so nearly collinear that a decomposition of Z without the
+#               intercept kept a column that lm() then aliased given the
+#               intercept (0.15.0, on a gam with a smooth term): the
+#               statistic may change too;
+#   "located"   a regressor located far from zero, whose square the rank of
+#               [1, Z] took for a combination of the intercept and the
+#               regressor, where the design of the centred regressors keeps it;
+#   "saturated" as many independent terms as observations, which the test now
+#               refuses;
+#   "names"     a regressor named like a column the test generates (`a` and
+#               `a_sq`), on which the formula of the auxiliary regression
+#               stopped.
+# A change to a value must give the reference, White's test written out on the
+# centred design: the statistic, the degrees of freedom and the p-value to
+# `identity_n2_tolerance`, relative; and every other number of the result must
+# be main's, identical(), but those that follow from the degrees of freedom or
+# the statistic, which must be what they compute to from them
+# (identity_n2_expected()). On a saturated cell the test must give its refusal
+# and the runner, in its place, White's test without cross products. The
+# resampling routes on a located or a names cell, whose replicates change
+# with the statistic, and the routes of a names cell, on which main stopped,
+# are verified as the same call on the reference of their cell: the same
+# design located at zero, or with other names.
 identity_white_routes <- c(
   "performWhiteTest", "performWhiteTestRobust", "performWhiteTestRobust(bootstrap = TRUE)",
-  "runHeteroTests"
+  "runHeteroTests", "performWhiteTestBootstrap", "performWhiteTestStreaming"
+)
+identity_white_resampling <- c(
+  "performWhiteTestBootstrap", "performWhiteTestRobust(bootstrap = TRUE)"
 )
 identity_n2_tolerance <- 1e-10
+identity_saturated_message <- "There are too few observations for White's test"
+# The cells of a regressor located far from zero equal their reference, the
+# same design located at zero, up to the rounding of the shifted regressor.
+identity_located_cells <- c("white/located_1e4", "white/located_1e6")
+identity_located_tolerance <- 1e-8
 
 # White's test written out on a fit, without the package: the columns of the
-# design the fit estimated, without the intercept, their squares and, for at
-# most ten of them, their pairwise products, Z; the Pearson residuals; and
-# lm(e^2 ~ Z), whose n R^2 is the statistic and whose rank less one the
-# degrees of freedom. With them the ranks that say why main's count differed:
-# of Z and of [1, Z] at the tolerance of qr(), and main's count, the number
-# of columns its decomposition of Z kept, against the rank of the regression
-# it fitted on them.
+# design the fit estimated, without the intercept, X; the auxiliary design of
+# the centred regressors, their squares and, for at most ten of them, their
+# pairwise products, Z_c; the Pearson residuals; and lm(e^2 ~ Z_c), whose
+# n R^2 is the statistic and whose rank less one the degrees of freedom, with
+# and without the products (`simplified`, the test the runner falls back on).
+# With them what says why a version counted otherwise: the ranks of Z, built
+# from X, of [1, Z] and of [1, Z_c] at the tolerance of qr(); the count of
+# 0.15.0, the number of columns its decomposition of Z kept, against the rank
+# of the regression it fitted on them; and whether the names of the columns
+# the test generates collide.
 identity_white_by_hand <- function(m) {
   X <- stats::model.matrix(m)
   estimated <- !is.na(stats::coef(m))[colnames(X)]
@@ -470,28 +500,104 @@ identity_white_by_hand <- function(m) {
   if (p == 0L) {
     stop("no regressors besides the intercept")
   }
-  Z <- cbind(X, X^2)
-  if (p > 1L && p <= 10L) {
-    for (i in seq_len(p - 1L)) {
-      for (j in seq.int(i + 1L, p)) Z <- cbind(Z, X[, i] * X[, j])
+  products_kept <- p > 1L && p <= 10L
+  build <- function(M, products) {
+    Z <- cbind(M, M^2)
+    if (products && products_kept) {
+      for (i in seq_len(p - 1L)) {
+        for (j in seq.int(i + 1L, p)) Z <- cbind(Z, M[, i] * M[, j])
+      }
     }
+    unname(Z)
   }
   e2 <- unname(stats::residuals(m, type = "pearson"))^2
-  aux <- stats::lm(e2 ~ Z)
-  statistic <- length(e2) * summary(aux)$r.squared
-  df <- aux$rank - 1L
+  n <- length(e2)
+  centred_test <- function(products) {
+    Zc <- build(scale(X, scale = FALSE), products)
+    if (qr(cbind(1, Zc))$rank >= n) {
+      return(NULL)
+    }
+    aux <- stats::lm(e2 ~ Zc)
+    r_squared <- summary(aux)$r.squared
+    statistic <- n * r_squared
+    df <- aux$rank - 1L
+    list(statistic = c("X-squared" = statistic), parameter = c(df = df),
+         p.value = stats::pchisq(statistic, df, lower.tail = FALSE), r_squared = r_squared)
+  }
+  Z <- build(X, TRUE)
   qr_z <- qr(Z)
   kept <- sort(qr_z$pivot[seq_len(qr_z$rank)])
-  list(
-    statistic = c("X-squared" = statistic), parameter = c(df = df),
-    p.value = stats::pchisq(statistic, df, lower.tail = FALSE),
-    rank_z = qr_z$rank, rank_1z = qr(cbind(1, Z))$rank,
-    main_df = length(kept), main_regression_df = stats::lm(e2 ~ Z[, kept])$rank - 1L
+  names_x <- colnames(X)
+  generated <- c(names_x, paste0(names_x, "_sq"))
+  if (products_kept) {
+    pairs <- utils::combn(p, 2L)
+    generated <- c(generated, paste0(names_x[pairs[1L, ]], "_x_", names_x[pairs[2L, ]]))
+  }
+  c(
+    centred_test(TRUE),
+    list(
+      simplified = centred_test(FALSE), n = n,
+      rank_z = qr_z$rank, rank_1z = qr(cbind(1, Z))$rank,
+      rank_1zc = qr(cbind(1, build(scale(X, scale = FALSE), TRUE)))$rank,
+      main_df = length(kept), main_regression_df = stats::lm(e2 ~ Z[, kept])$rank - 1L,
+      names_collide = anyDuplicated(generated) > 0L
+    )
   )
 }
 
-# Why N2 concerns a call: "spans" or "lost" (above), from the reference of its
-# cell, or NULL when it does not.
+# The cells of the follow-up of N2, run through every recipe besides the
+# matrix: the model of "fit/ols/none/none/data_frame" with x1 moved by 1e4 and
+# by 1e6, whose reference is that cell; a saturated design, 6 regressors and
+# their 21 squares and products for 22 observations; a regressor `a` beside a
+# regressor `a_sq`, whose reference is the same data with `a_sq` named `b`;
+# and an ordered factor under its default contr.poly, which spans the
+# constant.
+identity_white_cells <- function() {
+  white_cell <- function(id, build, reference = NULL) {
+    list(id = id, block = "white", build = build, fit = "ols", offset = "none",
+         terms = "none", form = "data_frame", needs = character(), reference = reference,
+         expect = "value", defect = character())
+  }
+  d <- context_data()
+  located <- function(id, shift) {
+    dl <- d
+    dl$x1 <- d$x1 + shift
+    white_cell(id, function() list(m = stats::lm(y ~ x1 + x2, data = dl), data = dl),
+               reference = "fit/ols/none/none/data_frame")
+  }
+  set.seed(22)
+  saturated <- data.frame(matrix(stats::rnorm(22 * 6), 22, 6))
+  names(saturated) <- paste0("v", 1:6)
+  saturated$y <- stats::rnorm(22, sd = exp(saturated$v1 / 2))
+  set.seed(3)
+  collide <- data.frame(a = stats::runif(100, 1, 3))
+  collide$a_sq <- log(collide$a) + stats::rnorm(100, sd = 0.3)
+  collide$y <- collide$a + collide$a_sq + stats::rnorm(100, sd = collide$a)
+  renamed <- collide
+  names(renamed)[names(renamed) == "a_sq"] <- "b"
+  ordered <- d
+  ordered$o4 <- factor(rep(c("lo", "mid", "hi", "top"), length.out = nrow(d)),
+                       levels = c("lo", "mid", "hi", "top"), ordered = TRUE)
+  list(
+    located("white/located_1e4", 1e4),
+    located("white/located_1e6", 1e6),
+    white_cell("white/saturated", function() {
+      list(m = stats::lm(y ~ v1 + v2 + v3 + v4 + v5 + v6, data = saturated), data = saturated)
+    }),
+    white_cell("white/names", function() {
+      list(m = stats::lm(y ~ a + a_sq, data = collide), data = collide)
+    }, reference = "white/names_renamed"),
+    white_cell("white/names_renamed", function() {
+      list(m = stats::lm(y ~ a + b, data = renamed), data = renamed)
+    }),
+    white_cell("white/ordered", function() {
+      list(m = stats::lm(y ~ x1 + o4, data = ordered), data = ordered)
+    })
+  )
+}
+
+# The kinds of N2 that concern a call (above), with the reference of its cell,
+# or NULL when none does.
 identity_n2 <- function(record, records) {
   if (!record$fn %in% identity_white_routes) {
     return(NULL)
@@ -500,53 +606,251 @@ identity_n2 <- function(record, records) {
   if (!is.list(ref) || isTRUE(ref$.error) || is.null(ref$rank_z)) {
     return(NULL)
   }
-  kind <- if (ref$rank_z == ref$rank_1z) {
-    "spans"
-  } else if (ref$main_regression_df < ref$main_df) {
-    "lost"
-  }
-  if (is.null(kind)) NULL else list(kind = kind, reference = ref)
+  kinds <- c(
+    if (ref$rank_z == ref$rank_1z) "spans",
+    if (ref$main_regression_df < ref$main_df) "lost",
+    if (ref$rank_1zc != ref$rank_1z) "located",
+    if (ref$rank_1zc >= ref$n) "saturated",
+    if (isTRUE(ref$names_collide)) "names"
+  )
+  if (length(kinds) == 0L) NULL else list(kinds = kinds, reference = ref)
 }
 
-# An N2 change of a call: the branch's White's test gives the statistic,
-# degrees of freedom and p-value of the reference, with the statistic of
-# main (on the stored design, where main has one) where Z spans the constant;
-# a runner's other tests are those of main.
+# How a change of a call of N2 is judged: "check", against the reference and
+# main (identity_n2_check()); "refusal", the refusal of a saturated design;
+# "fallback", the runner's White's test without cross products in its place;
+# "chain", against the same call on the reference of the cell
+# (identity_verify()), the exact routes also against the reference of N2.
+identity_n2_mode <- function(fn, n2, change) {
+  if (is.null(n2) || identical(change, "identical")) {
+    return(NULL)
+  }
+  kinds <- n2$kinds
+  if ("saturated" %in% kinds) {
+    if (change %in% c("value_to_error", "message_change")) {
+      return("refusal")
+    }
+    if (identical(fn, "runHeteroTests") && identical(change, "value_change")) {
+      return("fallback")
+    }
+    return(NULL)
+  }
+  if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
+    return("chain")
+  }
+  if (identical(fn, "performWhiteTestStreaming")) {
+    return(NULL)
+  }
+  "check"
+}
+
+identity_n2_close <- function(x, y) {
+  relative <- identity_relative(as.double(unname(x)), as.double(unname(y)))
+  isTRUE(relative <= identity_n2_tolerance)
+}
+
+# White's statistic, degrees of freedom and p-value of a result agree with
+# the reference.
+identity_n2_agrees <- function(v, ref) {
+  !is.null(v) && !is.null(v$statistic) && !is.null(v$parameter) && !is.null(ref) &&
+    identity_n2_close(v$statistic, ref$statistic) &&
+    identical(as.double(unname(v$parameter)), as.double(unname(ref$parameter))) &&
+    identity_n2_close(v$p.value, ref$p.value)
+}
+
+# Cramer's V of a chi-squared statistic, as the robust tests compute it
+# (.calculate_effect_size() of R/effect_sizes.R, with `type = "cramers_v"`).
+identity_cramers_v <- function(chi_sq, df, n) {
+  effect_size <- sqrt(max(0, chi_sq / (n * max(1, df))))
+  magnitude <- if (!is.finite(effect_size)) {
+    "unknown"
+  } else if (effect_size < 0.1) {
+    "negligible"
+  } else if (effect_size < 0.3) {
+    "small"
+  } else if (effect_size < 0.5) {
+    "medium"
+  } else {
+    "large"
+  }
+  practical <- is.finite(effect_size) && effect_size >= 0.3
+  interpretation <- if (!is.finite(effect_size)) {
+    "Effect size could not be determined."
+  } else {
+    sprintf("Effect size %.3f (%s) suggests %s practical impact.", effect_size, "cramers_v",
+            if (practical) "meaningful" else "limited")
+  }
+  list(effect_size = effect_size, magnitude = magnitude, practical_significance = practical,
+       interpretation = interpretation, type = "cramers_v")
+}
+
+# The power of a chi-squared test, as the robust tests compute it
+# (.estimate_test_power() of R/bootstrap_methods.R), but for its call.
+identity_power <- function(statistic, df, n, effect_size, alpha, target_power = 0.8,
+                           max_multiplier = 5) {
+  chi_sq <- max(unname(statistic[[1L]]), .Machine$double.eps)
+  if (!is.finite(effect_size) || effect_size <= 0) {
+    return(list(power = NA_real_, recommended_n = NA_integer_, details = list(
+      message = "Effect size not available or non-positive; cannot estimate power.",
+      df = df, sample_size = n, call = NULL
+    )))
+  }
+  critical <- stats::qchisq(1 - alpha, df)
+  observed_power <- 1 - stats::pchisq(critical, df, ncp = chi_sq)
+  power_for_n <- function(n_val) {
+    lambda <- max(1e-8, effect_size^2) * max(1, df) * n_val
+    1 - stats::pchisq(critical, df, ncp = lambda)
+  }
+  recommended_n <- n
+  achieved_power <- power_for_n(recommended_n)
+  if (!is.na(achieved_power) && achieved_power < target_power) {
+    upper <- ceiling(n * max_multiplier)
+    if (upper <= recommended_n) {
+      upper <- recommended_n + 1L
+    }
+    while (power_for_n(upper) < target_power && upper < n * max_multiplier) {
+      upper <- ceiling(upper * 1.2)
+    }
+    if (power_for_n(upper) < target_power) {
+      recommended_n <- NA_integer_
+    } else {
+      root <- tryCatch(
+        stats::uniroot(function(x) power_for_n(x) - target_power,
+                       lower = recommended_n, upper = upper),
+        error = function(e) NULL
+      )
+      recommended_n <- if (is.null(root)) NA_integer_ else ceiling(root$root)
+    }
+  }
+  curve_effect_sizes <- seq(0.05, max(0.5, effect_size * 1.5), by = 0.05)
+  power_curve <- vapply(curve_effect_sizes, function(es) {
+    lambda <- max(1e-8, es^2) * max(1, df) * n
+    1 - stats::pchisq(critical, df, ncp = lambda)
+  }, numeric(1L))
+  list(power = observed_power, recommended_n = recommended_n, details = list(
+    df = df, sample_size = n, lambda_observed = chi_sq, effect_size = effect_size,
+    power_curve = data.frame(effect_size = curve_effect_sizes, power = power_curve),
+    alpha = alpha, target_power = target_power, call = NULL
+  ))
+}
+
+# The robust details of main's result with what follows from the degrees of
+# freedom and the statistic computed from them: the asymptotic interval, the
+# effect size and the power, with main's call.
+identity_robust_at <- function(details, statistic, df) {
+  df <- as.numeric(df)
+  n <- details$sample_size
+  level <- details$confidence_interval$level
+  if (identical(details$confidence_interval$source, "asymptotic")) {
+    lower_tail <- (1 - level) / 2
+    details$confidence_interval$estimate <- stats::setNames(
+      c(stats::qchisq(lower_tail, df), stats::qchisq(1 - lower_tail, df)), c("lower", "upper")
+    )
+  }
+  effect <- identity_cramers_v(as.numeric(statistic[[1L]]), df, n)
+  details$effect_size <- effect
+  call <- details$power$details$call
+  power <- identity_strip(identity_power(statistic, df, n, effect$effect_size, 1 - level))
+  power$details$call <- call
+  details$power <- power
+  details
+}
+
+# What the branch must return for a call of White's test of N2: main's result,
+# with the degrees of freedom of the reference, the branch's p-value and,
+# unless only the count changed ("spans"), its statistic and R^2, and what
+# follows from them; NULL when the branch's R^2 is not the reference's.
+identity_n2_expected <- function(a, b, ref, pure_df) {
+  df <- unname(ref$parameter[[1L]])
+  expected <- a
+  expected$parameter[[1L]] <- df
+  expected$p.value <- b$p.value
+  if (!pure_df) {
+    expected$statistic <- b$statistic
+  }
+  if (!is.null(attr(a, "auxiliary_regressors"))) {
+    attr(expected, "auxiliary_regressors") <- df
+  }
+  if (!pure_df && !is.null(attr(a, "r_squared_auxiliary"))) {
+    r_squared <- attr(b, "r_squared_auxiliary")
+    if (!identity_n2_close(r_squared, ref$r_squared)) {
+      return(NULL)
+    }
+    attr(expected, "r_squared_auxiliary") <- r_squared
+  }
+  if (!is.null(a$robust_details)) {
+    expected$robust_details <- identity_robust_at(a$robust_details, expected$statistic, df)
+  }
+  expected
+}
+
+# A change of N2 judged by "check": the statistic, degrees of freedom and
+# p-value of the reference, the statistic of main (on the stored design,
+# where main has one) when only the count changed, and every other number of
+# main's result; for the runner, White's entry so, and its other tests main's.
 identity_n2_check <- function(n2, record, after, stored = NULL) {
   main_value <- if (!is.null(stored) && is.list(stored$value) && !isTRUE(stored$value$.error)) {
     stored$value
   } else {
     record$value
   }
-  white_of <- function(v) {
-    if (identical(record$kind, "runner")) {
-      w <- v[["white"]]
-      if (is.null(w) || !is.null(w$status)) NULL else w
-    } else {
-      v
-    }
-  }
-  a <- white_of(main_value)
-  b <- white_of(after$value)
   ref <- n2$reference
-  if (is.null(a) || is.null(b) || is.null(b$statistic) || is.null(b$parameter)) {
+  pure_df <- all(n2$kinds == "spans")
+  b_all <- after$value
+  if (!is.list(main_value) || isTRUE(main_value$.error) || !is.list(b_all) ||
+        isTRUE(b_all$.error)) {
     return(FALSE)
   }
-  close <- function(x, y) {
-    relative <- identity_relative(as.double(unname(x)), as.double(unname(y)))
-    isTRUE(relative <= identity_n2_tolerance)
-  }
-  ok <- close(b$statistic, ref$statistic) &&
-    identical(as.double(unname(b$parameter)), as.double(unname(ref$parameter))) &&
-    close(b$p.value, ref$p.value)
-  if (identical(n2$kind, "spans")) {
-    ok <- ok && identical(unname(a$statistic), unname(b$statistic))
-  }
   if (identical(record$kind, "runner")) {
-    others <- setdiff(names(after$value), "white")
-    ok <- ok && identical(main_value[others], after$value[others])
+    a <- main_value[["white"]]
+    b <- b_all[["white"]]
+    if (is.null(a) || is.null(b) || !is.null(a$status) || !is.null(b$status) ||
+          !identity_n2_agrees(b, ref)) {
+      return(FALSE)
+    }
+    if (pure_df && !identical(a$statistic, b$statistic)) {
+      return(FALSE)
+    }
+    expected <- main_value
+    expected$white$parameter <- unname(ref$parameter[[1L]])
+    expected$white$p.value <- b$p.value
+    expected$white$statistic <- b$statistic
+    return(identical(expected, b_all))
   }
-  ok
+  if (!identity_n2_agrees(b_all, ref)) {
+    return(FALSE)
+  }
+  if (pure_df && !identical(unname(main_value$statistic), unname(b_all$statistic))) {
+    return(FALSE)
+  }
+  identical(identity_n2_expected(main_value, b_all, ref, pure_df), b_all)
+}
+
+# On a saturated cell: the runner gives White's test without cross products
+# under the name "white", as a fallback, and its other tests are main's.
+identity_n2_fallback <- function(n2, record, after) {
+  b <- after$value[["white"]]
+  others <- setdiff(names(after$value), "white")
+  !is.null(b) && identical(b$status, "fallback") &&
+    identity_n2_agrees(b, n2$reference$simplified) &&
+    identical(record$value[others], after$value[others])
+}
+
+# A change of N2 judged by "chain": the exact routes give the reference; the
+# rest is identity_verify()'s, on the reference of the cell.
+identity_n2_chain <- function(n2, record, after) {
+  if (record$fn %in% identity_white_resampling ||
+        identical(record$fn, "performWhiteTestStreaming")) {
+    return(TRUE)
+  }
+  v <- after$value
+  if (identical(record$kind, "runner")) {
+    v <- v[["white"]]
+    if (is.null(v) || !is.null(v$status)) {
+      return(FALSE)
+    }
+  }
+  identity_n2_agrees(v, n2$reference)
 }
 
 # 0.16.0, outside the context: through runHeteroTests() a test whose data.name
@@ -922,6 +1226,14 @@ identity_run <- function(where, out, root = ".") {
         reference_cell(sub("^rank/", "byhand/", cell$id)),
         identity_outcome(function() context_hmc_by_hand(built$m, built$data)))
   }
+  # The cells of the follow-up of N2, through every recipe, with White's test
+  # written out on each.
+  for (cell in identity_white_cells()) {
+    built <- suppressWarnings(suppressMessages(cell$build()))
+    run_cell(cell, built, names(recipes), "recipe", "runner")
+    add("reference", "white_by_hand", cell,
+        identity_outcome(function() identity_white_by_hand(built$m)))
+  }
   # The examples of the help pages, each expression whose value is a test.
   scratch <- dirname(normalizePath(out, mustWork = FALSE))
   for (topic in c("performWhiteTest", "performBPTest", "performKoenkerTest",
@@ -1064,12 +1376,19 @@ identity_last_bits_verdict <- function(verdict) {
 }
 
 # `stored` is main's value on the stored design, for a cell of decision 1, or
-# NULL. `n2` is identity_n2() of the call: a change to a value of White's
-# test on a cell of N2 is allowed when identity_n2_check() verifies it, and
-# is unexpected otherwise, whatever the other rules say.
-identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL) {
-  if (!is.null(n2) && identical(verdict$change, "value_change")) {
-    return(if (identity_n2_check(n2, record, after, stored)) "allowed" else "unexpected")
+# NULL. `n2` is identity_n2() of the call and `n2_mode` identity_n2_mode(): a
+# change of White's test on a cell of N2 is allowed when its rule verifies it,
+# and is unexpected otherwise, whatever the other rules say.
+identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_mode = NULL) {
+  if (!is.null(n2_mode)) {
+    ok <- switch(n2_mode,
+      check = identity_n2_check(n2, record, after, stored),
+      refusal = grepl(identity_saturated_message, after$value$message, fixed = TRUE),
+      fallback = identity_n2_fallback(n2, record, after),
+      chain = verdict$change %in% c("value_change", "error_to_value") &&
+        identity_n2_chain(n2, record, after)
+    )
+    return(if (isTRUE(ok)) "allowed" else "unexpected")
   }
   defects <- identity_defects(record)
   # Decision 1: a value on a poly() term must be main's value on the stored
@@ -1250,7 +1569,13 @@ identity_verify <- function(record, main, branch, seen = character()) {
   reference_id <- paste(record$kind, record$fn, reference, sep = " | ")
   before <- main[[reference_id]]
   after <- branch[[reference_id]]
-  tolerance <- if (record$cell %in% identity_rounded_cells) 1e-10 else 0
+  tolerance <- if (record$cell %in% identity_rounded_cells) {
+    1e-10
+  } else if (record$cell %in% identity_located_cells) {
+    identity_located_tolerance
+  } else {
+    0
+  }
   if (is.null(after) || !identity_same_key(key, identity_key(after$value), tolerance)) {
     return(NA_character_)
   }
@@ -1295,14 +1620,17 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     rounded <- if (by_segments) identity_last_bits_verdict(verdict)
     checked <- !is.null(decided)
     n2 <- identity_n2(before, main$records)
-    n2_change <- !is.null(n2) && identical(verdict$change, "value_change")
-    allowed <- identity_allow(before, verdict, after, stored, n2)
+    n2_mode <- identity_n2_mode(before$fn, n2, verdict$change)
+    n2_change <- !is.null(n2_mode)
+    allowed <- identity_allow(before, verdict, after, stored, n2, n2_mode)
     # An allowed change to a value must be verified against a reference; one
-    # of N2 is, by identity_n2_check(), against White's test written out.
+    # of N2 is, by identity_n2_check() or identity_n2_fallback(), against
+    # White's test written out on the centred design, and by "chain" against
+    # the same call on the reference of the cell.
     to_value <- identical(allowed, "allowed") &&
       verdict$change %in% c("error_to_value", "value_change")
-    verified <- if (to_value && n2_change) {
-      "lm(e^2 ~ Z)"
+    verified <- if (to_value && isTRUE(n2_mode %in% c("check", "fallback"))) {
+      "lm(e^2 ~ Z_c)"
     } else if (to_value) {
       identity_verify(before, main$records, branch$records)
     } else {
@@ -1329,7 +1657,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # The defects of the cell that concern the call (identity_defects()),
       # and N2 where White's count of the cell was wrong.
       defect = paste(c(identity_defects(before), if (n2_change) "N2"), collapse = " "),
-      n2 = if (n2_change) n2$kind else NA_character_,
+      n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
+      n2_mode = if (n2_change) n2_mode else NA_character_,
       change = verdict$change,
       verdict = allowed,
       verified_by = if (to_value) verified else NA_character_,
@@ -1380,17 +1709,18 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   }
   n2 <- calls[!is.na(calls$n2), , drop = FALSE]
   if (nrow(n2) > 0L) {
-    template <- paste0(
-      "\nN2: %d calls of White's test change, %d allowed and verified against lm(e^2 ~ Z) ",
-      "to %.0e: %d on %d cells whose auxiliary columns span the constant, the statistic ",
-      "identical() to main's, and %d on %d cells whose auxiliary regression lost a column ",
-      "to its intercept on main, the statistic within %.2g relative of main's\n"
-    )
-    spans <- n2[n2$n2 == "spans", , drop = FALSE]
-    lost <- n2[n2$n2 == "lost", , drop = FALSE]
-    cat(sprintf(template, nrow(n2), sum(n2$verdict == "allowed"), identity_n2_tolerance,
-                nrow(spans), length(unique(spans$cell)), nrow(lost), length(unique(lost$cell)),
-                if (nrow(lost) > 0L) max(lost$statistic_relative) else 0))
+    cat(sprintf(paste0(
+      "\nN2: %d calls of White's test change, %d allowed: by the kinds of their cells and how ",
+      "they are verified (\"check\" and \"fallback\" against White's test written out on ",
+      "the centred design to %.0e, \"refusal\" by the refusal of a saturated design, ",
+      "\"chain\" against the same call on the reference of the cell):\n"
+    ), nrow(n2), sum(n2$verdict == "allowed"), identity_n2_tolerance))
+    n2$calls <- 1L
+    print(stats::aggregate(calls ~ n2 + n2_mode + verdict, data = n2, FUN = sum),
+          row.names = FALSE)
+    cells <- stats::aggregate(cell ~ n2, data = n2, FUN = function(x) length(unique(x)))
+    names(cells)[2L] <- "cells"
+    print(cells, row.names = FALSE)
   }
   renamed <- calls[!is.na(calls$data_name) & calls$data_name == "formula", , drop = FALSE]
   runners <- calls[!is.na(calls$data_name), , drop = FALSE]
