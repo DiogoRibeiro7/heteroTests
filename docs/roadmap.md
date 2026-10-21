@@ -1268,6 +1268,13 @@ after it.
     what is tested.
 - [ ] Replace non-ASCII characters in `R/` with escapes (89 lines across 27
     files).
+- [ ] **The memory of a cache key.** `rcache_hash()` (`R/cache.R`) serializes
+    the model frame, the design, the vectors of the fit and the data into one
+    raw vector on every call of `cachedTest()` and `runHeteroTests()`, about
+    twice their size, which a wide design makes large, and frees it at once.
+    Hash them part by part, or stream the serialization into the hash, so that
+    the temporary allocation stays small (found by the review of #144). No
+    value changes.
 - [ ] Split `R/validation.R` (1,441 lines) into cache, result-type,
     assumption-checking and requirement-dispatch units, and factor out the
     repeated boilerplate: scalar validators, model and data preparation, and

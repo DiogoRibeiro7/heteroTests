@@ -24,8 +24,9 @@ The cache is bounded and holds no test that draws random numbers (see
 [`cachedTest()`](cachedTest.md)), so clearing it is needed neither to bound the memory of a
 long session nor to draw new replicates with another seed. It is needed
 after a change the key does not see, such as a function or a variable of
-the environment of a model's formula. [`clearAnalysisCache()`](clearAnalysisCache.md) empties the
-cache of whole calls of [`runHeteroTests()`](runHeteroTests.md).
+the environment of a model's formula; call [`clearAnalysisCache()`](clearAnalysisCache.md) then too,
+since the cache of whole calls of [`runHeteroTests()`](runHeteroTests.md) keeps the results of
+such a model as well.
 
 ## See also
 

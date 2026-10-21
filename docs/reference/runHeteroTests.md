@@ -44,16 +44,18 @@ runHeteroTests(
 
 `use_cache`
 :   logical: reuse the results of an earlier call on the same inputs? Requires the digest
-    package and defaults to `TRUE`. Only deterministic tests are cached, under a key that holds everything that
-    determines their result (see [`cachedTest`](cachedTest.md)): the resampling tests `"wild_bootstrap"`,
-    `"white_bootstrap"`, `"rank_permutation"` and `"spatial_hetero"`, and diagnostics added with
-    `registerDiagnostic`, run on every call, so a seeded call gives what it gives with `use_cache = FALSE` and
-    leaves the random number generator where it leaves it, and a call that runs one is not stored as a whole. Each test
+    package and defaults to `TRUE`. Only deterministic tests are cached, under a key that holds the test and the
+    parts of the model and the data it reads (see [`cachedTest`](cachedTest.md), which also says what the key leaves out):
+    the resampling tests `"wild_bootstrap"`, `"white_bootstrap"`, `"rank_permutation"` and
+    `"spatial_hetero"`, and diagnostics added with `registerDiagnostic`, run on every call, and a call that
+    runs one, or falls back on one, is not stored as a whole. A seeded call returns what it returns with
+    `use_cache = FALSE`, `identical()`, and leaves the random number generator where it leaves it. Each test
     is kept in the cache of [`cachedTest`](cachedTest.md), and each call whose tests are all deterministic in a second cache
     ([`clearAnalysisCache`](clearAnalysisCache.md)); each holds at most `getOption("heteroTests.cache_size", 100)` results and
-    drops the one used least recently, and `options(heteroTests.cache_size = 0)` turns both off. Before 0.16.0
-    the resampling tests were cached too, and two fits with the same coefficients and residuals shared their
-    results.
+    drops the one used least recently, and `options(heteroTests.cache_size = 0)` turns both off. The checks the
+    tests make first have a cache of their own, bounded by `getOption("heteroTests.validation_cache_size", 1000)`.
+    Before 0.16.0 the resampling tests were cached too, and two fits with the same coefficients and residuals shared
+    their results.
 
 `chunk_threshold_mb`
 :   numeric threshold (in megabytes) above which streaming implementations are preferred for supported
