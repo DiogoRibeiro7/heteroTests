@@ -19,7 +19,7 @@ Before a pull request, run the checks CI runs:
 
 | Command | What it enforces |
 | --- | --- |
-| `Rscript scripts/run_checks.R` | Styles `R/` with styler, lints it, runs the test suite and writes a coverage report to `coverage/index.html` |
+| `Rscript scripts/run_checks.R` | Styles `R/` with styler, lints it, runs the tests that read the source tree, then the whole suite once under covr, and writes a coverage report to `coverage/index.html` and the coverage itself to `coverage/coverage.rds` |
 | `lintr::lint_package()` | The rules in `.lintr`: the lintr defaults with a 100-column limit |
 | `spelling::spell_check_package(vignettes = TRUE)` | Spelling; accepted words live in `inst/WORDLIST` |
 | `R CMD check --no-manual` | Everything `R CMD check` finds, with no unchecked warnings or notes |
@@ -27,6 +27,25 @@ Before a pull request, run the checks CI runs:
 Statistical tests assert behaviour: size, power, and agreement with reference
 implementations such as `lmtest` and `car`, not just the structure of a
 result. Add unit tests for any new functionality.
+
+### The model-context matrix
+
+`tests/testthat/test-model-context.R` runs the test matrix of the
+[model context](design/model-context.md): about 30,000 of the suite's 41,000
+expectations, and the largest part of its time. The environment variable
+`HETEROTESTS_FULL_MATRIX` decides how much of it runs
+(`context_full_matrix()` in `tests/testthat/helper-model-context.R`):
+
+| `HETEROTESTS_FULL_MATRIX` | What runs |
+| --- | --- |
+| unset | The full matrix when `NOT_CRAN=true`, which `devtools::test()` and `testthat::test_local()` set; on CRAN, the 13 cells of `context_cran_cells` |
+| `true` | The full matrix |
+| `false` | The 13 CRAN cells only |
+
+The two tests of `tests/testthat/test-cache-contract.R` that run every
+resampling test at its default replications, the next largest cost, follow the
+same rule. You get all of it by default. Set the variable to `false` for a
+faster run, for example `HETEROTESTS_FULL_MATRIX=false Rscript scripts/run_checks.R`.
 
 ## Code
 
@@ -98,13 +117,24 @@ the guide pages it writes along with the vignette that changed.
 | Workflow | Runs |
 | --- | --- |
 | `R-CMD-check.yml` | `R CMD check` on Ubuntu (R devel, release and the previous release), macOS and Windows, and with the hard dependencies on R 4.1; weekly or on demand, `--as-cran` and reverse-dependency checks. |
-| `run-checks.yml` | `scripts/run_checks.R`, with coverage sent to Codecov, then the spelling check and a link check whose result is reported, not gated. |
+| `run-checks.yml` | In parallel: `scripts/run_checks.R`, whose saved coverage is sent to Codecov; the spelling check, and a link check whose result is reported, not gated; and the quick benchmark suite. |
 | `docs.yml` | Regenerates the reference, releases and roadmap pages, fails if the committed ones are out of date, builds the site with `--strict`, and deploys it to GitHub Pages from `main`. |
 | `release.yml` | On a push to `main` whose `DESCRIPTION` version has no tag: builds the tarball, checks it with `R CMD check --as-cran`, tags `v<version>`, publishes a GitHub release with the tarball, and stores the tarball in `cran/`. |
 
 A change to `Version:` in `DESCRIPTION` therefore starts a release when it
 reaches `main`; leave it alone in an ordinary pull request, and add the change
 to the `Development version` section at the top of `NEWS.md`.
+
+No job runs the suite twice. Both workflows set `HETEROTESTS_FULL_MATRIX` to
+`false`, except the `ubuntu-latest (R release)` job of `R-CMD-check.yml`,
+which sets it to `true`: the full model-context matrix runs there, and every
+other job, the coverage run included, runs the 13 CRAN cells. `R CMD check`
+and covr test an installed copy of the package, where the checks that read the
+source tree skip (`tests/testthat/helper-source-tree.R`); `scripts/run_checks.R`
+runs the files that hold them from the source. Both workflows cancel a pull
+request's earlier runs when it is pushed again, never a run on `main`.
+`release.yml` sets no `HETEROTESTS_FULL_MATRIX`, so its check of the release
+tarball runs the full matrix.
 
 ## Contributing
 

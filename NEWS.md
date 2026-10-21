@@ -1231,6 +1231,9 @@ the same tables as before at fewer replications from the same seeds.
   "Non-standard file/directory found at top level: 'assets'" is gone. The
   logo is in `man/figures/logo.png`, where R tooling looks for it, and
   `assets/` is left out of the built package.
+- CI runs the suite once per job, and the full model-context matrix and the
+  two longest cache tests in one job only; `HETEROTESTS_FULL_MATRIX=false`
+  skips them locally too (see the development guide). No function changes.
 
 ### Documentation
 
