@@ -30,8 +30,11 @@
 # (increment 3) performGlejserTest(), performParkTest(), performSzroeterTest()
 # with the registered "szroeter" (.szroeter_test()),
 # performHarrisonMcCabeTest(), performHartleyFmaxTest() and
-# performSpatialHeteroTest(); the other tests still prepare the model and data
-# with rdata_or_model_frame() and prepare_model_data_for_test().
+# performSpatialHeteroTest(), and (increment 4) the five group tests,
+# performLeveneTest(), performBrownForsytheTest(), performFlignerKilleenTest(),
+# performBartlettTest() and performOBrienTest() (rcontext_group_rows()); the
+# other tests still prepare the model and data with rdata_or_model_frame() and
+# prepare_model_data_for_test().
 
 #' Build the model context of a test
 #'
@@ -692,6 +695,51 @@ rcontext_rows <- function(ctx, data) {
     return(ctx$frame)
   }
   rdata_with_fit_rows(data[ctx$rows, , drop = FALSE], ctx$obs_id)
+}
+
+#' The residuals and the rows of a group test, without the observations
+#' whose group is missing
+#'
+#' The five group tests, [performLeveneTest()], [performBrownForsytheTest()],
+#' [performFlignerKilleenTest()], [performBartlettTest()] and
+#' [performOBrienTest()], compare the Pearson residuals of the fit across the
+#' groups of a variable of `data`. Before 0.16.0 each matched the rows of
+#' `data` to the residuals itself, by row name, or by position when the
+#' residuals carry no names, as those of an `mgcv::gam()` fit (N17), and then
+#' left out the observations whose group, or a variable of the model, is
+#' missing in `data`, with the warning "Removed N observations due to missing
+#' values in ...". The rows are now those the alignment confirmed, in the
+#' order of the fit, or the model frame without `data`; the observations left
+#' out, and the warning, are those of before, computed on the same rows by
+#' [rhandleMissingValues()].
+#'
+#' Without `data` the group is read from the model frame, which holds it only
+#' when it is a variable of the model under its own name (M1 otherwise,
+#' [rcontext_variables()]); `data` that lack it are refused with the message of
+#' `data`. A fit with a zero weight is refused next, by [rcontext_pearson()],
+#' as before.
+#'
+#' @param ctx The model context.
+#' @param data The `data` argument of the calling test, or `NULL`.
+#' @param group Character scalar, the name of the grouping variable.
+#' @return A list with `residuals`, the Pearson residuals of the observations
+#'   kept, and `data`, the rows that hold them (of `data`, or of the model
+#'   frame without `data`), in the order of the fit.
+#' @keywords internal
+#' @noRd
+rcontext_group_rows <- function(ctx, data, group) {
+  rcontext_variables(ctx, data, c(group = group))
+  residuals <- rcontext_pearson(ctx)
+  rows <- if (is.null(data)) ctx$frame else data[ctx$rows, , drop = FALSE]
+  # The variables of the model that the rows hold, and the group: all of the
+  # variables of the model when `data` holds them, which the tests required
+  # before 0.16.0, so the same rows are left out, with the same warning.
+  variables <- intersect(unique(c(all.vars(stats::terms(ctx$model)), group)), names(rows))
+  cleaned <- rhandleMissingValues(rows, variables = variables)
+  if (cleaned$removed_count > 0) {
+    residuals <- residuals[-cleaned$removed_cases]
+  }
+  list(residuals = residuals, data = cleaned$data)
 }
 
 #' Warn about the incomplete rows of `data`, dropping nothing

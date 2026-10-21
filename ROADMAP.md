@@ -1195,13 +1195,19 @@ after it.
     - Found in step 3 (N17): the residuals of an `mgcv::gam()` fit carry no
       names, and the tests that read a column of `data` beyond the model match
       `data` to them by position, so named data in another order than the fit
-      give a wrong value without an error. Step 3 closes it for its five; the
-      five group tests (Levene's, Brown-Forsythe's, Fligner-Killeen's,
-      Bartlett's and O'Brien's) still have it until step 4, the panel tests
+      give a wrong value without an error. Step 3 closes it for its five, and
+      step 4 for the five group tests (Levene's, Brown-Forsythe's,
+      Fligner-Killeen's, Bartlett's and O'Brien's); the panel tests have it
       until step 5, the three streaming tests until step 7 and the replicates
       of `performWhiteTestBootstrap()` until step 8.
-  - [ ] 4. The five group tests; their copies of the alignment go. Closes N17
-    for these.
+  - [x] 4. The five group tests; their copies of the alignment go, and they
+    leave out the observations whose group is missing, with the warning of
+    before. Closes the character-named fit with its tibble and the complete
+    rows renumbered (B14), R7, L1, L2 and M1 for `group`, and N17 for these;
+    B12 and B15 gave values already. A fit with `model = FALSE` whose data are
+    gone given a shuffled tibble, and an edited fit (M8), from which they
+    computed a value, are refused, as by the first fifteen. The five test a
+    `gam` with smooth terms as before. Done in 0.16.0.
   - [ ] 5. The panel tests, the scatter diagnostic and `runPanelTests()`, with
     `id` and `time` read at the confirmed rows; repeated `(id, time)` pairs
     refused (decision 13). Closes B3, B4, B16, R2, and N17 for these.
@@ -1227,8 +1233,9 @@ after it.
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
     to its design, and the null distributions assume least squares. The five
-    tests of step 1 and the six of step 3 accept it as before; the four of
-    step 2 refuse it until this step settles it for every test together.
+    tests of step 1, the six of step 3 and the five of step 4 accept it as
+    before; the four of step 2 refuse it until this step settles it for every
+    test together.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

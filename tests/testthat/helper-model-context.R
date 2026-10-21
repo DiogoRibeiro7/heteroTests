@@ -25,14 +25,17 @@
 # the first five; increment 2: the studentized Breusch-Pagan statistic
 # (through its deprecated name), RESET, Goldfeld-Quandt and the quantile
 # regression test; increment 3: Glejser, Park, Szroeter, Harrison-McCabe,
-# Hartley and the spatial test.
+# Hartley and the spatial test; increment 4: the five group tests, Levene,
+# Brown-Forsythe, Fligner-Killeen, Bartlett and O'Brien.
 context_migrated <- c(
   "performWhiteTest", "performBPTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest",
   "performStudentizedBPTest", "performRESETTest", "performGQTest",
   "performQuantileRegressionTest",
   "performGlejserTest", "performParkTest", "performSzroeterTest",
-  "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest"
+  "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest",
+  "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
+  "performBartlettTest", "performOBrienTest"
 )
 
 # Fixture B of the design: contract_data() with weights, an offset outside the
@@ -47,7 +50,7 @@ context_data <- function() {
   d
 }
 
-context_terms <- c("none", "log", "poly", "ns", "square", "median", "cut", "factor")
+context_terms <- c("none", "log", "poly", "ns", "square", "median", "cut", "factor", "log_factor")
 context_fits <- c("ols", "wls", "wvec", "glm", "fitwls")
 context_offsets <- c("none", "argument", "term")
 
@@ -61,6 +64,7 @@ context_formula <- function(terms = "none", offset = "none") {
     median = y ~ I(x1 > median(x1)) + x2,
     cut = y ~ cut(x1, quantile(x1)) + x2,
     factor = y ~ x1 + group,
+    log_factor = log(ypos) ~ log(x1) + group,
     stop("unknown terms: ", terms)
   )
   if (identical(offset, "term")) {
@@ -176,10 +180,12 @@ context_form <- function(form, m, d) {
 # matches.
 context_cell <- function(id, block, build, fit = "ols", offset = "none", terms = "none",
                          form = "data_frame", needs = character(), reference = NULL,
-                         expect = "value", defect = character()) {
+                         expect = "value", defect = character(), base = NULL,
+                         base_expect = NULL) {
   list(
     id = id, block = block, build = build, fit = fit, offset = offset, terms = terms,
-    form = form, needs = needs, reference = reference, expect = expect, defect = defect
+    form = form, needs = needs, reference = reference, expect = expect, defect = defect,
+    base = base, base_expect = base_expect
   )
 }
 
@@ -203,8 +209,8 @@ context_cell_defects <- function(fit, offset, terms, form) {
   if (form %in% c("null", "model_frame") && (weighted_column || identical(offset, "argument"))) {
     defects <- c(defects, if (identical(form, "null")) "B12" else "L2")
   }
-  if (form %in% c("null", "model_frame") &&
-        (identical(offset, "term") || terms %in% c("log", "poly", "ns", "median", "cut"))) {
+  transformed <- terms %in% c("log", "poly", "ns", "median", "cut", "log_factor")
+  if (form %in% c("null", "model_frame") && (identical(offset, "term") || transformed)) {
     defects <- c(defects, if (identical(form, "null")) "L1" else "L2")
   }
   if (identical(terms, "cut") && !form %in% context_refused_forms) {
@@ -251,11 +257,15 @@ context_cells <- function() {
       form_cells("fit", fit, offset, "none")
     }
   }
-  # The terms, on the unweighted and the weighted fit.
+  # The terms, on the unweighted and the weighted fit. The model with the
+  # factor `group` holds the variable the group tests read in its model frame,
+  # also with log() terms (increment 4) and with an offset() term, which the
+  # model frame holds as `offset(o)` and not as `o`.
   for (fit in c("ols", "wls")) {
     for (terms in setdiff(context_terms, "none")) {
       form_cells("terms", fit, "none", terms)
     }
+    form_cells("terms", fit, "term", "factor")
   }
 
   # The rows the fit dropped. The reference is the fit to the complete rows.
@@ -308,6 +318,53 @@ context_cells <- function() {
   missing_cell("na_exclude", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na, na.action = stats::na.exclude), data = d_na)
   }, reference = NULL, expect = "Model residuals must be finite")
+
+  # A group that is missing at observations of the fit (increment 4). The
+  # group tests leave those observations out, with the warning "Removed N
+  # observations due to missing values in group", as before 0.16.0; Hartley's
+  # test refuses them (decision 8). Each form of data is compared with the data
+  # frame of the fit. `na_dropped`: the fit drops rows 3, 7 and 11, the group
+  # is missing at row 5, which the fit holds, and at row 7, which it dropped.
+  # `na_factor`: a model of the group, whose fit drops the rows with a missing
+  # group, without and with `data`.
+  set.seed(3)
+  group_perm <- sample(nrow(d))
+  d_g <- d
+  d_g$group[c(5, 50)] <- NA
+  d_gn <- d_na
+  d_gn$group[c(5, 7)] <- NA
+  gn_complete <- d_gn[stats::complete.cases(d_gn[, c("y", "x1", "x2")]), ]
+  rownames(gn_complete) <- NULL
+  group_cell <- function(id, build, form, needs = character(), reference = NULL,
+                         expect = "value", defect = character(), terms = "none") {
+    add(context_cell(paste0("group/", id), "group", build, terms = terms, form = form,
+                     needs = needs, reference = reference, expect = expect, defect = defect))
+  }
+  group_cell("na", function() list(m = stats::lm(y ~ x1 + x2, data = d_g), data = d_g),
+             form = "data_frame")
+  group_cell("na_shuffled", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_g), data = d_g[group_perm, ])
+  }, form = "shuffled", reference = "group/na")
+  group_cell("na_tibble", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_g), data = dplyr::as_tibble(d_g))
+  }, form = "tibble", needs = "dplyr", reference = "group/na")
+  group_cell("na_tibble_shuffled", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_g), data = dplyr::as_tibble(d_g)[group_perm, ])
+  }, form = "tibble_shuffled", needs = "dplyr", expect = "guard")
+  group_cell("na_dropped", function() list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = d_gn),
+             form = "data_frame")
+  group_cell("na_dropped_shuffled", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = d_gn[group_perm, ])
+  }, form = "shuffled", reference = "group/na_dropped")
+  group_cell("na_dropped_renumbered", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = gn_complete)
+  }, form = "complete_renumbered", reference = "group/na_dropped", defect = "B14")
+  group_cell("na_factor", function() {
+    list(m = stats::lm(y ~ x1 + group, data = d_g), data = d_g)
+  }, form = "data_frame", terms = "factor")
+  group_cell("na_factor_null", function() {
+    list(m = stats::lm(y ~ x1 + group, data = d_g), data = NULL)
+  }, form = "null", terms = "factor", reference = "group/na_factor")
 
   # The identifiers of the rows.
   ident_cell <- function(id, build, needs = character(), reference = "fit/ols/none/none/data_frame",
@@ -362,34 +419,49 @@ context_cells <- function() {
   }, form = "null", reference = "subset/rows", defect = "B15"))
 
   # Classes of model. Those whose answer differs between the tests are run with
-  # the data frame of the fit, without `data`, and with the same rows shuffled
-  # under their own row names (class_forms()); `shuffled_defect` names the
-  # defects of the shuffled cell alone.
+  # the data frame of the fit and in the other forms of data (class_forms()):
+  # without `data`, with the same rows shuffled under their own row names, as a
+  # shuffled tibble, which the guard refuses unless the fit is refused first,
+  # and as the model frame (increment 4). `shuffled_defect` names the defects
+  # of the shuffled cell alone; `base` is the cell of the data frame of the
+  # fit, and `base_expect` its expectation, for RESET, which reads nothing
+  # from `data` (context_cell_for()).
   set.seed(3)
   class_perm <- sample(nrow(d))
   class_forms <- function(id, build, expect = "value", defect = character(), needs = character(),
-                          fit = "ols", expect_null = expect, shuffled_defect = character()) {
-    for (form in c("null", "shuffled")) {
+                          fit = "ols", expect_null = expect, shuffled_defect = character(),
+                          forms = c("null", "shuffled", "tibble_shuffled", "model_frame"),
+                          expect_tibble = "guard") {
+    for (form in forms) {
       local({
         form <- form
-        cell_expect <- if (identical(form, "null")) expect_null else expect
+        cell_expect <- switch(form, null = expect_null, tibble_shuffled = expect_tibble, expect)
         defect <- if (identical(form, "shuffled")) c(defect, shuffled_defect) else defect
         built_form <- function() {
           built <- build()
-          built$data <- if (identical(form, "shuffled")) built$data[class_perm, , drop = FALSE]
+          built$data <- switch(form,
+            null = NULL,
+            shuffled = built$data[class_perm, , drop = FALSE],
+            tibble_shuffled = dplyr::as_tibble(built$data)[class_perm, ],
+            model_frame = stats::model.frame(built$m)
+          )
           built
         }
         add(context_cell(paste0("class/", id, "_", form), "class", built_form, fit = fit,
-                         form = form, needs = needs, expect = cell_expect, defect = defect,
-                         reference = if (identical(cell_expect, "value")) paste0("class/", id)))
+                         form = form,
+                         needs = c(needs, if (identical(form, "tibble_shuffled")) "dplyr"),
+                         expect = cell_expect, defect = defect,
+                         reference = if (identical(cell_expect, "value")) paste0("class/", id),
+                         base = paste0("class/", id), base_expect = expect))
       })
     }
   }
   mlm_fit <- function() list(m = stats::lm(cbind(y, ypos) ~ x1 + x2, data = d), data = d)
   add(context_cell("class/mlm", "class", mlm_fit,
                    expect = "needs a model with one response; `model` has 2", defect = "R4"))
+  # A multivariate lm is refused before `data` is matched, on every form.
   class_forms("mlm", mlm_fit, expect = "needs a model with one response; `model` has 2",
-              defect = "R4")
+              defect = "R4", expect_tibble = "needs a model with one response; `model` has 2")
   add(context_cell("class/rank_deficient", "class", function() {
     list(m = stats::lm(y ~ x1 + x2 + I(2 * x2), data = d), data = d)
   }, reference = "fit/ols/none/none/data_frame"))
@@ -418,9 +490,13 @@ context_cells <- function() {
   add(context_cell("class/gam_offset_term", "class", function() {
     list(m = mgcv::gam(y ~ x1 + x2 + offset(o), data = d), data = d)
   }, needs = "mgcv", reference = "fit/ols/term/none/data_frame"))
-  add(context_cell("class/gam_offset", "class", function() {
-    list(m = mgcv::gam(y ~ x1 + x2, data = d, offset = o), data = d)
-  }, needs = "mgcv", reference = "class/gam_offset_term", defect = "gam_offset"))
+  gam_offset_fit <- function() list(m = mgcv::gam(y ~ x1 + x2, data = d, offset = o), data = d)
+  add(context_cell("class/gam_offset", "class", gam_offset_fit, needs = "mgcv",
+                   reference = "class/gam_offset_term", defect = "gam_offset"))
+  # In the other forms of data (increment 4): its residuals carry no names
+  # either, and the group tests matched it by position too (N17).
+  class_forms("gam_offset", gam_offset_fit, needs = "mgcv", defect = "gam_offset",
+              shuffled_defect = "N17")
   # A smooth term, usually penalised: the tests of increments 1 and 3 test the
   # fit as before, and those of increment 2 refuse it until increment 11
   # settles which tests take it ("gam"). Goldfeld-Quandt and the quantile
@@ -461,8 +537,11 @@ context_cells <- function() {
   }
   add(context_cell("class/model_false", "class", model_false_fit,
                    reference = "fit/ols/none/none/data_frame", defect = "frame"))
+  # Its model frame cannot be built, so it has no model frame to give as
+  # `data`; its shuffled tibble is the cell below.
   class_forms("model_false", model_false_fit, defect = "frame",
-              expect_null = "cannot use the model frame of `model`")
+              expect_null = "cannot use the model frame of `model`",
+              forms = c("null", "shuffled"))
   # The same fit given its data as a tibble in another order. Numbered data in
   # another order than the fit are refused (decision 3): the frame built from
   # them does not give the response of the fit, and the tests built on the
@@ -485,6 +564,18 @@ context_cells <- function() {
     assign("changed", d[order(d$x1), ], envir = env)
     list(m = m, data = NULL)
   }, form = "null", expect = "cannot use the model frame of `model`", defect = "N6"))
+  # A fit whose coefficient was changed after the fit (M8): refused by every
+  # test built on the context once `data` is matched. The group tests returned
+  # a value before increment 4, computed from the residuals the edit leaves
+  # unchanged ("M8").
+  edited_fit <- function() {
+    m <- stats::lm(y ~ x1 + x2, data = d)
+    m$coefficients[["x1"]] <- m$coefficients[["x1"]] + 0.5
+    list(m = m, data = d)
+  }
+  edited <- "does not reproduce its residuals from its design and coefficients"
+  add(context_cell("class/edited", "class", edited_fit, expect = edited, defect = "M8"))
+  class_forms("edited", edited_fit, expect = edited, defect = "M8")
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
 }
@@ -562,7 +653,7 @@ context_cran_cells <- c(
   "fit/ols/none/none/data_frame", "fit/ols/none/none/null", "fit/ols/none/none/shuffled",
   "fit/ols/none/none/model_frame", "fit/wls/none/none/null", "fit/ols/argument/none/null",
   "terms/ols/none/log/null", "missing/complete_renumbered", "missing/median_full",
-  "subset/data_frame", "ident/front", "class/mlm"
+  "subset/data_frame", "ident/front", "class/mlm", "group/na_shuffled"
 )
 
 # The tests of increment 2.
@@ -577,13 +668,21 @@ context_increment3 <- c(
   "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest"
 )
 
+# The tests of increment 4, the five group tests.
+context_increment4 <- c(
+  "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
+  "performBartlettTest", "performOBrienTest"
+)
+
 # The variable of `data` each test reads besides the model, in its recipe
 # (helper-test-recipes.R): the variable it orders by, regresses on or groups
 # by.
 context_reads <- c(
   performGQTest = "x1", performGlejserTest = "x1", performParkTest = "x1",
   performSzroeterTest = "x1", performHarrisonMcCabeTest = "x1",
-  performHartleyFmaxTest = "group"
+  performHartleyFmaxTest = "group", performLeveneTest = "group",
+  performBrownForsytheTest = "group", performFlignerKilleenTest = "group",
+  performBartlettTest = "group", performOBrienTest = "group"
 )
 
 # The migrated tests that group by `group`, which the model frame of
@@ -591,6 +690,19 @@ context_reads <- c(
 context_group_readers <- function() {
   names(context_reads)[context_reads == "group"]
 }
+
+# Fligner-Killeen's statistic ranks the absolute deviations of the residuals
+# from their group medians. In a group of even size the two residuals in the
+# middle lie at the same distance from the median, and whether rounding leaves
+# that tie exact differs from one fit of the model to another, such as the lm
+# and the gam or the Gaussian glm (N15, a separate pull request): on the data
+# of the matrix, two of the four ties are exact for the lm and all four for the
+# gam. The statistic then moves by up to 2.6e-6 of its value and the p-value
+# by up to 1.1e-5 (measured, the gam against the lm), and which ties are exact
+# depends on the platform too: on Linux the Gaussian glm with an offset and
+# the glm of y - o differ by 1.5e-7 of the statistic. Where its reference is
+# another fit of the same model, its value is compared to this tolerance.
+context_fligner_tolerance <- 1e-4
 
 # The functions of `context_migrated` that can run here: the quantile
 # regression test needs quantreg, and the spatial test spdep, suggested
@@ -610,28 +722,34 @@ context_runnable <- function(fns = context_migrated) {
 # value.
 #
 # - The tests of increment 2 refuse an mgcv::gam() fit with smooth
-#   terms (context_increment2).
+#   terms (context_increment2), once `data` is matched: a shuffled tibble is
+#   refused by the guard first, but by RESET, which matches no `data`.
 # - The quantile regression test refuses a weighted fit, and a MASS::rlm()
 #   fit, whose weights it reads, once `data` is aligned.
 # - Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read `x1`,
 #   which the model frame of a fit that transforms `x1` does not hold, and
-#   Hartley's test `group`, which only the model with the factor holds:
-#   without `data` they are refused with the message of the context (M1), also
-#   on a fit with a zero weight, which it refuses next, and the model frame
-#   given as `data` lacks the variable. Data in the order of the fit whose rows
-#   tie on every compared column are refused (the guard) when the variable is
-#   not a column of the model frame, as for the fit to repeated rows given as
-#   a tibble.
+#   Hartley's test and the five group tests `group`, which only the models
+#   with the factor hold: without `data` they are refused with the message of
+#   the context (M1), also on a fit with a zero weight, which it refuses next,
+#   and the model frame given as `data` lacks the variable, also on a fit with
+#   a zero weight. Data in the order of the fit whose rows tie on every
+#   compared column are refused (the guard) when the variable is not a column
+#   of the model frame, as for the fit to repeated rows given as a tibble.
+# - A group missing at observations of the fit: Hartley's test refuses them
+#   (decision 8); the five group tests leave them out, with a warning, as
+#   before.
 # - RESET reads nothing from `data`. It builds its context without `data` and
 #   keeps the check of `data` of the tests computed from the model alone
 #   (rcheck_data_argument()), which looks for the row names of the fit and
 #   compares no values, until increment 6 moves those tests. So it gives the
-#   value of the fit on the forms of data the guard refuses, refuses data
-#   whose row names lack those of the fit, refuses a model = FALSE fit whose
-#   data are gone, stops on the padded fitted values of na.exclude
-#   (increment 9), and accepts a zero weight.
+#   value of the fit on the forms of data the guard refuses, and on a class of
+#   model what it gives on the data frame of the fit, refuses data whose row
+#   names lack those of the fit, refuses a model = FALSE fit whose data are
+#   gone, stops on the padded fitted values of na.exclude (increment 9), and
+#   accepts a zero weight.
 context_cell_for <- function(fn, cell) {
-  if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth")) {
+  if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth") &&
+        (!identical(cell$expect, "guard") || identical(fn, "performRESETTest"))) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
   }
@@ -641,15 +759,20 @@ context_cell_for <- function(fn, cell) {
     cell$expect <- "does not support weighted fits"
     cell$reference <- NULL
   }
-  transformed <- cell$terms %in% c("log", "poly", "ns", "median", "cut")
+  transformed <- cell$terms %in% c("log", "poly", "ns", "median", "cut", "log_factor")
   # The cells without `data`: the form "null", and the fit that dropped rows.
   no_data <- identical(cell$form, "null") || identical(cell$id, "missing/median_null")
+  model_frame <- identical(cell$form, "model_frame")
   if (fn %in% names(context_reads)) {
     variable <- context_reads[[fn]]
-    held <- if (identical(variable, "group")) identical(cell$terms, "factor") else !transformed
+    held <- if (identical(variable, "group")) {
+      cell$terms %in% c("factor", "log_factor")
+    } else {
+      !transformed
+    }
     first <- identical(cell$expect, "value") ||
-      no_data && identical(cell$expect, "zero or non-finite weights")
-    if (!held && first && (no_data || identical(cell$form, "model_frame"))) {
+      (no_data || model_frame) && identical(cell$expect, "zero or non-finite weights")
+    if (!held && first && (no_data || model_frame)) {
       cell$expect <- sprintf(
         if (no_data) {
           "The following variables are missing from the model frame of `model`: %s."
@@ -665,14 +788,30 @@ context_cell_for <- function(fn, cell) {
       cell$reference <- NULL
     }
   }
+  if (identical(fn, "performHartleyFmaxTest") && identical(cell$block, "group") &&
+        !identical(cell$terms, "factor") && identical(cell$expect, "value")) {
+    cell$expect <- "where group, the `group` variable, is missing."
+    cell$reference <- NULL
+  }
   if (identical(fn, "performRESETTest")) {
     rows_lacking <- c(
       "missing/complete_renumbered", "ident/repeated_fit_tibble",
-      "ident/character_names_tibble", "ident/repeated_names"
+      "ident/character_names_tibble", "ident/repeated_names", "group/na_dropped_renumbered"
     )
     if (cell$id %in% rows_lacking) {
       cell$expect <- "RESET requires `data` to contain the rows used to fit the model."
       cell$reference <- NULL
+    } else if (identical(cell$expect, "guard") && !is.null(cell$base)) {
+      # A class of model given data the guard refuses: what RESET gives on the
+      # data frame of the fit.
+      base <- cell
+      base$id <- cell$base
+      base$form <- "data_frame"
+      base$expect <- cell$base_expect
+      base$base <- NULL
+      seen <- context_cell_for(fn, base)
+      cell$expect <- seen$expect
+      cell$reference <- if (identical(seen$expect, "value")) cell$base
     } else if (identical(cell$expect, "guard")) {
       cell$expect <- "value"
       cell$reference <- if (cell$block %in% c("fit", "terms")) {

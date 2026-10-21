@@ -28,7 +28,11 @@ every refit. Increment 3 is in 0.16.0 too: `performGlejserTest()`,
 `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`,
 `performHarrisonMcCabeTest()`, with the rank of the fit (decision 21),
 `performHartleyFmaxTest()` and `performSpatialHeteroTest()` built on it.
-Increments 4 to 11 are planned; see [Migration plan](#migration-plan).
+Increment 4 is in 0.16.0 too: the five group tests, `performLeveneTest()`,
+`performBrownForsytheTest()`, `performFlignerKilleenTest()`,
+`performBartlettTest()` and `performOBrienTest()`, built on it, their copies of
+the alignment gone. Increments 5 to 11 are planned; see
+[Migration plan](#migration-plan).
 
 ## The problem
 
@@ -78,9 +82,9 @@ guard as its alignment step and removes the rebuilding behind it.
   column, which could be exchanged without a trace; so when a test reads a
   column of `data` beyond the model frame, such as the `order_by` of the rank
   permutation, Goldfeld-Quandt, Szroeter and Harrison-McCabe tests, the
-  `variable` of Glejser's and Park's tests or the `group` of Hartley's, such
-  data are refused if two rows of the fit tie so (a finding of the review of
-  increment 1).
+  `variable` of Glejser's and Park's tests or the `group` of Hartley's and of
+  the five group tests, such data are refused if two rows of the fit tie so (a
+  finding of the review of increment 1).
 - **Named data in any order, numbered data in fit order** (decision 17). Data
   with row names of their own are matched by name in any order. Numbered data
   in another order than the fit, or with rows in front of those of the fit,
@@ -120,9 +124,10 @@ guard as its alignment step and removes the rebuilding behind it.
 - **An `mgcv::gam()` fit with smooth terms**, usually penalised, is refused by the tests of
   increment 2 (`rrefuse_smooth_gam()`, class
   `heteroTests_model_context_error`): it is not the least-squares fit of its
-  design, which they fit again. The five of increment 1 and the six of
-  increment 3 test it as before 0.16.0, and increment 11 settles it for every
-  test (decision 23). The residuals of a `gam` carry no names; its
+  design, which they fit again. The five of increment 1, the six of
+  increment 3 and the five of increment 4 test it as before 0.16.0, and
+  increment 11 settles it for every test (decision 23). The residuals of a
+  `gam` carry no names; its
   observations are those of the row names of its model frame
   (`rcontext_ids()`), and `data` is matched to them by those names (N17).
 - **Refusals are final** (decision 6). The refusals of the context have class
@@ -133,7 +138,11 @@ guard as its alignment step and removes the rebuilding behind it.
 - **Missing rows.** Every vector of the context has one value per fitted
   observation, without the padding of `na.exclude`. The warning "Removed N
   observations due to missing values in ..." that the tests gave on data with
-  incomplete rows is kept, and nothing is dropped (decision 7).
+  incomplete rows is kept, and nothing is dropped (decision 7). The five group
+  tests, which left out the observations of the fit whose group is missing,
+  still do, with the same warning and on the same rows, the rows the
+  alignment confirmed (`rcontext_group_rows()`; decision 8: each test keeps
+  its behaviour).
 - **No state.** The context is built for one call and dropped when the call
   returns. It is never stored, returned, exported or cached, and holds no
   global or mutable state. It is not the validation cache, whose checks the
@@ -181,6 +190,7 @@ The functions of `R/model_context.R`:
 | `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
 | `rcontext_mean(ctx)` | The fitted values, the linear predictor with the total offset, computed from the coefficients as `predict.lm()` computes it, in fit order: what `fitted()` holds (an `lm` up to rounding, as `y - e`), and so what `predict(type = "response")` returns, but on a `gam` with an `offset` argument, which `predict.gam()` leaves out. The registered `"szroeter"` orders by it (increment 3). |
 | `rstop_missing_variable(ctx, values, variable, argument, test_label)` | Refuses an extra variable that is `NA` at an observation of the fit, with the "Missing rows" message of before, naming the variable (decision 8). |
+| `rcontext_group_rows(ctx, data, group)` | The five group tests (increment 4): the group read as `rcontext_variables()` reads it (M1 without `data`), the Pearson residuals (`rcontext_pearson()`, which refuses a zero weight), and the confirmed rows of `data` in fit order, or the model frame, without the observations whose group or variable of the model is missing, left out by `rhandleMissingValues()` with its warning, as before (decision 8). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
@@ -442,10 +452,65 @@ For the functions built on the context in increment 3:
   before (decision 23), and every message the test suite pins. The known limit
   of numbered data permuted within ties and matched by number (ROADMAP) is the
   same for these tests.
-- **Still matched by position** (N17): the group tests (increment 4), Pesaran
-  and the random-effects test (5), the three streaming tests (7) and the
-  replicates of the White bootstrap (8) on a `gam` given data in another
-  order; each is closed by its increment.
+- **Still matched by position** (N17): the group tests until increment 4
+  (below), Pesaran and the random-effects test (5), the three streaming tests
+  (7) and the replicates of the White bootstrap (8) on a `gam` given data in
+  another order; each is closed by its increment.
+
+For the functions built on the context in increment 4:
+
+- **What the change reaches.** `performLeveneTest()`,
+  `performBrownForsytheTest()`, `performFlignerKilleenTest()`,
+  `performBartlettTest()` and `performOBrienTest()`. None is registered, in
+  `test_factory` or in a runner; a diagnostic registered with
+  `registerDiagnostic()` that calls one keeps the refusals of the context
+  final in `runHeteroTests()`, as the registered names do (tested). Their
+  copies of the alignment (`align_to_model()` in four of them, inline in
+  O'Brien's) are gone: they read the group as Hartley's test does, at the
+  confirmed rows (`reads`, so data in the order of the fit that tie are
+  refused), or without `data` from the model frame (M1 otherwise), and the
+  residuals and weights from the fit (`rcontext_group_rows()`).
+- **Missing groups** (decision 8). The observations of the fit whose group,
+  or a variable of the model, is missing in `data` are left out with the
+  warning "Removed N observations due to missing values in ...", computed by
+  `rhandleMissingValues()` on the rows of the fit, as before: a group missing
+  at a row the fit dropped is not counted. Values and warnings are those of
+  `main` on every such cell of the corpus, and the statistic equals the test
+  computed without the package on the observations kept.
+- **Values that change** (N17). A `gam`, with or without smooth terms or an
+  `offset` argument, given its data in another order under their own row
+  names: the five matched them by position and returned a wrong value
+  (Bartlett 4.548 for 12.380 on the `gam` without smooth terms); they match by
+  the row names of its model frame, the value of the call on the data in fit
+  order, and of the test written out with `car::leveneTest()`,
+  `stats::fligner.test()`, `stats::bartlett.test()` and O'Brien's
+  transformation (`context_group_oracle()`, to `1e-10`).
+- **Errors that become values**: the complete rows of an `na.omit` fit
+  renumbered and the tibble in fit order of the character-named fit, which
+  stopped with "Missing rows" although they hold the rows of the fit (B14,
+  R7); a model of the group with an `offset()` term or a `log()` term without
+  `data` (L1), and its model frame as `data` (L2). B12 and B15 gave values
+  already: the group tests read no weights from `data` and matched the
+  subset by row name.
+- **Messages.** M1 without `data`, where they stopped with "missing from input
+  data", naming the variables of the model too (R7); the message of `data`
+  naming the group alone with the model frame as `data`; the refusal of ties
+  on the tibble of a fit to repeated rows, where they stopped with "Missing
+  rows"; M7 for a multivariate `lm`; the frame message for a `model = FALSE`
+  fit whose data are gone, without `data`, where they stopped with "Expected a
+  data.frame"; and M8 for an edited fit without `data` or with its model
+  frame, where they lacked the group first.
+- **New refusals**, announced in bold (decision 14): a fit with
+  `model = FALSE` whose data are gone, given a shuffled tibble ("frame"), from
+  which the five computed the value of other rows (Levene 1.373 for 3.459);
+  and a fit whose coefficients were changed after the fit (M8), from which
+  they computed the value of the fit before the edit, given its data or its
+  rows shuffled.
+- **Unchanged**: every other value on valid calls, the zero-weight refusals
+  with `data` and shuffled (without `data`, or with its model frame, the group
+  the frame lacks is named first, as before), the refusals of the guard, a
+  smooth `gam` tested as before with `data` (decision 23), and every message
+  the test suite pins.
 
 ## Migration plan
 
@@ -459,7 +524,7 @@ migrations that keep every value, then the riskier resampling and
 | 1 | `R/model_context.R`; the guard split in two; `performWhiteTest()`, `performBPTest()` and `performBreuschPaganTest()`, `performKoenkerTest()`, `performRankPermutationTest()`, `performHighDimensionalTest()`, and through them the base statistic of `performWhiteTestRobust()`, `performBPTestRobust(studentize = FALSE)`, the registry names and the default battery | B5, B12, B14, B15, N7, R4/N9, R7 for these; L1, L2 | **Done, 0.16.0** |
 | 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5; B5, B12, B14, B15, L1, L2, N7, R4 for these | **Done, 0.16.0** |
 | 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, L1, L2, M1 for `variable`, `order_by`, `group`; N4; N17 for these (B15 gave values already) | **Done, 0.16.0** |
-| 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go | the character-named fit with its tibble; R7 | Planned |
+| 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go; the observations with a missing group left out with their warning, as before (`rcontext_group_rows()`) | the character-named fit with its tibble and the complete rows renumbered (B14); R7; L1, L2, M1 for `group`; N17 for these (B12 and B15 gave values already) | **Done, 0.16.0** |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `variable` read at the confirmed rows | B3, B4, B16, R2 (decision 13) | Planned |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
 | 7 | The three streaming tests, chunk by chunk from the stored design | B6; B12, B14, L1 for these | Planned |
@@ -590,6 +655,45 @@ study (blocks 2 to 5 at 5000 replications, 280,000 p-values, and the null
 distribution of block 1 at 100,000 samples) are `identical()` to `main`,
 replication by replication, and reproduce the committed tables row for row.
 
+Increment 4 adds the examples of the five help pages to the corpus, and cells
+in every block the five read differently: a group missing at observations of
+the fit, in the data frame, shuffled, as a tibble, in fit order and shuffled,
+on a fit that dropped rows given the full data, shuffled and as its complete
+rows renumbered, and in a model of the group without and with `data` (the
+block `group/`); a model of the group with a `log()` term
+(`log(ypos) ~ log(x1) + group`) or an `offset()` term, in every form of data,
+for L1 and L2; and, from the lessons of increments 1 to 3, the classes run in
+every form of data (the data frame, `NULL`, shuffled with its own row names,
+a shuffled tibble, the model frame): the multivariate `lm`, the `gam` with
+smooth terms, the `gam` with an `offset` argument, the zero weight of an `lm`
+and of a Gaussian `glm`, the `model = FALSE` fit whose data are gone (but its
+model frame, which cannot be built), and a fit whose coefficient was changed
+after the fit (M8). None of the five is registered, so their calls are the
+direct ones; the runner keeps a refusal of the context final for a diagnostic
+registered by the user that calls one (`test-model-context.R`).
+
+Increment 4: 19,523 calls on 337 cells, the 5 cells of Harrison-McCabe's
+rank and the examples of twenty-one help pages, of which 19,148 identical,
+375 allowed changes (55 errors that become values, 15 values that change, 290
+messages, 15 new refusals) and 0 unexpected, every one of them a call of the
+five; the 70 changes to a value are each verified against a reference, the
+call on the cell they reproduce: the data frame of the fit, the fit to the
+complete rows, the data of a `gam` in its order, or a model of the group
+given its data. The 15 values that change are those of N17, a `gam` with and
+without smooth terms or an `offset` argument given its data shuffled; the 15
+new refusals the `model = FALSE` fit given a shuffled tibble ("frame") and the
+edited fit given its data or its rows shuffled (M8). The 304 `poly()` calls
+that `main` computes on the stored design are `identical()` to it. The
+warnings are those of `main` but for 5 calls that stopped and now return a
+value with the warning on the missing group, the warning of the same call on
+the full data. The rows of the five in Pass B (`pass-b-size-power.R`, five
+scenarios at 5000 replications: 125,000 p-values of the five, and 25,000 of
+Hartley's test), in the full sweep (6,000 p-values at 400 replications) and in
+block 1 of the weighted fits (2,000 at 400) are `identical()` to `main`,
+replication by replication; they reproduce the committed tables row for row,
+the table of Pass B byte for byte. Pass B took 603 s against 516 s on `main`,
+the two run side by side on a shared machine.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -603,16 +707,19 @@ the span of the regressors, and a positive response `ypos`.
   the workspace), a weighted Gaussian `glm`, `fitWLS()`. The offset: none,
   `offset = o`, `+ offset(o)`. The terms: none, `log()`, `poly(x1, 2)`,
   `ns(x1, 3)`, `I(x1^2)`, `I(x1 > median(x1))`, `cut(x1, quantile(x1))`, a
-  factor. The data: `NULL`, the data frame of the fit, shuffled with its own
+  factor, the factor with `log()` terms or an `offset()` term (increment 4).
+  The data: `NULL`, the data frame of the fit, shuffled with its own
   row names, a tibble, a shuffled tibble, a shuffled data.table,
   `dplyr::arrange()`, the model frame. The rows the fit dropped: none,
   `na.omit` with the full data, shuffled or not, the complete rows named and
-  renumbered, the tibble, the tibble the fit was made on; `na.exclude`. The
+  renumbered, the tibble, the tibble the fit was made on; `na.exclude`. A
+  group missing at observations of the fit (increment 4). The
   identifiers: rows in front, rows at the end, a fit to repeated rows with its
   tibble, forced repeated row names, character row names with a tibble, a
   repeated `(id, time)`. The classes: a multivariate `lm`, a rank-deficient
-  fit, `MASS::rlm()`, `mgcv::gam()` with and without smooth terms, and a
-  `model = FALSE` fit whose data are gone.
+  fit, `MASS::rlm()`, `mgcv::gam()` with and without smooth terms, a
+  `model = FALSE` fit whose data are gone, and a fit edited after the fit
+  (increment 4).
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
@@ -621,16 +728,31 @@ the span of the regressors, and a positive response `ypos`.
   differs between the tests, also without `data` and shuffled, and (increment 3
   and its review) the `gam` without smooth terms with its rows shuffled, a
   `gam` with an offset as an argument and as an `offset()` term, and the
-  `model = FALSE` fit whose data are gone given a shuffled tibble: 279 cells, run through
-  each of the fifteen functions, with `B = 19` for the resampling test. Where a
-  test departs from a cell by design, its own expectation applies
+  `model = FALSE` fit whose data are gone given a shuffled tibble; and
+  (increment 4) the block of missing groups, the model of the group with
+  `log()` and `offset()` terms in every form of data, and the classes in every
+  form of data, the data frame, `NULL`, shuffled, a shuffled tibble and the
+  model frame (`class_forms()`), an edited fit among them: 337 cells, run
+  through each of the twenty functions, with `B = 19` for the resampling test.
+  Where a test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
   a test that reads a variable the model frame does not hold (`context_reads`:
   the `x1` of Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe,
-  the `group` of Hartley) gives M1 without `data`, and the message of `data`
-  given the model frame, and refuses the tibble of a fit to repeated rows,
-  whose rows tie; RESET reads nothing from `data` (decision 24); and the tests
-  of increment 2 refuse a `gam` with smooth terms (decision 23). The full matrix runs under `skip_on_cran()`, a 12-cell subset on CRAN.
+  the `group` of Hartley and of the five group tests) gives M1 without
+  `data`, and the message of `data` given the model frame, also on a fit with
+  a zero weight, and refuses the tibble of a fit to repeated rows, whose rows
+  tie; Hartley's test refuses a missing group, which the group tests leave
+  out; RESET reads nothing from `data` (decision 24), and on a class of model
+  given data the guard refuses gives what it gives on the data frame of the
+  fit; and the tests of increment 2 refuse a `gam` with smooth terms (decision
+  23) once `data` is matched. Fligner-Killeen's test ranks the absolute
+  deviations from the group medians, and the two residuals in the middle of a
+  group of even size tie at the median exactly on one fit of a model and not,
+  by rounding, on another (the `lm`, the `gam`, the Gaussian `glm`; N15): its
+  statistic moves by up to 2.6e-6 and its p-value by up to 1.1e-5 (measured on Windows; 1.5e-7 of the statistic between a Gaussian `glm` with an offset and the `glm` of `y - o` on Linux), so against
+  another fit of the same model it is compared to `1e-4`
+  (`context_fligner_tolerance`). The full
+  matrix runs under `skip_on_cran()`, a 13-cell subset on CRAN.
   Tibbles and data.tables come from `dplyr` and `data.table` under
   `skip_if_not_installed()`.
 - **Oracles** (relations between calls, not stored values):
@@ -640,13 +762,15 @@ the span of the regressors, and a positive response `ypos`.
 | invariance over the accepted forms of data | `identical()` to the data frame of the fit |
 | `NULL` and the model frame | `identical()` to the call with data |
 | refused order | the guard's error, class `heteroTests_data_rows_error` |
-| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10`; RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
+| offset equivalence | equal to the fit of `y - o` without an offset, to `1e-10` (Fligner-Killeen to `1e-4`, N15); RESET: the nested F test of the model with its offset, from `anova()` of the two `lm()` fits with the offset, to `1e-10` (decision 19) |
 | Goldfeld-Quandt | against `lmtest::gqtest()`, which fits the segments to the rows of the design, on `ns()`, `bs()`, `I(x > median(x))` and `poly()` terms, and on the fit of `y - o` for an offset, to `1e-10` |
 | Harrison-McCabe's rank | against the test written out from the fit's own QR decomposition, with its rank, on a Gaussian `glm`, weighted or not, and `lm(tol = 1e-11)` with a nearly collinear column, to `1e-6` (they agree to 1e-8, the conditioning of a column at 1e-9), and on well-conditioned fits to `1e-12` |
 | the registered Szroeter test | its fitted values `identical()` to `predict(type = "response")` on every class, and equal to `fitted()` to `1e-12`; on a `gam` with an `offset` argument, which `predict.gam()` leaves out, `identical()` to `fitted()` and to the same `gam` with an `offset()` term; the value of `performSzroeterTest()` ordered by them |
-| ties | for each test of increment 3 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
-| term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8` |
-| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8`; workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
+| ties | for each test of increments 3 and 4 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
+| the group tests | against the test computed without the package, on the residuals of the fit (`weighted.residuals()` for a weighted fit) and the groups of the data it was fitted to, in its order: `car::leveneTest()` centred at the means (Levene) and at the medians (Brown-Forsythe), `stats::fligner.test()`, `stats::bartlett.test()` and O'Brien's transformation written out with `anova()` of `lm()` (`context_group_oracle()`), to `1e-10`, on a `gam` with and without smooth terms or an `offset` argument given its data shuffled, the character-named fit given its tibble, the complete rows renumbered, a model of the group without `data` and with its model frame, a weighted fit, and missing groups, left out |
+| missing groups | the five group tests on a group missing at observations of the fit: the warning "Removed N observations due to missing values in group" and the value of the data frame of the fit on every accepted form of data; a group missing at a row the fit dropped is not counted |
+| term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
+| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
@@ -674,19 +798,19 @@ that fixes each.
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
 | B9 | A second formula matched by position | Increment 6 |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
-| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; replicates in increment 8 |
+| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; the group tests of increment 4 gave values already; replicates in increment 8 |
 | B13 | `na.exclude` | Increment 9 |
-| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six |
-| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3 gave values already |
+| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit) |
+| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3 and the five of increment 4 gave values already |
 | B16 | The panel tests on a fit that dropped rows | Increment 5 |
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Increment 5 (decision 13) |
 | R3 | `var_formula` variables from the workspace | Increment 6 |
-| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four |
+| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
-| R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five |
-| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six (a variable the model frame does not hold gives M1) |
+| R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five, in increment 4 for the group tests |
+| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1) |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2, N3 | White's degrees of freedom when the auxiliary columns span the constant; White streaming on collinear terms | Separate pull requests (decision 22) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
@@ -696,9 +820,9 @@ that fixes each.
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
-| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3 |
+| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4` |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
-| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley; the group tests in increment 4, the panel tests in 5, the streaming tests in 7, the White bootstrap's replicates in 8 |
+| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests; open for the panel tests until 5, the streaming tests until 7, the White bootstrap's replicates until 8 |
 
 ## Decisions
 
