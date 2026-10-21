@@ -4,7 +4,7 @@
 
 <small>Source: [`man/performFlignerKilleenTest.Rd`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/man/performFlignerKilleenTest.Rd) · Help: `?performFlignerKilleenTest`</small>
 
-Non-parametric test based on ranks.
+The median-centred Fligner-Killeen test of homogeneity of variances, on the Pearson residuals of the fit, computed with [`fligner.test()`](https://rdrr.io/r/stats/fligner.test.html): it ranks the absolute deviations of the residuals from their group medians and scores the ranks by quantiles of the normal distribution, which makes it robust to outliers and to errors that are not normal.
 
 ## Usage
 
@@ -18,7 +18,7 @@ performFlignerKilleenTest(model, data = NULL, group)
 :   an object of class `lm`.
 
 `data`
-:   The data frame `model` was fitted to, or `NULL`, the default. The residuals and weights are read from the fit itself (since 0.16.0), and `group` from the rows of `data` that hold the observations of the fit; the observations whose group is missing are left out, with a warning. Without `data` it is read from the model frame of `model`, which holds it only when it is a variable of the model under its own name (`x`, not `log(x)`); a grouping variable the model does not use needs `data`. Data that are given are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
+:   The data frame `model` was fitted to, or `NULL`, the default. The residuals and weights are read from the fit itself, and `group` from the rows of `data` that hold the observations of the fit; the observations whose group is missing are left out, with a warning. Without `data` it is read from the model frame of `model`, which holds it only when it is a variable of the model under its own name (`x`, not `log(x)`); a grouping variable the model does not use needs `data`. Since 0.16.0, data that are given are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
 
 `group`
 :   name of the grouping variable.
@@ -29,7 +29,13 @@ An object of class `htest` containing the chi-squared statistic, p-value and deg
 
 ## Details
 
-Absolute residuals are ranked after adjusting for group medians. The statistic approximates a chi-square distribution with \(k-1\) degrees of freedom.
+The test is the median-centred version of the test of Fligner and Killeen (1976), the "F-K:med \(X^2\)" of Conover, Johnson and Johnson (1981), whose simulation study found it among the tests of homogeneity of variances most robust to departures from normality; it is the test [`fligner.test()`](https://rdrr.io/r/stats/fligner.test.html) computes. The residuals of each group are centred at the median of the group, the absolute values of the centred residuals are ranked over all \(n\) observations, and the rank \(r_i\) is given the score \(a_i = \Phi^{-1}\{(1 + r_i / (n + 1)) / 2\}\). With \(\bar a_j\) the mean score of group \(j\), of size \(n_j\), \(\bar a\) the mean of all the scores and \(s_a^2 = \sum_i (a_i - \bar a)^2 / (n - 1)\), the statistic
+
+\[
+X^2 = \sum_j n_j (\bar a_j - \bar a)^2 / s_a^2
+\]
+
+is referred to a chi-squared distribution with \(k-1\) degrees of freedom, for \(k\) groups. No logarithm is taken. The observations whose group is missing are left out before the statistic is computed.
 
 ## Supported models
 
@@ -45,7 +51,9 @@ Which model each test accepts, and why, is set out in
 
 ## References
 
-Fligner, M. A., & Killeen, T. J. (1976). Distribution-free two-sample tests for scale. *Journal of the American Statistical Association*, 71(353), 210–213.
+Conover, W. J., Johnson, M. E., & Johnson, M. M. (1981). A comparative study of tests for homogeneity of variances, with applications to the outer continental shelf bidding data. *Technometrics*, 23(4), 351–361. [doi:10.1080/00401706.1981.10487680](https://doi.org/10.1080/00401706.1981.10487680)
+
+Fligner, M. A., & Killeen, T. J. (1976). Distribution-free two-sample tests for scale. *Journal of the American Statistical Association*, 71(353), 210–213. [doi:10.1080/01621459.1976.10481517](https://doi.org/10.1080/01621459.1976.10481517)
 
 ## Examples
 

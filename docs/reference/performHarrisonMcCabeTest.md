@@ -29,19 +29,21 @@ performHarrisonMcCabeTest(
 
 `data`
 :   The data frame `model` was fitted to, or `NULL`, the default. The
-    residuals, design, weights and rank are read from the fit itself (since
-    0.16.0), and `order_by` from the rows of `data` that hold the observations
-    of the fit. Without `data` it is read from the model frame of `model`,
-    which holds it only when it is a variable of the model under its own name
-    (`x`, not `log(x)`); a model that transforms the variable it is ordered by
-    needs `data`, as does an ordering variable the model does not use. Data
-    that are given are matched to the observations of the fit: rows with row
-    names of their own by name, in any order; rows that only number themselves
-    (a tibble, a data.table, a data frame whose row names were reset) by the
-    row numbers of the fit, or in the order of the fit when they hold one row
-    per observation. The rows the fit dropped may be there or not. Data whose
-    rows cannot be shown to hold the observations of the fit are refused; see
-    [`test_results`](test_results.md).
+    residuals, design and weights are read from the fit itself, and so, since
+    0.16.0, is its rank, decided at the tolerance of the fit (see the section
+    on the rank), where the test decided the rank of the design again at
+    `1e-7`; `order_by` is read from the rows of `data` that hold the
+    observations of the fit. Without `data` it is read from the model frame of
+    `model`, which holds it only when it is a variable of the model under its
+    own name (`x`, not `log(x)`); a model that transforms the variable it is
+    ordered by needs `data`, as does an ordering variable the model does not
+    use. Since 0.16.0, data that are given are matched to the observations of
+    the fit: rows with row names of their own by name, in any order; rows that
+    only number themselves (a tibble, a data.table, a data frame whose row
+    names were reset) by the row numbers of the fit, or in the order of the fit
+    when they hold one row per observation. The rows the fit dropped may be
+    there or not. Data whose rows cannot be shown to hold the observations of
+    the fit are refused; see [`test_results`](test_results.md).
 
 `order_by`
 :   Character scalar naming the column of `data` that orders the

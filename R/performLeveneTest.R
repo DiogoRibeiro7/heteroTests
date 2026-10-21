@@ -16,14 +16,14 @@
 #'
 #' @param model A fitted [stats::lm] object supplying residuals for the test.
 #' @param data The data frame `model` was fitted to, or `NULL`, the default. The
-#'   residuals and weights are read from the fit itself (since 0.16.0), and
-#'   `group` from the rows of `data` that hold the observations of the fit;
-#'   the observations whose group is missing are left out, with a warning.
-#'   Without `data` it is read from the model frame of `model`, which holds it
-#'   only when it is a variable of the model under its own name (`x`, not
-#'   `log(x)`); a grouping variable the model does not use needs `data`. Data
-#'   that are given are matched to the observations of the fit: rows with row
-#'   names of their own by name, in any order; rows that only number themselves
+#'   residuals and weights are read from the fit itself, and `group` from the
+#'   rows of `data` that hold the observations of the fit; the observations
+#'   whose group is missing are left out, with a warning. Without `data` it is
+#'   read from the model frame of `model`, which holds it only when it is a
+#'   variable of the model under its own name (`x`, not `log(x)`); a grouping
+#'   variable the model does not use needs `data`. Since 0.16.0, data that are
+#'   given are matched to the observations of the fit: rows with row names of
+#'   their own by name, in any order; rows that only number themselves
 #'   (a tibble, a data.table, a data frame whose row names were reset) by the
 #'   row numbers of the fit, or in the order of the fit when they hold one row
 #'   per observation. The rows the fit dropped may be there or not. Data whose
@@ -70,7 +70,9 @@ performLeveneTest <- function(model, data = NULL, group) {
   rvalidateModelInputs(model, test_name = "Levene", min_obs = 15L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
 
-  if (missing(group) || length(group) != 1L) {
+  # An NA or empty name is refused here, before it reaches the checks of
+  # `data` (rcontext_group_rows()), as by performOBrienTest().
+  if (missing(group) || length(group) != 1L || is.na(group) || !nzchar(as.character(group))) {
     stop("`group` must be a single column name.", call. = FALSE)
   }
 

@@ -914,10 +914,20 @@ Also, for these five:
   following variables are missing from the model frame of `model`: group. It
   holds the terms of the model (...)", which says to pass `data`; they
   stopped with "The following variables are missing from input data", which
-  also named the variables of the model the tests do not read (`ypos`, `x1`
-  and `group` for the model above). With the model frame of such a fit as
-  `data`,
-  the message names the group alone.
+  also named the variables of the model the tests do not read: `ypos`, `x1`
+  and `g3` for `log(ypos) ~ log(x1) + x2` grouped by a variable `g3` the
+  model does not use, where the message now names `g3` alone. With the model frame
+  of such a fit as `data`, the message names the group alone.
+- A `group` that is `NA` or empty is refused by the Levene, Brown-Forsythe,
+  Fligner-Killeen and Bartlett tests with "`group` must be a single column
+  name.", as O'Brien's test refused it, before `data` is checked; they
+  stopped with "The following variables are missing from input data: NA".
+- Numbered data in another order than the fit, given for a fit to data with
+  character row names, such as its tibble shuffled, stopped with "Missing
+  rows: obs1, obs2, obs3", rows the data hold; they are refused by the guard,
+  as by the other tests built on the context, with "... cannot match the rows
+  of `data` to the observations of the model: ... y, x1, x2 differ from the
+  model frame", of class `heteroTests_data_rows_error`.
 - Numbered data with one row per observation are taken in the order of the
   fit, and refused when the group is not a column of the model frame and two
   rows of the fit tie on every compared column, as by Hartley's test: on the

@@ -698,10 +698,12 @@ context_group_readers <- function() {
 # and the gam or the Gaussian glm (N15, a separate pull request): on the data
 # of the matrix, two of the four ties are exact for the lm and all four for the
 # gam. The statistic then moves by up to 2.6e-6 of its value and the p-value
-# by up to 1.1e-5 (measured, the gam against the lm), and which ties are exact
-# depends on the platform too: on Linux the Gaussian glm with an offset and
-# the glm of y - o differ by 1.5e-7 of the statistic. Where its reference is
-# another fit of the same model, its value is compared to this tolerance.
+# by up to 1.1e-5 (measured on Windows, the gam against the lm), and which
+# ties are exact depends on the platform too: the Gaussian glm with an offset
+# and the glm of y - o, equal on Windows to 1e-10, differed on CI by 1.5e-7 of
+# the statistic on Linux (1.98307876 against 1.98307847) and by 1.9e-6 on
+# macOS (1.9830772 against 1.9830809). Where its reference is another fit of
+# the same model, its value is compared to this tolerance.
 context_fligner_tolerance <- 1e-4
 
 # The functions of `context_migrated` that can run here: the quantile
