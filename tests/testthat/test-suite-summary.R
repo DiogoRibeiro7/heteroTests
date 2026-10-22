@@ -187,11 +187,12 @@ test_that("print returns its input invisibly", {
   }
 })
 
-test_that("every test the runner runs reports the formula of the model as its data.name", {
+test_that("a test of the runner that named its argument \"model\" names the formula", {
   suite_quiet()
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   formula_text <- "mpg ~ wt + qsec"
-  s <- suite_run(m, mtcars, tests = c("white", "koenker", "breusch_pagan", "szroeter"))
+  s <- suite_run(m, mtcars, tests = c("white", "koenker", "breusch_pagan", "szroeter",
+                                      "student_bp"))
   for (name in names(s)) {
     expect_identical(s[[name]]$data.name, formula_text, info = name)
   }
@@ -216,5 +217,169 @@ test_that("every test the runner runs reports the formula of the model as its da
   expect_identical(
     suppressWarnings(cachedTest("white", m, mtcars, use_cache = FALSE))$data.name,
     "model"
+  )
+})
+
+# A diagnostic registered for the calling test only.
+suite_local_diagnostic <- function(name, fun, env = parent.frame()) {
+  registerDiagnostic(name, fun)
+  withr::defer(rm(list = name, envir = heteroTests:::.diagnostic_registry), envir = env)
+}
+
+test_that("a registered diagnostic keeps its data.name, and R's names of an F test's df", {
+  suite_quiet()
+  # var.test() of the two halves of the residuals: its data.name says what it
+  # compared, and its parameters are "num df" and "denom df".
+  suite_local_diagnostic("halves", function(model, data) {
+    r <- stats::residuals(model)
+    h <- length(r) %/% 2L
+    stats::var.test(r[seq_len(h)], r[-seq_len(h)])
+  })
+  # A diagnostic that reports "model", as the registry's own functions do.
+  suite_local_diagnostic("white_again", function(model, data) performWhiteTest(model, data))
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  s <- suite_run(m, mtcars, tests = c("halves", "white_again"))
+  expect_identical(s$halves$data.name, "r[seq_len(h)] and r[-seq_len(h)]")
+  expect_identical(s$white_again$data.name, "mpg ~ wt + qsec")
+  tab <- coef(summary(s))
+  expect_identical(colnames(tab), c("Statistic", "df", "df2", "p-value"))
+  expect_identical(unname(tab["halves", c("df", "df2")]), unname(as.double(s$halves$parameter)))
+  expect_identical(tab["halves", "p-value"], s$halves$p.value)
+  expect_identical(summary(s)$notes, character())
+})
+
+test_that("coef() of a summary returns its table", {
+  suite_quiet()
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  s <- suite_run(m, mtcars)
+  expect_identical(coef(summary(s)), summary(s)$tests)
+  skip_if_not_installed("dplyr")
+  g <- suite_run(mpg ~ wt, dplyr::group_by(mtcars, am), tests = "koenker")
+  expect_identical(coef(summary(g)), summary(g)$tests)
+})
+
+test_that("the call is shown unless runHeteroTests() made it", {
+  suite_quiet()
+  # A fit of the caller's from a formula and data held in variables.
+  formula <- mpg ~ wt + qsec
+  data <- mtcars
+  fit <- lm(formula, data)
+  sm <- summary(suite_run(fit, data))
+  expect_identical(sm$call, fit$call)
+  # The runner's own fit of a formula.
+  expect_null(summary(suite_run(formula, data))$call)
+  skip_if_not_installed("dplyr")
+  # The refits within the groups, of a formula and of a fitted model.
+  by_am <- dplyr::group_by(mtcars, am)
+  for (g in list(suite_run(mpg ~ wt, by_am, tests = "koenker"),
+                 suite_run(lm(mpg ~ wt, data = mtcars), by_am, tests = "koenker"))) {
+    expect_true(all(vapply(summary(g)$groups, function(x) is.null(x$call), logical(1))))
+    expect_identical(deparse(summary(g)$formula), "mpg ~ wt")
+  }
+})
+
+test_that("a long heading is wrapped to the width of the console", {
+  suite_quiet()
+  withr::local_options(width = 60)
+  d <- mtcars
+  m <- lm(mpg ~ wt + qsec + hp + disp + drat + am + gear + carb, data = d)
+  out <- utils::capture.output(print(suite_run(m, d, tests = "koenker")))
+  expect_true(all(nchar(out) <= 60L))
+  expect_match(out[[1L]], "^Heteroscedasticity tests of lm\\(")
+})
+
+test_that("weights the call does not record are given by their range", {
+  suite_quiet()
+  m <- lm(mpg ~ wt + qsec, data = mtcars, weights = 1 / hp)
+  m$call$weights <- NULL
+  expect_identical(
+    heteroTests:::rsuite_weights(m),
+    "prior weights not in the call, from 0.00299 to 0.0192"
+  )
+})
+
+test_that("arguments given to print() replace those passed to printCoefmat()", {
+  suite_quiet()
+  fit <- suppressWarnings(glm(am ~ wt, family = binomial, data = mtcars))
+  failed <- suite_failed(fit, mtcars, c("white", "koenker"))
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  s <- suite_run(m, mtcars)
+  expect_snapshot({
+    print(failed, na.print = "-")
+    print(s, P.values = FALSE)
+  })
+})
+
+test_that("a refusal of the model is told from a failure", {
+  suite_quiet()
+  fit <- suppressWarnings(glm(am ~ wt, family = binomial, data = mtcars))
+  notes <- summary(suite_failed(fit, mtcars, "white"))$notes
+  expect_match(notes, "^white refused: performWhiteTest\\(\\) needs a model fitted by")
+  # A test that stops in its computation failed, with the kind of failure.
+  suite_local_diagnostic("broken", function(model, data) stop("the design is singular"))
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  notes <- summary(suite_failed(m, mtcars, "broken"))$notes
+  expect_match(notes, "^broken failed \\(rank_deficiency\\): the design is singular")
+})
+
+test_that("hand-built and edge suites print without error", {
+  hand <- function(statistic, parameter, p.value) {
+    structure(list(statistic = statistic, parameter = parameter, p.value = p.value,
+                   method = "A test", data.name = "x"), class = "htest")
+  }
+  s <- structure(
+    list(
+      missing = hand(c(X = NA_real_), c(df = 2), NA_real_),
+      infinite = hand(c(X = Inf), c(df = 1), 0),
+      no_p = structure(list(statistic = c(t = 1.5), method = "A test", data.name = "x"),
+                       class = "htest"),
+      a_list = list(statistic = 3),
+      text = "not a test",
+      nothing = NULL
+    ),
+    class = c("hetero_test_suite", "list")
+  )
+  expect_length(s, 6L)
+  sm <- summary(s)
+  tab <- coef(sm)
+  expect_identical(dim(tab), c(6L, 3L))
+  expect_identical(unname(tab[, "Statistic"]), c(NA, Inf, 1.5, 3, NA, NA))
+  expect_identical(unname(tab[, "df"]), c(2, 1, NA, NA, NA, NA))
+  expect_identical(unname(tab[, "p-value"]), c(NA, 0, NA, NA, NA, NA))
+  expect_identical(unname(sm$status), c("ok", "ok", "ok", "other", "other", "other"))
+  expect_length(sm$notes, 3L)
+  expect_match(sm$notes[[3L]], "^nothing returned an object of class \"NULL\"")
+  expect_null(sm$call)
+  expect_identical(sm$nobs, NA_integer_)
+  for (x in list(s, sm)) {
+    out <- utils::capture.output(print(x))
+    expect_gt(length(out), 0L)
+  }
+  expect_match(utils::capture.output(print(s))[[1L]], "^Heteroscedasticity tests$")
+})
+
+test_that("the fallback on White's test without cross products is named", {
+  suite_quiet()
+  registry <- heteroTests:::.diagnostic_registry
+  original <- get("white", envir = registry)
+  withr::defer(heteroTests:::rregister_package_diagnostic("white", original))
+  # White's test with its cross products stops; the runner falls back on its
+  # form without them, a function of the package, under the name "white".
+  registerDiagnostic("white", function(model, data) stop("the cross products failed"))
+  m <- lm(mpg ~ wt + qsec, data = mtcars)
+  s <- suite_run(m, mtcars, tests = "white")
+  expect_identical(attr(s$white, "extras")$fallback_strategy, "white_simplified")
+  expect_identical(s$white$data.name, "mpg ~ wt + qsec")
+  sm <- summary(s)
+  expect_identical(unname(sm$status), "fallback")
+  expect_identical(unname(sm$diagnostic), "white")
+  expect_identical(
+    sm$notes,
+    paste0("white failed, and \"white_simplified\" ran in its place (White's test without ",
+           "cross products). The failure: the cross products failed")
+  )
+  expect_identical(
+    unname(coef(sm)["white", "Statistic"]),
+    unname(suppressWarnings(performWhiteTest(m, mtcars, cross_products = FALSE))$statistic)
   )
 })

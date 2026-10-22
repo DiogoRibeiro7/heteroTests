@@ -7,6 +7,8 @@
 \alias{print.hetero_grouped_suite}
 \alias{summary.hetero_grouped_suite}
 \alias{print.summary.hetero_grouped_suite}
+\alias{coef.summary.hetero_test_suite}
+\alias{coef.summary.hetero_grouped_suite}
 \title{Print and summarise the results of runHeteroTests()}
 \usage{
 \method{print}{hetero_test_suite}(
@@ -40,6 +42,10 @@
   signif.stars = getOption("show.signif.stars"),
   ...
 )
+
+\method{coef}{summary.hetero_test_suite}(object, ...)
+
+\method{coef}{summary.hetero_grouped_suite}(object, ...)
 }
 \arguments{
 \item{x}{A \code{hetero_test_suite} or \code{hetero_grouped_suite}, as
@@ -50,35 +56,49 @@
 
 \item{signif.stars}{Logical: show the significance codes?}
 
-\item{...}{Passed on to \code{\link[=printCoefmat]{printCoefmat()}} by the print methods; unused by
-the summary methods.}
+\item{...}{Passed on to \code{\link[=printCoefmat]{printCoefmat()}} by the print methods, replacing
+the arguments they pass (Details); unused by the summary and \code{coef()}
+methods.}
 
-\item{object}{A \code{hetero_test_suite} or \code{hetero_grouped_suite}.}
+\item{object}{A \code{hetero_test_suite} or \code{hetero_grouped_suite} for
+\code{summary()}, or its summary for \code{coef()}.}
 }
 \value{
-The print methods return \code{x}, invisibly.
+The print methods return \code{x}, invisibly. \code{coef()} of a summary returns its
+\code{tests}.
 
 \code{summary()} of a \code{hetero_test_suite} returns a list of class
 \code{summary.hetero_test_suite} with:
 \describe{
 \item{\code{call}}{The call of the model, as \code{\link[=summary.lm]{summary.lm()}} keeps it, or
-\code{NULL} when the model was fitted by \code{\link[=runHeteroTests]{runHeteroTests()}} itself, from a
-formula, or its call is not recorded.}
+\code{NULL} when its call is not recorded or is one \code{\link[=runHeteroTests]{runHeteroTests()}}
+made itself, which names the runner's variables rather than yours: the
+fit of a formula, its refit within a group, the refit of a fitted
+model within a group, and the fit to the data of a survey design. The
+runner puts no mark on a model it fits, since that would change what it
+returns, so these are recognised by the exact form of their calls,
+\code{stats::lm(formula = model, data = prep$data)},
+\code{stats::lm(formula = model, data = df)},
+\code{stats::lm(formula = formula, data = data)}, and any call with
+\code{data = .ht_refit_data}. A model of yours with such a call is shown by
+its formula too; one fitted with \code{lm(formula, data)} is shown by its
+call.}
 \item{\code{formula}}{The formula of the model, or \code{NULL}.}
 \item{\code{model_class}}{The class of the model, such as \code{"lm"}.}
 \item{\code{nobs}}{The number of observations, \code{\link[stats:nobs]{stats::nobs()}} of the model.}
 \item{\code{na.action}}{The \code{na.action} of the model, as \code{\link[=summary.lm]{summary.lm()}} keeps
 it: the observations dropped for missing values, or \code{NULL}.}
 \item{\code{weights}}{How the model is weighted, as text: the \code{weights}
-argument of its call, or the variance function of a \code{\link[=fitWLS]{fitWLS()}} fit;
+argument of its call (\code{"1/hp"}); the variance function of a \code{\link[=fitWLS]{fitWLS()}}
+fit; or, for prior weights its call does not record, their range;
 \code{NULL} for an unweighted model.}
 \item{\code{offset}}{The offset of the model, as text, or \code{NULL}.}
 \item{\code{family}}{The family and link of a \code{glm}, as text, or \code{NULL}.}
 \item{\code{tests}}{A numeric matrix with one row per test, named as the
 suite is, and the columns \code{Statistic}, \code{df}, \code{df2} (only when a test has
 second degrees of freedom) and \code{p-value}, as \code{coef(summary(fit))} holds
-those of the coefficients of an \code{lm}. A failed test has \code{NA} in every
-column.}
+those of the coefficients of an \code{lm}; \code{coef(summary(s))} returns it. A
+failed test has \code{NA} in every column.}
 \item{\code{method}}{A character vector, named as the suite is: the \code{method}
 of each result, the name of the test that ran.}
 \item{\code{diagnostic}}{A character vector: the registry name of the test
@@ -103,7 +123,7 @@ group.}
 \item{\code{tests}}{A data frame with one row per test in each group: the
 grouping keys, \code{test} (the name asked for), \code{Statistic}, \code{df}, \code{df2}
 (only when a test has second degrees of freedom), \code{p-value} and
-\code{status}, as above.}
+\code{status}, as above; \code{coef(summary(g))} returns it.}
 \item{\code{groups}}{A list with the \code{summary.hetero_test_suite} of each
 group.}
 \item{\code{notes}}{A character vector of the notes of every group, each
@@ -112,12 +132,13 @@ starting with the label of its group.}
 }
 \description{
 \code{print()} shows a \code{\link{hetero_test_suite}} compactly: the model and the number
-of observations on one line, then one row per test with its statistic,
-degrees of freedom, p-value and significance codes, and a note for each
-test that did not run as asked. \code{summary()} returns an object of class
-\code{summary.hetero_test_suite}, which prints as the summary of an \code{lm} does
-(\code{\link[=summary.lm]{summary.lm()}}): the call, the number of observations, the table of tests,
-the legend of the significance codes and the notes.
+of observations, on one line when it fits the console, then one row per
+test with its statistic, degrees of freedom, p-value and significance codes,
+and a note for each test that did not run as asked. \code{summary()} returns an
+object of class \code{summary.hetero_test_suite}, which prints as the summary of
+an \code{lm} does (\code{\link[=summary.lm]{summary.lm()}}): the call, the number of observations, the
+table of tests, the legend of the significance codes and the notes; and
+\code{coef()} of it returns the table, as \code{coef(summary(fit))} does for an \code{lm}.
 
 The \code{\link{hetero_grouped_suite}} of a grouped run has the same methods, with
 one table for all the groups, a row for each test in each group.
@@ -127,27 +148,44 @@ The table is printed by \code{\link[=printCoefmat]{printCoefmat()}}, so its form
 \code{summary.lm()}: \code{digits} sets the significant digits, the p-values are
 formatted by \code{\link[=format.pval]{format.pval()}}, and the significance codes and their legend
 are shown when \code{signif.stars} is \code{TRUE} (by default
-\code{getOption("show.signif.stars")}) and a p-value is below 0.1.
+\code{getOption("show.signif.stars")}) and a p-value is below 0.1. The print
+methods pass \code{printCoefmat()} \code{cs.ind = integer()}, \code{tst.ind = 1},
+\code{zap.ind = integer()}, \code{P.values = TRUE}, \code{has.Pvalue = TRUE} and
+\code{na.print = "NA"}; an argument of the same name given in \code{...} replaces
+the value passed, so that \code{print(s, na.print = "-")} prints a failed test
+with dashes and \code{print(s, P.values = FALSE)} leaves the p-values out.
 
 The rows are named as the suite is, by the names asked for in \code{tests}. The
 \code{df} column holds the degrees of freedom of the statistic: the parameter of
-the test named \code{df} or \code{df1}, or the first one when they have no names. The
-second degrees of freedom of an F statistic, \code{df2}, are a column of their
-own when a test has them. A parameter of another name, such as the number
-of replicates \code{B} of a resampling test or the number of observations \code{n} of
-Szroeter's test, is not a degree of freedom, and the notes give it.
+the test named \code{df}, \code{df1} or \verb{num df} (as \code{\link[=var.test]{var.test()}} and \code{\link[=anova]{anova()}} name
+it), or the first one when they have no names. The second degrees of
+freedom of an F statistic, named \code{df2} or \verb{denom df}, are a column of their
+own, \code{df2}, when a test has them. A parameter of another name, such as the
+number of replicates \code{B} of a resampling test or the number of
+observations \code{n} of Szroeter's test, is not a degree of freedom, and the
+notes give it.
 
-The notes say which test did not run as asked: one that failed and whose
-fallback ran under its name, saying which test ran; one that failed or was
-refused, with the kind of failure (\code{attr(, "extras")$issue}) and its
-message; one computed by a streaming implementation; and a result that is
-not a test, as a diagnostic added with \code{\link[=registerDiagnostic]{registerDiagnostic()}} may return.
-\code{print()} gives each note on one line, cut to the width of the console;
-\code{summary()} gives it whole. Without groups, \code{\link[=runHeteroTests]{runHeteroTests()}} stops when a
-test fails and no fallback runs, so a failed test is returned only by a
-grouped run, which records the failure and goes on. Whether a result was
-read from a cache is not shown: a result read from it is \code{identical()} to
-the one computed (see \code{\link[=cachedTest]{cachedTest()}}).
+The notes say which test did not run as asked: one whose fallback ran
+under its name, saying which test ran in its place and why; one that was
+refused or failed, with its message and, for a failure of a particular
+kind, that kind (\code{attr(, "extras")$issue}, such as \code{"rank_deficiency"});
+one computed by a streaming implementation; a parameter that is not a
+degree of freedom; and a result that is not a test, as a diagnostic added
+with \code{\link[=registerDiagnostic]{registerDiagnostic()}} may return. A test "refused" its input when it
+stopped before computing anything, with one of the refusals of the package:
+of the model or of \code{data} by the model context (the issues
+\code{"model_context"} and \code{"data_rows"}), of a \code{glm} that is not a
+least-squares fit or a model of another class, of a \code{survey::svyglm()} fit,
+of zero weights, of a weighted fit by a test that refits without its
+weights, of an aliased coefficient, or of too few observations. These are
+recognised by their messages, since the runner records the message and the
+issue and not the class of the condition; a test that stopped otherwise
+"failed". \code{print()} gives each note on one line, cut to the width of the
+console; \code{summary()} gives it whole. Without groups, \code{\link[=runHeteroTests]{runHeteroTests()}}
+stops when a test fails and no fallback runs, so a failed test is returned
+only by a grouped run, which records the failure and goes on. Whether a
+result was read from a cache is not shown: a result read from it is
+\code{identical()} to the one computed (see \code{\link[=cachedTest]{cachedTest()}}).
 
 Several tests of one model are not independent evidence: they are computed
 from the same residuals, most of them from regressions of their squares on
@@ -172,7 +210,7 @@ m <- lm(mpg ~ wt + qsec, data = mtcars)
 s <- runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 s
 summary(s)
-summary(s)$tests
+coef(summary(s))
 print(summary(s), signif.stars = FALSE)
 
 # White's test needs 20 observations: the runner falls back on the

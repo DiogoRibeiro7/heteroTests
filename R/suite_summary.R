@@ -2,12 +2,13 @@
 #'
 #' @description
 #' `print()` shows a [`hetero_test_suite`] compactly: the model and the number
-#' of observations on one line, then one row per test with its statistic,
-#' degrees of freedom, p-value and significance codes, and a note for each
-#' test that did not run as asked. `summary()` returns an object of class
-#' `summary.hetero_test_suite`, which prints as the summary of an `lm` does
-#' ([summary.lm()]): the call, the number of observations, the table of tests,
-#' the legend of the significance codes and the notes.
+#' of observations, on one line when it fits the console, then one row per
+#' test with its statistic, degrees of freedom, p-value and significance codes,
+#' and a note for each test that did not run as asked. `summary()` returns an
+#' object of class `summary.hetero_test_suite`, which prints as the summary of
+#' an `lm` does ([summary.lm()]): the call, the number of observations, the
+#' table of tests, the legend of the significance codes and the notes; and
+#' `coef()` of it returns the table, as `coef(summary(fit))` does for an `lm`.
 #'
 #' The [`hetero_grouped_suite`] of a grouped run has the same methods, with
 #' one table for all the groups, a row for each test in each group.
@@ -17,27 +18,44 @@
 #' `summary.lm()`: `digits` sets the significant digits, the p-values are
 #' formatted by [format.pval()], and the significance codes and their legend
 #' are shown when `signif.stars` is `TRUE` (by default
-#' `getOption("show.signif.stars")`) and a p-value is below 0.1.
+#' `getOption("show.signif.stars")`) and a p-value is below 0.1. The print
+#' methods pass `printCoefmat()` `cs.ind = integer()`, `tst.ind = 1`,
+#' `zap.ind = integer()`, `P.values = TRUE`, `has.Pvalue = TRUE` and
+#' `na.print = "NA"`; an argument of the same name given in `...` replaces
+#' the value passed, so that `print(s, na.print = "-")` prints a failed test
+#' with dashes and `print(s, P.values = FALSE)` leaves the p-values out.
 #'
 #' The rows are named as the suite is, by the names asked for in `tests`. The
 #' `df` column holds the degrees of freedom of the statistic: the parameter of
-#' the test named `df` or `df1`, or the first one when they have no names. The
-#' second degrees of freedom of an F statistic, `df2`, are a column of their
-#' own when a test has them. A parameter of another name, such as the number
-#' of replicates `B` of a resampling test or the number of observations `n` of
-#' Szroeter's test, is not a degree of freedom, and the notes give it.
+#' the test named `df`, `df1` or `num df` (as [var.test()] and [anova()] name
+#' it), or the first one when they have no names. The second degrees of
+#' freedom of an F statistic, named `df2` or `denom df`, are a column of their
+#' own, `df2`, when a test has them. A parameter of another name, such as the
+#' number of replicates `B` of a resampling test or the number of
+#' observations `n` of Szroeter's test, is not a degree of freedom, and the
+#' notes give it.
 #'
-#' The notes say which test did not run as asked: one that failed and whose
-#' fallback ran under its name, saying which test ran; one that failed or was
-#' refused, with the kind of failure (`attr(, "extras")$issue`) and its
-#' message; one computed by a streaming implementation; and a result that is
-#' not a test, as a diagnostic added with [registerDiagnostic()] may return.
-#' `print()` gives each note on one line, cut to the width of the console;
-#' `summary()` gives it whole. Without groups, [runHeteroTests()] stops when a
-#' test fails and no fallback runs, so a failed test is returned only by a
-#' grouped run, which records the failure and goes on. Whether a result was
-#' read from a cache is not shown: a result read from it is `identical()` to
-#' the one computed (see [cachedTest()]).
+#' The notes say which test did not run as asked: one whose fallback ran
+#' under its name, saying which test ran in its place and why; one that was
+#' refused or failed, with its message and, for a failure of a particular
+#' kind, that kind (`attr(, "extras")$issue`, such as `"rank_deficiency"`);
+#' one computed by a streaming implementation; a parameter that is not a
+#' degree of freedom; and a result that is not a test, as a diagnostic added
+#' with [registerDiagnostic()] may return. A test "refused" its input when it
+#' stopped before computing anything, with one of the refusals of the package:
+#' of the model or of `data` by the model context (the issues
+#' `"model_context"` and `"data_rows"`), of a `glm` that is not a
+#' least-squares fit or a model of another class, of a `survey::svyglm()` fit,
+#' of zero weights, of a weighted fit by a test that refits without its
+#' weights, of an aliased coefficient, or of too few observations. These are
+#' recognised by their messages, since the runner records the message and the
+#' issue and not the class of the condition; a test that stopped otherwise
+#' "failed". `print()` gives each note on one line, cut to the width of the
+#' console; `summary()` gives it whole. Without groups, [runHeteroTests()]
+#' stops when a test fails and no fallback runs, so a failed test is returned
+#' only by a grouped run, which records the failure and goes on. Whether a
+#' result was read from a cache is not shown: a result read from it is
+#' `identical()` to the one computed (see [cachedTest()]).
 #'
 #' Several tests of one model are not independent evidence: they are computed
 #' from the same residuals, most of them from regressions of their squares on
@@ -51,37 +69,51 @@
 #'
 #' @param x A `hetero_test_suite` or `hetero_grouped_suite`, as
 #'   [runHeteroTests()] returns, or its summary.
-#' @param object A `hetero_test_suite` or `hetero_grouped_suite`.
+#' @param object A `hetero_test_suite` or `hetero_grouped_suite` for
+#'   `summary()`, or its summary for `coef()`.
 #' @param digits The number of significant digits to print, as in
 #'   [print.summary.lm()].
 #' @param signif.stars Logical: show the significance codes?
-#' @param ... Passed on to [printCoefmat()] by the print methods; unused by
-#'   the summary methods.
+#' @param ... Passed on to [printCoefmat()] by the print methods, replacing
+#'   the arguments they pass (Details); unused by the summary and `coef()`
+#'   methods.
 #'
 #' @return
-#' The print methods return `x`, invisibly.
+#' The print methods return `x`, invisibly. `coef()` of a summary returns its
+#' `tests`.
 #'
 #' `summary()` of a `hetero_test_suite` returns a list of class
 #' `summary.hetero_test_suite` with:
 #' \describe{
 #'   \item{`call`}{The call of the model, as [summary.lm()] keeps it, or
-#'     `NULL` when the model was fitted by [runHeteroTests()] itself, from a
-#'     formula, or its call is not recorded.}
+#'     `NULL` when its call is not recorded or is one [runHeteroTests()]
+#'     made itself, which names the runner's variables rather than yours: the
+#'     fit of a formula, its refit within a group, the refit of a fitted
+#'     model within a group, and the fit to the data of a survey design. The
+#'     runner puts no mark on a model it fits, since that would change what it
+#'     returns, so these are recognised by the exact form of their calls,
+#'     `stats::lm(formula = model, data = prep$data)`,
+#'     `stats::lm(formula = model, data = df)`,
+#'     `stats::lm(formula = formula, data = data)`, and any call with
+#'     `data = .ht_refit_data`. A model of yours with such a call is shown by
+#'     its formula too; one fitted with `lm(formula, data)` is shown by its
+#'     call.}
 #'   \item{`formula`}{The formula of the model, or `NULL`.}
 #'   \item{`model_class`}{The class of the model, such as `"lm"`.}
 #'   \item{`nobs`}{The number of observations, [stats::nobs()] of the model.}
 #'   \item{`na.action`}{The `na.action` of the model, as [summary.lm()] keeps
 #'     it: the observations dropped for missing values, or `NULL`.}
 #'   \item{`weights`}{How the model is weighted, as text: the `weights`
-#'     argument of its call, or the variance function of a [fitWLS()] fit;
+#'     argument of its call (`"1/hp"`); the variance function of a [fitWLS()]
+#'     fit; or, for prior weights its call does not record, their range;
 #'     `NULL` for an unweighted model.}
 #'   \item{`offset`}{The offset of the model, as text, or `NULL`.}
 #'   \item{`family`}{The family and link of a `glm`, as text, or `NULL`.}
 #'   \item{`tests`}{A numeric matrix with one row per test, named as the
 #'     suite is, and the columns `Statistic`, `df`, `df2` (only when a test has
 #'     second degrees of freedom) and `p-value`, as `coef(summary(fit))` holds
-#'     those of the coefficients of an `lm`. A failed test has `NA` in every
-#'     column.}
+#'     those of the coefficients of an `lm`; `coef(summary(s))` returns it. A
+#'     failed test has `NA` in every column.}
 #'   \item{`method`}{A character vector, named as the suite is: the `method`
 #'     of each result, the name of the test that ran.}
 #'   \item{`diagnostic`}{A character vector: the registry name of the test
@@ -106,7 +138,7 @@
 #'   \item{`tests`}{A data frame with one row per test in each group: the
 #'     grouping keys, `test` (the name asked for), `Statistic`, `df`, `df2`
 #'     (only when a test has second degrees of freedom), `p-value` and
-#'     `status`, as above.}
+#'     `status`, as above; `coef(summary(g))` returns it.}
 #'   \item{`groups`}{A list with the `summary.hetero_test_suite` of each
 #'     group.}
 #'   \item{`notes`}{A character vector of the notes of every group, each
@@ -127,7 +159,7 @@
 #' s <- runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 #' s
 #' summary(s)
-#' summary(s)$tests
+#' coef(summary(s))
 #' print(summary(s), signif.stars = FALSE)
 #'
 #' # White's test needs 20 observations: the runner falls back on the
@@ -149,7 +181,7 @@ NULL
 print.hetero_test_suite <- function(x, digits = max(3L, getOption("digits") - 3L),
                                     signif.stars = getOption("show.signif.stars"), ...) {
   s <- summary.hetero_test_suite(x)
-  cat(rsuite_heading(s), "\n", sep = "")
+  rsuite_cat_heading(rsuite_heading(s))
   if (nrow(s$tests) == 0L) {
     cat("\nNo tests.\n")
   } else {
@@ -204,7 +236,7 @@ print.summary.hetero_test_suite <- function(x, digits = max(3L, getOption("digit
 print.hetero_grouped_suite <- function(x, digits = max(3L, getOption("digits") - 3L),
                                        signif.stars = getOption("show.signif.stars"), ...) {
   s <- summary.hetero_grouped_suite(x)
-  cat(rsuite_grouped_heading(s), "\n", sep = "")
+  rsuite_cat_heading(rsuite_grouped_heading(s))
   table <- rsuite_grouped_matrix(s)
   if (nrow(table) == 0L) {
     cat("\nNo tests.\n")
@@ -256,7 +288,7 @@ summary.hetero_grouped_suite <- function(object, ...) {
   prefix <- function(field) {
     unlist(lapply(seq_along(groups), function(i) {
       notes <- if (identical(field, "notes")) groups[[i]]$notes else attr(groups[[i]], field)
-      if (length(notes) == 0L) character() else paste0(labels[[i]], " ", notes)
+      if (length(notes) == 0L) character() else paste0(labels[[i]], ": ", notes)
     }), use.names = FALSE) %||% character()
   }
   out <- list(
@@ -306,6 +338,18 @@ print.summary.hetero_grouped_suite <- function(x, digits = max(3L, getOption("di
   invisible(x)
 }
 
+#' @rdname summary.hetero_test_suite
+#' @export
+coef.summary.hetero_test_suite <- function(object, ...) {
+  object$tests
+}
+
+#' @rdname summary.hetero_test_suite
+#' @export
+coef.summary.hetero_grouped_suite <- function(object, ...) {
+  object$tests
+}
+
 # The pieces --------------------------------------------------------------------
 
 rsuite_independence <- paste(
@@ -334,22 +378,30 @@ rsuite_model <- function(x) {
 }
 
 # The call of the model, as summary.lm() prints it, or NULL when it is a call
-# runHeteroTests() made: the fit of a formula (`stats::lm(formula = model,
-# data = prep$data)`), its refit within a group (`data = df`), the refit of a
-# fitted model within a group (`data = .ht_refit_data`), or the fit to the data
-# of a survey design (`stats::lm(formula = formula, data = data)`). Their
-# arguments name variables of the package, not of the caller.
+# runHeteroTests() made itself, whose arguments name variables of the package
+# rather than of the caller. The runner puts no mark on a model it fits: a
+# mark would change what it returns, which must stay identical() to what it
+# returned before. The calls it makes are recognised by their exact form
+# instead: those of `rsuite_runner_calls`, which fit a formula
+# (.ht_prepare_model()), refit it within a group, and fit the data of a survey
+# design (.ht_survey_ols()); and any call with `data = .ht_refit_data`, the
+# refit of a fitted model within a group (.ht_refit_model()). A model of the
+# caller's whose call has one of these forms, such as
+# `stats::lm(formula = model, data = df)`, is shown by its formula too; one
+# fitted by `lm(formula, data)` is shown by its call.
+rsuite_runner_calls <- list(
+  quote(stats::lm(formula = model, data = prep$data)),
+  quote(stats::lm(formula = model, data = df)),
+  quote(stats::lm(formula = formula, data = data))
+)
+
 rsuite_call <- function(model) {
   call <- tryCatch(stats::getCall(model), error = function(e) NULL)
   if (!is.call(call)) {
     return(NULL)
   }
-  data_arg <- call$data
-  formula_arg <- call$formula
-  named <- function(arg, names) is.symbol(arg) && as.character(arg) %in% names
-  made_here <- identical(data_arg, quote(prep$data)) ||
-    identical(data_arg, quote(.ht_refit_data)) ||
-    (named(formula_arg, c("model", "formula")) && named(data_arg, c("df", "data")))
+  made_here <- identical(call$data, quote(.ht_refit_data)) ||
+    any(vapply(rsuite_runner_calls, identical, logical(1), y = call))
   if (made_here) NULL else call
 }
 
@@ -368,7 +420,13 @@ rsuite_weights <- function(model) {
   if (!is.null(given)) {
     return(deparse1(given))
   }
-  if (all(w == 1, na.rm = TRUE)) NULL else "given"
+  if (all(w == 1, na.rm = TRUE)) {
+    return(NULL)
+  }
+  # Weights the call does not record, as those of a fit made by lm.wfit():
+  # their range.
+  values <- vapply(signif(range(w, na.rm = TRUE), 3L), format, character(1))
+  sprintf("prior weights not in the call, from %s to %s", values[[1L]], values[[2L]])
 }
 
 rsuite_offset <- function(model) {
@@ -417,6 +475,13 @@ rsuite_model_info <- function(model, results) {
   )
 }
 
+rsuite_and <- function(x) {
+  if (length(x) <= 1L) {
+    return(paste(x, collapse = ""))
+  }
+  paste(paste(x[-length(x)], collapse = ", "), "and", x[[length(x)]])
+}
+
 rsuite_field <- function(r, name) {
   if (is.list(r)) r[[name]] else NULL
 }
@@ -437,10 +502,12 @@ rsuite_parameters <- function(parameter) {
   for (k in seq_along(parameter)) {
     value <- as.double(unname(parameter[[k]]))
     label <- labels[[k]]
-    # Unnamed parameters are read as the degrees of freedom, in order.
-    slot <- if (label %in% c("df", "df1") || (label == "" && k == 1L)) {
+    # The names of this package, and R's own for an F statistic ("num df" and
+    # "denom df" of var.test(), oneway.test() and anova()). Unnamed parameters
+    # are read as the degrees of freedom, in order.
+    slot <- if (label %in% c("df", "df1", "num df") || (label == "" && k == 1L)) {
       1L
-    } else if (label %in% c("df2", "")) {
+    } else if (label %in% c("df2", "denom df", "")) {
       2L
     } else {
       0L
@@ -473,11 +540,40 @@ rsuite_message <- function(message) {
   gsub("\\s+", " ", trimws(message))
 }
 
+# A test refuses an input before it computes anything, with the message of
+# one of the refusals of the package. The runner records a test that stopped
+# by its message and the kind of issue ht_analyse_failure() read in it: a
+# refusal of the model context (R/model_context.R) is of the issue
+# "model_context", one of `data` that cannot be matched to the fit
+# "data_rows", and the others, whose conditions have no class of their own
+# (that of rrefuse_non_gaussian_glm() is a simpleError), are of the issue
+# "diagnostic_failure", as a failure of the computation is. They are told
+# apart by these words of their messages: a glm that is not a least-squares
+# fit and a model of another class (rrefuse_glm(), rrefuse_model_class()), a
+# survey::svyglm() fit, zero weights, a weighted fit that a test refits
+# without its weights, an aliased coefficient a test cannot drop, and too few
+# observations (rvalidateModelInputs()).
+rsuite_refusals <- c(
+  "needs a model fitted by stats::lm()",
+  "Provide an object fitted with stats::lm() or stats::glm()",
+  "The model is a survey::svyglm() fit",
+  "fitted with zero or non-finite weights",
+  "does not support weighted fits",
+  "aliased (NA)",
+  "observations detected but"
+)
+
+rsuite_refused <- function(issue, message) {
+  issue %in% c("model_context", "data_rows") ||
+    any(vapply(rsuite_refusals, grepl, logical(1), x = message, fixed = TRUE))
+}
+
 # The notes of one result, as summary() prints them (`long`) and as print()
-# does (`short`).
+# does (`short`). Each starts with the name of the test, so that a grouped
+# run can put the label of its group in front.
 rsuite_note <- function(name, r) {
   if (!inherits(r, "htest")) {
-    text <- sprintf("%s: returned an object of class \"%s\", not a test result.",
+    text <- sprintf("%s returned an object of class \"%s\", not a test result.",
                     name, class(r)[1L])
     return(list(long = text, short = text))
   }
@@ -492,19 +588,23 @@ rsuite_note <- function(name, r) {
       r$method %||% "another test"
     }
     why <- rsuite_message(extras$original_error %||% extras$user_message)
+    refused <- rsuite_refused(extras$issue %||% "", why)
+    verb <- if (refused) "refused" else "failed"
     return(list(
-      long = sprintf("%s: failed, and \"%s\" ran in its place (%s). It failed with: %s",
-                     name, code, ran, why),
-      short = sprintf("%s: failed; \"%s\" ran in its place: %s", name, code, why)
+      long = sprintf("%s %s, and \"%s\" ran in its place (%s). The %s: %s",
+                     name, verb, code, ran, if (refused) "refusal" else "failure", why),
+      short = sprintf("%s %s; \"%s\" ran in its place: %s", name, verb, code, why)
     ))
   }
   if (identical(status, "error")) {
     issue <- extras$issue %||% "diagnostic_failure"
-    verb <- if (issue %in% c("model_context", "data_rows")) "refused" else "failed"
     why <- rsuite_message(extras$message)
+    verb <- if (rsuite_refused(issue, why)) "refused" else "failed"
+    # The kind of issue, unless it is the generic one.
+    kind <- if (identical(issue, "diagnostic_failure")) "" else sprintf(" (%s)", issue)
     return(list(
-      long = sprintf("%s: %s (%s): %s", name, verb, issue, why),
-      short = sprintf("%s: %s: %s", name, verb, why)
+      long = sprintf("%s %s%s: %s", name, verb, kind, why),
+      short = sprintf("%s %s: %s", name, verb, why)
     ))
   }
   NULL
@@ -557,21 +657,20 @@ rsuite_rows <- function(x) {
   streamed <- tests[vapply(results, function(r) {
     isTRUE((attr(r, "extras", exact = TRUE) %||% list())$streaming)
   }, logical(1))]
-  if (length(streamed) > 0L) {
-    text <- sprintf("%s: computed in chunks, by the streaming implementation.",
-                    paste(streamed, collapse = ", "))
+  for (name in streamed) {
+    text <- sprintf("%s was computed in chunks, by its streaming implementation.", name)
     long <- c(long, text)
     short <- c(short, text)
   }
-  others <- unlist(lapply(seq_len(n), function(i) {
-    if (length(parameters[[i]]$other) == 0L) {
-      return(NULL)
+  for (i in seq_len(n)) {
+    other <- parameters[[i]]$other
+    if (length(other) == 0L) {
+      next
     }
-    paste(tests[[i]], paste(parameters[[i]]$other, collapse = ", "))
-  }))
-  if (length(others) > 0L) {
-    text <- sprintf("Parameters that are not degrees of freedom: %s.",
-                    paste(others, collapse = "; "))
+    text <- sprintf(
+      "%s's %s %s.", tests[[i]], rsuite_and(other),
+      if (length(other) == 1L) "is not a degree of freedom" else "are not degrees of freedom"
+    )
     long <- c(long, text)
     short <- c(short, text)
   }
@@ -620,14 +719,26 @@ rsuite_cat_model <- function(x) {
 
 # The table, printed as summary.lm() prints its coefficients: the statistic
 # formatted as a test statistic, the degrees of freedom as they are, and the
-# p-values by format.pval(), with the significance codes.
+# p-values by format.pval(), with the significance codes. An argument of
+# printCoefmat() given in `...` replaces the value passed here, so that
+# print(s, na.print = "-") or print(s, P.values = FALSE) does what it says.
 rsuite_print_table <- function(table, digits, signif.stars, ...) {
-  stats::printCoefmat(
-    table,
-    digits = digits, signif.stars = signif.stars,
+  args <- list(
+    x = table, digits = digits, signif.stars = signif.stars,
     cs.ind = integer(), tst.ind = 1L, zap.ind = integer(),
-    P.values = TRUE, has.Pvalue = TRUE, na.print = "NA", ...
+    P.values = TRUE, has.Pvalue = TRUE, na.print = "NA"
   )
+  given <- list(...)
+  named <- names(given) %||% rep("", length(given))
+  args[named[nzchar(named)]] <- given[nzchar(named)]
+  do.call(stats::printCoefmat, c(args, given[!nzchar(named)]))
+}
+
+# A heading on one line when it fits the console, and wrapped otherwise.
+rsuite_cat_heading <- function(text) {
+  width <- max(20L, as.integer(getOption("width", 80L)))
+  lines <- if (nchar(text) <= width) text else strwrap(text, width = width, exdent = 4L)
+  cat(paste(lines, collapse = "\n"), "\n", sep = "")
 }
 
 rsuite_cut <- function(text, width) {

@@ -44,7 +44,7 @@
       koenker     1.413  1   0.235
       
       Notes:
-        white: failed; "breusch_pagan" ran in its place: Only 18 observations det...
+        white refused; "breusch_pagan" ran in its place: Only 18 observations det...
     Code
       summary(s)
     Output
@@ -60,10 +60,9 @@
       koenker     1.413  1   0.235
       
       Notes:
-        white: failed, and "breusch_pagan" ran in its place (Breusch-Pagan test for
-          heteroscedasticity). It failed with: Only 18 observations detected but
-          White requires at least 20. Provide more data or choose a different
-          diagnostic.
+        white refused, and "breusch_pagan" ran in its place (Breusch-Pagan test for
+          heteroscedasticity). The refusal: Only 18 observations detected but White
+          requires at least 20. Provide more data or choose a different diagnostic.
       
       Several tests of one model are not independent evidence: they are computed
       from the same residuals.
@@ -74,15 +73,16 @@
     Code
       s
     Output
-      Heteroscedasticity tests of glm(formula = am ~ wt, family = binomial, data = mtcars), n = 32
+      Heteroscedasticity tests of glm(formula = am ~ wt, family = binomial, data =
+          mtcars), n = 32
       
               Statistic df p-value
       white          NA NA      NA
       koenker        NA NA      NA
       
       Notes:
-        white: failed: performWhiteTest() needs a model fitted by stats::lm(): a ...
-        koenker: failed: performKoenkerTest() needs a model fitted by stats::lm()...
+        white refused: performWhiteTest() needs a model fitted by stats::lm(): a ...
+        koenker refused: performKoenkerTest() needs a model fitted by stats::lm()...
     Code
       summary(s)
     Output
@@ -99,14 +99,12 @@
       koenker        NA NA      NA
       
       Notes:
-        white: failed (diagnostic_failure): performWhiteTest() needs a model fitted
-          by stats::lm(): a glm with the binomial family and the logit link is not
-          a least-squares fit. A glm with the gaussian family and the identity link
-          is accepted.
-        koenker: failed (diagnostic_failure): performKoenkerTest() needs a model
-          fitted by stats::lm(): a glm with the binomial family and the logit link
-          is not a least-squares fit. A glm with the gaussian family and the
-          identity link is accepted.
+        white refused: performWhiteTest() needs a model fitted by stats::lm(): a
+          glm with the binomial family and the logit link is not a least-squares
+          fit. A glm with the gaussian family and the identity link is accepted.
+        koenker refused: performKoenkerTest() needs a model fitted by stats::lm():
+          a glm with the binomial family and the logit link is not a least-squares
+          fit. A glm with the gaussian family and the identity link is accepted.
       
 
 # the significance codes follow show.signif.stars, and digits is respected
@@ -182,7 +180,7 @@
       Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
       
       Notes:
-        Parameters that are not degrees of freedom: szroeter n = 32.
+        szroeter's n = 32 is not a degree of freedom.
 
 # an empty suite and an all-failed suite print
 
@@ -219,10 +217,9 @@
       white        NA NA      NA
       
       Notes:
-        white: failed (diagnostic_failure): performWhiteTest() needs a model fitted
-          by stats::lm(): a glm with the binomial family and the logit link is not
-          a least-squares fit. A glm with the gaussian family and the identity link
-          is accepted.
+        white refused: performWhiteTest() needs a model fitted by stats::lm(): a
+          glm with the binomial family and the logit link is not a least-squares
+          fit. A glm with the gaussian family and the identity link is accepted.
       
 
 # a grouped suite prints one table, with the status of each group
@@ -241,12 +238,12 @@
       cyl=8: koenker     0.243  1   0.622
       
       Notes:
-        cyl=4 white: failed; "ncv" ran in its place: Only 11 observations detecte...
-        cyl=4 koenker: failed; "ncv" ran in its place: Only 11 observations detec...
-        cyl=6 white: failed: Only 7 observations detected but White requires at l...
-        cyl=6 koenker: failed: Only 7 observations detected but Koenker requires ...
-        cyl=8 white: failed; "ncv" ran in its place: Only 14 observations detecte...
-        cyl=8 koenker: failed; "ncv" ran in its place: Only 14 observations detec...
+        cyl=4: white refused; "ncv" ran in its place: Only 11 observations detect...
+        cyl=4: koenker refused; "ncv" ran in its place: Only 11 observations dete...
+        cyl=6: white refused: Only 7 observations detected but White requires at ...
+        cyl=6: koenker refused: Only 7 observations detected but Koenker requires...
+        cyl=8: white refused; "ncv" ran in its place: Only 14 observations detect...
+        cyl=8: koenker refused; "ncv" ran in its place: Only 14 observations dete...
     Code
       summary(g)
     Output
@@ -269,30 +266,52 @@
       cyl=8: koenker     0.243  1   0.622
       
       Notes:
-        cyl=4 white: failed, and "ncv" ran in its place (Cook-Weisberg score test
-          for non-constant variance). It failed with: Only 11 observations detected
+        cyl=4: white refused, and "ncv" ran in its place (Cook-Weisberg score test
+          for non-constant variance). The refusal: Only 11 observations detected
           but White requires at least 20. Provide more data or choose a different
           diagnostic.
-        cyl=4 koenker: failed, and "ncv" ran in its place (Cook-Weisberg score test
-          for non-constant variance). It failed with: Only 11 observations detected
-          but Koenker requires at least 15. Provide more data or choose a different
-          diagnostic.
-        cyl=6 white: failed (diagnostic_failure): Only 7 observations detected but
-          White requires at least 20. Provide more data or choose a different
-          diagnostic.
-        cyl=6 koenker: failed (diagnostic_failure): Only 7 observations detected
-          but Koenker requires at least 15. Provide more data or choose a different
-          diagnostic.
-        cyl=8 white: failed, and "ncv" ran in its place (Cook-Weisberg score test
-          for non-constant variance). It failed with: Only 14 observations detected
+        cyl=4: koenker refused, and "ncv" ran in its place (Cook-Weisberg score
+          test for non-constant variance). The refusal: Only 11 observations
+          detected but Koenker requires at least 15. Provide more data or choose a
+          different diagnostic.
+        cyl=6: white refused: Only 7 observations detected but White requires at
+          least 20. Provide more data or choose a different diagnostic.
+        cyl=6: koenker refused: Only 7 observations detected but Koenker requires
+          at least 15. Provide more data or choose a different diagnostic.
+        cyl=8: white refused, and "ncv" ran in its place (Cook-Weisberg score test
+          for non-constant variance). The refusal: Only 14 observations detected
           but White requires at least 20. Provide more data or choose a different
           diagnostic.
-        cyl=8 koenker: failed, and "ncv" ran in its place (Cook-Weisberg score test
-          for non-constant variance). It failed with: Only 14 observations detected
-          but Koenker requires at least 15. Provide more data or choose a different
-          diagnostic.
+        cyl=8: koenker refused, and "ncv" ran in its place (Cook-Weisberg score
+          test for non-constant variance). The refusal: Only 14 observations
+          detected but Koenker requires at least 15. Provide more data or choose a
+          different diagnostic.
       
       Several tests of one model are not independent evidence: they are computed
       from the same residuals.
       
+
+# arguments given to print() replace those passed to printCoefmat()
+
+    Code
+      print(failed, na.print = "-")
+    Output
+      Heteroscedasticity tests of glm(formula = am ~ wt, family = binomial, data =
+          mtcars), n = 32
+      
+              Statistic df p-value
+      white           -  -       -
+      koenker         -  -       -
+      
+      Notes:
+        white refused: performWhiteTest() needs a model fitted by stats::lm(): a ...
+        koenker refused: performKoenkerTest() needs a model fitted by stats::lm()...
+    Code
+      print(s, P.values = FALSE)
+    Output
+      Heteroscedasticity tests of lm(formula = mpg ~ wt + qsec, data = mtcars), n = 32
+      
+              Statistic df
+      white      11.822  5
+      koenker     3.086  2
 
