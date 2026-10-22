@@ -111,6 +111,9 @@ white_df_designs <- function() {
   d$h <- factor(rep(c("p", "q", "r"), each = n / 3))
   d$sub <- factor(rep(1:2, each = 4, length.out = n))
   d$v <- 1 / d$x1
+  # Ordered factors, whose default contrasts are contr.poly.
+  d$o4 <- factor(d$group, ordered = TRUE)
+  d$o3 <- factor(d$h, ordered = TRUE)
   # No observation in the cell of the baseline levels, (even, p), or in (odd, r).
   empty <- d[!(d$half == "even" & d$h == "p"), ]
   other_empty <- d[!(d$half == "odd" & d$h == "r"), ]
@@ -134,6 +137,8 @@ white_df_designs <- function() {
     plus_minus_one = list(m = lm(y ~ x1 + s, data = d), d = d, spans = c(TRUE, TRUE)),
     sum4_weighted = list(m = lm(y ~ x1 + group, data = d, weights = v, contrasts = sum_group),
                          d = d, spans = c(TRUE, TRUE)),
+    ordered4 = list(m = lm(y ~ x1 + o4, data = d), d = d, spans = c(TRUE, TRUE)),
+    ordered3_alone = list(m = lm(y ~ o3, data = d), d = d, spans = c(TRUE, TRUE)),
     continuous = list(m = lm(y ~ x1 + x2, data = d), d = d, spans = c(FALSE, FALSE)),
     treatment = list(m = lm(y ~ x1 + group, data = d), d = d, spans = c(FALSE, FALSE)),
     other_empty_cell = list(m = lm(y ~ x1 + half * h, data = other_empty), d = other_empty,
@@ -149,11 +154,16 @@ white_df_designs <- function() {
 
 # The auxiliary design built from the fit, without the package: the columns the
 # fit estimated, without the intercept, their squares and, with
-# `cross_products` and at most `max_interactions` columns, their products.
-white_df_aux <- function(model, cross_products = TRUE, max_interactions = 10) {
+# `cross_products` and at most `max_interactions` columns, their products;
+# with `centre`, built from the centred columns, which span the same space
+# with the intercept and whose rank does not depend on where they are located.
+white_df_aux <- function(model, cross_products = TRUE, max_interactions = 10, centre = FALSE) {
   X <- stats::model.matrix(model)
   X <- X[, !is.na(stats::coef(model)), drop = FALSE]
   X <- X[, colnames(X) != "(Intercept)", drop = FALSE]
+  if (centre) {
+    X <- scale(X, scale = FALSE)
+  }
   p <- ncol(X)
   Z <- cbind(X, X^2)
   if (cross_products && p > 1 && p <= max_interactions) {
@@ -173,11 +183,14 @@ white_df_residuals <- function(model) {
   if (is.null(w)) e else sqrt(w) * e
 }
 
-# White's test written out: lm(e^2 ~ Z), n R^2, the rank of lm() minus one.
+# White's test written out: lm(e^2 ~ Z_c) on the design of the centred
+# columns, n R^2, the rank of lm() minus one; with the ranks of the design of
+# the columns as they are, Z, and of [1, Z].
 white_df_by_hand <- function(model, cross_products = TRUE, max_interactions = 10) {
   Z <- white_df_aux(model, cross_products, max_interactions)
+  Zc <- white_df_aux(model, cross_products, max_interactions, centre = TRUE)
   e2 <- white_df_residuals(model)^2
-  aux <- stats::lm(e2 ~ Z)
+  aux <- stats::lm(e2 ~ Zc)
   statistic <- length(e2) * summary(aux)$r.squared
   df <- aux$rank - 1L
   list(statistic = statistic, df = df,
@@ -185,14 +198,14 @@ white_df_by_hand <- function(model, cross_products = TRUE, max_interactions = 10
        rank_z = qr(Z)$rank, rank_1z = qr(cbind(1, Z))$rank)
 }
 
-# lmtest::bptest() with the same squares and cross-products as `varformula`:
-# its studentized statistic is n R^2 of the regression of e^2 on them, with an
-# intercept, on the rank of that regression minus one. A weighted fit is given
-# as the unweighted regression of sqrt(w) y on sqrt(w) X, whose residuals are
-# the Pearson residuals White's test reads; bptest() of the weighted fit itself
-# would test its raw residuals.
-white_df_bptest <- function(model, cross_products = TRUE, max_interactions = 10) {
-  Z <- as.data.frame(white_df_aux(model, cross_products, max_interactions))
+# lmtest::bptest() with the same squares and cross-products as `varformula`
+# (of the centred columns with `centre`): its studentized statistic is n R^2 of
+# the regression of e^2 on them, with an intercept, on the rank of that
+# regression minus one. A weighted fit is given as the unweighted regression of
+# sqrt(w) y on sqrt(w) X, whose residuals are the Pearson residuals White's
+# test reads; bptest() of the weighted fit itself would test its raw residuals.
+white_df_bptest <- function(model, cross_products = TRUE, max_interactions = 10, centre = FALSE) {
+  Z <- as.data.frame(white_df_aux(model, cross_products, max_interactions, centre))
   varformula <- stats::reformulate(names(Z))
   w <- stats::weights(model)
   if (is.null(w)) {
@@ -256,16 +269,20 @@ test_that("White's p-values change where the auxiliary columns span the constant
   # model without an intercept, and its 8 degrees of freedom.
   pins <- data.frame(
     design = c("sum2", "sum4", "helmert4", "no_intercept", "nested_helmert", "empty_cell",
-               "poly", "sum4_weighted", "sum4", "treatment", "continuous", "empty_cell"),
-    cross_products = c(rep(TRUE, 8), FALSE, TRUE, TRUE, FALSE),
+               "poly", "sum4_weighted", "sum4", "treatment", "continuous", "empty_cell",
+               "ordered4", "ordered3_alone"),
+    cross_products = c(rep(TRUE, 8), FALSE, TRUE, TRUE, FALSE, TRUE, TRUE),
     statistic = c(6.190502, 17.830176, 17.830176, 17.830176, 19.407384, 17.682087,
-                  11.950445, 16.280548, 13.788111, 17.830176, 11.144838, 12.248134),
-    df_before = c(5L, 9L, 9L, 9L, 17L, 11L, 9L, 9L, 6L, 8L, 5L, 6L),
+                  11.950445, 16.280548, 13.788111, 17.830176, 11.144838, 12.248134,
+                  17.830176, 1.695572),
+    df_before = c(5L, 9L, 9L, 9L, 17L, 11L, 9L, 9L, 6L, 8L, 5L, 6L, 9L, 3L),
     p_before = c(0.28812116, 0.03719571, 0.03719571, 0.03719571, 0.30565583, 0.08925654,
-                 0.21611740, 0.06124917, 0.03209475, 0.02253635, 0.04858271, 0.05665671),
-    df = c(4L, 8L, 8L, 8L, 16L, 10L, 8L, 8L, 5L, 8L, 5L, 6L),
+                 0.21611740, 0.06124917, 0.03209475, 0.02253635, 0.04858271, 0.05665671,
+                 0.03719571, 0.63791878),
+    df = c(4L, 8L, 8L, 8L, 16L, 10L, 8L, 8L, 5L, 8L, 5L, 6L, 8L, 2L),
     p = c(0.18536600, 0.02253635, 0.02253635, 0.02253635, 0.24810447, 0.06056910,
-          0.15342862, 0.03853617, 0.01701289, 0.02253635, 0.04858271, 0.05665671),
+          0.15342862, 0.03853617, 0.01701289, 0.02253635, 0.04858271, 0.05665671,
+          0.02253635, 0.42836237),
     stringsAsFactors = FALSE
   )
   for (i in seq_len(nrow(pins))) {
@@ -361,6 +378,253 @@ test_that("the log names the auxiliary terms White's test drops and its degrees 
     "dropped 1 auxiliary term(s) collinear with the intercept and the other terms; using df = 4.",
     fixed = TRUE
   ))
+})
+
+test_that("White's test does not depend on where the regressors are located", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- contract_data()$d
+  base <- performWhiteTest(lm(y ~ x1 + x2, data = d), d)
+  for (shift in c(1e2, 1e4, 1e6)) {
+    moved <- d
+    moved$x1 <- d$x1 + shift
+    m <- lm(y ~ x1 + x2, data = moved)
+    info <- paste("x1 +", shift)
+    for (cross_products in c(TRUE, FALSE)) {
+      ours <- performWhiteTest(m, moved, cross_products = cross_products)
+      ref <- white_df_by_hand(m, cross_products)
+      expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10, info = info)
+      expect_identical(unname(ours$parameter[["df"]]), ref$df, info = info)
+      expect_equal(ours$p.value, ref$p.value, tolerance = 1e-10, info = info)
+    }
+    ours <- performWhiteTest(m, moved)
+    expect_equal(unname(ours$statistic), unname(base$statistic), tolerance = 1e-8, info = info)
+    expect_identical(ours$parameter, base$parameter, info = info)
+    expect_equal(ours$p.value, base$p.value, tolerance = 1e-8, info = info)
+    # The routes.
+    expect_identical(performWhiteTestRobust(m, moved)$parameter, base$parameter, info = info)
+    suite <- runHeteroTests(m, moved, tests = "white", use_cache = FALSE, progress = FALSE)
+    expect_equal(unname(suite$white$statistic), unname(base$statistic), tolerance = 1e-8,
+                 info = info)
+  }
+  # Before, the rank of [1, Z] took the square of x1 + 1e4 for a combination of
+  # the intercept and x1: 10.341282 on 4 degrees of freedom, against 11.144838
+  # on 5 for the same model at zero.
+  moved <- d
+  moved$x1 <- d$x1 + 1e4
+  ours <- performWhiteTest(lm(y ~ x1 + x2, data = moved), moved)
+  expect_equal(unname(ours$statistic), 11.144838, tolerance = 1e-6)
+  expect_identical(unname(ours$parameter[["df"]]), 5L)
+  expect_equal(unname(base$statistic), 11.144838, tolerance = 1e-6)
+  # A date written as YYYYMMDD.
+  set.seed(8)
+  dates <- data.frame(ymd = 20240101 + sample(0:27, 150, TRUE), z = rnorm(150))
+  dates$y <- dates$z + rnorm(150, sd = exp(dates$z / 2))
+  from_zero <- dates
+  from_zero$ymd <- dates$ymd - 20240101
+  on_dates <- performWhiteTest(lm(y ~ ymd + z, data = dates), dates)
+  on_days <- performWhiteTest(lm(y ~ ymd + z, data = from_zero), from_zero)
+  expect_identical(unname(on_dates$parameter[["df"]]), 5L)
+  expect_equal(unname(on_dates$statistic), unname(on_days$statistic), tolerance = 1e-8)
+})
+
+test_that("White's located test is lmtest::bptest() on the centred terms", {
+  skip_if_not_installed("lmtest")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- contract_data()$d
+  for (shift in c(1e4, 1e6)) {
+    moved <- d
+    moved$x1 <- d$x1 + shift
+    m <- lm(y ~ x1 + x2, data = moved)
+    for (cross_products in c(TRUE, FALSE)) {
+      info <- paste("x1 +", shift, if (cross_products) "with" else "without", "cross products")
+      ours <- performWhiteTest(m, moved, cross_products = cross_products)
+      bp <- white_df_bptest(m, cross_products, centre = TRUE)
+      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = 1e-10, info = info)
+      expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
+      expect_equal(ours$p.value, unname(bp$p.value), tolerance = 1e-10, info = info)
+    }
+  }
+})
+
+test_that("White's test refuses an auxiliary regression with as many terms as observations", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Six regressors, 27 squares and products, 28 terms with the intercept, for
+  # 22 observations: R^2 was 1 and the statistic 22, whatever the data.
+  set.seed(22)
+  small <- data.frame(matrix(rnorm(22 * 6), 22, 6))
+  names(small) <- paste0("v", 1:6)
+  small$y <- rnorm(22, sd = exp(small$v1 / 2))
+  m <- lm(y ~ v1 + v2 + v3 + v4 + v5 + v6, data = small)
+  refusal <- "There are too few observations for White's test with these regressors"
+  expect_error(performWhiteTest(m, small), refusal, fixed = TRUE)
+  expect_error(performWhiteTest(m, small), "has 22 independent terms with its intercept for 22",
+               fixed = TRUE)
+  expect_error(performWhiteTestRobust(m, small), refusal, fixed = TRUE)
+  expect_error(heteroTests:::rwhite_test_rebuilt_design(m, small), refusal, fixed = TRUE)
+  expect_error(get("white", envir = heteroTests:::.diagnostic_registry)(m, small), refusal,
+               fixed = TRUE)
+  expect_error(suppressWarnings(performWhiteTestStreaming(m, small, progress = FALSE)), refusal,
+               fixed = TRUE)
+  # Without the products, 13 terms: the test gives a value.
+  reduced <- white_df_by_hand(m, cross_products = FALSE)
+  ours <- performWhiteTest(m, small, cross_products = FALSE)
+  expect_equal(unname(ours$statistic), reduced$statistic, tolerance = 1e-10)
+  expect_identical(unname(ours$parameter[["df"]]), reduced$df)
+  # The runner falls back on it, as on any refusal of White's test.
+  suite <- suppressWarnings(runHeteroTests(m, small, tests = "white", use_cache = FALSE,
+                                           progress = FALSE))
+  expect_identical(attr(suite$white, "extras")$status, "fallback")
+  expect_identical(attr(suite$white, "extras")$fallback_strategy, "white_simplified")
+  expect_equal(unname(suite$white$statistic), reduced$statistic, tolerance = 1e-10)
+  # One observation more than terms: a value.
+  set.seed(29)
+  enough <- data.frame(matrix(rnorm(29 * 6), 29, 6))
+  names(enough) <- paste0("v", 1:6)
+  enough$y <- rnorm(29)
+  m29 <- lm(y ~ v1 + v2 + v3 + v4 + v5 + v6, data = enough)
+  ours <- performWhiteTest(m29, enough)
+  expect_identical(unname(ours$parameter[["df"]]), 27L)
+  expect_lt(unname(ours$statistic), 29)
+})
+
+test_that("White's test refuses an auxiliary regression that fits the squared residuals exactly", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  refusal <- "There are too few observations for White's test with these regressors"
+  # Two observations per subject: the residuals of each pair sum to zero, the
+  # squared residuals are a combination of the subject dummies, and R^2 was 1:
+  # 60 on 30 degrees of freedom (p = 0.0009) on homoscedastic data.
+  set.seed(30)
+  d <- data.frame(subject = factor(rep(1:30, each = 2)), treat = rep(0:1, 30))
+  d$y <- 2 + 0.5 * d$treat + rnorm(30)[as.integer(d$subject)] + rnorm(60)
+  m <- lm(y ~ treat + subject, data = d)
+  e2 <- residuals(m)^2
+  expect_equal(unname(e2[c(TRUE, FALSE)]), unname(e2[c(FALSE, TRUE)]), tolerance = 1e-10)
+  quiet <- function(expr) suppressMessages(suppressWarnings(expr))
+  expect_error(quiet(performWhiteTest(m, d)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m, d)), "as when each level of a factor holds two",
+               fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m, d, cross_products = FALSE)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTestRobust(m, d)), refusal, fixed = TRUE)
+  expect_error(quiet(get("white", envir = heteroTests:::.diagnostic_registry)(m, d)), refusal,
+               fixed = TRUE)
+  expect_error(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), refusal, fixed = TRUE)
+  set.seed(1)
+  expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), refusal, fixed = TRUE)
+  # The regressors alone fit the squared residuals exactly, so the Breusch-Pagan
+  # and Koenker tests of them would too: the runner has no fallback and stops.
+  expect_error(quiet(runHeteroTests(m, d, tests = "white", use_cache = FALSE, progress = FALSE)),
+               refusal, fixed = TRUE)
+  # Neither the products nor Koenker's test help: the advice is more data.
+  err <- tryCatch(quiet(performWhiteTest(m, d)), error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_true(err$regressors_exact)
+  expect_match(conditionMessage(err), "use more data.", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "cross_products = FALSE", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "Koenker", fixed = TRUE)
+
+  # A factor of 10 levels, two observations each, beside x1 (n = 20): with the
+  # products, as many independent terms as observations; without them, an
+  # exact fit on 11 degrees of freedom.
+  set.seed(9)
+  d10 <- data.frame(x1 = rnorm(20), f = factor(rep(letters[1:10], 2)))
+  d10$y <- rnorm(20)
+  m10 <- lm(y ~ x1 + f, data = d10)
+  expect_error(quiet(performWhiteTest(m10, d10)), "at least as many as there are", fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m10, d10, cross_products = FALSE)), refusal, fixed = TRUE)
+  expect_error(quiet(runHeteroTests(m10, d10, tests = "white", use_cache = FALSE,
+                                    progress = FALSE)), refusal, fixed = TRUE)
+})
+
+test_that("White's test gives a value on a near-exact but genuine fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Pairs with the same x and residuals of opposite sign, (1 + x) s: e^2 is
+  # (1 + x)^2, an exact fit of the auxiliary regression; with noise of relative
+  # size delta its residual sum of squares is about delta^2 of the total.
+  set.seed(4)
+  x <- rep(runif(40, 0, 2), each = 2)
+  s <- rep(c(1, -1), 40)
+  fit_with <- function(delta) {
+    d <- data.frame(x = x, y = 1 + x + (1 + x) * s * (1 + delta * rnorm(80)))
+    list(m = lm(y ~ x, data = d), d = d)
+  }
+  exact <- fit_with(0)
+  expect_error(performWhiteTest(exact$m, exact$d), "fits the squared residuals exactly",
+               fixed = TRUE)
+  expect_error(performWhiteTestStreaming(exact$m, exact$d, progress = FALSE),
+               "fits the squared residuals exactly", fixed = TRUE)
+  # The regressor alone does not fit (1 + x)^2: Koenker's test is advised.
+  err <- tryCatch(performWhiteTest(exact$m, exact$d), error = function(e) e)
+  expect_false(err$regressors_exact)
+  expect_match(conditionMessage(err), "Koenker's test", fixed = TRUE)
+  # Squared residuals that depart from the exact fit by 2e-5 of their size
+  # leave about 1.9e-9 of the total, below the threshold of 1.5e-8: refused.
+  closer <- fit_with(1e-5)
+  expect_error(performWhiteTest(closer$m, closer$d), "fits the squared residuals exactly",
+               fixed = TRUE)
+  # By 2e-4 and 2e-3, about 1.9e-7 and 1.9e-5: a genuine fit, tested.
+  for (delta in c(1e-4, 1e-3)) {
+    near <- fit_with(delta)
+    ours <- performWhiteTest(near$m, near$d)
+    ref <- white_df_by_hand(near$m)
+    expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10, info = delta)
+    expect_lt(unname(ours$statistic), 80)
+    expect_gt(unname(ours$statistic), 79.9)
+    streaming <- performWhiteTestStreaming(near$m, near$d, progress = FALSE)
+    expect_equal(unname(streaming$statistic), ref$statistic, tolerance = 1e-8, info = delta)
+  }
+})
+
+test_that("the advice of the refusal depends on the call", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Eleven regressors, more than max_interactions, so no products: 23 terms
+  # with the intercept for 22 observations.
+  set.seed(7)
+  d <- data.frame(matrix(rnorm(22 * 11), 22, 11))
+  names(d) <- paste0("v", 1:11)
+  d$y <- rnorm(22, sd = exp(d$v1 / 2))
+  m <- lm(stats::reformulate(paste0("v", 1:11), "y"), data = d)
+  err <- tryCatch(suppressMessages(suppressWarnings(performWhiteTest(m, d))),
+                  error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_no_match(conditionMessage(err), "cross_products = FALSE", fixed = TRUE)
+  expect_match(conditionMessage(err), "use Koenker's test (performKoenkerTest()) or more data.",
+               fixed = TRUE)
+  # Six regressors with their products, for 22 observations.
+  set.seed(22)
+  small <- data.frame(matrix(rnorm(22 * 6), 22, 6))
+  names(small) <- paste0("v", 1:6)
+  small$y <- rnorm(22, sd = exp(small$v1 / 2))
+  err <- tryCatch(performWhiteTest(lm(y ~ v1 + v2 + v3 + v4 + v5 + v6, data = small), small),
+                  error = function(e) e)
+  expect_match(conditionMessage(err),
+               "use `cross_products = FALSE`, Koenker's test (performKoenkerTest()) or more data.",
+               fixed = TRUE)
+})
+
+test_that("a regressor named like a column White's test generates is tested", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(3)
+  d <- data.frame(a = runif(100, 1, 3))
+  d$a_sq <- log(d$a) + rnorm(100, sd = 0.3)
+  d$y <- d$a + d$a_sq + rnorm(100, sd = d$a)
+  renamed <- d
+  names(renamed)[names(renamed) == "a_sq"] <- "b"
+  for (cross_products in c(TRUE, FALSE)) {
+    ours <- performWhiteTest(lm(y ~ a + a_sq, data = d), d, cross_products = cross_products)
+    other <- performWhiteTest(lm(y ~ a + b, data = renamed), renamed,
+                              cross_products = cross_products)
+    expect_identical(ours[c("statistic", "parameter", "p.value")],
+                     other[c("statistic", "parameter", "p.value")])
+    ref <- white_df_by_hand(lm(y ~ a + a_sq, data = d), cross_products)
+    expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10)
+  }
 })
 
 test_that("performWhiteTest aborts for perfect fits", {

@@ -66,33 +66,90 @@
 #' the degrees of freedom are the rank of \eqn{[1, Z]} minus one, as
 #' `lmtest::bptest()` counts them given the same terms as `varformula`. A column
 #' of \eqn{Z} that is a linear combination of the intercept and the columns
-#' before it, at the default tolerance of [qr()], is dropped. That happens
-#' when the columns of \eqn{Z} span the constant: the squares of the dummies of
-#' `contr.sum` or `contr.helmert` contrasts, the dummies of every level of a
-#' factor in a model without an intercept, an interaction with an empty cell
-#' such as that of the baseline levels, or the squares of an orthogonal
-#' `poly()` basis. In 0.15.0 the degrees of freedom were the rank of
-#' \eqn{Z} alone, one more on such a design, with the same statistic and a
-#' larger p-value: on `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))`,
-#' with a factor of two levels, 5 where `lmtest::bptest()` gives 4. On a
-#' design whose auxiliary columns do not span the constant, such as continuous
-#' regressors or factors with the default treatment contrasts, nothing
-#' changed. The same holds with `cross_products = FALSE` or more regressors
-#' than `max_interactions`, and for the tests computed through this function:
+#' before it is dropped: the square of a dummy, which equals the dummy, and,
+#' when the columns of \eqn{Z} span the constant, one column more. They span it
+#' with the squares of the dummies of `contr.sum`, `contr.helmert` or
+#' `contr.poly` contrasts, the last the default for an ordered factor, the
+#' dummies of every level of a factor in a model without an intercept, an
+#' interaction with an empty cell such as that of the baseline levels, or the
+#' squares of an orthogonal `poly()` basis. In 0.15.0 the degrees of freedom
+#' were the rank of \eqn{Z} alone, one more on such a design, with the same
+#' statistic and a larger p-value: on
+#' `lm(y ~ x1 + f, contrasts = list(f = "contr.sum"))`, with a factor of two
+#' levels, 5 where `lmtest::bptest()` gives 4, and on `lm(y ~ x1 + o)`, with an
+#' ordered factor of four levels, 9 for 8.
+#'
+#' The rank is decided, at the default tolerance of [qr()], on the auxiliary
+#' design of the centred regressors, which spans the same columns with the
+#' intercept, so that it does not depend on where the regressors are located;
+#' the regression is fitted on \eqn{Z}, or on that design when the fit of
+#' \eqn{Z} would lose one of the columns kept. Before, a regressor far from
+#' zero, such as \eqn{x = 10^4 + u} or a date written as `YYYYMMDD`, lost its
+#' square, which the rank of \eqn{[1, Z]} took for a combination of the
+#' intercept and the regressor: on `lm(y ~ x1 + x2)` with \eqn{10^4} added to
+#' `x1`, 10.34 on 4 degrees of freedom, where the model of `x1` as it was gives
+#' 11.14 on 5, as both now do. That holds for regressors that enter the model
+#' linearly, which are centred one by one. A product or a power of a variable
+#' located far from zero inside the model stays ill-conditioned once its
+#' columns are centred, and can still lose columns: on 200 observations,
+#' `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives 42.14 on 5 degrees of freedom
+#' where `lm(y ~ x1 * x2)`, the same model, gives 48.95 on 8, and
+#' `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68 on 4. A year
+#' and its square, `year * z` or `income * age` are far from that, and give
+#' the value of the centred model to seven digits or more.
+#'
+#' On a design whose auxiliary columns do not span the constant and whose
+#' regressors are not located far from zero, such as continuous regressors or
+#' factors with the default treatment contrasts, nothing changed. The same
+#' holds with `cross_products = FALSE` or more regressors than
+#' `max_interactions`, and for the tests computed through this function:
 #' \link[=performWhiteTestRobust]{performWhiteTestRobust()}, whose interval,
 #' effect size and power follow the degrees of freedom, and the registered
 #' `"white"` of [runHeteroTests()]. The p-value of
 #' [performWhiteTestBootstrap()] depends on the statistic alone and does not
-#' change on such a design; [performWhiteTestStreaming()] stops on such a
-#' design, whose auxiliary columns are collinear with its intercept, and
-#' otherwise gives these degrees of freedom. On an auxiliary design whose
-#' columns are nearly collinear, as the squares and products of the basis of
-#' a smooth term can be, the columns kept are those `lm(e^2 ~ Z)` keeps,
-#' which can differ from those kept in 0.15.0, so the statistic can change
-#' too: there the auxiliary regression of 0.15.0 could silently lose a column
-#' to its intercept while its degrees of freedom still counted it, as on a
+#' change on a design that spans the constant. [performWhiteTestStreaming()]
+#' stops on such a design, whose auxiliary columns are collinear with its
+#' intercept, and where it gives a value it gives these degrees of freedom,
+#' but on an `mgcv::gam()` fit with smooth terms, whose smooth terms it does
+#' not test. On an auxiliary design whose columns are nearly collinear, as the
+#' squares and products of the basis of a smooth term can be, the columns
+#' kept can differ from those kept in 0.15.0, so the statistic can change too:
+#' there the auxiliary regression of 0.15.0 could silently lose a column to
+#' its intercept while its degrees of freedom still counted it, as on a
 #' `mgcv::gam(y ~ s(x1) + x2)` fit whose statistic moves by 0.28\%, to the
 #' value of `lmtest::bptest()` with the same terms.
+#'
+#' @section Too few observations:
+#' An auxiliary regression that fits the squared residuals exactly has an
+#' \eqn{R^2} of 1, and the statistic is the number of observations, whatever
+#' the data. It fits them exactly with as many independent terms as
+#' observations, and with fewer when the squared residuals are a combination
+#' of its terms: on a paired design, such as `lm(y ~ treat + subject)` with two
+#' observations of each subject, the two residuals of a subject sum to zero,
+#' so their squares are equal and a combination of the subject dummies. On 30
+#' subjects the test gave 60 on 30 degrees of freedom (p = 0.0009) on
+#' homoscedastic data. Since 0.16.0 it refuses such a regression, where it
+#' returned that statistic, and says what to use, as the call allows:
+#' `cross_products = FALSE` when the products were in and the regressors alone
+#' do not fit the squared residuals exactly, Koenker's test when they do not,
+#' or more data. Six continuous regressors have 27 squares and products, 28
+#' terms with the intercept, so they need at least 29 observations.
+#'
+#' A fit counts as exact when its residual sum of squares is at most
+#' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
+#' sum of squares of the squared residuals. An exact fit leaves rounding
+#' error, about \eqn{10^{-30}} of the total on the paired design; squared
+#' residuals that depart from the fit by \eqn{2 \times 10^{-4}} of their size
+#' leave about \eqn{2 \times 10^{-7}}, and are tested.
+#'
+#' The robust form, the registered `"white"`, [performWhiteTestBootstrap()]
+#' and [performWhiteTestStreaming()] refuse both kinds of exact fit too.
+#' [runHeteroTests()] falls back on White's test without cross products, as on
+#' any refusal of White's test, unless the regressors alone fit the squared
+#' residuals exactly, as on the paired design, or that is not known, as in the
+#' streaming test: the Breusch-Pagan and Koenker tests, its other fallbacks,
+#' regress the squared residuals on the regressors and would return the
+#' number of observations too, so the runner stops with the refusal.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
@@ -198,6 +255,83 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
                    data_name = deparse(substitute(model)))
 }
 
+# White's auxiliary regression fits the squared residuals exactly when its
+# residual sum of squares is at most this fraction of their total: then R^2 is
+# 1 and the statistic n R^2 the number of observations, whatever the data. An
+# exact fit leaves only rounding error, at about the square of the machine
+# epsilon relative to the total (1e-30 on the paired designs of the tests). The
+# square root of the epsilon, 1.5e-8, the usual tolerance of a computation
+# that should give zero, is far above that and refuses no fit whose residuals
+# are more than about 1.2e-4 of the spread of the squared residuals, at which
+# n R^2 equals n to eight digits: squared residuals that depart from an exact
+# fit by 2e-4 of their size leave 1.9e-7 of the total and are tested, by 2e-5
+# 1.9e-9 and are refused (test-performWhiteTest.R).
+rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
+
+# The refusal of an auxiliary regression that fits the squared residuals
+# exactly: with as many independent terms as observations, or more
+# (`saturated`), or because the squared residuals are a combination of fewer
+# terms, as when each level of a factor holds two observations, whose
+# residuals then sum to zero in each pair. The advice depends on the call:
+# `cross_products = FALSE` only when the products were in and the regressors
+# alone may not fit the squared residuals exactly, Koenker's test only when
+# they do not (`regressors_exact`), since its auxiliary regression is on them;
+# NA when that is not known, as in the streaming test. Its class tells
+# runHeteroTests() whether a test of the regressors alone can stand in for it
+# (ht_analyse_failure()). Shared by rwhite_statistic() and
+# performWhiteTestStreaming().
+rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
+                                    what = "independent terms") {
+  cause <- if (saturated) {
+    sprintf(
+      "it has %d %s with its intercept for %d observations, at least as many as there are",
+      as.integer(terms), what, as.integer(n)
+    )
+  } else {
+    sprintf(
+      paste(
+        "the squared residuals are a combination of its %d %s with its intercept, for %d",
+        "observations, as when each level of a factor holds two observations"
+      ),
+      as.integer(terms), what, as.integer(n)
+    )
+  }
+  # Without the products the regression keeps the regressors and their
+  # squares, which fit the squared residuals exactly when the regressors do.
+  advice <- c(
+    if (isTRUE(products) && !isTRUE(regressors_exact)) "`cross_products = FALSE`",
+    if (identical(regressors_exact, FALSE)) "Koenker's test (performKoenkerTest())",
+    "more data"
+  )
+  advice <- if (length(advice) > 1L) {
+    paste(paste(advice[-length(advice)], collapse = ", "), "or", advice[length(advice)])
+  } else {
+    advice
+  }
+  message <- sprintf(
+    paste(
+      "White's auxiliary regression fits the squared residuals exactly: %s. Its R-squared",
+      "is 1 and its statistic the number of observations, whatever the data. There are",
+      "too few observations for White's test with these regressors; use %s."
+    ),
+    cause, advice
+  )
+  stop(structure(
+    class = c("heteroTests_white_exact_fit", "error", "condition"),
+    list(message = message, call = NULL, regressors_exact = regressors_exact)
+  ))
+}
+
+# Whether the regressors with an intercept fit the squared residuals exactly,
+# at rwhite_exact_tolerance: then so does the auxiliary regression of any
+# test of the regressors alone, Koenker's and Breusch-Pagan's.
+rwhite_regressors_fit_exactly <- function(X, e_squared) {
+  centred <- X - rep(colMeans(X), each = nrow(X))
+  fit <- stats::lm.fit(cbind(1, centred), e_squared)
+  total <- sum((e_squared - mean(e_squared))^2)
+  total > 0 && sum(fit$residuals^2) <= rwhite_exact_tolerance * total
+}
+
 # White's statistic from the residuals the test reads and the design of the
 # auxiliary regression, with its intercept. performWhiteTest() gives it the
 # design of the fit (the model context); rwhite_test_rebuilt_design(), behind
@@ -234,93 +368,112 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
     stop("No regressors found in model (intercept-only model)")
   }
 
-  regressor_names <- colnames(X)
-
-  # Build auxiliary regression matrix
-  # Start with original regressors
-  aux_matrix <- X
-  aux_names <- regressor_names
-
-  # Add squared terms
-  for (j in seq_len(p)) {
-    aux_matrix <- cbind(aux_matrix, X[, j]^2)
-    aux_names <- c(aux_names, paste0(regressor_names[j], "_sq"))
+  # The auxiliary design Z: the regressors, their squares and, unless they are
+  # left out, their pairwise products X_i * X_j for i < j.
+  products <- cross_products && p > 1
+  if (products && p > max_interactions) {
+    .std_warning("cross_products_omitted")
+    message("Cross-products omitted due to high dimensionality (p = ", p,
+            " > max_interactions = ", max_interactions, ")")
+    products <- FALSE
   }
-
-  # Add cross-product terms if requested
-  if (cross_products && p > 1) {
-
-    # Check if we should include cross-products based on dimensionality
-    if (p > max_interactions) {
-      .std_warning("cross_products_omitted")
-      message("Cross-products omitted due to high dimensionality (p = ", p,
-              " > max_interactions = ", max_interactions, ")")
-    } else {
-      # Add all pairwise cross-products X_i * X_j for i < j
+  auxiliary_design <- function(M) {
+    Z <- cbind(M, M^2)
+    if (products) {
       for (i in seq_len(p - 1L)) {
         for (j in seq.int(i + 1L, p)) {
-          cross_product <- X[, i] * X[, j]
-          aux_matrix <- cbind(aux_matrix, cross_product)
-          aux_names <- c(aux_names, paste0(regressor_names[i], "_x_", regressor_names[j]))
+          Z <- cbind(Z, M[, i] * M[, j])
         }
       }
     }
+    Z
   }
+  aux_matrix <- auxiliary_design(X)
 
-  # Set column names for the auxiliary matrix
-  colnames(aux_matrix) <- aux_names
-
-  # Drop linearly dependent auxiliary columns rather than aborting. Factor dummies
-  # are a common cause: a 0/1 indicator squared equals itself, so its "_sq" column
-  # is perfectly collinear with the original. The auxiliary regression below has
-  # an intercept, so a column is dependent when it is a combination of the
-  # intercept and the columns before it: the columns of Z can span the constant,
-  # as the squares of contr.sum or Helmert dummies, the dummies of every level
-  # of a factor without an intercept, or the squares of an orthogonal poly()
-  # basis do, and a column of Z that adds only the constant adds nothing to the
-  # regression. The columns kept are those that QR pivoting of [1, Z] keeps, at
-  # the default tolerance of qr(), and the degrees of freedom are the rank of
-  # [1, Z] minus one, the rank of the auxiliary regression less its intercept,
-  # as in lmtest::bptest(). In 0.15.0 the rank was that of Z alone, one too
-  # many when Z spans the constant; the statistic was the same, but on a
-  # nearly collinear Z, where QR pivoting with and without the intercept can
-  # keep different columns.
-  qr_aux <- qr(cbind(1, aux_matrix))
-  aux_rank <- qr_aux$rank - 1L
-  if (aux_rank < ncol(aux_matrix)) {
-    # The intercept is the first column and is never pivoted out.
-    keep <- setdiff(sort(qr_aux$pivot[seq_len(qr_aux$rank)]), 1L) - 1L
-    dropped <- ncol(aux_matrix) - aux_rank
-    aux_matrix <- aux_matrix[, keep, drop = FALSE]
-    aux_names <- aux_names[keep]
+  # Drop linearly dependent auxiliary columns rather than aborting. A 0/1
+  # indicator squared equals itself, so its square is collinear with it. The
+  # auxiliary regression has an intercept, so a column is dependent when it is
+  # a combination of the intercept and the columns before it: the columns of Z
+  # can span the constant, as the squares of contr.sum, Helmert or contr.poly
+  # dummies, the dummies of every level of a factor without an intercept, or
+  # the squares of an orthogonal poly() basis do, and a column of Z that adds
+  # only the constant adds nothing to the regression. The degrees of freedom
+  # are the rank of [1, Z] minus one, the rank of the auxiliary regression less
+  # its intercept, as in lmtest::bptest().
+  #
+  # The rank is decided on the design built from the centred regressors, which
+  # spans the same columns as Z with the intercept, prefix by prefix, so that
+  # it does not depend on where the regressors are located: on x = 1e4 + u,
+  # the square of x is a combination of the intercept and x to within the
+  # tolerance of qr() relative to its size, while the square of the centred x
+  # is not. Each regressor is centred on its own, so a product or a power of a
+  # variable located far from zero inside the model, I(x1 + 1e4) * I(x2 + 1e3),
+  # stays ill-conditioned (ROADMAP). The columns kept are those QR pivoting of
+  # [1, Z_c] keeps, at the default tolerance of qr(). Up to 0.15.0 the rank was
+  # that of Z alone, one too many when Z spans the constant; in the development
+  # version before this change, that of [1, Z], which lost the square of a
+  # regressor located far from zero.
+  centred <- auxiliary_design(X - rep(colMeans(X), each = n))
+  qr_aux <- qr(cbind(1, centred))
+  rank_with_intercept <- qr_aux$rank
+  # The intercept is the first column and is never pivoted out.
+  keep <- setdiff(sort(qr_aux$pivot[seq_len(rank_with_intercept)]), 1L) - 1L
+  dropped <- ncol(aux_matrix) - length(keep)
+  if (dropped > 0L) {
     ht_log("INFO", sprintf(
       paste(
         "White test: dropped %d auxiliary term(s) collinear with the intercept",
         "and the other terms; using df = %d."
       ),
-      dropped, aux_rank
+      dropped, length(keep)
     ))
   }
-  if (ncol(aux_matrix) == 0L) {
+  if (length(keep) == 0L) {
     .std_error(
       "rassumption_violation",
       assumption = "Auxiliary regression has no independent regressors after removing collinear terms"
     )
   }
+  # As many independent terms as observations: the auxiliary regression fits
+  # the squared residuals exactly, R^2 is 1 and the statistic n whatever the
+  # data.
+  if (rank_with_intercept >= n) {
+    rwhite_refuse_exact_fit(rank_with_intercept, n, saturated = TRUE, products = products,
+                            regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
+  }
 
-  # Convert to data frame for regression
-  aux_data <- as.data.frame(aux_matrix)
+  # The auxiliary regression, e^2 on the intercept and the columns kept, fitted
+  # with lm.fit() at its default tolerance: on the columns of Z as they are,
+  # which keeps the value of a design whose regressors are not located far from
+  # zero, or on the centred ones, which span the same space, when the fit of
+  # those as they are aliases one of them. Its rank less one is the degrees of
+  # freedom. Fitted from the matrix rather than a formula, it does not depend on
+  # the names of the regressors: a regressor `a` beside a regressor `a_sq` is
+  # tested, where the formula stopped on the duplicated name.
+  aux_fit <- stats::lm.fit(cbind(1, aux_matrix[, keep, drop = FALSE]), e_squared)
+  if (aux_fit$rank < rank_with_intercept) {
+    aux_fit <- stats::lm.fit(cbind(1, centred[, keep, drop = FALSE]), e_squared)
+  }
+  if (aux_fit$rank != rank_with_intercept) {
+    stop(sprintf(
+      "%s: the auxiliary regression has rank %d where its columns have rank %d.",
+      test_label, aux_fit$rank, rank_with_intercept
+    ), call. = FALSE)
+  }
+  aux_rank <- aux_fit$rank - 1L
 
-  # Run auxiliary regression: e² ~ regressors + squares + cross-products
-  aux_model <- tryCatch({
-    lm(e_squared ~ ., data = aux_data)
-  }, error = function(e) {
-    stop("Auxiliary regression failed: ", e$message,
-         "\nThis may be due to perfect multicollinearity or other numerical issues.")
-  })
-
-  # Calculate test statistic
-  r_squared <- summary(aux_model)$r.squared
+  # R^2 as summary.lm() computes it for a model with an intercept.
+  fitted_squares <- aux_fit$fitted.values
+  explained <- sum((fitted_squares - mean(fitted_squares))^2)
+  residual <- sum(aux_fit$residuals^2)
+  r_squared <- explained / (explained + residual)
+  # Fewer independent terms than observations, and still an exact fit: the
+  # squared residuals are a combination of the terms, and n R^2 is n.
+  total <- explained + residual
+  if (total > 0 && residual <= rwhite_exact_tolerance * total) {
+    rwhite_refuse_exact_fit(aux_fit$rank, n, saturated = FALSE, products = products,
+                            regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
+  }
 
   # Handle numerical edge cases
   if (is.na(r_squared) || r_squared < 0) {
@@ -333,7 +486,8 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   }
 
   test_statistic <- n * r_squared
-  # The rank of [1, Z] minus one: the number of auxiliary regressors kept.
+  # The rank of the auxiliary regression less its intercept: the number of
+  # auxiliary regressors kept.
   df <- aux_rank
   p_value <- pchisq(test_statistic, df, lower.tail = FALSE)
 
@@ -351,7 +505,7 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   )
 
   # Add diagnostic information
-  attr(result, "auxiliary_regressors") <- ncol(aux_matrix)
+  attr(result, "auxiliary_regressors") <- length(keep)
   attr(result, "original_regressors") <- p
   attr(result, "cross_products_included") <- cross_products && p > 1 && p <= max_interactions
   attr(result, "r_squared_auxiliary") <- r_squared

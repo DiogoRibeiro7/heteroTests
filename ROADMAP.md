@@ -779,7 +779,13 @@ after it.
   `$white` can then hold another test. Documented on `?runHeteroTests` since
   the 0.15.0 release audit; whether a failed test should rather be returned
   as failed is an interface decision for 1.0.0. Removing the fallback changes
-  what such calls return.
+  what such calls return. `compareModelDiagnostics()` reports `NA`, with a
+  warning, when `attr(, "diagnostic")` names another test, but White's test
+  without cross products keeps the name `"white"`, and its table has no
+  place for the tag: on 22 observations of six regressors, whose White's test
+  is refused, it reports 15.98, the statistic of the fallback, in the column
+  `white`, with no tag and no warning. Found by the review of the follow-up of N2; the same
+  decision settles it, and until then it does not change.
 - [x] **A `glm` of another family through the registry.** The registry names
   deprecated in 0.14.0, `"ncv"` and `"student_bp"`, called `.ncv_test()` and
   `.studentized_bp_test()` directly, and the refusal of a `glm` that is not a
@@ -929,9 +935,84 @@ after it.
     outside the model context (N2, decision 22 of its design): the degrees of
     freedom are the rank of the auxiliary design with its constant, minus one,
     and the columns the constant makes redundant are dropped, so that every
-    route to White's test gives the value of `lmtest::bptest()` on the same
-    terms. Changes p-values; on a nearly collinear auxiliary design, such as
-    that of a smooth term, the statistic too.
+    route to White's test that gives a value gives that of `lmtest::bptest()`
+    on the same terms; the streaming test stops on these designs, whose
+    auxiliary columns are collinear with its intercept. Changes p-values; on a
+    nearly collinear auxiliary design, such as that of a smooth term, the
+    statistic too.
+  - [x] The review of N2 found three more things, decided by the author on
+    2026-10-21. The rank of `[1, Z]` depended on where the regressors were
+    located: with `x = 1e4 + u`, or a date written as `YYYYMMDD`, the square of
+    `x` was taken for a combination of the intercept and `x` and dropped
+    (27.41 on 4 degrees of freedom where the test of the same model at zero
+    gives 27.43 on 5). An auxiliary regression with as many independent terms
+    as observations fitted the squared residuals exactly, and the test
+    returned the number of observations as its statistic. And a regressor
+    named like a column the test generates, `a` beside `a_sq`, stopped the
+    auxiliary regression, which was fitted from a formula on the names. Done
+    in 0.16.0: the rank is decided on the auxiliary design of the centred
+    regressors, the regression fitted on the columns as they are unless that
+    fit would lose one of them, a saturated auxiliary regression refused (by
+    the streaming test too; the runner falls back on White's test without
+    cross products), and the regression fitted with `lm.fit()`. Changes
+    p-values on designs with a regressor far from zero, and refuses calls
+    that returned a value.
+  - `performWhiteTestStreaming()` on an `mgcv::gam()` fit with smooth terms
+    tests the design of `terms(gam)`, the parametric terms with the variables
+    of the smooths as linear terms, not the design of the fit: on
+    `gam(y ~ s(x1) + x2)` it gives 33.31 on 5 degrees of freedom where
+    `performWhiteTest()` gives 83.29 on 59. Found by the review of N2. The
+    step of the model context that builds the streaming tests on the stored
+    design (step 7), or the one that settles whether the tests take a
+    penalised `gam` (step 11), settles it. Changes a value, or refuses one.
+  - [x] The review of the follow-up of N2 found that the refusal of a
+    saturated auxiliary regression missed an exact fit with fewer terms than
+    observations. On a paired design, `lm(y ~ treat + subject)` with two
+    observations of each of 30 subjects, the residuals of a subject sum to
+    zero, so their squares are equal and a combination of the subject
+    dummies: every route to White's test gave 60 on 30 degrees of freedom
+    (p = 0.0009), and the runner rejected at the 5% level in 200 of 200
+    homoscedastic draws. With a factor of 10 levels of two observations
+    beside `x1`, 20 observations, the refusal of the saturated regression
+    with the products let the runner fall back on White's test without them,
+    an exact fit too: 20 on 11 (p = 0.045). Done in 0.16.0: White's test
+    refuses an auxiliary regression whose residual sum of squares is at most
+    `sqrt(.Machine$double.eps)` of the total, with the message of the
+    saturated one, on every route; when the regressors alone fit the squared
+    residuals exactly, the runner takes no fallback, and stops. Refuses calls
+    that returned a value.
+  - Koenker's and the Breusch-Pagan tests fit the squared residuals exactly
+    on the same designs, since their auxiliary regression is on the
+    regressors: on the paired design above `performKoenkerTest()` gives
+    60 on 30 degrees of freedom (p = 0.0009), the number of observations, as
+    `lmtest::bptest()` does, and `performBPTest()` 63.25 on 30 (p = 0.0004),
+    a function of the spread of the squared residuals alone, whatever their
+    pattern. Found by the review of the follow-up of N2. Refuse such a fit in
+    both, at the threshold of White's test, in a pull request of their own.
+    Refuses calls that return a value.
+  - White's auxiliary design is built from the regressors centred one by
+    one, so its rank does not depend on where a regressor that enters the
+    model linearly is located, but a product or a power of a variable
+    located far from zero inside the model stays ill-conditioned: on 200
+    observations, `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives 42.14 on 5
+    degrees of freedom where `lm(y ~ x1 * x2)`, the same model, gives 48.95 on
+    8, and `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68 on 4;
+    at 1e3 and 1e2 the degrees of freedom hold and the statistic moves by up
+    to 3e-6 relative. A year from 1990 to 2020 and its square,
+    `year * z` and `income * age` give the value of the centred model to
+    seven digits or more. Found by the review of the follow-up of N2. An
+    optional improvement: build Z from the orthonormal basis Q of
+    `qr(X_c)`, whose squares and products span the same columns as those of
+    the centred regressors when the cross products are in, and only then.
+    Changes a value on such designs.
+  - On `lm(y ~ poly(x1 + 1e6, 2) + x2, data = d)` the model context refuses
+    `d`, the data of the fit: the basis of the polynomial computed again from
+    `d` through the `predvars` of the terms differs from that of the model
+    frame by more than the tolerance of the comparison, and the tests stop
+    with "cannot match the rows of `data` to the observations of the model".
+    Without `data`, or with `poly(x1 + 1e3, 2)`, White's test gives the
+    value of `poly(x1, 2)`. Found by the review of the follow-up of N2, as on
+    main before it. A fix makes such calls return a value.
   - Three more tests ignore an offset, besides the studentized statistic
     above, so that on `lm(y ~ x1 + x2, offset = o)`, or with `+ offset(o)`,
     they do not give the value of the same model fitted to `y - o`:

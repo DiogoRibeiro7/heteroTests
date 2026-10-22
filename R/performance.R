@@ -278,8 +278,12 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' not finite for another reason, and `data` that lack rows or variables of the
 #' fit. It stops when terms of its auxiliary regression are
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
-#' drops. Which model each test accepts, and why, is set out in [test_results],
-#' under *Supported models*.
+#' drops, and, since 0.16.0, with the refusal of [performWhiteTest()] (see its
+#' section *Too few observations*) when they are at least as many as the
+#' observations, where it stopped as on collinear terms, or fit the squared
+#' residuals exactly. Which
+#' model each test accepts, and why, is set out in [test_results], under
+#' *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -330,6 +334,16 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming White test"
   )
 
+  # As many terms as observations, or more: the auxiliary regression fits the
+  # squared residuals exactly, or cannot be fitted. performWhiteTest() refuses
+  # it with the same message, and an exact fit with fewer terms (below).
+  regressors <- sum(!is.na(stats::coef(model))) - attr(stats::terms(model), "intercept")
+  products <- isTRUE(cross_products) && regressors > 1 && regressors <= max_interactions
+  if (stats$df + 1L >= length(residuals)) {
+    rwhite_refuse_exact_fit(stats$df + 1L, length(residuals), saturated = TRUE,
+                            products = products, what = "terms")
+  }
+
   if (isTRUE(stats$rank_deficient)) {
     .std_error(
       "rassumption_violation",
@@ -345,6 +359,11 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
       "rassumption_violation",
       assumption = "White test requires variation in squared residuals"
     )
+  }
+
+  if (1 - stats$r_squared <= rwhite_exact_tolerance) {
+    rwhite_refuse_exact_fit(stats$df + 1L, stats$n, saturated = FALSE, products = products,
+                            what = "terms")
   }
 
   test_statistic <- stats$n * stats$r_squared

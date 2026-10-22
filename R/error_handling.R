@@ -97,6 +97,7 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     data_quality = "Data quality issue detected",
     data_rows = "Data do not match the model",
     model_context = "Model cannot be tested",
+    exact_fit = "Test cannot be computed",
     "Diagnostic execution failed"
   )
   if (!is.null(test_name)) {
@@ -191,6 +192,7 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
     runner <- NULL
     diagnostic_name <- candidate
     extras <- list()
+    final <- FALSE
     if (!is.null(.ht_custom_fallbacks[[candidate]])) {
       runner <- .ht_custom_fallbacks[[candidate]]
       diagnostic_name <- test_name
@@ -216,9 +218,16 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
             conditionMessage(fe)
           )
         )
+        # A fallback that refuses because the regressors fit the squared
+        # residuals exactly ends the search: the next ones would fit them
+        # exactly too (ht_final_exact_fit()).
+        final <<- ht_final_exact_fit(fe)
         NULL
       }
     )
+    if (final) {
+      return(NULL)
+    }
 
     if (!is.null(fallback_result)) {
       extras <- utils::modifyList(
@@ -246,6 +255,14 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
   NULL
 }
 
+# A refusal of White's test because its auxiliary regression fits the squared
+# residuals exactly, when the regressors alone fit them exactly too, or when
+# that is not known (rwhite_refuse_exact_fit()): no test of those regressors
+# can stand in for it.
+ht_final_exact_fit <- function(error) {
+  inherits(error, "heteroTests_white_exact_fit") && !identical(error$regressors_exact, FALSE)
+}
+
 ht_analyse_failure <- function(test_name, error, model, data) {
   raw_message <- conditionMessage(error)
   if (inherits(error, "heteroTests_model_context_error")) {
@@ -263,6 +280,26 @@ ht_analyse_failure <- function(test_name, error, model, data) {
       ),
       suggestions = character(),
       issue = "model_context",
+      fallbacks = character()
+    ))
+  }
+  if (ht_final_exact_fit(error)) {
+    # White's auxiliary regression fits the squared residuals exactly, and so
+    # do the regressors alone, or may: then so would the auxiliary regressions
+    # of the fallbacks, the Breusch-Pagan and Koenker tests of those
+    # regressors, whose statistics would mean nothing. No fallback. When the
+    # regressors do not fit them exactly, as on a design with as many
+    # auxiliary terms as observations, White's test without cross products
+    # comes first, as on any other refusal of White's test.
+    return(list(
+      raw_message = raw_message,
+      user_message = ht_format_failure_message(
+        "exact_fit",
+        raw_message,
+        test_name = ht_pretty_test_name(test_name)
+      ),
+      suggestions = character(),
+      issue = "exact_fit",
       fallbacks = character()
     ))
   }
