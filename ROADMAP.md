@@ -936,7 +936,7 @@ after it.
     statistic too.
   - [x] The review of N2 found three more things, decided by the author on
     2026-10-21. The rank of `[1, Z]` depended on where the regressors were
-    located: with `x = 1e4 + u`, or a date written as YYYYMMDD, the square of
+    located: with `x = 1e4 + u`, or a date written as `YYYYMMDD`, the square of
     `x` was taken for a combination of the intercept and `x` and dropped
     (27.41 on 4 degrees of freedom where the test of the same model at zero
     gives 27.43 on 5). An auxiliary regression with as many independent terms

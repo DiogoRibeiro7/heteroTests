@@ -84,7 +84,7 @@
 #' intercept, so that it does not depend on where the regressors are located;
 #' the regression is fitted on \eqn{Z}, or on that design when the fit of
 #' \eqn{Z} would lose one of the columns kept. Before, a regressor far from
-#' zero, such as \eqn{x = 10^4 + u} or a date written as YYYYMMDD, lost its
+#' zero, such as \eqn{x = 10^4 + u} or a date written as `YYYYMMDD`, lost its
 #' square, which the rank of \eqn{[1, Z]} took for a combination of the
 #' intercept and the regressor: on `lm(y ~ x1 + x2)` with \eqn{10^4} added to
 #' `x1`, 10.34 on 4 degrees of freedom, where the model of `x1` as it was gives

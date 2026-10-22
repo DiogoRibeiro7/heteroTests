@@ -280,8 +280,9 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
 #' drops, and, since 0.16.0, when they are at least as many as the
 #' observations, with the refusal of [performWhiteTest()] (see its section
-#' *Too few observations*), where it stopped as on collinear terms. Which model each test accepts, and why, is set out in [test_results],
-#' under *Supported models*.
+#' *Too few observations*), where it stopped as on collinear terms. Which
+#' model each test accepts, and why, is set out in [test_results], under
+#' *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
