@@ -1269,17 +1269,7 @@ the exact fit, as a factor with two observations per level does, however
 many levels it has; use more observations per level." So
 do its robust form, the registered `"white"`, the White bootstrap and
 `performWhiteTestStreaming()`, which stopped on the saturated design with
-"Auxiliary regression became rank deficient". The streaming test counts its
-terms by their rank, as `performWhiteTest()` does: the squares of the
-dummies of a paired design equal the dummies, so its 61 terms on 30 pairs
-are 31 independent ones for 60 observations, and it refuses the design as
-forcing the exact fit, where it counted 61 and asked for more data. With one
-subject observed a third time there is no exact fit, and it stops on the
-collinear terms, which it does not drop, where it asked for more data too;
-`runHeteroTests()`, when it streams, then falls back on White's test without
-cross products, as on any collinear terms, and returns the value of
-`performWhiteTest()`, 59.75 on 30 on such data, tagged as a fallback, where
-it stopped. `runHeteroTests()` falls back
+"Auxiliary regression became rank deficient". `runHeteroTests()` falls back
 on White's test without cross products, as on any refusal of White's test,
 and returns it under the name `white`, tagged as a fallback: 15.98 on 12
 degrees of freedom (p = 0.19) for the six regressors. Where the regressors
@@ -1296,6 +1286,18 @@ residuals exactly too, and returned 20 on 11 (p = 0.045), where it returned
 tests return 60 on 30 and 63.25 on 30 on the paired design, a meaningless
 value, as before; refusing it there is left to a change of their own
 (recorded in the roadmap).
+
+The streaming test counts the terms of its auxiliary regression by their
+rank and fits them centred, from its cross-products, as `performWhiteTest()`
+counts and fits them, so it refuses the same designs with the same message
+and advice, and `runHeteroTests()` falls back, or stops, as it does without
+streaming. On 30 pairs the squares of the subject dummies equal the dummies:
+it refuses 31 independent terms for 60 observations as an exact fit the
+design forces, where 0.15.0 stopped on the collinear terms. With one subject
+observed a third time there is no exact fit, and it still stops on the
+collinear terms, which `performWhiteTest()` drops and it does not; the
+runner, when it streams, falls back there on White's test without cross
+products, as in 0.15.0.
 
 The refusal covers the exact fit only: one step away from the paired
 design, White's test still rejects almost always. White's, Koenker's and the

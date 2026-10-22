@@ -523,10 +523,14 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   expect_match(conditionMessage(err), "of its 31 independent terms with its intercept, for 60",
                fixed = TRUE)
   expect_no_match(conditionMessage(err), saturated, fixed = TRUE)
+  # It tells, as performWhiteTest() does, that the regressors alone fit the
+  # squared residuals exactly, so the advice is the same.
+  expect_true(err$regressors_exact)
+  expect_identical(conditionMessage(err),
+                   conditionMessage(tryCatch(quiet(performWhiteTest(m, d)), error = function(e) e)))
   # One subject observed a third time: no exact fit. performWhiteTest() drops
   # the collinear squares and gives a value on 30 degrees of freedom; the
-  # streaming test, which keeps them, stops on collinear terms, where it asked
-  # for more data.
+  # streaming test, which keeps them, stops on collinear terms, as in 0.15.0.
   d61 <- rbind(d, transform(d[1, ], y = y + 1))
   m61 <- lm(y ~ treat + subject, data = d61)
   expect_identical(unname(quiet(performWhiteTest(m61, d61))$parameter[["df"]]), 30L)
@@ -535,7 +539,7 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   expect_match(conditionMessage(err), "rank deficient", fixed = TRUE)
   expect_no_match(conditionMessage(err), saturated, fixed = TRUE)
   # The runner, when it streams, falls back on the test without products and
-  # gives the value of performWhiteTest(), where it stopped.
+  # gives the value of performWhiteTest(), as in 0.15.0.
   suite <- quiet(runHeteroTests(m61, d61, tests = "white", chunk_threshold_mb = 0,
                                 use_cache = FALSE, progress = FALSE))
   expect_identical(attr(suite$white, "extras")$status, "fallback")
@@ -691,3 +695,51 @@ test_that("performWhiteTest aborts for perfect fits", {
   )
 })
 
+
+test_that("The streaming White test counts and fits its terms as performWhiteTest() does", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  quiet <- function(expr) suppressMessages(suppressWarnings(expr))
+  message_of <- function(expr) conditionMessage(tryCatch(quiet(expr), error = function(e) e))
+  # Six regressors and their 21 squares and products on 25 observations: 25
+  # independent terms, saturated. Uncentred, the cross-products made
+  # independent terms look collinear, and the test stopped as on collinear
+  # terms; counted centred, it refuses the design as performWhiteTest() does.
+  m25 <- lm(mpg ~ wt + qsec + hp + disp + drat + carb, data = mtcars[1:25, ])
+  err <- tryCatch(quiet(performWhiteTestStreaming(m25, mtcars[1:25, ], progress = FALSE)),
+                  error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_match(conditionMessage(err), "has 25 independent terms with its intercept for 25",
+               fixed = TRUE)
+  expect_identical(conditionMessage(err), message_of(performWhiteTest(m25, mtcars[1:25, ])))
+  # The regressors alone do not fit the squared residuals exactly, so the
+  # runner falls back on the test without products when it streams, as it
+  # does when it does not.
+  expect_false(err$regressors_exact)
+  streamed <- quiet(runHeteroTests(m25, mtcars[1:25, ], tests = "white", chunk_threshold_mb = 0,
+                                   use_cache = FALSE, progress = FALSE))
+  direct <- quiet(runHeteroTests(m25, mtcars[1:25, ], tests = "white", use_cache = FALSE,
+                                 progress = FALSE))
+  expect_identical(attr(streamed$white, "extras")$status, "fallback")
+  expect_identical(attr(streamed$white, "extras")$fallback_strategy, "white_simplified")
+  expect_equal(unname(streamed$white$statistic), unname(direct$white$statistic),
+               tolerance = 1e-10)
+  # A factor of 10 levels, two observations each, alone: its dummies fit the
+  # squared residuals exactly, so dropping the products cannot help, and the
+  # advice leaves it out, as performWhiteTest() does.
+  set.seed(10)
+  d10 <- data.frame(subject = factor(rep(1:10, each = 2)))
+  d10$y <- rnorm(10)[as.integer(d10$subject)] + rnorm(20)
+  m10 <- lm(y ~ subject, data = d10)
+  streamed <- message_of(performWhiteTestStreaming(m10, d10, progress = FALSE))
+  expect_match(streamed, "use more observations per level.", fixed = TRUE)
+  expect_no_match(streamed, "cross_products = FALSE", fixed = TRUE)
+  # Squared residuals of about 1e-10, which the test takes for constant: it
+  # stops as before, rather than on an error of its own.
+  set.seed(1)
+  small <- data.frame(x1 = rnorm(200), x2 = rnorm(200))
+  small$y <- 1e-5 * (1 + small$x1 - small$x2 + rnorm(200, sd = exp(0.5 * small$x1)))
+  expect_error(quiet(performWhiteTestStreaming(lm(y ~ x1 + x2, data = small), small,
+                                               progress = FALSE)),
+               "requires variation in squared residuals", fixed = TRUE)
+})

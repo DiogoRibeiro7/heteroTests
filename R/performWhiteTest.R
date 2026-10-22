@@ -309,7 +309,7 @@ rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
 # `cross_products = FALSE` only when the products were in and the regressors
 # alone may not fit the squared residuals exactly, Koenker's test only when
 # they do not (`regressors_exact`), since its auxiliary regression is on them;
-# NA when that is not known, as in the streaming test. More data help a
+# NA when that is not known. More data help a
 # saturated regression; an exact fit with fewer terms than observations is
 # forced by the design, as by a factor with two observations per level, whose
 # terms grow with its levels, so there only more observations per level help.
