@@ -5,12 +5,13 @@
 <small>Source: [`R/suite_summary.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/suite_summary.R) · Help: `?summary.hetero_test_suite`</small>
 
 `print()` shows a [`hetero_test_suite`](hetero_test_suite.md) compactly: the model and the number
-of observations on one line, then one row per test with its statistic,
-degrees of freedom, p-value and significance codes, and a note for each
-test that did not run as asked. `summary()` returns an object of class
-`summary.hetero_test_suite`, which prints as the summary of an `lm` does
-([`summary.lm()`](https://rdrr.io/r/stats/summary.lm.html)): the call, the number of observations, the table of tests,
-the legend of the significance codes and the notes.
+of observations, on one line when it fits the console, then one row per
+test with its statistic, degrees of freedom, p-value and significance codes,
+and a note for each test that did not run as asked. `summary()` returns an
+object of class `summary.hetero_test_suite`, which prints as the summary of
+an `lm` does ([`summary.lm()`](https://rdrr.io/r/stats/summary.lm.html)): the call, the number of observations, the
+table of tests, the legend of the significance codes and the notes; and
+`coef()` of it returns the table, as `coef(summary(fit))` does for an `lm`.
 
 The [`hetero_grouped_suite`](hetero_test_suite.md) of a grouped run has the same methods, with
 one table for all the groups, a row for each test in each group.
@@ -55,6 +56,12 @@ print(
   signif.stars = getOption("show.signif.stars"),
   ...
 )
+
+## S3 method for class 'summary.hetero_test_suite'
+coef(object, ...)
+
+## S3 method for class 'summary.hetero_grouped_suite'
+coef(object, ...)
 ```
 
 ## Arguments
@@ -71,23 +78,36 @@ print(
 :   Logical: show the significance codes?
 
 `...`
-:   Passed on to [`printCoefmat()`](https://rdrr.io/r/stats/printCoefmat.html) by the print methods; unused by
-    the summary methods.
+:   Passed on to [`printCoefmat()`](https://rdrr.io/r/stats/printCoefmat.html) by the print methods, replacing
+    the arguments they pass (Details); unused by the summary and `coef()`
+    methods.
 
 `object`
-:   A `hetero_test_suite` or `hetero_grouped_suite`.
+:   A `hetero_test_suite` or `hetero_grouped_suite` for
+    `summary()`, or its summary for `coef()`.
 
 ## Value
 
-The print methods return `x`, invisibly.
+The print methods return `x`, invisibly. `coef()` of a summary returns its
+`tests`.
 
 `summary()` of a `hetero_test_suite` returns a list of class
 `summary.hetero_test_suite` with:
 
 `call`
 :   The call of the model, as [`summary.lm()`](https://rdrr.io/r/stats/summary.lm.html) keeps it, or
-    `NULL` when the model was fitted by [`runHeteroTests()`](runHeteroTests.md) itself, from a
-    formula, or its call is not recorded.
+    `NULL` when its call is not recorded or is one [`runHeteroTests()`](runHeteroTests.md)
+    made itself, which names the runner's variables rather than yours: the
+    fit of a formula, its refit within a group, the refit of a fitted
+    model within a group, and the fit to the data of a survey design. The
+    runner puts no mark on a model it fits, since that would change what it
+    returns, so these are recognised by the exact form of their calls,
+    `stats::lm(formula = model, data = prep$data)`,
+    `stats::lm(formula = model, data = df)`,
+    `stats::lm(formula = formula, data = data)`, and any call with
+    `data = .ht_refit_data`. A model of yours with such a call is shown by
+    its formula too; one fitted with `lm(formula, data)` is shown by its
+    call.
 
 `formula`
 :   The formula of the model, or `NULL`.
@@ -104,7 +124,8 @@ The print methods return `x`, invisibly.
 
 `weights`
 :   How the model is weighted, as text: the `weights`
-    argument of its call, or the variance function of a [`fitWLS()`](fitWLS.md) fit;
+    argument of its call (`"1/hp"`); the variance function of a [`fitWLS()`](fitWLS.md)
+    fit; or, for prior weights its call does not record, their range;
     `NULL` for an unweighted model.
 
 `offset`
@@ -117,8 +138,8 @@ The print methods return `x`, invisibly.
 :   A numeric matrix with one row per test, named as the
     suite is, and the columns `Statistic`, `df`, `df2` (only when a test has
     second degrees of freedom) and `p-value`, as `coef(summary(fit))` holds
-    those of the coefficients of an `lm`. A failed test has `NA` in every
-    column.
+    those of the coefficients of an `lm`; `coef(summary(s))` returns it. A
+    failed test has `NA` in every column.
 
 `method`
 :   A character vector, named as the suite is: the `method`
@@ -157,7 +178,7 @@ The print methods return `x`, invisibly.
 :   A data frame with one row per test in each group: the
     grouping keys, `test` (the name asked for), `Statistic`, `df`, `df2`
     (only when a test has second degrees of freedom), `p-value` and
-    `status`, as above.
+    `status`, as above; `coef(summary(g))` returns it.
 
 `groups`
 :   A list with the `summary.hetero_test_suite` of each
@@ -173,27 +194,44 @@ The table is printed by [`printCoefmat()`](https://rdrr.io/r/stats/printCoefmat.
 `summary.lm()`: `digits` sets the significant digits, the p-values are
 formatted by [`format.pval()`](https://rdrr.io/r/base/format.pval.html), and the significance codes and their legend
 are shown when `signif.stars` is `TRUE` (by default
-`getOption("show.signif.stars")`) and a p-value is below 0.1.
+`getOption("show.signif.stars")`) and a p-value is below 0.1. The print
+methods pass `printCoefmat()` `cs.ind = integer()`, `tst.ind = 1`,
+`zap.ind = integer()`, `P.values = TRUE`, `has.Pvalue = TRUE` and
+`na.print = "NA"`; an argument of the same name given in `...` replaces
+the value passed, so that `print(s, na.print = "-")` prints a failed test
+with dashes and `print(s, P.values = FALSE)` leaves the p-values out.
 
 The rows are named as the suite is, by the names asked for in `tests`. The
 `df` column holds the degrees of freedom of the statistic: the parameter of
-the test named `df` or `df1`, or the first one when they have no names. The
-second degrees of freedom of an F statistic, `df2`, are a column of their
-own when a test has them. A parameter of another name, such as the number
-of replicates `B` of a resampling test or the number of observations `n` of
-Szroeter's test, is not a degree of freedom, and the notes give it.
+the test named `df`, `df1` or `num df` (as [`var.test()`](https://rdrr.io/r/stats/var.test.html) and [`anova()`](https://rdrr.io/r/stats/anova.html) name
+it), or the first one when they have no names. The second degrees of
+freedom of an F statistic, named `df2` or `denom df`, are a column of their
+own, `df2`, when a test has them. A parameter of another name, such as the
+number of replicates `B` of a resampling test or the number of
+observations `n` of Szroeter's test, is not a degree of freedom, and the
+notes give it.
 
-The notes say which test did not run as asked: one that failed and whose
-fallback ran under its name, saying which test ran; one that failed or was
-refused, with the kind of failure (`attr(, "extras")$issue`) and its
-message; one computed by a streaming implementation; and a result that is
-not a test, as a diagnostic added with [`registerDiagnostic()`](registerDiagnostic.md) may return.
-`print()` gives each note on one line, cut to the width of the console;
-`summary()` gives it whole. Without groups, [`runHeteroTests()`](runHeteroTests.md) stops when a
-test fails and no fallback runs, so a failed test is returned only by a
-grouped run, which records the failure and goes on. Whether a result was
-read from a cache is not shown: a result read from it is `identical()` to
-the one computed (see [`cachedTest()`](cachedTest.md)).
+The notes say which test did not run as asked: one whose fallback ran
+under its name, saying which test ran in its place and why; one that was
+refused or failed, with its message and, for a failure of a particular
+kind, that kind (`attr(, "extras")$issue`, such as `"rank_deficiency"`);
+one computed by a streaming implementation; a parameter that is not a
+degree of freedom; and a result that is not a test, as a diagnostic added
+with [`registerDiagnostic()`](registerDiagnostic.md) may return. A test "refused" its input when it
+stopped before computing anything, with one of the refusals of the package:
+of the model or of `data` by the model context (the issues
+`"model_context"` and `"data_rows"`), of a `glm` that is not a
+least-squares fit or a model of another class, of a `survey::svyglm()` fit,
+of zero weights, of a weighted fit by a test that refits without its
+weights, of an aliased coefficient, or of too few observations. These are
+recognised by their messages, since the runner records the message and the
+issue and not the class of the condition; a test that stopped otherwise
+"failed". `print()` gives each note on one line, cut to the width of the
+console; `summary()` gives it whole. Without groups, [`runHeteroTests()`](runHeteroTests.md)
+stops when a test fails and no fallback runs, so a failed test is returned
+only by a grouped run, which records the failure and goes on. Whether a
+result was read from a cache is not shown: a result read from it is
+`identical()` to the one computed (see [`cachedTest()`](cachedTest.md)).
 
 Several tests of one model are not independent evidence: they are computed
 from the same residuals, most of them from regressions of their squares on
@@ -224,7 +262,7 @@ m <- lm(mpg ~ wt + qsec, data = mtcars)
 s <- runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 s
 summary(s)
-summary(s)$tests
+coef(summary(s))
 print(summary(s), signif.stars = FALSE)
 
 # White's test needs 20 observations: the runner falls back on the

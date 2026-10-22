@@ -103,10 +103,10 @@ build on. For each call it:
    tried; if none works the run stops with a message that says why, except
    with grouped data, where the failure is recorded in that group's result;
 5. marks each result as a `hetero_test`, an `htest` with the attributes
-   `diagnostic`, `nobs`, `model`, `data_source` and `extras`, gives it the
-   formula of the model as its `data.name`, and returns them as a
-   `hetero_test_suite`, or a `hetero_grouped_suite` with one suite per group.
-   Both print as a table of the tests, and their
+   `diagnostic`, `nobs`, `model`, `data_source` and `extras`, gives a result
+   whose `data.name` is `"model"` the formula of the model instead, and
+   returns them as a `hetero_test_suite`, or a `hetero_grouped_suite` with one
+   suite per group. Both print as a table of the tests, and their
    [`summary()`](reference/summary.hetero_test_suite.md) is laid out as that of
    an `lm`.
 

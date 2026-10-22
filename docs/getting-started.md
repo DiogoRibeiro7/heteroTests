@@ -83,7 +83,8 @@ test. The default battery is White's test and Koenker's:
 ```r
 suite <- runHeteroTests(model, quakes)
 suite
-#> Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
+#> Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data =
+#>     quakes), n = 1000
 #>
 #>         Statistic df p-value
 #> white       125.6  5  <2e-16 ***
@@ -100,7 +101,8 @@ runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
 Each element is the test's `htest`, as a single test returns it.
 [`summary()`](reference/summary.hetero_test_suite.md) lays the suite out as the
 summary of an `lm` is, with notes for any test that fell back on another or
-failed, and `summary(suite)$tests` holds the table as a matrix:
+failed, and `coef(summary(suite))` returns the table as a matrix, as
+`coef(summary(fit))` does for an `lm`:
 
 ```r
 summary(suite)
@@ -120,7 +122,7 @@ summary(suite)
 #> Several tests of one model are not independent evidence: they are computed
 #> from the same residuals.
 
-summary(suite)$tests
+coef(summary(suite))
 #>         Statistic df      p-value
 #> white    125.5580  5 2.083775e-25
 #> koenker  111.3052  2 6.766910e-25

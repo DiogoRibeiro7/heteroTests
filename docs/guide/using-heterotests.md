@@ -79,7 +79,8 @@ Several diagnostics can also be run together.
 ``` r
 # Alternatively run multiple tests at once
 runHeteroTests(model, quakes)
-# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
+# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data =
+#     quakes), n = 1000
 #
 #         Statistic df p-value
 # white       125.6  5  <2e-16 ***
@@ -88,7 +89,8 @@ runHeteroTests(model, quakes)
 # Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # Choose a subset of diagnostics
 runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
-# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
+# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data =
+#     quakes), n = 1000
 #
 #               Statistic df p-value
 # white             125.6  5  <2e-16 ***

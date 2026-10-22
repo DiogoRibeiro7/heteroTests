@@ -74,10 +74,12 @@ which prints as a table of the tests, and whose `summary()` is laid out as that 
 [`summary.hetero_test_suite`](summary.hetero_test_suite.md)). With grouped data, a [`hetero_grouped_suite`](hetero_test_suite.md) holding one such
 suite for each group.
 
-Every test reports the formula of the model as its `data.name`. Up to 0.15.0 White's test, its bootstrap
-and its form without cross products, the studentized Breusch-Pagan statistic and Szroeter's test reported
-`"model"` instead, the name of the argument of the function the registry calls them with. Called directly,
-a test still names the object it is given: `performWhiteTest(m, mtcars)$data.name` is `"m"`.
+A result whose `data.name` is `"model"` reports the formula of the model instead, as Koenker's test and
+the others do. Up to 0.15.0 five tests reported `"model"` here, the name of the argument of the function the
+registry calls them with: White's test, its bootstrap and its form without cross products, the studentized
+Breusch-Pagan statistic and Szroeter's test. Any other `data.name`, such as that of a diagnostic added with
+`registerDiagnostic`, is kept. Called directly, a test still names the object it is given:
+`performWhiteTest(m, mtcars)$data.name` is `"m"`.
 
 ## Details
 
