@@ -23,13 +23,14 @@ env:
   HETEROTESTS_FULL_MATRIX: 'false'
 
 # The three jobs share no files, so they run in parallel.
-# Each job has a timeout well above its usual run, so a runner stuck on a slow
-# package mirror fails, and can be rerun, instead of holding the pull request.
+# Each job has a timeout of about three times its usual run or more, enough for
+# a slow Ubuntu mirror: a job still running then is stuck, and is stopped, to be
+# rerun, instead of holding the pull request.
 jobs:
   project-quality:
     name: Style, lint, tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -75,7 +76,7 @@ jobs:
   docs-quality:
     name: Spell and link checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -117,7 +118,7 @@ jobs:
   benchmark-regression:
     name: Benchmark regression check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes

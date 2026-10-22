@@ -136,10 +136,12 @@ request's earlier runs when it is pushed again, never a run on `main`.
 `release.yml` sets no `HETEROTESTS_FULL_MATRIX`, so its check of the release
 tarball runs the full matrix.
 
-Every job that runs on a pull request has a `timeout-minutes` well above its
-usual time, 30 minutes for an `R CMD check` job. A slow Ubuntu package mirror
-can hold a job's `apt` step for more than half an hour; the timeout stops it
-there, and *Re-run failed jobs* starts it again on another runner.
+Every job that runs on a pull request has a `timeout-minutes` of about three
+times its usual time or more: 45 minutes for an `R CMD check` job, which
+normally takes 6 to 16. A slow Ubuntu package mirror can more than double a
+job's time, mostly in installing R and the system libraries; the timeout leaves
+room for that and stops only a job that is stuck, which *Re-run failed jobs*
+then starts again on another runner.
 
 ## Contributing
 
