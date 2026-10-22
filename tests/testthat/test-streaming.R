@@ -67,9 +67,10 @@ test_that("runHeteroTests caches and reuses results", {
   clearAnalysisCache()
 })
 
-test_that("runHeteroTests switches to streaming when threshold is low", {
+test_that("a finite chunk_threshold_mb asks the runner for the streaming tests", {
   test_obj <- setup_test_model(n = 90, seed = 555)
-  results <- runHeteroTests(
+  # The data are above half the threshold: "Large dataset detected".
+  results <- suppressWarnings(runHeteroTests(
     test_obj$model,
     test_obj$data,
     tests = c("white", "breusch_pagan", "koenker"),
@@ -77,10 +78,103 @@ test_that("runHeteroTests switches to streaming when threshold is low", {
     chunk_threshold_mb = 0.001,
     chunk_size = 20,
     progress = FALSE
+  ))
+  for (nm in c("white", "breusch_pagan", "koenker")) {
+    expect_match(results[[nm]]$method, "streaming", ignore.case = TRUE, info = nm)
+    expect_true(attr(results[[nm]], "extras")$streaming, info = nm)
+    expect_identical(results[[nm]]$chunk_size, 20L, info = nm)
+  }
+})
+
+# Data "above 100 MB" without allocating them: every measurement of the size
+# of the data in the package, by check_memory_usage(), says `size_mb`.
+local_data_size <- function(size_mb, env = parent.frame()) {
+  testthat::local_mocked_bindings(
+    check_memory_usage = function(data, threshold_mb = 100) invisible(size_mb),
+    .package = "heteroTests",
+    .env = env
   )
-  expect_match(results$white$method, "streaming", ignore.case = TRUE)
-  expect_match(results$breusch_pagan$method, "streaming", ignore.case = TRUE)
-  expect_match(results$koenker$method, "streaming", ignore.case = TRUE)
+}
+
+test_that("by default the runner runs the exact tests, even on data above 100 MB", {
+  skip_if_not(exists("local_mocked_bindings", envir = asNamespace("testthat")))
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  test_obj <- setup_test_model(n = 90, seed = 555)
+  m <- test_obj$model
+  d <- test_obj$data
+  tests <- c("white", "breusch_pagan", "koenker")
+  run <- function(...) {
+    suppressMessages(runHeteroTests(m, d, tests = tests, use_cache = FALSE, progress = FALSE, ...))
+  }
+  exact <- list(
+    performWhiteTest = performWhiteTest(m, d),
+    performBPTest = performBPTest(m, d),
+    performKoenkerTest = performKoenkerTest(m, d)
+  )
+  small <- run()
+  diagnostics <- suppressMessages(runDiagnostics(m, d, tests = tests, use_cache = FALSE, progress = FALSE))
+
+  # Up to 0.15.0 the runner, with its default of 100 MB, and the exact tests
+  # themselves switched to the streaming tests above 100 MB.
+  local_data_size(150)
+  expect_identical(heteroTests:::check_memory_usage(d), 150)
+  large <- run()
+  for (nm in tests) {
+    expect_false(attr(large[[nm]], "extras")$streaming, info = nm)
+    expect_no_match(large[[nm]]$method, "streaming", ignore.case = TRUE)
+  }
+  expect_identical(large, small)
+  expect_identical(
+    suppressMessages(runDiagnostics(m, d, tests = tests, use_cache = FALSE, progress = FALSE)),
+    diagnostics
+  )
+  expect_identical(performWhiteTest(m, d), exact$performWhiteTest)
+  expect_identical(performBPTest(m, d), exact$performBPTest)
+  expect_identical(performKoenkerTest(m, d), exact$performKoenkerTest)
+  # The threshold of before, given, still streams above it, and not below.
+  streamed <- run(chunk_threshold_mb = 100, chunk_size = 30)
+  for (nm in tests) {
+    expect_true(attr(streamed[[nm]], "extras")$streaming, info = nm)
+    expect_match(streamed[[nm]]$method, "streaming", ignore.case = TRUE)
+  }
+  expect_identical(run(chunk_threshold_mb = 200), small)
+})
+
+test_that("a model with a factor gets White's test above 100 MB, not a fallback", {
+  skip_if_not(exists("local_mocked_bindings", envir = asNamespace("testthat")))
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  m <- lm(y ~ x1 + group, data = d)
+  white <- performWhiteTest(m, d)
+  small <- runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)
+  # The squares of the dummies are collinear with them: the streaming test
+  # stops, and with it asked for the runner falls back under the name "white".
+  expect_error(
+    performWhiteTestStreaming(m, d, progress = FALSE),
+    "rank deficient"
+  )
+  asked <- suppressWarnings(
+    runHeteroTests(m, d, use_cache = FALSE, chunk_threshold_mb = 0, progress = FALSE)
+  )
+  expect_identical(attr(asked$white, "extras")$status, "fallback")
+
+  local_data_size(150)
+  large <- runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)
+  expect_identical(large, small)
+  expect_identical(attr(large$white, "diagnostic"), "white")
+  expect_null(attr(large$white, "extras")$status)
+  expect_identical(unname(large$white$statistic), unname(white$statistic))
+  expect_identical(unname(large$white$parameter), unname(white$parameter))
+  expect_identical(performWhiteTest(m, d), white)
+  # With the streaming tests asked for, White's fallback without cross
+  # products is the exact test on data of any size; up to 0.15.0 it switched
+  # to the streaming test above 100 MB, stopped too, and the runner returned
+  # the classical Breusch-Pagan test under the name "white".
+  asked_large <- runHeteroTests(m, d, use_cache = FALSE, chunk_threshold_mb = 100, progress = FALSE)
+  expect_identical(asked_large, asked)
+  expect_identical(asked_large$white$method, performWhiteTest(m, d, cross_products = FALSE)$method)
 })
 
 test_that("bootstrap helper returns the requested number of replicates", {

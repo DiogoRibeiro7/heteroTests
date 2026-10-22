@@ -143,9 +143,10 @@ code("isTRUE(all.equal(unname(exact$statistic), unname(streamed$statistic)))"),
 
 md("The two statistics match to machine precision, and the streaming version is",
    "*faster* here: accumulating cross-products in chunks avoids ever building the",
-   "full $n \\times q$ auxiliary matrix. `runHeteroTests()` switches to the streaming",
-   "path automatically once the working data exceed `chunk_threshold_mb`, so this",
-   "scalability is transparent in normal use."),
+   "full $n \\times q$ auxiliary matrix. `runHeteroTests()` takes the streaming",
+   "path when it is given a finite `chunk_threshold_mb`, such as",
+   "`chunk_threshold_mb = 100`, and the data exceed it; by default it runs the",
+   "exact tests whatever the size of the data."),
 
 md("## 4. Tidy integration",
    "",

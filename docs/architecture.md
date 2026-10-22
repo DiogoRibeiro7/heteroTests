@@ -97,7 +97,9 @@ build on. For each call it:
 2. checks the names in `tests` against the registry, and stops on one it does
    not know;
 3. swaps in the streaming versions of the White, Breusch–Pagan and Koenker
-   tests when the data are larger than `chunk_threshold_mb`;
+   tests when the caller asks for them with a finite `chunk_threshold_mb` and
+   the data are larger than it. The default, `Inf`, runs the exact tests; up
+   to 0.15.0 the default was 100 MB, and the runner switched by itself;
 4. runs each test, through the caches of results when `use_cache = TRUE`
    (below). A test that fails is logged and a fallback that suits the error is
    tried; if none works the run stops with a message that says why, except

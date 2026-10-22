@@ -60,6 +60,10 @@
 #' size. In such situations consider disabling `cross_products` or switching to
 #' the robust variants provided by the package.
 #'
+#' The test is computed in memory whatever the size of the data. Up to 0.15.0
+#' it switched to [performWhiteTestStreaming()] on data above 100 MB, which
+#' stops on any model with a factor; call that function to stream.
+#'
 #' @section Degrees of freedom:
 #' Let \eqn{Z} hold the regressors, their squares and their cross-products.
 #' The auxiliary regression of \eqn{\hat{e}^2} on \eqn{Z} has an intercept, and
@@ -256,24 +260,13 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
     .std_error("invalid_logical", arg = "cross_products")
   }
 
-  # Memory and performance warnings
-  size_mb <- tryCatch(
+  # A warning above 50 MB. Up to 0.15.0 the test switched to
+  # performWhiteTestStreaming() above 100 MB; the streaming tests run only when
+  # they are called, or asked for in runHeteroTests() (?runHeteroTests).
+  tryCatch(
     check_memory_usage(working_data, threshold_mb = 50),
-    error = function(e) NA_real_
+    error = function(e) NULL
   )
-  if (!is.na(size_mb) && size_mb > 100) {
-    ht_log("INFO", sprintf("Switching to streaming White test for dataset of %.1f MB", size_mb))
-    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
-    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
-    return(performWhiteTestStreaming(
-      model,
-      working_data,
-      chunk_size = adaptive_chunk,
-      cross_products = cross_products,
-      max_interactions = max_interactions,
-      progress = FALSE
-    ))
-  }
   if (nrow(working_data) > 10000) {
     message("Large dataset (", nrow(working_data), " observations). ",
             "This may take some time to compute.")
@@ -644,23 +637,13 @@ rwhite_test_rebuilt_design <- function(model, data = NULL, cross_products = TRUE
     .std_error("invalid_logical", arg = "cross_products")
   }
 
-  size_mb <- tryCatch(
+  # A warning above 50 MB; up to 0.15.0 the observed statistic and the
+  # replicates of the White bootstrap switched to the streaming test above
+  # 100 MB, as performWhiteTest() did.
+  tryCatch(
     check_memory_usage(working_data, threshold_mb = 50),
-    error = function(e) NA_real_
+    error = function(e) NULL
   )
-  if (!is.na(size_mb) && size_mb > 100) {
-    ht_log("INFO", sprintf("Switching to streaming White test for dataset of %.1f MB", size_mb))
-    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
-    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
-    return(performWhiteTestStreaming(
-      model,
-      working_data,
-      chunk_size = adaptive_chunk,
-      cross_products = cross_products,
-      max_interactions = max_interactions,
-      progress = FALSE
-    ))
-  }
   if (nrow(working_data) > 10000) {
     message("Large dataset (", nrow(working_data), " observations). ",
             "This may take some time to compute.")

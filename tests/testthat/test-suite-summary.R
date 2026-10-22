@@ -18,7 +18,7 @@ suite_run <- function(...) {
 suite_failed <- function(model, data, tests) {
   suppressWarnings(heteroTests:::.run_hetero_core(
     model, data,
-    tests = tests, use_cache = FALSE, chunk_threshold_mb = 100, chunk_size = 10000,
+    tests = tests, use_cache = FALSE, chunk_threshold_mb = Inf, chunk_size = 10000,
     progress = FALSE, recover_failures = TRUE
   ))
 }

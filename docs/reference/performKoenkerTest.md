@@ -30,6 +30,8 @@ Squared residuals are regressed on the regressors but the statistic \(n R^2\) us
 
 Like White's test, it is not valid with fixed effects for small groups, a factor with few observations per level, and over-rejects on homoscedastic data, the more the smaller the groups and the more groups there are: in 2,000 draws of `lm(y ~ x + subject)` with 30 subjects it rejected at the 5% level in 54% with three observations of each, 22% with four and 12% with eight, and with 100 subjects of eight in 22% (see *Too few observations* in [`performWhiteTest()`](performWhiteTest.md)).
 
+The test is computed in memory whatever the size of the data. Up to 0.15.0 it switched to [`performKoenkerTestStreaming()`](performKoenkerTestStreaming.md) on data above 100 MB; call that function to stream.
+
 ## Weighted fits
 
 `lm(..., weights = w)` states that the error variance is \(\sigma^2 / w_i\). On such a fit the test is computed from the Pearson residuals \(\sqrt{w_i}\, e_i\), the residuals of the equivalent unweighted regression, which have constant variance when the weights are right. The null hypothesis is then that the weights are adequate; the variance regressors stay on their original scale. Releases before 0.12.0 used the raw residuals, whose variance differs across observations by assumption, so a correctly weighted fit was rejected as often as an unweighted one. A fit with a zero weight is refused.

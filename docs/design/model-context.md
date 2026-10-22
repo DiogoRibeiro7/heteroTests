@@ -266,9 +266,11 @@ For the functions built on the context, in increment 1:
   until increment 8; a fit whose model frame cannot be rebuilt from `data`
   under the levels of the fit, as with `cut(x, quantile(x))`, whose replicates
   would compute other breaks, is refused by them ("`data` does not reproduce
-  the fit"), as it was refused before with "factor has new levels". Above the
-  100 MB switch to the streaming tests, the five still rebuild the design chunk
-  by chunk until increment 7.
+  the fit"), as it was refused before with "factor has new levels". The
+  streaming tests, which `runHeteroTests()` runs in their place only when a
+  finite `chunk_threshold_mb` asks for them (decision 27; up to 0.15.0 the
+  runner and the exact tests switched to them above 100 MB), still rebuild the
+  design chunk by chunk until increment 7.
 - **Values that change.** A term computed from all the rows of the data on a
   fit that dropped rows, such as `I(x1 > median(x1))` with `na.omit`, is
   tested on the design of the fit instead of a rebuilt one (B5). Without
@@ -867,6 +869,7 @@ that fixes each.
 | 24 | RESET builds its context without `data` and keeps `rcheck_data_argument()` until increment 6, so that its values on every form of `data` are those of 0.15.0. Confirmed by the author on 2026-10-19. | 2026-10-18 |
 | 25 | After the review of N2, White's test decides its rank on the auxiliary design of the centred regressors, so that it does not depend on where they are located, fitting the columns as they are whenever that fit keeps them all; and it refuses an auxiliary regression with as many independent terms as observations, the runner falling back on White's test without cross products. Decided by the author. | 2026-10-21 |
 | 26 | After the review of the follow-up of N2, White's test also refuses an auxiliary regression that fits the squared residuals exactly with fewer terms than observations, as on a paired design: its residual sum of squares at most `sqrt(.Machine$double.eps)` of the total. The refusal advises what the call allows, and the runner takes no fallback when the regressors alone fit the squared residuals exactly, since the Breusch-Pagan and Koenker tests would fit them exactly too. The same refusal in those two tests is left to a pull request of its own. | 2026-10-22 |
+| 27 | The streaming tests run only when asked for, outside the context: `runHeteroTests()` and `runDiagnostics()` default to `chunk_threshold_mb = Inf`, a finite value asks for them, and `performWhiteTest()`, `performBPTest()`, `performKoenkerTest()` and the White bootstrap no longer switch to them above 100 MB. Streaming saves memory mainly in White's test, and the White streaming test stops on any model with a factor. The three streaming tests stay exported, not deprecated, and increment 7 still builds them on the stored design. Decided by the author. | 2026-10-22 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

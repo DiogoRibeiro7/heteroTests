@@ -15,7 +15,7 @@ runDiagnostics(
   tests = c("white", "koenker"),
   power = 2:3,
   use_cache = TRUE,
-  chunk_threshold_mb = 100,
+  chunk_threshold_mb = Inf,
   chunk_size = 10000,
   progress = interactive()
 )
@@ -39,10 +39,10 @@ runDiagnostics(
 :   Logical flag forwarded to [`runHeteroTests`](runHeteroTests.md) controlling whether cached diagnostic results may be reused.
 
 `chunk_threshold_mb`
-:   Numeric threshold passed to [`runHeteroTests`](runHeteroTests.md) for enabling streaming diagnostics on large datasets.
+:   Size of the data in megabytes above which [`runHeteroTests`](runHeteroTests.md) runs the streaming forms of the White, Breusch-Pagan and Koenker tests. The default, `Inf`, never streams; give a finite value to ask for them. Up to 0.15.0 the default was `100`.
 
 `chunk_size`
-:   Integer chunk size supplied to [`runHeteroTests`](runHeteroTests.md) when streaming diagnostics.
+:   Integer chunk size supplied to [`runHeteroTests`](runHeteroTests.md) when the streaming tests run.
 
 `progress`
 :   Logical flag controlling whether textual progress indicators are displayed during long-running operations.

@@ -14,7 +14,7 @@ runHeteroTests(
   data = NULL,
   tests = c("white", "koenker"),
   use_cache = TRUE,
-  chunk_threshold_mb = 100,
+  chunk_threshold_mb = Inf,
   chunk_size = 10000,
   progress = interactive()
 )
@@ -58,11 +58,15 @@ runHeteroTests(
     their results.
 
 `chunk_threshold_mb`
-:   numeric threshold (in megabytes) above which streaming implementations are preferred for supported
-    diagnostics.
+:   size of `data` in megabytes above which `"white"`, `"breusch_pagan"` and
+    `"koenker"` are run by their streaming forms. The default, `Inf`, never streams: give a finite value to ask
+    for them, such as `100`, or `0` for data of any size. The result of a streaming test has
+    `attr(, "extras")$streaming` set to `TRUE`. Up to 0.15.0 the default was `100`. A warning about the
+    size of the data is given above half the threshold, or above 50 MB with the default.
 
 `chunk_size`
-:   integer number of observations processed per chunk when streaming diagnostics.
+:   integer number of observations processed per chunk when the streaming tests run
+    (`chunk_threshold_mb`).
 
 `progress`
 :   logical flag controlling whether textual progress bars are displayed when running multiple diagnostics.
@@ -103,6 +107,15 @@ the classical Breusch-Pagan, Koenker and Cook-Weisberg tests, `"koenker"` on the
 `attr(result, "extras")$status` is `"fallback"`. A weighted fit whose weights are a column of the data,
 called without `data`, is such a case: White's and Koenker's tests stop, and both names hold the Cook-Weisberg
 test. Pass `data` for such a fit.
+
+The runner runs the exact tests unless `chunk_threshold_mb` asks for the streaming ones,
+[`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performBPTestStreaming()`](performBPTestStreaming.md) and
+[`performKoenkerTestStreaming()`](performKoenkerTestStreaming.md). Up to 0.15.0 it switched to them by itself on data above 100 MB, and
+[`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md) and [`performKoenkerTest()`](performKoenkerTest.md) did so on their
+own. Streaming saves memory mainly in White's test, whose auxiliary design is several times wider than the model
+matrix; the auxiliary design of the Breusch-Pagan and Koenker tests is the model matrix itself. And the streaming White
+test stops on any model with a factor, whose squared dummies are collinear with the dummies, so that above 100 MB such
+a model got a fallback under the name `"white"` where smaller data got White's test.
 
 ## References
 
