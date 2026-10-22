@@ -933,9 +933,36 @@ after it.
         outside the model context (N2, decision 22 of its design): the degrees of
         freedom are the rank of the auxiliary design with its constant, minus one,
         and the columns the constant makes redundant are dropped, so that every
-        route to White's test gives the value of `lmtest::bptest()` on the same
-        terms. Changes p-values; on a nearly collinear auxiliary design, such as
-        that of a smooth term, the statistic too.
+        route to White's test that gives a value gives that of `lmtest::bptest()`
+        on the same terms; the streaming test stops on these designs, whose
+        auxiliary columns are collinear with its intercept. Changes p-values; on a
+        nearly collinear auxiliary design, such as that of a smooth term, the
+        statistic too.
+    - [x] The review of N2 found three more things, decided by the author on
+        2026-10-21. The rank of `[1, Z]` depended on where the regressors were
+        located: with `x = 1e4 + u`, or a date written as YYYYMMDD, the square of
+        `x` was taken for a combination of the intercept and `x` and dropped
+        (27.41 on 4 degrees of freedom where the test of the same model at zero
+        gives 27.43 on 5). An auxiliary regression with as many independent terms
+        as observations fitted the squared residuals exactly, and the test
+        returned the number of observations as its statistic. And a regressor
+        named like a column the test generates, `a` beside `a_sq`, stopped the
+        auxiliary regression, which was fitted from a formula on the names. Done
+        in 0.16.0: the rank is decided on the auxiliary design of the centred
+        regressors, the regression fitted on the columns as they are unless that
+        fit would lose one of them, a saturated auxiliary regression refused (by
+        the streaming test too; the runner falls back on White's test without
+        cross products), and the regression fitted with `lm.fit()`. Changes
+        p-values on designs with a regressor far from zero, and refuses calls
+        that returned a value.
+    - `performWhiteTestStreaming()` on an `mgcv::gam()` fit with smooth terms
+        tests the design of `terms(gam)`, the parametric terms with the variables
+        of the smooths as linear terms, not the design of the fit: on
+        `gam(y ~ s(x1) + x2)` it gives 33.31 on 5 degrees of freedom where
+        `performWhiteTest()` gives 83.29 on 59. Found by the review of N2. The
+        step of the model context that builds the streaming tests on the stored
+        design (step 7), or the one that settles whether the tests take a
+        penalised `gam` (step 11), settles it. Changes a value, or refuses one.
     - Three more tests ignore an offset, besides the studentized statistic
         above, so that on `lm(y ~ x1 + x2, offset = o)`, or with `+ offset(o)`,
         they do not give the value of the same model fitted to `y - o`:
