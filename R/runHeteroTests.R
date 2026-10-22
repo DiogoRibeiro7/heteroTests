@@ -58,9 +58,14 @@
 #' @param progress Logical flag controlling whether textual progress bars are
 #'   displayed while running multiple diagnostics.
 #'
-#' @return A [`hetero_test_suite`] list of diagnostic results. When grouped data
-#'   are supplied the return value is a [`hetero_grouped_suite`] containing a
-#'   per-group `hetero_test_suite`.
+#' @return A [`hetero_test_suite`] list of diagnostic results, which prints as
+#'   a table of the tests and whose `summary()` is laid out as that of an `lm`
+#'   ([summary.hetero_test_suite()]). When grouped data are supplied the return
+#'   value is a [`hetero_grouped_suite`] containing a per-group
+#'   `hetero_test_suite`. Every test reports the formula of the model as its
+#'   `data.name`; up to 0.15.0 White's test, its bootstrap and its form without
+#'   cross products, the studentized Breusch-Pagan statistic and Szroeter's
+#'   test reported `"model"`.
 #'
 #' @seealso \code{\link{runDiagnostics}} for a broader suite that includes
 #'   collinearity and influence measures, \code{\link{runPanelTests}} for panel
@@ -70,6 +75,7 @@
 #' data(mtcars)
 #' m <- lm(mpg ~ wt + qsec, data = mtcars)
 #' runHeteroTests(m, mtcars)
+#' summary(runHeteroTests(m, mtcars))
 #' registerDiagnostic("my_stat", function(model, data) list(statistic = 0))
 #' runHeteroTests(m, mtcars, tests = c("white", "my_stat"))
 #'
@@ -290,6 +296,10 @@ runHeteroTests <- function(model, data = NULL,
     progress_bar$update(i)
   }
 
+  # Every test reports the model's formula as its data.name (rsuite_data_name()).
+  formula_text <- tryCatch(deparse(stats::formula(model)), error = function(e) NULL)
+  res <- lapply(res, rsuite_data_name, formula_text = formula_text)
+
   output <- structure(
     res,
     class = c("hetero_test_suite", "list"),
@@ -304,4 +314,35 @@ runHeteroTests <- function(model, data = NULL,
   }
 
   output
+}
+
+#' The data.name of a test run by runHeteroTests()
+#'
+#' Every test the runner runs reports the formula of the model as its
+#' `data.name`, as Koenker's test did. A test reached through the registry
+#' names the argument of the registry's function, so before 0.16.0 White's
+#' test, its bootstrap, its form without cross products (a fallback), the
+#' studentized Breusch-Pagan statistic and Szroeter's test reported `"model"`,
+#' whatever the model was called. A `data.name` that begins with the formula
+#' and adds what the test was run against, as those of the NCV and
+#' variance-form tests do, is kept. Called directly, a test still names the
+#' object it was given: `performWhiteTest(m, d)$data.name` is `"m"`.
+#'
+#' @param result A result of the suite.
+#' @param formula_text `deparse(stats::formula(model))`, or `NULL` when the
+#'   model has no formula, and nothing changes.
+#' @return `result`, with that `data.name`.
+#' @keywords internal
+#' @noRd
+rsuite_data_name <- function(result, formula_text) {
+  if (is.null(formula_text) || !inherits(result, "htest")) {
+    return(result)
+  }
+  current <- result[["data.name"]]
+  if (is.character(current) && length(current) >= 1L &&
+        isTRUE(startsWith(current[[1L]], formula_text[[1L]]))) {
+    return(result)
+  }
+  result[["data.name"]] <- formula_text
+  result
 }
