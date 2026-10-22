@@ -69,10 +69,12 @@ which prints as a table of the tests, and whose \code{summary()} is laid out as 
 \code{\link{summary.hetero_test_suite}}). With grouped data, a \code{\link{hetero_grouped_suite}} holding one such
 suite for each group.
 
-Every test reports the formula of the model as its \code{data.name}. Up to 0.15.0 White's test, its bootstrap
-and its form without cross products, the studentized Breusch-Pagan statistic and Szroeter's test reported
-\code{"model"} instead, the name of the argument of the function the registry calls them with. Called directly,
-a test still names the object it is given: \code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
+A result whose \code{data.name} is \code{"model"} reports the formula of the model instead, as Koenker's test and
+the others do. Up to 0.15.0 five tests reported \code{"model"} here, the name of the argument of the function the
+registry calls them with: White's test, its bootstrap and its form without cross products, the studentized
+Breusch-Pagan statistic and Szroeter's test. Any other \code{data.name}, such as that of a diagnostic added with
+\code{registerDiagnostic}, is kept. Called directly, a test still names the object it is given:
+\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
