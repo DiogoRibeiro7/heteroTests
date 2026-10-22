@@ -39,12 +39,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest, r: 'release', full-matrix: 'true'}
-          - {os: ubuntu-latest, r: 'oldrel-1'}
-          - {os: macos-latest, r: 'release'}
-          - {os: windows-latest, r: 'release'}
+        # A pull request runs two of the five configurations: ubuntu-latest
+        # (R release), with the full model-context matrix, and windows-latest
+        # (R release); the min-r-version job below adds R 4.1. A push to main,
+        # the weekly schedule and a manual run add R devel, R oldrel-1 and
+        # macOS, so a problem there shows up on the next merge or within a
+        # week, while a pull request does not wait for the slowest runners.
+        config: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os": "ubuntu-latest", "r": "release", "full-matrix": "true"},
+               {"os": "windows-latest", "r": "release"}]'
+          || '[{"os": "ubuntu-latest", "r": "devel", "http-user-agent": "release"},
+               {"os": "ubuntu-latest", "r": "release", "full-matrix": "true"},
+               {"os": "ubuntu-latest", "r": "oldrel-1"},
+               {"os": "macos-latest", "r": "release"},
+               {"os": "windows-latest", "r": "release"}]') }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes

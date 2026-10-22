@@ -116,7 +116,7 @@ the guide pages it writes along with the vignette that changed.
 
 | Workflow | Runs |
 | --- | --- |
-| `R-CMD-check.yml` | `R CMD check` on Ubuntu (R devel, release and the previous release), macOS and Windows, and with the hard dependencies on R 4.1; weekly or on demand, `--as-cran` and reverse-dependency checks. |
+| `R-CMD-check.yml` | `R CMD check`. On a pull request: Ubuntu and Windows (R release), and the hard dependencies on R 4.1. On a push to `main`, weekly and on demand, also Ubuntu (R devel and the previous release) and macOS. Weekly or on demand, `--as-cran` and reverse-dependency checks. |
 | `run-checks.yml` | In parallel: `scripts/run_checks.R`, whose saved coverage is sent to Codecov; the spelling check, and a link check whose result is reported, not gated; and the quick benchmark suite. |
 | `docs.yml` | Regenerates the reference, releases and roadmap pages, fails if the committed ones are out of date, builds the site with `--strict`, and deploys it to GitHub Pages from `main`. |
 | `release.yml` | On a push to `main` whose `DESCRIPTION` version has no tag: builds the tarball, checks it with `R CMD check --as-cran`, tags `v<version>`, publishes a GitHub release with the tarball, and stores the tarball in `cran/`. |
