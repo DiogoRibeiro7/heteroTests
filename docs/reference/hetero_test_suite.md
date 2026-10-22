@@ -14,5 +14,6 @@ returned object inherits from `hetero_grouped_suite` and contains one
 
 These classes are primarily useful for method dispatch (e.g. the broom tidiers
 and `autoplot()` methods). Users typically interact with the objects via
+`print()` and `summary()` (see [`summary.hetero_test_suite`](summary.hetero_test_suite.md)),
 `generics::tidy()`, `generics::glance()`, `generics::augment()`
 and `ggplot2::autoplot()`.

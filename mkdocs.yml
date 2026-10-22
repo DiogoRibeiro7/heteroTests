@@ -180,6 +180,7 @@ nav:
           - "summary(&lt;HeteroDiagnostic&gt;)": reference/summary.HeteroDiagnostic.md
           - "plot(&lt;HeteroDiagnostic&gt;)": reference/plot.HeteroDiagnostic.md
           - "hetero_test_suite": reference/hetero_test_suite.md
+          - "summary.hetero_test_suite": reference/summary.hetero_test_suite.md
           - "tidy.hetero_test": reference/tidy.hetero_test.md
           - "cachedTest()": reference/cachedTest.md
           - "clearTestCache()": reference/clearTestCache.md

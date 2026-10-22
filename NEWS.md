@@ -1225,6 +1225,96 @@ row; the White bootstrap's scenarios of block 4 of the weighted fits, of the
 offset refits and on a transformed response, and the survey designs, give
 the same tables as before at fewer replications from the same seeds.
 
+### Printing and summarising the results of `runHeteroTests()`
+
+`runHeteroTests()` returns a `hetero_test_suite`, which had no print or
+summary method: `print()` showed the list, each test as an `htest` and then
+the attributes of the suite, the whole fitted model with its call and
+coefficients among them, and `summary()` gave the `Length Class Mode` table
+of a list. `print()` now shows the call of the model, or its formula, and the
+number of observations on one line, then a table with one row per test, its
+statistic, degrees of freedom and p-value, with the significance codes of
+`summary.lm()`, and a note, cut to one line, for each test that did not run as
+asked. `summary()` returns a `summary.hetero_test_suite`, laid out as the
+summary of an `lm`: the call, the number of observations, the weights, offset
+and family where there are any, the table, printed by `printCoefmat()` so that
+`digits` and `options(show.signif.stars)` apply, the legend of the codes, the
+notes in full (a fallback, naming the test that ran in its place; a failure or
+a refusal, with its kind and message; a streaming implementation; a parameter
+that is not a degree of freedom, such as the `B` of a resampling test), and a
+line saying that several tests of one model are not independent evidence.
+`summary(s)$tests` is the table as a numeric matrix, as `coef(summary(fit))`
+is for an `lm`, and `?summary.hetero_test_suite` documents every field. A
+grouped run, a `hetero_grouped_suite`, has the same methods, with one table for
+all the groups, in which a failed test shows `NA` and the notes say why.
+On `lm(stations ~ mag + depth, data = quakes)`, before:
+
+```r
+runHeteroTests(model, quakes)
+#> $white
+#>
+#>  White's test for heteroscedasticity
+#>
+#> data:  model
+#> X-squared = 125.56, df = 5, p-value < 2.2e-16
+#> alternative hypothesis: heteroscedasticity present
+#>
+#>
+#> $koenker
+#> ...
+#> attr(,"model")
+#>
+#> Call:
+#> lm(formula = stations ~ mag + depth, data = quakes)
+#>
+#> Coefficients:
+#> (Intercept)          mag        depth
+#>  -192.04290     47.90872      0.01318
+#>
+#> attr(,"data_source")
+#> [1] "data.frame"
+```
+
+and now:
+
+```r
+runHeteroTests(model, quakes)
+#> Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
+#>
+#>         Statistic df p-value
+#> white       125.6  5  <2e-16 ***
+#> koenker     111.3  2  <2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+These six methods (`print()` and `summary()` of each class, and `print()` of
+the two summaries) are exported S3 methods, an addition to 0.16.0 outside its
+"no API change", approved by the author on 2026-10-21. No value changes:
+`tidy()`, `glance()`, `augment()` and `autoplot()` of a suite return what they
+returned, and a single test still returns and prints its `htest`.
+
+Through `runHeteroTests()` every test now reports the formula of the model as
+its `data.name`, as Koenker's test already did. White's test, its bootstrap
+and its form without cross products (a fallback of White's test), the
+studentized Breusch-Pagan statistic (`"student_bp"`) and Szroeter's test
+(`"szroeter"`) reported `"model"`, the name of the argument of the function
+the registry calls them with, so that `runHeteroTests(m, d)$white` printed
+`data:  model` where `$koenker` printed `data:  mpg ~ wt + qsec`. This changes
+a field of what `runHeteroTests()`, and so `runDiagnostics()` and
+`runSurveyHeteroTests()`, return; no statistic, degree of freedom or p-value
+changes. A `data.name` that already begins with the formula and says what
+else the test was run against, as those of the NCV and variance-form tests do,
+is kept. Called directly, a test still names the object it is given
+(`performWhiteTest(m, d)$data.name` is `"m"`), and `cachedTest()`, the
+registry and `runHeteroTestsParallel()` return what the registered function
+returns, as before. The corpus of the model context
+(`scripts/model-context-identity.R`), whose runner calls now record the
+`data.name`, returns what it returned before: of its 19,523 calls 18,885 are
+`identical()`, and the other 638, all runner calls, differ in the `data.name`
+of a test alone, each now the formula of its model, which the harness allows
+and checks against `deparse(formula(model))`.
+
 ### Packaging
 
 - The logo shows in the README, and the `R CMD check` NOTE

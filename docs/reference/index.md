@@ -120,6 +120,7 @@ Checks of the fitted model that are not tests of the variance: the functional fo
 | [Summarize diagnostics](summary.HeteroDiagnostic.md) | `summary(<HeteroDiagnostic>)` |
 | [Plot diagnostics](plot.HeteroDiagnostic.md) | `plot(<HeteroDiagnostic>)` |
 | [S3 containers for heteroscedasticity diagnostics](hetero_test_suite.md) |  |
+| [Print and summarise the results of runHeteroTests()](summary.hetero_test_suite.md) | `print(<hetero_test_suite>)`, `summary(<hetero_test_suite>)`, `print(<summary.hetero_test_suite>)`, `print(<hetero_grouped_suite>)`, `summary(<hetero_grouped_suite>)`, `print(<summary.hetero_grouped_suite>)` |
 | [broom methods for heteroscedasticity diagnostics](tidy.hetero_test.md) | `tidy(<hetero_test>)`, `glance(<hetero_test>)`, `augment(<hetero_test>)`, `tidy(<hetero_test_suite>)`, `glance(<hetero_test_suite>)`, `augment(<hetero_test_suite>)`, `tidy(<hetero_grouped_suite>)` |
 | [Cache results of a heteroscedasticity test](cachedTest.md) | `cachedTest()` |
 | [Clear cached test results](clearTestCache.md) | `clearTestCache()` |

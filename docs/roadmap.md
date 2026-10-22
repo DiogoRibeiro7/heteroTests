@@ -1291,6 +1291,17 @@ after it.
     instead of `install_local()`. If they do not, remove them.
 - [ ] Keep the CRAN test run short. Long simulations run under `skip_on_cran()`,
     and the full versions run on CI.
+- [x] **`print()` and `summary()` for the results of `runHeteroTests()`.** An
+    addition, outside "no API change": exported S3 methods `print()` and
+    `summary()` for `hetero_test_suite` and `hetero_grouped_suite`, and
+    `print()` for their summaries, approved by the author on 2026-10-21, with
+    the significance codes of `summary.lm()`. A suite printed the list, the
+    fitted model among its attributes, and had the summary of a list. Done in
+    0.16.0 (`?summary.hetero_test_suite`): a table with one row per test, notes
+    for the tests that fell back or failed, and `summary(s)$tests` as
+    `coef(summary(fit))` is for an `lm`. With it every test the runner runs
+    reports the formula of the model as its `data.name`, where White's test and
+    four others reported `"model"`; no statistic changes.
 
 ### 1.0.0: freeze
 

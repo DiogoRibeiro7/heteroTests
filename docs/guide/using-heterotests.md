@@ -79,87 +79,29 @@ Several diagnostics can also be run together.
 ``` r
 # Alternatively run multiple tests at once
 runHeteroTests(model, quakes)
-# $white
+# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
 #
-# 	White's test for heteroscedasticity
-#
-# data:  model
-# X-squared = 125.56, df = 5, p-value < 2.2e-16
-# alternative hypothesis: heteroscedasticity present
-#
-#
-# $koenker
-#
-# 	Koenker studentized Breusch-Pagan test
-#
-# data:  stations ~ mag + depth
-# X-squared = 111.31, df = 2, p-value < 2.2e-16
-#
-#
-# attr(,"class")
-# [1] "hetero_test_suite" "list"
-# attr(,"tests")
-# [1] "white"   "koenker"
-# attr(,"model")
-#
-# Call:
-# lm(formula = stations ~ mag + depth, data = quakes)
-#
-# Coefficients:
-# (Intercept)          mag        depth
-#  -192.04290     47.90872      0.01318
-#
-# attr(,"data_source")
-# [1] "data.frame"
+#         Statistic df p-value
+# white       125.6  5  <2e-16 ***
+# koenker     111.3  2  <2e-16 ***
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # Choose a subset of diagnostics
 runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
-# $white
+# Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data = quakes), n = 1000
 #
-# 	White's test for heteroscedasticity
-#
-# data:  model
-# X-squared = 125.56, df = 5, p-value < 2.2e-16
-# alternative hypothesis: heteroscedasticity present
-#
-#
-# $koenker
-#
-# 	Koenker studentized Breusch-Pagan test
-#
-# data:  stations ~ mag + depth
-# X-squared = 111.31, df = 2, p-value < 2.2e-16
-#
-#
-# $cook_weisberg
-#
-# 	Cook-Weisberg test for heteroscedasticity
-#
-# data:  stations ~ mag + depth
-# X-squared = 187.98, df = 1, p-value < 2.2e-16
-# alternative hypothesis: error variance depends on the fitted values
-#
-#
-# attr(,"class")
-# [1] "hetero_test_suite" "list"
-# attr(,"tests")
-# [1] "white"         "koenker"       "cook_weisberg"
-# attr(,"model")
-#
-# Call:
-# lm(formula = stations ~ mag + depth, data = quakes)
-#
-# Coefficients:
-# (Intercept)          mag        depth
-#  -192.04290     47.90872      0.01318
-#
-# attr(,"data_source")
-# [1] "data.frame"
+#               Statistic df p-value
+# white             125.6  5  <2e-16 ***
+# koenker           111.3  2  <2e-16 ***
+# cook_weisberg     188.0  1  <2e-16 ***
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 runDiagnostics(model, quakes)
 # $white
 #
 # 	White's test for heteroscedasticity
 #
-# data:  model
+# data:  stations ~ mag + depth
 # X-squared = 125.56, df = 5, p-value < 2.2e-16
 # alternative hypothesis: heteroscedasticity present
 #
@@ -590,7 +532,7 @@ runDiagnostics(quakes_model, quakes)
 #
 # 	White's test for heteroscedasticity
 #
-# data:  model
+# data:  stations ~ mag + depth
 # X-squared = 125.56, df = 5, p-value < 2.2e-16
 # alternative hypothesis: heteroscedasticity present
 #
@@ -1039,7 +981,7 @@ runDiagnostics(hd$model, hd$data)
 #
 # 	White's test for heteroscedasticity
 #
-# data:  model
+# data:  stations ~ mag + depth
 # X-squared = 125.56, df = 5, p-value < 2.2e-16
 # alternative hypothesis: heteroscedasticity present
 #
@@ -1422,7 +1364,7 @@ runDiagnostics(wls_model, quakes)
 #
 # 	White's test for heteroscedasticity
 #
-# data:  model
+# data:  stations ~ mag + depth
 # X-squared = 42.153, df = 5, p-value = 5.485e-08
 # alternative hypothesis: heteroscedasticity present
 #

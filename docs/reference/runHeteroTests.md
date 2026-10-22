@@ -69,7 +69,15 @@ runHeteroTests(
 
 ## Value
 
-A named list of `htest` objects.
+A [`hetero_test_suite`](hetero_test_suite.md): a named list of `htest` objects, one for each test asked for,
+which prints as a table of the tests, and whose `summary()` is laid out as that of an `lm` (see
+[`summary.hetero_test_suite`](summary.hetero_test_suite.md)). With grouped data, a [`hetero_grouped_suite`](hetero_test_suite.md) holding one such
+suite for each group.
+
+Every test reports the formula of the model as its `data.name`. Up to 0.15.0 White's test, its bootstrap
+and its form without cross products, the studentized Breusch-Pagan statistic and Szroeter's test reported
+`"model"` instead, the name of the argument of the function the registry calls them with. Called directly,
+a test still names the object it is given: `performWhiteTest(m, mtcars)$data.name` is `"m"`.
 
 ## Details
 
@@ -105,6 +113,8 @@ data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
 # Default: White and Koenker
 runHeteroTests(m, mtcars)
+# Laid out as summary.lm() is, with the significance codes
+summary(runHeteroTests(m, mtcars))
 # Specify additional diagnostics, or the classical Breusch-Pagan test
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 runHeteroTests(m, mtcars, tests = "breusch_pagan")
