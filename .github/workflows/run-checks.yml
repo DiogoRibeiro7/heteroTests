@@ -7,6 +7,22 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Supersede a pull request's earlier runs, but never a push to main, keyed as
+# in R-CMD-check.yml, which explains why the group holds the commit rather
+# than the ref outside pull requests.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# The full model-context matrix runs in one job, ubuntu-latest (R release) in
+# R-CMD-check.yml; the coverage here runs the cells CRAN runs
+# (tests/testthat/helper-model-context.R).
+env:
+  HETEROTESTS_FULL_MATRIX: 'false'
+
+# The three jobs share no files, so they run in parallel.
 jobs:
   project-quality:
     name: Style, lint, tests
@@ -37,18 +53,25 @@ jobs:
         with:
           name: coverage-report
           path: coverage
+      # Uploads the coverage scripts/run_checks.R computed and saved, rather
+      # than running the suite a second time.
       - name: Upload to codecov
         if: success() || failure()
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           Rscript -e "if (!requireNamespace('covr', quietly = TRUE)) install.packages('covr')"
-          Rscript -e "covr::codecov(token = Sys.getenv('CODECOV_TOKEN'))"
+          Rscript - <<'RSCRIPT'
+          path <- file.path("coverage", "coverage.rds")
+          if (!file.exists(path)) {
+            stop("No ", path, ": scripts/run_checks.R stopped before it saved the coverage.")
+          }
+          covr::codecov(coverage = readRDS(path), token = Sys.getenv("CODECOV_TOKEN"))
+          RSCRIPT
 
   docs-quality:
     name: Spell and link checks
     runs-on: ubuntu-latest
-    needs: project-quality
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -90,7 +113,6 @@ jobs:
   benchmark-regression:
     name: Benchmark regression check
     runs-on: ubuntu-latest
-    needs: project-quality
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes

@@ -68,7 +68,9 @@ context_check_matrix <- function(ids, fns = context_runnable()) {
 }
 
 test_that("the migrated tests give the value of the fit on every form of data they accept", {
-  skip_on_cran()
+  # The full matrix: off CRAN, unless HETEROTESTS_FULL_MATRIX=false
+  # (context_full_matrix()).
+  skip_unless_full_matrix()
   context_check_matrix(names(context_cells()))
 })
 
@@ -812,8 +814,8 @@ test_that("a fit with a zero weight is refused on every route of increments 3 an
 })
 
 test_that("an offset is the model of the response minus the offset", {
-  # 400 calls, among them fitWLS() fits: with the full matrix, off CRAN.
-  skip_on_cran()
+  # 400 calls, among them fitWLS() fits: with the full matrix.
+  skip_unless_full_matrix()
   d <- context_data()
   shifted <- d
   shifted$y <- d$y - d$o
@@ -887,8 +889,8 @@ test_that("RESET with an offset is the nested F test of the model with its offse
 })
 
 test_that("a term is the column it computes, taken from the fit", {
-  # 600 expectations: with the full matrix, off CRAN.
-  skip_on_cran()
+  # 600 expectations: with the full matrix.
+  skip_unless_full_matrix()
   d <- context_data()
   precomputed <- context_precomputed()$formulas
   for (fn in context_runnable()) {
