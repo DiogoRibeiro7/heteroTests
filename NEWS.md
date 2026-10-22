@@ -1146,21 +1146,24 @@ an intercept, so the degrees of freedom of n R² are the rank of [1, Z]
 minus one, as `lmtest::bptest()` counts them given the same terms as
 `varformula`. `performWhiteTest()` took the rank of Z alone, one more when
 the columns of Z span the constant, as the squares of the dummies of
-`contr.sum` and `contr.helmert` contrasts, the dummies of every level of a
-factor in a model without an intercept, an interaction with no observation in
-the cell of its baseline levels, and the squares of an orthogonal `poly()`
-basis do. The statistic is the same, and the p-value was too large. It now
-drops the columns of Z that are combinations of the intercept and the columns
-before them, at the default tolerance of `qr()`, so that the regression and
-its degrees of freedom agree. On the data of `contract_data()`
+`contr.sum`, `contr.helmert` and `contr.poly` contrasts, the last the default
+for an ordered factor, the dummies of every level of a factor in a model
+without an intercept, an interaction with no observation in the cell of its
+baseline levels, and the squares of an orthogonal `poly()` basis do. The
+statistic is the same, and the p-value was too large. It now drops the
+columns of Z that are combinations of the intercept and the columns before
+them, at the default tolerance of `qr()`, so that the regression and its
+degrees of freedom agree. On the data of `contract_data()`
 (`tests/testthat/helper-test-recipes.R`), with `half` a factor of two levels,
-`h` one of three and `sub` one of two within each level of `group`:
+`h` one of three, `sub` one of two within each level of `group`, and `o4` and
+`o3` the levels of `group` and of `h` as ordered factors:
 
 | Model | Statistic | Degrees of freedom (p), 0.15.0 | Now, as `lmtest::bptest()` |
 | --- | --- | --- | --- |
 | `lm(y ~ x1 + group)`, `contr.sum` | 17.83 | 9 (p = 0.0372) | 8 (p = 0.0225) |
 | `lm(y ~ x1 + group)`, `contr.helmert` | 17.83 | 9 (p = 0.0372) | 8 (p = 0.0225) |
 | `lm(y ~ 0 + group + x1)` | 17.83 | 9 (p = 0.0372) | 8 (p = 0.0225) |
+| `lm(y ~ x1 + o4)`, `contr.poly` | 17.83 | 9 (p = 0.0372) | 8 (p = 0.0225) |
 | `lm(y ~ x1 + group)`, treatment contrasts | 17.83 | 8 (p = 0.0225) | unchanged |
 | `lm(y ~ x1 + group)`, `contr.sum`, `cross_products = FALSE` | 13.79 | 6 (p = 0.0321) | 5 (p = 0.0170) |
 | `lm(y ~ x1 + group, weights = 1 / x1)`, `contr.sum` | 16.28 | 9 (p = 0.0612) | 8 (p = 0.0385) |
@@ -1168,12 +1171,13 @@ its degrees of freedom agree. On the data of `contract_data()`
 | `lm(y ~ x1 + group / sub)`, `contr.helmert` for both | 19.41 | 17 (p = 0.306) | 16 (p = 0.248) |
 | `lm(y ~ x1 + half * h)`, no observation at (even, p) | 17.68 | 11 (p = 0.0893) | 10 (p = 0.0606) |
 | `lm(y ~ poly(x1, 2) + x2)` | 11.95 | 9 (p = 0.216) | 8 (p = 0.153) |
+| `lm(y ~ o3)`, `contr.poly` | 1.696 | 3 (p = 0.638) | 2 (p = 0.428) |
 | `lm(y ~ x1 + x2)` | 11.14 | 5 (p = 0.0486) | unchanged |
 
-The first four rows are one model: the four levels of `group`, coded in three
+The first five rows are one model: the four levels of `group`, coded in four
 ways or without the intercept, span the same columns, and under the default
 treatment contrasts the test gave the 8 degrees of freedom it now gives in
-all four. The correction reaches `cross_products = FALSE` and more regressors
+all five. The correction reaches `cross_products = FALSE` and more regressors
 than `max_interactions`, `performWhiteTestRobust()`, whose asymptotic
 interval, effect size and power follow the degrees of freedom, the registered
 `"white"` and its fallback without cross products, `runHeteroTests()` and the
@@ -1199,9 +1203,52 @@ had 59 regressors and was scored on 60 degrees of freedom. The test gave
 of 0.15.0 and gives the value of those references: its columns without the
 lost one give 45.92 on 59, which is neither.
 
-`tests/testthat/test-performWhiteTest.R` compares White's test on fifteen
-designs, with and without cross products, with `lm(e^2 ~ Z)` written out and
-with `lmtest::bptest()`, and pins the values above. Unchanged: every other
+**White's test no longer depends on where its regressors are located.** The
+rank of [1, Z] was decided on the columns as they are: the square of a
+regressor far from zero, such as `x = 1e4 + u` or a date written as
+YYYYMMDD, differs from a combination of the intercept and the regressor by
+less than the tolerance of `qr()` relative to its size, and was dropped. On
+`lm(y ~ x1 + x2)` with 1e4 added to `x1`, on the data of `contract_data()`,
+the test gave 10.34 on 4 degrees of freedom (p = 0.035), where the same model
+at zero gives 11.14 on 5 (p = 0.0486); on a date, `lm(y ~ ymd + z)` with
+`ymd` from 20240101 to 20240128, 42.049245 on 4 (p = 1.6e-08) for 42.049252
+on 5 (p = 5.8e-08), the value of the days counted from zero. The rank is now
+decided on the auxiliary design of the centred regressors, which spans the
+same columns with the intercept. The regression is fitted on Z as before,
+which keeps every other value bit for bit, and on the centred design only
+when the fit of Z would lose one of the columns kept. The test gives the
+value of `lm(e^2 ~ Z_c)` and of `lmtest::bptest()` on the centred terms, and
+moving `x1` by 1e2, 1e4 or 1e6 changes its statistic by at most 1.3e-10
+relative and its degrees of freedom not at all. The robust form, the
+registered `"white"`, the runner and the White bootstrap change with it.
+
+**White's test refuses an auxiliary regression with as many independent
+terms as observations.** Such a regression fits the squared residuals
+exactly: its R² is 1 and the statistic the number of observations, whatever
+the data. On 22 observations of six regressors, whose squares and products
+make 28 terms with the intercept, `performWhiteTest()` returned 22 on 21
+degrees of freedom (p = 0.40); it now stops with "White's auxiliary
+regression has 22 independent terms with its intercept for 22 observations:
+... There are too few observations for White's test with these regressors;
+use `cross_products = FALSE`, Koenker's test (performKoenkerTest()) or more
+data." So do its robust form, the registered `"white"` and
+`performWhiteTestStreaming()`, which stopped with "Auxiliary regression
+became rank deficient". `runHeteroTests()` falls back on White's test
+without cross products, as on any refusal of White's test, and returns it
+under the name `white`, tagged as a fallback: 15.98 on 12 degrees of freedom
+(p = 0.19) for the design above.
+
+A regressor named like a column White's test generates, such as `a` beside
+`a_sq`, stopped the test with "Auxiliary regression failed: duplicated name
+'a_sq' in data frame using '.'". The auxiliary regression is now fitted with
+`lm.fit()` on its matrix, and the test gives the value of the same data with
+other names: 27.64 on 5 degrees of freedom for the design of
+`tests/testthat/test-performWhiteTest.R`. On every other design the fit
+gives the value of before, bit for bit.
+
+`tests/testthat/test-performWhiteTest.R` compares White's test on seventeen
+designs, with and without cross products, with `lm(e^2 ~ Z)` written out on
+the centred columns and with `lmtest::bptest()`, and pins the values above. Unchanged: every other
 value, as on continuous regressors and factors with treatment contrasts,
 where the auxiliary regression of 0.15.0 had the degrees of freedom it
 counted. A corpus of 19,523 calls, that of the model context
@@ -1224,6 +1271,30 @@ the replications of the committed tables, reproduce those tables row for
 row; the White bootstrap's scenarios of block 4 of the weighted fits, of the
 offset refits and on a transformed response, and the survey designs, give
 the same tables as before at fewer replications from the same seeds.
+
+The changes after the review of N2 (the location, the saturated regression,
+the names) were checked the same way. The corpus of the model context runs
+six more cells: its model with `x1` moved by 1e4 and by 1e6, the saturated
+design above, the regressors `a` and `a_sq` with a copy that names the second
+`b`, and an ordered factor. Of its 19,865 calls, 19,845 return what they
+returned before, `identical()`, and the other 20 are calls of White's test
+on those cells, each verified: against White's test written out on the
+centred design, every other number of the result that of before or computed
+from the new degrees of freedom; by the refusal; or as the same call on the
+model at zero or with the other names. The harness now also compares the
+robust test's interval, effect size and power, and every attribute of the
+result, with what they compute to from the degrees of freedom.
+The studies of `inst/validation/` fit regressors near zero, and their rows
+of White's tests do not move: White's row of the full sweep and its nine
+rows of blocks 1 to 3 of the weighted fits, run alone from their seeds at
+the replications of the committed tables, reproduce those tables row for
+row; Pass A at 500 replications, the survey designs at 100, the White
+bootstrap on a transformed response at 60 and 20, the White bootstrap of the
+offset refits at 60 and the White bootstrap's scenarios of block 4 of the
+weighted fits at 40 (8 for the weights that are too weak), from the same
+seeds, give the same tables as before; and each of the 131,433 values of
+White's statistic, degrees of freedom and p-value these runs compute is
+`identical()` to before.
 
 ### Printing and summarising the results of `runHeteroTests()`
 
