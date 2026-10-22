@@ -1210,7 +1210,7 @@ lost one give 45.92 on 59, which is neither.
 **White's test no longer depends on where its regressors are located.** The
 rank of [1, Z] was decided on the columns as they are: the square of a
 regressor far from zero, such as `x = 1e4 + u` or a date written as
-YYYYMMDD, differs from a combination of the intercept and the regressor by
+`YYYYMMDD`, differs from a combination of the intercept and the regressor by
 less than the tolerance of `qr()` relative to its size, and was dropped. On
 `lm(y ~ x1 + x2)` with 1e4 added to `x1`, on the data of `contract_data()`,
 the test gave 10.34 on 4 degrees of freedom (p = 0.035), where the same model
@@ -1234,7 +1234,7 @@ make 28 terms with the intercept, `performWhiteTest()` returned 22 on 21
 degrees of freedom (p = 0.40); it now stops with "White's auxiliary
 regression has 22 independent terms with its intercept for 22 observations:
 ... There are too few observations for White's test with these regressors;
-use `cross_products = FALSE`, Koenker's test (performKoenkerTest()) or more
+use `cross_products = FALSE`, Koenker's test (`performKoenkerTest()`) or more
 data." So do its robust form, the registered `"white"` and
 `performWhiteTestStreaming()`, which stopped with "Auxiliary regression
 became rank deficient". `runHeteroTests()` falls back on White's test
