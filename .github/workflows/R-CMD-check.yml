@@ -36,15 +36,31 @@ jobs:
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
+    # A job here normally takes 6 to 16 minutes, and up to about 40 when the
+    # runner's Ubuntu mirror is slow: on 2026-10-22 setup alone took 23
+    # minutes, at 100 to 500 kB/s. A job still running at 45 minutes is stuck
+    # (#149's oldrel-1 job was still downloading at 50 kB/s after 57) and is
+    # stopped, to be rerun, instead of holding a pull request for up to
+    # GitHub's six-hour default.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest, r: 'release', full-matrix: 'true'}
-          - {os: ubuntu-latest, r: 'oldrel-1'}
-          - {os: macos-latest, r: 'release'}
-          - {os: windows-latest, r: 'release'}
+        # A pull request runs two of the five configurations: ubuntu-latest
+        # (R release), with the full model-context matrix, and windows-latest
+        # (R release); the min-r-version job below adds R 4.1. A push to main,
+        # the weekly schedule and a manual run add R devel, R oldrel-1 and
+        # macOS, so a problem there shows up on the next merge or within a
+        # week, while a pull request does not wait for the slowest runners.
+        config: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os": "ubuntu-latest", "r": "release", "full-matrix": "true"},
+               {"os": "windows-latest", "r": "release"}]'
+          || '[{"os": "ubuntu-latest", "r": "devel", "http-user-agent": "release"},
+               {"os": "ubuntu-latest", "r": "release", "full-matrix": "true"},
+               {"os": "ubuntu-latest", "r": "oldrel-1"},
+               {"os": "macos-latest", "r": "release"},
+               {"os": "windows-latest", "r": "release"}]') }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -73,6 +89,8 @@ jobs:
     # the package cannot install below it. Keep this job in step with Depends:.
     name: Minimum supported R (4.1)
     runs-on: ubuntu-22.04
+    # As the jobs above: a slow mirror can take 25 minutes of setup.
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
