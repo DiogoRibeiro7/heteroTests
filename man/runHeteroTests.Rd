@@ -64,12 +64,22 @@ runHeteroTests(
   \item{chunk_size}{integer number of observations processed per chunk when streaming diagnostics.}
   \item{progress}{logical flag controlling whether textual progress bars are displayed when running multiple diagnostics.}
 }
-\value{A named list of \code{htest} objects.}
+\value{A \code{\link{hetero_test_suite}}: a named list of \code{htest} objects, one for each test asked for,
+which prints as a table of the tests, and whose \code{summary()} is laid out as that of an \code{lm} (see
+\code{\link{summary.hetero_test_suite}}). With grouped data, a \code{\link{hetero_grouped_suite}} holding one such
+suite for each group.
+
+Every test reports the formula of the model as its \code{data.name}. Up to 0.15.0 White's test, its bootstrap
+and its form without cross products, the studentized Breusch-Pagan statistic and Szroeter's test reported
+\code{"model"} instead, the name of the argument of the function the registry calls them with. Called directly,
+a test still names the object it is given: \code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
 # Default: White and Koenker
 runHeteroTests(m, mtcars)
+# Laid out as summary.lm() is, with the significance codes
+summary(runHeteroTests(m, mtcars))
 # Specify additional diagnostics, or the classical Breusch-Pagan test
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 runHeteroTests(m, mtcars, tests = "breusch_pagan")

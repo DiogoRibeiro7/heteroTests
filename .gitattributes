@@ -14,3 +14,8 @@ docs/**/*.html          text eol=lf linguist-generated=true
 
 # tools/build-docs.R rewrites the API reference part of its nav.
 mkdocs.yml              text eol=lf
+
+# The snapshots of testthat, which writes them with LF line endings. The output
+# they hold keeps the spaces R prints at the ends of lines, and testthat
+# indents a blank line of it, so `git diff --check` leaves them alone.
+tests/testthat/_snaps/** text eol=lf -whitespace

@@ -13,6 +13,7 @@ returned object inherits from \code{hetero_grouped_suite} and contains one
 \details{
 These classes are primarily useful for method dispatch (e.g. the broom tidiers
 and \code{autoplot()} methods). Users typically interact with the objects via
+\code{print()} and \code{summary()} (see \code{\link{summary.hetero_test_suite}}),
 \code{generics::tidy()}, \code{generics::glance()}, \code{generics::augment()}
 and \code{ggplot2::autoplot()}.
 }
