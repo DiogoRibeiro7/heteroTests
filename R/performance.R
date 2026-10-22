@@ -125,7 +125,20 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
 
   qr_decomp <- qr(XtX)
   if (qr_decomp$rank < ncol(XtX)) {
-    return(list(rank_deficient = TRUE, df = ncol(XtX) - 1L, chunks = length(chunks)))
+    # Collinear terms. The fit on the columns qr() keeps tells
+    # performWhiteTestStreaming() whether they fit the response exactly, as the
+    # squares of the dummies of a paired design do, which it refuses as
+    # performWhiteTest() does; the tests stop on collinear terms otherwise.
+    keep <- qr_decomp$pivot[seq_len(qr_decomp$rank)]
+    beta <- tryCatch(solve(XtX[keep, keep, drop = FALSE], XtY[keep]), error = function(e) NULL)
+    sst <- y_sq_sum - total_n * (y_sum / total_n)^2
+    r_squared <- if (!is.null(beta) && sst > .Machine$double.eps) {
+      min(max(1 - max(y_sq_sum - sum(beta * XtY[keep]), 0) / sst, 0), 1)
+    } else {
+      NA_real_
+    }
+    return(list(rank_deficient = TRUE, rank = qr_decomp$rank, r_squared = r_squared,
+                n = total_n, df = ncol(XtX) - 1L, chunks = length(chunks)))
   }
 
   beta <- tryCatch(
@@ -150,6 +163,7 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
   list(
     r_squared = r_squared,
     df = ncol(XtX) - 1L,
+    rank = ncol(XtX),
     n = total_n,
     response_mean = mean_y,
     response_tss = sst,
@@ -279,9 +293,9 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' fit. It stops when terms of its auxiliary regression are
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
 #' drops, and, since 0.16.0, with the refusal of [performWhiteTest()] (see its
-#' section *Too few observations*) when they are at least as many as the
-#' observations, where it stopped as on collinear terms, or fit the squared
-#' residuals exactly. Which
+#' section *Too few observations*) when its independent terms are at least as
+#' many as the observations, where it stopped as on collinear terms, or fit the
+#' squared residuals exactly, collinear or not, as on a paired design. Which
 #' model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
@@ -334,14 +348,23 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming White test"
   )
 
-  # As many terms as observations, or more: the auxiliary regression fits the
-  # squared residuals exactly, or cannot be fitted. performWhiteTest() refuses
-  # it with the same message, and an exact fit with fewer terms (below).
+  # As many independent terms as observations, or more: the auxiliary
+  # regression fits the squared residuals exactly. performWhiteTest() refuses
+  # it with the same message, and an exact fit with fewer terms (below). The
+  # terms are counted by their rank, as it counts them: the squares of the
+  # dummies of a paired design equal the dummies and count once, so 30 pairs
+  # and a treatment have 31 independent terms for 60 observations, an exact
+  # fit the design forces, not too few observations.
   regressors <- sum(!is.na(stats::coef(model))) - attr(stats::terms(model), "intercept")
   products <- isTRUE(cross_products) && regressors > 1 && regressors <= max_interactions
-  if (stats$df + 1L >= length(residuals)) {
-    rwhite_refuse_exact_fit(stats$df + 1L, length(residuals), saturated = TRUE,
-                            products = products, what = "terms")
+  what <- if (isTRUE(stats$rank_deficient)) "independent terms" else "terms"
+  if (stats$rank >= length(residuals)) {
+    rwhite_refuse_exact_fit(stats$rank, length(residuals), saturated = TRUE,
+                            products = products, what = what)
+  }
+  if (isTRUE(stats$rank_deficient) && isTRUE(1 - stats$r_squared <= rwhite_exact_tolerance)) {
+    rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = FALSE, products = products,
+                            what = what)
   }
 
   if (isTRUE(stats$rank_deficient)) {

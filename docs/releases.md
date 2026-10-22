@@ -1273,7 +1273,17 @@ the exact fit, as a factor with two observations per level does, however
 many levels it has; use more observations per level." So
 do its robust form, the registered `"white"`, the White bootstrap and
 `performWhiteTestStreaming()`, which stopped on the saturated design with
-"Auxiliary regression became rank deficient". `runHeteroTests()` falls back
+"Auxiliary regression became rank deficient". The streaming test counts its
+terms by their rank, as `performWhiteTest()` does: the squares of the
+dummies of a paired design equal the dummies, so its 61 terms on 30 pairs
+are 31 independent ones for 60 observations, and it refuses the design as
+forcing the exact fit, where it counted 61 and asked for more data. With one
+subject observed a third time there is no exact fit, and it stops on the
+collinear terms, which it does not drop, where it asked for more data too;
+`runHeteroTests()`, when it streams, then falls back on White's test without
+cross products, as on any collinear terms, and returns the value of
+`performWhiteTest()`, 59.75 on 30 on such data, tagged as a fallback, where
+it stopped. `runHeteroTests()` falls back
 on White's test without cross products, as on any refusal of White's test,
 and returns it under the name `white`, tagged as a fallback: 15.98 on 12
 degrees of freedom (p = 0.19) for the six regressors. Where the regressors

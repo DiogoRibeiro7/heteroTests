@@ -513,9 +513,34 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   expect_error(quiet(performWhiteTestRobust(m, d)), forced, fixed = TRUE)
   expect_error(quiet(get("white", envir = heteroTests:::.diagnostic_registry)(m, d)), forced,
                fixed = TRUE)
-  # The streaming test counts its terms, the squares of the dummies among them,
-  # 61 for 60 observations, and refuses them as a saturated regression.
-  expect_error(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), saturated, fixed = TRUE)
+  # The streaming test counts its terms by their rank, as performWhiteTest()
+  # does: the squares of the dummies equal the dummies, so 61 terms are 31
+  # independent ones for 60 observations, an exact fit the design forces. It
+  # counted 61 and asked for more data.
+  err <- tryCatch(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_match(conditionMessage(err), forced, fixed = TRUE)
+  expect_match(conditionMessage(err), "of its 31 independent terms with its intercept, for 60",
+               fixed = TRUE)
+  expect_no_match(conditionMessage(err), saturated, fixed = TRUE)
+  # One subject observed a third time: no exact fit. performWhiteTest() drops
+  # the collinear squares and gives a value on 30 degrees of freedom; the
+  # streaming test, which keeps them, stops on collinear terms, where it asked
+  # for more data.
+  d61 <- rbind(d, transform(d[1, ], y = y + 1))
+  m61 <- lm(y ~ treat + subject, data = d61)
+  expect_identical(unname(quiet(performWhiteTest(m61, d61))$parameter[["df"]]), 30L)
+  err <- tryCatch(quiet(performWhiteTestStreaming(m61, d61, progress = FALSE)),
+                  error = function(e) e)
+  expect_match(conditionMessage(err), "rank deficient", fixed = TRUE)
+  expect_no_match(conditionMessage(err), saturated, fixed = TRUE)
+  # The runner, when it streams, falls back on the test without products and
+  # gives the value of performWhiteTest(), where it stopped.
+  suite <- quiet(runHeteroTests(m61, d61, tests = "white", chunk_threshold_mb = 0,
+                                use_cache = FALSE, progress = FALSE))
+  expect_identical(attr(suite$white, "extras")$status, "fallback")
+  expect_equal(unname(suite$white$statistic),
+               unname(quiet(performWhiteTest(m61, d61))$statistic), tolerance = 1e-10)
   set.seed(1)
   expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), forced, fixed = TRUE)
   # The regressors alone fit the squared residuals exactly, so the Breusch-Pagan
@@ -537,6 +562,13 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   d500 <- data.frame(subject = factor(rep(1:500, each = 2)), treat = rep(0:1, 500))
   d500$y <- 2 + 0.5 * d500$treat + rnorm(500)[as.integer(d500$subject)] + rnorm(1000)
   err <- tryCatch(quiet(performWhiteTest(lm(y ~ treat + subject, data = d500), d500)),
+                  error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_match(conditionMessage(err), "of its 501 independent terms with its intercept, for 1000",
+               fixed = TRUE)
+  expect_match(conditionMessage(err), "use more observations per level.", fixed = TRUE)
+  err <- tryCatch(quiet(performWhiteTestStreaming(lm(y ~ treat + subject, data = d500), d500,
+                                                  progress = FALSE)),
                   error = function(e) e)
   expect_s3_class(err, "heteroTests_white_exact_fit")
   expect_match(conditionMessage(err), "of its 501 independent terms with its intercept, for 1000",
