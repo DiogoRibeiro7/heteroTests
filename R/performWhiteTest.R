@@ -276,9 +276,12 @@ rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
 # `cross_products = FALSE` only when the products were in and the regressors
 # alone may not fit the squared residuals exactly, Koenker's test only when
 # they do not (`regressors_exact`), since its auxiliary regression is on them;
-# NA when that is not known, as in the streaming test. Its class tells
-# runHeteroTests() whether a test of the regressors alone can stand in for it
-# (ht_analyse_failure()). Shared by rwhite_statistic() and
+# NA when that is not known, as in the streaming test. More data help a
+# saturated regression; an exact fit with fewer terms than observations is
+# forced by the design, as by a factor with two observations per level, whose
+# terms grow with its levels, so there only more observations per level help.
+# Its class tells runHeteroTests() whether a test of the regressors alone can
+# stand in for it (ht_analyse_failure()). Shared by rwhite_statistic() and
 # performWhiteTestStreaming().
 rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
                                     what = "independent terms") {
@@ -291,7 +294,7 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
     sprintf(
       paste(
         "the squared residuals are a combination of its %d %s with its intercept, for %d",
-        "observations, as when each level of a factor holds two observations"
+        "observations"
       ),
       as.integer(terms), what, as.integer(n)
     )
@@ -301,20 +304,27 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
   advice <- c(
     if (isTRUE(products) && !isTRUE(regressors_exact)) "`cross_products = FALSE`",
     if (identical(regressors_exact, FALSE)) "Koenker's test (performKoenkerTest())",
-    "more data"
+    if (saturated) "more data" else "more observations per level"
   )
   advice <- if (length(advice) > 1L) {
     paste(paste(advice[-length(advice)], collapse = ", "), "or", advice[length(advice)])
   } else {
     advice
   }
+  reason <- if (saturated) {
+    "There are too few observations for White's test with these regressors"
+  } else {
+    paste(
+      "The design forces the exact fit, as a factor with two observations per level does,",
+      "however many levels it has"
+    )
+  }
   message <- sprintf(
     paste(
       "White's auxiliary regression fits the squared residuals exactly: %s. Its R-squared",
-      "is 1 and its statistic the number of observations, whatever the data. There are",
-      "too few observations for White's test with these regressors; use %s."
+      "is 1 and its statistic the number of observations, whatever the data. %s; use %s."
     ),
-    cause, advice
+    cause, reason, advice
   )
   stop(structure(
     class = c("heteroTests_white_exact_fit", "error", "condition"),

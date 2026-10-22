@@ -493,7 +493,9 @@ test_that("White's test refuses an auxiliary regression with as many terms as ob
 test_that("White's test refuses an auxiliary regression that fits the squared residuals exactly", {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
-  refusal <- "There are too few observations for White's test with these regressors"
+  refusal <- "White's auxiliary regression fits the squared residuals exactly"
+  saturated <- "There are too few observations for White's test with these regressors"
+  forced <- "The design forces the exact fit, as a factor with two observations per level does"
   # Two observations per subject: the residuals of each pair sum to zero, the
   # squared residuals are a combination of the subject dummies, and R^2 was 1:
   # 60 on 30 degrees of freedom (p = 0.0009) on homoscedastic data.
@@ -504,27 +506,42 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   e2 <- residuals(m)^2
   expect_equal(unname(e2[c(TRUE, FALSE)]), unname(e2[c(FALSE, TRUE)]), tolerance = 1e-10)
   quiet <- function(expr) suppressMessages(suppressWarnings(expr))
-  expect_error(quiet(performWhiteTest(m, d)), refusal, fixed = TRUE)
-  expect_error(quiet(performWhiteTest(m, d)), "as when each level of a factor holds two",
+  expect_error(quiet(performWhiteTest(m, d)), forced, fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m, d)), "of its 31 independent terms with its intercept",
                fixed = TRUE)
-  expect_error(quiet(performWhiteTest(m, d, cross_products = FALSE)), refusal, fixed = TRUE)
-  expect_error(quiet(performWhiteTestRobust(m, d)), refusal, fixed = TRUE)
-  expect_error(quiet(get("white", envir = heteroTests:::.diagnostic_registry)(m, d)), refusal,
+  expect_error(quiet(performWhiteTest(m, d, cross_products = FALSE)), forced, fixed = TRUE)
+  expect_error(quiet(performWhiteTestRobust(m, d)), forced, fixed = TRUE)
+  expect_error(quiet(get("white", envir = heteroTests:::.diagnostic_registry)(m, d)), forced,
                fixed = TRUE)
-  expect_error(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), refusal, fixed = TRUE)
+  # The streaming test counts its terms, the squares of the dummies among them,
+  # 61 for 60 observations, and refuses them as a saturated regression.
+  expect_error(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), saturated, fixed = TRUE)
   set.seed(1)
-  expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), forced, fixed = TRUE)
   # The regressors alone fit the squared residuals exactly, so the Breusch-Pagan
   # and Koenker tests of them would too: the runner has no fallback and stops.
   expect_error(quiet(runHeteroTests(m, d, tests = "white", use_cache = FALSE, progress = FALSE)),
-               refusal, fixed = TRUE)
-  # Neither the products nor Koenker's test help: the advice is more data.
+               forced, fixed = TRUE)
+  # Neither the products nor Koenker's test help, nor more subjects of two
+  # observations: the advice is more observations per level.
   err <- tryCatch(quiet(performWhiteTest(m, d)), error = function(e) e)
   expect_s3_class(err, "heteroTests_white_exact_fit")
   expect_true(err$regressors_exact)
-  expect_match(conditionMessage(err), "use more data.", fixed = TRUE)
+  expect_match(conditionMessage(err), "use more observations per level.", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "more data", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "too few observations", fixed = TRUE)
   expect_no_match(conditionMessage(err), "cross_products = FALSE", fixed = TRUE)
   expect_no_match(conditionMessage(err), "Koenker", fixed = TRUE)
+  # 500 subjects of two observations, 1000 observations, are refused as 30 are.
+  set.seed(500)
+  d500 <- data.frame(subject = factor(rep(1:500, each = 2)), treat = rep(0:1, 500))
+  d500$y <- 2 + 0.5 * d500$treat + rnorm(500)[as.integer(d500$subject)] + rnorm(1000)
+  err <- tryCatch(quiet(performWhiteTest(lm(y ~ treat + subject, data = d500), d500)),
+                  error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_match(conditionMessage(err), "of its 501 independent terms with its intercept, for 1000",
+               fixed = TRUE)
+  expect_match(conditionMessage(err), "use more observations per level.", fixed = TRUE)
 
   # A factor of 10 levels, two observations each, beside x1 (n = 20): with the
   # products, as many independent terms as observations; without them, an
@@ -534,9 +551,11 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   d10$y <- rnorm(20)
   m10 <- lm(y ~ x1 + f, data = d10)
   expect_error(quiet(performWhiteTest(m10, d10)), "at least as many as there are", fixed = TRUE)
-  expect_error(quiet(performWhiteTest(m10, d10, cross_products = FALSE)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m10, d10)), "use more data.", fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m10, d10, cross_products = FALSE)), forced, fixed = TRUE)
+  # The runner stops with the refusal of White's test with the products.
   expect_error(quiet(runHeteroTests(m10, d10, tests = "white", use_cache = FALSE,
-                                    progress = FALSE)), refusal, fixed = TRUE)
+                                    progress = FALSE)), saturated, fixed = TRUE)
 })
 
 test_that("White's test gives a value on a near-exact but genuine fit", {
