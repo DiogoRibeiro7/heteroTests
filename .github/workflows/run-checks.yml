@@ -23,8 +23,9 @@ env:
   HETEROTESTS_FULL_MATRIX: 'false'
 
 # The three jobs share no files, so they run in parallel.
-# Each job has a timeout of about three times its usual run or more, enough for
-# a slow Ubuntu mirror: a job still running then is stuck, and is stopped, to be
+# Each job stops at 45 minutes, the short ones too: on a slow Ubuntu mirror,
+# installing R and the packages alone has taken 20 to 25 minutes, whatever the
+# job runs after. A job still running at 45 is stuck, and is stopped, to be
 # rerun, instead of holding the pull request.
 jobs:
   project-quality:
@@ -76,7 +77,7 @@ jobs:
   docs-quality:
     name: Spell and link checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -118,7 +119,7 @@ jobs:
   benchmark-regression:
     name: Benchmark regression check
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes

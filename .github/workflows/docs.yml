@@ -54,7 +54,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # It installs R: on a slow mirror that alone can take 25 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 

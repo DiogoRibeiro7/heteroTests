@@ -89,7 +89,8 @@ jobs:
     # the package cannot install below it. Keep this job in step with Depends:.
     name: Minimum supported R (4.1)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    # As the jobs above: a slow mirror can take 25 minutes of setup.
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
