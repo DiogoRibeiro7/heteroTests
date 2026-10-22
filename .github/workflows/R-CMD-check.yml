@@ -36,6 +36,11 @@ jobs:
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
+    # A job here normally takes 6 to 16 minutes. On a slow Ubuntu mirror the
+    # apt step alone has taken over half an hour (101 MB at 50 kB/s, on
+    # 2026-10-22): stop such a job at 30 minutes, to be rerun, instead of
+    # letting a pull request wait on it for up to GitHub's six-hour default.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -82,6 +87,7 @@ jobs:
     # the package cannot install below it. Keep this job in step with Depends:.
     name: Minimum supported R (4.1)
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes

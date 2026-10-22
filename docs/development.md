@@ -136,6 +136,12 @@ request's earlier runs when it is pushed again, never a run on `main`.
 `release.yml` sets no `HETEROTESTS_FULL_MATRIX`, so its check of the release
 tarball runs the full matrix.
 
+Every job that runs on a pull request has a `timeout-minutes` well above its
+usual time, 30 minutes for an
+`R CMD check` job. A slow Ubuntu package mirror can hold a job's `apt` step
+for more than half an hour; the timeout stops it there, and *Re-run failed
+jobs* starts it again on another runner.
+
 ## Contributing
 
 [CONTRIBUTING.md](https://github.com/DiogoRibeiro7/heteroTests/blob/main/CONTRIBUTING.md)
