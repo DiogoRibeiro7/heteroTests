@@ -87,10 +87,11 @@ that of the least-squares fit now. It refuses a `glm` of another family or link,
 `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, and `data` that lack rows or variables of the fit. It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which
-[`performWhiteTest()`](performWhiteTest.md) drops, and, since 0.16.0, when they are at least as many as the
-observations, with the refusal of [`performWhiteTest()`](performWhiteTest.md) (see its section *Too few
-observations*), where it stopped as on collinear terms. Which model each test accepts, and why, is
-set out in [`test_results`](test_results.md), under *Supported models*.
+[`performWhiteTest()`](performWhiteTest.md) drops, and, since 0.16.0, with the refusal of
+[`performWhiteTest()`](performWhiteTest.md) (see its section *Too few observations*) when they are at
+least as many as the observations, where it stopped as on collinear terms, or fit the squared
+residuals exactly. Which model each test accepts, and why, is set out in [`test_results`](test_results.md),
+under *Supported models*.
 
 ## References
 
