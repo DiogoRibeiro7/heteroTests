@@ -85,7 +85,8 @@ list(
       "compareModelDiagnostics", "compareTestResults", "analyzeMLResiduals",
       "registerDiagnostic", "registerPlot", "listDiagnostics",
       "HeteroDiagnostic", "test.HeteroDiagnostic", "summary.HeteroDiagnostic",
-      "plot.HeteroDiagnostic", "hetero_test_suite", "tidy.hetero_test",
+      "plot.HeteroDiagnostic", "hetero_test_suite", "summary.hetero_test_suite",
+      "tidy.hetero_test",
       "cachedTest", "clearTestCache", "clearAnalysisCache", "TestFactory",
       "test_factory"
     )

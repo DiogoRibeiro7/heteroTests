@@ -588,6 +588,8 @@ tidy.hetero_grouped_suite <- function(x, ...) {
 #'   tests up to 0.14.0.
 #' @param ... Additional arguments passed to [runHeteroTests()].
 #' @return A [`hetero_test_suite`] object containing the diagnostic results.
+#'   Since 0.16.0 it carries `attr(, "model_origin") = "survey"`: the model is
+#'   fitted here, so `summary()` shows its formula rather than its call.
 #' @section Earlier versions:
 #' Up to 0.12.0 this page described a survey-weighted fit. The weights did not
 #' reach the fit, which was by ordinary least squares, as it is now, so the
@@ -615,5 +617,9 @@ runSurveyHeteroTests <- function(formula, design, tests = c("white", "koenker"),
     stop("`design` must be a survey::svydesign() object describing the survey structure.", call. = FALSE)
   }
   fit <- .ht_survey_ols(formula, design, "runSurveyHeteroTests()")
-  runHeteroTests(fit$model, data = fit$data, tests = tests, use_cache = FALSE, ...)
+  # The model is fitted here, so the suite says so (rsuite_mark_origin()).
+  rsuite_mark_origin(
+    runHeteroTests(fit$model, data = fit$data, tests = tests, use_cache = FALSE, ...),
+    "survey"
+  )
 }

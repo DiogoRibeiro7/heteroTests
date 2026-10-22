@@ -46,7 +46,10 @@ reach the fit, which was by ordinary least squares, as it is now, so the
 reported values are unchanged.
 }
 \value{
-An object of class \code{hetero_test_suite}.
+An object of class \code{hetero_test_suite}. Since 0.16.0 it carries
+\code{attr(, "model_origin") = "survey"}: the model is fitted here, so
+\code{summary()} shows its formula rather than its call (see
+\code{\link{hetero_test_suite}}).
 }
 \seealso{\code{\link{runHeteroTests}}}
 \examples{

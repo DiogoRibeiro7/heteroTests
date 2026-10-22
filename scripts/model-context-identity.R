@@ -50,6 +50,12 @@
 # of White's test is allowed only on a cell where main's count was wrong, and
 # only when the branch gives that reference (identity_n2_check()).
 #
+# The data.name of the runner, outside the context: since 0.16.0 a test that
+# runHeteroTests() runs and that reported "model" reports the formula of the
+# model. Each run records the formula of every cell; a runner's data.name may
+# change only from "model" to it (identity_data_names()), and is otherwise
+# set aside.
+#
 # Usage, from the root of the checkout whose corpus is run:
 #
 #   # main, installed into a private library, never the default one
@@ -543,6 +549,77 @@ identity_n2_check <- function(n2, record, after, stored = NULL) {
   ok
 }
 
+# 0.16.0, outside the context: through runHeteroTests() a test whose data.name
+# is "model" reports the formula of the model instead, as Koenker's test does.
+# White's test, its bootstrap and its form without cross products, the
+# studentized Breusch-Pagan statistic and Szroeter's test reported "model",
+# the name of the argument of the function the registry calls them with; every
+# other data.name is kept. A runner's data.name may change only from "model"
+# to the formula of the model of its cell, deparse(formula(model)), which
+# each run records ("reference | formula | <cell>"), and no runner result of
+# the branch may report "model". This holds for the calls and for the runner
+# records on the stored design and of the verification; the data.name of
+# every runner record is then set aside, and the rest of the record is judged
+# by the rules above: a call whose data.name alone changed is allowed, as the
+# change "data_name".
+identity_runner_kinds <- c("runner", "stored_runner", "reference_runner")
+
+identity_tests_of <- function(v) is.list(v) && !isTRUE(v$.error) && !isTRUE(v$.skip)
+
+identity_drop_data_name <- function(v) {
+  if (!identity_tests_of(v)) {
+    return(v)
+  }
+  for (k in seq_along(v)) {
+    if (is.list(v[[k]])) v[[k]]$data.name <- NULL
+  }
+  v
+}
+
+# "formula" when a data.name changed, each from "model" to the formula of the
+# model; "none" when none changed; "unexpected" when one changed otherwise,
+# or the branch names a test "model".
+identity_data_name_change <- function(before, after, formula) {
+  if (!identity_tests_of(after) || !is.character(formula)) {
+    return("none")
+  }
+  had_tests <- identity_tests_of(before)
+  changed <- FALSE
+  for (k in names(after)) {
+    db <- after[[k]]$data.name
+    if (identical(db, "model")) {
+      return("unexpected")
+    }
+    if (!had_tests) next
+    da <- before[[k]]$data.name
+    if (identical(da, db)) next
+    if (identical(da, "model") && identical(db, formula)) {
+      changed <- TRUE
+      next
+    }
+    return("unexpected")
+  }
+  if (changed) "formula" else "none"
+}
+
+# The records of the two runs with the data.name of their runners set aside,
+# and the verdict on it of each runner record: the calls, and the records on
+# the stored design and of the verification, each against the formula of its
+# own cell.
+identity_data_names <- function(main, branch) {
+  verdicts <- character()
+  for (id in names(main)) {
+    if (!main[[id]]$kind %in% identity_runner_kinds) next
+    before <- main[[id]]$value
+    after <- branch[[id]]$value
+    formula <- branch[[paste("reference", "formula", main[[id]]$cell, sep = " | ")]]$value
+    verdicts[[id]] <- identity_data_name_change(before, after, formula)
+    main[[id]]$value <- identity_drop_data_name(before)
+    branch[[id]]$value <- identity_drop_data_name(after)
+  }
+  list(main = main, branch = branch, verdicts = verdicts)
+}
+
 # --- canonical results ---------------------------------------------------------
 
 # A result without the environments, functions and calls it carries, which
@@ -602,7 +679,7 @@ identity_runner_summary <- function(suite) {
     list(
       method = r$method, statistic = unname(r$statistic), parameter = unname(r$parameter),
       p.value = r$p.value, diagnostic = attr(r, "diagnostic"),
-      status = extras$status, issue = extras$issue
+      status = extras$status, issue = extras$issue, data.name = r$data.name
     )
   })
 }
@@ -747,6 +824,11 @@ identity_run <- function(where, out, root = ".") {
   }
   started <- Sys.time()
   run_cell <- function(cell, built, fns, recipe_kind, runner_kind) {
+    # The data.name the runner gives a test that names its argument "model"
+    # (identity_data_names()), for the runner records of every kind; a cell on
+    # the stored design has the formula of its cell.
+    add("reference", "formula", cell,
+        identity_outcome(function() deparse(stats::formula(built$m))))
     for (fn in fns) {
       add(recipe_kind, fn, cell, identity_outcome(function() {
         set.seed(7)
@@ -1192,6 +1274,10 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   # references, not calls.
   stored_kinds <- c("stored", "stored_runner", "reference", "reference_runner")
   ids <- ids[!vapply(main$records[ids], function(r) r$kind %in% stored_kinds, logical(1))]
+  # The data.name of the runners, set aside (identity_data_names()).
+  data_names <- identity_data_names(main$records, branch$records)
+  main$records <- data_names$main
+  branch$records <- data_names$branch
   stored_id <- function(id) {
     sub("^runner \\| ", "stored_runner | ", sub("^recipe \\| ", "stored | ", id))
   }
@@ -1226,6 +1312,18 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       allowed <- "unexpected"
       verdict$detail <- paste("not verified against a reference:", verdict$detail)
     }
+    data_name <- if (id %in% names(data_names$verdicts)) {
+      data_names$verdicts[[id]]
+    } else {
+      NA_character_
+    }
+    if (identical(data_name, "unexpected")) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("a data.name is not the formula of the model;", verdict$detail)
+    } else if (identical(data_name, "formula") && identical(allowed, "identical")) {
+      allowed <- "allowed"
+      verdict$change <- "data_name"
+    }
     data.frame(
       id = id, kind = before$kind, fn = before$fn, cell = before$cell,
       # The defects of the cell that concern the call (identity_defects()),
@@ -1240,6 +1338,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       stored_checked = checked,
       stored_identical = checked && !identical(decided, "unexpected"),
       last_bits_checked = !is.null(rounded),
+      # "formula" when a data.name of the runner changed, to the formula of the
+      # model; "none" when none did; NA for a call that is not a runner's.
+      data_name = data_name,
       warnings_differ = !identical(before$warnings, after$warnings),
       detail = substr(gsub("\n", " ", verdict$detail), 1L, 160L),
       stringsAsFactors = FALSE
@@ -1291,6 +1392,27 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
                 nrow(spans), length(unique(spans$cell)), nrow(lost), length(unique(lost$cell)),
                 if (nrow(lost) > 0L) max(lost$statistic_relative) else 0))
   }
+  renamed <- calls[!is.na(calls$data_name) & calls$data_name == "formula", , drop = FALSE]
+  runners <- calls[!is.na(calls$data_name), , drop = FALSE]
+  if (nrow(runners) > 0L) {
+    template <- paste0(
+      "\ndata.name: %d of %d runner calls give a test the formula of the model as its ",
+      "data.name where main gave \"model\", each verified against deparse(formula(model)); ",
+      "in %d of them nothing else changes\n"
+    )
+    cat(sprintf(template, nrow(renamed), nrow(runners), sum(renamed$change == "data_name")))
+  }
+  # The runner records on the stored design and of the verification, which are
+  # references rather than calls, are held to the same rule.
+  held <- data_names$verdicts[!names(data_names$verdicts) %in% ids]
+  if (length(held) > 0L) {
+    template <- paste0(
+      "data.name of the %d runner records on the stored design and of the verification: ",
+      "%d from \"model\" to the formula of the model, %d unexpected\n"
+    )
+    cat(sprintf(template, length(held), sum(held == "formula"), sum(held == "unexpected")))
+  }
+  bad_references <- names(held)[held == "unexpected"]
   segments <- calls[calls$last_bits_checked, , drop = FALSE]
   if (nrow(segments) > 0L) {
     rounded <- segments[segments$change == "value_change", , drop = FALSE]
@@ -1321,6 +1443,12 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   if (nrow(unexpected) > 0L) {
     cat("\nUnexpected:\n")
     print(unexpected[, c("id", "change", "detail")], row.names = FALSE)
+  }
+  if (length(bad_references) > 0L) {
+    cat("\nRunner references whose data.name is not the formula of the model:\n")
+    cat(paste0("  ", bad_references), sep = "\n")
+  }
+  if (nrow(unexpected) > 0L || length(bad_references) > 0L) {
     quit(status = 1L)
   }
   invisible(calls)

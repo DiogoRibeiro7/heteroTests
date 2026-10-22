@@ -170,7 +170,7 @@ runDiagnostics(survey_diag$model, survey_diag$data, tests = c("white", "breusch_
 #>
 #> 	White's test for heteroscedasticity
 #>
-#> data:  model
+#> data:  y ~ x
 #> X-squared = 11.751, df = 2, p-value = 0.002808
 #> alternative hypothesis: heteroscedasticity present
 #>

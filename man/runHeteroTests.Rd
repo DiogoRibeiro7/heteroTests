@@ -64,12 +64,26 @@ runHeteroTests(
   \item{chunk_size}{integer number of observations processed per chunk when streaming diagnostics.}
   \item{progress}{logical flag controlling whether textual progress bars are displayed when running multiple diagnostics.}
 }
-\value{A named list of \code{htest} objects.}
+\value{A \code{\link{hetero_test_suite}}: a named list of \code{htest} objects, one for each test asked for,
+which prints as a table of the tests, and whose \code{summary()} is laid out as that of an \code{lm} (see
+\code{\link{summary.hetero_test_suite}}). With grouped data, a \code{\link{hetero_grouped_suite}} holding one such
+suite for each group. Since 0.16.0 a suite whose model the runner fitted itself, from a formula, to the data of
+a survey design or within a group, says so in \code{attr(, "model_origin")} (\code{"formula"}, \code{"survey"} or
+\code{"group"}; see \code{\link{hetero_test_suite}}).
+
+A result whose \code{data.name} is \code{"model"} reports the formula of the model instead, as Koenker's test and
+the others do. Up to 0.15.0 five tests reported \code{"model"} here, the name of the argument of the function the
+registry calls them with: White's test, its bootstrap and its form without cross products, the studentized
+Breusch-Pagan statistic and Szroeter's test. Any other \code{data.name}, such as that of a diagnostic added with
+\code{registerDiagnostic}, is kept. Called directly, a test still names the object it is given:
+\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)
 # Default: White and Koenker
 runHeteroTests(m, mtcars)
+# Laid out as summary.lm() is, with the significance codes
+summary(runHeteroTests(m, mtcars))
 # Specify additional diagnostics, or the classical Breusch-Pagan test
 runHeteroTests(m, mtcars, tests = c("white", "koenker", "cook_weisberg"))
 runHeteroTests(m, mtcars, tests = "breusch_pagan")

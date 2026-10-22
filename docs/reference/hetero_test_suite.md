@@ -14,5 +14,20 @@ returned object inherits from `hetero_grouped_suite` and contains one
 
 These classes are primarily useful for method dispatch (e.g. the broom tidiers
 and `autoplot()` methods). Users typically interact with the objects via
+`print()` and `summary()` (see [`summary.hetero_test_suite`](summary.hetero_test_suite.md)),
 `generics::tidy()`, `generics::glance()`, `generics::augment()`
 and `ggplot2::autoplot()`.
+
+## Attributes
+
+A `hetero_test_suite` carries `attr(, "tests")`, the names asked for;
+`attr(, "model")`, the model tested; `attr(, "data_source")`, the class of
+the data, or `NA`; and, since 0.16.0, `attr(, "model_origin")` when
+`runHeteroTests` fitted the model itself: `"formula"` when it was given a
+formula, `"group"` for the refit of the model within a group of a grouped run,
+and `"survey"` for the fit to the data of a survey design
+([`runSurveyHeteroTests`](runSurveyHeteroTests.md)). The call of such a model names variables of
+the runner rather than the caller's, so `summary()` shows its formula
+instead. A suite of a model you fitted has no `model_origin`. A
+`hetero_grouped_suite` carries `attr(, "group_keys")` and
+`attr(, "tests")`.

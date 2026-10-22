@@ -63,7 +63,7 @@ runDiagnostics(hd$model, hd$data)
 ##
 ## 	White's test for heteroscedasticity
 ##
-## data:  model
+## data:  stations ~ mag + depth
 ## X-squared = 125.56, df = 5, p-value < 2.2e-16
 ## alternative hypothesis: heteroscedasticity present
 ##

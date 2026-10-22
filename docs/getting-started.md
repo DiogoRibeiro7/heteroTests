@@ -77,16 +77,60 @@ inputs every test refuses.
 ## Run several tests
 
 [`runHeteroTests()`](reference/runHeteroTests.md) runs the tests it is given
-by name and returns them as a list. The default battery is White's test and
-Koenker's:
+by name and returns them as a list, which prints as a table with one row per
+test. The default battery is White's test and Koenker's:
 
 ```r
 suite <- runHeteroTests(model, quakes)
-names(suite)
-#> [1] "white"   "koenker"
+suite
+#> Heteroscedasticity tests of lm(formula = stations ~ mag + depth, data =
+#>     quakes), n = 1000
+#>
+#>         Statistic df p-value
+#> white       125.6  5  <2e-16 ***
+#> koenker     111.3  2  <2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+suite$koenker$p.value
+#> [1] 6.76691e-25
 
 runHeteroTests(model, quakes, tests = c("white", "koenker", "cook_weisberg"))
 ```
+
+Each element is the test's `htest`, as a single test returns it.
+[`summary()`](reference/summary.hetero_test_suite.md) lays the suite out as the
+summary of an `lm` is, with notes for any test that fell back on another or
+failed, and `coef(summary(suite))` returns the table as a matrix, as
+`coef(summary(fit))` does for an `lm`:
+
+```r
+summary(suite)
+#>
+#> Call:
+#> lm(formula = stations ~ mag + depth, data = quakes)
+#>
+#> Number of observations: 1000
+#>
+#> Tests:
+#>         Statistic df p-value
+#> white       125.6  5  <2e-16 ***
+#> koenker     111.3  2  <2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#>
+#> Several tests of one model are not independent evidence: they are computed
+#> from the same residuals.
+
+coef(summary(suite))
+#>         Statistic df      p-value
+#> white    125.5580  5 2.083775e-25
+#> koenker  111.3052  2 6.766910e-25
+```
+
+The two tests read the same residuals, so their two small p-values are not
+two independent pieces of evidence. `options(show.signif.stars = FALSE)` leaves
+the codes out, as it does for `summary.lm()`.
 
 [`listDiagnostics()`](reference/listDiagnostics.md) returns the names it
 accepts, and [`registerDiagnostic()`](reference/registerDiagnostic.md) adds a
