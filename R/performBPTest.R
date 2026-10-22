@@ -51,6 +51,14 @@
 #' consider the studentized \eqn{n R^2} variant [performKoenkerTest()] when
 #' normality is in doubt.
 #'
+#' Like White's test, it is not valid with fixed effects for small groups, a
+#' factor with few observations per level, and over-rejects on homoscedastic
+#' data, the more the smaller the groups and the more groups there are: in
+#' 2,000 draws of `lm(y ~ x + subject)` with normal errors and 30 subjects it
+#' rejected at the 5\% level in 38\% with three observations of each, 26\%
+#' with four and 15\% with eight, and with 100 subjects of eight in 24\% (see
+#' *Too few observations* in [performWhiteTest()]).
+#'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
 #' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see

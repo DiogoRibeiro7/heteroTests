@@ -1224,11 +1224,21 @@ registered `"white"`, the runner and the White bootstrap change with it.
 This holds for regressors that enter the model linearly, which are centred
 one by one. A product or a power of a variable located far from zero inside
 the model stays ill-conditioned once its columns are centred, and can still
-lose columns: on 200 observations, `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives
-42.14 on 5 degrees of freedom where `lm(y ~ x1 * x2)`, the same model, gives
-48.95 on 8, and `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68
-on 4 (recorded in the roadmap). A year and its square, `year * z` and
-`income * age` give the value of the centred model to seven digits or more.
+lose a column; how far is far depends on the spread of the variable. On 200
+observations of two standard normal regressors,
+`lm(y ~ I(x1 + 2e3) * I(x2 + 2e2))`, with `x1` about 2,000 standard
+deviations from zero, keeps every coefficient, and White's test gives 46.83
+on 7 degrees of freedom where `lm(y ~ x1 * x2)`, the same model, gives 51.90
+on 8; `lm(y ~ I(x1 + 2e3) + I((x1 + 2e3)^2))` gives 8.05 on 3 for 11.29 on
+4. The degrees of freedom held, and the statistic moved by at most 3e-5
+relative, while the shift was at most 700 standard deviations of the
+regressor, and the column was lost from 800 to 2,000 on (recorded in the
+roadmap). Further out, `lm()` itself aliases the interaction or the square,
+before White's test sees it: with `I(x1 + 1e4) * I(x2 + 1e3)` the fit is
+additive, and the test gives 35.02 on 5, the value of `lm(y ~ x1 + x2)`. A
+year from 1990 to 2020, about 220 standard deviations from zero, and its
+square, `year * z` and `income * age` give the value of the centred model to
+seven digits or more.
 
 **White's test refuses an auxiliary regression that fits the squared
 residuals exactly, where it returned the number of observations whatever the
@@ -1247,11 +1257,16 @@ auxiliary regression is at most `sqrt(.Machine$double.eps)`, 1.5e-8, of the
 total: an exact fit leaves rounding error, about 1e-30 of the total on the
 paired design, and squared residuals that depart from the fit by 2e-4 of
 their size leave 2e-7, and are tested. It stops with "White's auxiliary
-regression fits the squared residuals exactly: ... There are too few
-observations for White's test with these regressors; use ...", and the
-advice depends on the call: `cross_products = FALSE` when the products were
-in and the regressors alone do not fit the squared residuals exactly,
-Koenker's test (`performKoenkerTest()`) when they do not, and more data. So
+regression fits the squared residuals exactly: ...", and the advice depends
+on the call: `cross_products = FALSE` when the products were in and the
+regressors alone do not fit the squared residuals exactly, Koenker's test
+(`performKoenkerTest()`) when they do not, and more data when the regression
+has as many terms as observations ("There are too few observations for
+White's test with these regressors; use ..."). With fewer terms the design
+forces the exact fit, and more data of the same design do not help: 500
+subjects of two observations are refused as 30 are, with "The design forces
+the exact fit, as a factor with two observations per level does, however
+many levels it has; use more observations per level." So
 do its robust form, the registered `"white"`, the White bootstrap and
 `performWhiteTestStreaming()`, which stopped on the saturated design with
 "Auxiliary regression became rank deficient". `runHeteroTests()` falls back
@@ -1271,6 +1286,21 @@ residuals exactly too, and returned 20 on 11 (p = 0.045), where it returned
 tests return 60 on 30 and 63.25 on 30 on the paired design, a meaningless
 value, as before; refusing it there is left to a change of their own
 (recorded in the roadmap).
+
+The refusal covers the exact fit only: one step away from the paired
+design, White's test still rejects almost always. White's, Koenker's and the
+Breusch-Pagan tests are not valid with fixed effects for small groups, a
+factor with few observations per level, and over-reject, the more the
+smaller the groups and the more groups there are, as they did before this
+change. In 2,000 homoscedastic draws of `lm(y ~ x + subject)`, with normal
+`x` and errors, White's test rejected at the 5% level in 99% of them with 30
+subjects of two observations and one of them observed a third time, in all
+but one with 30 pairs whose weights vary within pairs, in 48%, 22%, 16% and
+12% with 30 subjects of three, four, five and eight observations, and in 22%
+with 100 subjects of eight; Koenker's test in 99%, 100%, 54%, 22%, 16%, 12%
+and 22%, and the Breusch-Pagan test in 64%, 67%, 38%, 26%, 21%, 15% and 24%.
+The help pages of the three tests say so, and `?performWhiteTest` cites Juhl
+and Sosa-Escudero (2014), who derive tests for fixed effects models.
 
 A regressor named like a column White's test generates, such as `a` beside
 `a_sq`, stopped the test with "Auxiliary regression failed: duplicated name

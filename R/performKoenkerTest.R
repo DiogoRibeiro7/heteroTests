@@ -45,6 +45,14 @@
 #' chi-squared distribution with degrees of freedom equal to the number of
 #' regressors.
 #'
+#' Like White's test, it is not valid with fixed effects for small groups, a
+#' factor with few observations per level, and over-rejects on homoscedastic
+#' data, the more the smaller the groups and the more groups there are: in
+#' 2,000 draws of `lm(y ~ x + subject)` with 30 subjects it rejected at the
+#' 5\% level in 54\% with three observations of each, 22\% with four and 12\%
+#' with eight, and with 100 subjects of eight in 22\% (see *Too few
+#' observations* in [performWhiteTest()]).
+#'
 #' @section Weighted fits:
 #' `lm(..., weights = w)` states that the error variance is
 #' \eqn{\sigma^2 / w_i}. On such a fit the test is computed from the Pearson
