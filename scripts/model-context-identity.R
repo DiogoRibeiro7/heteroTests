@@ -452,6 +452,8 @@ identity_bootstrap_defects <- c("B12", "L1", "L2", "N7", "B7")
 #               regressor, where the design of the centred regressors keeps it;
 #   "saturated" as many independent terms as observations, which the test now
 #               refuses;
+#   "exact"     fewer, and still an exact fit of the squared residuals, as
+#               with two observations per level of a factor: refused too;
 #   "names"     a regressor named like a column the test generates (`a` and
 #               `a_sq`), on which the formula of the auxiliary regression
 #               stopped.
@@ -473,8 +475,15 @@ identity_white_routes <- c(
 identity_white_resampling <- c(
   "performWhiteTestBootstrap", "performWhiteTestRobust(bootstrap = TRUE)"
 )
+# The calls that run White's test in a battery and stop when the runner stops
+# on its refusal: runDiagnostics() runs runHeteroTests().
+identity_white_battery <- "runDiagnostics()$reset"
 identity_n2_tolerance <- 1e-10
 identity_saturated_message <- "There are too few observations for White's test"
+# An auxiliary regression fits the squared residuals exactly when its
+# residual sum of squares is at most this fraction of their total, the
+# threshold of the test (rwhite_exact_tolerance in R/performWhiteTest.R).
+identity_exact_tolerance <- sqrt(.Machine$double.eps)
 # The cells of a regressor located far from zero equal their reference, the
 # same design located at zero, up to the rounding of the shifted regressor.
 identity_located_cells <- c("white/located_1e4", "white/located_1e6")
@@ -512,12 +521,17 @@ identity_white_by_hand <- function(m) {
   }
   e2 <- unname(stats::residuals(m, type = "pearson"))^2
   n <- length(e2)
+  total <- sum((e2 - mean(e2))^2)
+  exact <- function(aux) total > 0 && sum(aux$residuals^2) <= identity_exact_tolerance * total
   centred_test <- function(products) {
     Zc <- build(scale(X, scale = FALSE), products)
     if (qr(cbind(1, Zc))$rank >= n) {
       return(NULL)
     }
     aux <- stats::lm(e2 ~ Zc)
+    if (exact(aux)) {
+      return(NULL)
+    }
     r_squared <- summary(aux)$r.squared
     statistic <- n * r_squared
     df <- aux$rank - 1L
@@ -533,14 +547,19 @@ identity_white_by_hand <- function(m) {
     pairs <- utils::combn(p, 2L)
     generated <- c(generated, paste0(names_x[pairs[1L, ]], "_x_", names_x[pairs[2L, ]]))
   }
+  Zc <- build(scale(X, scale = FALSE), TRUE)
+  rank_1zc <- qr(cbind(1, Zc))$rank
   c(
     centred_test(TRUE),
     list(
       simplified = centred_test(FALSE), n = n,
-      rank_z = qr_z$rank, rank_1z = qr(cbind(1, Z))$rank,
-      rank_1zc = qr(cbind(1, build(scale(X, scale = FALSE), TRUE)))$rank,
+      rank_z = qr_z$rank, rank_1z = qr(cbind(1, Z))$rank, rank_1zc = rank_1zc,
       main_df = length(kept), main_regression_df = stats::lm(e2 ~ Z[, kept])$rank - 1L,
-      names_collide = anyDuplicated(generated) > 0L
+      names_collide = anyDuplicated(generated) > 0L,
+      # The auxiliary regression fits the squared residuals exactly with fewer
+      # independent terms than observations; and whether the regressors alone do.
+      exact_fit = rank_1zc < n && exact(stats::lm(e2 ~ Zc)),
+      regressors_exact = exact(stats::lm(e2 ~ scale(X, scale = FALSE)))
     )
   )
 }
@@ -550,8 +569,9 @@ identity_white_by_hand <- function(m) {
 # by 1e6, whose reference is that cell; a saturated design, 6 regressors and
 # their 21 squares and products for 22 observations; a regressor `a` beside a
 # regressor `a_sq`, whose reference is the same data with `a_sq` named `b`;
-# and an ordered factor under its default contr.poly, which spans the
-# constant.
+# an ordered factor under its default contr.poly, which spans the constant;
+# and two exact fits: 30 subjects with two observations each, and a factor of
+# 10 levels with two observations each beside a regressor.
 identity_white_cells <- function() {
   white_cell <- function(id, build, reference = NULL) {
     list(id = id, block = "white", build = build, fit = "ols", offset = "none",
@@ -578,6 +598,16 @@ identity_white_cells <- function() {
   ordered <- d
   ordered$o4 <- factor(rep(c("lo", "mid", "hi", "top"), length.out = nrow(d)),
                        levels = c("lo", "mid", "hi", "top"), ordered = TRUE)
+  # Two observations per level: the residuals of each pair sum to zero, the
+  # squared residuals are a combination of the dummies, and the auxiliary
+  # regression fits them exactly with fewer terms than observations.
+  set.seed(30)
+  paired <- data.frame(subject = factor(rep(1:30, each = 2)), treat = rep(0:1, 30))
+  paired$y <- 2 + 0.5 * paired$treat + stats::rnorm(30)[as.integer(paired$subject)] +
+    stats::rnorm(60)
+  set.seed(9)
+  pairs_x1 <- data.frame(x1 = stats::rnorm(20), f = factor(rep(letters[1:10], 2)))
+  pairs_x1$y <- stats::rnorm(20)
   list(
     located("white/located_1e4", 1e4),
     located("white/located_1e6", 1e6),
@@ -592,6 +622,12 @@ identity_white_cells <- function() {
     }),
     white_cell("white/ordered", function() {
       list(m = stats::lm(y ~ x1 + o4, data = ordered), data = ordered)
+    }),
+    white_cell("white/paired", function() {
+      list(m = stats::lm(y ~ treat + subject, data = paired), data = paired)
+    }),
+    white_cell("white/pairs_x1", function() {
+      list(m = stats::lm(y ~ x1 + f, data = pairs_x1), data = pairs_x1)
     })
   )
 }
@@ -599,7 +635,7 @@ identity_white_cells <- function() {
 # The kinds of N2 that concern a call (above), with the reference of its cell,
 # or NULL when none does.
 identity_n2 <- function(record, records) {
-  if (!record$fn %in% identity_white_routes) {
+  if (!record$fn %in% c(identity_white_routes, identity_white_battery)) {
     return(NULL)
   }
   ref <- records[[paste("reference", "white_by_hand", record$cell, sep = " | ")]]$value
@@ -611,28 +647,42 @@ identity_n2 <- function(record, records) {
     if (ref$main_regression_df < ref$main_df) "lost",
     if (ref$rank_1zc != ref$rank_1z) "located",
     if (ref$rank_1zc >= ref$n) "saturated",
+    if (isTRUE(ref$exact_fit)) "exact",
     if (isTRUE(ref$names_collide)) "names"
   )
   if (length(kinds) == 0L) NULL else list(kinds = kinds, reference = ref)
 }
 
-# How a change of a call of N2 is judged: "check", against the reference and
-# main (identity_n2_check()); "refusal", the refusal of a saturated design;
-# "fallback", the runner's White's test without cross products in its place;
-# "chain", against the same call on the reference of the cell
-# (identity_verify()), the exact routes also against the reference of N2.
+# How a call of N2 is judged: "check", against the reference and main
+# (identity_n2_check()); "refusal", the refusal of an auxiliary regression
+# that fits the squared residuals exactly, with as many terms as observations
+# ("saturated") or fewer ("exact"), which every route of White's test must
+# give, whether or not main gave a value (identity_n2_refusal()); "fallback",
+# the runner's White's test without cross products in its place, only where
+# the regressors alone do not fit the squared residuals exactly; "chain",
+# against the same call on the reference of the cell (identity_verify()), the
+# exact routes also against the reference of N2. Where the regressors alone fit
+# them exactly, the Breusch-Pagan and Koenker tests the runner would fall back
+# on fit them exactly too: the runner must refuse, and so must the batteries
+# that run it (identity_white_battery), which are main's elsewhere.
 identity_n2_mode <- function(fn, n2, change) {
-  if (is.null(n2) || identical(change, "identical")) {
+  if (is.null(n2)) {
     return(NULL)
   }
   kinds <- n2$kinds
-  if ("saturated" %in% kinds) {
-    if (change %in% c("value_to_error", "message_change")) {
-      return("refusal")
-    }
-    if (identical(fn, "runHeteroTests") && identical(change, "value_change")) {
+  exact_fit <- any(c("saturated", "exact") %in% kinds)
+  regressors_exact <- isTRUE(n2$reference$regressors_exact)
+  if (fn %in% identity_white_battery) {
+    return(if (exact_fit && regressors_exact) "refusal")
+  }
+  if (exact_fit) {
+    if (identical(fn, "runHeteroTests") && identical(change, "value_change") &&
+          !regressors_exact) {
       return("fallback")
     }
+    return("refusal")
+  }
+  if (identical(change, "identical")) {
     return(NULL)
   }
   if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
@@ -824,6 +874,22 @@ identity_n2_check <- function(n2, record, after, stored = NULL) {
     return(FALSE)
   }
   identical(identity_n2_expected(main_value, b_all, ref, pure_df), b_all)
+}
+
+# On a cell whose auxiliary regression fits the squared residuals exactly, a
+# route of White's test must refuse it: the branch stops with the refusal, or,
+# as main did, with another error (the White bootstrap on fewer than 50
+# observations), and "identical" is kept for that. A value is unexpected,
+# whatever main gave.
+identity_n2_refusal <- function(before, after) {
+  b <- after$value
+  if (!is.list(b) || !isTRUE(b$.error)) {
+    return("unexpected")
+  }
+  if (grepl(identity_saturated_message, b$message, fixed = TRUE)) {
+    return("allowed")
+  }
+  if (identical(before$value, after$value)) "identical" else "unexpected"
 }
 
 # On a saturated cell: the runner gives White's test without cross products
@@ -1380,10 +1446,12 @@ identity_last_bits_verdict <- function(verdict) {
 # change of White's test on a cell of N2 is allowed when its rule verifies it,
 # and is unexpected otherwise, whatever the other rules say.
 identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_mode = NULL) {
+  if (identical(n2_mode, "refusal")) {
+    return(identity_n2_refusal(record, after))
+  }
   if (!is.null(n2_mode)) {
     ok <- switch(n2_mode,
       check = identity_n2_check(n2, record, after, stored),
-      refusal = grepl(identity_saturated_message, after$value$message, fixed = TRUE),
       fallback = identity_n2_fallback(n2, record, after),
       chain = verdict$change %in% c("value_change", "error_to_value") &&
         identity_n2_chain(n2, record, after)
@@ -1621,8 +1689,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     checked <- !is.null(decided)
     n2 <- identity_n2(before, main$records)
     n2_mode <- identity_n2_mode(before$fn, n2, verdict$change)
-    n2_change <- !is.null(n2_mode)
     allowed <- identity_allow(before, verdict, after, stored, n2, n2_mode)
+    n2_change <- !is.null(n2_mode) && !identical(allowed, "identical")
     # An allowed change to a value must be verified against a reference; one
     # of N2 is, by identity_n2_check() or identity_n2_fallback(), against
     # White's test written out on the centred design, and by "chain" against
@@ -1712,8 +1780,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     cat(sprintf(paste0(
       "\nN2: %d calls of White's test change, %d allowed: by the kinds of their cells and how ",
       "they are verified (\"check\" and \"fallback\" against White's test written out on ",
-      "the centred design to %.0e, \"refusal\" by the refusal of a saturated design, ",
-      "\"chain\" against the same call on the reference of the cell):\n"
+      "the centred design to %.0e, \"refusal\" by the refusal of an auxiliary regression ",
+      "that fits the squared residuals exactly, \"chain\" against the same call on the ",
+      "reference of the cell):\n"
     ), nrow(n2), sum(n2$verdict == "allowed"), identity_n2_tolerance))
     n2$calls <- 1L
     print(stats::aggregate(calls ~ n2 + n2_mode + verdict, data = n2, FUN = sum),
