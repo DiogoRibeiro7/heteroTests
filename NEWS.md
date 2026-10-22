@@ -1221,22 +1221,56 @@ value of `lm(e^2 ~ Z_c)` and of `lmtest::bptest()` on the centred terms, and
 moving `x1` by 1e2, 1e4 or 1e6 changes its statistic by at most 1.3e-10
 relative and its degrees of freedom not at all. The robust form, the
 registered `"white"`, the runner and the White bootstrap change with it.
+This holds for regressors that enter the model linearly, which are centred
+one by one. A product or a power of a variable located far from zero inside
+the model stays ill-conditioned once its columns are centred, and can still
+lose columns: on 200 observations, `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives
+42.14 on 5 degrees of freedom where `lm(y ~ x1 * x2)`, the same model, gives
+48.95 on 8, and `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68
+on 4 (recorded in the roadmap). A year and its square, `year * z` and
+`income * age` give the value of the centred model to seven digits or more.
 
-**White's test refuses an auxiliary regression with as many independent
-terms as observations.** Such a regression fits the squared residuals
-exactly: its R² is 1 and the statistic the number of observations, whatever
-the data. On 22 observations of six regressors, whose squares and products
-make 28 terms with the intercept, `performWhiteTest()` returned 22 on 21
-degrees of freedom (p = 0.40); it now stops with "White's auxiliary
-regression has 22 independent terms with its intercept for 22 observations:
-... There are too few observations for White's test with these regressors;
-use `cross_products = FALSE`, Koenker's test (`performKoenkerTest()`) or more
-data." So do its robust form, the registered `"white"` and
-`performWhiteTestStreaming()`, which stopped with "Auxiliary regression
-became rank deficient". `runHeteroTests()` falls back on White's test
-without cross products, as on any refusal of White's test, and returns it
-under the name `white`, tagged as a fallback: 15.98 on 12 degrees of freedom
-(p = 0.19) for the design above.
+**White's test refuses an auxiliary regression that fits the squared
+residuals exactly, where it returned the number of observations whatever the
+data.** Such a regression has an R² of 1, and n R² is n. It fits them
+exactly with as many independent terms as observations, and with fewer when
+the squared residuals are a combination of its terms, as on a paired design:
+on `lm(y ~ treat + subject)` with two observations of each of 30 subjects,
+the two residuals of a subject sum to zero, so their squares are equal and a
+combination of the subject dummies, and every route to White's test returned
+60 on 30 degrees of freedom (p = 0.0009); the runner rejected at the 5% level
+in 200 of 200 homoscedastic draws. On 22 observations of six regressors,
+whose squares and products make 28 terms with the intercept,
+`performWhiteTest()` returned 22 on 21 degrees of freedom (on 22 in 0.15.0;
+p = 0.40). The test now stops when the residual sum of squares of its
+auxiliary regression is at most `sqrt(.Machine$double.eps)`, 1.5e-8, of the
+total: an exact fit leaves rounding error, about 1e-30 of the total on the
+paired design, and squared residuals that depart from the fit by 2e-4 of
+their size leave 2e-7, and are tested. It stops with "White's auxiliary
+regression fits the squared residuals exactly: ... There are too few
+observations for White's test with these regressors; use ...", and the
+advice depends on the call: `cross_products = FALSE` when the products were
+in and the regressors alone do not fit the squared residuals exactly,
+Koenker's test (`performKoenkerTest()`) when they do not, and more data. So
+do its robust form, the registered `"white"`, the White bootstrap and
+`performWhiteTestStreaming()`, which stopped on the saturated design with
+"Auxiliary regression became rank deficient". `runHeteroTests()` falls back
+on White's test without cross products, as on any refusal of White's test,
+and returns it under the name `white`, tagged as a fallback: 15.98 on 12
+degrees of freedom (p = 0.19) for the six regressors. Where the regressors
+alone fit the squared residuals exactly, as on the paired design, the
+Breusch-Pagan and Koenker tests it would fall back on next fit them exactly
+too, and would report the number of observations under the name `white`: it
+takes no fallback and stops with the refusal, and so does `runDiagnostics()`.
+A factor of 10 levels with two observations each beside `x1`, 20
+observations, shows why the refusal of a saturated regression alone was not
+enough: with the products it has as many terms as observations, and the
+runner fell back on White's test without them, which fits the squared
+residuals exactly too, and returned 20 on 11 (p = 0.045), where it returned
+20 on 19 (p = 0.39; on 20 in 0.15.0) before; it now stops. Koenker's and the Breusch-Pagan
+tests return 60 on 30 and 63.25 on 30 on the paired design, a meaningless
+value, as before; refusing it there is left to a change of their own
+(recorded in the roadmap).
 
 A regressor named like a column White's test generates, such as `a` beside
 `a_sq`, stopped the test with "Auxiliary regression failed: duplicated name
@@ -1272,16 +1306,20 @@ row; the White bootstrap's scenarios of block 4 of the weighted fits, of the
 offset refits and on a transformed response, and the survey designs, give
 the same tables as before at fewer replications from the same seeds.
 
-The changes after the review of N2 (the location, the saturated regression,
-the names) were checked the same way. The corpus of the model context runs
-six more cells: its model with `x1` moved by 1e4 and by 1e6, the saturated
-design above, the regressors `a` and `a_sq` with a copy that names the second
-`b`, and an ordered factor. Of its 19,865 calls, 19,845 return what they
-returned before, `identical()`, and the other 20 are calls of White's test
-on those cells, each verified: against White's test written out on the
+The changes after the review of N2 (the location, the exact fits, the names)
+were checked the same way. The corpus of the model context runs eight more
+cells: its model with `x1` moved by 1e4 and by 1e6, the six regressors on 22
+observations above, the paired design, the factor of 10 levels beside `x1`,
+the regressors `a` and `a_sq` with a copy that names the second `b`, and an
+ordered factor. Of its 19,979 calls, 19,946 return what they returned
+before, `identical()`, and the other 33 are calls of White's test on those
+cells and of `runDiagnostics()` on the two whose regressors fit the squared
+residuals exactly, each verified: against White's test written out on the
 centred design, every other number of the result that of before or computed
-from the new degrees of freedom; by the refusal; or as the same call on the
-model at zero or with the other names. The harness now also compares the
+from the new degrees of freedom; by the refusal, which the harness requires
+of every route to White's test on the three exact fits, and of the runner
+and `runDiagnostics()` where the regressors fit them exactly; or as the same
+call on the model at zero or with the other names. The harness now also compares the
 robust test's interval, effect size and power, and every attribute of the
 result, with what they compute to from the degrees of freedom.
 The studies of `inst/validation/` fit regressors near zero, and their rows
