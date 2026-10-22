@@ -490,6 +490,123 @@ test_that("White's test refuses an auxiliary regression with as many terms as ob
   expect_lt(unname(ours$statistic), 29)
 })
 
+test_that("White's test refuses an auxiliary regression that fits the squared residuals exactly", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  refusal <- "There are too few observations for White's test with these regressors"
+  # Two observations per subject: the residuals of each pair sum to zero, the
+  # squared residuals are a combination of the subject dummies, and R^2 was 1:
+  # 60 on 30 degrees of freedom (p = 0.0009) on homoscedastic data.
+  set.seed(30)
+  d <- data.frame(subject = factor(rep(1:30, each = 2)), treat = rep(0:1, 30))
+  d$y <- 2 + 0.5 * d$treat + rnorm(30)[as.integer(d$subject)] + rnorm(60)
+  m <- lm(y ~ treat + subject, data = d)
+  e2 <- residuals(m)^2
+  expect_equal(unname(e2[c(TRUE, FALSE)]), unname(e2[c(FALSE, TRUE)]), tolerance = 1e-10)
+  quiet <- function(expr) suppressMessages(suppressWarnings(expr))
+  expect_error(quiet(performWhiteTest(m, d)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m, d)), "as when each level of a factor holds two",
+               fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m, d, cross_products = FALSE)), refusal, fixed = TRUE)
+  expect_error(quiet(performWhiteTestRobust(m, d)), refusal, fixed = TRUE)
+  expect_error(quiet(get("white", envir = heteroTests:::.diagnostic_registry)(m, d)), refusal,
+               fixed = TRUE)
+  expect_error(quiet(performWhiteTestStreaming(m, d, progress = FALSE)), refusal, fixed = TRUE)
+  set.seed(1)
+  expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), refusal, fixed = TRUE)
+  # The regressors alone fit the squared residuals exactly, so the Breusch-Pagan
+  # and Koenker tests of them would too: the runner has no fallback and stops.
+  expect_error(quiet(runHeteroTests(m, d, tests = "white", use_cache = FALSE, progress = FALSE)),
+               refusal, fixed = TRUE)
+  # Neither the products nor Koenker's test help: the advice is more data.
+  err <- tryCatch(quiet(performWhiteTest(m, d)), error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_true(err$regressors_exact)
+  expect_match(conditionMessage(err), "use more data.", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "cross_products = FALSE", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "Koenker", fixed = TRUE)
+
+  # A factor of 10 levels, two observations each, beside x1 (n = 20): with the
+  # products, as many independent terms as observations; without them, an
+  # exact fit on 11 degrees of freedom.
+  set.seed(9)
+  d10 <- data.frame(x1 = rnorm(20), f = factor(rep(letters[1:10], 2)))
+  d10$y <- rnorm(20)
+  m10 <- lm(y ~ x1 + f, data = d10)
+  expect_error(quiet(performWhiteTest(m10, d10)), "at least as many as there are", fixed = TRUE)
+  expect_error(quiet(performWhiteTest(m10, d10, cross_products = FALSE)), refusal, fixed = TRUE)
+  expect_error(quiet(runHeteroTests(m10, d10, tests = "white", use_cache = FALSE,
+                                    progress = FALSE)), refusal, fixed = TRUE)
+})
+
+test_that("White's test gives a value on a near-exact but genuine fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Pairs with the same x and residuals of opposite sign, (1 + x) s: e^2 is
+  # (1 + x)^2, an exact fit of the auxiliary regression; with noise of relative
+  # size delta its residual sum of squares is about delta^2 of the total.
+  set.seed(4)
+  x <- rep(runif(40, 0, 2), each = 2)
+  s <- rep(c(1, -1), 40)
+  fit_with <- function(delta) {
+    d <- data.frame(x = x, y = 1 + x + (1 + x) * s * (1 + delta * rnorm(80)))
+    list(m = lm(y ~ x, data = d), d = d)
+  }
+  exact <- fit_with(0)
+  expect_error(performWhiteTest(exact$m, exact$d), "fits the squared residuals exactly",
+               fixed = TRUE)
+  expect_error(performWhiteTestStreaming(exact$m, exact$d, progress = FALSE),
+               "fits the squared residuals exactly", fixed = TRUE)
+  # The regressor alone does not fit (1 + x)^2: Koenker's test is advised.
+  err <- tryCatch(performWhiteTest(exact$m, exact$d), error = function(e) e)
+  expect_false(err$regressors_exact)
+  expect_match(conditionMessage(err), "Koenker's test", fixed = TRUE)
+  # Squared residuals that depart from the exact fit by 2e-5 of their size
+  # leave about 1.9e-9 of the total, below the threshold of 1.5e-8: refused.
+  closer <- fit_with(1e-5)
+  expect_error(performWhiteTest(closer$m, closer$d), "fits the squared residuals exactly",
+               fixed = TRUE)
+  # By 2e-4 and 2e-3, about 1.9e-7 and 1.9e-5: a genuine fit, tested.
+  for (delta in c(1e-4, 1e-3)) {
+    near <- fit_with(delta)
+    ours <- performWhiteTest(near$m, near$d)
+    ref <- white_df_by_hand(near$m)
+    expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10, info = delta)
+    expect_lt(unname(ours$statistic), 80)
+    expect_gt(unname(ours$statistic), 79.9)
+    streaming <- performWhiteTestStreaming(near$m, near$d, progress = FALSE)
+    expect_equal(unname(streaming$statistic), ref$statistic, tolerance = 1e-8, info = delta)
+  }
+})
+
+test_that("the advice of the refusal depends on the call", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Eleven regressors, more than max_interactions, so no products: 23 terms
+  # with the intercept for 22 observations.
+  set.seed(7)
+  d <- data.frame(matrix(rnorm(22 * 11), 22, 11))
+  names(d) <- paste0("v", 1:11)
+  d$y <- rnorm(22, sd = exp(d$v1 / 2))
+  m <- lm(stats::reformulate(paste0("v", 1:11), "y"), data = d)
+  err <- tryCatch(suppressMessages(suppressWarnings(performWhiteTest(m, d))),
+                  error = function(e) e)
+  expect_s3_class(err, "heteroTests_white_exact_fit")
+  expect_no_match(conditionMessage(err), "cross_products = FALSE", fixed = TRUE)
+  expect_match(conditionMessage(err), "use Koenker's test (performKoenkerTest()) or more data.",
+               fixed = TRUE)
+  # Six regressors with their products, for 22 observations.
+  set.seed(22)
+  small <- data.frame(matrix(rnorm(22 * 6), 22, 6))
+  names(small) <- paste0("v", 1:6)
+  small$y <- rnorm(22, sd = exp(small$v1 / 2))
+  err <- tryCatch(performWhiteTest(lm(y ~ v1 + v2 + v3 + v4 + v5 + v6, data = small), small),
+                  error = function(e) e)
+  expect_match(conditionMessage(err),
+               "use `cross_products = FALSE`, Koenker's test (performKoenkerTest()) or more data.",
+               fixed = TRUE)
+})
+
 test_that("a regressor named like a column White's test generates is tested", {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)

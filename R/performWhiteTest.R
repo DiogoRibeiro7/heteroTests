@@ -88,7 +88,15 @@
 #' square, which the rank of \eqn{[1, Z]} took for a combination of the
 #' intercept and the regressor: on `lm(y ~ x1 + x2)` with \eqn{10^4} added to
 #' `x1`, 10.34 on 4 degrees of freedom, where the model of `x1` as it was gives
-#' 11.14 on 5, as both now do.
+#' 11.14 on 5, as both now do. That holds for regressors that enter the model
+#' linearly, which are centred one by one. A product or a power of a variable
+#' located far from zero inside the model stays ill-conditioned once its
+#' columns are centred, and can still lose columns: on 200 observations,
+#' `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives 42.14 on 5 degrees of freedom
+#' where `lm(y ~ x1 * x2)`, the same model, gives 48.95 on 8, and
+#' `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68 on 4. A year
+#' and its square, `year * z` or `income * age` are far from that, and give
+#' the value of the centred model to seven digits or more.
 #'
 #' On a design whose auxiliary columns do not span the constant and whose
 #' regressors are not located far from zero, such as continuous regressors or
@@ -112,15 +120,36 @@
 #' value of `lmtest::bptest()` with the same terms.
 #'
 #' @section Too few observations:
-#' An auxiliary regression with as many independent terms as there are
-#' observations fits the squared residuals exactly: its \eqn{R^2} is 1 and the
-#' statistic the number of observations, whatever the data. Since 0.16.0 the
-#' test refuses it, where it returned that statistic, and says to use
-#' `cross_products = FALSE`, Koenker's test or more data;
-#' [performWhiteTestStreaming()] refuses it too. Six continuous regressors have
-#' 27 squares and products, 28 terms with the intercept, so they need at least
-#' 29 observations. [runHeteroTests()] then falls back on White's test without
-#' cross products, as on any refusal of White's test.
+#' An auxiliary regression that fits the squared residuals exactly has an
+#' \eqn{R^2} of 1, and the statistic is the number of observations, whatever
+#' the data. It fits them exactly with as many independent terms as
+#' observations, and with fewer when the squared residuals are a combination
+#' of its terms: on a paired design, such as `lm(y ~ treat + subject)` with two
+#' observations of each subject, the two residuals of a subject sum to zero,
+#' so their squares are equal and a combination of the subject dummies. On 30
+#' subjects the test gave 60 on 30 degrees of freedom (p = 0.0009) on
+#' homoscedastic data. Since 0.16.0 it refuses such a regression, where it
+#' returned that statistic, and says what to use, as the call allows:
+#' `cross_products = FALSE` when the products were in and the regressors alone
+#' do not fit the squared residuals exactly, Koenker's test when they do not,
+#' or more data. Six continuous regressors have 27 squares and products, 28
+#' terms with the intercept, so they need at least 29 observations.
+#'
+#' A fit counts as exact when its residual sum of squares is at most
+#' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
+#' sum of squares of the squared residuals. An exact fit leaves rounding
+#' error, about \eqn{10^{-30}} of the total on the paired design; squared
+#' residuals that depart from the fit by \eqn{2 \times 10^{-4}} of their size
+#' leave about \eqn{2 \times 10^{-7}}, and are tested.
+#'
+#' The robust form, the registered `"white"`, [performWhiteTestBootstrap()]
+#' and [performWhiteTestStreaming()] refuse both kinds of exact fit too.
+#' [runHeteroTests()] falls back on White's test without cross products, as on
+#' any refusal of White's test, unless the regressors alone fit the squared
+#' residuals exactly, as on the paired design, or that is not known, as in the
+#' streaming test: the Breusch-Pagan and Koenker tests, its other fallbacks,
+#' regress the squared residuals on the regressors and would return the
+#' number of observations too, so the runner stops with the refusal.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
@@ -226,21 +255,81 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
                    data_name = deparse(substitute(model)))
 }
 
-# The refusal of a saturated auxiliary regression: `terms` terms with its
-# intercept for `n` observations, as many as there are or more, so that it
-# fits the squared residuals exactly and R^2 is 1 whatever the data. Shared by
-# rwhite_statistic() and performWhiteTestStreaming().
-rwhite_saturated_message <- function(terms, n, what = "terms") {
-  sprintf(
-    paste(
-      "White's auxiliary regression has %d %s with its intercept for %d observations:",
-      "with at least as many terms as observations it fits the squared residuals",
-      "exactly, and its statistic would be the number of observations whatever the",
-      "data. There are too few observations for White's test with these regressors;",
-      "use `cross_products = FALSE`, Koenker's test (performKoenkerTest()) or more data."
-    ),
-    as.integer(terms), what, as.integer(n)
+# White's auxiliary regression fits the squared residuals exactly when its
+# residual sum of squares is at most this fraction of their total: then R^2 is
+# 1 and the statistic n R^2 the number of observations, whatever the data. An
+# exact fit leaves only rounding error, at about the square of the machine
+# epsilon relative to the total (1e-30 on the paired designs of the tests). The
+# square root of the epsilon, 1.5e-8, the usual tolerance of a computation
+# that should give zero, is far above that and refuses no fit whose residuals
+# are more than about 1.2e-4 of the spread of the squared residuals, at which
+# n R^2 equals n to eight digits: squared residuals that depart from an exact
+# fit by 2e-4 of their size leave 1.9e-7 of the total and are tested, by 2e-5
+# 1.9e-9 and are refused (test-performWhiteTest.R).
+rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
+
+# The refusal of an auxiliary regression that fits the squared residuals
+# exactly: with as many independent terms as observations, or more
+# (`saturated`), or because the squared residuals are a combination of fewer
+# terms, as when each level of a factor holds two observations, whose
+# residuals then sum to zero in each pair. The advice depends on the call:
+# `cross_products = FALSE` only when the products were in and the regressors
+# alone may not fit the squared residuals exactly, Koenker's test only when
+# they do not (`regressors_exact`), since its auxiliary regression is on them;
+# NA when that is not known, as in the streaming test. Its class tells
+# runHeteroTests() whether a test of the regressors alone can stand in for it
+# (ht_analyse_failure()). Shared by rwhite_statistic() and
+# performWhiteTestStreaming().
+rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
+                                    what = "independent terms") {
+  cause <- if (saturated) {
+    sprintf(
+      "it has %d %s with its intercept for %d observations, at least as many as there are",
+      as.integer(terms), what, as.integer(n)
+    )
+  } else {
+    sprintf(
+      paste(
+        "the squared residuals are a combination of its %d %s with its intercept, for %d",
+        "observations, as when each level of a factor holds two observations"
+      ),
+      as.integer(terms), what, as.integer(n)
+    )
+  }
+  # Without the products the regression keeps the regressors and their
+  # squares, which fit the squared residuals exactly when the regressors do.
+  advice <- c(
+    if (isTRUE(products) && !isTRUE(regressors_exact)) "`cross_products = FALSE`",
+    if (identical(regressors_exact, FALSE)) "Koenker's test (performKoenkerTest())",
+    "more data"
   )
+  advice <- if (length(advice) > 1L) {
+    paste(paste(advice[-length(advice)], collapse = ", "), "or", advice[length(advice)])
+  } else {
+    advice
+  }
+  message <- sprintf(
+    paste(
+      "White's auxiliary regression fits the squared residuals exactly: %s. Its R-squared",
+      "is 1 and its statistic the number of observations, whatever the data. There are",
+      "too few observations for White's test with these regressors; use %s."
+    ),
+    cause, advice
+  )
+  stop(structure(
+    class = c("heteroTests_white_exact_fit", "error", "condition"),
+    list(message = message, call = NULL, regressors_exact = regressors_exact)
+  ))
+}
+
+# Whether the regressors with an intercept fit the squared residuals exactly,
+# at rwhite_exact_tolerance: then so does the auxiliary regression of any
+# test of the regressors alone, Koenker's and Breusch-Pagan's.
+rwhite_regressors_fit_exactly <- function(X, e_squared) {
+  centred <- X - rep(colMeans(X), each = nrow(X))
+  fit <- stats::lm.fit(cbind(1, centred), e_squared)
+  total <- sum((e_squared - mean(e_squared))^2)
+  total > 0 && sum(fit$residuals^2) <= rwhite_exact_tolerance * total
 }
 
 # White's statistic from the residuals the test reads and the design of the
@@ -317,11 +406,13 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   # it does not depend on where the regressors are located: on x = 1e4 + u,
   # the square of x is a combination of the intercept and x to within the
   # tolerance of qr() relative to its size, while the square of the centred x
-  # is not. The columns kept are those QR pivoting of [1, Z_c] keeps, at the
-  # default tolerance of qr(). Up to 0.15.0 the rank was that of Z alone, one
-  # too many when Z spans the constant; in the development version before this
-  # change, that of [1, Z], which lost the square of a regressor located far
-  # from zero.
+  # is not. Each regressor is centred on its own, so a product or a power of a
+  # variable located far from zero inside the model, I(x1 + 1e4) * I(x2 + 1e3),
+  # stays ill-conditioned (ROADMAP). The columns kept are those QR pivoting of
+  # [1, Z_c] keeps, at the default tolerance of qr(). Up to 0.15.0 the rank was
+  # that of Z alone, one too many when Z spans the constant; in the development
+  # version before this change, that of [1, Z], which lost the square of a
+  # regressor located far from zero.
   centred <- auxiliary_design(X - rep(colMeans(X), each = n))
   qr_aux <- qr(cbind(1, centred))
   rank_with_intercept <- qr_aux$rank
@@ -347,7 +438,8 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   # the squared residuals exactly, R^2 is 1 and the statistic n whatever the
   # data.
   if (rank_with_intercept >= n) {
-    stop(rwhite_saturated_message(rank_with_intercept, n, "independent terms"), call. = FALSE)
+    rwhite_refuse_exact_fit(rank_with_intercept, n, saturated = TRUE, products = products,
+                            regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
   }
 
   # The auxiliary regression, e^2 on the intercept and the columns kept, fitted
@@ -373,7 +465,15 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   # R^2 as summary.lm() computes it for a model with an intercept.
   fitted_squares <- aux_fit$fitted.values
   explained <- sum((fitted_squares - mean(fitted_squares))^2)
-  r_squared <- explained / (explained + sum(aux_fit$residuals^2))
+  residual <- sum(aux_fit$residuals^2)
+  r_squared <- explained / (explained + residual)
+  # Fewer independent terms than observations, and still an exact fit: the
+  # squared residuals are a combination of the terms, and n R^2 is n.
+  total <- explained + residual
+  if (total > 0 && residual <= rwhite_exact_tolerance * total) {
+    rwhite_refuse_exact_fit(aux_fit$rank, n, saturated = FALSE, products = products,
+                            regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
+  }
 
   # Handle numerical edge cases
   if (is.na(r_squared) || r_squared < 0) {

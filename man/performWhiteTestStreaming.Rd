@@ -74,10 +74,11 @@ that of the least-squares fit now. It refuses a \code{glm} of another family or 
 \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, and \code{data} that lack rows or variables of the fit. It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which
-\code{\link{performWhiteTest}()} drops, and, since 0.16.0, when they are at least as many as the
-observations, with the refusal of \code{\link{performWhiteTest}()} (see its section \emph{Too few
-observations}), where it stopped as on collinear terms. Which model each test accepts, and why, is
-set out in \code{\link{test_results}}, under \emph{Supported models}.
+\code{\link{performWhiteTest}()} drops, and, since 0.16.0, with the refusal of
+\code{\link{performWhiteTest}()} (see its section \emph{Too few observations}) when they are at
+least as many as the observations, where it stopped as on collinear terms, or fit the squared
+residuals exactly. Which model each test accepts, and why, is set out in \code{\link{test_results}},
+under \emph{Supported models}.
 }
 \examples{
 data(mtcars)
