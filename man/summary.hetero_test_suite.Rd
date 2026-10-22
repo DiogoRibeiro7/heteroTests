@@ -71,18 +71,14 @@ The print methods return \code{x}, invisibly. \code{coef()} of a summary returns
 \code{summary.hetero_test_suite} with:
 \describe{
 \item{\code{call}}{The call of the model, as \code{\link[=summary.lm]{summary.lm()}} keeps it, or
-\code{NULL} when its call is not recorded or is one \code{\link[=runHeteroTests]{runHeteroTests()}}
-made itself, which names the runner's variables rather than yours: the
-fit of a formula, its refit within a group, the refit of a fitted
-model within a group, and the fit to the data of a survey design. The
-runner puts no mark on a model it fits, since that would change what it
-returns, so these are recognised by the exact form of their calls,
-\code{stats::lm(formula = model, data = prep$data)},
-\code{stats::lm(formula = model, data = df)},
-\code{stats::lm(formula = formula, data = data)}, and any call with
-\code{data = .ht_refit_data}. A model of yours with such a call is shown by
-its formula too; one fitted with \code{lm(formula, data)} is shown by its
-call.}
+\code{NULL} when its call is not recorded or the model was fitted by
+\code{\link[=runHeteroTests]{runHeteroTests()}} itself, whose call names the runner's variables
+rather than yours (\code{stats::lm(formula = model, data = prep$data)}):
+the fit of a formula, the refit of a model within each group, and the
+fit to the data of a survey design (\code{\link[=runSurveyHeteroTests]{runSurveyHeteroTests()}}). The
+runner records those in the suite, as \code{attr(, "model_origin")}
+(\code{"formula"}, \code{"group"} or \code{"survey"}; see \code{\link{hetero_test_suite}}); a
+model you fitted is shown by its call, whatever its form.}
 \item{\code{formula}}{The formula of the model, or \code{NULL}.}
 \item{\code{model_class}}{The class of the model, such as \code{"lm"}.}
 \item{\code{nobs}}{The number of observations, \code{\link[stats:nobs]{stats::nobs()}} of the model.}

@@ -96,18 +96,14 @@ The print methods return `x`, invisibly. `coef()` of a summary returns its
 
 `call`
 :   The call of the model, as [`summary.lm()`](https://rdrr.io/r/stats/summary.lm.html) keeps it, or
-    `NULL` when its call is not recorded or is one [`runHeteroTests()`](runHeteroTests.md)
-    made itself, which names the runner's variables rather than yours: the
-    fit of a formula, its refit within a group, the refit of a fitted
-    model within a group, and the fit to the data of a survey design. The
-    runner puts no mark on a model it fits, since that would change what it
-    returns, so these are recognised by the exact form of their calls,
-    `stats::lm(formula = model, data = prep$data)`,
-    `stats::lm(formula = model, data = df)`,
-    `stats::lm(formula = formula, data = data)`, and any call with
-    `data = .ht_refit_data`. A model of yours with such a call is shown by
-    its formula too; one fitted with `lm(formula, data)` is shown by its
-    call.
+    `NULL` when its call is not recorded or the model was fitted by
+    [`runHeteroTests()`](runHeteroTests.md) itself, whose call names the runner's variables
+    rather than yours (`stats::lm(formula = model, data = prep$data)`):
+    the fit of a formula, the refit of a model within each group, and the
+    fit to the data of a survey design ([`runSurveyHeteroTests()`](runSurveyHeteroTests.md)). The
+    runner records those in the suite, as `attr(, "model_origin")`
+    (`"formula"`, `"group"` or `"survey"`; see [`hetero_test_suite`](hetero_test_suite.md)); a
+    model you fitted is shown by its call, whatever its form.
 
 `formula`
 :   The formula of the model, or `NULL`.

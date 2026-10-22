@@ -1299,7 +1299,13 @@ and `coef()` of the two summaries) are exported S3 methods, an addition to
 0.16.0 outside its "no API change", approved by the author on 2026-10-21. No
 value changes: `tidy()`, `glance()`, `augment()` and `autoplot()` of a suite
 return what they returned, and a single test still returns and prints its
-`htest`.
+`htest`. A suite whose model `runHeteroTests()` fitted itself carries a new
+attribute, `attr(, "model_origin")`: `"formula"` when it was given a
+formula, `"group"` for each group of a grouped run, and `"survey"` for the
+data of a survey design (`runSurveyHeteroTests()`). The call of such a model
+names the runner's own variables (`stats::lm(formula = model, data =
+prep$data)`), so `summary()` shows its formula instead; a model you fitted is
+shown by its call, and its suite has no such attribute.
 
 Through `runHeteroTests()` a result whose `data.name` is `"model"` now reports
 the formula of the model instead, as Koenker's test and the others already
@@ -1322,7 +1328,8 @@ it is given (`performWhiteTest(m, d)$data.name` is `"m"`), and
 `cachedTest()`, the registry and `runHeteroTestsParallel()` return what the
 registered function returns, `"model"` among them, as before. The corpus of
 the model context (`scripts/model-context-identity.R`), whose runner records
-now hold the `data.name`, returns what it returned before: of its 19,523
+now hold the `data.name` (they hold the tests of a suite, not its
+attributes), returns what it returned before: of its 19,523
 calls 18,885 are `identical()`, and the other 638, all runner calls, differ
 in the `data.name` of a test alone, each from `"model"` to the formula of its
 model, which the harness allows and checks against `deparse(formula(model))`;

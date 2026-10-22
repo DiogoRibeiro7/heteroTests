@@ -86,18 +86,14 @@
 #' `summary.hetero_test_suite` with:
 #' \describe{
 #'   \item{`call`}{The call of the model, as [summary.lm()] keeps it, or
-#'     `NULL` when its call is not recorded or is one [runHeteroTests()]
-#'     made itself, which names the runner's variables rather than yours: the
-#'     fit of a formula, its refit within a group, the refit of a fitted
-#'     model within a group, and the fit to the data of a survey design. The
-#'     runner puts no mark on a model it fits, since that would change what it
-#'     returns, so these are recognised by the exact form of their calls,
-#'     `stats::lm(formula = model, data = prep$data)`,
-#'     `stats::lm(formula = model, data = df)`,
-#'     `stats::lm(formula = formula, data = data)`, and any call with
-#'     `data = .ht_refit_data`. A model of yours with such a call is shown by
-#'     its formula too; one fitted with `lm(formula, data)` is shown by its
-#'     call.}
+#'     `NULL` when its call is not recorded or the model was fitted by
+#'     [runHeteroTests()] itself, whose call names the runner's variables
+#'     rather than yours (`stats::lm(formula = model, data = prep$data)`):
+#'     the fit of a formula, the refit of a model within each group, and the
+#'     fit to the data of a survey design ([runSurveyHeteroTests()]). The
+#'     runner records those in the suite, as `attr(, "model_origin")`
+#'     (`"formula"`, `"group"` or `"survey"`; see [`hetero_test_suite`]); a
+#'     model you fitted is shown by its call, whatever its form.}
 #'   \item{`formula`}{The formula of the model, or `NULL`.}
 #'   \item{`model_class`}{The class of the model, such as `"lm"`.}
 #'   \item{`nobs`}{The number of observations, [stats::nobs()] of the model.}
@@ -377,32 +373,18 @@ rsuite_model <- function(x) {
   NULL
 }
 
-# The call of the model, as summary.lm() prints it, or NULL when it is a call
-# runHeteroTests() made itself, whose arguments name variables of the package
-# rather than of the caller. The runner puts no mark on a model it fits: a
-# mark would change what it returns, which must stay identical() to what it
-# returned before. The calls it makes are recognised by their exact form
-# instead: those of `rsuite_runner_calls`, which fit a formula
-# (.ht_prepare_model()), refit it within a group, and fit the data of a survey
-# design (.ht_survey_ols()); and any call with `data = .ht_refit_data`, the
-# refit of a fitted model within a group (.ht_refit_model()). A model of the
-# caller's whose call has one of these forms, such as
-# `stats::lm(formula = model, data = df)`, is shown by its formula too; one
-# fitted by `lm(formula, data)` is shown by its call.
-rsuite_runner_calls <- list(
-  quote(stats::lm(formula = model, data = prep$data)),
-  quote(stats::lm(formula = model, data = df)),
-  quote(stats::lm(formula = formula, data = data))
-)
-
-rsuite_call <- function(model) {
-  call <- tryCatch(stats::getCall(model), error = function(e) NULL)
-  if (!is.call(call)) {
+# The call of the model, as summary.lm() prints it, or NULL when the model was
+# fitted by runHeteroTests() itself: its call names variables of the package,
+# such as `stats::lm(formula = model, data = prep$data)`, not the caller's. The
+# runner records that in the suite it builds, `attr(, "model_origin")`
+# (rsuite_mark_origin(), R/runHeteroTests.R); the form of the call is not
+# read, since the call lm() records is not the same in every version of R.
+rsuite_call <- function(model, origin = NULL) {
+  if (!is.null(origin)) {
     return(NULL)
   }
-  made_here <- identical(call$data, quote(.ht_refit_data)) ||
-    any(vapply(rsuite_runner_calls, identical, logical(1), y = call))
-  if (made_here) NULL else call
+  call <- tryCatch(stats::getCall(model), error = function(e) NULL)
+  if (is.call(call)) call else NULL
 }
 
 rsuite_weights <- function(model) {
@@ -464,7 +446,7 @@ rsuite_model_info <- function(model, results) {
     }
   }
   list(
-    call = if (!is.null(model)) rsuite_call(model),
+    call = if (!is.null(model)) rsuite_call(model, attr(results, "model_origin", exact = TRUE)),
     formula = if (!is.null(model)) tryCatch(stats::formula(model), error = function(e) NULL),
     model_class = if (is.null(model)) NA_character_ else class(model)[1L],
     nobs = if (length(nobs) == 1L) as.integer(nobs) else NA_integer_,

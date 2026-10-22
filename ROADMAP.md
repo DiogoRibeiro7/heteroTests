@@ -1297,7 +1297,9 @@ after it.
   per test, notes for the tests that fell back, were refused or failed, and
   `coef(summary(s))` as `coef(summary(fit))` is for an `lm`. With it a test
   the runner runs that reported `"model"` as its `data.name`, White's test and
-  four others, reports the formula of the model; no statistic changes.
+  four others, reports the formula of the model, and a suite whose model the
+  runner fitted itself says so in `attr(, "model_origin")`; no statistic
+  changes.
 - [ ] **The quantile regression test on a model with one regressor.** On
   `lm(y ~ x1)` with 60 Gaussian observations,
   `runHeteroTests(m, d, tests = "quantile_regression")` stops with

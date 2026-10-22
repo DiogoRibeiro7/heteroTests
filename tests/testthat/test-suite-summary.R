@@ -258,24 +258,45 @@ test_that("coef() of a summary returns its table", {
   expect_identical(coef(summary(g)), summary(g)$tests)
 })
 
-test_that("the call is shown unless runHeteroTests() made it", {
+test_that("the call is shown unless runHeteroTests() fitted the model itself", {
   suite_quiet()
-  # A fit of the caller's from a formula and data held in variables.
+  # Fits of the caller's, from a formula and data held in variables, whatever
+  # the names: the runner records what it fits itself, and reads no call.
   formula <- mpg ~ wt + qsec
   data <- mtcars
   fit <- lm(formula, data)
-  sm <- summary(suite_run(fit, data))
-  expect_identical(sm$call, fit$call)
+  s <- suite_run(fit, data)
+  expect_null(attr(s, "model_origin"))
+  expect_identical(summary(s)$call, fit$call)
+  model <- formula
+  df <- mtcars
+  own <- stats::lm(formula = model, data = df)
+  expect_identical(summary(suite_run(own, df))$call, own$call)
   # The runner's own fit of a formula.
-  expect_null(summary(suite_run(formula, data))$call)
+  sf <- suite_run(formula, data)
+  expect_identical(attr(sf, "model_origin"), "formula")
+  expect_null(summary(sf)$call)
+  expect_identical(deparse(summary(sf)$formula), "mpg ~ wt + qsec")
   skip_if_not_installed("dplyr")
   # The refits within the groups, of a formula and of a fitted model.
   by_am <- dplyr::group_by(mtcars, am)
   for (g in list(suite_run(mpg ~ wt, by_am, tests = "koenker"),
                  suite_run(lm(mpg ~ wt, data = mtcars), by_am, tests = "koenker"))) {
+    expect_identical(vapply(unclass(g), attr, "", "model_origin"), c("group", "group"))
     expect_true(all(vapply(summary(g)$groups, function(x) is.null(x$call), logical(1))))
     expect_identical(deparse(summary(g)$formula), "mpg ~ wt")
   }
+})
+
+test_that("a suite of the data of a survey design shows the formula", {
+  skip_if_not_installed("survey")
+  suite_quiet()
+  # Equal probabilities, which svydesign() warns that it assumes.
+  design <- suppressWarnings(survey::svydesign(ids = ~1, data = mtcars))
+  s <- suppressWarnings(runSurveyHeteroTests(mpg ~ wt + qsec, design, tests = "koenker"))
+  expect_identical(attr(s, "model_origin"), "survey")
+  expect_null(summary(s)$call)
+  expect_identical(deparse(summary(s)$formula), "mpg ~ wt + qsec")
 })
 
 test_that("a long heading is wrapped to the width of the console", {

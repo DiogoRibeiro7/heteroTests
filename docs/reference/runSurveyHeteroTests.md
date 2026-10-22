@@ -33,7 +33,10 @@ runSurveyHeteroTests(formula, design, tests = c("white", "koenker"), ...)
 
 ## Value
 
-An object of class `hetero_test_suite`.
+An object of class `hetero_test_suite`. Since 0.16.0 it carries
+`attr(, "model_origin") = "survey"`: the model is fitted here, so
+`summary()` shows its formula rather than its call (see
+[`hetero_test_suite`](hetero_test_suite.md)).
 
 ## Details
 

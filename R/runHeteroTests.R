@@ -62,7 +62,10 @@
 #'   a table of the tests and whose `summary()` is laid out as that of an `lm`
 #'   ([summary.hetero_test_suite()]). When grouped data are supplied the return
 #'   value is a [`hetero_grouped_suite`] containing a per-group
-#'   `hetero_test_suite`. A result whose `data.name` is `"model"` reports the
+#'   `hetero_test_suite`. A suite whose model the runner fitted itself, from a
+#'   formula, to the data of a survey design or within a group, says so in
+#'   `attr(, "model_origin")` (`"formula"`, `"survey"` or `"group"`). A result
+#'   whose `data.name` is `"model"` reports the
 #'   formula of the model instead: up to 0.15.0 White's test, its bootstrap
 #'   and its form without cross products, the studentized Breusch-Pagan
 #'   statistic and Szroeter's test reported `"model"` here.
@@ -104,7 +107,7 @@ runHeteroTests <- function(model, data = NULL,
     for (i in seq_along(prepared$group_splits)) {
       group_data <- prepared$group_splits[[i]]
       group_model <- prepared$fit_factory(group_data)
-      group_results[[i]] <- .run_hetero_core(
+      group_results[[i]] <- rsuite_mark_origin(.run_hetero_core(
         group_model,
         group_data,
         tests = tests,
@@ -113,7 +116,7 @@ runHeteroTests <- function(model, data = NULL,
         chunk_size = chunk_size,
         progress = progress,
         recover_failures = TRUE
-      )
+      ), "group")
     }
     structure(
       group_results,
@@ -122,7 +125,7 @@ runHeteroTests <- function(model, data = NULL,
       tests = tests
     )
   } else {
-    .run_hetero_core(
+    output <- .run_hetero_core(
       prepared$model,
       prepared$data,
       tests = tests,
@@ -132,7 +135,35 @@ runHeteroTests <- function(model, data = NULL,
       progress = progress,
       recover_failures = FALSE
     )
+    if (prepared$source %in% c("formula", "survey")) {
+      output <- rsuite_mark_origin(output, prepared$source)
+    }
+    output
   }
+}
+
+#' Record that runHeteroTests() fitted the model of a suite itself
+#'
+#' The call of a model the runner fits names its own variables, such as
+#' `stats::lm(formula = model, data = prep$data)`, and `summary()` shows the
+#' formula of such a model rather than its call (R/suite_summary.R). The
+#' runner says so in the suite it builds, as `attr(, "model_origin")`:
+#' `"formula"` for the fit of a formula, `"group"` for a refit within a group,
+#' `"survey"` for the fit to the data of a survey design. It is set on the
+#' suite after the run, outside the cache of whole calls, and never on the
+#' model, whose call the caches key on. Before, `summary()` recognised such a
+#' call by its form, which R-devel's `lm()` (2026-10) no longer records.
+#'
+#' @param suite A `hetero_test_suite`.
+#' @param origin `"formula"`, `"group"` or `"survey"`.
+#' @return `suite`, with the attribute.
+#' @keywords internal
+#' @noRd
+rsuite_mark_origin <- function(suite, origin) {
+  if (inherits(suite, "hetero_test_suite")) {
+    attr(suite, "model_origin") <- origin
+  }
+  suite
 }
 
 .run_hetero_core <- function(model, data, tests, use_cache, chunk_threshold_mb, chunk_size, progress, recover_failures = FALSE) {
