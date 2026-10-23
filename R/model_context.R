@@ -778,47 +778,61 @@ rwarn_incomplete_rows <- function(data, model, also = character()) {
   invisible(NULL)
 }
 
-#' The factors of a fit with more levels than observations per level
+#' The terms of a fit with more levels than observations per level
 #'
-#' A factor counts when the fit records its levels (`model$xlevels`) and the
-#' model frame holds it, as a factor or a character vector, whether it enters
-#' the model as a main effect or only through an interaction. Its number of
-#' levels \eqn{L} is the number among the observations the test reads, the
-#' rows of `frame`, and \eqn{n} is their number. The rule of
-#' [rwarn_small_groups()]: more levels than observations per level,
-#' \eqn{L > n / L}, that is \eqn{L^2 > n}.
+#' The rule of [rwarn_small_groups()] is decided on the terms of the model,
+#' not on its variables, so that a variable left out of the formula, as in
+#' `y ~ . - id`, does not count, and an interaction counts by its cells. A term
+#' counts when it holds at least one factor or character variable: `subject`,
+#' `school:class` of a nested `school / class`, `a:b` of a crossed `a * b` or
+#' of `a:b` alone, a slope for each level, `x:subject`, or a variable such as
+#' `interaction(a, b)`. Its number of levels \eqn{L} is the number of distinct
+#' combinations of its factor and character variables among the observations
+#' the test reads, the rows of `frame`, and \eqn{n} is their number: more
+#' levels than observations per level, \eqn{L > n / L}, that is
+#' \eqn{L^2 > n}.
+#'
+#' The variables of a term are the rows of the `"factors"` matrix of the
+#' terms of the model, and they are matched to the columns of the model frame
+#' by position, which is their order in both, not by name: a name that needs
+#' backticks, such as `` `my subject` ``, is written with them in the matrix
+#' and without them in the frame.
 #'
 #' @param model The fitted model.
 #' @param frame The model frame, one row per observation the test reads.
-#' @return A data frame with one row per such factor: its name (`factor`), its
-#'   number of levels (`levels`), the number of observations (`observations`)
-#'   and whether it is a term of the model of its own (`main_effect`) or
-#'   enters only through interactions; zero rows when there is none.
+#' @return A data frame with one row per such term: its label (`term`), its
+#'   number of levels (`levels`) and the number of observations
+#'   (`observations`); zero rows when there is none.
 #' @keywords internal
 #' @noRd
 rsmall_groups <- function(model, frame) {
-  none <- data.frame(factor = character(), levels = integer(), observations = integer(),
-                     main_effect = logical(), stringsAsFactors = FALSE)
-  candidates <- intersect(names(model$xlevels), names(frame))
+  none <- data.frame(term = character(), levels = integer(), observations = integer(),
+                     stringsAsFactors = FALSE)
   n <- NROW(frame)
-  if (length(candidates) == 0L || n == 0L) {
+  model_terms <- tryCatch(stats::terms(model), error = function(e) NULL)
+  incidence <- attr(model_terms, "factors")
+  if (n == 0L || !is.matrix(incidence) || ncol(incidence) == 0L ||
+        nrow(incidence) > NCOL(frame)) {
     return(none)
   }
-  levels <- vapply(candidates, function(v) {
-    x <- frame[[v]]
-    if (!is.factor(x) && !is.character(x)) {
+  categorical <- vapply(seq_len(nrow(incidence)), function(i) {
+    x <- frame[[i]]
+    is.factor(x) || is.character(x)
+  }, logical(1))
+  levels <- vapply(seq_len(ncol(incidence)), function(j) {
+    held <- which(incidence[, j] > 0 & categorical)
+    if (length(held) == 0L) {
       return(0L)
     }
-    length(unique(x[!is.na(x)]))
+    cells <- frame[, held, drop = FALSE]
+    nrow(unique(cells[stats::complete.cases(cells), , drop = FALSE]))
   }, integer(1))
   small <- as.numeric(levels)^2 > n
   if (!any(small)) {
     return(none)
   }
-  labels <- tryCatch(attr(stats::terms(model), "term.labels"), error = function(e) NULL)
-  data.frame(factor = candidates[small], levels = unname(levels[small]),
-             observations = as.integer(n), main_effect = candidates[small] %in% labels,
-             stringsAsFactors = FALSE)
+  data.frame(term = colnames(incidence)[small], levels = levels[small],
+             observations = as.integer(n), stringsAsFactors = FALSE)
 }
 
 #' Warn that a factor has more levels than observations per level
@@ -835,17 +849,18 @@ rsmall_groups <- function(model, frame) {
 #' kept the three tests within 2.5% to 7.5% at the 5% level in all but 1 of 69
 #' designs, and the size went to 1 as \eqn{G} grew at a fixed \eqn{T}.
 #'
-#' The tests give this warning on a fit with such a factor ([rsmall_groups()])
+#' The tests give this warning on a fit with such a term ([rsmall_groups()])
 #' after they have computed their value, which it does not change, decided by
 #' the author on 2026-10-23. It has class `heteroTests_fixed_effects_warning`,
-#' so that it can be muffled by class, and carries the factors, their numbers
-#' of levels, the number of observations and whether each is a term of its
-#' own. The caches of results give it again when they answer a call
-#' (R/cache.R). A factor that enters only through interactions is counted
-#' too, as decided; with a slope for each level, `lm(y ~ x + x:subject)`, the
-#' tests rejected too rarely (0.1% to 2.8% at the 5% level,
-#' `inst/validation/fixed-effects-variants-size.R`), and the warning says so
-#' when every factor it names enters that way.
+#' so that it can be muffled by class, and carries the terms (`factors`), their
+#' numbers of levels and the number of observations. The caches of results and
+#' the runners keep it with the result and give it again once the result is
+#' stored (R/cache.R). A term that holds a factor only as a slope for each
+#' level, `x:subject`, counts too, as decided: there the tests rejected too
+#' rarely (0.1% to 2.8% at the 5% level,
+#' `inst/validation/fixed-effects-variants-size.R`), as White's test with the
+#' products of a few regressors does, so the message says that the p-value is
+#' unreliable, and in which direction it erred in the simulations.
 #'
 #' @param model The fitted model.
 #' @param frame The model frame, one row per observation the test reads.
@@ -869,32 +884,28 @@ rwarn_small_groups <- function(model, frame, test, topic) {
     }
     paste(paste(x[-length(x)], collapse = ", "), "and", x[length(x)])
   }
-  names <- enumerate(paste0("`", small$factor, "`"))
+  # A label that already holds backticks, `my subject`, is shown as it is.
+  quoted <- ifelse(grepl("`", small$term, fixed = TRUE), small$term,
+                   paste0("`", small$term, "`"))
   what <- if (nrow(small) == 1L) {
-    sprintf("The factor %s has %d levels", names, small$levels)
+    sprintf("The term %s has %d levels", quoted, small$levels)
   } else {
-    sprintf("The factors %s have %s levels", names, enumerate(as.character(small$levels)))
-  }
-  # A factor that is a term of its own over-rejects; one that enters only
-  # through interactions, a slope for each level, rejected too rarely in the
-  # study (inst/validation/fixed-effects-variants-size.R).
-  direction <- if (any(small$main_effect)) {
-    "usually far too small"
-  } else {
-    "and with the factor only in interactions, a slope for each level, too large in the study"
+    sprintf("The terms %s have %s levels", enumerate(quoted),
+            enumerate(as.character(small$levels)))
   }
   message <- sprintf(
     paste0(
       "%s for %d observations, %s per level: with fixed effects for small groups, more ",
-      "levels than observations per level, the p-value of %s is unreliable, %s (see 'Fixed ",
-      "effects for small groups' in ?%s)."
+      "levels than observations per level, the p-value of %s is unreliable; in simulations ",
+      "it was usually far too small, and too large when the factor enters only as a slope ",
+      "per level (see 'Fixed effects for small groups' in ?%s)."
     ),
-    what, as.integer(n), enumerate(per_level), test, direction, topic
+    what, as.integer(n), enumerate(per_level), test, topic
   )
   warning(structure(
     class = c("heteroTests_fixed_effects_warning", "warning", "condition"),
-    list(message = message, call = NULL, factors = small$factor, levels = small$levels,
-         observations = as.integer(n), main_effect = small$main_effect)
+    list(message = message, call = NULL, factors = small$term, levels = small$levels,
+         observations = as.integer(n))
   ))
   invisible(NULL)
 }

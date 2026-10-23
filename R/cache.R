@@ -27,7 +27,9 @@
 #   groups (rwarn_small_groups(), R/model_context.R), which says something of
 #   the fit and is given on every call, decided by the author on 2026-10-23.
 #   The warnings of that class are stored with the entry and given again, in
-#   their order, when it is read (rcache_capture_warnings()).
+#   their order, when it is read; the call that computes the entry gives them
+#   once its result is stored, so that options(warn = 2) cannot turn them into
+#   a failure of the test (rcache_capture_warnings()).
 # - Each cache holds at most getOption("heteroTests.cache_size", 100) results
 #   and evicts the one used least recently; 0 turns both caches off. The keys
 #   are kept in a character vector, never as the names of an environment: R
@@ -379,9 +381,16 @@ rcache_analysis_key <- function(tests, streaming, chunk_size, inputs) {
 #' on 2026-10-23: a result a cache answers gives it again. The computation of
 #' an entry is evaluated here, and the warnings of that class it gives are
 #' kept, in their order, to be stored with the entry ([rcache_detach()]) and
-#' given again when it is read ([rcache_resignal()]). They are not muffled:
-#' the call that computes the entry gives them as it would without the cache.
-#' The other warnings and messages of a test are not kept (?cachedTest).
+#' given again when it is read ([rcache_resignal()]).
+#'
+#' They are muffled while the computation runs, and the caller gives them
+#' again ([rcache_resignal()]) once the result is complete and stored. Under
+#' `options(warn = 2)` a warning given as it came would be an error inside
+#' the computation: in `runHeteroTests()`, inside the `tryCatch()` that takes
+#' a fallback, so that the runner returned and stored the fallback under the
+#' name of the test. Given afterwards, it is an error of the call, after the
+#' right values are stored. The other warnings and messages of a test are not
+#' kept (?cachedTest).
 #'
 #' @param expr The computation.
 #' @return A list with `value`, the value of `expr`, and `warnings`, a list
@@ -394,6 +403,7 @@ rcache_capture_warnings <- function(expr) {
     expr,
     heteroTests_fixed_effects_warning = function(w) {
       captured[[length(captured) + 1L]] <<- w
+      invokeRestart("muffleWarning")
     }
   )
   list(value = value, warnings = captured)
@@ -509,5 +519,7 @@ rcached_diagnostic <- function(test_name, model, data, inputs, ...) {
     rcache_put(.test_cache, key, rcache_detach(result, model, run$warnings),
                rcache_result_limit())
   }
+  # Given once the result is stored (rcache_capture_warnings()).
+  rcache_resignal(run)
   result
 }

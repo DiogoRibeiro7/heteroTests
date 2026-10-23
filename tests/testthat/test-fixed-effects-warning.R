@@ -74,13 +74,14 @@ test_that("a factor with more levels than observations per level warns, with the
     expect_identical(w$factors, "subject")
     expect_identical(w$levels, 10L)
     expect_identical(w$observations, 99L)
-    expect_true(w$main_effect)
+    expect_null(w$main_effect)
     expect_identical(
       conditionMessage(w),
       paste0(
-        "The factor `subject` has 10 levels for 99 observations, 9.9 per level: with fixed ",
+        "The term `subject` has 10 levels for 99 observations, 9.9 per level: with fixed ",
         "effects for small groups, more levels than observations per level, the p-value of ",
-        fe_labels[[fn]], " is unreliable, usually far too small (see 'Fixed effects for small ",
+        fe_labels[[fn]], " is unreliable; in simulations it was usually far too small, and too ",
+        "large when the factor enters only as a slope per level (see 'Fixed effects for small ",
         "groups' in ?", fn, ")."
       )
     )
@@ -119,44 +120,106 @@ test_that("the levels are counted among the observations of the fit", {
   expect_identical(out$warnings[[1L]]$observations, 80L)
 })
 
-test_that("a factor that enters only through an interaction counts, as a character vector does", {
-  # 30 subjects of 3, n = 90: L^2 = 900.
+test_that("a slope for each level counts, as a character vector does", {
+  # 30 subjects of 3, n = 90: L^2 = 900. The tests rejected too rarely there
+  # (fixed-effects-variants-size.R), and the term x:subject is named.
   d <- fe_fixture(30, 3)
   slopes <- lm(y ~ x + x:subject, data = d)
-  # The tests rejected too rarely there (fixed-effects-variants-size.R), and
-  # the warning says so.
   for (fn in names(fe_tests)) {
     out <- fe_capture(fe_tests[[fn]](slopes, d))
     expect_length(out$warnings, 1L)
-    expect_identical(out$warnings[[1L]]$factors, "subject")
+    expect_identical(out$warnings[[1L]]$factors, "x:subject")
     expect_identical(out$warnings[[1L]]$levels, 30L)
-    expect_false(out$warnings[[1L]]$main_effect)
-    expect_match(
-      conditionMessage(out$warnings[[1L]]),
-      paste0(
-        "is unreliable, and with the factor only in interactions, a slope for each level, ",
-        "too large in the study (see"
-      ),
-      fixed = TRUE
-    )
+    expect_match(conditionMessage(out$warnings[[1L]]), "The term `x:subject` has 30 levels",
+                 fixed = TRUE)
   }
   d$subject <- as.character(d$subject)
   m <- lm(y ~ x + subject, data = d)
   out <- fe_capture(performKoenkerTest(m, d))
   expect_length(out$warnings, 1L)
   expect_identical(out$warnings[[1L]]$factors, "subject")
-  # Two factors over the rule are named in one warning.
+  # Two terms over the rule are named in one warning.
   d$wave <- factor(rep(seq_len(30), times = 3))
   two <- lm(y ~ x + subject + wave, data = d)
   out <- fe_capture(performKoenkerTest(two, d))
   expect_length(out$warnings, 1L)
   expect_identical(out$warnings[[1L]]$factors, c("subject", "wave"))
-  expect_identical(out$warnings[[1L]]$main_effect, c(TRUE, TRUE))
   expect_match(
     conditionMessage(out$warnings[[1L]]),
-    "The factors `subject` and `wave` have 30 and 30 levels for 90 observations, 3 and 3 per level",
+    "The terms `subject` and `wave` have 30 and 30 levels for 90 observations, 3 and 3 per level",
     fixed = TRUE
   )
+})
+
+test_that("the terms of the model count, not its variables", {
+  # A variable taken out of the formula does not count: 120 row labels.
+  set.seed(2)
+  d <- data.frame(id = sprintf("r%03d", 1:120), x = stats::rnorm(120), z = stats::rnorm(120),
+                  stringsAsFactors = FALSE)
+  d$y <- 1 + d$x + stats::rnorm(120)
+  dropped <- lm(y ~ . - id, data = d)
+  d$g <- factor(rep(1:60, 2))
+  removed <- lm(y ~ x + z + g - g, data = d)
+  for (fn in names(fe_tests)) {
+    expect_length(fe_capture(fe_tests[[fn]](dropped, d[, c("id", "x", "z", "y")]))$warnings, 0L)
+    expect_length(fe_capture(fe_tests[[fn]](removed, d))$warnings, 0L)
+  }
+  # A crossed a * b of 10 by 10 levels, two observations a cell: a and b have
+  # 10 levels each for 200 observations, the term a:b 100 cells.
+  crossed <- expand.grid(a = factor(1:10), b = factor(1:10), r = 1:2)
+  crossed$x <- stats::rnorm(200)
+  crossed$y <- crossed$x + stats::rnorm(200)
+  m <- lm(y ~ x + a * b, data = crossed)
+  for (fn in c("performKoenkerTest", "performBPTest")) {
+    out <- fe_capture(fe_tests[[fn]](m, crossed))
+    expect_length(out$warnings, 1L)
+    expect_identical(out$warnings[[1L]]$factors, "a:b")
+    expect_identical(out$warnings[[1L]]$levels, 100L)
+  }
+  # A factor-by-factor term without its main effects: 30 cells of 4.
+  ab <- expand.grid(a = factor(1:15), b = factor(1:2), r = 1:4)
+  ab$x <- stats::rnorm(120)
+  ab$y <- ab$x + stats::rnorm(120)
+  out <- fe_capture(performKoenkerTest(lm(y ~ x + a:b, data = ab), ab))
+  expect_identical(out$warnings[[1L]]$factors, "a:b")
+  expect_identical(out$warnings[[1L]]$levels, 30L)
+  # Nested classes: 5 schools of 40 classes of 3, the term school:class.
+  nested <- expand.grid(r = 1:3, class = factor(1:40), school = factor(1:5))
+  nested$x <- stats::rnorm(600)
+  nested$y <- nested$x + stats::rnorm(600)
+  out <- fe_capture(performKoenkerTest(lm(y ~ x + school / class, data = nested), nested))
+  expect_identical(out$warnings[[1L]]$factors, "school:class")
+  expect_identical(out$warnings[[1L]]$levels, 200L)
+  # interaction(a, b) is a variable of its own.
+  out <- fe_capture(performKoenkerTest(lm(y ~ x + interaction(a, b), data = ab), ab))
+  expect_identical(out$warnings[[1L]]$factors, "interaction(a, b)")
+  expect_identical(out$warnings[[1L]]$levels, 30L)
+})
+
+test_that("a name that needs backticks is matched by position", {
+  d <- fe_fixture(30, 4)
+  names(d)[names(d) == "subject"] <- "my subject"
+  m <- lm(y ~ x + `my subject`, data = d)
+  out <- fe_capture(performKoenkerTest(m, d))
+  expect_length(out$warnings, 1L)
+  expect_identical(out$warnings[[1L]]$factors, "`my subject`")
+  expect_match(conditionMessage(out$warnings[[1L]]), "The term `my subject` has 30 levels",
+               fixed = TRUE)
+  skip_if_not_installed("tibble")
+  tb <- tibble::as_tibble(d)
+  out <- fe_capture(performKoenkerTest(lm(y ~ x + `my subject`, data = tb), tb))
+  expect_identical(out$warnings[[1L]]$factors, "`my subject`")
+})
+
+test_that("designs within the rule give no warning", {
+  # 4 subjects of 30, 20 of 30 and 10 of 10: L^2 <= n.
+  for (gt in list(c(4, 30), c(20, 30), c(10, 10))) {
+    d <- fe_fixture(gt[1], gt[2])
+    m <- lm(y ~ x + subject, data = d)
+    for (fn in names(fe_tests)) {
+      expect_length(fe_capture(fe_tests[[fn]](m, d))$warnings, 0L)
+    }
+  }
 })
 
 test_that("the warning is muffled by its class, and no other warning with it", {
@@ -292,4 +355,60 @@ test_that("runHeteroTests() and runDiagnostics() give the warning once for each 
   expect_identical(attr(out$value$white, "extras")$fallback_strategy, "white_simplified")
   expect_length(out$warnings, 1L)
   expect_match(conditionMessage(out$warnings[[1L]]), "White's test", fixed = TRUE)
+})
+
+test_that("under options(warn = 2) the runners store the real values and take no fallback", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("withr")
+  fe_reset()
+  on.exit(fe_reset(), add = TRUE)
+  d <- fe_fixture(30, 4)
+  m <- lm(y ~ x + subject, data = d)
+  tests <- c("koenker", "breusch_pagan")
+  reference <- list(
+    koenker = suppressWarnings(performKoenkerTest(m, d), classes = fe_class),
+    breusch_pagan = suppressWarnings(performBPTest(m, d), classes = fe_class)
+  )
+  # The warning becomes an error of the call, given once the suite is stored.
+  withr::with_options(list(warn = 2), {
+    expect_error(runHeteroTests(m, d, tests = tests, progress = FALSE), "converted from warning")
+  })
+  analysis_cache <- heteroTests:::.analysis_cache
+  expect_identical(heteroTests:::rcache_size(analysis_cache), 1L)
+  # A later call is answered from the cache, with the values of the tests,
+  # not those of a fallback, and the two warnings.
+  out <- fe_capture(runHeteroTests(m, d, tests = tests, progress = FALSE))
+  for (t in tests) {
+    expect_identical(unname(out$value[[t]]$statistic), unname(reference[[t]]$statistic))
+    expect_identical(out$value[[t]]$method, reference[[t]]$method)
+    expect_null(attr(out$value[[t]], "extras")$fallback_strategy)
+  }
+  expect_length(out$warnings, 2L)
+  # cachedTest() and runDiagnostics() store before they give the warning.
+  fe_reset()
+  withr::with_options(list(warn = 2), {
+    expect_error(cachedTest("koenker", m, d), "converted from warning")
+    expect_error(runDiagnostics(m, d, tests = tests, progress = FALSE), "converted from warning")
+  })
+  stored <- fe_capture(cachedTest("koenker", m, d))
+  expect_identical(unname(stored$value$statistic), unname(reference$koenker$statistic))
+  expect_length(stored$warnings, 1L)
+  # Grouped data: every group runs before the warnings are given.
+  skip_if_not_installed("dplyr")
+  two <- rbind(transform(fe_fixture(15, 4, seed = 3), region = 1),
+               transform(fe_fixture(15, 4, seed = 4), region = 2))
+  grouped <- fe_capture(runHeteroTests(y ~ x + subject, dplyr::group_by(two, region),
+                                       tests = tests, progress = FALSE))
+  expect_length(grouped$warnings, 4L)
+  expect_length(grouped$value, 2L)
+})
+
+test_that("autoTransform() warns once", {
+  d <- fe_fixture(30, 4)
+  d$y <- exp(d$y / 4)
+  m <- lm(y ~ x + subject, data = d)
+  out <- fe_capture(autoTransform(m))
+  expect_length(out$warnings, 1L)
+  expect_identical(out$warnings[[1L]]$factors, "subject")
+  expect_match(conditionMessage(out$warnings[[1L]]), "the Breusch-Pagan test", fixed = TRUE)
 })

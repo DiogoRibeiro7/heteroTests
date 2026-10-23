@@ -43,7 +43,10 @@ runDiagnostics <- function(model, data = NULL,
   )
   model <- prepared$model
   data <- prepared$data %||% tryCatch(model.frame(model), error = function(e) NULL)
-  hetero <- runHeteroTests(
+  # The warnings about fixed effects for small groups that runHeteroTests()
+  # gives are given once every diagnostic has run (rcache_capture_warnings(),
+  # R/cache.R), so that options(warn = 2) stops the call at the end.
+  run <- rcache_capture_warnings(runHeteroTests(
     model,
     data,
     tests,
@@ -51,9 +54,12 @@ runDiagnostics <- function(model, data = NULL,
     chunk_threshold_mb = chunk_threshold_mb,
     chunk_size = chunk_size,
     progress = progress
-  )
+  ))
+  hetero <- run$value
   vif <- performVIFDiagnostic(model)
   reset <- performRESETTest(model, power = power)
   influence <- performInfluenceDiagnostics(model)
-  c(hetero, list(vif = vif, reset = reset, influence = influence))
+  output <- c(hetero, list(vif = vif, reset = reset, influence = influence))
+  rcache_resignal(run)
+  output
 }
