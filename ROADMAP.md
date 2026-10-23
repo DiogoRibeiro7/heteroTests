@@ -886,10 +886,16 @@ after it.
   - `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
     deficient" when terms of its auxiliary regression are collinear, as the
     squares of dummy variables are, on any model with a factor, where
-    `performWhiteTest()` drops them; and the exact White, Breusch-Pagan and
-    Koenker tests switch to the streaming ones above 100 MB. Drop the
-    collinear terms from the accumulated cross-products, as the exact test
-    does. Changes a value (an error becomes one).
+    `performWhiteTest()` drops them. Drop the collinear terms from the
+    accumulated cross-products, as the exact test does. Changes a value (an
+    error becomes one). The exact White, Breusch-Pagan and Koenker tests, and
+    `runHeteroTests()` with its default `chunk_threshold_mb = 100`, switched
+    to the streaming ones above 100 MB, so that such a model got a fallback
+    under the name `white` on large data. Done in 0.16.0, decided by the
+    author on 2026-10-22: the streaming tests run only when asked for, by
+    calling them or by giving `runHeteroTests()` a finite
+    `chunk_threshold_mb`, whose default is `Inf`; the three stay exported, not
+    deprecated.
   - `test_factory$run_test("szroeter", ...)` always stops with "argument
     \"order_by\" is missing": the factory registers `performSzroeterTest()`,
     which needs an ordering, where the registry name `"szroeter"` orders by the

@@ -19,14 +19,23 @@ the classical Breusch-Pagan, Koenker and Cook-Weisberg tests, \code{"koenker"} o
 \code{method} of the result names the test that ran, \code{attr(result, "diagnostic")} its registry name and
 \code{attr(result, "extras")$status} is \code{"fallback"}. A weighted fit whose weights are a column of the data,
 called without \code{data}, is such a case: White's and Koenker's tests stop, and both names hold the Cook-Weisberg
-test. Pass \code{data} for such a fit.}
+test. Pass \code{data} for such a fit.
+
+The runner runs the exact tests unless \code{chunk_threshold_mb} asks for the streaming ones,
+\code{\link{performWhiteTestStreaming}()}, \code{\link{performBPTestStreaming}()} and
+\code{\link{performKoenkerTestStreaming}()}. Up to 0.15.0 it switched to them by itself on data above 100 MB, and
+\code{\link{performWhiteTest}()}, \code{\link{performBPTest}()} and \code{\link{performKoenkerTest}()} did so on their
+own. Streaming saves memory mainly in White's test, whose auxiliary design is several times wider than the model
+matrix; the auxiliary design of the Breusch-Pagan and Koenker tests is the model matrix itself. And the streaming White
+test stops on any model with a factor or a \code{poly()} term, whose squares are collinear with the other terms of its auxiliary regression, so that above 100 MB such
+a model got a fallback under the name \code{"white"} where smaller data got White's test.}
 \usage{
 runHeteroTests(
   model,
   data = NULL,
   tests = c("white", "koenker"),
   use_cache = TRUE,
-  chunk_threshold_mb = 100,
+  chunk_threshold_mb = Inf,
   chunk_size = 10000,
   progress = interactive()
 )
@@ -59,9 +68,13 @@ runHeteroTests(
   tests make first have a cache of their own, bounded by \code{getOption("heteroTests.validation_cache_size", 1000)}.
   Before 0.16.0 the resampling tests were cached too, and two fits with the same coefficients and residuals shared
   their results.}
-  \item{chunk_threshold_mb}{numeric threshold (in megabytes) above which streaming implementations are preferred for supported
-  diagnostics.}
-  \item{chunk_size}{integer number of observations processed per chunk when streaming diagnostics.}
+  \item{chunk_threshold_mb}{size of \code{data} in megabytes above which \code{"white"}, \code{"breusch_pagan"} and
+  \code{"koenker"} are run by their streaming forms. The default, \code{Inf}, never streams: give a finite value to ask
+  for them, such as \code{100}, or \code{0} for data of any size. The result of a streaming test has
+  \code{attr(, "extras")$streaming} set to \code{TRUE}. Up to 0.15.0 the default was \code{100}. A warning about the
+  size of the data is given above half the threshold, or above 50 MB with the default.}
+  \item{chunk_size}{integer number of observations processed per chunk when the streaming tests run
+  (\code{chunk_threshold_mb}).}
   \item{progress}{logical flag controlling whether textual progress bars are displayed when running multiple diagnostics.}
 }
 \value{A \code{\link{hetero_test_suite}}: a named list of \code{htest} objects, one for each test asked for,

@@ -368,6 +368,33 @@ test_that("other test arguments, tests or chunks do not share a key", {
   expect_identical(streamed$white$chunk_size, 30L)
 })
 
+test_that("a call that streams and one that does not do not share a key", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("withr")
+  cache_silent()
+  on.exit(cache_reset(), add = TRUE)
+  d <- cache_fixture()
+  m <- lm(y ~ x + z, data = d)
+  # Since 0.16.0 the default, chunk_threshold_mb = Inf, never streams, and a
+  # finite threshold asks for the streaming tests: the key of a whole call
+  # holds which of the two ran.
+  run <- function(...) {
+    quiet(runHeteroTests(m, d, tests = c("white", "koenker"), progress = FALSE, ...))
+  }
+  exact <- run(use_cache = FALSE)
+  streamed <- run(chunk_threshold_mb = 0, use_cache = FALSE)
+  expect_false(attr(exact$white, "extras")$streaming)
+  expect_true(attr(streamed$white, "extras")$streaming)
+  cache_reset()
+  expect_identical(run(), exact)
+  expect_identical(run(chunk_threshold_mb = 0), streamed)
+  expect_identical(run(), exact)
+  cache_reset()
+  expect_identical(run(chunk_threshold_mb = 0), streamed)
+  expect_identical(run(), exact)
+  expect_identical(run(chunk_threshold_mb = 0), streamed)
+})
+
 test_that("other columns of `data` that a test reads do not share a key", {
   skip_if_not_installed("digest")
   skip_if_not_installed("withr")

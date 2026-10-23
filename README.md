@@ -71,7 +71,7 @@ tests. Their simulated size and power are in
 - **Scalability** — streaming implementations (`performWhiteTestStreaming()`,
   `performBPTestStreaming()`, `performKoenkerTestStreaming()`) accumulate the
   auxiliary cross-products in chunks; results are exact and memory-bounded, and
-  `runHeteroTests()` adopts them automatically for large inputs.
+  `runHeteroTests()` runs them when asked with a finite `chunk_threshold_mb`.
 - **The shape of the variance** — `performVarianceFormTest()` tests whether an
   exponential or a power variance function describes the heteroscedasticity,
   where the other tests only establish that the variance is not constant.

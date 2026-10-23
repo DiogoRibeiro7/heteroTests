@@ -59,6 +59,10 @@
 #' with four and 15\% with eight, and with 100 subjects of eight in 24\% (see
 #' *Too few observations* in [performWhiteTest()]).
 #'
+#' The test is computed in memory whatever the size of the data. Up to 0.15.0
+#' it switched to [performBPTestStreaming()] on data above 100 MB; call that
+#' function to stream.
+#'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
 #' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
@@ -125,22 +129,13 @@ performBPTest <- function(model, data = NULL) {
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   handle_validation_result(requirements)
 
-  # Memory and performance warnings
-  size_mb <- tryCatch(
+  # A warning above 50 MB. Up to 0.15.0 the test switched to
+  # performBPTestStreaming() above 100 MB; the streaming tests run only when
+  # they are called, or asked for in runHeteroTests() (?runHeteroTests).
+  tryCatch(
     check_memory_usage(working_data, threshold_mb = 50),
-    error = function(e) NA_real_
+    error = function(e) NULL
   )
-  if (!is.na(size_mb) && size_mb > 100) {
-    ht_log("INFO", sprintf("Switching to streaming Breusch-Pagan test for dataset of %.1f MB", size_mb))
-    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
-    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
-    return(performBPTestStreaming(
-      model,
-      working_data,
-      chunk_size = adaptive_chunk,
-      progress = FALSE
-    ))
-  }
   if (nrow(working_data) > 10000) {
     message(
       "Large dataset (", nrow(working_data), " observations). ",

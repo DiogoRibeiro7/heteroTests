@@ -53,6 +53,10 @@
 #' with eight, and with 100 subjects of eight in 22\% (see *Too few
 #' observations* in [performWhiteTest()]).
 #'
+#' The test is computed in memory whatever the size of the data. Up to 0.15.0
+#' it switched to [performKoenkerTestStreaming()] on data above 100 MB; call
+#' that function to stream.
+#'
 #' @section Weighted fits:
 #' `lm(..., weights = w)` states that the error variance is
 #' \eqn{\sigma^2 / w_i}. On such a fit the test is computed from the Pearson
@@ -114,21 +118,13 @@ performKoenkerTest <- function(model, data = NULL) {
   requirements <- rvalidateTestRequirements("koenker", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
-  size_mb <- tryCatch(
+  # A warning above 50 MB. Up to 0.15.0 the test switched to
+  # performKoenkerTestStreaming() above 100 MB; the streaming tests run only
+  # when they are called, or asked for in runHeteroTests() (?runHeteroTests).
+  tryCatch(
     check_memory_usage(working_data, threshold_mb = 50),
-    error = function(e) NA_real_
+    error = function(e) NULL
   )
-  if (!is.na(size_mb) && size_mb > 100) {
-    ht_log("INFO", sprintf("Switching to streaming Koenker test for dataset of %.1f MB", size_mb))
-    adaptive_chunk <- max(1000L, min(25000L, as.integer(nrow(working_data) / 5L)))
-    adaptive_chunk <- min(adaptive_chunk, nrow(working_data))
-    return(performKoenkerTestStreaming(
-      model,
-      working_data,
-      chunk_size = adaptive_chunk,
-      progress = FALSE
-    ))
-  }
   if (nrow(working_data) > 10000) {
     message(
       "Large dataset (", nrow(working_data), " observations). ",

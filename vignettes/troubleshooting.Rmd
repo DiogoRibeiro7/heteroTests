@@ -25,7 +25,9 @@ log transformation or add a small constant to shift the data.
 ### Large Datasets
 For very large data sets consider using `performWhiteTestStreaming()` or
 running diagnostics on a representative sample to reduce computation
-time.
+time. `runHeteroTests()` runs the streaming tests when it is given a finite
+`chunk_threshold_mb`, such as `chunk_threshold_mb = 100`; by default it runs
+the exact tests whatever the size of the data.
 
 ### Convergence Problems
 Numerical issues may arise with extreme multicollinearity or poorly

@@ -31,6 +31,8 @@ The test statistic is half the explained sum of squares from regressing the scal
 
 Like White's test, it is not valid with fixed effects for small groups, a factor with few observations per level, and over-rejects on homoscedastic data, the more the smaller the groups and the more groups there are: in 2,000 draws of `lm(y ~ x + subject)` with normal errors and 30 subjects it rejected at the 5% level in 38% with three observations of each, 26% with four and 15% with eight, and with 100 subjects of eight in 24% (see *Too few observations* in [`performWhiteTest()`](performWhiteTest.md)).
 
+The test is computed in memory whatever the size of the data. Up to 0.15.0 it switched to [`performBPTestStreaming()`](performBPTestStreaming.md) on data above 100 MB; call that function to stream.
+
 ## Deprecated name
 
 `performBreuschPaganTest()` is deprecated since 0.14.0. It was the same function as `performBPTest()` under a second name; it still works, returns what `performBPTest()` returns and warns. Use `performBPTest()`.

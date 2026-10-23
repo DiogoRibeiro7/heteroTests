@@ -2,6 +2,54 @@
 
 ## Development version
 
+### The streaming tests
+
+**The streaming tests run only when asked for: `runHeteroTests()` runs the
+exact tests on data of any size by default.** Up to 0.15.0 `runHeteroTests()`
+and `runDiagnostics()` replaced the White, Breusch-Pagan and Koenker tests
+with `performWhiteTestStreaming()`, `performBPTestStreaming()` and
+`performKoenkerTestStreaming()` when the data exceeded `chunk_threshold_mb`,
+100 MB by default, and `performWhiteTest()`, `performBPTest()`,
+`performKoenkerTest()` and the White bootstrap switched to them on their own
+above 100 MB. Streaming saves memory mainly in White's test, whose auxiliary
+design is several times wider than the model matrix; the auxiliary design of
+the Breusch-Pagan and Koenker tests is the model matrix itself. And the
+streaming tests do not always give what the exact ones give: the White
+streaming test stops on any model with a factor or a `poly()` term, whose
+squares are collinear with the other terms of its auxiliary regression, so
+that above 100 MB such a model got a fallback under the name `white` where
+smaller data got White's test. The default of `chunk_threshold_mb` is now
+`Inf`, which never streams. To opt in, give a finite threshold:
+`chunk_threshold_mb = 100` streams above 100 MB, as the default did, and
+`chunk_threshold_mb = 0` on data of any size; `chunk_size` keeps its
+meaning, and `attr(, "extras")$streaming` is `TRUE` on a test that
+streamed. A fallback runs the exact test, which holds its auxiliary design
+in memory even when streaming was asked for, and does not set it. The exact
+tests no longer switch at all, and the three streaming functions stay
+exported, unchanged and not deprecated, for a caller who wants them on very
+large data. No argument changes. On data of at most 100 MB, or a model frame
+of at most 100 MB when `data` is not given, every result is the one before
+this change, `identical()`, and the warning about the size of the data above
+50 MB is kept; above 100 MB the results change, to those of the exact tests, which
+hold the full auxiliary design in memory. On `lm(y ~ x1 + group)` in the
+design of `contract_data()` (`tests/testthat/helper-test-recipes.R`), with
+`group` a factor of four levels, Koenker's test gives 10.52 on 4 degrees of
+freedom (p = 0.032) on every route, and White's test:
+
+| Call | 0.15.0 | Now |
+| --- | --- | --- |
+| `runHeteroTests(m, d)`, data above 100 MB | the classical Breusch-Pagan test, 8.653 on 4 degrees of freedom (p = 0.070), under the name `white`, tagged as a fallback | White's test, 17.83 on 8 (p = 0.0225), as on smaller data |
+| `performWhiteTest(m, d)`, data above 100 MB | Error: "Auxiliary regression became rank deficient" | 17.83 on 8 (p = 0.0225) |
+| `runHeteroTests(m, d, chunk_threshold_mb = 0)`, data of at most 100 MB | White's test without cross products, 13.79 on 5 (p = 0.017), tagged as a fallback | unchanged |
+| `runHeteroTests(m, d, chunk_threshold_mb = 0)` or `chunk_threshold_mb = 100`, data above 100 MB | the classical Breusch-Pagan test, as in the first row | White's test without cross products, as in the row above |
+
+Above 100 MB the fallback of 0.15.0 was not White's test without cross
+products, which `runHeteroTests()` tries first, but the next one: that test,
+called through `performWhiteTest()`, switched to the streaming test too and
+stopped on the same squares. The values of the rows above 100 MB were
+computed on the 120 observations of the design, with the size the package
+measures for the data set to 150 MB (`tests/testthat/test-streaming.R`).
+
 ### Which models the tests accept
 
 Every exported test was run on an `lm`, a weighted `lm`, an `lm` with a zero
@@ -125,7 +173,8 @@ freedom (p = 0.179), as for the `lm`. With prior weights `1 / wt` the first
 two give 14.52 and 0.6362, the values of the weighted `lm`, and the
 variance-form test refuses the weights, as it refuses those of the `lm`: they
 did not come from `fitWLS()`. `runHeteroTests()` on such a `glm`, when it
-takes its streaming path (data above `chunk_threshold_mb`), fell back on the
+takes its streaming path (data above `chunk_threshold_mb`, which since this
+release must be given: *The streaming tests*, above), fell back on the
 simplified White test under the name `white`, tagged as a fallback: 10.52 on
 4 degrees of freedom (p = 0.033) for `glm(y ~ x1 + x2)` in the design of
 `contract_data()` (`tests/testthat/helper-test-recipes.R`). It returns the
@@ -280,8 +329,9 @@ registry names `white`, `breusch_pagan`, `koenker`, `rank_permutation` and
 `runDiagnostics()`. `performWhiteTestBootstrap()` does not change: its
 observed statistic and its replicates keep the computation of 0.15.0, so that
 both come from the same kind of design, until a later step moves both; and
-above the 100 MB switch to the streaming tests, the five still rebuild the
-design chunk by chunk until the step that migrates the streaming tests.
+the streaming tests, which `runHeteroTests()` runs in place of three of the
+five only when asked for since this release (*The streaming tests*, above),
+still rebuild the design chunk by chunk until the step that migrates them.
 
 **A term computed from all the rows of the data is tested as the fit
 computed it.** A fit that drops rows computes a term such as

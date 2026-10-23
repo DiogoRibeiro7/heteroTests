@@ -448,7 +448,7 @@ test_that("runHeteroTests() and runDiagnostics() stop and fall back on nothing",
   tests <- c("white", "koenker", "breusch_pagan", "rank_permutation", "high_dimensional")
   out <- .run_hetero_core(
     m, arranged,
-    tests = tests, use_cache = FALSE, chunk_threshold_mb = 100,
+    tests = tests, use_cache = FALSE, chunk_threshold_mb = Inf,
     chunk_size = 10000, progress = FALSE, recover_failures = TRUE
   )
   for (nm in tests) {

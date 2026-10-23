@@ -15,6 +15,18 @@
 #' distribution, against 4.75% for Koenker's statistic. The classical test is
 #' still run by name, `tests = "breusch_pagan"`.
 #'
+#' The runner runs the exact tests unless `chunk_threshold_mb` asks for the
+#' streaming ones, [performWhiteTestStreaming()], [performBPTestStreaming()]
+#' and [performKoenkerTestStreaming()]. Up to 0.15.0 it switched to them by
+#' itself on data above 100 MB, and [performWhiteTest()], [performBPTest()]
+#' and [performKoenkerTest()] did so on their own. Streaming saves memory
+#' mainly in White's test, whose auxiliary design is several times wider than
+#' the model matrix; the auxiliary design of the Breusch-Pagan and Koenker
+#' tests is the model matrix itself. And the streaming White test stops on any
+#' model with a factor or a `poly()` term, whose squares are collinear with the
+#' other terms of its auxiliary regression, so that above 100 MB such a model
+#' got a fallback under the name `"white"` where smaller data got White's test.
+#'
 #' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
 #'   identity link, a model formula, a tidymodels [workflows::workflow] or a
 #'   [parsnip::model_fit] object. The tests refuse a `glm` of any other
@@ -51,10 +63,15 @@
 #'   `getOption("heteroTests.validation_cache_size", 1000)`. Before 0.16.0 the
 #'   resampling tests were cached too, and two fits with the same coefficients
 #'   and residuals shared their results.
-#' @param chunk_threshold_mb Numeric threshold (in megabytes) above which
-#'   streaming implementations are preferred for supported diagnostics.
+#' @param chunk_threshold_mb Size of `data` in megabytes above which
+#'   `"white"`, `"breusch_pagan"` and `"koenker"` are run by their streaming
+#'   forms. The default, `Inf`, never streams: give a finite value to ask for
+#'   them, such as `100`, or `0` for data of any size. The result of a
+#'   streaming test has `attr(, "extras")$streaming` set to `TRUE`. Up to
+#'   0.15.0 the default was `100`. A warning about the size of the data is
+#'   given above half the threshold, or above 50 MB with the default.
 #' @param chunk_size Integer number of observations processed per chunk when
-#'   streaming tests on large datasets.
+#'   the streaming tests run (`chunk_threshold_mb`).
 #' @param progress Logical flag controlling whether textual progress bars are
 #'   displayed while running multiple diagnostics.
 #'
@@ -87,7 +104,7 @@
 runHeteroTests <- function(model, data = NULL,
                            tests = c("white", "koenker"),
                            use_cache = TRUE,
-                           chunk_threshold_mb = 100,
+                           chunk_threshold_mb = Inf,
                            chunk_size = 10000,
                            progress = interactive()) {
   rrefuse_survey_fit(model)
@@ -167,15 +184,20 @@ rsuite_mark_origin <- function(suite, origin) {
 }
 
 .run_hetero_core <- function(model, data, tests, use_cache, chunk_threshold_mb, chunk_size, progress, recover_failures = FALSE) {
+  # The streaming tests run only when the caller asks for them with a finite
+  # threshold; the default, Inf, never streams. Up to 0.15.0 the default was
+  # 100 MB, and the runner switched by itself (?runHeteroTests). The warning
+  # about the size of the data stays where it was with that default, at 50 MB.
+  warn_mb <- if (isTRUE(is.finite(chunk_threshold_mb))) chunk_threshold_mb / 2 else 50
   data_size <- if (is.null(data)) {
     NA_real_
   } else {
     tryCatch(
-      check_memory_usage(data, threshold_mb = chunk_threshold_mb / 2),
+      check_memory_usage(data, threshold_mb = warn_mb),
       error = function(e) NA_real_
     )
   }
-  use_streaming <- !is.na(data_size) && data_size > chunk_threshold_mb
+  use_streaming <- isTRUE(data_size > chunk_threshold_mb)
 
   available <- as.list(.diagnostic_registry)
   invalid <- setdiff(tests, names(available))

@@ -121,8 +121,8 @@ performVarianceFormTest(wls)
   for a random effect and Pesaran's test of cross-sectional dependence.
 - **Scalability:** streaming implementations of the White, Breusch–Pagan and
   Koenker tests accumulate the auxiliary cross-products in chunks; the results
-  are exact and memory-bounded, and `runHeteroTests()` adopts them
-  automatically for large inputs.
+  are exact and memory-bounded, and `runHeteroTests()` runs them when asked
+  with a finite `chunk_threshold_mb`.
 - **The shape of the variance:**
   [`performVarianceFormTest()`](reference/performVarianceFormTest.md) tests
   whether an exponential or a power variance function describes the

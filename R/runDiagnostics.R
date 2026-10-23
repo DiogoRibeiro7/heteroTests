@@ -17,9 +17,11 @@
 #' @param power Powers for `performRESETTest`.
 #' @param use_cache Logical flag forwarded to [runHeteroTests()] controlling
 #'   whether cached diagnostic results may be reused.
-#' @param chunk_threshold_mb Numeric threshold passed to [runHeteroTests()] for
-#'   enabling streaming diagnostics when the input data exceed this size.
-#' @param chunk_size Integer size of each chunk when streaming diagnostics.
+#' @param chunk_threshold_mb Size of the data in megabytes above which
+#'   [runHeteroTests()] runs the streaming forms of the White, Breusch-Pagan
+#'   and Koenker tests. The default, `Inf`, never streams; give a finite value
+#'   to ask for them. Up to 0.15.0 the default was `100`.
+#' @param chunk_size Integer size of each chunk when the streaming tests run.
 #' @param progress Logical controlling whether textual progress indicators are
 #'   displayed during long-running operations.
 #' @return A named list containing results of heteroscedasticity tests and other diagnostics.
@@ -32,7 +34,7 @@ runDiagnostics <- function(model, data = NULL,
                            tests = c("white", "koenker"),
                            power = 2:3,
                            use_cache = TRUE,
-                           chunk_threshold_mb = 100,
+                           chunk_threshold_mb = Inf,
                            chunk_size = 10000,
                            progress = interactive()) {
   prepared <- .ht_prepare_model(
