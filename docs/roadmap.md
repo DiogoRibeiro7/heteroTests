@@ -1457,8 +1457,10 @@ after it.
     after the columns of the design, so such a model gives its value: on
     `lm(stations ~ mag, data = quakes)`, F = 57.57 on 1 and 1999 degrees of
     freedom (p = 5.0e-14), where the test stopped and `runHeteroTests()`
-    returned the rank permutation test. Every other model gives the value it gave,
-    `identical()` (announced in bold). An exploratory size check, not to
+    returned the rank permutation test. So does any design with one column
+    beside the intercept once aliased columns are dropped, such as a factor of
+    two levels; a design with two columns or more beside it gives the value it
+    gave, `identical()` (announced in bold). An exploratory size check, not to
     evidence grade (2,000 replications per cell, the design of
     `full-sweep-size-power.R` with one regressor), puts it below its level, as
     the two-regressor design is under `t5` errors: 0.029 and 0.040 at 60 and

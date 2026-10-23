@@ -60,8 +60,12 @@ the name asked for. On `lm(stations ~ mag, data = quakes)`:
 | `runHeteroTests(m, quakes, tests = "quantile_regression")`, after `set.seed(1)` | the rank permutation test, rho = 0.261 (p = 0.001), under the name `quantile_regression`, tagged as a fallback | the quantile regression test, as in the row above |
 | `test_factory$run_test("quantile_regression", m, quakes)` | Error: "subscript out of bounds" | the quantile regression test, as in the first row |
 
-A model with two regressors or more, a factor, an interaction, a `poly()`
-term, an offset or aliased columns gives the value it gave, `identical()`. A
+So does any design with one column beside the intercept once aliased
+columns are dropped, which stopped the same way: a factor of two levels,
+`lm(len ~ supp, data = ToothGrowth)`, gives F = 0.1529 on 1 and 119 degrees
+of freedom, and `poly(x, 1)`, `x1:x2` alone, an offset beside one regressor
+or `x1 + I(2 * x1)` give their value too. A design with two columns or more
+beside the intercept gives the value it gave, `identical()`. A
 model without an intercept is still refused by `quantreg`, which needs one,
 with its own message. An exploratory size check, not to the grade of
 `inst/validation/`, found the test on one regressor below its level, as the
