@@ -57,6 +57,38 @@ test_that("performQuantileRegressionTest validates quantile inputs", {
   )
 })
 
+test_that("performQuantileRegressionTest matches quantreg on a model with one regressor", {
+  skip_if_not_installed("quantreg")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Before 0.16.0 such a model stopped with "subscript out of bounds": the
+  # slope of a one-column design was named "", and was read by name. Through
+  # runHeteroTests() the failure was masked by the fallback, the rank
+  # permutation test, returned under the name "quantile_regression".
+  model <- lm(stations ~ mag, data = quakes)
+  ours <- performQuantileRegressionTest(model, quakes)
+
+  reference_fit <- quantreg::rq(stations ~ mag, tau = c(0.25, 0.75), data = quakes)
+  reference <- stats::anova(reference_fit, se = "nid", iid = TRUE, joint = TRUE)$table
+  expect_equal(unname(ours$statistic), as.numeric(reference[1, 3]), tolerance = 1e-10)
+  expect_equal(unname(ours$parameter[["df1"]]), as.numeric(reference[1, 1]), tolerance = 1e-10)
+  expect_equal(unname(ours$parameter[["df2"]]), as.numeric(reference[1, 2]), tolerance = 1e-10)
+  expect_equal(unname(ours$p.value), as.numeric(reference[1, 4]), tolerance = 1e-10)
+  expect_identical(dimnames(ours$estimate), list("mag", c("tau_0.25", "tau_0.75")))
+  expect_equal(ours$estimate["mag", ], stats::coef(reference_fit)["mag", ],
+               tolerance = 1e-10, ignore_attr = TRUE)
+
+  # The runner returns the test, not its fallback, and so does the factory.
+  suite <- runHeteroTests(model, quakes, tests = "quantile_regression", use_cache = FALSE)
+  expect_identical(attr(suite$quantile_regression, "diagnostic"), "quantile_regression")
+  expect_identical(suite$quantile_regression$method, ours$method)
+  expect_identical(suite$quantile_regression$statistic, ours$statistic)
+  expect_identical(suite$quantile_regression$p.value, ours$p.value)
+  factory <- test_factory$run_test("quantile_regression", model, quakes)
+  factory$test_metadata <- NULL
+  expect_identical(factory, ours)
+})
+
 test_that("performQuantileRegressionTest refuses a model without a slope", {
   skip_if_not_installed("quantreg")
   # It compares the slopes across quantiles; before 0.16.0 an intercept-only

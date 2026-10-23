@@ -64,7 +64,10 @@ design, so the quantile regressions are fitted to the columns that were not alia
 value of the same model fitted without them. Since 0.16.0 it also accepts a model with an offset:
 the quantile regressions are fitted to the response of the fit minus its offset, on the design of
 the fit, which is the model with the offset, since the offset shifts every conditional quantile as
-it shifts the mean; before, they were refitted from the formula, which left the offset out. It
+it shifts the mean; before, they were refitted from the formula, which left the offset out. Since
+0.16.0 it also accepts a model with a single regressor, such as \code{lm(y ~ x)}; before, it
+stopped with "subscript out of bounds" on one, and \code{runHeteroTests()} returned its fallback,
+the rank permutation test, under the name \code{quantile_regression}. It
 refuses a weighted fit, a \code{fitWLS()} fit among them, as it refits the model without the
 weights, a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a coefficient that
 is not finite for another reason, and \code{data} that lack rows or variables of the fit.

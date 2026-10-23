@@ -110,6 +110,67 @@ test_that("runAdvancedDiagnostics auto-enhances small samples", {
   expect_false(large_diag$results$white$robust_details$bootstrap$enabled)
 })
 
+test_that("runAdvancedDiagnostics() runs the studentized Breusch-Pagan test whatever auto_enhance is", {
+  # `auto_enhance` turns the small-sample bootstrap on and off and nothing
+  # else, since 0.16.0. Before, `auto_enhance = FALSE` also turned the
+  # studentization off and ran the classical test: 3.135 (p = 0.2086) here.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- stats::lm(mpg ~ wt + qsec, data = mtcars)
+  off <- runAdvancedDiagnostics(model, mtcars, auto_enhance = FALSE)
+  entry <- off$results$breusch_pagan
+  expect_true(entry$robust_details$studentized)
+  expect_false(entry$robust_details$bootstrap$enabled)
+  expect_equal(unname(entry$statistic), 3.0858363, tolerance = 1e-7)
+  expect_equal(entry$p.value, 0.2137564, tolerance = 1e-6)
+  expect_identical(entry, performBPTestRobust(model, mtcars, studentize = TRUE, bootstrap = FALSE))
+  expect_false(off$results$white$robust_details$bootstrap$enabled)
+  expect_false(off$metadata$auto_enhance)
+
+  # From 50 observations neither setting bootstraps, so the two give the same
+  # results.
+  set.seed(5)
+  d <- data.frame(x = stats::runif(60, 1, 5))
+  d$y <- 1 + d$x + stats::rnorm(60, sd = d$x)
+  big <- stats::lm(y ~ x, data = d)
+  expect_identical(
+    runAdvancedDiagnostics(big, d, auto_enhance = FALSE)$results,
+    runAdvancedDiagnostics(big, d, auto_enhance = TRUE)$results
+  )
+})
+
+test_that("runAdvancedDiagnostics() takes \"bp\" for \"breusch_pagan\", as its help page says", {
+  # Before 0.16.0 "bp" stopped with "Unsupported test requested: bp": the names
+  # asked for were compared with the values of the lookup table, not its names.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- stats::lm(mpg ~ wt + qsec, data = mtcars)
+  both <- runAdvancedDiagnostics(model, mtcars, tests = c("white", "breusch_pagan"), auto_enhance = FALSE)
+  expect_identical(
+    runAdvancedDiagnostics(model, mtcars, tests = c("white", "bp"), auto_enhance = FALSE),
+    both
+  )
+  bp <- runAdvancedDiagnostics(model, mtcars, tests = "BP", auto_enhance = FALSE)
+  expect_named(bp$results, "breusch_pagan")
+  expect_identical(bp$metadata$tests, "breusch_pagan")
+  expect_identical(bp$results$breusch_pagan, both$results$breusch_pagan)
+  expect_identical(
+    runAdvancedDiagnostics(model, mtcars, tests = c("bp", "breusch_pagan"), auto_enhance = FALSE),
+    bp
+  )
+  # Every other name is refused as before.
+  expect_error(
+    runAdvancedDiagnostics(model, mtcars, tests = "koenker"),
+    "Unsupported test requested: koenker",
+    fixed = TRUE
+  )
+  expect_error(
+    runAdvancedDiagnostics(model, mtcars, tests = c("bp", "foo")),
+    "Unsupported test requested: foo",
+    fixed = TRUE
+  )
+})
+
 test_that("rrunAdvancedDiagnostics() warns, names its new name and keeps its value", {
   small_data <- mtcars[seq_len(30), ]
   model_small <- stats::lm(mpg ~ wt + cyl, data = small_data)

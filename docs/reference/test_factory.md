@@ -12,3 +12,9 @@ pre-registered at package load time.
 Deprecated since 0.14.0, with [TestFactory](TestFactory.md): it leaves the exports in
 1.0.0, and as an object it cannot warn when used. Use
 [`registerDiagnostic()`](registerDiagnostic.md) and [`runHeteroTests()`](runHeteroTests.md) instead.
+
+Its `"szroeter"` entry is [`performSzroeterTest()`](performSzroeterTest.md), which needs the column
+that orders the observations, given as `order_by`:
+`test_factory$run_test("szroeter", model, data, order_by = "x")`. Without
+`order_by` it refuses the call and asks for it, since 0.16.0; before, it
+stopped with "argument "order\_by" is missing, with no default".

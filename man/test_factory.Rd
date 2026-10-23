@@ -11,4 +11,10 @@ pre-registered at package load time.
 Deprecated since 0.14.0, with \link{TestFactory}: it leaves the exports in
 1.0.0, and as an object it cannot warn when used. Use
 \code{\link[=registerDiagnostic]{registerDiagnostic()}} and \code{\link[=runHeteroTests]{runHeteroTests()}} instead.
+
+Its \code{"szroeter"} entry is \code{\link[=performSzroeterTest]{performSzroeterTest()}}, which needs the column
+that orders the observations, given as \code{order_by}:
+\code{test_factory$run_test("szroeter", model, data, order_by = "x")}. Without
+\code{order_by} it refuses the call and asks for it, since 0.16.0; before, it
+stopped with "argument "order_by" is missing, with no default".
 }

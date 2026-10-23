@@ -109,6 +109,12 @@ TestFactory <- R6::R6Class(
 #' Deprecated since 0.14.0, with [TestFactory]: it leaves the exports in
 #' 1.0.0, and as an object it cannot warn when used. Use
 #' [registerDiagnostic()] and [runHeteroTests()] instead.
+#'
+#' Its `"szroeter"` entry is [performSzroeterTest()], which needs the column
+#' that orders the observations, given as `order_by`:
+#' `test_factory$run_test("szroeter", model, data, order_by = "x")`. Without
+#' `order_by` it refuses the call and asks for it, since 0.16.0; before, it
+#' stopped with "argument "order_by" is missing, with no default".
 #' @export
 #' @name test_factory
 NULL
@@ -133,7 +139,23 @@ test_factory <- TestFactory$new()
     .studentized_bp_test(model, data, ...)
   },
   white_bootstrap = performWhiteTestBootstrap,
-  szroeter = performSzroeterTest,
+  # performSzroeterTest() needs the ordering of the observations, which
+  # run_test() passes on from its `...` as `order_by`. Without it the entry
+  # refuses the call and asks for it, as "spatial_hetero" asks for its
+  # neighbour list, since 0.16.0; before, it stopped with "argument
+  # "order_by" is missing, with no default". It does not order by anything
+  # of its own: the registered "szroeter" of runHeteroTests() orders by the
+  # fitted values, an ordering this entry never had.
+  szroeter = function(model, data, order_by, ...) {
+    if (missing(order_by)) {
+      stop(
+        "The Szroeter test needs `order_by`, the column of `data` that orders the ",
+        "observations: test_factory$run_test(\"szroeter\", model, data, order_by = \"x\").",
+        call. = FALSE
+      )
+    }
+    performSzroeterTest(model, data, order_by = order_by, ...)
+  },
   wild_bootstrap = performWildBootstrapTest,
   quantile_regression = performQuantileRegressionTest,
   rank_permutation = performRankPermutationTest,

@@ -391,8 +391,9 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
 
 #' Run enhanced heteroscedasticity diagnostics
 #'
-#' Executes one or more robust diagnostics with automatic enhancements for
-#' small samples and optional studentisation.
+#' Executes one or more robust diagnostics, with an automatic bootstrap for
+#' small samples. The Breusch-Pagan entry is Koenker's studentized statistic,
+#' `performBPTestRobust(studentize = TRUE)`.
 #'
 #' @inheritParams performWhiteTestRobust
 #' @param data A [base::data.frame] (or object coercible to one) containing the
@@ -400,9 +401,15 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
 #'   fit `model` and will be checked for missing values.
 #' @param tests Character vector of tests to run. Use "all" (default) to
 #'   run the White and Breusch-Pagan diagnostics, or supply a subset such
-#'   as `c("white", "bp")`.
-#' @param auto_enhance Logical, enable automatic bootstrap for small
-#'   samples (n < 50) and studentization for Breusch-Pagan.
+#'   as `c("white", "bp")`: `"bp"` is another name for `"breusch_pagan"`, and
+#'   the result is named `breusch_pagan` either way. Before 0.16.0 `"bp"` was
+#'   refused ("Unsupported test requested: bp").
+#' @param auto_enhance Logical, enable the automatic bootstrap for small
+#'   samples (n < 50). It does nothing else: the Breusch-Pagan entry is the
+#'   studentized statistic either way. Before 0.16.0 `auto_enhance = FALSE`
+#'   also turned the studentization off and ran the classical Breusch-Pagan
+#'   test, which assumes normal errors; [performBPTestRobust()] with
+#'   `studentize = FALSE` still runs it.
 #' @param bootstrap_B Number of bootstrap replications used when automatic
 #'   enhancement triggers bootstrap. Defaults to 999, the default of every
 #'   resampling test in the package since 0.15.0; it was 500 before. On a fit
@@ -432,14 +439,21 @@ runAdvancedDiagnostics <- function(model, data, tests = "all",
   }
   bootstrap_B <- as.integer(bootstrap_B)
 
+  # The names accepted, each with the test it runs. The names asked for are
+  # matched to the names of the table, since 0.16.0; they were matched to its
+  # values, so "bp", which is not one, was refused.
   available <- c(white = "white", bp = "breusch_pagan", breusch_pagan = "breusch_pagan")
   if (identical(tests, "all")) {
     tests <- c("white", "breusch_pagan")
   }
   tests <- unique(tolower(tests))
-  if (!all(tests %in% available)) {
-    stop("Unsupported test requested: ", paste(setdiff(tests, available), collapse = ", "), call. = FALSE)
+  if (!all(tests %in% names(available))) {
+    stop(
+      "Unsupported test requested: ", paste(setdiff(tests, names(available)), collapse = ", "),
+      call. = FALSE
+    )
   }
+  tests <- unique(unname(available[tests]))
 
   n <- nrow(data)
   results <- list()
@@ -458,10 +472,14 @@ runAdvancedDiagnostics <- function(model, data, tests = "all",
 
   if ("breusch_pagan" %in% tests) {
     use_boot <- auto_enhance && n < 50
+    # Koenker's studentized statistic whatever `auto_enhance` is, since
+    # 0.16.0: `auto_enhance` turns the small-sample bootstrap on and off and
+    # nothing else. It also set `studentize` before, so that turning the
+    # bootstrap off ran the classical test, which assumes normal errors.
     results$breusch_pagan <- performBPTestRobust(
       model,
       data,
-      studentize = auto_enhance,
+      studentize = TRUE,
       bootstrap = use_boot,
       B = bootstrap_B,
       ci_level = ci_level,
