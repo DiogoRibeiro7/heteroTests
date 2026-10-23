@@ -108,7 +108,9 @@ but one: since 0.16.0 the warning White's, Koenker's and the Breusch-Pagan
 tests give on a factor with more levels than observations per level, of
 class \code{heteroTests_fixed_effects_warning}, is stored with the result and
 given again on every call that reads it, as by \code{\link[=runHeteroTests]{runHeteroTests()}} (see
-\emph{Fixed effects for small groups} in \code{\link[=performKoenkerTest]{performKoenkerTest()}}).
+\emph{Fixed effects for small groups} in \code{\link[=performKoenkerTest]{performKoenkerTest()}}). The call that
+computes the result gives it once the result is stored, so that under
+\code{options(warn = 2)} the warning stops the call after the result is stored.
 }
 \seealso{
 \code{\link[=clearTestCache]{clearTestCache()}} empties the cache; \code{\link[=runHeteroTests]{runHeteroTests()}} uses it with

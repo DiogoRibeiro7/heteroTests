@@ -122,7 +122,9 @@ asymptotic p-value (see \emph{Fixed effects for small groups} in
 \code{\link[=performKoenkerTest]{performKoenkerTest()}}). The observed statistic and the replicates are
 computed here without it, so that \code{\link[=performWhiteTestRobust]{performWhiteTestRobust()}} and
 \code{\link[=performBPTestRobust]{performBPTestRobust()}} with \code{bootstrap = TRUE} give it once, for the
-asymptotic p-value they report.
+asymptotic p-value they report. The result's \code{original}, the test's own
+result, carries that asymptotic p-value: on such a design it is
+unreliable, and the bootstrap's, \code{p_value}, is the one to use.
 }
 
 \arguments{

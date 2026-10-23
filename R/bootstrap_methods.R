@@ -102,7 +102,9 @@ NULL
 #' [performKoenkerTest()]). The observed statistic and the replicates are
 #' computed here without it, so that [performWhiteTestRobust()] and
 #' [performBPTestRobust()] with `bootstrap = TRUE` give it once, for the
-#' asymptotic p-value they report.
+#' asymptotic p-value they report. The result's `original`, the test's own
+#' result, carries that asymptotic p-value: on such a design it is
+#' unreliable, and the bootstrap's, `p_value`, is the one to use.
 #'
 #' @section Parallel replicates:
 #' With `parallel = TRUE` replicate `i` draws its random numbers from stream

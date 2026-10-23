@@ -837,7 +837,9 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #' tests give on a factor with more levels than observations per level, of
 #' class `heteroTests_fixed_effects_warning`, is stored with the result and
 #' given again on every call that reads it, as by [runHeteroTests()] (see
-#' *Fixed effects for small groups* in [performKoenkerTest()]).
+#' *Fixed effects for small groups* in [performKoenkerTest()]). The call that
+#' computes the result gives it once the result is stored, so that under
+#' `options(warn = 2)` the warning stops the call after the result is stored.
 #'
 #' @seealso
 #' [clearTestCache()] empties the cache; [runHeteroTests()] uses it with

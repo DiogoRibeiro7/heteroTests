@@ -1038,8 +1038,9 @@ after it.
         (`inst/validation/fixed-effects-size.R`). The excess comes from the
         subject dummies in the auxiliary regression
         (`inst/validation/fixed-effects-dummies.R`). Done in 0.16.0, decided by
-        the author on 2026-10-23: the three tests warn when a factor of the model
-        has more levels than observations per level, `L^2 > n`, with their values
+        the author on 2026-10-23: the three tests warn when a term of the model
+        that holds a factor has more levels than observations per level,
+        `L^2 > n`, counting the cells of an interaction, with their values
         unchanged; on a balanced design the rule is `G <= T`, which misclassified
         1 of 69 designs of the study for the three tests together. The routes that
         compute the same statistics warn too, and the White bootstrap, the wild

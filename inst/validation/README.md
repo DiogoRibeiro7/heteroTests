@@ -2104,10 +2104,12 @@ Six things follow.
   the draws, too rarely, and on 10 of 3 in none.
 
 Decided by the author on 2026-10-23: White's, Koenker's and the Breusch-Pagan
-tests warn when a factor of the model has L levels among the n observations
-of the fit with L > n / L, that is L^2 > n, which is G > T on a balanced
-design, with their values unchanged (the help pages, under *Fixed effects for
-small groups*). The rule is a warning, not a correction, and the thresholds
+tests warn when a term of the model that holds a factor has L levels among
+the n observations of the fit with L > n / L, that is L^2 > n, which is
+G > T on a balanced design, with their values unchanged (the help pages,
+under *Fixed effects for small groups*). L counts the cells of the term: the
+levels of `subject`, or the combinations of the factors of an interaction
+such as `a:b` or `school:class`. The rule is a warning, not a correction, and the thresholds
 are fitted on this grid, for normal errors, one factor and one or two
 regressors; it does not flag under-rejection. Most panels of firms or people
 over years fail it: on 100 subjects of 10 the tests reject in 18.1%, 18.4% and
@@ -2160,11 +2162,11 @@ the slopes, where it refused 2 and 1 of the samples of 30 x 3 and 30 x 4.
   standard errors.
 - **A factor only in interactions makes the tests reject too rarely.** With a
   slope for each subject, the three tests reject in 0.1% to 2.8% of the
-  samples. The rule counts such a factor, as decided, and the warning says
-  that the p-value was too large there rather than too small. A model with
-  the factor both as a main effect and in an interaction, such as
-  `lm(y ~ x * subject)`, was not measured; the warning treats it as a main
-  effect.
+  samples. The rule counts the term `x:subject`, as decided, and the warning
+  says that the p-value is unreliable, in the simulations usually far too
+  small, and too large with a slope per level. A model with the factor both
+  as a main effect and in a slope, such as `lm(y ~ x * subject)`, was not
+  measured here.
 
 ## History
 

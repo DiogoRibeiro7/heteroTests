@@ -61,20 +61,24 @@
 #' between levels \eqn{T / (T - 1)} times as much as the auxiliary regression
 #' assumes, and with \eqn{G} levels the statistic has mean its degrees of
 #' freedom plus \eqn{(G - 1) / (T - 1)}, as it had in the study below, within
-#' 2.3\%. Regressed on `x` alone, without the dummies, the squared residuals
-#' were rejected in 4.6\% to 5.5\% of the draws
-#' (`inst/validation/fixed-effects-dummies.R`). The excess grows with
+#' 2.3\% for \eqn{T} of 3 or more. Regressed on `x` alone, without the
+#' dummies, the squared residuals were rejected in 4.6\% to 5.5\% of the
+#' draws (`inst/validation/fixed-effects-dummies.R`). The excess grows with
 #' \eqn{G} at a fixed \eqn{T}, while the spread of the chi-squared
 #' distribution grows as \eqn{\sqrt{2G}}{sqrt(2G)}, so with a fixed number of
 #' observations per level the size goes to 1 as the number of levels grows.
 #'
-#' Since 0.16.0 the test warns when a factor of the model, a main effect or a
-#' factor that enters only through an interaction, has more levels than
-#' observations per level: \eqn{L > n / L}, that is \eqn{L^2 > n}, for
-#' \eqn{L} levels among the \eqn{n} observations of the fit. The warning
-#' names the factor and gives \eqn{L}, \eqn{n} and the mean number of
-#' observations per level; the statistic, the degrees of freedom and the
-#' p-value are those the test computes without it. It has class
+#' Since 0.16.0 the test warns when a term of the model that holds a factor
+#' or a character variable has more levels than observations per level:
+#' \eqn{L > n / L}, that is \eqn{L^2 > n}, with \eqn{L} the number of
+#' distinct combinations of the factors of the term among the \eqn{n}
+#' observations of the fit. The term is a factor, such as `subject`; an
+#' interaction of factors, counted by its cells, such as `a:b` of a crossed
+#' `a * b` or `school:class` of a nested `school / class`; or a slope for each
+#' level, `x:subject`. A variable left out of the formula, as in `y ~ . - id`,
+#' does not count. The warning names the term and gives \eqn{L}, \eqn{n} and
+#' the mean number of observations per level; the statistic, the degrees of
+#' freedom and the p-value are those the test computes without it. It has class
 #' `heteroTests_fixed_effects_warning`, which
 #' `suppressWarnings(expr, classes = "heteroTests_fixed_effects_warning")`
 #' muffles, and no other warning. It is given on every call, also when
@@ -112,14 +116,14 @@
 #' | 100 | 10 | 18.1 | 18.4 | 21.3 | yes |
 #' | 200 | 4 | 97.8 | 97.6 | 82.5 | yes |
 #'
-#' A factor that enters only through an interaction is counted too, but there
-#' the error goes the other way: with a slope for each subject,
-#' `lm(y ~ x + x:subject)` on 30 subjects of 3 and of 4 and on 100 of 8, the
-#' three tests rejected too rarely, White's in 0.7\% to 2.2\% of the draws,
-#' Koenker's in 0.1\% to 0.8\% and the Breusch-Pagan test in 0.4\% to 2.8\%
-#' (`inst/validation/fixed-effects-variants-size.R`). The p-value is then too
-#' large, and the warning says so when every factor it names enters only
-#' through interactions.
+#' A slope for each level counts too, but there the error goes the other way:
+#' with a slope for each subject, `lm(y ~ x + x:subject)`, on 30 subjects of 3
+#' and of 4 and on 100 of 8, the three tests rejected too rarely, White's in
+#' 0.7\% to 2.2\% of the draws, Koenker's in 0.1\% to 0.8\% and the
+#' Breusch-Pagan test in 0.4\% to 2.8\%
+#' (`inst/validation/fixed-effects-variants-size.R`). The warning therefore
+#' says that the p-value is unreliable: in the simulations usually far too
+#' small, and too large with a slope per level.
 #'
 #' The study is `inst/validation/fixed-effects-size.R`, with its results in
 #' `fixed-effects-size.csv` (`system.file("validation", package =
