@@ -91,12 +91,23 @@
 #' 11.14 on 5, as both now do. That holds for regressors that enter the model
 #' linearly, which are centred one by one. A product or a power of a variable
 #' located far from zero inside the model stays ill-conditioned once its
-#' columns are centred, and can still lose columns: on 200 observations,
-#' `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives 42.14 on 5 degrees of freedom
-#' where `lm(y ~ x1 * x2)`, the same model, gives 48.95 on 8, and
-#' `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68 on 4. A year
-#' and its square, `year * z` or `income * age` are far from that, and give
-#' the value of the centred model to seven digits or more.
+#' columns are centred, and can still lose a column; how far is far depends
+#' on the spread of the variable. On 200 observations of two standard normal
+#' regressors, `lm(y ~ I(x1 + 2e3) * I(x2 + 2e2))`, with `x1` about 2,000
+#' standard deviations from zero, keeps every coefficient, and White's test
+#' gives 46.83 on 7 degrees of freedom where `lm(y ~ x1 * x2)`, the same
+#' model, gives 51.90 on 8; `lm(y ~ I(x1 + 2e3) + I((x1 + 2e3)^2))` gives 8.05
+#' on 3 for 11.29 on 4. In ten such data sets, of normal and of uniform
+#' regressors, the degrees of freedom held, and the statistic moved by at most
+#' 3e-5 relative, while the shift was at most 700 standard deviations of the
+#' regressor; the column was lost from 800 to 2,000 standard deviations on,
+#' depending on the term and the data. From about 3,000 to 11,000 standard
+#' deviations on, `lm()` itself aliases the interaction or the square, before
+#' White's test sees it, and the test is that of the model without the term:
+#' with `I(x1 + 1e4) * I(x2 + 1e3)`, 35.02 on 5, the value of
+#' `lm(y ~ x1 + x2)`. A year from 1990 to 2020, about 220 standard deviations
+#' from zero, and its square, `year * z` or `income * age` are far from that,
+#' and give the value of the centred model to seven digits or more.
 #'
 #' On a design whose auxiliary columns do not span the constant and whose
 #' regressors are not located far from zero, such as continuous regressors or
@@ -132,8 +143,12 @@
 #' returned that statistic, and says what to use, as the call allows:
 #' `cross_products = FALSE` when the products were in and the regressors alone
 #' do not fit the squared residuals exactly, Koenker's test when they do not,
-#' or more data. Six continuous regressors have 27 squares and products, 28
-#' terms with the intercept, so they need at least 29 observations.
+#' and more data when the regression has as many terms as observations. Six
+#' continuous regressors have 27 squares and products, 28 terms with the
+#' intercept, so they need at least 29 observations. With fewer terms than
+#' observations the design forces the exact fit, and more data of the same
+#' design do not help: 500 subjects of two observations are refused as 30
+#' are, and the refusal asks for more observations per level.
 #'
 #' A fit counts as exact when its residual sum of squares is at most
 #' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
@@ -151,6 +166,20 @@
 #' regress the squared residuals on the regressors and would return the
 #' number of observations too, so the runner stops with the refusal.
 #'
+#' The refusal covers the exact fit only, and one step away from it the test
+#' still rejects almost always. White's, Koenker's and the Breusch-Pagan tests
+#' are not valid with fixed effects for small groups, a factor with few
+#' observations per level: they over-reject, the more the smaller the groups
+#' and the more groups there are. In 2,000 homoscedastic draws of
+#' `lm(y ~ x + subject)`, with normal `x` and errors, White's test rejected at
+#' the 5\% level in 99\% of them with 30 subjects of two observations and one
+#' of them observed a third time, and in all but one with 30 pairs whose
+#' weights vary within pairs; with 30 subjects of three, four, five and eight
+#' observations in 48\%, 22\%, 16\% and 12\%, and with 100 subjects of eight
+#' in 22\%. Juhl and Sosa-Escudero (2014) derive tests of heteroskedasticity
+#' after fixed effects estimation for panels of many units observed a fixed
+#' number of times.
+#'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
 #' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
@@ -165,6 +194,10 @@
 #' Greene, W. H. (2018). *Econometric Analysis* (8th ed.). Pearson. Chapter 11
 #' provides an accessible overview of Lagrange Multiplier diagnostics such as
 #' the White test.
+#'
+#' Juhl, T., & Sosa-Escudero, W. (2014). Testing for heteroskedasticity in
+#' fixed effects models. *Journal of Econometrics, 178*(Part 3), 484–494.
+#' \doi{10.1016/j.jeconom.2013.07.005}
 #'
 #' @examples
 #' data(mtcars)
@@ -276,9 +309,12 @@ rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
 # `cross_products = FALSE` only when the products were in and the regressors
 # alone may not fit the squared residuals exactly, Koenker's test only when
 # they do not (`regressors_exact`), since its auxiliary regression is on them;
-# NA when that is not known, as in the streaming test. Its class tells
-# runHeteroTests() whether a test of the regressors alone can stand in for it
-# (ht_analyse_failure()). Shared by rwhite_statistic() and
+# NA when that is not known. More data help a
+# saturated regression; an exact fit with fewer terms than observations is
+# forced by the design, as by a factor with two observations per level, whose
+# terms grow with its levels, so there only more observations per level help.
+# Its class tells runHeteroTests() whether a test of the regressors alone can
+# stand in for it (ht_analyse_failure()). Shared by rwhite_statistic() and
 # performWhiteTestStreaming().
 rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
                                     what = "independent terms") {
@@ -291,7 +327,7 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
     sprintf(
       paste(
         "the squared residuals are a combination of its %d %s with its intercept, for %d",
-        "observations, as when each level of a factor holds two observations"
+        "observations"
       ),
       as.integer(terms), what, as.integer(n)
     )
@@ -301,20 +337,27 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
   advice <- c(
     if (isTRUE(products) && !isTRUE(regressors_exact)) "`cross_products = FALSE`",
     if (identical(regressors_exact, FALSE)) "Koenker's test (performKoenkerTest())",
-    "more data"
+    if (saturated) "more data" else "more observations per level"
   )
   advice <- if (length(advice) > 1L) {
     paste(paste(advice[-length(advice)], collapse = ", "), "or", advice[length(advice)])
   } else {
     advice
   }
+  reason <- if (saturated) {
+    "There are too few observations for White's test with these regressors"
+  } else {
+    paste(
+      "The design forces the exact fit, as a factor with two observations per level does,",
+      "however many levels it has"
+    )
+  }
   message <- sprintf(
     paste(
       "White's auxiliary regression fits the squared residuals exactly: %s. Its R-squared",
-      "is 1 and its statistic the number of observations, whatever the data. There are",
-      "too few observations for White's test with these regressors; use %s."
+      "is 1 and its statistic the number of observations, whatever the data. %s; use %s."
     ),
-    cause, advice
+    cause, reason, advice
   )
   stop(structure(
     class = c("heteroTests_white_exact_fit", "error", "condition"),

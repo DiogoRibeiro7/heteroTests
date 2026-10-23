@@ -997,14 +997,34 @@ after it.
     - White's auxiliary design is built from the regressors centred one by
         one, so its rank does not depend on where a regressor that enters the
         model linearly is located, but a product or a power of a variable
-        located far from zero inside the model stays ill-conditioned: on 200
-        observations, `lm(y ~ I(x1 + 1e4) * I(x2 + 1e3))` gives 42.14 on 5
-        degrees of freedom where `lm(y ~ x1 * x2)`, the same model, gives 48.95 on
-        8, and `lm(y ~ I(x1 + 1e4) + I((x1 + 1e4)^2))` 18.31 on 2 for 18.68 on 4;
-        at 1e3 and 1e2 the degrees of freedom hold and the statistic moves by up
-        to 3e-6 relative. A year from 1990 to 2020 and its square,
+        located far from zero inside the model stays ill-conditioned, and can
+        lose a column of the auxiliary design while `lm()` keeps every
+        coefficient. On 200 observations of two standard normal regressors
+        (`set.seed(1); x1 <- rnorm(200); x2 <- rnorm(200)`,
+        `y <- 1 + x1 + x2 + rnorm(200, sd = exp((x1 + x2) / 4))`),
+        `lm(y ~ I(x1 + 2e3) * I(x2 + 2e2))` gives 46.83 on 7 degrees of freedom
+        where `lm(y ~ x1 * x2)`, the same model, gives 51.90 on 8, and
+        `lm(y ~ I(x1 + 2e3) + I((x1 + 2e3)^2))` 8.05 on 3 for 11.29 on 4. What
+        counts is the shift relative to the spread of the regressor. On ten data
+        sets of 200 observations (five seeds of standard normal and of U(0, 1)
+        regressors, the response as above), with `x1` shifted by k standard
+        deviations and `x2` by k or k / 10 of its own, and k from 100 to 40,000
+        in steps of a factor of 1.12: up to k = 700 the degrees of freedom held
+        in all three designs and the statistic moved by at most 3e-5 relative
+        (1.1e-7 up to k = 200); White's test lost one column from k = 790 to
+        2,000, the square first and the uniform regressors before the normal
+        ones; and `lm()` aliased the term itself from k = 3,200 (the square, and
+        the interaction with both shifted by k) to 11,000 (`x2` shifted by
+        k / 10), before White's test sees it. With `I(x1 + 1e4) * I(x2 + 1e3)`
+        on the data above the fit is additive, and the test gives 35.02 on 5,
+        the value of `lm(y ~ x1 + x2)`. So shifts of 1e3 and 1e2 keep the
+        degrees of freedom on standard normal regressors, 1,000 standard
+        deviations, and lose a column on U(0, 1) ones, 3,300 to 3,700: 7 for 8
+        in three seeds, the statistic 0.5% to 6.8% lower. A year from 1990 to
+        2020, about 220 standard deviations from zero, and its square,
         `year * z` and `income * age` give the value of the centred model to
-        seven digits or more. Found by the review of the follow-up of N2. An
+        seven digits or more. Found by the review of the follow-up of N2; the
+        examples and thresholds corrected by the review of #149. An
         optional improvement: build Z from the orthonormal basis Q of
         `qr(X_c)`, whose squares and products span the same columns as those of
         the centred regressors when the cross products are in, and only then.

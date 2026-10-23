@@ -123,9 +123,15 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
     stop("No data processed during chunked regression.", call. = FALSE)
   }
 
+  # The cross-products themselves, from which performWhiteTestStreaming() counts
+  # and fits the terms of a regression it refuses (rcentred_cross_fit()).
+  cross <- list(XtX = XtX, XtY = as.numeric(XtY), y_sum = y_sum, y_sq_sum = y_sq_sum,
+                n = total_n)
+
   qr_decomp <- qr(XtX)
   if (qr_decomp$rank < ncol(XtX)) {
-    return(list(rank_deficient = TRUE, df = ncol(XtX) - 1L, chunks = length(chunks)))
+    return(list(rank_deficient = TRUE, df = ncol(XtX) - 1L, cross = cross,
+                chunks = length(chunks)))
   }
 
   beta <- tryCatch(
@@ -141,7 +147,8 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
   sst <- y_sq_sum - total_n * mean_y^2
 
   if (sst <= .Machine$double.eps) {
-    return(list(zero_variation = TRUE, df = ncol(XtX) - 1L, chunks = length(chunks)))
+    return(list(zero_variation = TRUE, df = ncol(XtX) - 1L, rank = ncol(XtX), cross = cross,
+                chunks = length(chunks)))
   }
 
   r_squared <- 1 - (sse / sst)
@@ -150,11 +157,62 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
   list(
     r_squared = r_squared,
     df = ncol(XtX) - 1L,
+    rank = ncol(XtX),
     n = total_n,
     response_mean = mean_y,
     response_tss = sst,
+    cross = cross,
     chunks = length(chunks)
   )
+}
+
+# The least-squares fit of the response on the columns `cols` of a design whose
+# first column is the intercept, from its cross-products (chunked_regression_r2()),
+# centred, as performWhiteTest() fits its terms. A column is collinear with the
+# columns kept before it when less than 1e-13 of its centred variance is its
+# own: a pivoted Cholesky decomposition of the centred cross-products scaled
+# to correlations. lm.fit() at its tolerance, 1e-7, on the columns themselves
+# would be 1e-14, the tolerance squared, but that is the rounding of
+# cross-products in double precision: on 25 observations of six regressors of
+# mtcars, a 26th independent term at 1.4e-14, where exact duplicates sit below
+# 2e-15 and genuine terms of a regressor 10,000 standard deviations from zero
+# at 2e-12 and above. The rank is at most the number of observations. qr() of
+# the uncentred cross-products squares their condition, and takes independent
+# terms of a regressor far from zero, or squares and products of raw
+# regressors, for collinear ones. Its rank, the intercept included, its
+# R-squared, NA when it cannot be computed, and the total sum of squares of
+# the response.
+rcentred_cross_fit <- function(cross, cols = seq_len(ncol(cross$XtX))[-1L]) {
+  sums <- cross$XtX[1L, cols]
+  centred <- cross$XtX[cols, cols, drop = FALSE] - tcrossprod(sums) / cross$n
+  centred_y <- cross$XtY[cols] - sums * cross$y_sum / cross$n
+  total <- cross$y_sq_sum - cross$y_sum^2 / cross$n
+  # A column whose centred norm is below 1e-7 of its norm is the intercept's.
+  varying <- which(diag(centred) > 1e-14 * diag(cross$XtX)[cols])
+  if (length(varying) == 0L) {
+    return(list(rank = 1L, r_squared = NA_real_, total = total))
+  }
+  spread <- sqrt(diag(centred)[varying])
+  correlation <- centred[varying, varying, drop = FALSE] / tcrossprod(spread)
+  factor <- suppressWarnings(chol(correlation, pivot = TRUE, tol = 1e-13))
+  keep <- attr(factor, "pivot")[seq_len(min(attr(factor, "rank"), cross$n - 1L))]
+  scaled_y <- centred_y[varying] / spread
+  beta <- tryCatch(solve(correlation[keep, keep, drop = FALSE], scaled_y[keep]),
+                   error = function(e) NULL)
+  r_squared <- if (!is.null(beta) && total > 0) {
+    min(max(sum(beta * scaled_y[keep]) / total, 0), 1)
+  } else {
+    NA_real_
+  }
+  list(rank = length(keep) + 1L, r_squared = r_squared, total = total)
+}
+
+# Whether the regressors, the first `regressors` columns after the intercept of
+# White's auxiliary design, fit the squared residuals exactly, from the
+# cross-products, as rwhite_regressors_fit_exactly() tells it from the design.
+rcross_regressors_exact <- function(cross, regressors) {
+  fit <- rcentred_cross_fit(cross, cols = seq_len(regressors) + 1L)
+  fit$total > 0 && isTRUE(1 - fit$r_squared <= rwhite_exact_tolerance)
 }
 
 white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10) {
@@ -279,9 +337,9 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' fit. It stops when terms of its auxiliary regression are
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
 #' drops, and, since 0.16.0, with the refusal of [performWhiteTest()] (see its
-#' section *Too few observations*) when they are at least as many as the
-#' observations, where it stopped as on collinear terms, or fit the squared
-#' residuals exactly. Which
+#' section *Too few observations*) when its independent terms are at least as
+#' many as the observations, where it stopped as on collinear terms, or fit the
+#' squared residuals exactly, collinear or not, as on a paired design. Which
 #' model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
@@ -334,17 +392,28 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming White test"
   )
 
-  # As many terms as observations, or more: the auxiliary regression fits the
-  # squared residuals exactly, or cannot be fitted. performWhiteTest() refuses
-  # it with the same message, and an exact fit with fewer terms (below).
+  # As many independent terms as observations, or more, or fewer that fit the
+  # squared residuals exactly: performWhiteTest() refuses both, and so does
+  # this test, with the same message and advice, so that runHeteroTests() falls
+  # back where it does. Collinear terms are counted by their rank and fitted
+  # centred, from the cross-products (rcentred_cross_fit()), as
+  # performWhiteTest() counts and fits them: the squares of the dummies of a
+  # paired design equal the dummies and count once, so 30 pairs and a
+  # treatment have 31 independent terms for 60 observations, an exact fit the
+  # design forces, not too few observations.
   regressors <- sum(!is.na(stats::coef(model))) - attr(stats::terms(model), "intercept")
   products <- isTRUE(cross_products) && regressors > 1 && regressors <= max_interactions
-  if (stats$df + 1L >= length(residuals)) {
-    rwhite_refuse_exact_fit(stats$df + 1L, length(residuals), saturated = TRUE,
-                            products = products, what = "terms")
+  deficient <- isTRUE(stats$rank_deficient)
+  aux <- if (deficient) rcentred_cross_fit(stats$cross) else stats
+  exact <- isTRUE(1 - aux$r_squared <= rwhite_exact_tolerance)
+  if (aux$rank >= length(residuals) || (deficient && exact)) {
+    rwhite_refuse_exact_fit(aux$rank, length(residuals), saturated = aux$rank >= length(residuals),
+                            products = products,
+                            regressors_exact = rcross_regressors_exact(stats$cross, regressors),
+                            what = if (deficient) "independent terms" else "terms")
   }
 
-  if (isTRUE(stats$rank_deficient)) {
+  if (deficient) {
     .std_error(
       "rassumption_violation",
       assumption = paste(
@@ -361,8 +430,9 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     )
   }
 
-  if (1 - stats$r_squared <= rwhite_exact_tolerance) {
+  if (exact) {
     rwhite_refuse_exact_fit(stats$df + 1L, stats$n, saturated = FALSE, products = products,
+                            regressors_exact = rcross_regressors_exact(stats$cross, regressors),
                             what = "terms")
   }
 

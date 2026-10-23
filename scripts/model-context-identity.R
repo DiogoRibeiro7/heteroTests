@@ -479,7 +479,10 @@ identity_white_resampling <- c(
 # on its refusal: runDiagnostics() runs runHeteroTests().
 identity_white_battery <- "runDiagnostics()$reset"
 identity_n2_tolerance <- 1e-10
-identity_saturated_message <- "There are too few observations for White's test"
+# The refusal of an exact fit, saturated ("There are too few observations for
+# White's test ...") or forced by the design ("The design forces the exact
+# fit ...").
+identity_exact_fit_message <- "White's auxiliary regression fits the squared residuals exactly"
 # An auxiliary regression fits the squared residuals exactly when its
 # residual sum of squares is at most this fraction of their total, the
 # threshold of the test (rwhite_exact_tolerance in R/performWhiteTest.R).
@@ -886,7 +889,7 @@ identity_n2_refusal <- function(before, after) {
   if (!is.list(b) || !isTRUE(b$.error)) {
     return("unexpected")
   }
-  if (grepl(identity_saturated_message, b$message, fixed = TRUE)) {
+  if (grepl(identity_exact_fit_message, b$message, fixed = TRUE)) {
     return("allowed")
   }
   if (identical(before$value, after$value)) "identical" else "unexpected"
