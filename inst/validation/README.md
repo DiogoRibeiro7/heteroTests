@@ -67,6 +67,14 @@ test that remains.
 | `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
 | `wild-multiplier-size.R` | `performWildBootstrapTest()` with Rademacher and with Mammen multipliers on the same samples: size under Gaussian, `t5` and skewed errors at 30, 50 and 100 observations, and power. `Rscript inst/validation/wild-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `MC_CORES`, `UNITS`, `PART`, `MERGE` and `CSV` overridable. |
 | `wild-multiplier-size.csv` | Its output, one row per multiplier, block, error distribution and sample size, with the counts of samples only that multiplier rejected. |
+| `fixed-effects-size.R` | White's, Koenker's and the Breusch-Pagan tests on `lm(y ~ x + subject)` with G subjects of T observations: their size on a grid of G and T, and on unbalanced groups, two regressors and a regressor correlated with the subject effects, each checked against the package. `Rscript inst/validation/fixed-effects-size.R`, with `N_MC`, `N_MC_LARGE`, `CHECK_REPS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. |
+| `fixed-effects-size.csv` | Its output with `N_MC = 2000` and `CHECK_REPS = 5`, one row per block, design and test, with the rates at 1, 5 and 10%, the mean and variance of the statistic, and the check against the package. |
+| `fixed-effects-size-10000.csv` | The same with `N_MC = 10000` and `CHECK_REPS = 3`, on the same seeds. |
+| `analyse-fixed-effects-size.R` | Renders the two CSVs as Markdown tables and searches for a rule on G and T that separates the designs whose size is within 2.5% to 7.5% from the others. `Rscript inst/validation/analyse-fixed-effects-size.R [results.csv [sensitivity.csv]]`. Does not load the package. |
+| `fixed-effects-dummies.R` | Koenker's and the Breusch-Pagan statistics of those designs split into the regression on the subject dummies and the regression on `x` alone. `Rscript inst/validation/fixed-effects-dummies.R`, with `N_MC` and `CSV` overridable. Does not load the package. |
+| `fixed-effects-dummies.csv` | Its output, one row per design. |
+| `fixed-effects-variants-size.R` | The other routes to the three statistics on two of those designs: the robust and streaming forms, the deprecated names, the registered names, and the White bootstrap, the wild bootstrap and `bootstrapTestStatistic()`, with the warnings each call gives. `N_MC_BOOT_LARGE=1000 Rscript inst/validation/fixed-effects-variants-size.R`, with `N_MC`, `N_MC_BOOT_LARGE`, `CHUNK_SIZE`, `N_BOOT`, `MC_CORES`, `UNITS`, `PART`, `MERGE`, `LIST` and `CSV` overridable. |
+| `fixed-effects-variants-size.csv` | Its output, one row per design and route, with the rates at 1, 5 and 10%, the warnings per call and the refusals. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -1968,6 +1976,195 @@ Every one of the 96,000 tests returned a p-value. Five things follow.
 
 This study changes no value: the default of `distribution` is `"rademacher"`
 before and after it.
+
+### Fixed effects for small groups
+
+`fixed-effects-size.R` measures White's, Koenker's and the Breusch-Pagan tests
+on fits with fixed effects for small groups: `lm(y ~ x + subject)` with G
+subjects of T observations, `y = 1 + 0.5 x + a_i + e`, with `x`, the subject
+effects `a_i` and the errors `e` standard normal. The errors are
+homoscedastic, so every rejection is a false one. The grid crosses G = 5, 10,
+20, 30, 50, 100 and 200 with T = 2, 3, 4, 5, 6, 8, 10, 15, 20 and 30, at 2000
+replications per cell (`fixed-effects-size.csv`), and again at 10,000 on the
+same seeds (`fixed-effects-size-10000.csv`), used only to recount the rules.
+Three more blocks vary the design: unbalanced groups, two regressors, and `x`
+correlated with the subject effects (r = 0.71). The statistics are computed on
+matrices of replications by the within transformation, and the first five
+replications of every cell are fitted with `lm()` and given to the three
+functions: of those 1335 calls, the 1285 the package computed agree with the
+script to 1.2e-14 relative on the statistic and 1.7e-14 on the p-value, and
+the 50 it refused are those the script records as refused or not run. The
+study ran on 0.15.0, before the warning; with 2000 replications the Monte
+Carlo standard error at 5% is 0.49 points.
+
+**Size at 5%, in %, of G subjects of T observations.** Bold: outside
+[2.5%, 7.5%]. n/r: not run (T = 2, an exact fit White's test refuses). ref:
+refused by the package (fewer than 20 observations for White, 15 for Koenker
+and Breusch-Pagan).
+
+White:
+
+| G \ T | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 15 | 20 | 30 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 5 | n/r | ref | **1.0** | 3.7 | 5.5 | 6.2 | 5.5 | 7.1 | 5.2 | 5.8 |
+| 10 | n/r | **0.0** | 5.2 | 6.6 | 6.4 | **7.8** | 6.4 | 7.3 | 6.6 | 5.8 |
+| 20 | n/r | **18.8** | **14.0** | **11.3** | **9.5** | **8.4** | **7.9** | 5.8 | 6.0 | 6.3 |
+| 30 | n/r | **50.7** | **22.2** | **17.8** | **13.8** | **11.3** | **10.1** | **7.8** | 5.9 | 6.2 |
+| 50 | n/r | **88.3** | **40.5** | **25.3** | **20.1** | **14.8** | **11.6** | **8.3** | **7.8** | 7.0 |
+| 100 | n/r | **99.9** | **74.7** | **47.5** | **33.4** | **23.8** | **18.1** | **11.2** | **10.7** | 7.4 |
+| 200 | n/r | **100.0** | **97.8** | **79.1** | **59.5** | **36.0** | **28.4** | **16.0** | **12.6** | **9.1** |
+
+Koenker:
+
+| G \ T | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 15 | 20 | 30 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 5 | ref | **0.9** | 5.4 | 4.5 | 5.4 | 5.3 | 5.1 | 5.5 | 4.8 | 5.0 |
+| 10 | **100.0** | **2.2** | **8.8** | 7.4 | **7.8** | 5.9 | 6.2 | 6.3 | 6.5 | 5.2 |
+| 20 | **100.0** | **23.1** | **14.8** | **10.8** | **9.9** | **8.8** | **8.2** | 6.8 | 6.4 | 6.3 |
+| 30 | **100.0** | **57.3** | **23.9** | **18.7** | **14.0** | **11.3** | **10.3** | 7.4 | 5.9 | 6.2 |
+| 50 | **100.0** | **89.9** | **42.0** | **26.5** | **20.5** | **15.0** | **12.2** | **9.1** | **8.0** | 7.0 |
+| 100 | **100.0** | **99.9** | **75.6** | **47.9** | **33.9** | **23.8** | **18.4** | **11.7** | **10.6** | **7.5** |
+| 200 | **100.0** | **100.0** | **97.6** | **79.5** | **59.9** | **36.4** | **28.4** | **16.1** | **12.7** | **9.1** |
+
+Breusch-Pagan:
+
+| G \ T | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 15 | 20 | 30 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 5 | ref | **7.6** | 7.0 | 6.7 | 6.8 | 6.1 | 6.8 | 5.4 | 5.5 | 5.3 |
+| 10 | **25.8** | **15.2** | **12.8** | **11.5** | **10.3** | **8.0** | 7.3 | 6.6 | 6.3 | 6.3 |
+| 20 | **47.9** | **28.5** | **21.1** | **16.7** | **14.4** | **12.0** | **11.1** | **8.6** | **8.0** | 6.8 |
+| 30 | **67.5** | **39.6** | **28.7** | **22.9** | **17.0** | **14.1** | **12.4** | **9.5** | **8.0** | 7.1 |
+| 50 | **83.9** | **54.9** | **38.6** | **29.8** | **25.4** | **17.9** | **13.2** | **11.8** | **9.6** | **7.5** |
+| 100 | **97.5** | **79.4** | **60.7** | **45.8** | **36.1** | **25.2** | **21.3** | **12.9** | **12.6** | **8.7** |
+| 200 | **100.0** | **96.5** | **82.5** | **65.8** | **53.5** | **38.4** | **30.7** | **19.1** | **14.1** | **10.8** |
+
+<!-- generated by analyse-fixed-effects-size.R; do not edit the numbers by hand -->
+
+`analyse-fixed-effects-size.R` prints these tables, those at the 1% and 10%
+levels, every cell with its degrees of freedom, the variants, the mean
+statistic, and the search for a rule.
+
+**Where the excess comes from.** `fixed-effects-dummies.R` splits the
+auxiliary regression of Koenker's and the Breusch-Pagan statistics, on the
+same 2000 replications per design, into the regression of the squared
+residuals on the subject dummies and the regression on `x` alone:
+
+| G | T | Koenker | dummies only | `x` only | Breusch-Pagan | dummies only | `x` only |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 30 | 3 | 52.7 | 57.8 | 5.4 | 36.8 | 37.8 | 4.4 |
+| 100 | 3 | 100.0 | 100.0 | 4.7 | 78.3 | 79.1 | 4.3 |
+| 100 | 4 | 75.4 | 76.0 | 5.5 | 59.6 | 59.8 | 5.3 |
+| 200 | 5 | 79.2 | 80.2 | 5.5 | 67.6 | 67.4 | 5.6 |
+| 30 | 8 | 9.8 | 10.4 | 5.0 | 14.0 | 13.9 | 5.1 |
+| 100 | 8 | 24.1 | 24.2 | 4.6 | 27.1 | 27.2 | 4.8 |
+| 200 | 30 | 9.5 | 9.6 | 5.5 | 10.8 | 10.6 | 5.4 |
+
+Rejection at the 5% level, in %; `fixed-effects-dummies.csv`.
+
+Six things follow.
+
+- **The three tests over-reject with many small groups, and the size goes to
+  1 as the groups grow at a fixed size.** On 30 subjects of three
+  observations they reject in 50.7%, 57.3% and 39.6% of the draws, on 100 of
+  eight in 23.8%, 23.8% and 25.2%, and on 200 of four in 97.8%, 97.6% and
+  82.5%. At a fixed number of subjects the size goes to 5% as each is
+  observed more often: with 5 subjects every T from 4 on is inside the band
+  for Koenker's test.
+- **The excess comes from the dummies.** Regressed on `x` alone, the squared
+  residuals are rejected in 4.6% to 5.5% of the draws by Koenker's statistic
+  and in 4.3% to 5.6% by the Breusch-Pagan statistic, and on the dummies alone
+  as often as on both. Under normal errors the squared residuals of a subject
+  of T observations, taken from its own mean, sum to `sigma^2` times a
+  chi-squared with T - 1 degrees of freedom, so their subject means vary
+  T / (T - 1) times as much as the auxiliary regression assumes. Koenker's
+  statistic has mean `df + (G - 1) / (T - 1)`, within 2.3% over the 63 cells
+  with T of 3 or more, while the spread of its reference distribution grows as
+  `sqrt(2 df)`: the excess grows with G at a fixed T.
+- **No rule on G, T, n or df / n alone separates the designs.** The best
+  single threshold misclassifies 7 to 21 of the 62 to 69 cells of a test,
+  because the size depends on both: at T = 30, Koenker's test rejects 5.0% of
+  the time with 5 subjects and 9.1% with 200.
+- **A rule on (G - 1) / (T - 1), the expected excess, does.** For the three
+  tests together the best threshold, 1.14, splits the grid as G <= T does,
+  and misclassifies 1 of the 69 cells in each run: the Breusch-Pagan test on
+  20 subjects of 20, at 8.0%, in the run of 2000, and on 10 of 10, at 7.9%, in
+  the run of 10,000. Fitted to one test, the threshold is 1.74 to 1.90 for
+  Koenker's (1 or 2 cells) and 1.94 for White's (4 or 5, most of them where
+  White's auxiliary regression holds the products, below).
+- **The variants follow the same pattern,** with the mean number of
+  observations per subject, n / G, in place of T: unbalanced groups, a second
+  regressor, and `x` correlated with the subject effects, to which Koenker's
+  and the Breusch-Pagan tests are invariant. On the unbalanced designs of 10 to
+  30 observations per subject, Koenker's test rejects in 6.2%, 8.9% and 10.9%
+  with 30, 100 and 200 subjects, against 5.9%, 10.6% and 12.7% for 20 each.
+- **White's test with the products is a different test.** With at most
+  `max_interactions` regressors, here 10 subjects or fewer, its auxiliary
+  regression holds the products of `x` with the dummies, a slope for each
+  subject, and 2G degrees of freedom. On 5 subjects of 4 it rejects in 1.0% of
+  the draws, too rarely, and on 10 of 3 in none.
+
+Decided by the author on 2026-10-23: White's, Koenker's and the Breusch-Pagan
+tests warn when a factor of the model has L levels among the n observations
+of the fit with L > n / L, that is L^2 > n, which is G > T on a balanced
+design, with their values unchanged (the help pages, under *Fixed effects for
+small groups*). The rule is a warning, not a correction, and the thresholds
+are fitted on this grid, for normal errors, one factor and one or two
+regressors; it does not flag under-rejection. Most panels of firms or people
+over years fail it: on 100 subjects of 10 the tests reject in 18.1%, 18.4% and
+21.3% of the draws.
+
+**The other routes to the three statistics.** `fixed-effects-variants-size.R`
+decides which routes give the warning, one that over-rejects on the designs
+above giving it and one that holds its level not. It measures every route on
+30 subjects of 4 and 100 of 8, `lm(y ~ x + subject)`, and the asymptotic ones
+on a factor that enters only through an interaction, a slope for each subject:
+`y = 1 + (0.5 + b_i) x + e`, fitted as `lm(y ~ x + x:subject)`. It counts the
+warnings each call gives. The rates are at the 5% level, in %, over 2000
+replications, and over 1000 for the resampling routes on 100 x 8 (in
+brackets, `N_MC_BOOT_LARGE = 1000`, to keep the run to about an hour); the
+resampling routes draw B = 199 samples each:
+
+| Route | 30 x 4 | 100 x 8 | slopes 30 x 3 | slopes 30 x 4 | slopes 100 x 8 | Warnings per call |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `performWhiteTest()` | 21.6 | 22.1 | 0.7 | 2.2 | 0.9 | 1 |
+| `performKoenkerTest()` | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| `performBPTest()` | 27.6 | 25.3 | 2.8 | 1.8 | 0.4 | 1 |
+| `performWhiteTestRobust()` | 21.6 | 22.1 | 0.7 | 2.2 | 0.9 | 1 |
+| `performWhiteTestRobust(method = "reduced")` | 21.6 | 22.1 | 0.7 | 2.2 | 0.9 | 1 |
+| `performBPTestRobust()`, `studentize = TRUE` | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| `performBPTestRobust(studentize = FALSE)` | 27.6 | 25.3 | 2.8 | 1.8 | 0.4 | 1 |
+| `performWhiteTestStreaming()` | refused | refused | 0.7 | 2.2 | 0.9 | 0 or 1 |
+| `performBPTestStreaming()` | 27.6 | 25.3 | 2.8 | 1.8 | 0.4 | 1 |
+| `performKoenkerTestStreaming()` | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| `performStudentizedBPTest()` (deprecated) | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| registered `"white"` | 21.6 | 22.1 | 0.7 | 2.2 | 0.9 | 1 |
+| registered `"koenker"` | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| registered `"breusch_pagan"` | 27.6 | 25.3 | 2.8 | 1.8 | 0.4 | 1 |
+| registered `"student_bp"` | 22.9 | 22.4 | 0.8 | 0.7 | 0.1 | 1 |
+| `performWhiteTestBootstrap()` | 3.7 | 4.2 (1000) |  |  |  | 0 |
+| `performWildBootstrapTest()` | 3.8 | 3.9 (1000) |  |  |  | 0 |
+| `bootstrapTestStatistic(performKoenkerTest)` | 3.9 | 4.6 (1000) |  |  |  | 0 |
+
+`fixed-effects-variants-size.csv`. The registered names and the robust,
+streaming and deprecated forms compute the statistic and the p-value of the
+test they wrap on every sample, so they over-reject as it does, and give the
+warning, once per call. The streaming White test refuses a factor that is a
+main effect, whose dummies and their squares are collinear, and computes on
+the slopes, where it refused 2 and 1 of the samples of 30 x 3 and 30 x 4.
+
+- **The bootstraps hold their level, and give no warning.** They resample the
+  residuals and refit the same design, so their replicates carry the excess
+  the dummies add: 3.7% to 3.9% on 30 x 4, against 21.6% to 27.6% for the
+  asymptotic p-values, and 3.9% to 4.6% on 100 x 8. All six are inside
+  the study's band, and on 30 x 4 a little below 5%, by 2.3 to 2.7 Monte Carlo
+  standard errors.
+- **A factor only in interactions makes the tests reject too rarely.** With a
+  slope for each subject, the three tests reject in 0.1% to 2.8% of the
+  samples. The rule counts such a factor, as decided, and the warning says
+  that the p-value was too large there rather than too small. A model with
+  the factor both as a main effect and in an interaction, such as
+  `lm(y ~ x * subject)`, was not measured; the warning treats it as a main
+  effect.
 
 ## History
 
