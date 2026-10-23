@@ -29,9 +29,38 @@ An object of class `htest` containing the test statistic, p-value and degrees of
 
 The test statistic is half the explained sum of squares from regressing the scaled squared residuals \(e_i^2/\hat{\sigma}^2 - 1\) (with \(\hat{\sigma}^2 = \sum e_i^2 / n\)) on the explanatory variables. Under the null hypothesis of homoscedasticity *and normal disturbances* it follows a chi-square distribution with degrees of freedom equal to the number of regressors, matching `lmtest::bptest(..., studentize = FALSE)`. For the studentized \(n R^2\) form that drops the normality assumption use [`performKoenkerTest`](performKoenkerTest.md).
 
-Like White's test, it is not valid with fixed effects for small groups, a factor with few observations per level, and over-rejects on homoscedastic data, the more the smaller the groups and the more groups there are: in 2,000 draws of `lm(y ~ x + subject)` with normal errors and 30 subjects it rejected at the 5% level in 38% with three observations of each, 26% with four and 15% with eight, and with 100 subjects of eight in 24% (see *Too few observations* in [`performWhiteTest()`](performWhiteTest.md)).
-
 The test is computed in memory whatever the size of the data. Up to 0.15.0 it switched to [`performBPTestStreaming()`](performBPTestStreaming.md) on data above 100 MB; call that function to stream.
+
+## Fixed effects for small groups
+
+The Breusch-Pagan test, like White's and Koenker's tests, is not valid with fixed effects for small groups: a factor with many levels and few observations of each, such as `subject` in `lm(y ~ x + subject)` with each subject observed a few times. On homoscedastic data, with normal errors, it rejects too often, and the more often the more levels the factor has and the fewer observations each level has. The excess comes from the dummies of the factor in the auxiliary regression. The residuals of a level are taken from its own mean, so under normal errors the squared residuals of a level of \(T\) observations vary between levels \(T / (T - 1)\) times as much as the auxiliary regression assumes, and with \(G\) levels the statistic exceeds its degrees of freedom by about \((G - 1) / (T - 1)\), as Koenker's did in the study below. Regressed on `x` alone, without the dummies, the squared residuals were rejected by this test in 4.3% to 5.6% of the draws (`inst/validation/fixed-effects-dummies.R`). The excess grows with \(G\) at a fixed \(T\), while the spread of the chi-squared distribution grows as \(\sqrt{2G}\), so with a fixed number of observations per level the size goes to 1 as the number of levels grows.
+
+Since 0.16.0 the test warns when a factor of the model, a main effect or a factor that enters only through an interaction, has more levels than observations per level: \(L > n / L\), that is \(L^2 > n\), for \(L\) levels among the \(n\) observations of the fit. The warning names the factor and gives \(L\), \(n\) and the mean number of observations per level; the statistic, the degrees of freedom and the p-value are those the test computes without it. It has class `heteroTests_fixed_effects_warning`, which `suppressWarnings(expr, classes = "heteroTests_fixed_effects_warning")` muffles, and no other warning. It is given on every call, also when [`cachedTest()`](cachedTest.md) or [`runHeteroTests()`](runHeteroTests.md) answers from its cache, and [`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) give it once for each test that gives it. [`performBPTestStreaming()`](performBPTestStreaming.md), [`performBPTestRobust()`](performBPTestRobust.md) with `studentize = FALSE`, the deprecated `performBreuschPaganTest()` and the registered `"breusch_pagan"` give it too.
+
+On a balanced design of \(G\) subjects of \(T\) observations the rule is \(G \le T\). In the study it kept the three tests within 2.5% to 7.5% at the 5% level where it holds, and put at least one of them outside where it does not, in 68 of the 69 designs where they computed; the exception is this test on 20 subjects of 20, at 8.0%. Unbalanced groups, a second regressor and a regressor correlated with the subject effects followed the same pattern, with the mean number of observations per level, \(n / G\), in place of \(T\). The rule is a warning, not a correction, and many panels fail it: on 100 firms observed over 10 years the three tests reject in 18% to 21% of the draws. Rejection at the 5% level, in percent, in 2,000 homoscedastic draws of `lm(y ~ x + subject)`, with `x`, the subject effects and the errors standard normal:
+
+rrrrrl
+Subjects  Observations of each  White  Koenker  Breusch-Pagan  Warns
+
+10  10  6.4  6.2  7.3  no
+
+20  20  6.0  6.4  8.0  no
+
+5  4  1.0  5.4  7.0  yes
+
+30  3  50.7  57.3  39.6  yes
+
+30  4  22.2  23.9  28.7  yes
+
+100  8  23.8  23.8  25.2  yes
+
+100  10  18.1  18.4  21.3  yes
+
+200  4  97.8  97.6  82.5  yes
+
+A factor that enters only through an interaction is counted too, but there the error goes the other way: with a slope for each subject, `lm(y ~ x + x:subject)` on 30 subjects of 3 and of 4 and on 100 of 8, the three tests rejected too rarely, White's in 0.7% to 2.2% of the draws, Koenker's in 0.1% to 0.8% and the Breusch-Pagan test in 0.4% to 2.8% (`inst/validation/fixed-effects-variants-size.R`). The p-value is then too large, and the warning says so when every factor it names enters only through interactions.
+
+The study is `inst/validation/fixed-effects-size.R`, with its results in `fixed-effects-size.csv` (`system.file("validation", package = "heteroTests")`). Juhl and Sosa-Escudero (2014) derive a test of heteroskedasticity for this setting, after fixed effects estimation of a panel of many units observed a fixed number of times; it needs to be told which factor is the unit, and the package does not implement it.
 
 ## Deprecated name
 
@@ -56,6 +85,8 @@ lack rows or variables of the fit. Which model each test accepts, and why, is se
 Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity and random coefficient variation. *Econometrica*, 47(5), 1287–1294. [doi:10.2307/1911963](https://doi.org/10.2307/1911963)
 
 Koenker, R. (1981). A note on studentizing a test for heteroscedasticity. *Journal of Econometrics*, 17(1), 107–112. [doi:10.1016/0304-4076(81)90062-2](https://doi.org/10.1016/0304-4076%2881%2990062-2)
+
+Juhl, T., & Sosa-Escudero, W. (2014). Testing for heteroskedasticity in fixed effects models. *Journal of Econometrics*, 178(Part 3), 484–494. [doi:10.1016/j.jeconom.2013.07.005](https://doi.org/10.1016/j.jeconom.2013.07.005)
 
 ## Examples
 

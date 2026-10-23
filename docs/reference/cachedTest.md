@@ -86,10 +86,10 @@ environment as they are, so that after `f` is defined again a model
 without the cache the check may refuse `data`. Clear both caches, with
 [`clearTestCache()`](clearTestCache.md) and [`clearAnalysisCache()`](clearAnalysisCache.md), after changing one of them.
 Nor does it hold the options of the session: a result read from the cache
-gives none of the warnings and messages of the call that computed it, so
-a call made under `options(warn = 2)` after one that stored its result is
-answered with that result, where without the cache a warning of the test,
-turned into an error, stops it. The
+gives none of the warnings and messages of the call that computed it but
+one (below), so a call made under `options(warn = 2)` after one that
+stored its result is answered with that result, where without the cache a
+warning of the test, turned into an error, stops it. The
 results of the tests otherwise do not depend on the options; the names of
 the estimates of the quantile regression test depended on
 `options(digits)` before 0.16.0.
@@ -114,7 +114,12 @@ cache of their own, of at most
 turns off; it holds no check that drew random numbers.
 
 A result read from the cache is returned without running the test, so the
-call gives none of the warnings and messages of the call that computed it.
+call gives none of the warnings and messages of the call that computed it,
+but one: since 0.16.0 the warning White's, Koenker's and the Breusch-Pagan
+tests give on a factor with more levels than observations per level, of
+class `heteroTests_fixed_effects_warning`, is stored with the result and
+given again on every call that reads it, as by [`runHeteroTests()`](runHeteroTests.md) (see
+*Fixed effects for small groups* in [`performKoenkerTest()`](performKoenkerTest.md)).
 
 ## See also
 

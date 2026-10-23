@@ -225,6 +225,14 @@ the data column holds `y`, so regenerating one from the other and
 refitting would take the logarithm twice. That case raises an error;
 `resample = "pairs"` resamples rows and is unaffected by it.
 
+The warning White's, Koenker's and the Breusch-Pagan tests give since 0.16.0
+on a factor with more levels than observations per level is about their
+asymptotic p-value (see *Fixed effects for small groups* in
+[`performKoenkerTest()`](performKoenkerTest.md)). The observed statistic and the replicates are
+computed here without it, so that [`performWhiteTestRobust()`](performWhiteTestRobust.md) and
+[`performBPTestRobust()`](performBPTestRobust.md) with `bootstrap = TRUE` give it once, for the
+asymptotic p-value they report.
+
 ## Parallel replicates
 
 With `parallel = TRUE` replicate `i` draws its random numbers from stream
