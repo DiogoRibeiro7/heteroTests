@@ -74,6 +74,7 @@ test_that("a factor with more levels than observations per level warns, with the
     expect_identical(w$factors, "subject")
     expect_identical(w$levels, 10L)
     expect_identical(w$observations, 99L)
+    expect_true(w$main_effect)
     expect_identical(
       conditionMessage(w),
       paste0(
@@ -122,11 +123,22 @@ test_that("a factor that enters only through an interaction counts, as a charact
   # 30 subjects of 3, n = 90: L^2 = 900.
   d <- fe_fixture(30, 3)
   slopes <- lm(y ~ x + x:subject, data = d)
+  # The tests rejected too rarely there (fixed-effects-variants-size.R), and
+  # the warning says so.
   for (fn in names(fe_tests)) {
     out <- fe_capture(fe_tests[[fn]](slopes, d))
     expect_length(out$warnings, 1L)
     expect_identical(out$warnings[[1L]]$factors, "subject")
     expect_identical(out$warnings[[1L]]$levels, 30L)
+    expect_false(out$warnings[[1L]]$main_effect)
+    expect_match(
+      conditionMessage(out$warnings[[1L]]),
+      paste0(
+        "is unreliable, and with the factor only in interactions, a slope for each level, ",
+        "too large in the study (see"
+      ),
+      fixed = TRUE
+    )
   }
   d$subject <- as.character(d$subject)
   m <- lm(y ~ x + subject, data = d)
@@ -139,6 +151,7 @@ test_that("a factor that enters only through an interaction counts, as a charact
   out <- fe_capture(performKoenkerTest(two, d))
   expect_length(out$warnings, 1L)
   expect_identical(out$warnings[[1L]]$factors, c("subject", "wave"))
+  expect_identical(out$warnings[[1L]]$main_effect, c(TRUE, TRUE))
   expect_match(
     conditionMessage(out$warnings[[1L]]),
     "The factors `subject` and `wave` have 30 and 30 levels for 90 observations, 3 and 3 per level",

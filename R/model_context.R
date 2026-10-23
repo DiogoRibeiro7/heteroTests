@@ -791,13 +791,14 @@ rwarn_incomplete_rows <- function(data, model, also = character()) {
 #' @param model The fitted model.
 #' @param frame The model frame, one row per observation the test reads.
 #' @return A data frame with one row per such factor: its name (`factor`), its
-#'   number of levels (`levels`) and the number of observations
-#'   (`observations`); zero rows when there is none.
+#'   number of levels (`levels`), the number of observations (`observations`)
+#'   and whether it is a term of the model of its own (`main_effect`) or
+#'   enters only through interactions; zero rows when there is none.
 #' @keywords internal
 #' @noRd
 rsmall_groups <- function(model, frame) {
   none <- data.frame(factor = character(), levels = integer(), observations = integer(),
-                     stringsAsFactors = FALSE)
+                     main_effect = logical(), stringsAsFactors = FALSE)
   candidates <- intersect(names(model$xlevels), names(frame))
   n <- NROW(frame)
   if (length(candidates) == 0L || n == 0L) {
@@ -814,8 +815,10 @@ rsmall_groups <- function(model, frame) {
   if (!any(small)) {
     return(none)
   }
+  labels <- tryCatch(attr(stats::terms(model), "term.labels"), error = function(e) NULL)
   data.frame(factor = candidates[small], levels = unname(levels[small]),
-             observations = as.integer(n), stringsAsFactors = FALSE)
+             observations = as.integer(n), main_effect = candidates[small] %in% labels,
+             stringsAsFactors = FALSE)
 }
 
 #' Warn that a factor has more levels than observations per level
@@ -836,8 +839,13 @@ rsmall_groups <- function(model, frame) {
 #' after they have computed their value, which it does not change, decided by
 #' the author on 2026-10-23. It has class `heteroTests_fixed_effects_warning`,
 #' so that it can be muffled by class, and carries the factors, their numbers
-#' of levels and the number of observations. The caches of results give it
-#' again when they answer a call (R/cache.R).
+#' of levels, the number of observations and whether each is a term of its
+#' own. The caches of results give it again when they answer a call
+#' (R/cache.R). A factor that enters only through interactions is counted
+#' too, as decided; with a slope for each level, `lm(y ~ x + x:subject)`, the
+#' tests rejected too rarely (0.1% to 2.8% at the 5% level,
+#' `inst/validation/fixed-effects-variants-size.R`), and the warning says so
+#' when every factor it names enters that way.
 #'
 #' @param model The fitted model.
 #' @param frame The model frame, one row per observation the test reads.
@@ -867,18 +875,26 @@ rwarn_small_groups <- function(model, frame, test, topic) {
   } else {
     sprintf("The factors %s have %s levels", names, enumerate(as.character(small$levels)))
   }
+  # A factor that is a term of its own over-rejects; one that enters only
+  # through interactions, a slope for each level, rejected too rarely in the
+  # study (inst/validation/fixed-effects-variants-size.R).
+  direction <- if (any(small$main_effect)) {
+    "usually far too small"
+  } else {
+    "and with the factor only in interactions, a slope for each level, too large in the study"
+  }
   message <- sprintf(
     paste0(
       "%s for %d observations, %s per level: with fixed effects for small groups, more ",
-      "levels than observations per level, the p-value of %s is unreliable, usually far ",
-      "too small (see 'Fixed effects for small groups' in ?%s)."
+      "levels than observations per level, the p-value of %s is unreliable, %s (see 'Fixed ",
+      "effects for small groups' in ?%s)."
     ),
-    what, as.integer(n), enumerate(per_level), test, topic
+    what, as.integer(n), enumerate(per_level), test, direction, topic
   )
   warning(structure(
     class = c("heteroTests_fixed_effects_warning", "warning", "condition"),
     list(message = message, call = NULL, factors = small$factor, levels = small$levels,
-         observations = as.integer(n))
+         observations = as.integer(n), main_effect = small$main_effect)
   ))
   invisible(NULL)
 }
