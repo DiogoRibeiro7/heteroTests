@@ -62,7 +62,8 @@
 #'
 #' The test is computed in memory whatever the size of the data. Up to 0.15.0
 #' it switched to [performWhiteTestStreaming()] on data above 100 MB, which
-#' stops on any model with a factor; call that function to stream.
+#' stops on any model with a factor or a `poly()` term; call that function to
+#' stream.
 #'
 #' @section Degrees of freedom:
 #' Let \eqn{Z} hold the regressors, their squares and their cross-products.

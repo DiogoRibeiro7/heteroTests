@@ -36,7 +36,7 @@ An object of class `htest` containing the test statistic, p-value and degrees of
 
 An auxiliary regression of \(e^2\) on all regressors, their squares and cross-products produces \(R^2\). The statistic \(n R^2\) follows a chi-square distribution whose degrees of freedom are the rank of the auxiliary regression less its intercept (see *Degrees of freedom*).
 
-The test is computed in memory whatever the size of the data. Up to 0.15.0 it switched to [`performWhiteTestStreaming()`](performWhiteTestStreaming.md) on data above 100 MB, which stops on any model with a factor; call that function to stream.
+The test is computed in memory whatever the size of the data. Up to 0.15.0 it switched to [`performWhiteTestStreaming()`](performWhiteTestStreaming.md) on data above 100 MB, which stops on any model with a factor or a `poly()` term; call that function to stream.
 
 ## Degrees of freedom
 
