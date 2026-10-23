@@ -99,6 +99,9 @@ jobs:
           echo "artifact_exists=$artifact_exists" >> "$GITHUB_OUTPUT"
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
+      - uses: ./.github/actions/ubuntu-archive
+        if: steps.release.outputs.mode == 'new_release'
+
       - uses: r-lib/actions/setup-pandoc@v2
         if: steps.release.outputs.mode == 'new_release'
 

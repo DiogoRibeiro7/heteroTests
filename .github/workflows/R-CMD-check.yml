@@ -67,6 +67,7 @@ jobs:
       HETEROTESTS_FULL_MATRIX: ${{ matrix.config.full-matrix || 'false' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/ubuntu-archive
       - uses: r-lib/actions/setup-pandoc@v2
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -75,7 +76,14 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          # spdep needs sf, and with it GDAL, GEOS and PROJ: most of the
+          # ~100 MB of system libraries an Ubuntu job installs. Only the
+          # ubuntu-latest (R release) job, which runs the full matrix, installs
+          # it on Linux, so the spatial tests run there; on Windows and macOS
+          # it comes as a binary. Elsewhere those tests skip, as on R 4.1.
+          extra-packages: >-
+            any::rcmdcheck${{ startsWith(matrix.config.os, 'ubuntu')
+            && matrix.config.full-matrix != 'true' && ', spdep=?ignore' || '' }}
           needs: check
       - name: Check package
         uses: r-lib/actions/check-r-package@v2
@@ -96,6 +104,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/ubuntu-archive
       - uses: DiogoRibeiro7/git-actions-collection/.github/actions/setup-r@v1
         with:
           r-version: '4.1'
@@ -138,6 +147,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/ubuntu-archive
       - uses: r-lib/actions/setup-pandoc@v2
       - uses: DiogoRibeiro7/git-actions-collection/.github/actions/setup-r@v1
         with:
@@ -167,6 +177,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/ubuntu-archive
       - uses: r-lib/actions/setup-pandoc@v2
       - uses: DiogoRibeiro7/git-actions-collection/.github/actions/setup-r@v1
         with:

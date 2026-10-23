@@ -1,0 +1,20 @@
+name: Use the main Ubuntu archive
+description: >-
+  Points apt at archive.ubuntu.com instead of the runner's
+  azure.archive.ubuntu.com mirror. Does nothing on Windows or macOS.
+runs:
+  using: composite
+  steps:
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # On 2026-10-22 and 23 the runners' Azure mirror served package
+        # downloads at 25 to 50 kB/s, while its package index came at 11 MB/s:
+        # installing R and its system libraries took 20 to 45 minutes instead
+        # of 2, and jobs ran out of time before testing anything. The images
+        # name the mirror in /etc/apt/apt-mirrors.txt or in the sources lists.
+        files="$(grep -rlI 'azure\.archive\.ubuntu\.com' /etc/apt 2>/dev/null || true)"
+        if [ -n "$files" ]; then
+          echo "$files" | xargs sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g'
+        fi
+        grep -rhI 'archive\.ubuntu\.com' /etc/apt 2>/dev/null | sort -u || true
