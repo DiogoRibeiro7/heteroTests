@@ -23,6 +23,8 @@ Subjects \tab Observations of each \tab White \tab Koenker \tab Breusch-Pagan \t
 200 \tab 4 \tab 97.8 \tab 97.6 \tab 82.5 \tab yes\cr
 }
 
+A factor that enters only through an interaction is counted too, but there the error goes the other way: with a slope for each subject, \code{lm(y ~ x + x:subject)} on 30 subjects of 3 and of 4 and on 100 of 8, the three tests rejected too rarely, White's in 0.7\% to 2.2\% of the draws, Koenker's in 0.1\% to 0.8\% and the Breusch-Pagan test in 0.4\% to 2.8\% (\code{inst/validation/fixed-effects-variants-size.R}). The p-value is then too large, and the warning says so when every factor it names enters only through interactions.
+
 The study is \code{inst/validation/fixed-effects-size.R}, with its results in \code{fixed-effects-size.csv} (\code{system.file("validation", package = "heteroTests")}). Juhl and Sosa-Escudero (2014) derive a test of heteroskedasticity for this setting, after fixed effects estimation of a panel of many units observed a fixed number of times; it needs to be told which factor is the unit, and the package does not implement it.}
 \section{Weighted fits}{
 \code{lm(..., weights = w)} states that the error variance is \eqn{\sigma^2 / w_i}. On such a fit the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, the residuals of the equivalent unweighted regression, which have constant variance when the weights are right. The null hypothesis is then that the weights are adequate; the variance regressors stay on their original scale. Releases before 0.12.0 used the raw residuals, whose variance differs across observations by assumption, so a correctly weighted fit was rejected as often as an unweighted one. A fit with a zero weight is refused.

@@ -246,6 +246,15 @@
 #' | 100 | 10 | 18.1 | 18.4 | 21.3 | yes |
 #' | 200 | 4 | 97.8 | 97.6 | 82.5 | yes |
 #'
+#' A factor that enters only through an interaction is counted too, but there
+#' the error goes the other way: with a slope for each subject,
+#' `lm(y ~ x + x:subject)` on 30 subjects of 3 and of 4 and on 100 of 8, the
+#' three tests rejected too rarely, White's in 0.7\% to 2.2\% of the draws,
+#' Koenker's in 0.1\% to 0.8\% and the Breusch-Pagan test in 0.4\% to 2.8\%
+#' (`inst/validation/fixed-effects-variants-size.R`). The p-value is then too
+#' large, and the warning says so when every factor it names enters only
+#' through interactions.
+#'
 #' With at most `max_interactions` regressors White's auxiliary regression
 #' holds the products of `x` with the dummies, a slope for each subject, and
 #' on 5 subjects of 4 it rejected too rarely, in 1.0\%. The study is
