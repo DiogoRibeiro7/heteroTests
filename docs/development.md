@@ -138,9 +138,23 @@ tarball runs the full matrix.
 
 Every job that runs on a pull request stops at 45 minutes. A job normally
 takes 1 to 16 minutes, but on a slow Ubuntu package mirror installing R and
-the system libraries alone has taken 20 to 25, whatever the job runs after.
-The limit leaves room for that and stops only a job that is stuck, which
-*Re-run failed jobs* then starts again on another runner.
+the system libraries alone has taken 20 to 45, whatever the job runs after.
+The limit stops a job that is stuck, which *Re-run failed jobs* then starts
+again on another runner.
+
+Two things keep those downloads short:
+- **The mirror.** Every Ubuntu job first runs `.github/actions/ubuntu-archive`,
+  which points apt at `archive.ubuntu.com` instead of the runners'
+  `azure.archive.ubuntu.com`. In October 2026 that mirror served package
+  downloads at 25 to 50 kB/s for days.
+- **spdep.** Through sf, spdep needs GDAL, GEOS and PROJ: most of the
+  ~100 MB of system libraries an Ubuntu job installs. Only the
+  `ubuntu-latest (R release)` check installs it on Linux (with the weekly
+  `--as-cran` and reverse-dependency checks and the release gate), so the
+  spatial tests run there. Windows and macOS get it as a binary. The other
+  Ubuntu jobs pass `spdep=?ignore` to `setup-r-dependencies`, and its tests
+  skip there, as they do in the R 4.1 job, so the coverage report leaves the
+  spatial test's lines out.
 
 ## Contributing
 

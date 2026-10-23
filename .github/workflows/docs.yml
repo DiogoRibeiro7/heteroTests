@@ -58,6 +58,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/ubuntu-archive
 
       # tools/build-docs.R uses base R only, so the package's dependencies are
       # not installed.
