@@ -64,7 +64,11 @@
 #' regressions are fitted to the response of the fit minus its offset, on the
 #' design of the fit, which is the model with the offset, since the offset
 #' shifts every conditional quantile as it shifts the mean; before, they were
-#' refitted from the formula, which left the offset out. It refuses a weighted
+#' refitted from the formula, which left the offset out. Since 0.16.0 it also
+#' accepts a model with a single regressor, such as `lm(y ~ x)`; before, it
+#' stopped with "subscript out of bounds" on one, and `runHeteroTests()`
+#' returned its fallback, the rank permutation test, under the name
+#' `quantile_regression`. It refuses a weighted
 #' fit, a `fitWLS()` fit among them, as it refits the
 #' model without the weights, a `glm` of another family or link, a
 #' `survey::svyglm()` fit, a coefficient that is not finite for another reason, and
@@ -222,6 +226,11 @@ rrq_estimable <- function(ctx, taus) {
   estimable$.design <- X[, !intercept, drop = FALSE]
   fit_formula <- if (any(intercept)) .response ~ .design else .response ~ .design - 1
   fit <- quantreg::rq(fit_formula, tau = taus, data = estimable)
-  rownames(fit$coefficients) <- sub("^\\.design", "", rownames(fit$coefficients))
+  # The coefficients are named after the columns of the design. The formula
+  # names them `.design` followed by the name of each column, but a matrix of
+  # one column by `.design` alone, so on a model with one regressor the name
+  # of its slope was empty, and the test stopped with "subscript out of
+  # bounds" when it read the slope by name (before 0.16.0).
+  rownames(fit$coefficients) <- c(if (any(intercept)) "(Intercept)", colnames(X)[!intercept])
   fit
 }

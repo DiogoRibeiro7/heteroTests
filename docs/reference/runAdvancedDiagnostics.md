@@ -4,8 +4,9 @@
 
 <small>Source: [`R/robust_implementations.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/robust_implementations.R) · Help: `?runAdvancedDiagnostics`</small>
 
-Executes one or more robust diagnostics with automatic enhancements for
-small samples and optional studentisation.
+Executes one or more robust diagnostics, with an automatic bootstrap for
+small samples. The Breusch-Pagan entry is Koenker's studentized statistic,
+`performBPTestRobust(studentize = TRUE)`.
 
 ## Usage
 
@@ -45,11 +46,17 @@ rrunAdvancedDiagnostics(
 `tests`
 :   Character vector of tests to run. Use "all" (default) to
     run the White and Breusch-Pagan diagnostics, or supply a subset such
-    as `c("white", "bp")`.
+    as `c("white", "bp")`: `"bp"` is another name for `"breusch_pagan"`, and
+    the result is named `breusch_pagan` either way. Before 0.16.0 `"bp"` was
+    refused ("Unsupported test requested: bp").
 
 `auto_enhance`
-:   Logical, enable automatic bootstrap for small
-    samples (n &lt; 50) and studentization for Breusch-Pagan.
+:   Logical, enable the automatic bootstrap for small
+    samples (n &lt; 50). It does nothing else: the Breusch-Pagan entry is the
+    studentized statistic either way. Before 0.16.0 `auto_enhance = FALSE`
+    also turned the studentization off and ran the classical Breusch-Pagan
+    test, which assumes normal errors; [`performBPTestRobust()`](performBPTestRobust.md) with
+    `studentize = FALSE` still runs it.
 
 `bootstrap_B`
 :   Number of bootstrap replications used when automatic

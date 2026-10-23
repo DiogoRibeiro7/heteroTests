@@ -35,10 +35,16 @@ fit \code{model} and will be checked for missing values.}
 
 \item{tests}{Character vector of tests to run. Use "all" (default) to
 run the White and Breusch-Pagan diagnostics, or supply a subset such
-as \code{c("white", "bp")}.}
+as \code{c("white", "bp")}: \code{"bp"} is another name for \code{"breusch_pagan"}, and
+the result is named \code{breusch_pagan} either way. Before 0.16.0 \code{"bp"} was
+refused ("Unsupported test requested: bp").}
 
-\item{auto_enhance}{Logical, enable automatic bootstrap for small
-samples (n < 50) and studentization for Breusch-Pagan.}
+\item{auto_enhance}{Logical, enable the automatic bootstrap for small
+samples (n < 50). It does nothing else: the Breusch-Pagan entry is the
+studentized statistic either way. Before 0.16.0 \code{auto_enhance = FALSE}
+also turned the studentization off and ran the classical Breusch-Pagan
+test, which assumes normal errors; \code{\link[=performBPTestRobust]{performBPTestRobust()}} with
+\code{studentize = FALSE} still runs it.}
 
 \item{bootstrap_B}{Number of bootstrap replications used when automatic
 enhancement triggers bootstrap. Defaults to 999, the default of every
@@ -59,8 +65,9 @@ A list with the executed results and metadata describing the
 enhancements that were applied.
 }
 \description{
-Executes one or more robust diagnostics with automatic enhancements for
-small samples and optional studentisation.
+Executes one or more robust diagnostics, with an automatic bootstrap for
+small samples. The Breusch-Pagan entry is Koenker's studentized statistic,
+\code{performBPTestRobust(studentize = TRUE)}.
 }
 \section{Deprecated name}{
 

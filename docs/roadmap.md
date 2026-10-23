@@ -736,19 +736,30 @@ after it.
     so that `MERGE` refuses parts written by another version of the script.
     `wild-multiplier-size.R` predates the convention: its parts carry no md5,
     and adding one now would make `MERGE` refuse them.
-- [ ] **`runAdvancedDiagnostics(tests = "bp")`** stops with "Unsupported test
+- [x] **`runAdvancedDiagnostics(tests = "bp")`** stops with "Unsupported test
     requested: bp", although its help page offers `c("white", "bp")` as a
     subset. The check compares the names asked for with the values of its lookup
     table (`"white"`, `"breusch_pagan"`) rather than with its names, which
     include `"bp"`. Found on 2026-10-15 and recorded, not fixed, in 0.15.0.
-- [ ] **`runAdvancedDiagnostics(auto_enhance = FALSE)`** silently runs the
+    Done in 0.16.0: the names asked for are matched to the names of the table,
+    so `"bp"` runs what `"breusch_pagan"` runs, under the name
+    `breusch_pagan`, as its help page says and as
+    `rvalidate_against_reference()` already took `"bp"`; every other name is
+    refused with the message it had (announced in bold).
+- [x] **`runAdvancedDiagnostics(auto_enhance = FALSE)`** silently runs the
     classical Breusch–Pagan test. `auto_enhance` also sets `studentize` for
     `performBPTestRobust()`, so turning the small-sample bootstrap off turns
     Koenker's studentization off with it, and the result, named `breusch_pagan`
     either way, then assumes normal errors, which the default battery stopped
     doing in 0.15.0. Either separate the two settings or say on the help page
     what `auto_enhance = FALSE` runs. Found on 2026-10-15 and recorded, not
-    fixed, in 0.15.0.
+    fixed, in 0.15.0. Done in 0.16.0 (decided 2026-10-23): the two settings are
+    separate. `auto_enhance` turns the small-sample bootstrap on and off and
+    nothing else, and the Breusch-Pagan entry is Koenker's studentized
+    statistic either way, the default of `performBPTestRobust()`; the
+    classical test is still `performBPTestRobust(studentize = FALSE)`. With
+    `auto_enhance = FALSE` the entry changes, from 3.135 (p = 0.2086) to 3.086
+    (p = 0.2138) on `lm(mpg ~ wt + qsec, data = mtcars)` (announced in bold).
 - [ ] **`checkModel(<glm>, data, enhanced = TRUE)`** stops with "missing value
     where TRUE/FALSE needed", Gaussian and binomial alike: the enhanced check
     reads the R-squared of `summary()`, which a `glm` does not have. Since 0.15.0
@@ -789,7 +800,10 @@ after it.
     place for the tag: on 22 observations of six regressors, whose White's test
     is refused, it reports 15.98, the statistic of the fallback, in the column
     `white`, with no tag and no warning. Found by the review of the follow-up of N2; the same
-    decision settles it, and until then it does not change.
+    decision settles it, and until then it does not change. Decided on
+    2026-10-23, for 1.0.0: a failed test keeps its name and is returned as
+    failed, and the substitute is returned under its own name (the item under
+    1.0.0).
 - [x] **A `glm` of another family through the registry.** The registry names
     deprecated in 0.14.0, `"ncv"` and `"student_bp"`, called `.ncv_test()` and
     `.studentized_bp_test()` directly, and the refusal of a `glm` that is not a
@@ -900,10 +914,22 @@ after it.
         calling them or by giving `runHeteroTests()` a finite
         `chunk_threshold_mb`, whose default is `Inf`; the three stay exported, not
         deprecated.
-    - `test_factory$run_test("szroeter", ...)` always stops with "argument
+    - [x] `test_factory$run_test("szroeter", ...)` always stops with "argument
         \"order_by\" is missing": the factory registers `performSzroeterTest()`,
         which needs an ordering, where the registry name `"szroeter"` orders by the
         fitted values. Register the same function. An error becomes a value.
+        Not "always": `run_test()` passes its `...` on, so
+        `test_factory$run_test("szroeter", m, d, order_by = "x")` gives
+        `performSzroeterTest(m, d, order_by = "x")`, and only a call without
+        `order_by` stops. Registering the function of the registry would refuse
+        that argument, so a call that works would stop. Done in 0.16.0 instead
+        as the factory treats a test that needs more than the model and the data,
+        as `"spatial_hetero"` asks for its neighbour list: without `order_by` the
+        entry refuses the call with a message that asks for it and shows how to
+        give it, and with `order_by` it returns what it returned. It orders by
+        nothing of its own. No value changes; ordering by the fitted values when
+        `order_by` is not given, as the registry does, would make the refusal a
+        value, and is the author's decision.
     - `rvalidate_against_reference("white", ...)` compares White's statistic with
         `car::ncvTest()`, the Cook-Weisberg score test, so it reports a mismatch on
         every model. Compare with `lmtest::bptest()` on the squares and cross
@@ -1411,7 +1437,7 @@ after it.
     four others, reports the formula of the model, and a suite whose model the
     runner fitted itself says so in `attr(, "model_origin")`; no statistic
     changes.
-- [ ] **The quantile regression test on a model with one regressor.** On
+- [x] **The quantile regression test on a model with one regressor.** On
     `lm(y ~ x1)` with 60 Gaussian observations,
     `runHeteroTests(m, d, tests = "quantile_regression")` stops with
     "subscript out of bounds" and returns the rank permutation test, its
@@ -1419,7 +1445,30 @@ after it.
     an interaction or a `poly()` term it gives a value. Found by the review of
     the print and summary methods on 2026-10-22 and reproduced on main, so not
     caused by them. Explain it, and fix it or refuse such a model with a clear
-    message.
+    message. Explained and fixed in 0.16.0. The quantile regressions are
+    fitted with the design of the fit as one matrix column, `.design`, and the
+    formula names a coefficient after that column followed by the name of its
+    column, `.designx1`, except when the matrix has one column, whose
+    coefficient is called `.design` alone. The test removed `.design` from the
+    names, so the slope of a model with one regressor had an empty name, and
+    reading it by name for `estimate` stopped. The statistic was already
+    computed, and right: it is `anova()` of `quantreg::rq(y ~ x1)`, which
+    `test-quantile-joint-reference.R` now checks. The coefficients are named
+    after the columns of the design, so such a model gives its value: on
+    `lm(stations ~ mag, data = quakes)`, F = 57.57 on 1 and 1999 degrees of
+    freedom (p = 5.0e-14), where the test stopped and `runHeteroTests()`
+    returned the rank permutation test. So does any design with one column
+    beside the intercept once aliased columns are dropped, such as a factor of
+    two levels; a design with two columns or more beside it gives the value it
+    gave, `identical()` (announced in bold). An exploratory size check, not to
+    evidence grade (2,000 replications per cell, the design of
+    `full-sweep-size-power.R` with one regressor), puts it below its level, as
+    the two-regressor design is under `t5` errors: 0.029 and 0.040 at 60 and
+    150 Gaussian observations, 0.021 and 0.032 under `t5` errors. A model
+    without an intercept is still refused by `quantreg`, which requires one,
+    with its own messages ("Intercept required in common tau testing" with
+    two regressors, "argument is of length zero" with one), as before; a
+    refusal of its own would say why.
 - [ ] **`runHeteroTestsParallel()` names its results `"model"`.** It returns
     what the registered functions return, so White's test and the four others
     of the registry report `data.name = "model"` there, where `runHeteroTests()`
@@ -1431,6 +1480,16 @@ after it.
 - [ ] Remove everything deprecated in 0.14.0 and 0.15.0, or turn it into
     `.Defunct()` stubs that name the replacement.
 - [ ] `test-public-api.R` asserts the frozen export list exactly.
+- [ ] **A failed test keeps its name in `runHeteroTests()`** (decided by the
+    author on 2026-10-23). From 1.0.0, when a test that was asked for fails,
+    the runner returns a failed result under the name asked for, with an `NA`
+    p-value and the reason it failed. The substitute that runs in its place is
+    returned under its own name (for example `white_simplified`), and
+    `print()` and `summary()` of the suite show both. Code that reads
+    `$white$p.value` can then never get the value of another test. It changes
+    what the runner returns, an API change, so it waits for 1.0.0 and is not
+    part of 0.16.0. It settles the item on the fallback of `runHeteroTests()`
+    under 0.16.0. Not implemented.
 - [ ] Reference index of the documentation site (`tools/reference-index.R`)
     grouped by the frozen API: tests by family
     (auxiliary regression, group-wise, rank-based, time series, panel and

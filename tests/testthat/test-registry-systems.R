@@ -256,6 +256,31 @@ test_that("test factory handles errors gracefully", {
   )
 })
 
+test_that("the factory's Szroeter test asks for its ordering and passes it on", {
+  skip_if_not_installed("R6")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- stats::lm(mpg ~ wt + qsec, data = mtcars)
+  # Without `order_by` it refuses the call and says how to give it, since
+  # 0.16.0; before, it stopped with "argument "order_by" is missing, with no
+  # default". It orders by nothing of its own.
+  expect_error(
+    test_factory$run_test("szroeter", model, mtcars),
+    "The Szroeter test needs `order_by`, the column of `data` that orders the observations",
+    fixed = TRUE
+  )
+  # With it, the entry is performSzroeterTest(), by name or by position.
+  direct <- performSzroeterTest(model, mtcars, order_by = "wt", alternative = "two.sided")
+  for (result in list(
+    test_factory$run_test("szroeter", model, mtcars, order_by = "wt", alternative = "two.sided"),
+    test_factory$run_test("szroeter", model, mtcars, "wt", "two.sided")
+  )) {
+    expect_identical(result$test_metadata$description, "Heteroscedasticity test: szroeter")
+    result$test_metadata <- NULL
+    expect_identical(result, direct)
+  }
+})
+
 # Registry Consistency
 # =============================================================================
 

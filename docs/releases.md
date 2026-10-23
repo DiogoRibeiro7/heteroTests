@@ -6,6 +6,89 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
+### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
+
+**With `auto_enhance = FALSE`, the Breusch-Pagan entry of
+`runAdvancedDiagnostics()` is Koenker's studentized statistic, where it was
+the classical test.** `auto_enhance` is the switch of the automatic bootstrap
+for samples of fewer than 50 observations, but it was also passed to
+`performBPTestRobust()` as `studentize`, so that turning the bootstrap off
+turned the studentization off with it, and the entry, named `breusch_pagan`
+either way, then assumed normal errors, which the default battery of the
+package stopped doing in 0.15.0. `auto_enhance` now turns the bootstrap on
+and off and nothing else, and the entry is the studentized statistic, the
+default of `performBPTestRobust()`, whatever its value. On
+`lm(mpg ~ wt + qsec, data = mtcars)`,
+`runAdvancedDiagnostics(m, mtcars, auto_enhance = FALSE)$results$breusch_pagan`
+was the classical test, 3.135 on 2 degrees of freedom (p = 0.2086), and is
+Koenker's, 3.086 on 2 (p = 0.2138), the statistic `auto_enhance = TRUE`
+reports beside its bootstrap p-value; its `method` says "Studentized", its
+`robust_details$studentized` is `TRUE`, and its effect size and power are
+those of the studentized statistic. From 50 observations, where neither
+setting bootstraps, the two settings now give the same entry. The deprecated
+`rrunAdvancedDiagnostics()` changes with it. The White entry, the metadata,
+and every call with `auto_enhance = TRUE` give what they gave,
+`identical()`. The classical test is still
+`performBPTestRobust(m, data, studentize = FALSE)`.
+
+**`runAdvancedDiagnostics(tests = "bp")` runs the Breusch-Pagan entry, which
+it refused.** Its help page offers `c("white", "bp")` as a subset, and its
+table of names maps `"bp"` to `"breusch_pagan"`, but the names asked for were
+compared with the values of that table rather than with its names, so `"bp"`
+stopped with "Unsupported test requested: bp". It now gives what
+`"breusch_pagan"` gives, under the name `breusch_pagan`: on
+`lm(mpg ~ wt + qsec, data = mtcars)`, `tests = c("white", "bp")` stopped with
+that error and returns White's test and the Breusch-Pagan entry, as
+`tests = c("white", "breusch_pagan")` does. Every other name is refused with
+the message it had.
+
+### The quantile regression test on a model with one regressor
+
+**`performQuantileRegressionTest()` gives a value on a model with a single
+regressor, where it stopped with "subscript out of bounds".** It fits the
+quantile regressions with the design of the fit as one matrix column, and the
+names of the coefficients come from that column: a matrix of one column names
+its coefficient after the matrix alone, so the slope had an empty name, and
+reading it by name for `estimate` stopped. The statistic it would have
+reported is `anova()` of `quantreg::rq(y ~ x)`, which the test now gives and
+`test-quantile-joint-reference.R` checks. Called directly, through
+`test_factory`, the registry or `cachedTest()`, the test stopped; through
+`runHeteroTests()`, and so `runDiagnostics()` and the other functions that
+call it, the failure was masked: the runner ran the fallback of
+`"quantile_regression"`, the rank permutation test, and returned it under
+the name asked for. On `lm(stations ~ mag, data = quakes)`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performQuantileRegressionTest(m, quakes)` | Error: "subscript out of bounds" | F = 57.57 on 1 and 1999 degrees of freedom (p = 5.0e-14), slopes 35.0 and 47.3 at the quartiles |
+| `runHeteroTests(m, quakes, tests = "quantile_regression")`, after `set.seed(1)` | the rank permutation test, rho = 0.261 (p = 0.001), under the name `quantile_regression`, tagged as a fallback | the quantile regression test, as in the row above |
+| `test_factory$run_test("quantile_regression", m, quakes)` | Error: "subscript out of bounds" | the quantile regression test, as in the first row |
+
+So does any design with one column beside the intercept once aliased
+columns are dropped, which stopped the same way: a factor of two levels,
+`lm(len ~ supp, data = ToothGrowth)`, gives F = 0.1529 on 1 and 119 degrees
+of freedom, and `poly(x, 1)`, `x1:x2` alone, an offset beside one regressor
+or `x1 + I(2 * x1)` give their value too. A design with two columns or more
+beside the intercept gives the value it gave, `identical()`. A
+model without an intercept is still refused by `quantreg`, which needs one,
+with its own message. An exploratory size check, not to the grade of
+`inst/validation/`, found the test on one regressor below its level, as the
+two-regressor design of the sweep is under `t5` errors: 2,000 replications
+per cell, rejection rates of 0.029 and 0.040 at 60 and 150 Gaussian
+observations.
+
+### Szroeter's test in `test_factory`
+
+`test_factory$run_test("szroeter", model, data)` stops with a message that
+asks for `order_by`, the column that orders the observations, and shows how
+to pass it, `test_factory$run_test("szroeter", model, data, order_by = "x")`;
+it stopped with "argument "order_by" is missing, with no default". It still
+refuses the call, and orders by nothing of its own: the registered
+`"szroeter"` of `runHeteroTests()` orders by the fitted values, but the
+factory's entry is `performSzroeterTest()`, which takes the ordering from
+`order_by`. With `order_by` it returns what it returned, `identical()`. No
+value changes.
+
 ### The streaming tests
 
 **The streaming tests run only when asked for: `runHeteroTests()` runs the

@@ -1045,7 +1045,7 @@ test_that("every route refuses a non-least-squares glm, a svyglm and data that d
   )
   expect_true(all(registered %in% listDiagnostics()))
   # The factory's "szroeter" is called without the ordering it needs, and
-  # stops for that (ROADMAP); "spatial_hetero" needs a neighbour list.
+  # asks for it (`order_by`); "spatial_hetero" needs a neighbour list.
   factory_tests <- setdiff(names(.ht_factory_tests), c("szroeter", "spatial_hetero"))
   # Without quantreg the quantile regression test stops for that first.
   if (!requireNamespace("quantreg", quietly = TRUE)) {
