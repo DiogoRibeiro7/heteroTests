@@ -310,6 +310,12 @@ performStudentizedBPTest <- function(model, data = NULL) {
   test_statistic <- effective_n * numerator / denominator
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
+  # Koenker's statistic, with Koenker's test's warning on a factor with more
+  # levels than observations per level (rwarn_small_groups(),
+  # R/model_context.R).
+  rwarn_small_groups(ctx$model, ctx$frame, "the studentized Breusch-Pagan test",
+                     "performKoenkerTest")
+
   structure(
     list(
       statistic = c("X-squared" = test_statistic),

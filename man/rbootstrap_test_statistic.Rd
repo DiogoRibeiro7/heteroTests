@@ -115,6 +115,14 @@ variable. For \code{log(y) ~ x} the fitted values are on the log scale while
 the data column holds \code{y}, so regenerating one from the other and
 refitting would take the logarithm twice. That case raises an error;
 \code{resample = "pairs"} resamples rows and is unaffected by it.
+
+The warning White's, Koenker's and the Breusch-Pagan tests give since 0.16.0
+on a factor with more levels than observations per level is about their
+asymptotic p-value (see \emph{Fixed effects for small groups} in
+\code{\link[=performKoenkerTest]{performKoenkerTest()}}). The observed statistic and the replicates are
+computed here without it, so that \code{\link[=performWhiteTestRobust]{performWhiteTestRobust()}} and
+\code{\link[=performBPTestRobust]{performBPTestRobust()}} with \code{bootstrap = TRUE} give it once, for the
+asymptotic p-value they report.
 }
 
 \arguments{

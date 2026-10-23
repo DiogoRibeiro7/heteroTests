@@ -220,9 +220,17 @@ rsuite_mark_origin <- function(suite, origin) {
   }
   cached <- rcache_get(.analysis_cache, cache_key)
   if (!is.null(cached)) {
+    # The warnings about fixed effects for small groups that the tests gave
+    # when the call was computed, once each, in their order (R/cache.R).
+    rcache_resignal(cached)
     return(rcache_attach(cached, model))
   }
   rng_before <- rrng_state()
+  # The warnings about fixed effects for small groups the tests give, kept to
+  # be stored with the call, and given to the caller as they come: a test, or
+  # its fallback, gives one once it has computed, and the cache of
+  # cachedTest() gives it again when it answers (rcached_diagnostic()).
+  small_groups <- list()
 
   streaming_map <- list(
     white = function(model, data) {
@@ -263,7 +271,7 @@ rsuite_mark_origin <- function(suite, origin) {
 
     failure_context <- NULL
     cached_route <- identical(runner, available[[test_name]]) && isTRUE(use_cache)
-    result <- tryCatch(
+    caught <- rcache_capture_warnings(tryCatch(
       {
         if (cached_route) {
           rcached_diagnostic(test_name, model, data, if (cacheable[[i]]) inputs)
@@ -317,7 +325,9 @@ rsuite_mark_origin <- function(suite, origin) {
         }
         stop(failure_context$user_message, call. = FALSE)
       }
-    )
+    ))
+    result <- caught$value
+    small_groups <- c(small_groups, caught$warnings)
 
     if (inherits(result, "hetero_test")) {
       if (cached_route && is.null(failure_context)) {
@@ -364,7 +374,8 @@ rsuite_mark_origin <- function(suite, origin) {
 
   # Not stored if a test drew random numbers after all, as a fallback could.
   if (!is.null(cache_key) && identical(rng_before, rrng_state())) {
-    rcache_put(.analysis_cache, cache_key, rcache_detach(output, model), rcache_result_limit())
+    rcache_put(.analysis_cache, cache_key, rcache_detach(output, model, small_groups),
+               rcache_result_limit())
   }
 
   output

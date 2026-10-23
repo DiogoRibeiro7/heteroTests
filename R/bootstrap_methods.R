@@ -96,6 +96,14 @@ NULL
 #' would take the logarithm twice. That case raises an error;
 #' `resample = "pairs"` resamples rows and is unaffected by it.
 #'
+#' The warning White's, Koenker's and the Breusch-Pagan tests give since 0.16.0
+#' on a factor with more levels than observations per level is about their
+#' asymptotic p-value (see *Fixed effects for small groups* in
+#' [performKoenkerTest()]). The observed statistic and the replicates are
+#' computed here without it, so that [performWhiteTestRobust()] and
+#' [performBPTestRobust()] with `bootstrap = TRUE` give it once, for the
+#' asymptotic p-value they report.
+#'
 #' @section Parallel replicates:
 #' With `parallel = TRUE` replicate `i` draws its random numbers from stream
 #' `i` of a L'Ecuyer-CMRG generator ([parallel::nextRNGStream()]), seeded by
@@ -339,7 +347,17 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     rownames(data) <- fit_rows[row_index]
   }
 
-  original_result <- test_function(model, data, ...)
+  # The warning of White's, Koenker's and the Breusch-Pagan tests on a factor
+  # with more levels than observations per level is about their asymptotic
+  # p-value (rwarn_small_groups(), R/model_context.R). The p-value here is
+  # the bootstrap's, and performWhiteTestRobust() and performBPTestRobust(),
+  # which call this function, give the warning of their asymptotic p-value
+  # themselves: the observed statistic and the replicates are computed
+  # without it, so that it is given once, not B + 2 times.
+  original_result <- withCallingHandlers(
+    test_function(model, data, ...),
+    heteroTests_fixed_effects_warning = function(w) invokeRestart("muffleWarning")
+  )
   statistic <- original_result$statistic
   if (is.null(statistic) || length(statistic) == 0L) {
     stop("`test_function` must return an object with a `statistic` element.", call. = FALSE)
@@ -530,8 +548,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     if (aliases_estimated(boot_model, estimated_coefficients)) {
       return(NA_real_)
     }
+    # Without the warning on small groups, which the call gives once if at all
+    # (see original_result above).
     boot_result <- tryCatch(
-      do.call(test_function, c(list(model = boot_model, data = boot_data), extra_args)),
+      withCallingHandlers(
+        do.call(test_function, c(list(model = boot_model, data = boot_data), extra_args)),
+        heteroTests_fixed_effects_warning = function(w) invokeRestart("muffleWarning")
+      ),
       error = function(e) NA_real_
     )
     if (is.list(boot_result) && !is.null(boot_result$statistic)) {

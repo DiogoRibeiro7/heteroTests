@@ -777,3 +777,108 @@ rwarn_incomplete_rows <- function(data, model, also = character()) {
   .std_warning("missing_values_removed", var_names = var_names, n_removed = n_removed)
   invisible(NULL)
 }
+
+#' The factors of a fit with more levels than observations per level
+#'
+#' A factor counts when the fit records its levels (`model$xlevels`) and the
+#' model frame holds it, as a factor or a character vector, whether it enters
+#' the model as a main effect or only through an interaction. Its number of
+#' levels \eqn{L} is the number among the observations the test reads, the
+#' rows of `frame`, and \eqn{n} is their number. The rule of
+#' [rwarn_small_groups()]: more levels than observations per level,
+#' \eqn{L > n / L}, that is \eqn{L^2 > n}.
+#'
+#' @param model The fitted model.
+#' @param frame The model frame, one row per observation the test reads.
+#' @return A data frame with one row per such factor: its name (`factor`), its
+#'   number of levels (`levels`) and the number of observations
+#'   (`observations`); zero rows when there is none.
+#' @keywords internal
+#' @noRd
+rsmall_groups <- function(model, frame) {
+  none <- data.frame(factor = character(), levels = integer(), observations = integer(),
+                     stringsAsFactors = FALSE)
+  candidates <- intersect(names(model$xlevels), names(frame))
+  n <- NROW(frame)
+  if (length(candidates) == 0L || n == 0L) {
+    return(none)
+  }
+  levels <- vapply(candidates, function(v) {
+    x <- frame[[v]]
+    if (!is.factor(x) && !is.character(x)) {
+      return(0L)
+    }
+    length(unique(x[!is.na(x)]))
+  }, integer(1))
+  small <- as.numeric(levels)^2 > n
+  if (!any(small)) {
+    return(none)
+  }
+  data.frame(factor = candidates[small], levels = unname(levels[small]),
+             observations = as.integer(n), stringsAsFactors = FALSE)
+}
+
+#' Warn that a factor has more levels than observations per level
+#'
+#' White's, Koenker's and the Breusch-Pagan tests are not valid with fixed
+#' effects for small groups. Under normal errors, the squared residuals of a
+#' group of \eqn{T} observations vary between groups \eqn{T / (T - 1)} times as
+#' much as the auxiliary regression on the group dummies assumes, so the
+#' statistic exceeds its degrees of freedom by about \eqn{(G - 1) / (T - 1)}
+#' for \eqn{G} groups, an excess that grows with \eqn{G} at a fixed \eqn{T},
+#' while the spread of the reference distribution grows as
+#' \eqn{\sqrt{2 G}}. In the size study of `inst/validation/fixed-effects-size.R`
+#' the rule \eqn{G \le T}, at most as many levels as observations per level,
+#' kept the three tests within 2.5% to 7.5% at the 5% level in all but 1 of 69
+#' designs, and the size went to 1 as \eqn{G} grew at a fixed \eqn{T}.
+#'
+#' The tests give this warning on a fit with such a factor ([rsmall_groups()])
+#' after they have computed their value, which it does not change, decided by
+#' the author on 2026-10-23. It has class `heteroTests_fixed_effects_warning`,
+#' so that it can be muffled by class, and carries the factors, their numbers
+#' of levels and the number of observations. The caches of results give it
+#' again when they answer a call (R/cache.R).
+#'
+#' @param model The fitted model.
+#' @param frame The model frame, one row per observation the test reads.
+#' @param test Character scalar naming the test in the warning, such as
+#'   `"Koenker's test"`.
+#' @param topic Character scalar, the help page whose section *Fixed effects
+#'   for small groups* the warning points to.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+#' @noRd
+rwarn_small_groups <- function(model, frame, test, topic) {
+  small <- rsmall_groups(model, frame)
+  if (nrow(small) == 0L) {
+    return(invisible(NULL))
+  }
+  n <- small$observations[1L]
+  per_level <- vapply(n / small$levels, function(v) format(round(v, 1)), character(1))
+  enumerate <- function(x) {
+    if (length(x) == 1L) {
+      return(x)
+    }
+    paste(paste(x[-length(x)], collapse = ", "), "and", x[length(x)])
+  }
+  names <- enumerate(paste0("`", small$factor, "`"))
+  what <- if (nrow(small) == 1L) {
+    sprintf("The factor %s has %d levels", names, small$levels)
+  } else {
+    sprintf("The factors %s have %s levels", names, enumerate(as.character(small$levels)))
+  }
+  message <- sprintf(
+    paste0(
+      "%s for %d observations, %s per level: with fixed effects for small groups, more ",
+      "levels than observations per level, the p-value of %s is unreliable, usually far ",
+      "too small (see 'Fixed effects for small groups' in ?%s)."
+    ),
+    what, as.integer(n), enumerate(per_level), test, topic
+  )
+  warning(structure(
+    class = c("heteroTests_fixed_effects_warning", "warning", "condition"),
+    list(message = message, call = NULL, factors = small$factor, levels = small$levels,
+         observations = as.integer(n))
+  ))
+  invisible(NULL)
+}

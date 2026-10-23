@@ -22,6 +22,12 @@
 #   formula (a function or variable of it changed after the fit) nor the
 #   options of the session (?cachedTest). A call of runHeteroTests() that
 #   falls back on a test the caches may not hold is not stored.
+# - A result read from a cache gives none of the warnings and messages of the
+#   call that computed it, but one: the warning about fixed effects for small
+#   groups (rwarn_small_groups(), R/model_context.R), which says something of
+#   the fit and is given on every call, decided by the author on 2026-10-23.
+#   The warnings of that class are stored with the entry and given again, in
+#   their order, when it is read (rcache_capture_warnings()).
 # - Each cache holds at most getOption("heteroTests.cache_size", 100) results
 #   and evicts the one used least recently; 0 turns both caches off. The keys
 #   are kept in a character vector, never as the names of an environment: R
@@ -366,19 +372,63 @@ rcache_analysis_key <- function(tests, streaming, chunk_size, inputs) {
   )
 }
 
+#' Evaluate, keeping the warnings about fixed effects for small groups
+#'
+#' The warning of [rwarn_small_groups()] (R/model_context.R) says something of
+#' the fit, not of the call, and is given on every call, decided by the author
+#' on 2026-10-23: a result a cache answers gives it again. The computation of
+#' an entry is evaluated here, and the warnings of that class it gives are
+#' kept, in their order, to be stored with the entry ([rcache_detach()]) and
+#' given again when it is read ([rcache_resignal()]). They are not muffled:
+#' the call that computes the entry gives them as it would without the cache.
+#' The other warnings and messages of a test are not kept (?cachedTest).
+#'
+#' @param expr The computation.
+#' @return A list with `value`, the value of `expr`, and `warnings`, a list
+#'   of the conditions.
+#' @keywords internal
+#' @noRd
+rcache_capture_warnings <- function(expr) {
+  captured <- list()
+  value <- withCallingHandlers(
+    expr,
+    heteroTests_fixed_effects_warning = function(w) {
+      captured[[length(captured) + 1L]] <<- w
+    }
+  )
+  list(value = value, warnings = captured)
+}
+
+#' Give again the warnings stored with an entry
+#'
+#' @param entry An entry of a cache ([rcache_detach()]).
+#' @return `NULL`, invisibly; called for the warnings.
+#' @keywords internal
+#' @noRd
+rcache_resignal <- function(entry) {
+  for (w in entry$warnings) {
+    warning(w)
+  }
+  invisible(NULL)
+}
+
 #' A result as it is stored: without the model of the call
 #'
 #' A result carries the model it was computed on as `attr(, "model")`, the
 #' whole fit; the entry keeps the result without it, and gives the model of
 #' the call back when it is read ([rcache_attach()]), so that a hit is
-#' `identical()` to the result the test computes on that model.
+#' `identical()` to the result the test computes on that model. The entry
+#' also keeps the warnings about fixed effects for small groups its
+#' computation gave ([rcache_capture_warnings()]), which a hit gives again.
 #'
 #' @param x A result, or a `hetero_test_suite` of results.
 #' @param model The model of the call.
-#' @return A list with the value and where the model was taken out.
+#' @param warnings A list of the warnings to give again on a hit.
+#' @return A list with the value, where the model was taken out, and the
+#'   warnings.
 #' @keywords internal
 #' @noRd
-rcache_detach <- function(x, model) {
+rcache_detach <- function(x, model, warnings = list()) {
   attached <- identical(attr(x, "model", exact = TRUE), model)
   if (attached) {
     attr(x, "model") <- NULL
@@ -394,7 +444,7 @@ rcache_detach <- function(x, model) {
       attr(x[[i]], "model") <- NULL
     }
   }
-  list(value = x, attached = attached, inner = inner)
+  list(value = x, attached = attached, inner = inner, warnings = warnings)
 }
 
 rcache_attach <- function(entry, model) {
@@ -433,7 +483,9 @@ rcache_fallback_cacheable <- function(fallback) {
 #'
 #' Looks the result up under the key of the test, its arguments and the
 #' inputs; on a miss runs it with [.run_registered_diagnostic()] and stores
-#' it, unless its computation drew random numbers.
+#' it, unless its computation drew random numbers. A hit gives again the
+#' warnings about fixed effects for small groups that the computation gave
+#' ([rcache_capture_warnings()]).
 #'
 #' @param test_name Character scalar naming the registered test.
 #' @param model,data The model and the data of the call.
@@ -447,12 +499,15 @@ rcached_diagnostic <- function(test_name, model, data, inputs, ...) {
   key <- rcache_test_key(test_name, inputs, list(...))
   entry <- rcache_get(.test_cache, key)
   if (!is.null(entry)) {
+    rcache_resignal(entry)
     return(rcache_attach(entry, model))
   }
   state <- rrng_state()
-  result <- .run_registered_diagnostic(test_name, model, data, ...)
+  run <- rcache_capture_warnings(.run_registered_diagnostic(test_name, model, data, ...))
+  result <- run$value
   if (!is.null(key) && identical(state, rrng_state())) {
-    rcache_put(.test_cache, key, rcache_detach(result, model), rcache_result_limit())
+    rcache_put(.test_cache, key, rcache_detach(result, model, run$warnings),
+               rcache_result_limit())
   }
   result
 }
