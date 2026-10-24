@@ -1364,13 +1364,34 @@ random-effects test 2.016 (p = 0.156), with its warning on unequal panel
 lengths, and the scatter diagnostic 0.343 for `x1` and -0.163 for `x2`, on the
 full data, shuffled or as a tibble. Pesaran's test now reaches the panel of
 such a fit, which is unbalanced: units 1 and 2 keep 8 and 9 of their 10
-periods, and the test stops there with "number of items to replace is not a
-multiple of replacement length", as it stopped on the complete rows before (an
-unbalanced panel is a separate change; see below). On a fit that drops every
-row of a unit, here the ten rows of unit 12, the panel stays balanced: Pesaran's
+periods, and the test refuses it (below), where it stopped on the complete rows
+with "number of items to replace is not a multiple of replacement length". On a
+fit that drops every row of a unit, here the ten rows of unit 12, the panel
+stays balanced: Pesaran's
 test refused the full data with "requires `data` with 110 observations to match
 the fitted model, got 120.", and gives -0.0607 (p = 0.952), the value of the fit
 to the 110 complete rows, and the random-effects test 4.083 (p = 0.043).
+
+**Pesaran's test refuses an unbalanced panel** (decided by the author on
+2026-10-24). It arranges the residuals in a matrix of periods by units, and a
+unit observed at fewer periods than the panel holds stopped it with "number of
+items to replace is not a multiple of replacement length", or, when its number
+of periods divides that of the panel, had its residuals recycled over the
+periods it lacks, and the test returned a wrong value without an error. On the
+120 observations of `contract_data()` without the first five rows, unit 1
+keeps 5 of its 10 periods, and `performPesaranTest(m, d, "id", "time")`
+returned 0.234 (p = 0.815), where `plm::pcdtest(model = "pooling")`, which
+correlates each pair of units over the periods both hold (Pesaran 2015),
+gives -0.373. The test now stops, on every form of `data` and through
+`runPanelTests()`, with ``performPesaranTest() needs a balanced panel, every
+unit observed at the same periods, and the panel of the fit is unbalanced: 1 of
+its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. ...``,
+which points to `plm::pcdtest()` for such a panel, of class
+`heteroTests_model_context_error`. The full data of a fit that dropped such
+rows, which it refused for their number of rows, are refused so too. A fit that
+drops every row of a unit keeps a balanced panel, and is tested (above). The
+refusal goes when a later step computes the statistic of an unbalanced panel
+from the periods each pair of units shares.
 
 **Pesaran's test refuses a pair of `id` and `time` that holds more than one
 observation of the fit** (decided 2026-10-18). It arranges the residuals in a
@@ -1462,22 +1483,18 @@ Also, for these four:
   replacement length"; and a fit to repeated rows with the refusal of the
   repeated pairs, where it stopped on the unbalanced panel. The random-effects
   test leaves an observation whose unit is missing out of its sums by unit,
-  as before.
-- Pesaran's test on an unbalanced panel is unchanged, and recorded for a pull
-  request of its own: it fills a matrix of periods by units, and on a unit
-  observed in fewer periods than the panel holds it stops, or, when that
-  number divides the number of periods, recycles the residuals of the unit
-  over the periods it lacks and returns a wrong value without an error. On
-  `contract_data()` without its first five rows, unit 1 keeps 5 of its 10
-  periods, and the test returns 0.234 (p = 0.815), where
-  `plm::pcdtest(model = "pooling")` gives -0.373. The full data of a fit that
-  dropped such rows, which the test refused for their number, now reach it,
-  as the complete rows of such a fit did.
+  as before, and takes an unbalanced panel, with its warning on unequal panel
+  lengths, as before. The message "number of items to replace is not a
+  multiple of replacement length" can no longer be reached.
 - A fit with `na.action = na.exclude` is read as before, until the step of the
-  model context that moves `na.exclude`: its residuals, padded with `NA` at
-  the rows it dropped, against the rows of `data` by position, so the
-  random-effects statistic and the correlations of the scatter diagnostic are
-  `NA`, and data in another order are refused.
+  model context that moves `na.exclude` (decided by the author on
+  2026-10-24): its residuals, padded with `NA` at the rows it dropped, against
+  the rows of `data` by position, so the random-effects statistic and the
+  correlations of the scatter diagnostic are `NA`, and data in another order
+  are refused. The refusals of Pesaran's test above, of a missing unit or
+  period, of a repeated pair and of an unbalanced panel, apply to the rows it
+  reads so; on the data of such a fit in the test matrix, whose panel is
+  balanced, it returns what it returned.
 - The scatter diagnostic refuses a fit with a zero weight before it matches
   `data`, as before; the panel tests refuse it after, as before. A model
   written with the columns of a data frame, `lm(d$y ~ d$x + d$z)`, given `d`,
@@ -1486,16 +1503,16 @@ Also, for these four:
   diagnostic and the panel tests said that no column of the model frame can be
   compared.
 - Unchanged: every other value of a valid call, every refusal of the guard,
-  and every message the test suite pins. A corpus of 22,420 calls, the four,
-  the options of `runPanelTests()` and every other test on 354 combinations
+  and every message the test suite pins. A corpus of 22,542 calls, the four,
+  the options of `runPanelTests()` and every other test on 356 combinations
   of fits, offsets, terms, forms of `data`, dropped rows, missing groups, row
   names, panels and classes, on the five fits of the table of the
   Harrison-McCabe rank and the eight designs of White's degrees of freedom,
   the default battery and the registered names through `runHeteroTests()`,
   and the examples of the twenty-five help pages, returns what it returned
-  before, `identical()`, but for the 545 calls of the changes above
-  (`scripts/model-context-identity.R`), 19 of them the new refusals in bold;
-  each of the 349 that now return a value, or another one, gives the value of
+  before, `identical()`, but for the 566 calls of the changes above
+  (`scripts/model-context-identity.R`), 22 of them the new refusals in bold;
+  each of the 352 that now return a value, or another one, gives the value of
   its reference, compared on every number of the result: the same call on the
   data frame of the fit, on the fit to the complete rows, on the data of a
   `gam` in its order, or on the fit with the factor of `cut()` computed
@@ -1503,7 +1520,7 @@ Also, for these four:
   the weighted fits of `inst/validation/` (2,400 p-values at 400
   replications) are `identical()` to before, replication by replication, and
   reproduce the committed tables. The warnings of the calls of the corpus are
-  those of before, but for 51 calls on fits that dropped some rows of some
+  those of before, but for 54 calls on fits that dropped some rows of some
   units, on which the random-effects test now returns a value with its
   warning on unequal panel lengths, directly or through `runPanelTests()`.
 

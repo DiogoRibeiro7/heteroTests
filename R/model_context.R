@@ -648,10 +648,14 @@ rcontext_mean <- function(ctx) {
 #' @param variable Character scalar, the name of the variable.
 #' @param argument Character scalar, the argument of the test that names it.
 #' @param test_label Character scalar naming the test.
+#' @param ids The names of the observations `values` holds: those of the fit,
+#'   or, for a fit with `na.exclude` that [performPesaranTest()] reads by
+#'   position, the row names of `data`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
-rstop_missing_variable <- function(ctx, values, variable, argument, test_label) {
+rstop_missing_variable <- function(ctx, values, variable, argument, test_label,
+                                   ids = ctx$obs_id) {
   absent <- if (is.matrix(values) || is.data.frame(values)) {
     !stats::complete.cases(values)
   } else {
@@ -666,7 +670,7 @@ rstop_missing_variable <- function(ctx, values, variable, argument, test_label) 
         "%s requires `data` to contain the rows used to fit the model. Missing rows: %s, ",
         "where %s, the `%s` variable, is missing."
       ),
-      test_label, paste(utils::head(ctx$obs_id[absent], 3L), collapse = ", "), variable, argument
+      test_label, paste(utils::head(ids[absent], 3L), collapse = ", "), variable, argument
     ),
     call. = FALSE
   )
@@ -777,8 +781,10 @@ rcontext_group_rows <- function(ctx, data, group) {
 #' @param test_label Character scalar naming the test in the messages on rows
 #'   that `data` lacks.
 #' @return A list with `residuals`, the Pearson residuals, `columns`, a named
-#'   list of the columns, each with one value per residual, and `padded`,
-#'   `TRUE` for the residuals of a fit with `na.exclude`, read as before.
+#'   list of the columns, each with one value per residual, `ids`, the names
+#'   of the observations they hold (the row names of the rows read, for a fit
+#'   with `na.exclude`), and `padded`, `TRUE` for the residuals of a fit with
+#'   `na.exclude`, read as before.
 #' @keywords internal
 #' @noRd
 rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
@@ -796,9 +802,9 @@ rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
     residuals <- rpearson_residuals(ctx$model)
     rcheck_data_in_fit_order(residuals, rows, fn, test_label)
     values <- stats::setNames(lapply(columns, function(v) rows[[v]]), roles)
-    return(list(residuals = residuals, columns = values, padded = TRUE))
+    return(list(residuals = residuals, columns = values, ids = rownames(rows), padded = TRUE))
   }
-  list(residuals = rcontext_pearson(ctx), columns = values, padded = FALSE)
+  list(residuals = rcontext_pearson(ctx), columns = values, ids = ctx$obs_id, padded = FALSE)
 }
 
 #' Refuse a panel in which a unit holds two observations of one period
@@ -846,6 +852,49 @@ rstop_repeated_panel_cells <- function(id_values, time_values, id, time, fn) {
     ),
     call. = FALSE
   )
+}
+
+#' Refuse an unbalanced panel
+#'
+#' [performPesaranTest()] arranges the residuals in a matrix of periods by
+#' units, and needs every unit of the fit observed at the same periods. Before
+#' 0.16.0 a unit observed at fewer periods than the panel holds stopped the
+#' statistic ("number of items to replace is not a multiple of replacement
+#' length"), or, when its number of periods divides that of the panel, had its
+#' residuals recycled over the periods it lacks, and the test returned a wrong
+#' value without an error (N12 of the design of the model context). Such panels
+#' are refused, with the class of the refusals of the context, until the
+#' statistic of an unbalanced panel is computed from the periods each pair of
+#' units shares, as `plm::pcdtest()` computes it (decided by the author on
+#' 2026-10-24). A fit that drops every row of a unit keeps a balanced panel.
+#'
+#' @param id_values,time_values The units and the periods, one per
+#'   observation, without missing values or repeated pairs.
+#' @param id Character scalar, the name of the column of the units.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
+  units <- sort(unique(id_values))
+  n_periods <- length(unique(time_values))
+  held <- vapply(units, function(u) length(unique(time_values[id_values == u])), integer(1))
+  short <- which(held < n_periods)
+  if (length(short) == 0L) {
+    return(invisible(NULL))
+  }
+  first <- short[1L]
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() needs a balanced panel, every unit observed at the same periods, and the panel ",
+      "of the fit is unbalanced: %d of its %d units %s observed at fewer of its %d periods, ",
+      "%s = %s at %d of them. The statistic is computed here on a matrix of periods by ",
+      "units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an ",
+      "unbalanced panel from the periods each pair of units shares."
+    ),
+    fn, length(short), length(units), if (length(short) == 1L) "is" else "are", n_periods,
+    id, as.character(units[first]), held[first]
+  ))
 }
 
 #' Warn about the incomplete rows of `data`, dropping nothing

@@ -45,14 +45,16 @@
 #' statistic cautiously or consider small-sample adjustments available in the
 #' literature.
 #'
-#' The statistic needs a balanced panel, every unit observed once in every
-#' period: a pair of `id` and `time` that holds two observations of the fit is
-#' refused (since 0.16.0), and on an unbalanced panel, as that of a fit that
-#' dropped some rows of some units, it is not defined yet: the test stops, or,
-#' when the number of periods of a unit divides that of the panel, returns a
-#' wrong value computed on its residuals recycled over the periods it lacks. A
-#' fit that drops every row of a unit keeps a balanced panel. The statistic of
-#' an unbalanced panel is a separate change, on the roadmap.
+#' The statistic is computed on a balanced panel, every unit observed once in
+#' every period. Since 0.16.0 a pair of `id` and `time` that holds two
+#' observations of the fit is refused, and so is an unbalanced panel, as that
+#' of a fit that dropped some rows of some units: the test stopped on it, or,
+#' when the number of periods of a unit divided that of the panel, returned a
+#' wrong value computed on its residuals recycled over the periods it lacks.
+#' A fit that drops every row of a unit keeps a balanced panel.
+#' `plm::pcdtest()` computes the statistic of an unbalanced panel from the
+#' periods each pair of units shares (Pesaran 2015); the package will too, on
+#' the roadmap, and the refusal will then go.
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
@@ -119,30 +121,29 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   read <- rcontext_columns_at_fit(
     ctx, data, c(id = id, time = time), "performPesaranTest", test_label
   )
-  if (!read$padded) {
-    # A unit or a period missing at an observation of the fit, on which the
-    # statistic stopped before, is refused with a message that names it; and
-    # so is a pair of `id` and `time` that holds two observations of the fit,
-    # which put one of them in the cell of another period (decision 13 of the
-    # design of the model context).
-    rstop_missing_variable(ctx, read$columns$id, id, "id", test_label)
-    rstop_missing_variable(ctx, read$columns$time, time, "time", test_label)
-    rstop_repeated_panel_cells(read$columns$id, read$columns$time, id, time,
-                               "performPesaranTest")
-  }
+  # The matrix of periods by units below needs a balanced panel, every unit
+  # observed once at every period, on every route, a fit with na.exclude
+  # included. A unit or a period missing at an observation, on which the
+  # statistic stopped before, is refused with a message that names it; a pair
+  # of `id` and `time` that holds two observations, which put one of them in
+  # the cell of another period, is refused (decision 13 of the design of the
+  # model context); and so is an unbalanced panel, on which the statistic
+  # stopped ("number of items to replace is not a multiple of replacement
+  # length") or recycled the residuals of a unit over the periods it lacks
+  # (N12), until the statistic of an unbalanced panel is computed from the
+  # periods each pair of units shares (decided by the author on 2026-10-24).
+  rstop_missing_variable(ctx, read$columns$id, id, "id", test_label, ids = read$ids)
+  rstop_missing_variable(ctx, read$columns$time, time, "time", test_label, ids = read$ids)
+  rstop_repeated_panel_cells(read$columns$id, read$columns$time, id, time,
+                             "performPesaranTest")
+  rstop_unbalanced_panel(read$columns$id, read$columns$time, id, "performPesaranTest")
   df <- data.frame(id = read$columns$id, time = read$columns$time, res = read$residuals)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)
   times <- unique(df$time)
   N <- length(ids)
   T <- length(times)
-  # Each unit fills a column of periods. A unit observed in fewer periods than
-  # the panel holds, as in an unbalanced panel or the panel of a fit that
-  # dropped rows, does not fit its column: the assignment stops ("number of
-  # items to replace is not a multiple of replacement length"), or, when its
-  # number of periods divides that of the panel, recycles its residuals. The
-  # statistic of an unbalanced panel is a separate change (N12 of the design
-  # of the model context).
+  # Each unit fills a column of periods, in the order of the periods.
   mat <- matrix(NA, nrow = T, ncol = N)
   for (i in seq_along(ids)) {
     mat[, i] <- df$res[df$id == ids[i]]

@@ -948,7 +948,7 @@ test_that("a term is the column it computes, taken from the fit", {
     for (fit in fits) {
       for (terms in names(precomputed)) {
         # cut() drops the row at the minimum of x1, and the panel of the fit
-        # is unbalanced, on which Pesaran's test stops either way (N12).
+        # is unbalanced, which Pesaran's test refuses either way (N12).
         if (identical(terms, "cut") && fn %in% c("performPesaranTest", "runPanelTests")) next
         expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
         # The fit with the columns computed beforehand is another fit of the
@@ -1401,12 +1401,14 @@ test_that("the panel tests and the scatter diagnostic take the data of a fit tha
     context_same(scatter(m, forms[[form]]), scatter(m_complete, complete), paste("scatter", form))
   }
   # The units 1 and 2 lose two and one of their ten periods, and the panel is
-  # unbalanced: Pesaran's test stops there, on the complete rows as on the
-  # full data (N12, a separate pull request), where it refused the full data
-  # for their number of rows.
+  # unbalanced: Pesaran's test refuses it, on the complete rows as on the full
+  # data (N12, the test below), where it stopped on the complete rows with
+  # "number of items to replace is not a multiple of replacement length" and
+  # refused the full data for their number of rows.
   for (data in list(d_na, complete)) {
     expect_error(performPesaranTest(m, data, "id", "time"),
-                 "number of items to replace is not a multiple of replacement length", fixed = TRUE)
+                 "2 of its 12 units are observed at fewer of its 10 periods, id = 1 at 8 of them.",
+                 fixed = TRUE, class = "heteroTests_model_context_error")
   }
   # A fit that drops every row of a unit keeps a balanced panel, on which
   # Pesaran's test gives the value of the fit to the complete rows.
@@ -1428,6 +1430,89 @@ test_that("the panel tests and the scatter diagnostic take the data of a fit tha
                paste("Pesaran CD test requires `data` to contain the rows used to fit the model.",
                      "Missing rows: 101"),
                fixed = TRUE)
+})
+
+test_that("Pesaran's test refuses an unbalanced panel (N12)", {
+  # Decided by the author on 2026-10-24: until the statistic of an unbalanced
+  # panel is computed from the periods each pair of units shares, as
+  # plm::pcdtest() computes it, the test refuses a panel whose units are not
+  # all observed at the same periods. It filled a matrix of periods by units,
+  # and a unit with fewer periods than the panel stopped it, or, when that
+  # number divided the number of periods, had its residuals recycled over the
+  # periods it lacks: without the first five rows of contract_data(), unit 1
+  # keeps 5 of its 10 periods, and the test returned 0.234 (p = 0.815), where
+  # plm::pcdtest(model = "pooling") gives -0.373.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  refusal <- paste0(
+    "performPesaranTest() needs a balanced panel, every unit observed at the same periods, ",
+    "and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 ",
+    "periods, id = 1 at 5 of them."
+  )
+  # The recycling case: a fit to the rows of such a panel, and the full data
+  # of a fit that dropped those rows, shuffled or not.
+  half <- d[-(1:5), ]
+  d_half <- d
+  d_half$x2[1:5] <- NA
+  set.seed(3)
+  calls <- list(
+    list(m = lm(y ~ x1 + x2, data = half), data = half),
+    list(m = lm(y ~ x1 + x2, data = d_half), data = d_half),
+    list(m = lm(y ~ x1 + x2, data = d_half), data = d_half[sample(nrow(d_half)), ])
+  )
+  for (call in calls) {
+    expect_error(performPesaranTest(call$m, call$data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+    # The runner stops on the refusal of its second test, after the warning of
+    # the random-effects test on unequal panel lengths, and returns nothing.
+    expect_error(suppressWarnings(runPanelTests(call$m, call$data, "id", "time")), refusal,
+                 fixed = TRUE, class = "heteroTests_model_context_error")
+    expect_error(runPanelTests(call$m, call$data, "id", "time", tests = "pesaran"), refusal,
+                 fixed = TRUE, class = "heteroTests_model_context_error")
+    # The random-effects test takes an unbalanced panel, with its warning.
+    expect_warning(re <- runPanelTests(call$m, call$data, "id", tests = "bp_random"),
+                   "Unequal panel lengths")
+    expect_s3_class(re$bp_random, "htest")
+  }
+  # The stopping case: units observed at periods that do not divide the
+  # panel's, which stopped with "number of items to replace is not a multiple
+  # of replacement length"; the message names the variable the call gives.
+  gaps <- d
+  gaps$period <- gaps$time
+  gaps <- gaps[-c(3, 14, 15), ]
+  m_gaps <- lm(y ~ x1 + x2, data = gaps)
+  expect_error(
+    performPesaranTest(m_gaps, gaps, "id", "period"),
+    paste("2 of its 12 units are observed at fewer of its 10 periods, id = 1 at 9 of them.",
+          "The statistic is computed here on a matrix of periods by units"),
+    fixed = TRUE, class = "heteroTests_model_context_error"
+  )
+  expect_error(performPesaranTest(m_gaps, gaps, "id", "period"),
+               "plm::pcdtest() computes it for an unbalanced panel", fixed = TRUE)
+  # A unit whose rows are all dropped leaves the panel balanced, and the
+  # statistic is that of the eleven others.
+  d_unit <- d
+  d_unit$x2[111:120] <- NA
+  eleven <- performPesaranTest(lm(y ~ x1 + x2, data = d_unit[1:110, ]), d_unit[1:110, ],
+                               "id", "time")
+  context_same(performPesaranTest(lm(y ~ x1 + x2, data = d_unit), d_unit, "id", "time"), eleven,
+               "a unit dropped")
+  context_same(runPanelTests(lm(y ~ x1 + x2, data = d_unit), d_unit, "id", "time")$pesaran, eleven,
+               "a unit dropped, the runner")
+  # Without data, from the model frame of a model of the identifiers.
+  ids_model <- lm(y ~ x1 + x2 + id + time, data = half)
+  expect_error(performPesaranTest(ids_model, NULL, "id", "time"), refusal, fixed = TRUE)
+  # plm::pcdtest() calls plm() without its namespace, so plm is attached for
+  # this block, as in test-panel-reference.R.
+  skip_if_not_installed("plm")
+  skip_if_not_installed("withr")
+  suppressMessages(withr::local_package("plm"))
+  pd <- plm::pdata.frame(half, index = c("id", "time"))
+  reference <- suppressWarnings(
+    plm::pcdtest(y ~ x1 + x2, data = pd, test = "cd", model = "pooling")
+  )
+  expect_equal(unname(reference$statistic), -0.372652, tolerance = 1e-6)
 })
 
 test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {

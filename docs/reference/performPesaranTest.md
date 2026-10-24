@@ -43,12 +43,14 @@ aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
 lack rows or variables of the fit. The model is a pooled `lm` of the panel, with the units and
 the periods as columns of `data`; a `plm::plm()` fit is not an `lm` and is refused.
-The statistic needs a balanced panel, every unit observed once in every period: a pair of `id`
-and `time` that holds two observations of the fit is refused (since 0.16.0), and on an
-unbalanced panel, as that of a fit that dropped some rows of some units, it is not defined yet: the
-test stops, or, when the number of periods of a unit divides that of the panel, returns a wrong value
+The statistic is computed on a balanced panel, every unit observed once in every period. Since
+0.16.0 a pair of `id` and `time` that holds two observations of the fit is refused, and so
+is an unbalanced panel, as that of a fit that dropped some rows of some units: the test stopped on
+it, or, when the number of periods of a unit divided that of the panel, returned a wrong value
 computed on its residuals recycled over the periods it lacks. A fit that drops every row of a unit
-keeps a balanced panel. The statistic of an unbalanced panel is a separate change, on the roadmap.
+keeps a balanced panel. `plm::pcdtest()` computes the statistic of an unbalanced panel from the
+periods each pair of units shares (Pesaran 2015); the package will too, on the roadmap, and the
+refusal will then go.
 Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
 *Supported models*.
 
