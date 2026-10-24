@@ -11,17 +11,23 @@
 #' auxiliary-regression diagnostics for non-constant variance.
 #'
 #' @param model A fitted [stats::lm] object estimated on stacked panel data whose
-#'   residuals are analysed. The function assumes the observations are ordered by
-#'   individual but does not require an explicit panel model class.
-#' @param data A [base::data.frame] containing the variables used in `model`
-#'   together with the individual identifier supplied via `id`.
-#'   When `NULL`, the default, the model frame of `model` is used, so `id` must
-#'   then be a variable of the model. The model frame holds the terms of the
-#'   model rather than its variables (`log(x)` rather than `x`), so a model that
-#'   transforms a variable needs `data`, as does a
-#'   model with an `offset()` term.
+#'   residuals are analysed, the pooled `lm()` of the panel; no panel model
+#'   class is needed, and the observations may be in any order.
+#' @param data The data frame `model` was fitted to, holding the individual
+#'   identifier named by `id`, or `NULL`, the default. The residuals and weights
+#'   are read from the fit itself, and `id` from the rows of `data` that hold
+#'   the observations of the fit. Without `data` it is read from the model
+#'   frame of `model`, which holds it only when it is a variable of the model
+#'   under its own name (`id`, not `factor(id)`); an identifier the model does
+#'   not use needs `data`. Since 0.16.0, data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param id Character scalar naming the column in `data` that indexes individuals
-#'   (or panels). The column must align with the row ordering used to fit `model`.
+#'   (or panels).
 #'
 #' @return A \code{htest} object with the LM statistic, the one-degree-of-freedom
 #'   chi-squared reference distribution, and supporting metadata about the fitted
@@ -71,31 +77,43 @@
 #' [performWhiteTest()] when heteroscedasticity is suspected within each time
 #' period.
 performBPRandomEffectsTest <- function(model, data = NULL, id) {
+  test_label <- "Breusch-Pagan random effects test"
+  # A model the tests do not take, and `data` that is not a data frame, are
+  # refused first, with the messages of before 0.16.0.
   rrefuse_non_gaussian_glm(model, "performBPRandomEffectsTest")
-  data <- rdata_or_model_frame(model, data)
-  if (!inherits(model, "lm")) {
-    stop("`model` must be an object of class 'lm'.")
-  }
-  if (!is.data.frame(data)) {
+  if (!is.null(data) && !is.data.frame(data)) {
     stop("`data` must be a data frame.")
   }
-  if (!id %in% names(data)) {
+  # The residuals and weights come from the fit; `data`, when given, is matched
+  # to its observations and checked (R/model_context.R). `id` is read from the
+  # rows of `data` that hold the observations, so data taken in the order of
+  # the fit must tell those rows apart when it is not a column of the model
+  # frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performBPRandomEffectsTest", test_label = test_label,
+    reads = if (!missing(id) && is.character(id)) id else character()
+  )
+  if (!is.null(data) && !id %in% names(data)) {
     stop("`id` must be a column in `data`.")
   }
-  rrefuse_nonfinite_coefficients(model, "Breusch-Pagan random effects test", allow_aliased = TRUE)
-  # Data that lack a variable of the model are refused, as by the tests that
-  # read `data`; before 0.15.0 the variable was never looked for.
-  rcheck_data_matches_model(model, data, "Breusch-Pagan random effects test")
+  rrefuse_nonfinite_coefficients(model, test_label, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  res <- rpearson_residuals(model)
-  # The rows of `data` are read in the order of the residuals. With another
-  # number of rows tapply() below stops with "arguments must have same
-  # length"; say which rows are missing instead. Data with its own row names
-  # in another order than the fit are refused until 0.16.0 matches by name.
-  rcheck_data_in_fit_order(
-    res, data, "performBPRandomEffectsTest", "Breusch-Pagan random effects test"
+  # The units, one per observation in the order of the fit: from the
+  # confirmed rows of `data`, or without `data` from the model frame when it
+  # holds them under their own name; and the Pearson residuals of the fit,
+  # which refuse a zero weight. Before 0.16.0 the i-th row of `data` was read
+  # with the i-th residual, and data with row names of their own in another
+  # order than the fit, with rows after those of the fit, or of a fit that
+  # dropped rows, were refused. A fit with na.exclude is read as before
+  # (rcontext_columns_at_fit()). A unit missing at an observation of the fit
+  # leaves it out of the sums by unit, as before (decision 8 of the design of
+  # the model context: each test keeps its behaviour).
+  read <- rcontext_columns_at_fit(
+    ctx, data, c(id = id), "performBPRandomEffectsTest", test_label
   )
-  idfac <- factor(data[[id]])
+  res <- read$residuals
+  idfac <- factor(read$columns$id)
   T_i <- tapply(res, idfac, length)
   if (length(unique(T_i)) > 1) {
     warning("Unequal panel lengths; using mean T")

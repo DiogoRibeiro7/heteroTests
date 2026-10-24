@@ -1205,6 +1205,214 @@ Also, for these five:
     are those of before, but for five calls that stopped and now return a value
     with the warning on the missing group.
 
+The fifth step moves the two panel tests, `performPesaranTest()` and
+`performBPRandomEffectsTest()`, and so `runPanelTests()`, which runs them, and
+`performScatterDiagnostic()` onto the model context. They read the Pearson
+residuals and the weights from the fit, and the `id` and `time` of the panel
+tests and the `vars` of the scatter diagnostic at the rows of `data` the
+comparison confirmed, or, for the panel tests without `data`, from the model
+frame when it holds them under their own names. Data that are given are
+matched as for the first twenty tests: named data in any order, numbered data
+in fit order. None of the four is registered with the runner, so the change
+reaches their direct calls and `runPanelTests()`. Every value is
+`identical()` to before but for the changes in bold below.
+
+**The panel tests and the scatter diagnostic match `data` by name.** They
+read the i-th row of `data` with the i-th residual, and since 0.15.0 refused
+the data they could not show to be in that order (*Data in another order than
+the fit*, under 0.15.0). They now match the rows as the other tests do, and
+give the value on the rows of the fit. On the design of that entry, with
+`set.seed(2); dp <- d[sample(n), ]`:
+
+| Call, on `dp` | 0.15.0 | Now, the value on `d` |
+| --- | --- | ---: |
+| `performPesaranTest(m, dp, "id", "time")` | Error: "... it reads `data` by position, the i-th row with the i-th observation, and the rows of `data`, matched by name, are not in the order of the fit." | -0.987 (p = 0.324) |
+| `performBPRandomEffectsTest(m, dp, "id")` | Error, the same | 1.187 (p = 0.276) |
+| `performScatterDiagnostic(m, dp, "x")` | Error, the same | 0.468 |
+| `runPanelTests(m, dp, "id", "time")` | Error, the same | 1.187 and -0.987 |
+
+Before 0.15.0 the three returned -0.392, 0.506 and -0.080, values of other
+rows. So do rows after those of the fit, `rbind(d, d[1:5, ])`, which they
+refused for their number ("requires `data` with 120 observations to match the
+fitted model, got 125"); a fit to a subset given by index, given its data; and
+the tibble in the order of the fit of a fit to data with character row names,
+on which they stopped with "Missing rows: obs1, obs2, obs3" or "the row names
+of `data` are not those of the fit".
+
+**On a fit that dropped rows, the random-effects test and the scatter
+diagnostic give the value of its observations.** On the 120 observations of
+`contract_data()` (`tests/testthat/helper-test-recipes.R`) with `x2` missing in
+rows 3, 7 and 11, `m <- lm(y ~ x1 + x2, data = d)` drops them, and
+`performBPRandomEffectsTest(m, d, "id")` refused the full data with
+"Breusch-Pagan random effects test requires `data` with 117 observations to
+match the fitted model, got 120.", as did the scatter diagnostic and
+`runPanelTests()`. They give the value of the fit to the complete rows: the
+random-effects test 2.016 (p = 0.156), with its warning on unequal panel
+lengths, and the scatter diagnostic 0.343 for `x1` and -0.163 for `x2`, on the
+full data, shuffled or as a tibble. Pesaran's test now reaches the panel of
+such a fit, which is unbalanced: units 1 and 2 keep 8 and 9 of their 10
+periods, and the test refuses it (below), where it stopped on the complete rows
+with "number of items to replace is not a multiple of replacement length". On a
+fit that drops every row of a unit, here the ten rows of unit 12, the panel
+stays balanced: Pesaran's
+test refused the full data with "requires `data` with 110 observations to match
+the fitted model, got 120.", and gives -0.0607 (p = 0.952), the value of the fit
+to the 110 complete rows, and the random-effects test 4.083 (p = 0.043).
+
+**Pesaran's test refuses an unbalanced panel** (decided by the author on
+2026-10-24). It arranges the residuals in a matrix of periods by units, and a
+unit observed at fewer periods than the panel holds stopped it with "number of
+items to replace is not a multiple of replacement length", or, when its number
+of periods divides that of the panel, had its residuals recycled over the
+periods it lacks, and the test returned a wrong value without an error. On the
+120 observations of `contract_data()` without the first five rows, unit 1
+keeps 5 of its 10 periods, and `performPesaranTest(m, d, "id", "time")`
+returned 0.234 (p = 0.815), where `plm::pcdtest(model = "pooling")`, which
+correlates each pair of units over the periods both hold (Pesaran 2015),
+gives -0.373. The test now stops, on every form of `data` and through
+`runPanelTests()`, with ``performPesaranTest() needs a balanced panel, every
+unit observed at the same periods, and the panel of the fit is unbalanced: 1 of
+its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. ...``,
+which points to `plm::pcdtest()` for such a panel, of class
+`heteroTests_model_context_error`. The full data of a fit that dropped such
+rows, which it refused for their number of rows, are refused so too. A fit that
+drops every row of a unit keeps a balanced panel, and is tested (above). The
+refusal goes when a later step computes the statistic of an unbalanced panel
+from the periods each pair of units shares.
+
+**Pesaran's test refuses a pair of `id` and `time` that holds more than one
+observation of the fit** (decided 2026-10-18). It arranges the residuals in a
+matrix of periods by units, and a repeated pair put one of its observations in
+the cell of another period, without an error: on `contract_data()` with the
+second observation of unit 1 moved to period 5, `d$time[2] <- 5L`, it returned
+0.516 (p = 0.606), where the panel gives 0.264 (p = 0.792). It now stops with
+``performPesaranTest() needs one observation of the fit for each pair of `id`
+and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2
+observations). ...``, of class `heteroTests_model_context_error`, and so does
+`runPanelTests()`, also on a fit with `na.exclude` (below), where it returned
+0.253 with `d$x2[50] <- NA`. With the period of the first observation,
+`d$time[2] <- 1L`, it returned the value of the panel by the chance of the
+order of the rows, and now stops too. The random-effects test reads no period
+and is unchanged.
+
+**A `gam` given its data in another order is matched to them by row name, by
+the panel tests and the scatter diagnostic too.** Their check of the order of
+0.15.0 compared the row names of `data` with the names of the residuals,
+which those of an `mgcv::gam()` fit lack, so they read such data by position
+and returned a wrong value without an error. On `contract_data()`, with the
+data of the fit shuffled, `d[sample(120), ]` after `set.seed(3)`:
+
+| Call, on `d[sample(120), ]` | `gam(y ~ x1 + x2)`, 0.15.0 | Now | `gam(y ~ s(x1) + x2)`, 0.15.0 | Now |
+| --- | ---: | ---: | ---: | ---: |
+| `performPesaranTest(m, data, "id", "time")` | -0.570 | 0.264 | -0.456 | -0.036 |
+| `performBPRandomEffectsTest(m, data, "id")` | 0.163 | 3.100 | 0.070 | 4.311 |
+| `performScatterDiagnostic(m, data, c("x1", "x2"))` | 0.011, -0.119 | 0.332, -0.167 | -0.012, -0.067 | 0.308, -0.120 |
+
+Each new value is `identical()` to that of the same call on `d`, which is
+unchanged, and equals, to `1e-10`, the test written out without the package
+on the residuals of the fit and the rows of `d` that carry their names.
+
+**A fit with `model = FALSE` whose data are gone, given numbered data in
+another order than the fit, is refused by the four**, with "... cannot use
+the model frame of `model`: it cannot be rebuilt (...), and `data` does not
+give the response and the fitted values of the fit", of class
+`heteroTests_model_context_error`, as by the first twenty. They returned the
+values of other rows: on `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the
+120 observations of `contract_data()`, with `gone` removed after the fit and
+the data given as `dplyr::as_tibble(d)[sample(120), ]` after `set.seed(3)`,
+Pesaran's test returned -0.570 where the data in the order of the fit give
+0.264, the random-effects test 0.163 for 3.100 and the scatter diagnostic
+0.011 for 0.332.
+
+**A fit whose coefficients, residuals or weights were changed after it was
+fitted is refused by the four, as by the first twenty** ("The fitted model
+does not reproduce its residuals from its design and coefficients", "The
+weights of the model are not those its coefficients were fitted with", of
+class `heteroTests_model_context_error`). They returned the values of the fit
+before the edit, whose residuals the edit leaves unchanged: on
+`lm(mpg ~ wt + qsec, data = mtcars)` with 0.5 added to the coefficient of
+`wt`, and units and periods `mtcars$id <- rep(1:8, each = 4)` and
+`mtcars$time <- rep(1:4, 8)`, Pesaran's test returned 0.830 (p = 0.407), the
+random-effects test 16.70 (p = 4.4e-05) and the scatter diagnostic -0.141 for
+`wt` and 0.345 for `qsec`.
+
+Also, for these four:
+
+- Errors that become values, besides those above: the complete rows of a fit
+    with `na.omit` numbered again, the tibble of such a fit and the tibble it
+    was fitted on, which they refused with "Missing rows" or for their number of
+    rows, give the value on the rows of the fit (Pesaran's test where that
+    panel is balanced), and so does a fit with `model = FALSE` whose data are
+    gone, given its rows shuffled under their own row names.
+- Without `data`, the panel tests read `id` and `time` from the model frame,
+    when the model uses them under their own names, as before, and refuse them
+    otherwise with "The following variables are missing from the model frame
+    of `model`: id, time. It holds the terms of the model (...)", which says to
+    pass `data`, of class `heteroTests_model_context_error`; they stopped with
+    "`id` and `time` must be columns in `data`." (or "`id` must be a column in
+    `data`."), which they still give for data that lack them. The scatter
+    diagnostic and `runPanelTests()` need `data`, as before.
+- Numbered data with one row per observation are taken in the order of the
+    fit, and refused when the columns they read are not columns of the model
+    frame and two rows of the fit tie on every compared column, as by the tests
+    of the first four steps: on the tibble of a fit to repeated rows the panel
+    tests stop with that refusal, where they stopped with "Missing rows: 1.1,
+    2.1, 3.1"; the scatter diagnostic, which reads `x1` and `x2`, columns of the
+    frame, gives the value of the fit.
+- A multivariate `lm` is refused with "... needs a model with one response;
+    `model` has 2.", where they stopped on its number of rows, and a fit with
+    `model = FALSE` whose data are gone, without `data`, with the message of the
+    context, where the panel tests stopped with "`data` must be a data frame.".
+    An edited fit given its rows shuffled, or without `data`, is refused with the
+    message of the edit, where they refused the order or lacked `id`.
+- Pesaran's test refuses a unit or a period missing at an observation of the
+    fit with "Pesaran CD test requires `data` to contain the rows used to fit
+    the model. Missing rows: 5, where time, the `time` variable, is missing.",
+    where it stopped with "number of items to replace is not a multiple of
+    replacement length"; and a fit to repeated rows with the refusal of the
+    repeated pairs, where it stopped on the unbalanced panel. The random-effects
+    test leaves an observation whose unit is missing out of its sums by unit,
+    as before, and takes an unbalanced panel, with its warning on unequal panel
+    lengths, as before. The message "number of items to replace is not a
+    multiple of replacement length" can no longer be reached.
+- A fit with `na.action = na.exclude` is read as before, until the step of the
+    model context that moves `na.exclude` (decided by the author on
+    2026-10-24): its residuals, padded with `NA` at the rows it dropped, against
+    the rows of `data` by position, so the random-effects statistic and the
+    correlations of the scatter diagnostic are `NA`, and data in another order
+    are refused. The refusals of Pesaran's test above, of a missing unit or
+    period, of a repeated pair and of an unbalanced panel, apply to the rows it
+    reads so; on the data of such a fit in the test matrix, whose panel is
+    balanced, it returns what it returned.
+- The scatter diagnostic refuses a fit with a zero weight before it matches
+    `data`, as before; the panel tests refuse it after, as before. A model
+    written with the columns of a data frame, `lm(d$y ~ d$x + d$z)`, given `d`,
+    is refused by the four with "The following variables are missing from input
+    data: d.", as by the tests built on the context, where the scatter
+    diagnostic and the panel tests said that no column of the model frame can be
+    compared.
+- Unchanged: every other value of a valid call, every refusal of the guard,
+    and every message the test suite pins. A corpus of 22,542 calls, the four,
+    the options of `runPanelTests()` and every other test on 356 combinations
+    of fits, offsets, terms, forms of `data`, dropped rows, missing groups, row
+    names, panels and classes, on the five fits of the table of the
+    Harrison-McCabe rank and the eight designs of White's degrees of freedom,
+    the default battery and the registered names through `runHeteroTests()`,
+    and the examples of the twenty-five help pages, returns what it returned
+    before, `identical()`, but for the 566 calls of the changes above
+    (`scripts/model-context-identity.R`), 22 of them the new refusals in bold;
+    each of the 352 that now return a value, or another one, gives the value of
+    its reference, compared on every number of the result: the same call on the
+    data frame of the fit, on the fit to the complete rows, on the data of a
+    `gam` in its order, or on the fit with the factor of `cut()` computed
+    beforehand. The rows of the two panel tests in the full sweep and block 1 of
+    the weighted fits of `inst/validation/` (2,400 p-values at 400
+    replications) are `identical()` to before, replication by replication, and
+    reproduce the committed tables. The warnings of the calls of the corpus are
+    those of before, but for 54 calls on fits that dropped some rows of some
+    units, on which the random-effects test now returns a value with its
+    warning on unequal panel lengths, directly or through `runPanelTests()`.
+
 ### The caches
 
 The caches of `cachedTest()` and of `runHeteroTests(use_cache = TRUE)`, its

@@ -38,9 +38,9 @@ expectations, and the largest part of its time. The environment variable
 
 | `HETEROTESTS_FULL_MATRIX` | What runs |
 | --- | --- |
-| unset | The full matrix when `NOT_CRAN=true`, which `devtools::test()` and `testthat::test_local()` set; on CRAN, the 13 cells of `context_cran_cells` |
+| unset | The full matrix when `NOT_CRAN=true`, which `devtools::test()` and `testthat::test_local()` set; on CRAN, the 15 cells of `context_cran_cells` |
 | `true` | The full matrix |
-| `false` | The 13 CRAN cells only |
+| `false` | The 15 CRAN cells only |
 
 The two tests of `tests/testthat/test-cache-contract.R` that run every
 resampling test at its default replications, the next largest cost, follow the
@@ -128,7 +128,7 @@ to the `Development version` section at the top of `NEWS.md`.
 No job runs the suite twice. Both workflows set `HETEROTESTS_FULL_MATRIX` to
 `false`, except the `ubuntu-latest (R release)` job of `R-CMD-check.yml`,
 which sets it to `true`: the full model-context matrix runs there, and every
-other job, the coverage run included, runs the 13 CRAN cells. `R CMD check`
+other job, the coverage run included, runs the 15 CRAN cells. `R CMD check`
 and covr test an installed copy of the package, where the checks that read the
 source tree skip (`tests/testthat/helper-source-tree.R`); `scripts/run_checks.R`
 runs the files that hold them from the source. Both workflows cancel a pull

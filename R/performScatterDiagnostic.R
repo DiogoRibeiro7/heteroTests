@@ -6,8 +6,16 @@
 #'
 #' @param model A fitted [stats::lm] object (or compatible object providing
 #'   residuals) whose residual dispersion is assessed.
-#' @param data Data frame containing the variables referenced by `model` and the
-#'   covariates listed in `vars`.
+#' @param data The data frame `model` was fitted to, holding the covariates
+#'   listed in `vars`. The residuals and weights are read from the fit itself,
+#'   and `vars` from the rows of `data` that hold the observations of the fit.
+#'   Since 0.16.0 they are matched to the observations of the fit: rows with
+#'   row names of their own by name, in any order; rows that only number
+#'   themselves (a tibble, a data.table, a data frame whose row names were
+#'   reset) by the row numbers of the fit, or in the order of the fit when they
+#'   hold one row per observation. The rows the fit dropped may be there or
+#'   not. Data whose rows cannot be shown to hold the observations of the fit
+#'   are refused; see [test_results].
 #' @param vars Character vector of column names to correlate with the absolute
 #'   residuals. Variables must be present in `data` and coercible to numeric.
 #'
@@ -50,9 +58,9 @@ performScatterDiagnostic <- function(model, data, vars) {
   # the mean by construction, as the tests refuse it for; before 0.16.0 this
   # diagnostic returned their correlations.
   rrefuse_non_gaussian_glm(model, "performScatterDiagnostic")
-  if (!inherits(model, "lm")) {
-    stop("`model` must be an object of class 'lm'.")
-  }
+  # `data` is required, and the covariates must be columns of it; then a fit
+  # with a zero weight is refused, before `data` is matched, in the order of
+  # the checks of before 0.16.0.
   if (!is.data.frame(data)) {
     stop("`data` must be a data frame.")
   }
@@ -60,14 +68,23 @@ performScatterDiagnostic <- function(model, data, vars) {
   if (length(missing_vars) > 0) {
     stop("Variables not found: ", paste(missing_vars, collapse = ", "))
   }
-  res <- abs(rpearson_residuals(model))
-  # The i-th row of `data` is read with the i-th residual: data in another
-  # order than the fit are refused until 0.16.0 matches the rows by name.
-  rcheck_data_rows(model, data, "performScatterDiagnostic")
-  rcheck_data_in_fit_order(res, data, "performScatterDiagnostic", "Scatter diagnostic")
-  # Data that lack a variable of the model are refused, with the message of
-  # the tests, since 0.16.0; before, a variable of the model the diagnostic
-  # does not read could be missing.
-  rcheck_data_matches_model(model, data, "Scatter diagnostic")
-  sapply(vars, function(v) cor(res, data[[v]], method = "spearman"))
+  rrefuse_zero_weights(rleast_squares_weights(model))
+  # The residuals and weights come from the fit; `data` is matched to its
+  # observations and checked (R/model_context.R), and `vars` are read from the
+  # rows of `data` that hold them, so data taken in the order of the fit must
+  # tell those rows apart when they are not columns of the model frame. Before
+  # 0.16.0 the i-th row of `data` was read with the i-th residual, and data
+  # with row names of their own in another order than the fit, with rows after
+  # those of the fit, or of a fit that dropped rows, were refused. A fit with
+  # na.exclude is read as before (rcontext_columns_at_fit()).
+  ctx <- rmodel_context(
+    model, data, fn = "performScatterDiagnostic", test_label = "Scatter diagnostic",
+    reads = if (is.character(vars)) vars else character()
+  )
+  rvalidate_model_context(ctx)
+  read <- rcontext_columns_at_fit(
+    ctx, data, vars, "performScatterDiagnostic", "Scatter diagnostic"
+  )
+  res <- abs(read$residuals)
+  sapply(vars, function(v) cor(res, read$columns[[v]], method = "spearman"))
 }

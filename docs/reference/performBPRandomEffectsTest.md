@@ -15,10 +15,10 @@ performBPRandomEffectsTest(model, data = NULL, id)
 ## Arguments
 
 `model`
-:   an object of class `lm`.
+:   an object of class `lm`, the pooled `lm()` of the panel; its observations may be in any order.
 
 `data`
-:   data frame used to fit `model`. When `NULL`, the default, the model frame of `model` is used, so `id` must then be a variable of the model. The model frame holds the terms of the model rather than its variables (`log(x)` rather than `x`), so a model that transforms a variable needs `data`, as does a model with an `offset()` term.
+:   The data frame `model` was fitted to, holding the individual identifier named by `id`, or `NULL`, the default. The residuals and weights are read from the fit itself, and `id` from the rows of `data` that hold the observations of the fit. Without `data` it is read from the model frame of `model`, which holds it only when it is a variable of the model under its own name (`id`, not `factor(id)`); an identifier the model does not use needs `data`. Since 0.16.0, data that are given are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
 
 `id`
 :   individual identifier column.
