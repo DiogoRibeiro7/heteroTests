@@ -153,6 +153,24 @@ analyseDatasetCharacteristics <- function(data, response = NULL) {
   )
 }
 
+# What the advice for a sample of fewer than 100 observations says of the wild
+# bootstrap, in the warning of warnDiagnosticAssumptions() since 0.15.0, the
+# rationale of suggestDiagnosticsForProfile() and step 1 of
+# buildDiagnosticDecisionTree() since 0.16.0. In the package's validation
+# study of the multiplier (inst/validation/wild-multiplier-size.R, B = 999)
+# it holds its level with normal and t5 errors at 30, 50 and 100
+# observations, and with centred exponential errors rejects 8.2%, 7.3% and
+# 6.1% of the time at the 5% level with the Rademacher multiplier, 7.8%, 7.0%
+# and 5.9% with the Mammen multiplier.
+rwild_small_sample_caution <- function() {
+  paste(
+    "with skewed errors the wild bootstrap does not hold its level",
+    "here: in the package's validation study it rejected a true null hypothesis 6% to 8% of",
+    "the time at the 5% level at 30 to 100 observations. Check the residuals for skewness",
+    "and read p-values near the level with caution."
+  )
+}
+
 #' Suggest diagnostics based on dataset profile
 #'
 #' Uses heuristics that consider sample size, dimensionality, missingness, and
@@ -178,9 +196,19 @@ suggestDiagnosticsForProfile <- function(profile) {
     list(test = "white", rationale = "Detects general forms of non-constant variance.")
   )
 
+  # The wild bootstrap holds its level at 30 to 100 observations with normal
+  # and t5 errors, but not with skewed ones (inst/validation/
+  # wild-multiplier-size.R); its rationale says what the warning of
+  # warnDiagnosticAssumptions() says.
   if (identical(profile$size_bucket, "small")) {
     recommendations <- c(recommendations, list(
-      list(test = "wild_bootstrap", rationale = "Bootstrap inference performs well in small samples."),
+      list(
+        test = "wild_bootstrap",
+        rationale = paste(
+          "Holds its level with normal and heavy-tailed errors, but",
+          rwild_small_sample_caution()
+        )
+      ),
       list(test = "rank_permutation", rationale = "Rank-based test is robust when asymptotics are unreliable.")
     ))
   }
@@ -520,12 +548,7 @@ warnDiagnosticAssumptions <- function(profile, interpretations, model, data, tes
   }
 
   if (identical(profile$size_bucket, "small")) {
-    warnings <- c(warnings, paste(
-      "Sample size is limited; with skewed errors the wild bootstrap does not hold its level",
-      "here: in the package's validation study it rejected a true null hypothesis 6% to 8% of",
-      "the time at the 5% level at 30 to 100 observations. Check the residuals for skewness",
-      "and read p-values near the level with caution."
-    ))
+    warnings <- c(warnings, paste("Sample size is limited;", rwild_small_sample_caution()))
   }
 
   if (identical(profile$size_bucket, "very_large")) {
@@ -572,7 +595,11 @@ buildDiagnosticDecisionTree <- function(profile, recommendations) {
       step = 1L,
       condition = "Is the sample size < 100?",
       decision = if (identical(profile$size_bucket, "small")) "Yes" else "No",
-      recommendation = if (identical(profile$size_bucket, "small")) "Emphasise wild bootstrap and rank permutation tests." else "Standard regression diagnostics appropriate."
+      recommendation = if (identical(profile$size_bucket, "small")) {
+        paste("Add the wild bootstrap and rank permutation tests;", rwild_small_sample_caution())
+      } else {
+        "Standard regression diagnostics appropriate."
+      }
     ),
     list(
       step = 2L,
