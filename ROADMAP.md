@@ -891,7 +891,11 @@ after it.
   Windows). Over a corpus of 46 calls the 20 with no tie broken by rounding
   are `identical()` to before, and 26 change, by 7.9e-7 to 3.2e-5 of the
   statistic on continuous responses (`test-fligner-killeen-ties.R`,
-  `test-pass-b-reference.R`).
+  `test-pass-b-reference.R`). In the identity harness of the model context
+  (`scripts/model-context-identity.R`), 128 of the 351 calls of the test
+  change, by 1.1e-6 to 4.4e-6 of the statistic, and the 91 of them whose cell
+  has another fit of the model as its reference are now `identical()` to it;
+  the other 19,628 calls are `identical()` to main.
 - [ ] **`performFlignerKilleenTest()` on residuals whose ties the fit
   broke.** The tolerance of the item above is that of the centring. On an
   integer response regressed on a factor, residuals that are equal in exact
@@ -903,10 +907,10 @@ after it.
   60 with `rpois(n, 300)`: the rounding of the fit is relative to the size of
   the response rather than of the residuals, and grows with the number of
   observations, so no fixed multiple of `eps * max(abs(r))` covers it. The
-  statistic of the `lm` then stays off that of
-  exact ties: from `set.seed(3)` with 60 observations in groups of 15, 6.10,
-  where the `glm` and `stats::fligner.test()` of the responses give 6.66
-  (4.49 before 0.16.0). Found in 0.16.0 with the item above; recorded, not
+  statistic of the `lm` then stays off that of exact ties: from
+  `set.seed(3)` with 60 observations in groups of 15, 6.10, where the `glm`
+  and `stats::fligner.test()` of the responses give 6.66 (4.49 before
+  0.16.0). Found in 0.16.0 with the item above; recorded, not
   fixed. A fix changes the value on such data.
 - [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
   Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero

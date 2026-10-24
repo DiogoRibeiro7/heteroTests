@@ -37,7 +37,8 @@ test_that("the lm and the Gaussian glm of the same model give the same statistic
 test_that("a tie that rounding broke at a group median is ranked as a tie", {
   # Two groups of four whose middle residuals, 0.1 and 0.3 in the first and
   # 0.7 and 1.3 in the second, sit at the same distance from the median in
-  # exact arithmetic but not after rounding.
+  # exact arithmetic. In IEEE arithmetic the median of the first is the
+  # double nearest 0.2, and 0.1 - 0.2 and 0.3 - 0.2 differ in size.
   x <- c(-2.5, 0.1, 0.3, 2.2, -1.9, 0.7, 1.3, 3.1)
   g <- factor(rep(c("a", "b"), each = 4))
   centred <- x - tapply(x, g, stats::median)[g]
