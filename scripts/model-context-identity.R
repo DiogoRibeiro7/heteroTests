@@ -291,13 +291,15 @@ identity_increment5 <- c(identity_panel_tests, "performScatterDiagnostic")
 # scatter diagnostic) on a fit that dropped rows, whose data they refused for
 # their number of rows; R2, a pair of `id` and `time` that holds two
 # observations, which Pesaran's test computed with, and refuses (decision 13);
-# and N17, "frame" and M8 for these.
+# N12, an unbalanced panel, on which Pesaran's test stopped or recycled the
+# residuals of a unit and returned a wrong value, and which it refuses
+# (decided by the author on 2026-10-24); and N17, "frame" and M8 for these.
 identity_allowed <- list(
   error_to_value = c(
     "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12")
 )
 # The defects of increments 2 to 5 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
@@ -315,7 +317,8 @@ identity_defect_scope <- list(
   B3 = identity_panel_tests,
   B4 = "performScatterDiagnostic",
   B16 = identity_increment5,
-  R2 = identity_pesaran
+  R2 = identity_pesaran,
+  N12 = identity_pesaran
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -360,19 +363,21 @@ identity_runner_allowed <- c(
 # without `data` or with its model frame, where the five lacked the group of
 # `data` first. Increment 5: for the panel tests, runPanelTests() and the
 # scatter diagnostic, the rule on ties (B14), the frame message and M8, as
-# for the group tests; for Pesaran's test on a fit that dropped some rows of
-# some units, whose data it refused for their number of rows (B16), the error
-# it stopped with on the rows of such a fit before 0.16.0, on the unbalanced
-# panel (N12, a separate pull request); and for Pesaran's test on a repeated
-# pair of `id` and `time`, where it stopped on the unbalanced panel of a fit
-# to repeated rows or refused data with row names in another order, the
-# refusal of the pair (R2). Any other change of a message is unexpected, but
-# those of identity_m1() and identity_m1_panel() below.
+# for the group tests; for Pesaran's test on an unbalanced panel (N12), as
+# that of a fit that dropped some rows of some units, whose data it refused
+# for their number of rows (B16) or on whose rows it stopped ("number of
+# items to replace is not a multiple of replacement length"), the refusal of
+# an unbalanced panel (decided by the author on 2026-10-24); and for
+# Pesaran's test on a repeated pair of `id` and `time`, where it stopped on
+# the unbalanced panel of a fit to repeated rows or refused data with row
+# names in another order, the refusal of the pair (R2). Any other change of a
+# message is unexpected, but those of identity_m1() and identity_m1_panel()
+# below.
 identity_m8 <- c(
   "does not reproduce its residuals from its design and coefficients",
   "not those its coefficients were fitted with"
 )
-identity_n12_message <- "number of items to replace is not a multiple of replacement length"
+identity_n12_message <- "needs a balanced panel, every unit observed at the same periods"
 identity_r2_message <- "needs one observation of the fit for each pair of `id` and `time`"
 identity_messages <- list(
   R4 = "needs a model with one response",
@@ -388,6 +393,7 @@ identity_messages <- list(
   B14 = "tie on every column of the model frame that is compared",
   M8 = identity_m8,
   B16 = identity_n12_message,
+  N12 = identity_n12_message,
   R2 = identity_r2_message
 )
 identity_message_scope <- list(
@@ -399,6 +405,7 @@ identity_message_scope <- list(
   B14 = c(identity_reads_data, identity_increment4, identity_increment5),
   M8 = c(identity_increment4, identity_increment5),
   B16 = identity_pesaran,
+  N12 = identity_pesaran,
   R2 = identity_pesaran
 )
 # M1, for the tests that read a variable of `data` besides the model (the
@@ -501,8 +508,10 @@ identity_new_refusals <- list(
   # fit (increment 4), and the functions of increment 5.
   M8 = identity_m8,
   # Pesaran's test on a repeated pair of `id` and `time` (increment 5,
-  # decision 13).
-  R2 = identity_r2_message
+  # decision 13), and on an unbalanced panel, on which it recycled the
+  # residuals of a unit (N12, decided 2026-10-24).
+  R2 = identity_r2_message,
+  N12 = identity_n12_message
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the

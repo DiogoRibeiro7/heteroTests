@@ -501,6 +501,22 @@ context_cells <- function() {
   panel_cell("unit_lm_tibble", function() {
     list(m = unit_fit("lm", d_unit), data = dplyr::as_tibble(d_unit))
   }, form = "tibble", needs = "dplyr", reference = "panel/unit_lm_complete", defect = "B16")
+  # An unbalanced panel (N12): unit 1 observed at 5 of the 10 periods, fitted
+  # to those rows, whose residuals Pesaran's test recycled over the periods
+  # the unit lacks and returned a wrong value; and the fit that drops those
+  # rows from the full data, which it refused for their number of rows. Since
+  # increment 5 it refuses both, until the statistic of an unbalanced panel
+  # is computed (decided 2026-10-24); the other tests give the value of the
+  # fit to the rows it keeps.
+  half_unit <- d[-(1:5), ]
+  panel_cell("half_unit", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = half_unit), data = half_unit)
+  }, form = "data_frame")
+  d_half <- d
+  d_half$x2[1:5] <- NA
+  panel_cell("half_unit_full", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_half), data = d_half)
+  }, form = "data_frame", reference = "panel/half_unit", defect = "B16")
   repeated_pair <- d
   repeated_pair$time[2] <- 5L
   panel_cell("repeated_id_time", function() {
@@ -692,6 +708,12 @@ context_cells <- function() {
   edited <- "does not reproduce its residuals from its design and coefficients"
   add(context_cell("class/edited", "class", edited_fit, expect = edited, defect = "M8"))
   class_forms("edited", edited_fit, expect = edited, defect = "M8")
+  # N12: the panels Pesaran's test finds unbalanced, which it stopped on or
+  # computed with recycled residuals, and refuses since increment 5.
+  cells <- lapply(cells, function(cell) {
+    if (context_unbalanced(cell)) cell$defect <- unique(c(cell$defect, "N12"))
+    cell
+  })
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
 }
@@ -872,17 +894,20 @@ context_frame_variables <- list(
   median = "x2", cut = "x2", factor = "x1", log_factor = character()
 )
 
-# The cells of a fit that dropped rows of some units and kept others, whose
-# panel is unbalanced: Pesaran's test arranges its residuals in a matrix of
-# periods by units and stops there ("number of items to replace is not a
-# multiple of replacement length"), as before 0.16.0 on the rows of such a
-# fit (N12, a separate pull request).
+# The cells whose panel is unbalanced, a fit that dropped rows of some units
+# and kept others, or a fit to such rows: Pesaran's test arranges its
+# residuals in a matrix of periods by units, and before increment 5 stopped
+# there ("number of items to replace is not a multiple of replacement
+# length"), or recycled the residuals of a unit (N12). It refuses such a panel
+# since then ("needs a balanced panel"), until the statistic of an unbalanced
+# panel is computed (decided 2026-10-24).
 context_unbalanced <- function(cell) {
   missing_rows <- identical(cell$block, "missing") &&
     !cell$id %in% c("missing/null", "missing/median_null", "missing/na_exclude")
   missing_rows || identical(cell$block, "terms") && identical(cell$terms, "cut") ||
     cell$id %in% c("group/na_dropped", "group/na_dropped_shuffled", "group/na_dropped_renumbered",
-                   "group/na_factor", "group/na_factor_complete")
+                   "group/na_factor", "group/na_factor_complete", "panel/half_unit",
+                   "panel/half_unit_full")
 }
 
 # The reference of the panel tests and the scatter diagnostic on a cell of a
@@ -980,7 +1005,7 @@ context_cell_for_panel <- function(fn, cell) {
     cell$expect <- "needs one observation of the fit for each pair of `id` and `time`"
     cell$reference <- NULL
   } else if (pesaran && context_unbalanced(cell)) {
-    cell$expect <- "number of items to replace is not a multiple of replacement length"
+    cell$expect <- "needs a balanced panel, every unit observed at the same periods"
     cell$reference <- NULL
   } else if (cell$id %in% names(context_dropped_references)) {
     cell$reference <- context_dropped_references[[cell$id]]
@@ -1050,7 +1075,7 @@ context_runnable <- function(fns = context_migrated) {
 #   scatter diagnostic beside the model (context_cell_for_panel()): without
 #   `data` the panel tests are refused (M1) and the others need a data frame;
 #   the model frame lacks `id` and `time`; Pesaran's test refuses a repeated
-#   pair of `id` and `time` (R2) and stops on the unbalanced panel of a fit
+#   pair of `id` and `time` (R2) and an unbalanced panel, as that of a fit
 #   that dropped rows of some units (N12); and a fit with na.exclude is read
 #   as before.
 context_cell_for <- function(fn, cell) {

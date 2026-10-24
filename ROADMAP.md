@@ -831,9 +831,9 @@ after it.
   scatter diagnostic, which give the value of the fit to the complete rows
   (2.016, p = 0.156, for the random-effects test) on the full data, shuffled
   or as a tibble. Pesaran's test now reaches the panel of the fit, which is
-  unbalanced, and stops there as it stopped on the complete rows (the item
-  below); on a fit that drops every row of a unit, whose panel stays
-  balanced, it gives the value of the fit to the complete rows.
+  unbalanced, and refuses it (the item below); on a fit that drops every row
+  of a unit, whose panel stays balanced, it gives the value of the fit to the
+  complete rows.
 - [ ] **Pesaran's test on an unbalanced panel** (N12 of the design of the
   model context). `performPesaranTest()` fills a matrix of periods by units
   with the residuals of each unit in the order of its periods, and a unit
@@ -848,10 +848,18 @@ after it.
   the periods both hold (Pesaran 2015, unbalanced panels), gives -0.373. As
   in 0.14.0; the fifth step of the model context lets more data reach it:
   the full data of a fit that dropped half the rows of a unit, which the test
-  refused for their number of rows, now give the recycled value, as the
-  complete rows of such a fit did. A fix computes the statistic of an
-  unbalanced panel, or refuses one; it changes what such calls return, a
-  decision for the author. Recorded, not fixed, in increment 5.
+  refused for their number of rows, would give the recycled value, as the
+  complete rows of such a fit did. Decided by the author on 2026-10-24: refuse
+  now, fix later. Since the fifth step `performPesaranTest()` refuses a panel
+  whose units are not all observed at the same periods ("needs a balanced
+  panel, every unit observed at the same periods", of class
+  `heteroTests_model_context_error`), on every route, `runPanelTests()`
+  included, so it never returns the recycled value, and the error of the
+  assignment can no longer be reached; a fit that drops every row of a unit
+  keeps a balanced panel and is tested. The fix, a pull request of its own,
+  computes the statistic of an unbalanced panel on the periods each pair of
+  units shares, as `plm::pcdtest()` does (Pesaran 2015), and removes the
+  refusal; it changes what such calls return, announced in bold.
 - [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
@@ -1414,7 +1422,7 @@ after it.
     with `model = FALSE` whose data are gone given a shuffled tibble, and an
     edited fit (M8), from which they computed a value, are refused, as by the
     first twenty. On a fit that dropped some rows of some units Pesaran's test
-    stops on the unbalanced panel (N12, the item above). A fit with
+    refuses the unbalanced panel (N12, the item above). A fit with
     `na.action = na.exclude` is read as before, by position, until step 9.
     Done in 0.16.0.
   - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
