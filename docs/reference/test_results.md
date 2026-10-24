@@ -105,10 +105,9 @@ variables as columns of `data`. Data without row names of their own in another o
 than the fit, or with rows in
 front of those of the fit, are refused, as are repeated row names, and a model frame rebuilt for a fit with
 `model = FALSE` from data that changed after the fit. Data with row names of their own are matched by name, in
-any order, except by
-[`performPesaranTest()`](performPesaranTest.md), [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md) and
-[`performScatterDiagnostic()`](performScatterDiagnostic.md), which read `data` by position and need its rows in the order of the
-fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
+any order; until 0.16.0 [`performPesaranTest()`](performPesaranTest.md), [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md) and
+[`performScatterDiagnostic()`](performScatterDiagnostic.md) read `data` by position, and refused such data in another order than
+the fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
 
 Since 0.16.0 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md), [`performKoenkerTest()`](performKoenkerTest.md),
 [`performRankPermutationTest()`](performRankPermutationTest.md), [`performHighDimensionalTest()`](performHighDimensionalTest.md), the studentized
@@ -117,9 +116,11 @@ Breusch-Pagan statistic ([`performStudentizedBPTest()`](performStudentizedBPTest
 [`performGQTest()`](performGQTest.md), [`performQuantileRegressionTest()`](performQuantileRegressionTest.md), [`performGlejserTest()`](performGlejserTest.md),
 [`performParkTest()`](performParkTest.md), [`performSzroeterTest()`](performSzroeterTest.md) with the registered `"szroeter"`,
 [`performHarrisonMcCabeTest()`](performHarrisonMcCabeTest.md), [`performHartleyFmaxTest()`](performHartleyFmaxTest.md),
-[`performSpatialHeteroTest()`](performSpatialHeteroTest.md) and the five group tests, [`performLeveneTest()`](performLeveneTest.md),
+[`performSpatialHeteroTest()`](performSpatialHeteroTest.md), the five group tests, [`performLeveneTest()`](performLeveneTest.md),
 [`performBrownForsytheTest()`](performBrownForsytheTest.md), [`performFlignerKilleenTest()`](performFlignerKilleenTest.md),
-[`performBartlettTest()`](performBartlettTest.md) and [`performOBrienTest()`](performOBrienTest.md), read the response, the design, the
+[`performBartlettTest()`](performBartlettTest.md) and [`performOBrienTest()`](performOBrienTest.md), the two panel tests,
+[`performPesaranTest()`](performPesaranTest.md) and [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md), and so
+[`runPanelTests()`](runPanelTests.md), and [`performScatterDiagnostic()`](performScatterDiagnostic.md), read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
 the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET reads
@@ -130,7 +131,12 @@ The Goldfeld-Quandt, Szroeter and Harrison-McCabe tests read their `order_by`, G
 without `data`, from the model frame when it holds the variable under its own name ("The following variables
 are missing from the model frame of `model`" otherwise). Hartley's test refuses a group that is missing at an
 observation of the fit; the group tests leave such observations out, with the warning "Removed N observations due
-to missing values in ...", as before 0.16.0. The registered `"szroeter"` orders by the fitted values, which it computes
+to missing values in ...", as before 0.16.0. The panel tests read their `id` and `time`, and the scatter
+diagnostic its `vars`, from the confirmed rows of `data`; without `data` the panel tests read them from
+the model frame, when it holds them under their own names, and the scatter diagnostic needs `data`. Pesaran's
+test refuses a pair of `id` and `time` that holds two observations of the fit, and a unit or a period
+missing at an observation of the fit; a fit with `na.action = na.exclude` is read by the three as before 0.16.0,
+by position, until a later step. The registered `"szroeter"` orders by the fitted values, which it computes
 from the fit, and the spatial test reads no column of `data`: its `listw` lists the observations of the
 fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (`1e-7` for an
 `lm`, `1e-11` for a `glm`). These tests
@@ -147,7 +153,7 @@ coefficients", "The weights of the model are not those its coefficients were fit
 values, on which it is then tested (RESET, which builds its context without `data`, refuses it). RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
 `mgcv::gam()` fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
-fit of its design, until a later step settles which tests take it; the other sixteen test it as before 0.16.0. The
+fit of its design, until a later step settles which tests take it; the others test it as before 0.16.0. The
 residuals of a `gam` carry no names, and these tests match `data` to its observations by the row names of
 its model frame; the tests that are not built on the context yet and read a column of `data` match them by
 position. The check of an edited fit is a guard against accidental edits, not a proof
@@ -157,8 +163,9 @@ undetected once the response is above about `1e7`. These refusals have class `he
 [`runHeteroTests()`](runHeteroTests.md) and [`runDiagnostics()`](runDiagnostics.md) keep, as they keep that of a refusal of
 `data`, without running another test under the name of the one refused. A test that reads a column of
 `data` the model frame does not hold, as the rank permutation, Goldfeld-Quandt, Szroeter and
-Harrison-McCabe tests do with their `order_by`, Glejser's and Park's with their `variable` and Hartley's
-and the group tests with their `group`, refuses numbered rows taken in the order of the fit if two rows of the
+Harrison-McCabe tests do with their `order_by`, Glejser's and Park's with their `variable`, Hartley's
+and the group tests with their `group`, the panel tests with their `id` and `time` and the scatter
+diagnostic with its `vars`, refuses numbered rows taken in the order of the fit if two rows of the
 fit tie on every
 compared column. On a call with more than one defect, the first one
 reported may differ from before 0.16.0, since the rows of `data` are now matched before the checks of the model.

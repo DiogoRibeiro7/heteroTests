@@ -24,8 +24,10 @@ guarded_tests <- c(
   "performHartleyFmaxTest", "performOBrienTest", "performPesaranTest",
   "performBPRandomEffectsTest"
 )
-# These read `data` by position, the i-th row with the i-th residual, so they
-# also refuse data with its own row names in another order than the fit.
+# These read `data` by position, the i-th row with the i-th residual, so from
+# 0.15.0 they also refused data with its own row names in another order than
+# the fit, and rows after those of the fit. Since 0.16.0 they read the rows the
+# model context confirmed, as the others match them by name (below).
 positional_tests <- c(
   "performPesaranTest", "performBPRandomEffectsTest", "performScatterDiagnostic"
 )
@@ -168,14 +170,11 @@ test_that("rows in front of those of the fit are refused, rows after them are no
     expect_refused(fn, m, front, info = fn, recipes = recipes)
   }
   # Rows after those of the fit leave the rows it reads where they were: the
-  # tests that match by name give the value on the data of the fit.
-  for (fn in setdiff(names(recipes), positional_tests)) {
+  # tests that match by name give the value on the data of the fit, and since
+  # 0.16.0 so do those that read by position, which refused another number of
+  # rows ("requires `data` with 120 observations").
+  for (fn in names(recipes)) {
     expect_same_result(guard_run(fn, m, end, recipes), guard_run(fn, m, d, recipes), info = fn)
-  }
-  # The tests that read by position refuse another number of rows, with the
-  # message on the number of rows the random-effects test already gave.
-  for (fn in positional_tests) {
-    expect_error(guard_run(fn, m, end, recipes), "requires `data` with 120 observations", info = fn)
   }
 })
 
@@ -202,18 +201,12 @@ test_that("data with its own row names, shuffled, give the values they gave", {
   set.seed(5)
   shuffled <- d[sample(nrow(d)), ]
   recipes <- guard_recipes()
-  for (fn in setdiff(names(recipes), positional_tests)) {
-    expect_same_result(guard_run(fn, m, shuffled, recipes), guard_run(fn, m, d, recipes), info = fn)
-  }
   # The panel tests and the scatter diagnostic read such data against other
-  # residuals, which gave another value: they refuse it.
-  for (fn in positional_tests) {
-    expect_error(
-      guard_run(fn, m, shuffled, recipes),
-      "it reads `data` by position, the i-th row with the i-th observation",
-      class = "heteroTests_data_rows_error",
-      info = fn
-    )
+  # residuals, which gave another value, and from 0.15.0 refused it ("it reads
+  # `data` by position, the i-th row with the i-th observation"); since
+  # 0.16.0 they match it by name too.
+  for (fn in names(recipes)) {
+    expect_same_result(guard_run(fn, m, shuffled, recipes), guard_run(fn, m, d, recipes), info = fn)
   }
 })
 
@@ -646,15 +639,16 @@ test_that("messages name the function called and say why", {
     suppressWarnings(performWildBootstrapTest(m_short, tb, B = 9, progress = FALSE)),
     "^performWildBootstrapTest\\(\\) cannot match.*afresh"
   )
-  # The scatter diagnostic reads by position and cannot match the names of a
-  # fit to character row names against a tibble.
+  # The scatter diagnostic read by position and could not match the names of
+  # a fit to character row names against a tibble ("the row names of `data`
+  # are not those of the fit"); since 0.16.0 it takes the tibble in the order
+  # of the fit, which holds one row per observation.
   dc <- d
   rownames(dc) <- paste0("obs", seq_len(nrow(dc)))
   m_c <- lm(y ~ x1 + x2, data = dc)
-  expect_error(
+  expect_identical(
     performScatterDiagnostic(m_c, dplyr::as_tibble(dc), "x1"),
-    "the row names of `data` are not those of the fit",
-    fixed = TRUE
+    performScatterDiagnostic(m, d, "x1")
   )
   expect_identical(
     performScatterDiagnostic(m_c, dc, "x1"),
@@ -796,12 +790,19 @@ test_that("a column from outside data does not need telling rows apart", {
   swapped[tied, ] <- swapped[rev(tied), ]
   rownames(swapped) <- NULL
   expect_error(performKoenkerTest(m_wc, swapped), "(weights) differs", fixed = TRUE)
-  # No column at all can be compared: the data cannot be confirmed.
+  # No column at all can be compared: the data cannot be confirmed, by the
+  # tests that still call the guard. The tests built on the model context, the
+  # scatter diagnostic among them since 0.16.0, look for the variables of the
+  # model first, and `d` is not a column of `data`.
   d <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
   d$y <- 1 + d$x + d$z + rnorm(n)
   expect_error(
-    performScatterDiagnostic(lm(d$y ~ d$x + d$z), d, "x"),
+    performWildBootstrapTest(lm(d$y ~ d$x + d$z), d, B = 9, progress = FALSE),
     "no column can be compared", fixed = TRUE
+  )
+  expect_error(
+    performScatterDiagnostic(lm(d$y ~ d$x + d$z), d, "x"),
+    "The following variables are missing from input data: d.", fixed = TRUE
   )
 })
 

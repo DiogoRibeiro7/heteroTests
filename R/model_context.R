@@ -34,8 +34,11 @@
 # performHarrisonMcCabeTest(), performHartleyFmaxTest() and
 # performSpatialHeteroTest(), and (increment 4) the five group tests,
 # performLeveneTest(), performBrownForsytheTest(), performFlignerKilleenTest(),
-# performBartlettTest() and performOBrienTest() (rcontext_group_rows()); the
-# other tests still prepare the model and data with rdata_or_model_frame() and
+# performBartlettTest() and performOBrienTest() (rcontext_group_rows()), and
+# (increment 5) performPesaranTest(), performBPRandomEffectsTest() and
+# performScatterDiagnostic() (rcontext_columns_at_fit()), and so
+# runPanelTests(), which runs the two panel tests; the other tests still
+# prepare the model and data with rdata_or_model_frame() and
 # prepare_model_data_for_test().
 
 #' Build the model context of a test
@@ -742,6 +745,107 @@ rcontext_group_rows <- function(ctx, data, group) {
     residuals <- residuals[-cleaned$removed_cases]
   }
   list(residuals = residuals, data = cleaned$data)
+}
+
+#' The residuals and the columns of `data` that a panel test or the scatter
+#' diagnostic reads
+#'
+#' [performPesaranTest()], [performBPRandomEffectsTest()] and
+#' [performScatterDiagnostic()] read columns of `data` beside the residuals of
+#' the fit: the units and the periods of a panel, the variables the absolute
+#' residuals are correlated with. Before 0.16.0 they read the i-th row of
+#' `data` with the i-th residual, and from 0.15.0 refused `data` they could not
+#' show to be in the order of the fit (defects B3 and B4 of the design of the
+#' model context): rows with names of their own in another order, rows after
+#' those of the fit, and the data of a fit that dropped rows (B16). The
+#' columns are now read at the rows the alignment confirmed, in the order of
+#' the fit ([rcontext_variables()]), or without `data` from the model frame,
+#' and the residuals are the Pearson residuals of the fit
+#' ([rcontext_pearson()]), which refuses a zero weight, as before.
+#'
+#' A fit with `na.action = na.exclude` is read as before until the step of
+#' the model context that moves `na.exclude` (B13): its Pearson residuals,
+#' padded with `NA` at the rows the fit dropped, against the rows of `data`,
+#' or of the model frame, by position, which must then hold the rows of the
+#' fit in its order ([rcheck_data_in_fit_order()]).
+#'
+#' @param ctx The model context.
+#' @param data The `data` argument of the calling test, or `NULL`.
+#' @param columns Character vector of the columns the test reads; its names,
+#'   when given, name the elements of `columns` in the result.
+#' @param fn Character scalar naming the calling test.
+#' @param test_label Character scalar naming the test in the messages on rows
+#'   that `data` lacks.
+#' @return A list with `residuals`, the Pearson residuals, `columns`, a named
+#'   list of the columns, each with one value per residual, and `padded`,
+#'   `TRUE` for the residuals of a fit with `na.exclude`, read as before.
+#' @keywords internal
+#' @noRd
+rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
+  roles <- names(columns)
+  if (is.null(roles)) {
+    roles <- columns
+  }
+  roles[!nzchar(roles)] <- columns[!nzchar(roles)]
+  # Without `data`, a column the model frame does not hold under its own name
+  # is refused here (M1), for a fit with na.exclude too.
+  values <- rcontext_variables(ctx, data, stats::setNames(columns, roles))
+  if (inherits(ctx$na_action, "exclude")) {
+    rows <- if (is.null(data)) ctx$frame else data
+    rcheck_data_matches_model(ctx$model, rows, test_label)
+    residuals <- rpearson_residuals(ctx$model)
+    rcheck_data_in_fit_order(residuals, rows, fn, test_label)
+    values <- stats::setNames(lapply(columns, function(v) rows[[v]]), roles)
+    return(list(residuals = residuals, columns = values, padded = TRUE))
+  }
+  list(residuals = rcontext_pearson(ctx), columns = values, padded = FALSE)
+}
+
+#' Refuse a panel in which a unit holds two observations of one period
+#'
+#' [performPesaranTest()] arranges the residuals in a matrix of periods by
+#' units, one cell for each pair of `id` and `time`. A pair that holds two
+#' observations of the fit puts one of them in the cell of another period, and
+#' before 0.16.0 the statistic was computed so without an error. Such panels
+#' are refused (decision 13 of the design of the model context).
+#'
+#' @param id_values,time_values The units and the periods, one per
+#'   observation of the fit, without missing values.
+#' @param id,time Character scalars, the names of the two columns.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_repeated_panel_cells <- function(id_values, time_values, id, time, fn) {
+  pairs <- data.frame(id = id_values, time = time_values, stringsAsFactors = FALSE)
+  repeated <- duplicated(pairs)
+  if (!any(repeated)) {
+    return(invisible(NULL))
+  }
+  cells <- unique(pairs[repeated, , drop = FALSE])
+  counts <- vapply(seq_len(nrow(cells)), function(k) {
+    sum(pairs$id == cells$id[k] & pairs$time == cells$time[k])
+  }, integer(1))
+  shown <- utils::head(seq_len(nrow(cells)), 3L)
+  listed <- paste(
+    sprintf("%s = %s and %s = %s (%d observations)", id, as.character(cells$id[shown]), time,
+            as.character(cells$time[shown]), counts[shown]),
+    collapse = "; "
+  )
+  if (nrow(cells) > 3L) {
+    listed <- sprintf("%s, and %d more", listed, nrow(cells) - 3L)
+  }
+  stop(
+    sprintf(
+      paste0(
+        "%s() needs one observation of the fit for each pair of `%s` and `%s`, and %d %s ",
+        "more than one: %s. The residuals are arranged in a matrix of periods by units, ",
+        "with one cell for each pair. Pass a panel with one row per unit and period."
+      ),
+      fn, id, time, nrow(cells), if (nrow(cells) == 1L) "pair holds" else "pairs hold", listed
+    ),
+    call. = FALSE
+  )
 }
 
 #' Warn about the incomplete rows of `data`, dropping nothing

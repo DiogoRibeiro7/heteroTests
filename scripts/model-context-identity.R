@@ -17,6 +17,8 @@
 #     perform*Test() but performBoxMTest(), which tests data, not a model),
 #     and the recipes of `identity_extra_recipes` below, under set.seed(7), on
 #     every cell of the matrix of tests/testthat/helper-model-context.R;
+#     among them (increment 5) the scatter diagnostic and runPanelTests() with
+#     its options, which are not registered, as the panel tests are not;
 #   - the default battery of runHeteroTests() on every cell, and the
 #     registered names of increments 2 and 3 (`identity_registry_tests`,
 #     `identity_registry_runner_szroeter`, `identity_registry_runner_spatial`);
@@ -167,6 +169,18 @@ identity_extra_recipes <- list(
     d <- identity_with_listw(m, d)
     set.seed(7)
     test_factory$run_test("spatial_hetero", m, d)
+  },
+  # Increment 5: the scatter diagnostic, which returns a correlation for each
+  # variable, as in the matrix (context_recipes() of helper-model-context.R),
+  # and runPanelTests() with both of its tests, with the random-effects test
+  # alone, without `time`, and with Pesaran's test alone.
+  performScatterDiagnostic = function(m, d) performScatterDiagnostic(m, d, c("x1", "x2")),
+  runPanelTests = function(m, d) runPanelTests(m, d, id = "id", time = "time"),
+  `runPanelTests(tests = "bp_random")` = function(m, d) {
+    runPanelTests(m, d, id = "id", tests = "bp_random")
+  },
+  `runPanelTests(tests = "pesaran")` = function(m, d) {
+    runPanelTests(m, d, id = "id", time = "time", tests = "pesaran")
   }
 )
 # The functions whose values may change: those built on the context, the
@@ -184,6 +198,7 @@ identity_affected <- c(
   "performHartleyFmaxTest", "performSpatialHeteroTest",
   "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
   "performBartlettTest", "performOBrienTest",
+  "performPesaranTest", "performBPRandomEffectsTest",
   names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
   identity_registry_runner3
 )
@@ -227,6 +242,21 @@ identity_increment4 <- c(
   "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
   "performBartlettTest", "performOBrienTest"
 )
+# The calls of increment 5: the two panel tests, the scatter diagnostic and
+# runPanelTests() with its options. `identity_panel_tests` are the calls that
+# run a panel test, `identity_pesaran` those that run Pesaran's, which reads
+# `time` and refuses a repeated pair of `id` and `time` (R2), and
+# `identity_panel_readers` the two tests, which read `id` and `time` from the
+# model frame without `data` (M1); the scatter diagnostic and runPanelTests()
+# need `data`.
+identity_panel_runner_bp <- "runPanelTests(tests = \"bp_random\")"
+identity_panel_runner_pesaran <- "runPanelTests(tests = \"pesaran\")"
+identity_pesaran <- c("performPesaranTest", "runPanelTests", identity_panel_runner_pesaran)
+identity_panel_tests <- c(
+  identity_pesaran, "performBPRandomEffectsTest", identity_panel_runner_bp
+)
+identity_panel_readers <- c("performPesaranTest", "performBPRandomEffectsTest")
+identity_increment5 <- c(identity_panel_tests, "performScatterDiagnostic")
 # The defects of the design whose cells may change, by the kind of change.
 # Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
 # every test built on it, and so for those of increment 2 too. Increment 2:
@@ -254,25 +284,38 @@ identity_increment4 <- c(
 # increment 3 used, and refuse. Increment 4: N17 and "frame" for the five
 # group tests, which matched a gam by position too and used such data; and
 # M8, a fit whose coefficients were changed after the fit, which the five
-# tested and refuse, as every test built on the context does.
+# tested and refuse, as every test built on the context does. Increment 5: B3
+# and B4, the panel tests and the scatter diagnostic, which read `data` by
+# position and refused data with row names of their own in another order
+# than the fit, or rows after those of the fit; B16, the panel tests (and the
+# scatter diagnostic) on a fit that dropped rows, whose data they refused for
+# their number of rows; R2, a pair of `id` and `time` that holds two
+# observations, which Pesaran's test computed with, and refuses (decision 13);
+# and N17, "frame" and M8 for these.
 identity_allowed <- list(
-  error_to_value = c("B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null"),
+  error_to_value = c(
+    "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16"
+  ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame", "M8")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2")
 )
-# The defects of increments 2, 3 and 4 apply to the calls of the tests they
+# The defects of increments 2 to 5 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
 identity_defect_scope <- list(
   B7 = identity_increment2,
   N1 = c("performGQTest", identity_quantile, identity_registry_runner),
-  frame = c(identity_increment2, identity_increment3, identity_increment4),
+  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5),
   N6 = identity_reset,
   null = c("registry student_bp", "registry szroeter"),
   gam = identity_increment2,
   N4 = "performHarrisonMcCabeTest",
-  N17 = c(identity_reads_data, identity_increment4),
+  N17 = c(identity_reads_data, identity_increment4, identity_increment5),
   gam_offset = c("registry szroeter", identity_registry_runner_szroeter),
-  M8 = identity_increment4
+  M8 = c(identity_increment4, identity_increment5),
+  B3 = identity_panel_tests,
+  B4 = "performScatterDiagnostic",
+  B16 = identity_increment5,
+  R2 = identity_pesaran
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -315,12 +358,22 @@ identity_runner_allowed <- c(
 # guard (the rule on ties), where they lacked rows of the fit before (B14).
 # Increment 4: the same for the five group tests, and M8 for an edited fit
 # without `data` or with its model frame, where the five lacked the group of
-# `data` first. Any other change of a message is unexpected, but those of
-# identity_m1() below.
+# `data` first. Increment 5: for the panel tests, runPanelTests() and the
+# scatter diagnostic, the rule on ties (B14), the frame message and M8, as
+# for the group tests; for Pesaran's test on a fit that dropped some rows of
+# some units, whose data it refused for their number of rows (B16), the error
+# it stopped with on the rows of such a fit before 0.16.0, on the unbalanced
+# panel (N12, a separate pull request); and for Pesaran's test on a repeated
+# pair of `id` and `time`, where it stopped on the unbalanced panel of a fit
+# to repeated rows or refused data with row names in another order, the
+# refusal of the pair (R2). Any other change of a message is unexpected, but
+# those of identity_m1() and identity_m1_panel() below.
 identity_m8 <- c(
   "does not reproduce its residuals from its design and coefficients",
   "not those its coefficients were fitted with"
 )
+identity_n12_message <- "number of items to replace is not a multiple of replacement length"
+identity_r2_message <- "needs one observation of the fit for each pair of `id` and `time`"
 identity_messages <- list(
   R4 = "needs a model with one response",
   B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
@@ -333,15 +386,20 @@ identity_messages <- list(
   ),
   gam = "cannot test an mgcv::gam() fit with smooth terms",
   B14 = "tie on every column of the model frame that is compared",
-  M8 = identity_m8
+  M8 = identity_m8,
+  B16 = identity_n12_message,
+  R2 = identity_r2_message
 )
 identity_message_scope <- list(
   B7 = identity_increment2, L1 = c("performGQTest", identity_reads_data),
   L2 = c("performGQTest", identity_reads_data),
-  frame = c(identity_increment2, identity_increment3, identity_increment4),
+  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5),
   null = c("registry student_bp", "registry szroeter"),
-  gam = identity_increment2, B14 = c(identity_reads_data, identity_increment4),
-  M8 = identity_increment4
+  gam = identity_increment2,
+  B14 = c(identity_reads_data, identity_increment4, identity_increment5),
+  M8 = c(identity_increment4, identity_increment5),
+  B16 = identity_pesaran,
+  R2 = identity_pesaran
 )
 # M1, for the tests that read a variable of `data` besides the model (the
 # variable, ordering or groups they name): a call that stopped because `data`,
@@ -394,6 +452,27 @@ identity_m1 <- function(record, before, after) {
   named_after <- strsplit(sub(paste0(lacks, ".*$"), "\\2", b), ", ", fixed = TRUE)[[1L]]
   length(named_after) > 0L && all(named_after %in% named_before)
 }
+# M1 for the panel tests (increment 5): without `data`, on a model frame that
+# does not hold `id` or `time` under their own names, they stopped with
+# "`id` and `time` must be columns in `data`." (or "`id` must be a column in
+# `data`."), and now with M1, of the class of the context, naming those of
+# `id` and `time` the model frame lacks. runPanelTests() and the scatter
+# diagnostic need `data` and give their message of before.
+identity_m1_panel <- function(record, after) {
+  if (!record$fn %in% identity_panel_readers) {
+    return(FALSE)
+  }
+  a <- record$value$message
+  b <- after$value$message
+  lacks <- "^The following variables are missing from the model frame of `model`: (.*?)\\. "
+  if (!grepl("^`id`( and `time`)? must be (a column|columns) in `data`\\.$", a) ||
+        !grepl(lacks, b)) {
+    return(FALSE)
+  }
+  named <- strsplit(sub(paste0(lacks, ".*$"), "\\1", b), ", ", fixed = TRUE)[[1L]]
+  length(named) > 0L && all(named %in% c("id", "time")) &&
+    "heteroTests_model_context_error" %in% after$value$class
+}
 # Decision 1 for Goldfeld-Quandt on an unweighted fit: main refitted each
 # segment from the formula, which computed a poly() basis again on the rows of
 # the segment, so it has no stored-design value there. The basis spans the
@@ -419,8 +498,11 @@ identity_new_refusals <- list(
   # order.
   frame = "cannot use the model frame of `model`",
   # The five group tests on a fit whose coefficients were changed after the
-  # fit (increment 4).
-  M8 = identity_m8
+  # fit (increment 4), and the functions of increment 5.
+  M8 = identity_m8,
+  # Pesaran's test on a repeated pair of `id` and `time` (increment 5,
+  # decision 13).
+  R2 = identity_r2_message
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
@@ -669,7 +751,11 @@ identity_n2 <- function(record, records) {
 # on fit them exactly too: the runner must refuse, and so must the batteries
 # that run it (identity_white_battery), which are main's elsewhere.
 identity_n2_mode <- function(fn, n2, change) {
-  if (is.null(n2)) {
+  # Since main holds N2 and its follow-up, a call identical to main has the
+  # degrees of freedom and the refusals of N2 already: it needs no check of its
+  # own, and counts as identical (increment 5, the first run against such a
+  # main).
+  if (is.null(n2) || identical(change, "identical")) {
     return(NULL)
   }
   kinds <- n2$kinds
@@ -684,9 +770,6 @@ identity_n2_mode <- function(fn, n2, change) {
       return("fallback")
     }
     return("refusal")
-  }
-  if (identical(change, "identical")) {
-    return(NULL)
   }
   if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
     return("chain")
@@ -1107,6 +1190,13 @@ identity_base_fn <- function(fn) {
   if (identical(fn, "test_factory spatial_hetero")) {
     return("registry spatial_hetero")
   }
+  # runPanelTests() with one of its tests sees the cell as that test does.
+  if (identical(fn, identity_panel_runner_bp)) {
+    return("performBPRandomEffectsTest")
+  }
+  if (identical(fn, identity_panel_runner_pesaran)) {
+    return("performPesaranTest")
+  }
   fn
 }
 
@@ -1260,7 +1350,12 @@ identity_run <- function(where, out, root = ".") {
   # with their columns computed beforehand, the fits with an offset as the
   # model of the response minus the offset, and RESET of those fits written
   # out as the nested F test of anova().
-  verified_fns <- intersect(names(recipes), c(identity_increment2, identity_increment3))
+  # Increment 5: the cut() term drops the row at the minimum of x1, whose data
+  # the panel tests and the scatter diagnostic refused (B16); they give the
+  # value of the fit with the factor computed beforehand.
+  verified_fns <- intersect(
+    names(recipes), c(identity_increment2, identity_increment3, identity_increment5)
+  )
   reference_cell <- function(id) list(id = id, form = "data_frame", defect = character())
   for (fit in c("ols", "wls")) {
     for (terms in names(context_precomputed()$formulas)) {
@@ -1303,7 +1398,9 @@ identity_run <- function(where, out, root = ".") {
     add("reference", "white_by_hand", cell,
         identity_outcome(function() identity_white_by_hand(built$m)))
   }
-  # The examples of the help pages, each expression whose value is a test.
+  # The examples of the help pages, each expression whose value is a test, or
+  # that calls the function of its page: the scatter diagnostic returns its
+  # correlations, and runPanelTests() a list of tests (increment 5).
   scratch <- dirname(normalizePath(out, mustWork = FALSE))
   for (topic in c("performWhiteTest", "performBPTest", "performKoenkerTest",
                   "performRankPermutationTest", "performHighDimensionalTest",
@@ -1312,7 +1409,8 @@ identity_run <- function(where, out, root = ".") {
                   "performParkTest", "performSzroeterTest", "performHarrisonMcCabeTest",
                   "performHartleyFmaxTest", "performSpatialHeteroTest", "performLeveneTest",
                   "performBrownForsytheTest", "performFlignerKilleenTest", "performBartlettTest",
-                  "performOBrienTest")) {
+                  "performOBrienTest", "performPesaranTest", "performBPRandomEffectsTest",
+                  "performScatterDiagnostic", "runPanelTests")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -1321,7 +1419,9 @@ identity_run <- function(where, out, root = ".") {
     set.seed(1)
     for (k in seq_along(expressions)) {
       outcome <- identity_outcome(function() eval(expressions[[k]], env))
-      if (inherits(outcome$value, "htest") || is.list(outcome$value) &&
+      calls_topic <- is.call(expressions[[k]]) &&
+        identical(deparse(expressions[[k]][[1L]]), topic)
+      if (inherits(outcome$value, "htest") || calls_topic || is.list(outcome$value) &&
             isTRUE(outcome$value$.error)) {
         add("example", topic, list(id = paste("expression", k), defect = character()), outcome)
       }
@@ -1376,7 +1476,11 @@ identity_classify <- function(before, after) {
   if (failed(b)) {
     return(list(change = "value_to_error", detail = b$message))
   }
-  statistic <- identity_relative(identity_numbers(a$statistic), identity_numbers(b$statistic))
+  # The scatter diagnostic returns its correlations as a named vector, its
+  # statistic.
+  statistic_of <- function(v) if (is.list(v)) v$statistic else v
+  statistic <- identity_relative(identity_numbers(statistic_of(a)),
+                                 identity_numbers(statistic_of(b)))
   everything <- identity_relative(identity_numbers(a), identity_numbers(b))
   list(change = "value_change", statistic = statistic, everything = everything,
        detail = sprintf("statistic %.2g, all numbers %.2g", statistic, everything))
@@ -1499,6 +1603,9 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
     if (identical(record$kind, "recipe") && identity_m1(record, record, after)) {
       return("allowed")
     }
+    if (identical(record$kind, "recipe") && identity_m1_panel(record, after)) {
+      return("allowed")
+    }
     if (identity_rows(record, record, after)) {
       return("allowed")
     }
@@ -1536,6 +1643,10 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
 # are left out, so that a route compares with the test it computes. `fields`
 # restricts the comparison to some parts, for a reference that has no others.
 identity_key <- function(value, fields = NULL) {
+  # The correlations of the scatter diagnostic, one per variable.
+  if (is.numeric(value) && is.null(fields)) {
+    return(list(numbers = as.double(value), labels = names(value)))
+  }
   if (!is.list(value) || isTRUE(value$.error) || isTRUE(value$.skip)) {
     return(NULL)
   }

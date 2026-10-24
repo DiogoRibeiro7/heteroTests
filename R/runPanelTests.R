@@ -3,9 +3,16 @@
 #' Provides Breusch-Pagan LM and Pesaran CD tests for panel models.
 #'
 #' @param model A fitted model of class `lm`.
-#' @param data Data frame used to fit `model`.
+#' @param data Data frame used to fit `model`. The two tests read `id` and
+#'   `time` from the rows of `data` that hold the observations of the fit:
+#'   since 0.16.0, data that are given are matched to the observations of the
+#'   fit, by row name in any order, or by the row numbers or in the order of
+#'   the fit for rows that only number themselves, as described under `data`
+#'   in [performPesaranTest()].
 #' @param id Character. Column name identifying individuals.
-#' @param time Character. Column name identifying time periods for the Pesaran test.
+#' @param time Character. Column name identifying time periods for the Pesaran
+#'   test, whose pairs of `id` and `time` must each hold one observation of the
+#'   fit.
 #' @param tests Character vector of test names. Defaults to both tests.
 #' @return A named list of `htest` objects.
 #'
@@ -29,6 +36,9 @@ runPanelTests <- function(model, data, id, time = NULL,
   if (!id %in% names(data)) {
     stop("`id` must be a column in `data`.")
   }
+  # The two tests match the rows of `data` to the observations of the fit and
+  # read `id` and `time` at the rows they confirmed (R/model_context.R); their
+  # refusals stop the runner, which runs no other test in their place.
   available <- list(
     bp_random = function(m) performBPRandomEffectsTest(m, data, id),
     pesaran = function(m) {

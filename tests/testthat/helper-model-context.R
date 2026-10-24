@@ -9,9 +9,12 @@
 # data frame of the fit, shuffled with its own row names, a tibble, a shuffled
 # tibble, a shuffled data.table, dplyr::arrange(), the model frame), the rows
 # the fit dropped (na.omit with the full data, the complete rows named or
-# renumbered, the tibble; na.exclude) and the identifiers (rows in front, rows
+# renumbered, the tibble; na.exclude), the identifiers (rows in front, rows
 # at the end, a fit to repeated rows, repeated row names, character row names
-# as a tibble, a repeated (id, time)). test-model-context.R runs the
+# as a tibble, a repeated (id, time)) and the panels of increment 5 (a fit
+# that drops every row of a unit, by an lm, a weighted lm, a weighted Gaussian
+# glm and a gam, in fit order, shuffled and as a tibble; a repeated
+# (id, time), shuffled). test-model-context.R runs the
 # functions of `context_migrated` on every cell and checks relational oracles;
 # scripts/model-context-identity.R runs every recipe of helper-test-recipes.R
 # on the same cells against main.
@@ -26,7 +29,9 @@
 # (through its deprecated name), RESET, Goldfeld-Quandt and the quantile
 # regression test; increment 3: Glejser, Park, Szroeter, Harrison-McCabe,
 # Hartley and the spatial test; increment 4: the five group tests, Levene,
-# Brown-Forsythe, Fligner-Killeen, Bartlett and O'Brien.
+# Brown-Forsythe, Fligner-Killeen, Bartlett and O'Brien; increment 5: the two
+# panel tests, the scatter diagnostic and runPanelTests(), which runs the
+# panel tests.
 context_migrated <- c(
   "performWhiteTest", "performBPTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest",
@@ -35,8 +40,23 @@ context_migrated <- c(
   "performGlejserTest", "performParkTest", "performSzroeterTest",
   "performHarrisonMcCabeTest", "performHartleyFmaxTest", "performSpatialHeteroTest",
   "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
-  "performBartlettTest", "performOBrienTest"
+  "performBartlettTest", "performOBrienTest",
+  "performPesaranTest", "performBPRandomEffectsTest", "performScatterDiagnostic",
+  "runPanelTests"
 )
+
+# The calls of the matrix: a recipe for every function of `context_migrated`.
+# Those of helper-test-recipes.R, which test-return-contract.R holds to an
+# htest, and the two functions of increment 5 that are not tests: the scatter
+# diagnostic, which returns a correlation for each variable, and
+# runPanelTests(), which returns a list of the two panel tests. A function,
+# since testthat sources helper-test-recipes.R after this file.
+context_recipes <- function() {
+  c(contract_recipes, list(
+    performScatterDiagnostic = function(m, d) performScatterDiagnostic(m, d, c("x1", "x2")),
+    runPanelTests = function(m, d) runPanelTests(m, d, id = "id", time = "time")
+  ))
+}
 
 # Fixture B of the design: contract_data() with weights, an offset outside the
 # span of the regressors, and a positive response for the log model.
@@ -219,6 +239,17 @@ context_cell_defects <- function(fit, offset, terms, form) {
   if (identical(terms, "poly")) {
     defects <- c(defects, "decision1")
   }
+  # Increment 5. B3 and B4: the panel tests and the scatter diagnostic read
+  # `data` by position, and refused data with row names of their own in
+  # another order than the fit. B16: the panel tests on a fit that dropped
+  # rows, as cut(x1, quantile(x1)) drops the row at the minimum of x1, which
+  # they refused for its number of rows.
+  if (identical(form, "shuffled")) {
+    defects <- c(defects, "B3", "B4")
+  }
+  if (identical(terms, "cut") && !form %in% c("null", "model_frame", context_refused_forms)) {
+    defects <- c(defects, "B16")
+  }
   unique(defects)
 }
 
@@ -282,35 +313,45 @@ context_cells <- function() {
   missing_cell("complete_fit", function() {
     list(m = stats::lm(y ~ x1 + x2, data = complete), data = complete)
   }, reference = NULL)
-  missing_cell("full", function() list(m = stats::lm(y ~ x1 + x2, data = d_na), data = d_na))
+  # The panel tests and the scatter diagnostic refused the data of a fit that
+  # dropped rows, for its number of rows (B16), and data with row names of
+  # their own in another order than the fit (B3, B4).
+  missing_cell("full", function() list(m = stats::lm(y ~ x1 + x2, data = d_na), data = d_na),
+               defect = "B16")
   missing_cell("full_shuffled", function() {
     set.seed(3)
     list(m = stats::lm(y ~ x1 + x2, data = d_na), data = d_na[sample(nrow(d_na)), ])
-  })
+  }, defect = c("B3", "B4", "B16"))
   missing_cell("complete_named", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na), data = complete)
   })
   missing_cell("complete_renumbered", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na), data = renumbered)
-  }, defect = "B14")
+  }, defect = c("B14", "B16"))
   missing_cell("tibble", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na), data = dplyr::as_tibble(d_na))
-  }, needs = "dplyr", defect = "B14")
+  }, needs = "dplyr", defect = c("B14", "B16"))
   missing_cell("fit_to_tibble", function() {
     tb <- dplyr::as_tibble(d_na)
     list(m = stats::lm(y ~ x1 + x2, data = tb), data = tb)
-  }, needs = "dplyr", defect = "B14")
+  }, needs = "dplyr", defect = c("B14", "B16"))
   missing_cell("null", function() list(m = stats::lm(y ~ x1 + x2, data = d_na), data = NULL))
   # A term computed from all the rows, on a fit that dropped three (B5): the
-  # reference is the same fit with the term computed beforehand.
+  # reference is the same fit with the term computed beforehand. Its fit to
+  # the complete rows is the reference of the panel tests and the scatter
+  # diagnostic, which refused the full data (B16, context_cell_for()).
   d_med <- d_na
   d_med$high <- d_med$x1 > stats::median(d_med$x1)
+  med_complete <- d_med[stats::complete.cases(d_med[, c("y", "high", "x2")]), ]
+  missing_cell("median_complete", function() {
+    list(m = stats::lm(y ~ high + x2, data = med_complete), data = med_complete)
+  }, reference = NULL, terms = "median")
   missing_cell("median_precomputed", function() {
     list(m = stats::lm(y ~ high + x2, data = d_med), data = d_med)
-  }, reference = NULL, terms = "median")
+  }, reference = NULL, terms = "median", defect = "B16")
   missing_cell("median_full", function() {
     list(m = stats::lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = d_med)
-  }, reference = "missing/median_precomputed", defect = "B5", terms = "median")
+  }, reference = "missing/median_precomputed", defect = c("B5", "B16"), terms = "median")
   missing_cell("median_null", function() {
     list(m = stats::lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = NULL)
   }, reference = "missing/median_precomputed", defect = c("B5", "L1"), terms = "median")
@@ -344,7 +385,7 @@ context_cells <- function() {
              form = "data_frame")
   group_cell("na_shuffled", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_g), data = d_g[group_perm, ])
-  }, form = "shuffled", reference = "group/na")
+  }, form = "shuffled", reference = "group/na", defect = c("B3", "B4"))
   group_cell("na_tibble", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_g), data = dplyr::as_tibble(d_g))
   }, form = "tibble", needs = "dplyr", reference = "group/na")
@@ -352,15 +393,22 @@ context_cells <- function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_g), data = dplyr::as_tibble(d_g)[group_perm, ])
   }, form = "tibble_shuffled", needs = "dplyr", expect = "guard")
   group_cell("na_dropped", function() list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = d_gn),
-             form = "data_frame")
+             form = "data_frame", defect = "B16")
   group_cell("na_dropped_shuffled", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = d_gn[group_perm, ])
-  }, form = "shuffled", reference = "group/na_dropped")
+  }, form = "shuffled", reference = "group/na_dropped", defect = c("B3", "B4", "B16"))
   group_cell("na_dropped_renumbered", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_gn), data = gn_complete)
-  }, form = "complete_renumbered", reference = "group/na_dropped", defect = "B14")
+  }, form = "complete_renumbered", reference = "group/na_dropped", defect = c("B14", "B16"))
   group_cell("na_factor", function() {
     list(m = stats::lm(y ~ x1 + group, data = d_g), data = d_g)
+  }, form = "data_frame", terms = "factor", defect = "B16")
+  # The fit of the model of the group to its complete rows: the reference of
+  # the panel tests and the scatter diagnostic on the cell above, whose data
+  # they refused (B16, context_cell_for()).
+  g_complete <- d_g[!is.na(d_g$group), ]
+  group_cell("na_factor_complete", function() {
+    list(m = stats::lm(y ~ x1 + group, data = g_complete), data = g_complete)
   }, form = "data_frame", terms = "factor")
   group_cell("na_factor_null", function() {
     list(m = stats::lm(y ~ x1 + group, data = d_g), data = NULL)
@@ -374,11 +422,16 @@ context_cells <- function() {
   }
   m_plain <- function() stats::lm(y ~ x1 + x2, data = d)
   ident_cell("front", function() list(m = m_plain(), data = rbind(d[1:5, ], d)), expect = "guard")
-  ident_cell("end", function() list(m = m_plain(), data = rbind(d, d[1:5, ])))
+  # The panel tests and the scatter diagnostic refused rows after those of the
+  # fit, for their number (B3, B4).
+  ident_cell("end", function() list(m = m_plain(), data = rbind(d, d[1:5, ])),
+             defect = c("B3", "B4"))
+  # A fit to repeated rows repeats their pairs of `id` and `time` too, which
+  # Pesaran's test refuses (R2, decision 13).
   repeated_rows <- d[c(seq_len(nrow(d)), 1:5), ]
   ident_cell("repeated_fit", function() {
     list(m = stats::lm(y ~ x1 + x2, data = repeated_rows), data = repeated_rows)
-  }, reference = NULL)
+  }, reference = NULL, defect = "R2")
   ident_cell("repeated_fit_tibble", function() {
     list(m = stats::lm(y ~ x1 + x2, data = repeated_rows), data = dplyr::as_tibble(repeated_rows))
   }, needs = "dplyr", reference = "ident/repeated_fit", defect = "B14")
@@ -399,7 +452,64 @@ context_cells <- function() {
     panel <- d
     panel$time[2] <- 1L
     list(m = stats::lm(y ~ x1 + x2, data = panel), data = panel)
-  })
+  }, defect = "R2")
+
+  # The panels of increment 5. A fit that drops every row of a unit, here the
+  # twelfth (rows 111 to 120, whose x2 is missing), keeps a balanced panel of
+  # eleven units, on which Pesaran's test is defined; the panel tests and the
+  # scatter diagnostic refused its data, for their number of rows (B16), and
+  # in another order (B3, B4). It is fitted by an lm, a weighted lm, a weighted
+  # Gaussian glm and a gam, whose residuals carry no names (N17); the
+  # reference of each is the same fit to the complete rows. And a panel whose
+  # second row repeats the period of its first, shuffled (R2).
+  d_unit <- d
+  d_unit$x2[111:120] <- NA
+  unit_complete <- d_unit[1:110, ]
+  set.seed(3)
+  unit_perm <- sample(nrow(d_unit))
+  unit_fit <- function(kind, data) {
+    switch(kind,
+      lm = stats::lm(y ~ x1 + x2, data = data),
+      wls = stats::lm(y ~ x1 + x2, data = data, weights = w),
+      glm = stats::glm(y ~ x1 + x2, data = data, weights = w),
+      gam = mgcv::gam(y ~ x1 + x2, data = data)
+    )
+  }
+  panel_cell <- function(id, build, form, fit = "ols", needs = character(), reference = NULL,
+                         defect = character()) {
+    add(context_cell(paste0("panel/", id), "panel", build, fit = fit, form = form, needs = needs,
+                     reference = reference, defect = defect))
+  }
+  for (kind in c("lm", "wls", "glm", "gam")) {
+    local({
+      kind <- kind
+      fit <- switch(kind, lm = "ols", gam = "ols", kind)
+      needs <- if (identical(kind, "gam")) "mgcv"
+      complete_id <- paste0("panel/unit_", kind, "_complete")
+      panel_cell(paste0("unit_", kind, "_complete"), function() {
+        list(m = unit_fit(kind, unit_complete), data = unit_complete)
+      }, form = "data_frame", fit = fit, needs = needs)
+      panel_cell(paste0("unit_", kind, "_full"), function() {
+        list(m = unit_fit(kind, d_unit), data = d_unit)
+      }, form = "data_frame", fit = fit, needs = needs, reference = complete_id, defect = "B16")
+      panel_cell(paste0("unit_", kind, "_shuffled"), function() {
+        list(m = unit_fit(kind, d_unit), data = d_unit[unit_perm, ])
+      }, form = "shuffled", fit = fit, needs = needs, reference = complete_id,
+      defect = c("B3", "B4", "B16", if (identical(kind, "gam")) "N17"))
+    })
+  }
+  panel_cell("unit_lm_tibble", function() {
+    list(m = unit_fit("lm", d_unit), data = dplyr::as_tibble(d_unit))
+  }, form = "tibble", needs = "dplyr", reference = "panel/unit_lm_complete", defect = "B16")
+  repeated_pair <- d
+  repeated_pair$time[2] <- 5L
+  panel_cell("repeated_id_time", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = repeated_pair), data = repeated_pair)
+  }, form = "data_frame", reference = "fit/ols/none/none/data_frame", defect = "R2")
+  panel_cell("repeated_id_time_shuffled", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = repeated_pair), data = repeated_pair[unit_perm, ])
+  }, form = "shuffled", reference = "fit/ols/none/none/data_frame",
+  defect = c("B3", "B4", "R2"))
 
   # A fit to a subset given by index (B15): the reference is the fit to the
   # same rows.
@@ -436,7 +546,13 @@ context_cells <- function() {
       local({
         form <- form
         cell_expect <- switch(form, null = expect_null, tibble_shuffled = expect_tibble, expect)
-        defect <- if (identical(form, "shuffled")) c(defect, shuffled_defect) else defect
+        # The rows shuffled under their own row names were refused by the
+        # panel tests and the scatter diagnostic (B3, B4).
+        defect <- if (identical(form, "shuffled")) {
+          c(defect, shuffled_defect, "B3", "B4")
+        } else {
+          defect
+        }
         built_form <- function() {
           built <- build()
           built$data <- switch(form,
@@ -481,7 +597,7 @@ context_cells <- function() {
     built <- gam_fit()
     built$data <- built$data[class_perm, , drop = FALSE]
     built
-  }, form = "shuffled", needs = "mgcv", reference = "class/gam", defect = "N17"))
+  }, form = "shuffled", needs = "mgcv", reference = "class/gam", defect = c("N17", "B3", "B4")))
   # A gam with an offset given as an argument, which predict.gam() leaves out
   # of its predictions: the registered Szroeter test, which ordered by
   # predict() before 0.16.0, ordered such a fit by X b without the offset
@@ -653,7 +769,8 @@ context_cran_cells <- c(
   "fit/ols/none/none/data_frame", "fit/ols/none/none/null", "fit/ols/none/none/shuffled",
   "fit/ols/none/none/model_frame", "fit/wls/none/none/null", "fit/ols/argument/none/null",
   "terms/ols/none/log/null", "missing/complete_renumbered", "missing/median_full",
-  "subset/data_frame", "ident/front", "class/mlm", "group/na_shuffled"
+  "subset/data_frame", "ident/front", "class/mlm", "group/na_shuffled",
+  "panel/unit_lm_shuffled", "panel/repeated_id_time"
 )
 
 # Whether the full matrix runs, or only the cells CRAN runs. The full matrix
@@ -727,6 +844,150 @@ context_group_readers <- function() {
   names(context_reads)[context_reads == "group"]
 }
 
+# The functions of increment 5: the two panel tests, the scatter diagnostic
+# and runPanelTests(), which runs the two panel tests.
+context_increment5 <- c(
+  "performPesaranTest", "performBPRandomEffectsTest", "performScatterDiagnostic",
+  "runPanelTests"
+)
+
+# The columns the panel tests read besides the model, `id` and `time`, which
+# no model of the matrix uses, so that without `data` they are refused (M1).
+# runPanelTests() and the scatter diagnostic need `data`.
+context_panel_reads <- c(
+  performPesaranTest = "id, time", performBPRandomEffectsTest = "id", runPanelTests = "id"
+)
+
+# The functions that need `data`, or a column the model frame does not hold:
+# without `data` they are refused, whatever the cell.
+context_data_readers <- function() {
+  c(context_group_readers(), context_increment5)
+}
+
+# The variables of the recipe of the scatter diagnostic, x1 and x2, that the
+# model frame of each model of the term block holds under their own names: it
+# is refused as `data` by the others ("Variables not found").
+context_frame_variables <- list(
+  none = c("x1", "x2"), log = "x2", poly = "x2", ns = "x2", square = c("x1", "x2"),
+  median = "x2", cut = "x2", factor = "x1", log_factor = character()
+)
+
+# The cells of a fit that dropped rows of some units and kept others, whose
+# panel is unbalanced: Pesaran's test arranges its residuals in a matrix of
+# periods by units and stops there ("number of items to replace is not a
+# multiple of replacement length"), as before 0.16.0 on the rows of such a
+# fit (N12, a separate pull request).
+context_unbalanced <- function(cell) {
+  missing_rows <- identical(cell$block, "missing") &&
+    !cell$id %in% c("missing/null", "missing/median_null", "missing/na_exclude")
+  missing_rows || identical(cell$block, "terms") && identical(cell$terms, "cut") ||
+    cell$id %in% c("group/na_dropped", "group/na_dropped_shuffled", "group/na_dropped_renumbered",
+                   "group/na_factor", "group/na_factor_complete")
+}
+
+# The reference of the panel tests and the scatter diagnostic on a cell of a
+# fit that dropped rows, whose data they refused before 0.16.0 (B16), where
+# the cell has none or one they refused too: the fit to the complete rows.
+context_dropped_references <- c(
+  "missing/median_precomputed" = "missing/median_complete",
+  "group/na_dropped" = "missing/complete_fit",
+  "group/na_factor" = "group/na_factor_complete"
+)
+
+# The cells whose pairs of `id` and `time` repeat, which Pesaran's test
+# refuses (R2, decision 13).
+context_repeated_pairs <- c(
+  "ident/repeated_id_time", "ident/repeated_fit", "panel/repeated_id_time",
+  "panel/repeated_id_time_shuffled"
+)
+
+# The cell as the functions of increment 5 see it (context_cell_for()).
+context_cell_for_panel <- function(fn, cell) {
+  scatter <- identical(fn, "performScatterDiagnostic")
+  runner <- identical(fn, "runPanelTests")
+  pesaran <- fn %in% c("performPesaranTest", "runPanelTests")
+  value_like <- function(expect) {
+    expect %in% c("value", "zero or non-finite weights", "guard") ||
+      grepl("does not reproduce its residuals", expect, fixed = TRUE)
+  }
+  no_data <- identical(cell$form, "null") || identical(cell$id, "missing/median_null")
+  if (no_data) {
+    # The scatter diagnostic and the runner need a data frame, which they
+    # check first; the panel tests read `id` and `time` from the model frame,
+    # which does not hold them (M1), after the refusals of the context and
+    # the check of an edited fit.
+    if (scatter) {
+      cell$expect <- "`data` must be a data frame."
+    } else if (runner) {
+      cell$expect <- "Input data must be a data.frame"
+    } else if (identical(cell$expect, "value") ||
+                 identical(cell$expect, "zero or non-finite weights")) {
+      cell$expect <- sprintf(
+        "The following variables are missing from the model frame of `model`: %s.",
+        context_panel_reads[[fn]]
+      )
+    }
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (identical(cell$form, "model_frame")) {
+    # The model frame does not hold `id` or `time`, which the runner checks
+    # first and the panel tests after the refusals of the context; the scatter
+    # diagnostic reads x1 and x2, which it holds unless the model transforms
+    # them.
+    if (scatter) {
+      absent <- setdiff(c("x1", "x2"), context_frame_variables[[cell$terms]])
+      if (length(absent) > 0L) {
+        cell$expect <- paste("Variables not found:", paste(absent, collapse = ", "))
+        cell$reference <- NULL
+      }
+    } else if (runner || value_like(cell$expect)) {
+      cell$expect <- if (identical(fn, "performPesaranTest")) {
+        "`id` and `time` must be columns in `data`."
+      } else {
+        "`id` must be a column in `data`."
+      }
+      cell$reference <- NULL
+    }
+    return(cell)
+  }
+  # The scatter diagnostic refuses a zero weight before it matches `data`, as
+  # before 0.16.0.
+  if (scatter && startsWith(cell$id, "class/zero_weight") && identical(cell$expect, "guard")) {
+    cell$expect <- "zero or non-finite weights"
+    return(cell)
+  }
+  # `id` and `time` are not columns of the model frame: the tibble of a fit to
+  # repeated rows, whose rows tie, is refused (the guard). The scatter
+  # diagnostic reads x1 and x2, columns of the frame, and takes it.
+  if (!scatter && identical(cell$id, "ident/repeated_fit_tibble")) {
+    cell$expect <- "guard"
+    cell$reference <- NULL
+    return(cell)
+  }
+  # A fit with na.exclude is read as before until its step of the model
+  # context, with its padded residuals: the statistic of a panel test or the
+  # correlations of the scatter diagnostic are NA, or computed with the NA.
+  if (identical(cell$id, "missing/na_exclude")) {
+    cell$expect <- "value"
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (!identical(cell$expect, "value")) {
+    return(cell)
+  }
+  if (pesaran && cell$id %in% context_repeated_pairs) {
+    cell$expect <- "needs one observation of the fit for each pair of `id` and `time`"
+    cell$reference <- NULL
+  } else if (pesaran && context_unbalanced(cell)) {
+    cell$expect <- "number of items to replace is not a multiple of replacement length"
+    cell$reference <- NULL
+  } else if (cell$id %in% names(context_dropped_references)) {
+    cell$reference <- context_dropped_references[[cell$id]]
+  }
+  cell
+}
+
 # Fligner-Killeen's statistic ranks the absolute deviations of the residuals
 # from their group medians. In a group of even size the two residuals in the
 # middle lie at the same distance from the median, and whether rounding leaves
@@ -785,7 +1046,17 @@ context_runnable <- function(fns = context_migrated) {
 #   names lack those of the fit, refuses a model = FALSE fit whose data are
 #   gone, stops on the padded fitted values of na.exclude (increment 9), and
 #   accepts a zero weight.
+# - The functions of increment 5 read `id`, `time` or the variables of the
+#   scatter diagnostic beside the model (context_cell_for_panel()): without
+#   `data` the panel tests are refused (M1) and the others need a data frame;
+#   the model frame lacks `id` and `time`; Pesaran's test refuses a repeated
+#   pair of `id` and `time` (R2) and stops on the unbalanced panel of a fit
+#   that dropped rows of some units (N12); and a fit with na.exclude is read
+#   as before.
 context_cell_for <- function(fn, cell) {
+  if (fn %in% context_increment5) {
+    return(context_cell_for_panel(fn, cell))
+  }
   if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth") &&
         (!identical(cell$expect, "guard") || identical(fn, "performRESETTest"))) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
@@ -839,6 +1110,13 @@ context_cell_for <- function(fn, cell) {
     if (cell$id %in% rows_lacking) {
       cell$expect <- "RESET requires `data` to contain the rows used to fit the model."
       cell$reference <- NULL
+    } else if (cell$id %in% c("panel/unit_gam_full", "panel/unit_gam_shuffled")) {
+      # The residuals of a gam carry no names, and the check of `data` RESET
+      # keeps compares the number of rows of `data` with that of the fit.
+      cell$expect <- paste(
+        "RESET requires `data` with 110 observations to match the fitted model,", "got 120."
+      )
+      cell$reference <- NULL
     } else if (identical(cell$expect, "guard") && !is.null(cell$base)) {
       # A class of model given data the guard refuses: what RESET gives on the
       # data frame of the fit.
@@ -870,7 +1148,7 @@ context_cell_for <- function(fn, cell) {
 }
 
 # A cell run through one test: the result, or the error as a condition.
-context_run <- function(fn, cell, recipes = contract_recipes) {
+context_run <- function(fn, cell, recipes = context_recipes()) {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   built <- cell$build()
