@@ -29,6 +29,12 @@ autoTransform <- function(model) {
   }
   best <- NULL
   best_p <- -Inf
+  # performBPTest() warns on each candidate fit with a term of more levels
+  # than observations per level (rwarn_small_groups(), R/model_context.R);
+  # the warning is given once, that of the fit chosen, or of the first
+  # candidate that gave one when the chosen fit gave none.
+  small_groups <- list()
+  chosen_warning <- NULL
   for (nm in names(xform)) {
     df <- data
     df$ytrans <- xform[[nm]]
@@ -39,11 +45,18 @@ autoTransform <- function(model) {
       intercept = has_intercept
     )
     fit <- lm(formula_trans, data = df)
-    p <- performBPTest(fit, df)$p.value
+    run <- rcache_capture_warnings(performBPTest(fit, df))
+    p <- run$value$p.value
+    small_groups <- c(small_groups, run$warnings)
     if (p > best_p) {
       best_p <- p
       best <- list(model = fit, method = nm, lambda = if (nm == "boxcox") lam else NA)
+      chosen_warning <- run$warnings
     }
+  }
+  if (length(small_groups) > 0L) {
+    once <- if (length(chosen_warning) > 0L) chosen_warning[1L] else small_groups[1L]
+    rcache_resignal(list(warnings = once))
   }
   best
 }

@@ -1021,7 +1021,29 @@ after it.
     a function of the spread of the squared residuals alone, whatever their
     pattern. Found by the review of the follow-up of N2. Refuse such a fit in
     both, at the threshold of White's test, in a pull request of their own.
-    Refuses calls that return a value.
+    Refuses calls that return a value. Since 0.16.0 both warn on that design,
+    whose 30 levels of two observations are fixed effects for small groups
+    (the next item); the refusal is still to do.
+  - [x] The refusal of White's exact fit covers that fit only: one step away
+    from it, and on any fit with fixed effects for small groups, White's,
+    Koenker's and the Breusch-Pagan tests over-reject on homoscedastic data.
+    In 2,000 draws of `lm(y ~ x + subject)` they rejected at the 5% level in
+    51%, 57% and 40% with 30 subjects of three observations, and in 24%, 24%
+    and 25% with 100 subjects of eight; at a fixed number of observations per
+    subject the size goes to 1 as the subjects grow
+    (`inst/validation/fixed-effects-size.R`). The excess comes from the
+    subject dummies in the auxiliary regression
+    (`inst/validation/fixed-effects-dummies.R`). Done in 0.16.0, decided by
+    the author on 2026-10-23: the three tests warn when a term of the model
+    that holds a factor has more levels than observations per level,
+    `L^2 > n`, counting the cells of an interaction, with their values
+    unchanged; on a balanced design the rule is `G <= T`, which misclassified
+    1 of 69 designs of the study for the three tests together. The routes that
+    compute the same statistics warn too, and the White bootstrap, the wild
+    bootstrap and `bootstrapTestStatistic()`, which held their level on those
+    designs, do not (`inst/validation/fixed-effects-variants-size.R`). A
+    warning, not a correction: testing against the regressors without the
+    dummies, and a test built for fixed effects, are for after 1.0.0.
   - White's auxiliary design is built from the regressors centred one by
     one, so its rank does not depend on where a regressor that enters the
     model linearly is located, but a product or a power of a variable
@@ -1520,6 +1542,22 @@ after it.
 - A form of `performVarianceFormTest()` that does not need the standardized
   errors to have a constant fourth moment, following the robust statistic of
   Wooldridge (1991).
+- A variance-regressor argument for `performBPTest()` and
+  `performKoenkerTest()`, the `varformula` of `lmtest::bptest()`, so that a
+  fit with fixed effects for small groups, on which the tests warn since
+  0.16.0, can be tested against its regressors without the dummies. On the
+  balanced designs of `inst/validation/fixed-effects-dummies.R`, where the
+  tests with the dummies reject up to 100% of the time at the 5% level, the
+  squared residuals regressed on `x` alone kept the level: 4.6% to 5.5% for
+  Koenker's statistic and 4.3% to 5.6% for the Breusch-Pagan statistic.
+  Unbalanced designs are untested. A new argument.
+- The test of Juhl and Sosa-Escudero (2014, *Journal of Econometrics* 178(3),
+  484-494) of heteroskedasticity after fixed effects estimation, for panels
+  of many units observed a fixed number of times, the setting where White's,
+  Koenker's and the Breusch-Pagan tests warn. It needs the user to name the
+  factor that is the unit, which no test of the package takes today. A new
+  export; its reference implementation, and whether it requires a balanced
+  panel, are to be checked first (only the abstract could be read in 0.16.0).
 - A single parametrised accuracy-validation test, with reference coverage
   broadened to `skedastic` and `sandwich`.
 - The companion package for the dashboard and the benchmark suite (decided on

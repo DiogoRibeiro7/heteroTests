@@ -121,10 +121,13 @@ runHeteroTests <- function(model, data = NULL,
       )
     }
     group_results <- vector("list", length(prepared$group_splits))
+    # The warnings about fixed effects for small groups of every group, given
+    # once all the groups have run (rcache_capture_warnings()).
+    small_groups <- list()
     for (i in seq_along(prepared$group_splits)) {
       group_data <- prepared$group_splits[[i]]
       group_model <- prepared$fit_factory(group_data)
-      group_results[[i]] <- rsuite_mark_origin(.run_hetero_core(
+      run <- rcache_capture_warnings(.run_hetero_core(
         group_model,
         group_data,
         tests = tests,
@@ -133,14 +136,18 @@ runHeteroTests <- function(model, data = NULL,
         chunk_size = chunk_size,
         progress = progress,
         recover_failures = TRUE
-      ), "group")
+      ))
+      group_results[[i]] <- rsuite_mark_origin(run$value, "group")
+      small_groups <- c(small_groups, run$warnings)
     }
-    structure(
+    grouped <- structure(
       group_results,
       class = c("hetero_grouped_suite", "list"),
       group_keys = prepared$group_keys,
       tests = tests
     )
+    rcache_resignal(list(warnings = small_groups))
+    grouped
   } else {
     output <- .run_hetero_core(
       prepared$model,
@@ -220,9 +227,18 @@ rsuite_mark_origin <- function(suite, origin) {
   }
   cached <- rcache_get(.analysis_cache, cache_key)
   if (!is.null(cached)) {
+    # The warnings about fixed effects for small groups that the tests gave
+    # when the call was computed, once each, in their order (R/cache.R).
+    rcache_resignal(cached)
     return(rcache_attach(cached, model))
   }
   rng_before <- rrng_state()
+  # The warnings about fixed effects for small groups the tests give, muffled
+  # while each test runs, kept to be stored with the call, and given to the
+  # caller at the end: a test, or its fallback, gives one once it has
+  # computed, and the cache of cachedTest() gives it again when it answers
+  # (rcached_diagnostic()).
+  small_groups <- list()
 
   streaming_map <- list(
     white = function(model, data) {
@@ -263,7 +279,7 @@ rsuite_mark_origin <- function(suite, origin) {
 
     failure_context <- NULL
     cached_route <- identical(runner, available[[test_name]]) && isTRUE(use_cache)
-    result <- tryCatch(
+    caught <- rcache_capture_warnings(tryCatch(
       {
         if (cached_route) {
           rcached_diagnostic(test_name, model, data, if (cacheable[[i]]) inputs)
@@ -317,7 +333,9 @@ rsuite_mark_origin <- function(suite, origin) {
         }
         stop(failure_context$user_message, call. = FALSE)
       }
-    )
+    ))
+    result <- caught$value
+    small_groups <- c(small_groups, caught$warnings)
 
     if (inherits(result, "hetero_test")) {
       if (cached_route && is.null(failure_context)) {
@@ -364,9 +382,15 @@ rsuite_mark_origin <- function(suite, origin) {
 
   # Not stored if a test drew random numbers after all, as a fallback could.
   if (!is.null(cache_key) && identical(rng_before, rrng_state())) {
-    rcache_put(.analysis_cache, cache_key, rcache_detach(output, model), rcache_result_limit())
+    rcache_put(.analysis_cache, cache_key, rcache_detach(output, model, small_groups),
+               rcache_result_limit())
   }
 
+  # The warnings about fixed effects for small groups, muffled while the tests
+  # ran, are given once the suite is complete and stored: under
+  # options(warn = 2) an error then, where inside the tryCatch() above it
+  # would have made the runner take a fallback (rcache_capture_warnings()).
+  rcache_resignal(list(warnings = small_groups))
   output
 }
 

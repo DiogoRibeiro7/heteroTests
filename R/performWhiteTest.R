@@ -172,18 +172,102 @@
 #' number of observations too, so the runner stops with the refusal.
 #'
 #' The refusal covers the exact fit only, and one step away from it the test
-#' still rejects almost always. White's, Koenker's and the Breusch-Pagan tests
-#' are not valid with fixed effects for small groups, a factor with few
-#' observations per level: they over-reject, the more the smaller the groups
-#' and the more groups there are. In 2,000 homoscedastic draws of
+#' still rejects almost always: in 2,000 homoscedastic draws of
 #' `lm(y ~ x + subject)`, with normal `x` and errors, White's test rejected at
 #' the 5\% level in 99\% of them with 30 subjects of two observations and one
 #' of them observed a third time, and in all but one with 30 pairs whose
-#' weights vary within pairs; with 30 subjects of three, four, five and eight
-#' observations in 48\%, 22\%, 16\% and 12\%, and with 100 subjects of eight
-#' in 22\%. Juhl and Sosa-Escudero (2014) derive tests of heteroskedasticity
-#' after fixed effects estimation for panels of many units observed a fixed
-#' number of times.
+#' weights vary within pairs. Those are fixed effects for small groups, on
+#' which the test warns (see *Fixed effects for small groups*).
+#'
+#' @section Fixed effects for small groups:
+#' White's, Koenker's and the Breusch-Pagan tests are not valid with fixed
+#' effects for small groups: a factor with many levels and few observations
+#' of each, such as `subject` in `lm(y ~ x + subject)` with each subject
+#' observed a few times. On homoscedastic data they reject too often, and the
+#' more often the more levels the factor has and the fewer observations each
+#' level has.
+#' The excess comes from the dummies of the factor in the auxiliary
+#' regression. The residuals of a level are taken from its own mean, so under
+#' normal errors the squared residuals of a level of \eqn{T} observations vary
+#' between levels \eqn{T / (T - 1)} times as much as the auxiliary regression
+#' assumes, and with \eqn{G} levels the statistic exceeds its degrees of
+#' freedom by about \eqn{(G - 1) / (T - 1)}. In the study below Koenker's
+#' statistic had that mean, and the squared residuals regressed on `x` alone,
+#' without the dummies, were rejected in 4.6\% to 5.5\% of the draws by
+#' Koenker's statistic and in 4.3\% to 5.6\% by the Breusch-Pagan statistic
+#' (`inst/validation/fixed-effects-dummies.R`). The
+#' excess grows with \eqn{G} at a fixed \eqn{T}, while the spread of the
+#' chi-squared distribution grows as \eqn{\sqrt{2G}}{sqrt(2G)}, so with a fixed number
+#' of observations per level the size goes to 1 as the number of levels
+#' grows.
+#'
+#' Since 0.16.0 the test warns when a term of the model that holds a factor
+#' or a character variable has more levels than observations per level:
+#' \eqn{L > n / L}, that is \eqn{L^2 > n}, with \eqn{L} the number of
+#' distinct combinations of the factors of the term among the \eqn{n}
+#' observations of the fit. The term is a factor, such as `subject`; an
+#' interaction of factors, counted by its cells, such as `a:b` of a crossed
+#' `a * b` or `school:class` of a nested `school / class`; or a slope for each
+#' level, `x:subject`. A variable left out of the formula, as in `y ~ . - id`,
+#' does not count. The warning names the term and gives \eqn{L}, \eqn{n} and
+#' the mean number of observations per level; the statistic, the degrees of
+#' freedom and the p-value are those the test computes without it. It has class
+#' `heteroTests_fixed_effects_warning`, which
+#' `suppressWarnings(expr, classes = "heteroTests_fixed_effects_warning")`
+#' muffles, and no other warning. It is given on every call, also when
+#' [cachedTest()] or [runHeteroTests()] answers from its cache, and
+#' [runHeteroTests()] and [runDiagnostics()] give it once for each test that
+#' gives it. \link[=performWhiteTestRobust]{performWhiteTestRobust()} and the
+#' registered `"white"` give it too, and so does [performWhiteTestStreaming()]
+#' where it computes: it refuses a factor that is a main effect, whose dummies
+#' and their squares are collinear, and computes White's statistic on a slope
+#' for each level. [performWhiteTestBootstrap()], whose
+#' p-value is a bootstrap's, held its level on these designs and does not
+#' give it.
+#'
+#' On a balanced design of \eqn{G} subjects of \eqn{T} observations the rule
+#' is \eqn{G \le T}{G <= T}. In the study it kept the three tests within 2.5\% to
+#' 7.5\% at the 5\% level where it holds, and put at least one of them outside
+#' where it does not, in 68 of the 69 designs where they computed; the
+#' exception is the Breusch-Pagan test on 20 subjects of 20, at 8.0\%.
+#' Unbalanced groups, a second regressor and a regressor correlated with the
+#' subject effects followed the same pattern, with the mean number of
+#' observations per level, \eqn{n / G}, in place of \eqn{T}. The rule is a
+#' warning, not a correction, and many panels fail it: on 100 firms observed
+#' over 10 years the three tests reject in 18\% to 21\% of the draws.
+#' Rejection at the 5\% level, in percent, in 2,000 homoscedastic draws of
+#' `lm(y ~ x + subject)`, with `x`, the subject effects and the errors
+#' standard normal:
+#'
+#' | Subjects | Observations of each | White | Koenker | Breusch-Pagan | Warns |
+#' | ---: | ---: | ---: | ---: | ---: | --- |
+#' | 10 | 10 | 6.4 | 6.2 | 7.3 | no |
+#' | 20 | 20 | 6.0 | 6.4 | 8.0 | no |
+#' | 5 | 4 | 1.0 | 5.4 | 7.0 | yes |
+#' | 30 | 3 | 50.7 | 57.3 | 39.6 | yes |
+#' | 30 | 4 | 22.2 | 23.9 | 28.7 | yes |
+#' | 100 | 8 | 23.8 | 23.8 | 25.2 | yes |
+#' | 100 | 10 | 18.1 | 18.4 | 21.3 | yes |
+#' | 200 | 4 | 97.8 | 97.6 | 82.5 | yes |
+#'
+#' A slope for each level counts too, but there the error goes the other way:
+#' with a slope for each subject, `lm(y ~ x + x:subject)`, on 30 subjects of 3
+#' and of 4 and on 100 of 8, the three tests rejected too rarely, White's in
+#' 0.7\% to 2.2\% of the draws, Koenker's in 0.1\% to 0.8\% and the
+#' Breusch-Pagan test in 0.4\% to 2.8\%
+#' (`inst/validation/fixed-effects-variants-size.R`). The warning therefore
+#' says that the p-value is unreliable: in the simulations usually far too
+#' small, and too large with a slope per level.
+#'
+#' With at most `max_interactions` regressors White's auxiliary regression
+#' holds the products of `x` with the dummies, a slope for each subject, and
+#' on 5 subjects of 4 it rejected too rarely, in 1.0\%. The study is
+#' `inst/validation/fixed-effects-size.R`, with its results in
+#' `fixed-effects-size.csv` (`system.file("validation", package =
+#' "heteroTests")`). Juhl and Sosa-Escudero (2014) derive a test of
+#' heteroskedasticity for this setting, after fixed effects estimation of a
+#' panel of many units observed a fixed number of times; it needs to be told
+#' which factor is the unit, and the package does not implement it.
 #'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
@@ -278,8 +362,14 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
   # The design of the fit (with its intercept), without the columns of a
   # rank-deficient fit that it aliased
   X_full <- rcontext_design(ctx)
-  rwhite_statistic(residuals, X_full, cross_products, max_interactions, test_label,
-                   data_name = deparse(substitute(model)))
+  result <- rwhite_statistic(residuals, X_full, cross_products, max_interactions, test_label,
+                             data_name = deparse(substitute(model)))
+  # A factor with more levels than observations per level, among the
+  # observations of the fit: the value stands, with a warning, given once the
+  # test has computed, so that a refusal followed by the fallback of the
+  # runner warns once (rwarn_small_groups(), R/model_context.R).
+  rwarn_small_groups(ctx$model, ctx$frame, "White's test", "performWhiteTest")
+  result
 }
 
 # White's auxiliary regression fits the squared residuals exactly when its

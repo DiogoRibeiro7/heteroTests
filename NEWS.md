@@ -2,6 +2,111 @@
 
 ## Development version
 
+### Fixed effects for small groups
+
+**White's, Koenker's and the Breusch-Pagan tests warn when a term of the
+model that holds a factor has more levels than observations per level.** On
+such a fit, fixed
+effects for small groups as in `lm(y ~ x + subject)` with each subject
+observed a few times, the three tests reject a true null hypothesis far too
+often, and the more so the more levels and the fewer observations each. In
+2,000 homoscedastic draws of `lm(y ~ x + subject)` with normal `x`, subject
+effects and errors (`inst/validation/fixed-effects-size.R`), White's,
+Koenker's and the Breusch-Pagan tests rejected at the 5% level in 50.7%,
+57.3% and 39.6% of them with 30 subjects of three observations, in 22.2%,
+23.9% and 28.7% with 30 of four, in 23.8%, 23.8% and 25.2% with 100 of
+eight, and in 97.8%, 97.6% and 82.5% with 200 of four. The excess comes from
+the subject dummies in the auxiliary regression: under normal errors the
+squared residuals of a subject of T observations vary between subjects
+T / (T - 1) times as much as the regression assumes, Koenker's statistic has
+mean its degrees of freedom plus (G - 1) / (T - 1) for G subjects, and the
+squared residuals regressed on `x` alone were rejected in 4.6% to 5.5% of the
+draws by Koenker's statistic and in 4.3% to 5.6% by the Breusch-Pagan
+statistic (`inst/validation/fixed-effects-dummies.R`). At a fixed number of
+observations per subject the size goes to 1 as the subjects grow.
+
+The rule: a term of the model that holds a factor or a character variable,
+with L levels among the n observations of the fit, warns when L > n / L,
+that is L^2 > n. L counts the distinct combinations of the factors of the
+term: a factor such as `subject`; an interaction of factors by its cells,
+such as `a:b` of a crossed `a * b` or `school:class` of a nested
+`school / class`; or a slope for each level, `x:subject`. A variable left
+out of the formula, as in `y ~ . - id`, does not count, and the terms are
+matched to the model frame by position, so that a name in backticks works.
+On a balanced design of G subjects of T it is G > T. In the study, at most as many subjects as observations per subject
+kept the three tests within 2.5% to 7.5% at the 5% level, and more put at
+least one of them outside, in 68 of 69 designs; the exception is the
+Breusch-Pagan test at 8.0% on 20 subjects of 20, inside the rule. On 10
+subjects of 10 they reject in 6.4%, 6.2% and 7.3%, and on 5 subjects of 4,
+over the rule, White's test in 1.0%, too rarely. Unbalanced groups, two
+regressors and a regressor correlated with the subject effects followed the
+same pattern. A slope for each subject, `lm(y ~ x + x:subject)`, is counted
+too, but there the error goes the other way: on 30 subjects of 3 and of 4 and
+on 100 of 8 the three tests rejected in 0.1% to 2.8% of the draws
+(`inst/validation/fixed-effects-variants-size.R`), as White's test with the
+products of a few regressors does on 5 subjects of 4. The warning names the
+term, gives its numbers, and says in which direction the p-value erred in
+the simulations:
+
+```text
+The term `subject` has 30 levels for 120 observations, 4 per level: with
+fixed effects for small groups, more levels than observations per level, the
+p-value of Koenker's test is unreliable; in simulations it was usually far
+too small, and too large when the factor enters only as a slope per level
+(see 'Fixed effects for small groups' in ?performKoenkerTest).
+```
+
+**Values are unchanged:** the statistic, the degrees of freedom and the
+p-value of every call are those before this change, `identical()`, with the
+warning added on a fit over the rule, and nothing changes on a fit below it.
+The
+warning has class `heteroTests_fixed_effects_warning`;
+`suppressWarnings(expr, classes = "heteroTests_fixed_effects_warning")`, or a
+handler for that class in `withCallingHandlers()` that calls
+`invokeRestart("muffleWarning")`, muffles it and no other warning. The
+condition carries the terms, their levels and the number of observations
+(`$factors`, `$levels`, `$observations`).
+
+The routes that compute the same statistics, and over-reject as the three
+tests do, warn too (`inst/validation/fixed-effects-variants-size.R`, 2,000
+replications on 30 subjects of 4 and 100 of 8, 1,000 for the resampling
+routes on 100 of 8):
+`performWhiteTestRobust()`, `performBPTestRobust()` with `studentize = TRUE`
+or `FALSE`, `performBPTestStreaming()`, `performKoenkerTestStreaming()`, the
+deprecated `performStudentizedBPTest()` and `performBreuschPaganTest()`, and
+the registered `"white"`, `"koenker"`, `"breusch_pagan"` and `"student_bp"`.
+On those designs they reject in 21.6% to 27.6% of the samples, each
+as the test it wraps, and give one warning per call.
+`performWhiteTestBootstrap()`, `performWildBootstrapTest()` and
+`bootstrapTestStatistic()`, whose p-values are bootstraps', held their level
+there, at 3.7% to 4.6% with B = 199, and give none.
+`performWhiteTestStreaming()` refuses a factor that is
+a main effect, as before, and gives the warning where it computes White's
+statistic, on a slope for each level. `autoTransform()`, which runs the
+Breusch-Pagan test on each candidate transformation, gives it once.
+
+The warning is given on every call: a result that `cachedTest()` or
+`runHeteroTests()` answers from its cache gives it again, where it gives no
+other warning of the call that computed it, so a call answered from a cache
+warns as a call that computes does. `runHeteroTests()` and `runDiagnostics()`
+give it once for each test that gives it: a test that is refused and replaced
+by a fallback warns once, for the fallback, because the tests warn after they
+have computed. They, and `cachedTest()`, hold the warnings while the tests run
+and give them once the result is complete and stored, so that under
+`options(warn = 2)` the call stops at the end with the right values stored,
+where a warning turned into an error inside the runner would have made it
+take a fallback, and store that, under the name of the test. A robust form with `bootstrap = TRUE`
+warns once, for the asymptotic p-value it reports: `bootstrapTestStatistic()`
+computes its observed statistic and replicates without the warning. On the
+paired design of *White's degrees of freedom* below, where Koenker's and the
+Breusch-Pagan tests return 60 and 63.25 on 30 degrees of freedom, they now
+warn; refusing that fit is still to do. The help pages of the three tests
+have a section *Fixed effects for small groups* with the mechanism, the rule,
+a table of the study and the reference to Juhl and Sosa-Escudero (2014), who
+derive a test for this setting. Testing against the regressors without the
+dummies, and that test, are recorded in the roadmap for after 1.0.0. No
+argument changes.
+
 ### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
 
 **With `auto_enhance = FALSE`, the Breusch-Pagan entry of
@@ -1445,7 +1550,9 @@ but one with 30 pairs whose weights vary within pairs, in 48%, 22%, 16% and
 with 100 subjects of eight; Koenker's test in 99%, 100%, 54%, 22%, 16%, 12%
 and 22%, and the Breusch-Pagan test in 64%, 67%, 38%, 26%, 21%, 15% and 24%.
 The help pages of the three tests say so, and `?performWhiteTest` cites Juhl
-and Sosa-Escudero (2014), who derive tests for fixed effects models.
+and Sosa-Escudero (2014), who derive tests for fixed effects models. The
+three tests also warn on such a fit (*Fixed effects for small groups*,
+above).
 
 A regressor named like a column White's test generates, such as `a` beside
 `a_sq`, stopped the test with "Auxiliary regression failed: duplicated name

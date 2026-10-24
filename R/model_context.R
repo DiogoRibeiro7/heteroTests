@@ -777,3 +777,135 @@ rwarn_incomplete_rows <- function(data, model, also = character()) {
   .std_warning("missing_values_removed", var_names = var_names, n_removed = n_removed)
   invisible(NULL)
 }
+
+#' The terms of a fit with more levels than observations per level
+#'
+#' The rule of [rwarn_small_groups()] is decided on the terms of the model,
+#' not on its variables, so that a variable left out of the formula, as in
+#' `y ~ . - id`, does not count, and an interaction counts by its cells. A term
+#' counts when it holds at least one factor or character variable: `subject`,
+#' `school:class` of a nested `school / class`, `a:b` of a crossed `a * b` or
+#' of `a:b` alone, a slope for each level, `x:subject`, or a variable such as
+#' `interaction(a, b)`. Its number of levels \eqn{L} is the number of distinct
+#' combinations of its factor and character variables among the observations
+#' the test reads, the rows of `frame`, and \eqn{n} is their number: more
+#' levels than observations per level, \eqn{L > n / L}, that is
+#' \eqn{L^2 > n}.
+#'
+#' The variables of a term are the rows of the `"factors"` matrix of the
+#' terms of the model, and they are matched to the columns of the model frame
+#' by position, which is their order in both, not by name: a name that needs
+#' backticks, such as `` `my subject` ``, is written with them in the matrix
+#' and without them in the frame.
+#'
+#' @param model The fitted model.
+#' @param frame The model frame, one row per observation the test reads.
+#' @return A data frame with one row per such term: its label (`term`), its
+#'   number of levels (`levels`) and the number of observations
+#'   (`observations`); zero rows when there is none.
+#' @keywords internal
+#' @noRd
+rsmall_groups <- function(model, frame) {
+  none <- data.frame(term = character(), levels = integer(), observations = integer(),
+                     stringsAsFactors = FALSE)
+  n <- NROW(frame)
+  model_terms <- tryCatch(stats::terms(model), error = function(e) NULL)
+  incidence <- attr(model_terms, "factors")
+  if (n == 0L || !is.matrix(incidence) || ncol(incidence) == 0L ||
+        nrow(incidence) > NCOL(frame)) {
+    return(none)
+  }
+  categorical <- vapply(seq_len(nrow(incidence)), function(i) {
+    x <- frame[[i]]
+    is.factor(x) || is.character(x)
+  }, logical(1))
+  levels <- vapply(seq_len(ncol(incidence)), function(j) {
+    held <- which(incidence[, j] > 0 & categorical)
+    if (length(held) == 0L) {
+      return(0L)
+    }
+    cells <- frame[, held, drop = FALSE]
+    nrow(unique(cells[stats::complete.cases(cells), , drop = FALSE]))
+  }, integer(1))
+  small <- as.numeric(levels)^2 > n
+  if (!any(small)) {
+    return(none)
+  }
+  data.frame(term = colnames(incidence)[small], levels = levels[small],
+             observations = as.integer(n), stringsAsFactors = FALSE)
+}
+
+#' Warn that a factor has more levels than observations per level
+#'
+#' White's, Koenker's and the Breusch-Pagan tests are not valid with fixed
+#' effects for small groups. Under normal errors, the squared residuals of a
+#' group of \eqn{T} observations vary between groups \eqn{T / (T - 1)} times as
+#' much as the auxiliary regression on the group dummies assumes, so the
+#' statistic exceeds its degrees of freedom by about \eqn{(G - 1) / (T - 1)}
+#' for \eqn{G} groups, an excess that grows with \eqn{G} at a fixed \eqn{T},
+#' while the spread of the reference distribution grows as
+#' \eqn{\sqrt{2 G}}. In the size study of `inst/validation/fixed-effects-size.R`
+#' the rule \eqn{G \le T}, at most as many levels as observations per level,
+#' kept the three tests within 2.5% to 7.5% at the 5% level in all but 1 of 69
+#' designs, and the size went to 1 as \eqn{G} grew at a fixed \eqn{T}.
+#'
+#' The tests give this warning on a fit with such a term ([rsmall_groups()])
+#' after they have computed their value, which it does not change, decided by
+#' the author on 2026-10-23. It has class `heteroTests_fixed_effects_warning`,
+#' so that it can be muffled by class, and carries the terms (`factors`), their
+#' numbers of levels and the number of observations. The caches of results and
+#' the runners keep it with the result and give it again once the result is
+#' stored (R/cache.R). A term that holds a factor only as a slope for each
+#' level, `x:subject`, counts too, as decided: there the tests rejected too
+#' rarely (0.1% to 2.8% at the 5% level,
+#' `inst/validation/fixed-effects-variants-size.R`), as White's test with the
+#' products of a few regressors does, so the message says that the p-value is
+#' unreliable, and in which direction it erred in the simulations.
+#'
+#' @param model The fitted model.
+#' @param frame The model frame, one row per observation the test reads.
+#' @param test Character scalar naming the test in the warning, such as
+#'   `"Koenker's test"`.
+#' @param topic Character scalar, the help page whose section *Fixed effects
+#'   for small groups* the warning points to.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+#' @noRd
+rwarn_small_groups <- function(model, frame, test, topic) {
+  small <- rsmall_groups(model, frame)
+  if (nrow(small) == 0L) {
+    return(invisible(NULL))
+  }
+  n <- small$observations[1L]
+  per_level <- vapply(n / small$levels, function(v) format(round(v, 1)), character(1))
+  enumerate <- function(x) {
+    if (length(x) == 1L) {
+      return(x)
+    }
+    paste(paste(x[-length(x)], collapse = ", "), "and", x[length(x)])
+  }
+  # A label that already holds backticks, `my subject`, is shown as it is.
+  quoted <- ifelse(grepl("`", small$term, fixed = TRUE), small$term,
+                   paste0("`", small$term, "`"))
+  what <- if (nrow(small) == 1L) {
+    sprintf("The term %s has %d levels", quoted, small$levels)
+  } else {
+    sprintf("The terms %s have %s levels", enumerate(quoted),
+            enumerate(as.character(small$levels)))
+  }
+  message <- sprintf(
+    paste0(
+      "%s for %d observations, %s per level: with fixed effects for small groups, more ",
+      "levels than observations per level, the p-value of %s is unreliable; in simulations ",
+      "it was usually far too small, and too large when the factor enters only as a slope ",
+      "per level (see 'Fixed effects for small groups' in ?%s)."
+    ),
+    what, as.integer(n), enumerate(per_level), test, topic
+  )
+  warning(structure(
+    class = c("heteroTests_fixed_effects_warning", "warning", "condition"),
+    list(message = message, call = NULL, factors = small$term, levels = small$levels,
+         observations = as.integer(n))
+  ))
+  invisible(NULL)
+}
