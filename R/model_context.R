@@ -813,7 +813,8 @@ rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
 #' units, one cell for each pair of `id` and `time`. A pair that holds two
 #' observations of the fit puts one of them in the cell of another period, and
 #' before 0.16.0 the statistic was computed so without an error. Such panels
-#' are refused (decision 13 of the design of the model context).
+#' are refused (decision 13 of the design of the model context), with the
+#' class of the refusals of the context.
 #'
 #' @param id_values,time_values The units and the periods, one per
 #'   observation of the fit, without missing values.
@@ -823,35 +824,47 @@ rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
 #' @keywords internal
 #' @noRd
 rstop_repeated_panel_cells <- function(id_values, time_values, id, time, fn) {
-  pairs <- data.frame(id = id_values, time = time_values, stringsAsFactors = FALSE)
-  repeated <- duplicated(pairs)
+  # One pass over the observations: each pair gets a number, the repeated
+  # numbers are found by duplicated(), and their observations counted by
+  # tabulate(). It counted each repeated pair with a scan of every
+  # observation, 18 s for the 40,000 repeated pairs of 120,000 observations.
+  key <- rpanel_cell_key(id_values, time_values)
+  repeated <- duplicated(key)
   if (!any(repeated)) {
     return(invisible(NULL))
   }
-  cells <- unique(pairs[repeated, , drop = FALSE])
-  counts <- vapply(seq_len(nrow(cells)), function(k) {
-    sum(pairs$id == cells$id[k] & pairs$time == cells$time[k])
-  }, integer(1))
-  shown <- utils::head(seq_len(nrow(cells)), 3L)
+  # The pairs in the order in which they first repeat, each shown by its first
+  # observation, and the number of observations of each.
+  cells <- unique(key[repeated])
+  first <- match(cells, key)
+  counts <- tabulate(match(key, cells), nbins = length(cells))
+  shown <- utils::head(seq_along(cells), 3L)
   listed <- paste(
-    sprintf("%s = %s and %s = %s (%d observations)", id, as.character(cells$id[shown]), time,
-            as.character(cells$time[shown]), counts[shown]),
+    sprintf("%s = %s and %s = %s (%d observations)", id, as.character(id_values[first[shown]]),
+            time, as.character(time_values[first[shown]]), counts[shown]),
     collapse = "; "
   )
-  if (nrow(cells) > 3L) {
-    listed <- sprintf("%s, and %d more", listed, nrow(cells) - 3L)
+  if (length(cells) > 3L) {
+    listed <- sprintf("%s, and %d more", listed, length(cells) - 3L)
   }
-  stop(
-    sprintf(
-      paste0(
-        "%s() needs one observation of the fit for each pair of `%s` and `%s`, and %d %s ",
-        "more than one: %s. The residuals are arranged in a matrix of periods by units, ",
-        "with one cell for each pair. Pass a panel with one row per unit and period."
-      ),
-      fn, id, time, nrow(cells), if (nrow(cells) == 1L) "pair holds" else "pairs hold", listed
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() needs one observation of the fit for each pair of `%s` and `%s`, and %d %s ",
+      "more than one: %s. The residuals are arranged in a matrix of periods by units, ",
+      "with one cell for each pair. Pass a panel with one row per unit and period."
     ),
-    call. = FALSE
-  )
+    fn, id, time, length(cells), if (length(cells) == 1L) "pair holds" else "pairs hold", listed
+  ))
+}
+
+# The number of the cell of each observation in the matrix of periods by
+# units: the same number for the same pair of unit and period, a different
+# one for another, from the positions of the unit and the period among the
+# distinct values, exact in double precision up to 2^53 cells.
+rpanel_cell_key <- function(id_values, time_values) {
+  unit <- match(id_values, unique(id_values))
+  period <- match(time_values, unique(time_values))
+  (unit - 1) * max(c(period, 0L)) + period
 }
 
 #' Refuse an unbalanced panel
@@ -876,9 +889,11 @@ rstop_repeated_panel_cells <- function(id_values, time_values, id, time, fn) {
 #' @keywords internal
 #' @noRd
 rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
+  # The periods of each unit, counted in one pass over its distinct pairs.
   units <- sort(unique(id_values))
   n_periods <- length(unique(time_values))
-  held <- vapply(units, function(u) length(unique(time_values[id_values == u])), integer(1))
+  distinct <- !duplicated(rpanel_cell_key(id_values, time_values))
+  held <- tabulate(match(id_values[distinct], units), nbins = length(units))
   short <- which(held < n_periods)
   if (length(short) == 0L) {
     return(invisible(NULL))

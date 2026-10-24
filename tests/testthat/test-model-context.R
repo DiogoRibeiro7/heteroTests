@@ -1520,8 +1520,8 @@ test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {
   # matrix of periods by units, and a pair that holds two observations put
   # one of them in the cell of another period: with the second observation of
   # unit 1 moved to period 5, the test returned 0.516 where the panel gives
-  # 0.264, without an error. It is refused; the random-effects test, which
-  # reads no period, is unchanged.
+  # 0.264, without an error. It is refused, with the class of the refusals of
+  # the context; the random-effects test, which reads no period, is unchanged.
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   d <- context_data()
@@ -1534,8 +1534,10 @@ test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {
   )
   set.seed(3)
   for (data in list(panel, panel[sample(nrow(panel)), ])) {
-    expect_error(performPesaranTest(m, data, "id", "time"), refusal, fixed = TRUE)
-    expect_error(runPanelTests(m, data, "id", "time"), refusal, fixed = TRUE)
+    expect_error(performPesaranTest(m, data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+    expect_error(runPanelTests(m, data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
     expect_identical(performBPRandomEffectsTest(m, data, "id")$statistic,
                      performBPRandomEffectsTest(lm(y ~ x1 + x2, data = d), d, "id")$statistic)
     expect_identical(runPanelTests(m, data, "id", tests = "bp_random")$bp_random$statistic,
@@ -1552,12 +1554,52 @@ test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {
     fixed = TRUE
   )
   expect_error(performPesaranTest(m_twice, twice, "id", "period"), "and 1 more", fixed = TRUE)
+  # A fit with na.exclude is read by position until its step of the model
+  # context, and the pair is refused there too; from the review of increment
+  # 5, where the test returned 0.253 on it, with the repeated pair.
+  excluded <- panel
+  excluded$x2[50] <- NA
+  m_excluded <- lm(y ~ x1 + x2, data = excluded, na.action = na.exclude)
+  expect_error(performPesaranTest(m_excluded, excluded, "id", "time"), refusal, fixed = TRUE,
+               class = "heteroTests_model_context_error")
   # A unit or a period missing at an observation of the fit stopped the
   # statistic ("number of items to replace ..."); the refusal names it.
   gap <- d
   gap$time[5] <- NA
   expect_error(performPesaranTest(lm(y ~ x1 + x2, data = gap), gap, "id", "time"),
                "Missing rows: 5, where time, the `time` variable, is missing.", fixed = TRUE)
+})
+
+test_that("the refusals of Pesaran's test take linear time", {
+  # From the review of increment 5: the refusal of repeated pairs counted each
+  # with a scan of every observation, and took 18 to 53 s on 120,000
+  # observations with 40,000 repeated pairs; one pass takes well under a
+  # second, and so does the check of balance, which scanned the observations
+  # once for each unit. The bounds are generous, to hold on a slow machine.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  big <- data.frame(id = rep(1:4000, each = 30), time = rep(rep(1:10, each = 3), 4000))
+  big$x <- rnorm(nrow(big))
+  big$y <- big$x + rnorm(nrow(big))
+  m <- lm(y ~ x, data = big)
+  elapsed <- system.time(expect_error(
+    performPesaranTest(m, big, "id", "time"),
+    "and 40000 pairs hold more than one: id = 1 and time = 1 (3 observations);",
+    fixed = TRUE, class = "heteroTests_model_context_error"
+  ))[["elapsed"]]
+  expect_lt(elapsed, 10)
+  expect_lt(system.time(
+    expect_error(rstop_repeated_panel_cells(big$id, big$time, "id", "time", "f"),
+                 "and 39997 more", fixed = TRUE)
+  )[["elapsed"]], 1)
+  balanced <- data.frame(id = rep(1:4000, each = 30), time = rep(1:30, 4000))[-1, ]
+  expect_lt(system.time(
+    expect_error(rstop_unbalanced_panel(balanced$id, balanced$time, "id", "f"),
+                 "1 of its 4000 units is observed at fewer of its 30 periods, id = 1 at 29 of them",
+                 fixed = TRUE)
+  )[["elapsed"]], 1)
 })
 
 test_that("the panel tests read their identifiers at rows told apart", {

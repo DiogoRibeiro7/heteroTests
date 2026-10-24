@@ -202,7 +202,7 @@ The functions of `R/model_context.R`:
 | `rstop_missing_variable(ctx, values, variable, argument, test_label)` | Refuses an extra variable that is `NA` at an observation of the fit, with the "Missing rows" message of before, naming the variable (decision 8). |
 | `rcontext_group_rows(ctx, data, group)` | The five group tests (increment 4): the group read as `rcontext_variables()` reads it (M1 without `data`), the Pearson residuals (`rcontext_pearson()`, which refuses a zero weight), and the confirmed rows of `data` in fit order, or the model frame, without the observations whose group or variable of the model is missing, left out by `rhandleMissingValues()` with its warning, as before (decision 8). |
 | `rcontext_columns_at_fit(ctx, data, columns, fn, test_label)` | The panel tests and the scatter diagnostic (increment 5): the columns they read, `id`, `time` or `vars`, as `rcontext_variables()` reads them (M1 without `data`), and the Pearson residuals (`rcontext_pearson()`); for a fit with `na.exclude`, its padded residuals against the rows of `data` by position, checked by `rcheck_data_in_fit_order()`, as before, until increment 9. |
-| `rstop_repeated_panel_cells(id_values, time_values, id, time, fn)` | Pesaran's test (increment 5): refuses a pair of `id` and `time` that holds two observations of the fit, naming up to three pairs (decision 13). |
+| `rstop_repeated_panel_cells(id_values, time_values, id, time, fn)` | Pesaran's test (increment 5): refuses a pair of `id` and `time` that holds two observations of the fit, naming up to three pairs, with the class of the context (decision 13). |
 | `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
@@ -259,8 +259,16 @@ seen by any alignment (N16).
 | M7 | a multivariate `lm` | "performKoenkerTest() needs a model with one response; `model` has 2." |
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
 | frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..." |
+| R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more" |
+| N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28), on every route | "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." |
 
-M1, M7, M8 and the frame message have class `heteroTests_model_context_error`.
+M1, M7, M8, the frame message, R2 and N12 have class
+`heteroTests_model_context_error`. Both panel refusals find the repeated pairs
+and the periods of each unit in one pass over the observations (a number for
+each pair, `duplicated()` and `tabulate()`): 0.02 s each on 120,000
+observations of 4,000 units, where the first version of R2 counted each
+repeated pair with a scan of every observation, 18 s on this machine (53 s in
+the review of increment 5).
 
 ## Compatibility
 
@@ -843,7 +851,11 @@ concern, and N17, "frame", M8 and the rule on ties for these;
 follow-up, a call of White's test identical to `main` counts as identical
 rather than being checked against the reference of N2 (`identity_n2_mode()`):
 the first run against such a `main` counted White's identical refusals of an
-exact fit as allowed changes.
+exact fit as allowed changes, and counted as unexpected the runner on the
+saturated design of the follow-up (`runner | runHeteroTests |
+white/saturated`), whose fallback on White's test without cross products is
+the correct one (decision 25) and is `identical()` to `main`'s: a false alarm
+the rule removes.
 
 Increment 5, with the refusal of an unbalanced panel (decision 28): 22,542
 calls on 356 cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the
