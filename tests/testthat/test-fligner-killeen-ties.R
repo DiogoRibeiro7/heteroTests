@@ -1,10 +1,11 @@
-# performFlignerKilleenTest() and a tie at the median (0.16.0). In a group of
-# even size the two residuals in the middle lie at the same distance from the
-# group median, a tie that rounding often breaks, so that the statistic of an
-# lm and of the Gaussian glm of the same model differed by about 1e-6 of its
-# value. Deviations from the group medians closer than
-# 8 * .Machine$double.eps * max(abs(residuals)) are ranked as tied
-# (rfligner_rounding_ties()).
+# performFlignerKilleenTest() and its ties (0.16.0). The deviations from the
+# group medians are ranked on residuals computed observation by observation,
+# sqrt(w) (y - X b - o), so that repeated observations get the same residual,
+# where the residuals an lm stores, from its QR decomposition, differ in their
+# last bits (rfligner_residuals()); and deviations closer than
+# 8 * .Machine$double.eps times the largest absolute residual of their group
+# are ranked as tied, which restores the tie of the two residuals in the
+# middle of a group of even size (rfligner_rounding_ties()).
 
 test_that("the lm and the Gaussian glm of the same model give the same statistic", {
   # The case that exposed it: before 0.16.0 the lm gave 9.3670076662104975
@@ -34,6 +35,47 @@ test_that("the lm and the Gaussian glm of the same model give the same statistic
   expect_identical(out$lm$p.value, out$glm$p.value)
 })
 
+test_that("repeated observations tie, as in exact arithmetic", {
+  # An integer response on a factor: the residuals of the lm centred at their
+  # group medians are the responses centred at theirs, so the statistic of
+  # exact ties is stats::fligner.test() of the responses. Before 0.16.0 the
+  # lm gave 1.6149 and 2.9985 for these two, where exact ties give 1.5420 and
+  # 2.4926.
+  g <- factor(rep(1:4, length.out = 60))
+  set.seed(8060)
+  small <- data.frame(y = stats::rpois(60, 3), g = g)
+  set.seed(9060)
+  far <- data.frame(y = 1e4 + stats::rpois(60, 3), g = g)
+  for (d in list(small, far)) {
+    exact <- stats::fligner.test(d$y, d$g)
+    for (m in list(lm(y ~ g, data = d), glm(y ~ g, data = d))) {
+      out <- performFlignerKilleenTest(m, d, "g")
+      expect_equal(unname(out$statistic), unname(exact$statistic), tolerance = 1e-12)
+      expect_equal(out$p.value, exact$p.value, tolerance = 1e-12)
+    }
+  }
+
+  # Responses recorded with one decimal: sleep, whose statistic was 0.1539
+  # before 0.16.0, and that of exact ties, 0.2127, is stats::fligner.test() of
+  # the responses scaled to integers; warpbreaks, 3.4404 before and 3.9015.
+  exact <- stats::fligner.test(round(10 * sleep$extra), sleep$group)
+  out <- performFlignerKilleenTest(lm(extra ~ group, data = sleep), sleep, "group")
+  expect_equal(unname(out$statistic), unname(exact$statistic), tolerance = 1e-12)
+  expect_equal(unname(out$statistic), 0.2127120, tolerance = 1e-6)
+  exact <- stats::fligner.test(warpbreaks$breaks, warpbreaks$tension)
+  out <- performFlignerKilleenTest(lm(breaks ~ tension, data = warpbreaks), warpbreaks, "tension")
+  expect_equal(unname(out$statistic), unname(exact$statistic), tolerance = 1e-12)
+
+  # Every row twice: the lm and the glm give the same statistic.
+  twice <- iris[c(seq_len(150), seq_len(150)), ]
+  for (f in list(Sepal.Length ~ Petal.Length, Sepal.Length ~ Petal.Length + Species)) {
+    a <- performFlignerKilleenTest(lm(f, data = twice), twice, "Species")
+    b <- performFlignerKilleenTest(glm(f, data = twice), twice, "Species")
+    expect_identical(a$statistic, b$statistic)
+    expect_identical(a$p.value, b$p.value)
+  }
+})
+
 test_that("a tie that rounding broke at a group median is ranked as a tie", {
   # Two groups of four whose middle residuals, 0.1 and 0.3 in the first and
   # 0.7 and 1.3 in the second, sit at the same distance from the median in
@@ -55,35 +97,29 @@ test_that("a tie that rounding broke at a group median is ranked as a tie", {
   )
 })
 
-test_that("exact ties are averaged as stats::fligner.test() does, and distinct values kept", {
-  # Integer responses on a factor, in groups of odd and of even size: the
-  # deviations from the group medians are integers or halves of integers,
-  # with many exact ties and no two distinct values closer than 1/2. The
-  # residuals of the Gaussian glm are those of the group means, and its test
-  # is that of the responses themselves.
-  set.seed(3)
-  g <- factor(rep(c("a", "b", "c", "d"), times = c(15, 16, 17, 12)))
-  y <- stats::rpois(length(g), 3)
-  d <- data.frame(y = y, g = g)
-  expect_null(rfligner_rounding_ties(y, g))
-  ours <- performFlignerKilleenTest(glm(y ~ g, data = d), d, "g")
-  ref <- stats::fligner.test(y, g)
-  expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 1e-12)
-  expect_equal(ours$p.value, ref$p.value, tolerance = 1e-12)
-
-  # Only deviations closer than 8 * eps * max|x| are ranked as tied: here
-  # max|x| = 5, so 40 eps. The deviations of the second group, 1 + 4 eps and
-  # 1 + 64 eps from its median in size, are tied with the 1 of the first
-  # group in the first case and not in the second.
+test_that("only deviations within the tolerance of their groups are tied", {
+  # The tolerance is 8 eps times the largest absolute residual of the group,
+  # the smaller of the two for deviations in different groups: here 8 eps.
+  # The deviation of the second group, 1 + 4 eps in size, is tied with the 1
+  # of the first group; 1 + 64 eps is not.
   eps <- .Machine$double.eps
   two <- factor(rep(c("a", "b"), each = 3))
   close <- rfligner_rounding_ties(c(-1, 0, 1, -1 - 4 * eps, 0, 5), two)
   expect_identical(close, c(-1, 0, 1, -1, 0, 5))
   expect_null(rfligner_rounding_ties(c(-1, 0, 1, -1 - 64 * eps, 0, 5), two))
+
+  # A group far from zero does not widen the tolerance of the others: the
+  # deviations 1 and 1 + 1e-12 of the second and third groups stay apart,
+  # which a tolerance of 8 eps times the largest residual of all, 1e8,
+  # would tie.
+  three <- factor(rep(c("a", "b", "c"), each = 3))
+  x <- c(1e8 - 1, 1e8, 1e8 + 1, -1, 0, 1 + 1e-12, -1, 0, 1)
+  expect_null(rfligner_rounding_ties(x, three))
 })
 
 test_that("residuals with no tie that rounding broke give stats::fligner.test() unchanged", {
-  # Groups of odd size, whose medians are residuals: the centring is exact.
+  # Groups of odd size, whose medians are residuals: the centring is exact,
+  # and the residuals computed row by row rank as those of the fit.
   d <- contract_data()$d
   d$odd <- factor(rep(c("a", "b", "c", "d"), times = c(31, 29, 31, 29)))
   m <- lm(y ~ x1 + x2, data = d)

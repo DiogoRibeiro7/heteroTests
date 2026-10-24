@@ -44,25 +44,28 @@
 #' and the observations whose group is missing are left out, before the
 #' statistic is computed.
 #'
-#' Tied values are given the mean of their ranks, and since 0.16.0 so are
-#' absolute deviations closer than \eqn{8 \epsilon \max_i |r_i|}, with
-#' \eqn{\epsilon} = `.Machine$double.eps` and \eqn{r_i} the residuals. In a
-#' group of even size the two residuals in the middle lie at the same distance
-#' from the median of the group, half their difference, a tie that rounding
-#' often breaks: one of the two then ranked first, which decided about
-#' \eqn{10^{-6}} of the statistic, and differently for two fits of the same
-#' model, such as an `lm` and the Gaussian `glm`. The centring opens a gap of
-#' at most \eqn{\epsilon \max_i |r_i|} between those two, and of about
-#' \eqn{3 \epsilon \max_i |r_i|} at most between any two deviations that are
-#' equal in exact arithmetic. In 2,000 simulated fits of 20 to 400
-#' observations the first reached \eqn{0.996 \epsilon \max_i |r_i|}, and the
-#' smallest gap between other deviations was
-#' \eqn{2.1 \times 10^{-10} \max_i |r_i|}, about 120,000 times the
-#' tolerance. Without deviations that close, the residuals are passed to
-#' [stats::fligner.test()] as before. Ties that the fit itself broke by more
-#' are not restored: on an integer response regressed on a factor, the
-#' residuals of an `lm` that are equal in exact arithmetic can differ by more,
-#' where those of the Gaussian `glm` are equal.
+#' Tied values are given the mean of their ranks. Since 0.16.0 the deviations
+#' are those of the residuals
+#' \eqn{r_i = \sqrt{w_i}\,(y_i - x_i^\top \hat\beta - o_i)} computed
+#' observation by observation, as the Gaussian `glm` computes them, and not
+#' the residuals an `lm` stores, which its QR decomposition rounds differently
+#' from one observation to the next: repeated observations, such as equal
+#' values of an integer response or of a response recorded with few digits,
+#' get equal residuals and tie, as in exact arithmetic. For an `mgcv::gam()`
+#' fit \eqn{x_i} is the row of its linear predictor matrix. And absolute
+#' deviations closer than \eqn{8 \epsilon s_j}, with \eqn{\epsilon} =
+#' `.Machine$double.eps` and \eqn{s_j} the largest \eqn{|r_i|} of group
+#' \eqn{j} (the smaller of the two for deviations of different groups), are
+#' ranked as tied: in a group of even size the two residuals in the middle lie
+#' at the same distance from the median of the group, half their difference,
+#' a tie that the centring breaks by up to \eqn{\epsilon s_j}. On data with
+#' repeated observations the statistic is now that of exact ties, and can
+#' differ much from before: on `lm(extra ~ group, data = sleep)` it was 0.154
+#' and is 0.213. On continuous data it moves by much less (see `NEWS`). Where
+#' neither changes a rank, the value is that of [stats::fligner.test()] on
+#' the residuals of the fit, as before. In a group whose residuals are far
+#' from zero, \eqn{10^8} times their spread, the tolerance may also tie two
+#' deviations that differ by a few units in the last place of the residuals.
 #'
 #' @references
 #' Conover, W. J., Johnson, M. E., & Johnson, M. M. (1981). A comparative study
@@ -213,11 +216,13 @@ performFlignerKilleenTest <- function(model, data = NULL, group) {
     )
   }
 
-  # A tie that rounding broke at the centring is made exact again, so that
-  # stats::fligner.test() averages its ranks (rfligner_rounding_ties()); data
-  # with no such tie are passed on as before.
-  tied <- rfligner_rounding_ties(residuals, grp)
-  fl_res <- stats::fligner.test(if (is.null(tied)) residuals else tied, grp)
+  # The deviations are ranked on residuals computed observation by
+  # observation, so that repeated observations get the same residual
+  # (rfligner_residuals()), with the ties that rounding broke at the centring
+  # made exact again (rfligner_rounding_ties()). Where that changes no rank,
+  # the residuals of the fit are passed on as before.
+  ranked <- rfligner_ranked_residuals(ctx, data, group, residuals, grp)
+  fl_res <- stats::fligner.test(ranked, grp)
 
   structure(
     list(
@@ -231,6 +236,90 @@ performFlignerKilleenTest <- function(model, data = NULL, group) {
   )
 }
 
+# The residuals Fligner-Killeen's test ranks.
+#
+# The test ranks the absolute deviations of the residuals from their group
+# medians, and ties in exact arithmetic are broken by rounding in two places.
+# The residuals of an lm come from its QR decomposition, y - Q Q'y, whose
+# rounding differs from one observation to the next: two observations with
+# the same response and design row, such as repeated values of an integer
+# response, get residuals that differ in their last bits (in 20 fits of
+# rpois(n, 3) on four groups, by up to 17 times eps * max|r| at 60
+# observations and 6,900 times at 6,000), and the test ranked them apart. The
+# Gaussian glm computes y - X b, the same for both. And the centring breaks
+# the tie of the two residuals in the middle of a group of even size. So the
+# test ranks residuals computed as y - X b (rfligner_residuals()), with the
+# ties that rounding broke at the centring made exact again
+# (rfligner_rounding_ties()). Where that changes no rank of the residuals of
+# the fit, those are returned, so that the value is that of before 0.16.0;
+# otherwise the deviations with their ties, or the residuals of y - X b.
+rfligner_ranked_residuals <- function(ctx, data, group, residuals, grp) {
+  own <- rfligner_residuals(ctx, data, group, residuals)
+  if (is.null(own)) {
+    own <- as.vector(residuals)
+  }
+  tied <- rfligner_rounding_ties(own, grp)
+  candidate <- if (is.null(tied)) own else tied
+  before <- rank(abs(rfligner_centred(residuals, grp)))
+  after <- rank(abs(rfligner_centred(candidate, grp)))
+  if (identical(before, after)) residuals else candidate
+}
+
+# Deviations from the group medians, as stats::fligner.test() computes them.
+rfligner_centred <- function(x, g) {
+  x <- as.vector(x)
+  as.vector(x - tapply(x, g, stats::median)[g])
+}
+
+# The Pearson residuals sqrt(w) (y - (X b + o)) of the observations the test
+# keeps, with X b summed column by column in the same order for every row
+# (rowSums(), not the BLAS of %*%, whose paths may round some rows
+# otherwise), so that observations with the same response, design row,
+# offset and weight get the same residual. X is the design the context
+# stores, model.matrix() of the fit, which for an mgcv::gam() fit is its
+# linear predictor matrix, smooth terms included; the aliased columns of a
+# rank-deficient fit are left out with their coefficients. NULL when they
+# cannot be computed, or when they are not the residuals of the fit up to
+# rounding, which the test then ranks as before.
+rfligner_residuals <- function(ctx, data, group, kept) {
+  coefs <- stats::coef(ctx$model)
+  design <- ctx$design
+  response <- ctx$response
+  if (is.null(design) || is.null(response) || !is.numeric(coefs) ||
+        NCOL(design) != length(coefs) || NROW(design) != length(response)) {
+    return(NULL)
+  }
+  used <- !is.na(coefs)
+  x <- design[, used, drop = FALSE]
+  fitted_mean <- rowSums(x * rep(unname(coefs[used]), each = nrow(x)))
+  if (!is.null(ctx$offset)) {
+    fitted_mean <- fitted_mean + ctx$offset
+  }
+  own <- as.vector(response) - fitted_mean
+  if (!is.null(ctx$weights)) {
+    own <- sqrt(ctx$weights) * own
+    fitted_mean <- sqrt(ctx$weights) * fitted_mean
+  }
+  if (length(own) != length(kept)) {
+    # The observations whose group, or a variable of the model, is missing in
+    # the rows that hold them, which rcontext_group_rows() left out.
+    rows <- if (is.null(data)) ctx$frame else data[ctx$rows, , drop = FALSE]
+    variables <- intersect(unique(c(all.vars(stats::terms(ctx$model)), group)), names(rows))
+    keep <- stats::complete.cases(rows[, variables, drop = FALSE])
+    if (length(keep) != length(own) || sum(keep) != length(kept)) {
+      return(NULL)
+    }
+    own <- own[keep]
+    fitted_mean <- fitted_mean[keep]
+  }
+  kept <- as.vector(kept)
+  scale <- max(abs(kept), abs(fitted_mean))
+  if (!all(is.finite(own)) || max(abs(own - kept)) > sqrt(.Machine$double.eps) * scale) {
+    return(NULL)
+  }
+  own
+}
+
 # The ties that rounding broke when the residuals were centred at their group
 # medians, made exact again, or NULL when there are none.
 #
@@ -238,38 +327,37 @@ performFlignerKilleenTest <- function(model, data = NULL, group) {
 # averages the ranks of values that are exactly equal. In a group of even
 # size the two residuals in the middle, a <= b, lie at the same distance from
 # m_j = (a + b) / 2 in exact arithmetic, but m_j and the two differences are
-# rounded, so that one of the two often ranks below the other: which one
-# depends on the last bits of the residuals and decides about 1e-6 of the
-# statistic (found comparing a Gaussian glm with the same lm). With eps =
-# .Machine$double.eps, m_j is rounded by at most eps / 2 * |m_j| and each
-# difference by at most eps / 2 of its size, which opens a gap of at most
-# eps * |m_j| + eps * (b - a) / 2 = eps * max(|a|, |b|) between the two, and
-# of at most about 3 * eps * max|x| between any two deviations that are equal
-# in exact arithmetic. The scale is that of the residuals, not of their
-# deviations, since the rounding of m_j is relative to its own size, which
-# may be much larger than the deviations of its group. Deviations closer than
-# 8 * eps * max|x| are taken as tied: 8 times the largest gap the centring
-# opens in the middle of a group. In 2,000 simulated lm fits of 20 to 400
-# observations, a quarter of them with a group far from zero, that gap
-# reached 0.996 * eps * max|x|, and the smallest gap between any other two
-# deviations was 2.1e-10 * max|x|, about 120,000 times the tolerance.
+# rounded, so that one of the two often ranks below the other, which decided
+# about 1e-6 of the statistic (found comparing a Gaussian glm with the same
+# lm). With eps = .Machine$double.eps, m_j is rounded by at most eps / 2 *
+# |m_j| and each difference by at most eps / 2 of its size, which opens a gap
+# of at most eps * |m_j| + eps * (b - a) / 2 = eps * max(|a|, |b|) between the
+# two, and of at most about 3 * eps * s_j between two deviations of group j
+# that are equal in exact arithmetic, with s_j the largest absolute residual
+# of the group. Deviations closer than 8 * eps * s_j are taken as tied, and
+# two deviations of different groups closer than 8 eps times the smaller of
+# their two s_j. The scale is that of the residuals of the group, not of
+# their deviations, since the rounding of m_j is relative to its own size, and
+# not that of all the residuals, so that a group far from zero does not widen
+# the tolerance of the others.
 #
 # Each run of such deviations, in increasing order, is set to its smallest
 # member, with its sign. The medians of the result are then exactly zero in
 # every group: in a group of odd size the middle deviation is zero, and in one
 # of even size the two in the middle are tied with opposite signs. So
 # stats::fligner.test() centres it at zero, which leaves it unchanged, and
-# ranks it with the tie exact; the same deviations up to rounding give the
-# same ranks, and so the same statistic, whichever fit computed them. Should a
-# median not be zero, the residuals are left as they are (NULL).
+# ranks it with the tie exact. Should a median not be zero, the residuals are
+# left as they are (NULL).
 rfligner_rounding_ties <- function(x, g) {
   x <- as.vector(x)
-  centred <- as.vector(x - tapply(x, g, stats::median)[g])
+  centred <- rfligner_centred(x, g)
   magnitude <- abs(centred)
-  tolerance <- 8 * .Machine$double.eps * max(abs(x))
+  scale <- as.vector(tapply(abs(x), g, max)[g])
   ord <- order(magnitude)
   sorted <- magnitude[ord]
   gaps <- diff(sorted)
+  at <- scale[ord]
+  tolerance <- 8 * .Machine$double.eps * pmin(at[-1L], at[-length(at)])
   if (!any(gaps > 0 & gaps <= tolerance)) {
     return(NULL)
   }

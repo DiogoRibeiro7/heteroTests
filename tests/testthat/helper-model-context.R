@@ -739,8 +739,9 @@ context_group_readers <- function() {
 # glm of y - o, equal on Windows to 1e-10, differed on CI by 1.5e-7 of the
 # statistic on Linux (1.98307876 against 1.98307847) and by 1.9e-6 on macOS
 # (1.9830772 against 1.9830809); this tolerance was 1e-4. Since 0.16.0 (N15)
-# deviations that only rounding tells apart are ranked as tied
-# (rfligner_rounding_ties(), R/performFlignerKilleenTest.R), so the fits of
+# the residuals are computed observation by observation and deviations that
+# only rounding tells apart are ranked as tied (rfligner_residuals() and
+# rfligner_rounding_ties(), R/performFlignerKilleenTest.R), so the fits of
 # the same model give the same ranks, and the statistic, which depends on the
 # ranks alone, is the same: identical() on the matrix, measured on Windows.
 # Where its reference is another fit of the same model, its value is compared
