@@ -8,7 +8,7 @@
 
 test_that("the lm and the Gaussian glm of the same model give the same statistic", {
   # The case that exposed it: before 0.16.0 the lm gave 9.3670076662104975
-  # and the glm 9.3670316853686657.
+  # and the glm 9.3670316853686657, on Windows.
   d <- contract_data()$d
   fits <- list(
     lm = lm(y ~ x1 + x2, data = d),
