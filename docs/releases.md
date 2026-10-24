@@ -6,48 +6,70 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
-### The Fligner-Killeen test and a tie at the median
+### The Fligner-Killeen test and its ties
 
-**`performFlignerKilleenTest()` ranks as tied two deviations from the group
-medians that only rounding tells apart, which changes its value, by about
-1e-6 of the statistic, on most data with a group of even size.** In a group
-of even size the two residuals in the middle lie at the same distance from
-the median of the group, half their difference, a tie that rounding often
-breaks: one of the two then ranked first, and the statistic depended on the
-last bits of the residuals, differently for two fits of the same model. On
-`lm(y ~ x1 + x2)` with 120 observations in four groups of 30, the `lm` gave
-9.3670076662104975, with a p-value of 0.0247890868, and the Gaussian `glm` of
-the same model 9.3670316853686657 and 0.0247888156; both now give
-9.3670316853686657 and 0.0247888156, `identical()`, the value the `gam` gave
-already. With the weights `1 / x1^2` the `lm` gave 5.5104541238 and the `glm`
-5.5104636418; both now give 5.5104706311.
+**On data with repeated observations, such as integer responses or
+responses recorded with few digits, `performFlignerKilleenTest()` now gives
+the value of exact ties, which can differ a lot from before: on
+`lm(extra ~ group, data = sleep)` the statistic was 0.154 and is 0.213 (the
+p-value 0.695 and 0.645), and on `lm(breaks ~ tension, data = warpbreaks)`
+it was 3.44 and is 3.90 (0.179 and 0.142).** On continuous data the
+statistic changes much less: in simulated fits by at most 8.6e-4 of its
+value with 20 observations and 7.5e-6 with 100 or more, and by at most
+1.2e-3 and 2.4e-5 with a group whose residuals are far from zero (below).
 
-Absolute deviations closer than `8 * eps * max(abs(r))`, with
-`eps = .Machine$double.eps` and `r` the residuals, are given the mean of
-their ranks, as `stats::fligner.test()` does with exact ties. The centring
-opens a gap of at most `eps * max(abs(r))` between the two in the middle of a
-group, and of about three times that at most between any two deviations
-that are equal in exact arithmetic. In 2,000 simulated fits of 20 to 400
-observations the first reached 0.996 times `eps * max(abs(r))`, and the
-smallest gap between other deviations was 2.1e-10 of the largest residual,
-about 120,000 times the tolerance. Without deviations that close, the
-residuals are passed to `stats::fligner.test()` as before.
+The test ranks the absolute deviations of the residuals from their group
+medians, and averages the ranks of equal values, but rounding broke ties in
+two places. It read the residuals an `lm` stores, which its QR decomposition
+rounds differently from one observation to the next: two observations with
+the same response and design row, equal in exact arithmetic, had residuals
+that differed in their last bits, and the test ranked them apart. In 20 fits
+of `rpois(n, 3)` on four groups the gaps reached 17 times
+`eps * max(abs(r))` at 60 observations and 6,900 times at 6,000, with
+`eps = .Machine$double.eps` and `r` the residuals. The test now computes the
+residuals observation by observation, `sqrt(w) * (y - X b - o)` with `X b`
+summed in the same order for every row, as the Gaussian `glm` computes them,
+so that such observations have equal residuals; for an `mgcv::gam()` fit `X`
+is its linear predictor matrix. And in a group of even size the two
+residuals in the middle lie at the same distance from the median, half their
+difference, a tie that the centring breaks by up to `eps * s`, with `s` the
+largest absolute residual of the group: deviations closer than
+`8 * eps * s`, with the smaller `s` of the two groups for deviations of
+different groups, are given the mean of their ranks. Where neither changes a
+rank, the residuals of the fit are passed to `stats::fligner.test()` as
+before, and the value is `identical()` to before.
 
-Over a corpus of 46 calls (odd and even numbers of observations, groups of
-odd and even size, weights, offsets, a `glm`, a `gam` and a `fitWLS()` fit,
-groups in the model and character groups, missing groups, genuine ties,
-scaled responses, a group far from zero and a rank-deficient fit), the 20
-calls with no tie broken by rounding are `identical()` to before. The 26
-others change, on continuous responses by 7.9e-7 to 3.2e-5 of the statistic
-and at most 6.1e-6 in the p-value. Ties that the fit itself broke by more
-than the tolerance stay broken: on an integer response regressed on a
-factor, the residuals of an `lm` that are equal in exact arithmetic differed
-by up to 17 times `eps * max(abs(r))` in six simulated fits of 60
-observations, where those of the Gaussian `glm` are equal. On three such
-fits of the corpus the statistic of the `lm` changed by 1.3% to 19%, nearer
-that of the `glm`, but not to it (recorded under 0.16.0 in the roadmap). The
-test is not run by `runHeteroTests()`, the registry or `test_factory`, so
-nothing else changes.
+An `lm` and the Gaussian `glm` of the same model now give the same value,
+`identical()`. On `lm(y ~ x1 + x2)` with 120 observations in four groups of
+30, the `lm` gave 9.3670076662104975, with a p-value of 0.0247890868, and
+the `glm` 9.3670316853686657 and 0.0247888156; both now give the second, the
+value the `gam` gave already.
+
+- On 480 fits of `lm(y ~ g)` with integer responses (`rpois(n, 3)`,
+    `rpois(n, 300)` and `1e4 + rpois(n, 3)`, four groups, balanced and
+    unbalanced, 60 to 60,000 observations), the statistic equals that of exact
+    ties, `stats::fligner.test()` of the responses, in all 480, where it did in
+    none before. On `sleep`, `PlantGrowth`, `warpbreaks`, `InsectSprays` and
+    `iris[-c(50, 100, 150), ]`, each fitted on its groups, it equals
+    `stats::fligner.test()` of the responses scaled to integers, and on `iris`
+    with every row twice the `lm` and the `glm` give the same value.
+- On 1,200 continuous fits of 20 to 10,000 observations (normal, `t3`,
+    Cauchy, exponential and scale-mixture errors, with and without weights,
+    with an intercept of 0 or 1e6, or with a group whose residuals are far
+    from zero), no two deviations that differ in exact arithmetic are tied, and
+    the `lm` and the `glm` give the same value, unless the residuals of a group
+    are 1e8 times their spread. Then the tolerance is a few units in the last
+    place of those residuals, and it tied such deviations in 41 of the 200
+    fits of 1,000 and 10,000 observations, and the `lm` and the `glm` differed
+    in 4.
+- Over a corpus of 55 calls, the 20 calls in which no rank changes are
+    `identical()` to before. Of the 17 with repeated observations, 14 change,
+    by up to 38% of the statistic (`sleep`); of the 38 with continuous
+    responses, 21 change, by 7.9e-7 to 3.2e-5 of the statistic and at most
+    6.1e-6 in the p-value. In the identity harness of the model context, 128 of
+    the 351 calls of the test change, by 1.1e-6 to 4.4e-6 of the statistic. The
+    test is not run by `runHeteroTests()`, the registry or `test_factory`, so
+    nothing else changes.
 
 ### The wild bootstrap in the advice for a small sample
 
@@ -55,23 +77,24 @@ nothing else changes.
 of fewer than 100 observations with the rationale `"Bootstrap inference
 performs well in small samples."`, and step 1 of
 `buildDiagnosticDecisionTree()` said `"Emphasise wild bootstrap and rank
-permutation tests."`. With centred
-exponential errors the wild bootstrap rejects a true null hypothesis 8.2%,
-7.3% and 6.1% of the time at the 5% level at 30, 50 and 100 observations, with
-the Rademacher multiplier (`inst/validation/wild-multiplier-size.R`). Both
-now say what the warning of `warnDiagnosticAssumptions()` says since 0.15.0:
+permutation tests."`. With centred exponential errors the wild bootstrap
+rejects a true null hypothesis 8.2%, 7.3% and 6.1% of the time at the 5%
+level at 30, 50 and 100 observations, with the Rademacher multiplier
+(`inst/validation/wild-multiplier-size.R`). Both now say what the warning of
+`warnDiagnosticAssumptions()` says since 0.15.0. The rationale reads:
 
 ```text
-Holds its level with normal and heavy-tailed errors, but with skewed errors
-the wild bootstrap does not hold its level here: in the package's validation
-study it rejected a true null hypothesis 6% to 8% of the time at the 5% level
-at 30 to 100 observations. Check the residuals for skewness and read p-values
-near the level with caution.
+In the package's validation study, at 30 to 100 observations, the wild
+bootstrap rejected a true null hypothesis 4.3% to 5.1% of the time at the 5%
+level with normal and t5 errors, but 6% to 8% of the time with skewed errors.
+Check the residuals for skewness and read p-values near the level with
+caution.
 ```
 
 and step 1 reads "Add the wild bootstrap and rank permutation tests;" followed
-by the same caution. Only the text changes: the same tests are recommended,
-and the same steps given.
+by the caution of the warning, "with skewed errors the wild bootstrap does not
+hold its level here: ...". Only the text changes: the same tests are
+recommended, and the same steps given.
 
 ### Fixed effects for small groups
 

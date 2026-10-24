@@ -852,13 +852,14 @@ after it.
     100 observations: with centred exponential errors it rejects 0.082, 0.073
     and 0.061 of the time at the 5% level with the Rademacher multiplier. Say
     what the warning says, or drop the claim. Recorded, not fixed, in 0.15.0;
-    only the text changes. Done in 0.16.0: both say what the warning says, from
-    one string (`rwild_small_sample_caution()`). The rationale reads "Holds its
-    level with normal and heavy-tailed errors, but with skewed errors the wild
-    bootstrap does not hold its level here: ...", and step 1 "Add the wild
-    bootstrap and rank permutation tests; with skewed errors ...". The same
-    tests are recommended and the same steps given
-    (`test-intelligent-recommendations.R`).
+    only the text changes. Done in 0.16.0: both say what the warning says. The
+    rationale reads "In the package's validation study, at 30 to 100
+    observations, the wild bootstrap rejected a true null hypothesis 4.3% to
+    5.1% of the time at the 5% level with normal and t5 errors, but 6% to 8% of
+    the time with skewed errors. ...", and step 1 "Add the wild bootstrap and
+    rank permutation tests; with skewed errors ...", the caution of the warning
+    (`rwild_small_sample_caution()`). The same tests are recommended and the
+    same steps given (`test-intelligent-recommendations.R`).
 - [ ] **`ht_analyse_failure()` labels a failure by its message, ignoring
     case.** It calls a failure a rank deficiency when the message matches
     `"rank|singular"` and a data-quality issue when it matches
@@ -882,25 +883,24 @@ after it.
     ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
     comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
     tied to within a tolerance. Changes a value, by that much. Done in 0.16.0:
-    absolute deviations from the group medians closer than
-    `8 * eps * max(abs(r))`, with `eps = .Machine$double.eps` and `r` the
-    residuals, are ranked as tied (`rfligner_rounding_ties()`). The centring
-    opens a gap of at most `eps * max(abs(r))` between the two in the middle of
-    a group; in 2,000 simulated fits it reached 0.996 times that, and the
-    smallest gap between other deviations was 2.1e-10 of the largest residual,
-    about 120,000 times the tolerance. On `lm(y ~ x1 + x2)` with four groups of
-    30 the `lm` gave 9.3670076662 and the Gaussian `glm` 9.3670316854; both give
-    9.3670316854, `identical()`, as the matrix of the model context now checks
-    (`context_fligner_tolerance`, 1e-4 before, 1e-10 now; `identical()` on
-    Windows). Over a corpus of 46 calls the 20 with no tie broken by rounding
-    are `identical()` to before, and 26 change, by 7.9e-7 to 3.2e-5 of the
-    statistic on continuous responses (`test-fligner-killeen-ties.R`,
-    `test-pass-b-reference.R`). In the identity harness of the model context
+    absolute deviations from the group medians closer than `8 * eps * s`, with
+    `eps = .Machine$double.eps` and `s` the largest absolute residual of the
+    group (the smaller of the two for deviations of different groups), are
+    ranked as tied (`rfligner_rounding_ties()`). The centring opens a gap of at
+    most `eps * s` between the two in the middle of a group. The scale is that
+    of the group, so that a group far from zero does not widen the tolerance
+    of the others, as one shifted by 1e8 did with the largest residual of all
+    (decided after the review of #156). On `lm(y ~ x1 + x2)` with four groups
+    of 30 the `lm` gave 9.3670076662 and the Gaussian `glm` 9.3670316854; both
+    give 9.3670316854, `identical()`, as the matrix of the model context now
+    checks (`context_fligner_tolerance`, 1e-4 before, 1e-10 now; `identical()`
+    on Windows). In the identity harness of the model context
     (`scripts/model-context-identity.R`), 128 of the 351 calls of the test
     change, by 1.1e-6 to 4.4e-6 of the statistic, and the 91 of them whose cell
     has another fit of the model as its reference are now `identical()` to it;
-    the other 19,628 calls are `identical()` to main.
-- [ ] **`performFlignerKilleenTest()` on residuals whose ties the fit
+    the other 19,628 calls are `identical()` to main
+    (`test-fligner-killeen-ties.R`, `test-pass-b-reference.R`).
+- [x] **`performFlignerKilleenTest()` on residuals whose ties the fit
     broke.** The tolerance of the item above is that of the centring. On an
     integer response regressed on a factor, residuals that are equal in exact
     arithmetic are computed equal by the Gaussian `glm` but not by the `lm`,
@@ -914,8 +914,28 @@ after it.
     statistic of the `lm` then stays off that of exact ties: from
     `set.seed(3)` with 60 observations in groups of 15, 6.10, where the `glm`
     and `stats::fligner.test()` of the responses give 6.66 (4.49 before
-    0.16.0). Found in 0.16.0 with the item above; recorded, not
-    fixed. A fix changes the value on such data.
+    0.16.0). Found in 0.16.0 with the item above. Done in 0.16.0, at the
+    source (decided after the review of #156): the test ranks the residuals
+    `sqrt(w) * (y - X b - o)`, computed observation by observation with `X b`
+    summed in the same order for every row (`rfligner_residuals()`), as the
+    Gaussian `glm` computes them, then applies the tolerance of the item
+    above; where neither changes a rank it passes the residuals of the fit on
+    as before. On 480 fits of `lm(y ~ g)` with integer responses
+    (`rpois(n, 3)`, `rpois(n, 300)`, `1e4 + rpois(n, 3)`, four groups,
+    balanced and unbalanced, 60 to 60,000 observations) the statistic equals
+    that of exact ties in all 480, where it did in none before and in 38 with
+    the tolerance alone. On `sleep`, `PlantGrowth`, `warpbreaks`,
+    `InsectSprays` and `iris[-c(50, 100, 150), ]` it equals
+    `stats::fligner.test()` of the responses scaled to integers (`sleep` 0.154
+    before, 0.213 now; `warpbreaks` 3.44 and 3.90). On 1,200 continuous fits of
+    20 to 10,000 observations no two deviations that differ in exact
+    arithmetic are tied, and the `lm` and the `glm` give the same value,
+    unless the residuals of a group are 1e8 times their spread: there the
+    tolerance tied such deviations in 41 of 200 fits of 1,000 and 10,000
+    observations, and the `lm` and the `glm` differed in 4. Over a corpus of
+    55 calls the 20 in which no rank changes are `identical()` to before; 14
+    of the 17 with repeated observations change, by up to 38%, and 21 of the
+    38 with continuous responses, by 7.9e-7 to 3.2e-5 of the statistic.
 - [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
     Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
     weight, whose Pearson residual is an artificial zero, but not the same
