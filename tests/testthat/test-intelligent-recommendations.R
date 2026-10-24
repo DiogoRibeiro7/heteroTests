@@ -129,7 +129,12 @@ test_that("the recommendation and the decision tree for a small sample say what 
   rationale <- recs$rationale[recs$test == "wild_bootstrap"]
   expect_identical(
     rationale,
-    paste("Holds its level with normal and heavy-tailed errors, but", caution)
+    paste(
+      "In the package's validation study, at 30 to 100 observations, the wild bootstrap",
+      "rejected a true null hypothesis 4.3% to 5.1% of the time at the 5% level with",
+      "normal and t5 errors, but 6% to 8% of the time with skewed errors. Check the",
+      "residuals for skewness and read p-values near the level with caution."
+    )
   )
   expect_false(grepl("performs well", rationale, fixed = TRUE))
 

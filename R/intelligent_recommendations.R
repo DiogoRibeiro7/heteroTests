@@ -154,9 +154,10 @@ analyseDatasetCharacteristics <- function(data, response = NULL) {
 }
 
 # What the advice for a sample of fewer than 100 observations says of the wild
-# bootstrap, in the warning of warnDiagnosticAssumptions() since 0.15.0, the
-# rationale of suggestDiagnosticsForProfile() and step 1 of
-# buildDiagnosticDecisionTree() since 0.16.0. In the package's validation
+# bootstrap, in the warning of warnDiagnosticAssumptions() since 0.15.0 and in
+# step 1 of buildDiagnosticDecisionTree() since 0.16.0; the rationale of
+# suggestDiagnosticsForProfile() says the same with the rates of both kinds of
+# errors. In the package's validation
 # study of the multiplier (inst/validation/wild-multiplier-size.R, B = 999)
 # it holds its level with normal and t5 errors at 30, 50 and 100
 # observations, and with centred exponential errors rejects 8.2%, 7.3% and
@@ -205,8 +206,10 @@ suggestDiagnosticsForProfile <- function(profile) {
       list(
         test = "wild_bootstrap",
         rationale = paste(
-          "Holds its level with normal and heavy-tailed errors, but",
-          rwild_small_sample_caution()
+          "In the package's validation study, at 30 to 100 observations, the wild bootstrap",
+          "rejected a true null hypothesis 4.3% to 5.1% of the time at the 5% level with",
+          "normal and t5 errors, but 6% to 8% of the time with skewed errors. Check the",
+          "residuals for skewness and read p-values near the level with caution."
         )
       ),
       list(test = "rank_permutation", rationale = "Rank-based test is robust when asymptotics are unreliable.")
