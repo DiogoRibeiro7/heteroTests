@@ -1288,10 +1288,12 @@ second observation of unit 1 moved to period 5, `d$time[2] <- 5L`, it returned
 0.516 (p = 0.606), where the panel gives 0.264 (p = 0.792). It now stops with
 ``performPesaranTest() needs one observation of the fit for each pair of `id`
 and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2
-observations). ...``, and so does `runPanelTests()`. With the period of the first
-observation, `d$time[2] <- 1L`, it returned the value of the panel by the
-chance of the order of the rows, and now stops too. The random-effects test
-reads no period and is unchanged.
+observations). ...``, of class `heteroTests_model_context_error`, and so does
+`runPanelTests()`, also on a fit with `na.exclude` (below), where it returned
+0.253 with `d$x2[50] <- NA`. With the period of the first observation,
+`d$time[2] <- 1L`, it returned the value of the panel by the chance of the
+order of the rows, and now stops too. The random-effects test reads no period
+and is unchanged.
 
 **A `gam` given its data in another order is matched to them by row name, by
 the panel tests and the scatter diagnostic too.** Their check of the order of
