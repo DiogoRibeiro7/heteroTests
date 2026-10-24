@@ -37,6 +37,8 @@ X^2 = \sum_j n_j (\bar a_j - \bar a)^2 / s_a^2
 
 is referred to a chi-squared distribution with \(k-1\) degrees of freedom, for \(k\) groups. No logarithm is taken. The observations whose group is missing are left out before the statistic is computed.
 
+Tied values are given the mean of their ranks, and since 0.16.0 so are absolute deviations closer than \(8 \epsilon \max_i |r_i|\), with \(\epsilon\) = `.Machine$double.eps` and \(r_i\) the residuals. In a group of even size the two residuals in the middle lie at the same distance from the median of the group, half their difference, a tie that rounding often breaks: one of the two then ranked first, which decided about \(10^{-6}\) of the statistic, and differently for two fits of the same model, such as an `lm` and the Gaussian `glm`. The centring opens a gap of at most \(\epsilon \max_i |r_i|\) between those two, and of about \(3 \epsilon \max_i |r_i|\) at most between any two deviations that are equal in exact arithmetic. In 2,000 simulated fits of 20 to 400 observations the first reached \(0.996 \epsilon \max_i |r_i|\), and the smallest gap between other deviations was \(2.1 \times 10^{-10} \max_i |r_i|\), about 120,000 times the tolerance. Without deviations that close, the residuals are passed to [`fligner.test()`](https://rdrr.io/r/stats/fligner.test.html) as before. Ties that the fit itself broke by more are not restored: on an integer response regressed on a factor, the residuals of an `lm` that are equal in exact arithmetic can differ by more, where those of the Gaussian `glm` are equal.
+
 ## Supported models
 
 It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted

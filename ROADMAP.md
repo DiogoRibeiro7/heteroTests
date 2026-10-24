@@ -836,7 +836,7 @@ after it.
   does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
   forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
   audit; no value changes.
-- [ ] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
+- [x] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
   the warning of `warnDiagnosticAssumptions()` for a sample of fewer than 100
   observations, but two other strings still recommend the wild bootstrap for
   such a sample: `suggestDiagnosticsForProfile()` adds it with the rationale
@@ -848,7 +848,13 @@ after it.
   100 observations: with centred exponential errors it rejects 0.082, 0.073
   and 0.061 of the time at the 5% level with the Rademacher multiplier. Say
   what the warning says, or drop the claim. Recorded, not fixed, in 0.15.0;
-  only the text changes.
+  only the text changes. Done in 0.16.0: both say what the warning says, from
+  one string (`rwild_small_sample_caution()`). The rationale reads "Holds its
+  level with normal and heavy-tailed errors, but with skewed errors the wild
+  bootstrap does not hold its level here: ...", and step 1 "Add the wild
+  bootstrap and rank permutation tests; with skewed errors ...". The same
+  tests are recommended and the same steps given
+  (`test-intelligent-recommendations.R`).
 - [ ] **`ht_analyse_failure()` labels a failure by its message, ignoring
   case.** It calls a failure a rank deficiency when the message matches
   `"rank|singular"` and a data-quality issue when it matches
@@ -866,12 +872,46 @@ after it.
   execution failed". Match whole words, and `NA` only in capitals, or give the
   refusal of such a `glm` an issue of its own. Recorded, not fixed, in
   0.15.0; only the message and the recorded `issue` change.
-- [ ] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
+- [x] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
   depends on rounding when the number of residuals is even: the two in the
   middle tie at exactly half their difference from the median, and which
   ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
   comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
-  tied to within a tolerance. Changes a value, by that much.
+  tied to within a tolerance. Changes a value, by that much. Done in 0.16.0:
+  absolute deviations from the group medians closer than
+  `8 * eps * max(abs(r))`, with `eps = .Machine$double.eps` and `r` the
+  residuals, are ranked as tied (`rfligner_rounding_ties()`). The centring
+  opens a gap of at most `eps * max(abs(r))` between the two in the middle of
+  a group; in 2,000 simulated fits it reached 0.996 times that, and the
+  smallest gap between other deviations was 2.1e-10 of the largest residual,
+  about 120,000 times the tolerance. On `lm(y ~ x1 + x2)` with four groups of
+  30 the `lm` gave 9.3670076662 and the Gaussian `glm` 9.3670316854; both give
+  9.3670316854, `identical()`, as the matrix of the model context now checks
+  (`context_fligner_tolerance`, 1e-4 before, 1e-10 now; `identical()` on
+  Windows). Over a corpus of 46 calls the 20 with no tie broken by rounding
+  are `identical()` to before, and 26 change, by 7.9e-7 to 3.2e-5 of the
+  statistic on continuous responses (`test-fligner-killeen-ties.R`,
+  `test-pass-b-reference.R`). In the identity harness of the model context
+  (`scripts/model-context-identity.R`), 128 of the 351 calls of the test
+  change, by 1.1e-6 to 4.4e-6 of the statistic, and the 91 of them whose cell
+  has another fit of the model as its reference are now `identical()` to it;
+  the other 19,628 calls are `identical()` to main.
+- [ ] **`performFlignerKilleenTest()` on residuals whose ties the fit
+  broke.** The tolerance of the item above is that of the centring. On an
+  integer response regressed on a factor, residuals that are equal in exact
+  arithmetic are computed equal by the Gaussian `glm` but not by the `lm`,
+  whose QR decomposition leaves them apart by more than the tolerance, which
+  catches some of them only. In 20 fits of `y <- rpois(n, 3)` on four equal
+  groups the largest gap was 17 times `eps * max(abs(r))` at 60
+  observations, 400 times at 600 and 6,900 times at 6,000, and 208 times at
+  60 with `rpois(n, 300)`: the rounding of the fit is relative to the size of
+  the response rather than of the residuals, and grows with the number of
+  observations, so no fixed multiple of `eps * max(abs(r))` covers it. The
+  statistic of the `lm` then stays off that of exact ties: from
+  `set.seed(3)` with 60 observations in groups of 15, 6.10, where the `glm`
+  and `stats::fligner.test()` of the responses give 6.66 (4.49 before
+  0.16.0). Found in 0.16.0 with the item above; recorded, not
+  fixed. A fix changes the value on such data.
 - [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
   Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
   weight, whose Pearson residual is an artificial zero, but not the same
