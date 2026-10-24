@@ -6,6 +6,73 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
+### The Fligner-Killeen test and a tie at the median
+
+**`performFlignerKilleenTest()` ranks as tied two deviations from the group
+medians that only rounding tells apart, which changes its value, by about
+1e-6 of the statistic, on most data with a group of even size.** In a group
+of even size the two residuals in the middle lie at the same distance from
+the median of the group, half their difference, a tie that rounding often
+breaks: one of the two then ranked first, and the statistic depended on the
+last bits of the residuals, differently for two fits of the same model. On
+`lm(y ~ x1 + x2)` with 120 observations in four groups of 30, the `lm` gave
+9.3670076662104975, with a p-value of 0.0247890868, and the Gaussian `glm` of
+the same model 9.3670316853686657 and 0.0247888156; both now give
+9.3670316853686657 and 0.0247888156, `identical()`, the value the `gam` gave
+already. With the weights `1 / x1^2` the `lm` gave 5.5104541238 and the `glm`
+5.5104636418; both now give 5.5104706311.
+
+Absolute deviations closer than `8 * eps * max(abs(r))`, with
+`eps = .Machine$double.eps` and `r` the residuals, are given the mean of
+their ranks, as `stats::fligner.test()` does with exact ties. The centring
+opens a gap of at most `eps * max(abs(r))` between the two in the middle of a
+group, and of about three times that at most between any two deviations
+that are equal in exact arithmetic. In 2,000 simulated fits of 20 to 400
+observations the first reached 0.996 times `eps * max(abs(r))`, and the
+smallest gap between other deviations was 2.1e-10 of the largest residual,
+about 120,000 times the tolerance. Without deviations that close, the
+residuals are passed to `stats::fligner.test()` as before.
+
+Over a corpus of 46 calls (odd and even numbers of observations, groups of
+odd and even size, weights, offsets, a `glm`, a `gam` and a `fitWLS()` fit,
+groups in the model and character groups, missing groups, genuine ties,
+scaled responses, a group far from zero and a rank-deficient fit), the 20
+calls with no tie broken by rounding are `identical()` to before. The 26
+others change, on continuous responses by 7.9e-7 to 3.2e-5 of the statistic
+and at most 6.1e-6 in the p-value. Ties that the fit itself broke by more
+than the tolerance stay broken: on an integer response regressed on a
+factor, the residuals of an `lm` that are equal in exact arithmetic differed
+by up to 17 times `eps * max(abs(r))` in six simulated fits of 60
+observations, where those of the Gaussian `glm` are equal. On three such
+fits of the corpus the statistic of the `lm` changed by 1.3% to 19%, nearer
+that of the `glm`, but not to it (recorded under 0.16.0 in the roadmap). The
+test is not run by `runHeteroTests()`, the registry or `test_factory`, so
+nothing else changes.
+
+### The wild bootstrap in the advice for a small sample
+
+`suggestDiagnosticsForProfile()` recommended the wild bootstrap for a sample
+of fewer than 100 observations with the rationale `"Bootstrap inference
+performs well in small samples."`, and step 1 of
+`buildDiagnosticDecisionTree()` said `"Emphasise wild bootstrap and rank
+permutation tests."`. With centred
+exponential errors the wild bootstrap rejects a true null hypothesis 8.2%,
+7.3% and 6.1% of the time at the 5% level at 30, 50 and 100 observations, with
+the Rademacher multiplier (`inst/validation/wild-multiplier-size.R`). Both
+now say what the warning of `warnDiagnosticAssumptions()` says since 0.15.0:
+
+```text
+Holds its level with normal and heavy-tailed errors, but with skewed errors
+the wild bootstrap does not hold its level here: in the package's validation
+study it rejected a true null hypothesis 6% to 8% of the time at the 5% level
+at 30 to 100 observations. Check the residuals for skewness and read p-values
+near the level with caution.
+```
+
+and step 1 reads "Add the wild bootstrap and rank permutation tests;" followed
+by the same caution. Only the text changes: the same tests are recommended,
+and the same steps given.
+
 ### Fixed effects for small groups
 
 **White's, Koenker's and the Breusch-Pagan tests warn when a term of the
