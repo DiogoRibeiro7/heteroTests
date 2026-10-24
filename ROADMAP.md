@@ -826,7 +826,32 @@ after it.
   `performBPRandomEffectsTest(m, d, "id")` refuses the full data with
   "requires `data` with 117 observations to match the fitted model, got 120",
   where the other tests match the rows by name. As in 0.14.0; found in the
-  0.15.0 release audit. A fix makes such calls return a value.
+  0.15.0 release audit. A fix makes such calls return a value. Done in 0.16.0
+  by the fifth step of the model context for the random-effects test and the
+  scatter diagnostic, which give the value of the fit to the complete rows
+  (2.016, p = 0.156, for the random-effects test) on the full data, shuffled
+  or as a tibble. Pesaran's test now reaches the panel of the fit, which is
+  unbalanced, and stops there as it stopped on the complete rows (the item
+  below); on a fit that drops every row of a unit, whose panel stays
+  balanced, it gives the value of the fit to the complete rows.
+- [ ] **Pesaran's test on an unbalanced panel** (N12 of the design of the
+  model context). `performPesaranTest()` fills a matrix of periods by units
+  with the residuals of each unit in the order of its periods, and a unit
+  observed in fewer periods than the panel holds does not fit its column: the
+  assignment stops with "number of items to replace is not a multiple of
+  replacement length", or, when the number of periods of the unit divides
+  that of the panel, recycles its residuals over the periods it lacks and
+  returns a wrong value without an error. On the 120 observations of
+  `contract_data()` without the first five rows, unit 1 keeps 5 of its 10
+  periods, and the test returns 0.234 (p = 0.815), where
+  `plm::pcdtest(model = "pooling")`, which correlates each pair of units over
+  the periods both hold (Pesaran 2015, unbalanced panels), gives -0.373. As
+  in 0.14.0; the fifth step of the model context lets more data reach it:
+  the full data of a fit that dropped half the rows of a unit, which the test
+  refused for their number of rows, now give the recycled value, as the
+  complete rows of such a fit did. A fix computes the statistic of an
+  unbalanced panel, or refuses one; it changes what such calls return, a
+  decision for the author. Recorded, not fixed, in increment 5.
 - [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
@@ -1338,7 +1363,8 @@ after it.
       T1b of the review), give a wrong value without an error, as in 0.14.0.
     - `performScatterDiagnostic()` refuses a tibble in the order of the fit of
       a model fitted to data with character row names, which it cannot match
-      by name.
+      by name. Since the fifth step of the model context it takes such data
+      in the order of the fit.
     - `cut(x, quantile(x))` in the formula makes Koenker's test stop with
       "factor has new levels", on main and with the guard alike. Since the
       first step of the model context the five tests built on it read the
@@ -1352,7 +1378,9 @@ after it.
     - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
       own check (0.13.0), and the panel tests and
       `performScatterDiagnostic()` refuse data with row names of their own in
-      another order instead of matching it by name.
+      another order instead of matching it by name. Since the fifth step of
+      the model context the panel tests and the scatter diagnostic match it
+      by name.
     - The `(weights)` column is compared with the `weights` expression of the
       call computed on `data`. If the `fitWLS()` defect above is fixed by
       writing the estimated weights into `(weights)` (decision 11 of the
@@ -1474,9 +1502,15 @@ after it.
     gone given a shuffled tibble, and an edited fit (M8), from which they
     computed a value, are refused, as by the first fifteen. The five test a
     `gam` with smooth terms as before. Done in 0.16.0.
-  - [ ] 5. The panel tests, the scatter diagnostic and `runPanelTests()`, with
+  - [x] 5. The panel tests, the scatter diagnostic and `runPanelTests()`, with
     `id` and `time` read at the confirmed rows; repeated `(id, time)` pairs
-    refused (decision 13). Closes B3, B4, B16, R2, and N17 for these.
+    refused (decision 13). Closes B3, B4, B16, R2, and N17 for these; a fit
+    with `model = FALSE` whose data are gone given a shuffled tibble, and an
+    edited fit (M8), from which they computed a value, are refused, as by the
+    first twenty. On a fit that dropped some rows of some units Pesaran's test
+    stops on the unbalanced panel (N12, the item above). A fit with
+    `na.action = na.exclude` is read as before, by position, until step 9.
+    Done in 0.16.0.
   - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
     `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
     and the check of `data` RESET keeps until then (`rcheck_data_argument()`).

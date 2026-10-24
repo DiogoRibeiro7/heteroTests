@@ -19,13 +19,13 @@ runPanelTests(model, data, id, time = NULL,
 :   A fitted `lm` object.
 
 `data`
-:   Data frame used to fit `model`.
+:   Data frame used to fit `model`. The two tests read `id` and `time` from the rows of `data` that hold the observations of the fit: since 0.16.0, data that are given are matched to the observations of the fit, by row name in any order, or by the row numbers or in the order of the fit for rows that only number themselves, as described under `data` in [`performPesaranTest()`](performPesaranTest.md).
 
 `id`
 :   Column identifying individuals.
 
 `time`
-:   Column identifying time periods for the Pesaran test.
+:   Column identifying time periods for the Pesaran test, whose pairs of `id` and `time` must each hold one observation of the fit.
 
 `tests`
 :   Character vector of test names.

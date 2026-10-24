@@ -38,7 +38,7 @@ expectations, and the largest part of its time. The environment variable
 
 | `HETEROTESTS_FULL_MATRIX` | What runs |
 | --- | --- |
-| unset | The full matrix when `NOT_CRAN=true`, which `devtools::test()` and `testthat::test_local()` set; on CRAN, the 13 cells of `context_cran_cells` |
+| unset | The full matrix when `NOT_CRAN=true`, which `devtools::test()` and `testthat::test_local()` set; on CRAN, the 15 cells of `context_cran_cells` |
 | `true` | The full matrix |
 | `false` | The 13 CRAN cells only |
 

@@ -6,7 +6,7 @@
 \usage{performScatterDiagnostic(model, data, vars)}
 \arguments{
   \item{model}{an object of class \code{lm}.}
-  \item{data}{data frame used to fit \code{model}.}
+  \item{data}{The data frame \code{model} was fitted to, holding the variables named in \code{vars}. The residuals and weights are read from the fit itself, and \code{vars} from the rows of \code{data} that hold the observations of the fit. Since 0.16.0 they are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see \code{\link{test_results}}.}
   \item{vars}{character vector of variable names.}
 }
 \value{A named numeric vector of correlations.}

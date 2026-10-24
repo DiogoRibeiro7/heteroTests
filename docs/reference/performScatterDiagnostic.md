@@ -18,7 +18,7 @@ performScatterDiagnostic(model, data, vars)
 :   an object of class `lm`.
 
 `data`
-:   data frame used to fit `model`.
+:   The data frame `model` was fitted to, holding the variables named in `vars`. The residuals and weights are read from the fit itself, and `vars` from the rows of `data` that hold the observations of the fit. Since 0.16.0 they are matched to the observations of the fit: rows with row names of their own by name, in any order; rows that only number themselves (a tibble, a data.table, a data frame whose row names were reset) by the row numbers of the fit, or in the order of the fit when they hold one row per observation. The rows the fit dropped may be there or not. Data whose rows cannot be shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
 
 `vars`
 :   character vector of variable names.
