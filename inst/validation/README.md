@@ -2160,7 +2160,7 @@ the slopes, where it refused 2 and 1 of the samples of 30 x 3 and 30 x 4.
   asymptotic p-values, and 3.9% to 4.6% on 100 x 8. All six are inside
   the study's band, and on 30 x 4 a little below 5%, by 2.3 to 2.7 Monte Carlo
   standard errors.
-- **A factor only in interactions makes the tests reject too rarely.** With a
+- **A slope for each level makes the tests reject too rarely.** With a
   slope for each subject, the three tests reject in 0.1% to 2.8% of the
   samples. The rule counts the term `x:subject`, as decided, and the warning
   says that the p-value is unreliable, in the simulations usually far too
