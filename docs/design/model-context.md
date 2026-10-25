@@ -259,7 +259,7 @@ seen by any alignment (N16).
 | M7 | a multivariate `lm` | "performKoenkerTest() needs a model with one response; `model` has 2." |
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
 | frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..." |
-| R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more" |
+| R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more". On the positional reading of a fit with `na.exclude` the checks run on the rows of `data`, so a refusal can name a row the fit dropped: with `d$time[2] <- 1L` and `d$x2[2] <- NA` this message counts row 2 among the "observations of the fit", and with `d$time[3] <- NA` and `d$x2[3] <- NA` the refusal of a missing period says "Missing rows: 3", a row the fit did not use. Both refusals are right: the matrix would hold those rows, with `NA` residuals |
 | N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28), on every route | "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." |
 
 M1, M7, M8, the frame message, R2 and N12 have class
@@ -634,7 +634,13 @@ For the functions built on the context in increment 5:
   (decision 8); a fit with `na.action = na.exclude`, whose padded residuals the
   three still read against the rows of `data` by position (B13, increment 9,
   decision 29), with the refusals of Pesaran's test applied to the rows they
-  read so, which leave the corpus unchanged;
+  read so, the rows of `data`, those the fit dropped included. They do not see
+  that the panel of the fit itself is unbalanced: the matrix cell of
+  `missing/na_exclude`, whose panel is balanced in `data` but not in the fit
+  (`x2` missing in rows 3, 7 and 11), gives 0.713 as on `main`, computed with
+  `NA` residuals at the dropped rows, where `plm::pcdtest()` gives 0.189 on
+  the rows of the fit and the same fit with `na.omit` is refused; the value is
+  left to increment 9;
   a smooth `gam`, tested as before (decision 23); and every message the test
   suite pins ("`id` must be a column in `data`.", "`id` and `time` must be
   columns in `data`." for data that lack them).

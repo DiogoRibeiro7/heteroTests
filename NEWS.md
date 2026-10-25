@@ -1495,8 +1495,13 @@ Also, for these four:
   correlations of the scatter diagnostic are `NA`, and data in another order
   are refused. The refusals of Pesaran's test above, of a missing unit or
   period, of a repeated pair and of an unbalanced panel, apply to the rows it
-  reads so; on the data of such a fit in the test matrix, whose panel is
-  balanced, it returns what it returned.
+  reads so, the rows of `data`, those the fit dropped included: they do not
+  see that the panel of the fit itself is unbalanced, and the statistic is
+  computed as before, with `NA` residuals at the rows the fit dropped, until
+  that step. With `x2` missing in rows 3, 7 and 11 of `contract_data()`, whose
+  panel is balanced in `data` but not in the fit, Pesaran's test returns 0.713
+  on such a fit, as before, where `plm::pcdtest()` gives 0.189 on the rows of
+  the fit and the same fit with `na.omit` is refused.
 - The scatter diagnostic refuses a fit with a zero weight before it matches
   `data`, as before; the panel tests refuse it after, as before. A model
   written with the columns of a data frame, `lm(d$y ~ d$x + d$z)`, given `d`,
