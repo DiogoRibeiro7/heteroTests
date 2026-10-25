@@ -224,6 +224,38 @@ derive a test for this setting. Testing against the regressors without the
 dummies, and that test, are recorded in the roadmap for after 1.0.0. No
 argument changes.
 
+### Box's M test
+
+**`performBoxMTest()` applies Box's correction factor with three groups or
+more, and its statistic grows.** Box (1949) refers `M (1 - c1)` to a
+chi-square distribution, with
+`c1 = (sum 1 / nu_i - 1 / nu) (2 p^2 + 3 p - 1) / (6 (p + 1) (g - 1))` for
+`g` groups of `nu_i + 1` observations of `p` variables. The package wrote
+the factor with `g - 1` in the numerator as well, where it cancelled the
+denominator's, so it used `(g - 1) c1`: Box's with two groups, too large
+with more, which made the statistic too small and the test conservative.
+`performBoxMTest(iris[, 1:4], iris$Species)` gave 135.2229 and gives
+140.9430, on 20 degrees of freedom either way, the value of
+`biotools::boxM()`, `heplots::boxM()` and `rstatix::box_m()`;
+`performBoxMTest(mtcars[, c("mpg", "hp", "wt")], mtcars$cyl)` gave 20.3998
+(p = 0.0599) and gives 25.5351 (p = 0.0125). With three or more groups the
+statistic grows by the factor `(1 - c1) / (1 - (g - 1) c1)`, 1.01 to 2.11
+on 23 data sets of 3 to 5 groups, and the p-value falls; with two
+groups every value is `identical()` to 0.15.0's, on 28 data sets. So
+does `runMultivariateTests()`, whose `"box_m"` is this test.
+`inst/validation/box-m-approximations-size.R` measured the effect: under
+Gaussian data the test of 0.15.0 rejected at 5% less often than the release
+gate allows in 29 of the 38 cells of three or five equal groups, down to 0
+with small groups and four variables or more, and Box's chi-square is inside
+the gate in 60 of 67 cells. The full sweep's size of 0.012 was not the
+approximation's: in its design, with `x` uniform and so lighter-tailed than
+normal data, Box's chi-square and his F approximation both reject 0.017 of
+the time at 5000 replications. The help page now gives the sizes: liberal
+when the groups are small for the number of variables (0.062 to 0.106 in four
+cells of groups of 10 with 4 or 6 variables), not robust to heavy tails
+(`t5` coordinates, 0.26 to 0.48) and conservative with light tails. The
+statistic keeps its name, `M`, and `parameter` its `df`.
+
 ### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
 
 **With `auto_enhance = FALSE`, the Breusch-Pagan entry of

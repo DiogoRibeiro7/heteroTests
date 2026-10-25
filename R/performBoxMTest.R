@@ -1,37 +1,94 @@
-#' Box's M test for equality of covariance matrices
+# man/performBoxMTest.Rd is written by hand, without a roxygen header, and
+# roxygen2 does not overwrite it; the block below says what it says.
+
+#' Box's M Test for Equality of Covariance Matrices
 #'
-#' Applies Box's (1949) likelihood-ratio test to assess whether multiple groups
-#' share the same covariance matrix under multivariate normality.
+#' Test whether multiple groups have equal covariance matrices, by Box's (1949)
+#' chi-square approximation to his M statistic.
 #'
+#' @details
 #' `performBoxMTest(data, group)` is the one test that does not take
 #' `(model, data, ...)`: it tests the covariance matrices of the data
 #' themselves, not the residuals of a fitted model.
 #'
-#' @param data A [base::data.frame] or matrix containing numeric variables.
-#' @param group A factor or grouping variable aligned with the rows of `data`.
+#' With \eqn{g} groups of \eqn{n_i} observations of \eqn{p} variables,
+#' \eqn{\nu_i = n_i - 1}, \eqn{\nu = \sum_i \nu_i}, \eqn{S_i} the covariance
+#' matrix of group \eqn{i} and \eqn{S} the pooled one, Box's statistic is
+#' \deqn{M = \nu \log|S| - \sum_i \nu_i \log|S_i|,}
+#' his correction factor is
+#' \deqn{c_1 = \left(\sum_i \frac{1}{\nu_i} - \frac{1}{\nu}\right)
+#'   \frac{2p^2 + 3p - 1}{6 (p + 1) (g - 1)},}
+#' and \eqn{M (1 - c_1)} is referred to a chi-square distribution with
+#' \eqn{f_1 = (g - 1) p (p + 1) / 2} degrees of freedom: Box's (1949)
+#' chi-square approximation. The test assumes that each group is multivariate
+#' normal. It gives the values of `biotools::boxM()`, `heplots::boxM()` and
+#' `rstatix::box_m()`: 140.9430 on 20 degrees of freedom for the example on
+#' `iris`.
 #'
-#' @return An object of class \code{htest} containing the chi-squared statistic
-#'   and p-value.
+#' Before 0.16.0 the correction factor was \eqn{(g - 1) c_1}: the same for two
+#' groups, whose values do not change, and too large for three or more, which
+#' made the statistic too small and the test conservative. The example on
+#' `iris` gave 135.2229.
 #'
-#' @details
-#' The test computes pooled and group-specific covariance matrices and forms the
-#' Box M statistic, which is approximately chi-squared with \eqn{(g - 1) k (k + 1)/2}
-#' degrees of freedom, where \eqn{g} is the number of groups and \eqn{k} the number
-#' of variables. A correction factor is applied for small samples as described by
-#' Box. The test is sensitive to non-normality, so results should be interpreted
-#' alongside robust diagnostics when heavy tails are suspected.
+#' @section Size:
+#' In `inst/validation/box-m-approximations-size.R`, at 5000 replications per
+#' cell and the 5% level, with \eqn{g} = 2, 3 or 5 groups of 10 to 100
+#' observations of \eqn{p} = 1 to 10 variables, the test held its level under
+#' Gaussian data in 60 of 67 cells, inside the release gate's interval, 0.042
+#' to 0.058.
+#'
+#' * **It is liberal when the groups are small for the number of variables.**
+#'   With groups of 10 and 4 or 6 variables it rejected a true null hypothesis
+#'   0.055 to 0.106 of the time, outside the gate in four of those six cells
+#'   (0.062 to 0.106, the most with five groups of 10 and six variables), and
+#'   with groups of 20 and 10 variables 0.071 to 0.087. Box's F
+#'   approximation, which the package does not compute, was closer to the
+#'   level in each of those nine cells (0.051 to 0.070); in the other Gaussian
+#'   cells the two differed by at most 0.005.
+#' * **It is not robust to heavy tails.** With independent \eqn{t_5}
+#'   coordinates, three groups of 20, 50 or 100 and two or four variables, it
+#'   rejected 0.26 to 0.48 of the time (0.18 to 0.46 with the factor of
+#'   0.15.0), more with larger groups: the test then detects the tails as well
+#'   as unequal covariance matrices.
+#' * **It is conservative with light tails.** On the data of the full sweep
+#'   (`inst/validation/full-sweep-size-power.R`), 150 observations of
+#'   `(y, x)` with `x` uniform and grouped by `cut(x, 3)`, it rejected 0.017
+#'   of the time, as Box's F did. The sweep's 0.012, at 400 replications, was
+#'   measured with the factor of 0.15.0, which gives 0.016 in that design at
+#'   5000 replications: the low size comes from the uniform, light-tailed data,
+#'   not from the approximation.
+#'
+#' When the groups are small for the number of variables, or the data may have
+#' heavy tails, a rejection is weak evidence of unequal covariance matrices.
+#'
+#' @section Validation:
+#' `tests/testthat/test-boxm.R` checks the statistic against Box's
+#' approximation written out for two to five groups and one to four variables,
+#' and against the values of `biotools::boxM()` 4.3 and `heplots::boxM()`
+#' 1.8.6 on `iris` and on `mtcars`, and that two groups give the values of
+#' 0.15.0. `inst/validation/box-m-approximations-size.R` compares the
+#' chi-square and the F approximation with `biotools`, `heplots` and
+#' `DFA.CANCOR` on ten data sets, and measures the sizes above.
+#'
+#' @param data A numeric data frame or matrix.
+#' @param group A factor indicating group membership.
+#'
+#' @return An object of class \code{htest}: `statistic`, named `M`, is Box's
+#'   corrected statistic \eqn{M (1 - c_1)}; `parameter`, named `df`, its
+#'   degrees of freedom \eqn{f_1}; `p.value` the upper tail of the chi-square
+#'   distribution; and `method` and `data.name`.
 #'
 #' @references
 #' Box, G. E. P. (1949). A general distribution theory for a class of likelihood
-#' criteria. *Biometrika, 36*(3/4), 317–346. <https://doi.org/10.1093/biomet/36.3-4.317>
+#' criteria. *Biometrika, 36*(3/4), 317–346. \doi{10.1093/biomet/36.3-4.317}
 #'
 #' @examples
 #' data(iris)
-#' performBoxMTest(iris[, 1:4], iris$Species)
+#' performBoxMTest(iris[,1:4], iris$Species)
 #'
-#' # Compare only two species
-#' subset <- subset(iris, Species != "virginica")
-#' performBoxMTest(subset[, 1:4], subset$Species)
+#' # Two species: with two groups the values are those of 0.15.0
+#' two <- droplevels(subset(iris, Species != "virginica"))
+#' performBoxMTest(two[, 1:4], two$Species)
 #'
 #' @seealso
 #' [runMultivariateTests()] orchestrates a suite of multivariate diagnostics
@@ -57,7 +114,12 @@ performBoxMTest <- function(data, group) {
   ns <- as.numeric(table(group))
   pooled <- Reduce(`+`, Map(function(S, n) (n - 1) * S, covmats, ns)) / (n - g)
   M <- (n - g) * log(det(pooled)) - sum((ns - 1) * vapply(covmats, function(S) log(det(S)), 0))
-  q <- (2 * k^2 + 3 * k - 1) * (g - 1) / (6 * (k + 1) * (g - 1)) *
+  # Box's (1949) correction factor c1, with nu_i = n_i - 1 and nu = n - g:
+  # (sum 1 / nu_i - 1 / nu) (2 k^2 + 3 k - 1) / (6 (k + 1) (g - 1)). Before
+  # 0.16.0 the factor (g - 1) stood in the numerator too, where it cancelled
+  # the one of the denominator, so the statistic was M (1 - (g - 1) c1):
+  # Box's for two groups, and too small for three or more.
+  q <- (2 * k^2 + 3 * k - 1) / (6 * (k + 1) * (g - 1)) *
     (sum(1 / (ns - 1)) - 1 / (n - g))
   stat <- M * (1 - q)
   df <- (g - 1) * k * (k + 1) / 2

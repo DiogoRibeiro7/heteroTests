@@ -699,9 +699,27 @@ after it.
   36 to 50 CPU-hours for the four cells, and about 7.6 for the two cells of
   the wild bootstrap alone. If the wild bootstrap stays outside the gate at
   150 observations, say so on its help page.
-- [ ] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
+- [x] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
   chi-square approximation. Compare it against Box's F approximation, then
-  either switch or document the conservatism on the help page.
+  either switch or document the conservatism on the help page. Done in
+  0.16.0 (decided 2026-10-25: fix the factor, keep the chi-square). The
+  comparison, `inst/validation/box-m-approximations-size.R`, found that the
+  0.012 is not the approximation's: the correction factor was `(g - 1)`
+  times Box's `c1`, so the statistic was too small with three or more
+  groups, and on the sweep's design, `x` uniform and so light-tailed, Box's
+  chi-square and his F both reject 0.017 of the time at 5000 replications,
+  against 0.016 with the factor of 0.15.0. The factor is now Box's: two
+  groups give `identical()` values, and three or more a larger statistic,
+  140.9430 on `iris` by species, the value of `biotools::boxM()`,
+  `heplots::boxM()` and `rstatix::box_m()`, where it was 135.2229 (announced
+  in bold). Under Gaussian data Box's chi-square is inside the release gate
+  in 60 of 67 cells; it is liberal when the groups are small for the number
+  of variables (0.062 to 0.106 at 5% in the four cells of groups of 10 with 4
+  or 6 variables outside the gate), not robust to heavy tails (`t5`
+  coordinates: 0.26 to 0.48) and conservative with light tails, all now on
+  its help page. The F approximation, closer to the level in the
+  small-sample cells, changes the statistic and its parameters, and was not
+  adopted.
 - [ ] **`performSzroeterTest()` on a weighted fit.** In
   `inst/validation/harrison-mccabe-size-power.R`, on a correctly weighted fit
   with Gaussian errors, it rejects 0.067 of the time at 40 observations,

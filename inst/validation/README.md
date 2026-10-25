@@ -75,6 +75,8 @@ test that remains.
 | `fixed-effects-dummies.csv` | Its output, one row per design. |
 | `fixed-effects-variants-size.R` | The other routes to the three statistics on two of those designs: the robust and streaming forms, the deprecated names, the registered names, and the White bootstrap, the wild bootstrap and `bootstrapTestStatistic()`, with the warnings each call gives. `N_MC_BOOT_LARGE=1000 Rscript inst/validation/fixed-effects-variants-size.R`, with `N_MC`, `N_MC_BOOT_LARGE`, `CHUNK_SIZE`, `N_BOOT`, `MC_CORES`, `UNITS`, `PART`, `MERGE`, `LIST` and `CSV` overridable. |
 | `fixed-effects-variants-size.csv` | Its output, one row per design and route, with the rates at 1, 5 and 10%, the warnings per call and the refusals. |
+| `box-m-approximations-size.R` | `performBoxMTest()` beside Box's chi-square and F approximations written out, on the same samples: size under Gaussian data with 2, 3 and 5 groups, balanced and not, under `t5` coordinates, and in the design of the full sweep, with the three checked against `biotools::boxM()`, `heplots::boxM()`, `DFA.CANCOR::HOMOGENEITY()` and `stats::bartlett.test()` where they are installed. `Rscript inst/validation/box-m-approximations-size.R`, with `N_MC`, `CHUNK_SIZE`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. It was run on 0.15.0, whose `performBoxMTest()` is the column `package_chisq`; run on 0.16.0 or later, that column is Box's chi-square, and its check of the factor of 0.15.0 fails. |
+| `box-m-approximations-size.csv` | Its output, one row per cell, approximation and level, with Box's constants of the cell. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -321,10 +323,16 @@ package's own implementations. Where it does not, prefer the measurement.
 
 Two remarks on the tests the summary names under the Gaussian null.
 
-- `performBoxMTest()` is conservative there. Box's M tests equality of
-  covariance matrices rather than of scalar variances, so it is answering a
-  broader question, and it is known to be sensitive to non-normality in the
-  opposite direction. It is left as it is.
+- `performBoxMTest()` is conservative there, and the reason is the design,
+  not the approximation the test uses. Its data are `(y, x)` grouped by
+  `cut(x, 3)`, with `x` uniform: lighter-tailed than normal data, and Box's
+  M is sensitive to the tails in both directions. In
+  `box-m-approximations-size.R`, in this design at 5000 replications, Box's
+  chi-square approximation and his F approximation both reject 0.017 of the
+  time. The row above was measured with the correction factor of 0.15.0,
+  `(g - 1)` times Box's, which gives 0.016 in the same design; the factor was
+  corrected in 0.16.0, and the row was not run again. See the section on
+  Box's M below.
 - `performGQTest()` is inside the band but at the high end, and the reason is
   the design rather than the implementation: `lmtest::gqtest()` gives 0.070 on
   the same samples, and with a single regressor both give 0.025. The package
@@ -2167,6 +2175,56 @@ the slopes, where it refused 2 and 1 of the samples of 30 x 3 and 30 x 4.
   small, and too large with a slope per level. A model with the factor both
   as a main effect and in a slope, such as `lm(y ~ x * subject)`, was not
   measured here.
+
+### Box's M: the chi-square and the F approximation
+
+The full sweep put `performBoxMTest()` at 0.012, and the roadmap asked
+whether Box's F approximation would do better than the chi-square one the
+test uses. `box-m-approximations-size.R` measures three p-values on every
+sample: the package's of 0.15.0, Box's chi-square approximation,
+`M (1 - c1)` on `(g - 1) p (p + 1) / 2` degrees of freedom, and Box's F
+approximation, both written out from Box (1949). With `nu_i = n_i - 1` and
+`nu` their sum, `c1 = (sum 1 / nu_i - 1 / nu) (2 p^2 + 3 p - 1) /
+(6 (p + 1) (g - 1))`. Box's chi-square agrees with `biotools::boxM()` and
+`heplots::boxM()` to 0 relative difference, and his F with
+`DFA.CANCOR::HOMOGENEITY()` to below `1e-13`, on ten data sets. The
+statistic does not change under a common linear map of the data, so the
+Gaussian groups are drawn from N(0, I): 2, 3 and 5 groups of 10, 20, 50 and
+100, with 1, 2, 4, 6 and 10 variables (57 cells), five unbalanced designs
+with 2 and 4 variables (10 cells), `t5` coordinates scaled to unit variance
+in three groups of 20, 50 and 100 (6 cells), and the design of the full
+sweep. Each cell has 5000 replications, judged against the release gate,
+`[0.0421, 0.0579]`.
+
+- **The package's correction factor was `(g - 1) c1`.** It wrote
+  `(g - 1) / (g - 1)` into the factor, which cancelled Box's division by
+  `g - 1`. With two groups the two agree; with three or five the statistic
+  was too small, and the test of 0.15.0 was below the gate in 29 of the 38
+  balanced Gaussian cells of three or five groups, down to 0.0000 with small
+  groups and four variables or more. On `iris[, 1:4]` by species it gave
+  135.2229 where `biotools`, `heplots` and `rstatix::box_m()` give 140.9430.
+  Fixed in 0.16.0; the test is now Box's chi-square.
+- **Box's chi-square holds the level under Gaussian data in 60 of 67 cells,
+  and his F in 62.** Both are liberal when the groups are small for the
+  number of variables: the seven cells outside the gate for the chi-square
+  all have groups of 10 with 4 or 6 variables or groups of 20 with 10
+  variables, and are at 0.062 to 0.106, where the F is at 0.056 to 0.070,
+  inside the gate in two of them. Elsewhere the two differ by at most
+  0.0062, and by at most 0.0034 when every group has 50 observations or
+  more.
+- **Neither is robust to heavy tails.** With `t5` coordinates both reject
+  0.26 to 0.48 of the time, more with larger groups (the package of 0.15.0:
+  0.18 to 0.46).
+- **The sweep's 0.012 is the design.** In it the null is true, but `x` is
+  uniform within each third: lighter-tailed than normal data. Box's
+  chi-square and his F both reject 0.0174 of the time there, and the factor
+  of 0.15.0 gave 0.0164; in the Gaussian cell of three groups of 50 with two
+  variables the factor accounts for 0.047 against 0.042.
+
+The author decided on 2026-10-25 to correct the factor and keep the
+chi-square approximation, whose statistic and degrees of freedom the test
+returns, and to give the sizes on the help page. The F approximation would
+have changed the statistic, its parameters and every p-value.
 
 ## History
 
