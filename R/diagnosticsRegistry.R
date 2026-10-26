@@ -120,9 +120,12 @@ rregister_package_diagnostic("ncv", function(model, data) {
   # checks them, since 0.16.0. Before, data that lacked rows or variables of
   # the fit were ignored, and because "ncv" is the last fallback of "white",
   # "koenker" and "breusch_pagan", runHeteroTests() on such data returned the
-  # Cook-Weisberg statistic under their names.
-  rcheck_data_argument(data, "performNCVTest", model, "NCV")
-  .ncv_test(model)
+  # Cook-Weisberg statistic under their names. Since 0.16.0 it builds the
+  # model context, as performNCVTest() does, which refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit, and the fit must
+  # reproduce itself (rcontext_model_alone()).
+  ctx <- rcontext_model_alone(model, data, "performNCVTest", "NCV")
+  .ncv_test(model, ctx = ctx)
 })
 rregister_package_diagnostic(
   "spread_level", function(model, data) performSpreadLevelTest(model, data)

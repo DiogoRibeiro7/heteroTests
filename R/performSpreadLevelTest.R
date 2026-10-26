@@ -41,9 +41,13 @@
 #' heteroscedasticity patterns.
 performSpreadLevelTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performSpreadLevelTest")
-  rcheck_data_argument(data, "performSpreadLevelTest", model, "Spread-level")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit; the test reads
+  # nothing from `data`, which is checked as before (rcontext_model_alone()).
+  ctx <- rcontext_model_alone(model, data, "performSpreadLevelTest", "Spread-level")
   checkModel(model)
   rrefuse_nonfinite_coefficients(model, "Spread-level test", allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
   abs_res <- abs(rpearson_residuals(model))
   abs_res <- pmax(abs_res, .Machine$double.eps)

@@ -42,9 +42,10 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   # model context (R/model_context.R), which also refuses a model frame that
   # `model = FALSE` rebuilt from data changed after the fit: before 0.16.0 the
   # test read such a frame. RESET reads nothing from `data`, so the context is
-  # built without it, and `data` keeps the check of the tests computed from
-  # the model alone.
-  ctx <- rmodel_context(model, NULL, fn = "performRESETTest", test_label = "RESET")
+  # built without it, but to rebuild the model frame of a fit with
+  # `model = FALSE` whose data are gone, and `data` keeps the check of the
+  # tests computed from the model alone (rcontext_model_alone()).
+  ctx <- rcontext_model_alone(model, data, "performRESETTest", "RESET", check_data = FALSE)
   rrefuse_smooth_gam(ctx, "performRESETTest")
   rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)

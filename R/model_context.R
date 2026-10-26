@@ -441,16 +441,7 @@ rcontext_variables <- function(ctx, data, need) {
   if (is.null(data)) {
     held <- need %in% names(ctx$frame) & need %in% all.vars(stats::formula(ctx$model))
     if (!all(held)) {
-      terms_held <- setdiff(names(ctx$frame), c("(weights)", "(offset)"))
-      rstop_model_context(sprintf(
-        paste(
-          "The following variables are missing from the model frame of `model`: %s.",
-          "It holds the terms of the model (%s), not the variables they are computed",
-          "from; pass the data the model was fitted to as `data`."
-        ),
-        paste(need[!held], collapse = ", "),
-        paste(terms_held, collapse = ", ")
-      ))
+      rstop_missing_from_frame(ctx, need[!held])
     }
     return(stats::setNames(lapply(need, function(v) ctx$frame[[v]]), roles))
   }
@@ -466,6 +457,153 @@ rcontext_variables <- function(ctx, data, need) {
     }),
     roles
   )
+}
+
+# M1: variables a test reads that the model frame does not hold under their
+# own names, without `data`. `also` adds a sentence for the argument that
+# names them.
+rstop_missing_from_frame <- function(ctx, absent, also = NULL) {
+  terms_held <- setdiff(names(ctx$frame), c("(weights)", "(offset)"))
+  rstop_model_context(paste0(
+    sprintf(
+      paste(
+        "The following variables are missing from the model frame of `model`: %s.",
+        "It holds the terms of the model (%s), not the variables they are computed",
+        "from; pass the data the model was fitted to as `data`."
+      ),
+      paste(absent, collapse = ", "),
+      paste(terms_held, collapse = ", ")
+    ),
+    if (!is.null(also)) paste0(" ", also)
+  ))
+}
+
+#' The model context of a test computed from the model alone
+#'
+#' The tests whose statistic needs nothing beyond the residuals, fitted values
+#' and design of the fit, [performSpearmanTest()], [performHarveyTest()],
+#' [performArchLMTest()], [performMcLeodLiTest()], [performCookWeisbergTest()]
+#' and [performNCVTest()] without `var_formula`, [performSpreadLevelTest()],
+#' [performDavidianCarrollTest()], [performVarianceFormTest()] without a second
+#' formula and [performRESETTest()], and [fitWLS()] without `var_formula`, read
+#' nothing from `data`. Since 0.16.0 (increment 6 of the design of the model
+#' context) they build the context, so that it refuses what it refuses for
+#' every test: a model frame that `model = FALSE` rebuilt from data that
+#' changed after the fit (N6), which they read before (Harvey's design, the
+#' refit of the variance form test and of `fitWLS()`), a multivariate `lm`, and
+#' a fit with `model = FALSE` whose data are gone, unless `data` gives its
+#' response and fitted values. `data` enters the context only to rebuild such a
+#' frame; otherwise it is checked as before, its variables and the row names
+#' of the fit ([rcheck_data_argument()]), as RESET has checked it since 0.16.0
+#' (decision 24). Whether these tests should match `data` through the guard as
+#' the others do, which would refuse numbered data in another order than the
+#' fit, from which they compute the value of the fit, is left open.
+#'
+#' @param model The fitted model of the calling test.
+#' @param data The `data` argument of the calling test, or `NULL`.
+#' @param fn,test_label As in [rmodel_context()].
+#' @param check_data Logical: check `data` with [rcheck_data_argument()]?
+#'   [fitWLS()], which never checked a `data` it does not read, passes
+#'   `FALSE`.
+#' @return The model context, built without `data` unless the model frame of
+#'   the fit cannot be rebuilt and `data` is a data frame.
+#' @keywords internal
+#' @noRd
+rcontext_model_alone <- function(model, data, fn, test_label = fn, check_data = TRUE) {
+  gone <- is.data.frame(data) &&
+    !is.data.frame(tryCatch(stats::model.frame(model), error = function(e) NULL))
+  ctx <- rmodel_context(model, if (gone) data, fn = fn, test_label = test_label)
+  if (isTRUE(check_data)) {
+    rcheck_data_argument(data, fn, model, test_label)
+  }
+  ctx
+}
+
+#' The model context of a function that may evaluate a second formula
+#'
+#' With `data` and a second formula (`var_formula`, `against`), the variables
+#' of the formula are read from `data`, so `data` is matched to the
+#' observations of the fit by the alignment of the context, and the variables
+#' of the formulas that are not columns of the model frame make it stricter
+#' for data taken in the order of the fit (`reads`, [rcontext_align()]);
+#' `.` reads every column. Otherwise the function reads nothing from `data`,
+#' and its context is that of a test computed from the model alone
+#' ([rcontext_model_alone()]).
+#'
+#' @param model The fitted model of the calling function.
+#' @param data The `data` argument of the calling function, or `NULL`.
+#' @param formulas A list of the second formulas of the call; `NULL` and
+#'   anything that is not a formula, such as `against = "squares"`, read
+#'   nothing.
+#' @param fn,test_label As in [rmodel_context()].
+#' @param check_data As in [rcontext_model_alone()].
+#' @return The model context.
+#' @keywords internal
+#' @noRd
+rcontext_second_formula <- function(model, data, formulas, fn, test_label = fn,
+                                    check_data = TRUE) {
+  formulas <- Filter(function(f) inherits(f, "formula"), formulas)
+  if (is.null(data) || length(formulas) == 0L) {
+    return(rcontext_model_alone(model, data, fn, test_label, check_data))
+  }
+  reads <- unique(unlist(lapply(formulas, all.vars), use.names = FALSE))
+  if ("." %in% reads && is.data.frame(data)) {
+    reads <- union(setdiff(reads, "."), names(data))
+  }
+  rmodel_context(model, data, fn = fn, test_label = test_label, reads = reads)
+}
+
+#' The rows a second formula is evaluated on
+#'
+#' [performCookWeisbergTest()] and [performNCVTest()] with `var_formula`,
+#' [performVarianceFormTest()] with `var_formula` or `against`, and [fitWLS()]
+#' with `var_formula` evaluate a second, one-sided formula on the observations
+#' of the fit. Before 0.16.0 `fitWLS()` and the variance form test matched the
+#' rows of `data` to them by row name, and, when no name matched and the counts
+#' agreed, by position, unchecked, so a tibble in another order than the fit
+#' gave another value without an error (B9 of the design of the model
+#' context); and a variable the formula names was looked for in the
+#' environment of the formula, the workspace, when neither `data` nor the
+#' model frame held it, without any check of its order (R3).
+#'
+#' The rows are now those the alignment confirmed, in the order of the fit
+#' ([rcontext_rows()]), for a context built with `data`; without `data`, the
+#' model frame. Every variable the formula names must be a column of them:
+#' without `data`, one the model frame holds under its own name (M1
+#' otherwise, decision 9); with `data`, a column of `data` (the message of
+#' `data` otherwise). Only the functions of the formula, such as `log()` or
+#' `I()`, are then found in its environment. `.` stands for every column, as
+#' before.
+#'
+#' @param ctx The model context, built with `data` when it is given.
+#' @param data The `data` argument of the calling function, or `NULL`.
+#' @param formula The one-sided formula.
+#' @param arg Character scalar, the argument that gives it, for messages.
+#' @return A data frame with one row per observation of the fit, in its order.
+#' @keywords internal
+#' @noRd
+rcontext_formula_rows <- function(ctx, data, formula, arg = "var_formula") {
+  needed <- setdiff(all.vars(formula), ".")
+  if (is.null(data)) {
+    absent <- setdiff(needed, names(ctx$frame))
+    if (length(absent) > 0L) {
+      rstop_missing_from_frame(ctx, absent, sprintf(
+        "The variables of `%s` are read from `data` or the model frame, not from the workspace.",
+        arg
+      ))
+    }
+    plain <- as.data.frame(ctx$frame)
+    attr(plain, "terms") <- NULL
+    return(plain)
+  }
+  if (is.null(ctx$rows)) {
+    rstop_model_context("Internal error: `data` was not matched to the observations of the fit.")
+  }
+  absent <- setdiff(needed, names(data))
+  if (length(absent) > 0L) {
+    rvalidateDataInputs(data, required_vars = absent, min_obs = 0L)
+  }
+  rcontext_rows(ctx, data)
 }
 
 #' Check that the fit reproduces itself
@@ -921,7 +1059,8 @@ rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
 #' left those rows out; this gives the same warning on the same data.
 #'
 #' @param data The `data` argument of the calling test, or `NULL`.
-#' @param model The fitted model.
+#' @param model The fitted model, or `NULL` to check the variables of `also`
+#'   alone, as [performCookWeisbergTest()] checked those of its `var_formula`.
 #' @param also Character vector of the other variables the test reads from
 #'   `data`, such as the `order_by` of [performGQTest()], which the tests
 #'   checked for missing values with those of the model.
@@ -932,7 +1071,8 @@ rwarn_incomplete_rows <- function(data, model, also = character()) {
   if (!is.data.frame(data)) {
     return(invisible(NULL))
   }
-  variables <- intersect(unique(c(all.vars(stats::terms(model)), also)), names(data))
+  of_model <- if (is.null(model)) character() else all.vars(stats::terms(model))
+  variables <- intersect(unique(c(of_model, also)), names(data))
   if (length(variables) == 0L) {
     return(invisible(NULL))
   }

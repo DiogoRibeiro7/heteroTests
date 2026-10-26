@@ -83,7 +83,14 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
     var_formula <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performCookWeisbergTest", model, "Cook-Weisberg")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit. With
+  # `var_formula` and `data` it matches `data` to the observations of the fit,
+  # whose variables the variance model reads at the confirmed rows; otherwise
+  # the test reads nothing from `data`, which is checked as before.
+  ctx <- rcontext_second_formula(
+    model, data, list(var_formula), "performCookWeisbergTest", "Cook-Weisberg"
+  )
   rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L, allow_aliased = TRUE)
 
   ht_log("INFO", "Running Cook-Weisberg test")
@@ -91,13 +98,13 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
   # With a variance model of its own the test is the score test that the
   # deprecated performNCVTest() computed, returned as it returned it.
   if (!is.null(var_formula)) {
-    return(.ncv_test(model, var_formula, data))
+    return(.ncv_test(model, var_formula, data, ctx))
   }
 
   # The Cook-Weisberg statistic is the score test of performNCVTest() with the
   # fitted values as the sole variance regressor; delegate so the two cannot
   # drift apart.
-  result <- .ncv_test(model)
+  result <- .ncv_test(model, ctx = ctx)
   result$method <- "Cook-Weisberg test for heteroscedasticity"
   result$data.name <- deparse(stats::formula(model))
   result$alternative <- "error variance depends on the fitted values"

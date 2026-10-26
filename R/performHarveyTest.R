@@ -111,16 +111,20 @@ performHarveyTest <- function(model, data = NULL,
       data <- NULL
     }
   }
-  rcheck_data_argument(data, "performHarveyTest", model, "Harvey")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit, from which the
+  # design was read before 0.16.0; the test reads nothing from `data`, which is
+  # checked as before (rcontext_model_alone()).
+  ctx <- rcontext_model_alone(model, data, "performHarveyTest", "Harvey")
   auxiliary <- match.arg(auxiliary)
   if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
     stop("`studentize` must be a single logical value.", call. = FALSE)
   }
 
   rvalidateModelInputs(model, test_name = "Harvey", min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  requirements <- rvalidateTestRequirements("harvey", model = model, data = model_data)
+  requirements <- rvalidateTestRequirements("harvey", model = model, data = ctx$frame)
   rprocessValidationResult(requirements)
 
   ht_log("INFO", "Running Harvey test")
@@ -135,7 +139,8 @@ performHarveyTest <- function(model, data = NULL,
     }
     Z <- cbind(yhat = yhat, yhat_sq = yhat^2)
   } else {
-    X <- rnon_aliased_columns(stats::model.matrix(model), model)
+    # The design of the fit, without the columns a rank-deficient fit aliased.
+    X <- rcontext_design(ctx)
     Z <- X[, colnames(X) != "(Intercept)", drop = FALSE]
     if (ncol(Z) == 0L) {
       .std_error(

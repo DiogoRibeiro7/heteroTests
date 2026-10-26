@@ -73,7 +73,10 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
     lags <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performMcLeodLiTest", model, "McLeod-Li")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit; the test reads
+  # nothing from `data`, which is checked as before (rcontext_model_alone()).
+  ctx <- rcontext_model_alone(model, data, "performMcLeodLiTest", "McLeod-Li")
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)
   }
@@ -81,9 +84,9 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
 
   min_required <- rTEST_REQUIREMENTS$mcleod_li(lags)
   rvalidateModelInputs(model, test_name = "McLeod-Li", min_obs = min_required, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  requirements <- rvalidateTestRequirements("mcleod_li", model = model, data = model_data, lags = lags)
+  requirements <- rvalidateTestRequirements("mcleod_li", model = model, data = ctx$frame, lags = lags)
   rprocessValidationResult(requirements)
 
   ht_log("INFO", "Running McLeod-Li test")
