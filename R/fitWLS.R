@@ -143,10 +143,46 @@ fitWLS <- function(model, data = NULL, var_formula = NULL,
   # before 0.16.0 they were matched by row name, or, when no name matched, by
   # position, unchecked (B9). Without `var_formula`, `data` is not read, and
   # not checked, as before.
+  if (inherits(var_formula, "formula") && length(var_formula) == 2L && !is.null(data)) {
+    rcheck_wls_data(model, data)
+  }
   ctx <- rcontext_second_formula(model, data, list(var_formula), "fitWLS", "fitWLS()",
                                  check_data = FALSE)
   rweighted_refit(model, rfit_variance_function(model, data, var_formula, form, ctx = ctx),
                   ctx = ctx)
+}
+
+#' Refuse `data` for a variance formula with the messages of 0.15.0
+#'
+#' Before 0.16.0 [fitWLS()] refused `data` that is not a data frame, and data
+#' none of whose row names is a row name of the fit and whose number of rows is
+#' not the number of observations, with the messages below, which the test
+#' suite pins; it matched other data by row name, or by position. Since 0.16.0
+#' the alignment of the model context matches what this lets through
+#' ([rcontext_second_formula()]), and refuses what it cannot confirm.
+#'
+#' @param model The model [fitWLS()] refits.
+#' @param data The `data` argument, not `NULL`.
+#' @return `NULL`, invisibly; called for the errors.
+#' @keywords internal
+#' @noRd
+rcheck_wls_data <- function(model, data) {
+  .check_data(data)
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.data.frame(frame) && anyNA(match(rownames(frame), rownames(data))) &&
+        nrow(data) != nrow(frame)) {
+    stop(
+      sprintf(
+        paste(
+          "`data` must contain the %d rows the model was fitted to; it has",
+          "%d rows and their names do not match."
+        ),
+        nrow(frame), nrow(data)
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Refit a model with the weights of a fitted variance function

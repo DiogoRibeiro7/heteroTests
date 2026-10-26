@@ -61,7 +61,9 @@ context_migrated <- c(
 # weights. A function, since testthat sources helper-test-recipes.R after this
 # file.
 context_recipes <- function() {
-  wls_numbers <- function(fit) c(stats::coef(fit), unname(stats::weights(fit)))
+  # Unnamed: the reference of a term computed beforehand names its coefficient
+  # after its column.
+  wls_numbers <- function(fit) unname(c(stats::coef(fit), stats::weights(fit)))
   c(contract_recipes, list(
     performScatterDiagnostic = function(m, d) performScatterDiagnostic(m, d, c("x1", "x2")),
     runPanelTests = function(m, d) runPanelTests(m, d, id = "id", time = "time"),

@@ -465,8 +465,8 @@ rcontext_variables <- function(ctx, data, need) {
 }
 
 # M1: variables a test reads that the model frame does not hold under their
-# own names, without `data`. `also` adds a sentence for the argument that
-# names them.
+# own names, without `data`. `also` adds a sentence, for a second formula
+# (rcontext_formula_rows()).
 rstop_missing_from_frame <- function(ctx, absent, also = NULL) {
   terms_held <- setdiff(names(ctx$frame), c("(weights)", "(offset)"))
   rstop_model_context(paste0(
@@ -592,8 +592,13 @@ rcontext_formula_rows <- function(ctx, data, formula, arg = "var_formula") {
   if (is.null(data)) {
     absent <- setdiff(needed, names(ctx$frame))
     if (length(absent) > 0L) {
+      # "supplied through `data`" is the message of 0.15.0, which the test
+      # suite pins.
       rstop_missing_from_frame(ctx, absent, sprintf(
-        "The variables of `%s` are read from `data` or the model frame, not from the workspace.",
+        paste(
+          "Variables that are not part of the model must be supplied through `data`:",
+          "those of `%s` are not read from the workspace."
+        ),
         arg
       ))
     }

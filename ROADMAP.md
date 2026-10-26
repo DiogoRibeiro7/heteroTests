@@ -1380,14 +1380,19 @@ after it.
       `var_formula` or `against` read the variables of the second formula
       through `rvariance_frame()`, which matches by name and, when no name
       matches and the counts agree, by position, unchecked (a reordered tibble
-      changes their value).
+      changes their value). Since the sixth step of the model context they
+      read them at the rows the alignment confirmed, and `rvariance_frame()`
+      is gone.
     - The tests that read nothing from `data` (`performSpearmanTest()`,
       `performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`,
       `performCookWeisbergTest()` without `var_formula`, `performNCVTest()`,
       `performSpreadLevelTest()`, `performDavidianCarrollTest()`,
       `performVarianceFormTest()` without a second formula,
       `performRESETTest()`) accept reordered data and return the value of the
-      fit.
+      fit. They still do after the sixth step of the model context, which
+      builds them on it but keeps their check of `data`; whether they should
+      refuse such data, as the others do, is left to the author (step 6
+      below).
     - The columns a test reads besides the model (`group`, `order_by`,
       `variable`, `id`, `time`) are not compared. When every column of the
       model frame is compared, two rows that tie on all of them (response,
@@ -1430,7 +1435,9 @@ after it.
     - A `model = FALSE` fit whose data changed after the fit is refused by
       the tests that read `data`, with or without it, but the tests that read
       only the model rebuild its frame too: `performRESETTest()` takes its
-      response from that frame and stays wrong, as in 0.14.0.
+      response from that frame and stays wrong, as in 0.14.0. Since the second
+      step of the model context RESET refuses it, and since the sixth the
+      other tests computed from the model alone and `fitWLS()` do.
     - `bootstrapTestStatistic()` and `rbootstrap_test_statistic()` keep their
       own check (0.13.0), and the panel tests and
       `performScatterDiagnostic()` refuse data with row names of their own in
@@ -1567,10 +1574,27 @@ after it.
     refuses the unbalanced panel (N12, the item above). A fit with
     `na.action = na.exclude` is read as before, by position, until step 9.
     Done in 0.16.0.
-  - [ ] 6. The tests computed from the model alone, Cook-Weisberg with
+  - [x] 6. The tests computed from the model alone, Cook-Weisberg with
     `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
     and the check of `data` RESET keeps until then (`rcheck_data_argument()`).
-    Closes B9, R3, N6 for these.
+    Closes B9, R3, N6 for these. The nine tests computed from the model alone
+    and `fitWLS()` build the context, which refuses a stale `model = FALSE`
+    frame (N6), a multivariate `lm`, an edited fit (M8; not `fitWLS()`), and a
+    fit whose data are gone unless `data` gives its response and fitted
+    values; they read nothing from `data`, which they check as RESET does,
+    with `rcheck_data_argument()`. A second formula (`var_formula`,
+    `against`) is evaluated on the rows the alignment confirmed (B9), and its
+    variables come from `data` or the model frame, never from the workspace
+    (R3, decision 9). Done in 0.16.0.
+    - Left to the author, from step 6: whether the tests that read nothing
+      from `data` (these nine, RESET, `fitWLS()` without `var_formula`) should
+      match `data` through the guard as every other test does, which would
+      refuse numbered data in another order than the fit, rows in front of
+      those of the fit and data whose values are not the fit's, from which
+      they compute the value of the fit, and accept the complete rows of a fit
+      that dropped rows numbered again, which `rcheck_data_argument()`
+      refuses. Decision 24 kept RESET's check "until increment 6"; step 6 keeps
+      it, for all of them, until that is decided.
   - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
     Closes B6, and N17 for these.
   - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from

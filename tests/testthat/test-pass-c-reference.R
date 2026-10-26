@@ -44,8 +44,17 @@ test_that("performDavidianCarrollTest survives a zero residual", {
   set.seed(3)
   d <- data.frame(x = 1:30)
   d$y <- 2 * d$x + rnorm(30)
+  # Since 0.16.0 the test reads the fit through the model context, which
+  # refuses a residual set to zero by hand, as an edit of the fit. An
+  # observation that lies on the regression of the others has a residual that
+  # is zero but for rounding, in a fit that is not edited.
+  edited <- lm(y ~ x, data = d)
+  edited$residuals[1] <- 0
+  expect_error(performDavidianCarrollTest(edited), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  d$y[1] <- unname(stats::predict(lm(y ~ x, data = d[-1, ]), d[1, , drop = FALSE]))
   model <- lm(y ~ x, data = d)
-  model$residuals[1] <- 0
+  expect_lt(abs(unname(stats::residuals(model)[1])), sqrt(.Machine$double.eps))
 
   expect_warning(performDavidianCarrollTest(model), "numerically zero")
   res <- suppressWarnings(performDavidianCarrollTest(model))

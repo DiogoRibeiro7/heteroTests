@@ -1036,9 +1036,10 @@ test_that("models the tests do not take are refused first, with today's messages
     recipe <- recipes[[fn]]
     expect_error(recipe(binomial_fit, d), "needs a model fitted by stats::lm()", fixed = TRUE,
                  info = fn)
-    # runPanelTests() refuses a model through the first test it runs.
+    # runPanelTests() refuses a model through the first test it runs; the
+    # deprecated performNCVTest() warns first.
     refused_by <- if (identical(fn, "runPanelTests")) "performBPRandomEffectsTest" else fn
-    expect_error(recipe(lm(cbind(y, ypos) ~ x1 + x2, data = d), d),
+    expect_error(suppressWarnings(recipe(lm(cbind(y, ypos) ~ x1 + x2, data = d), d)),
                  sprintf("%s() needs a model with one response; `model` has 2.", refused_by),
                  fixed = TRUE, info = fn)
   }
@@ -1823,7 +1824,8 @@ test_that("a variable of a second formula is not read from the workspace (R3)", 
     expect_error(calls[[nm]](NULL),
                  "The following variables are missing from the model frame of `model`: zz.",
                  fixed = TRUE, class = "heteroTests_model_context_error", info = nm)
-    expect_error(calls[[nm]](NULL), "not from the workspace", fixed = TRUE, info = nm)
+    expect_error(calls[[nm]](NULL), "must be supplied through `data`", fixed = TRUE, info = nm)
+    expect_error(calls[[nm]](NULL), "are not read from the workspace", fixed = TRUE, info = nm)
     expect_error(calls[[nm]](d), "The following variables are missing from input data: zz.",
                  fixed = TRUE, info = nm)
   }
