@@ -710,7 +710,9 @@ test_that("a term computed from its rows keeps the values of the fit in every ch
         out <- run(m, data)
         context_same(out, run(reference$m, reference$data), info, tolerance = 1e-10)
         context_same(out, run(m, NULL), info, tolerance = 1e-10)
-        expect_equal(unname(out$statistic), unname(exact[[fn]](m, data)$statistic),
+        # The exact tests warn of the rows the fit dropped.
+        expect_equal(unname(out$statistic),
+                     unname(suppressWarnings(exact[[fn]](m, data))$statistic),
                      tolerance = 1e-8, info = info)
       }
       # White's streaming test stops on the collinear squares of the dummies
@@ -843,6 +845,39 @@ test_that("a gam with smooth terms is streamed as before, on the variables of it
     expect_equal(unname(out_bp$parameter), 2)
     expect_equal(unname(out_k$parameter), 2)
   }
+})
+
+test_that("a model = FALSE fit to named data says why numbered data cannot rebuild its frame", {
+  # The frame of a fit with model = FALSE whose data are gone is rebuilt from
+  # `data`, whose rows are matched by the names of the observations of the
+  # fit, which a tibble of such data, numbering its rows, lacks. The tests
+  # built on the context said that `data` does not give the response and the
+  # fitted values of the fit, and the streaming tests before increment 7
+  # "Missing rows: Mazda RX4, Mazda RX4 Wag, Datsun 710"; the refusal names
+  # the rows `data` lacks.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  env <- new.env()
+  assign("gone", mtcars, envir = env)
+  m <- eval(quote(lm(mpg ~ wt + qsec, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  unmatched <- paste(
+    "the rows of `data` cannot be matched to the observations of the fit: `data` has no rows",
+    "named Mazda RX4, Mazda RX4 Wag, Datsun 710."
+  )
+  for (fn in c(context_streaming, "performWhiteTest", "performKoenkerTest")) {
+    test <- match.fun(fn)
+    expect_s3_class(suppressWarnings(test(m, mtcars)), "htest")
+    expect_error(suppressWarnings(test(m, dplyr::as_tibble(mtcars))), unmatched, fixed = TRUE,
+                 class = "heteroTests_model_context_error", info = fn)
+  }
+  # Data with the names of the fit that do not give its response keep the
+  # message on the response and the fitted values.
+  reversed <- mtcars
+  reversed$mpg <- rev(reversed$mpg)
+  expect_error(performKoenkerTest(m, reversed),
+               "`data` does not give the response and the fitted values of the fit", fixed = TRUE)
 })
 
 test_that("Harrison-McCabe takes the rank of the fit, decided at its tolerance (N4)", {

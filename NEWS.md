@@ -554,7 +554,8 @@ chunk. `data` that are given are matched to the observations of the fit as by
 the tests built on the context: named data in any order, numbered data in fit
 order. This reaches the three functions and `runHeteroTests()` and
 `runDiagnostics()` with a finite `chunk_threshold_mb`. Every value is
-`identical()` to before but for the changes in bold below.
+`identical()` to before but for the changes in bold below, and, on a `poly()`
+term, in its last bits (below).
 
 **A term computed from the rows it is given keeps the values of the fit in
 every chunk.** Each chunk built its own design from the formula, on its rows
@@ -614,8 +615,17 @@ built on the context. They read its rows by position and returned the values
 of other rows: on `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120
 observations of `contract_data()`, given `dplyr::as_tibble(d)[sample(120), ]`
 after `set.seed(3)`, White's streaming test returned 8.887 where the data in
-the order of the fit give 11.145. Given data that give its response and fitted
-values, in any accepted form, such a fit is tested on them, as before.
+the order of the fit give 11.145. Given data that hold its rows, by row name,
+or by row number for a fit to data that number their rows, and give its
+response and fitted values, such a fit is tested on them, as before. The
+numbered data of a fit to data with row names of their own, such as
+`dplyr::as_tibble(mtcars)` for a fit to `mtcars`, lack those names, and are
+refused, as before, now with "... cannot use the model frame of `model`: it
+cannot be rebuilt (...), and the rows of `data` cannot be matched to the
+observations of the fit: `data` has no rows named Mazda RX4, Mazda RX4 Wag,
+...", by every test built on the context, where the streaming tests said
+"Missing rows" and the others that `data` does not give the response and the
+fitted values of the fit.
 
 Also, for the three:
 
@@ -667,10 +677,18 @@ Also, for the three:
   55 of them the new refusals in bold; each of the 562 that now return a
   value, or another one, gives the value of its reference: the same call on
   the data frame of the fit or on the data of a `gam` in its order, or the
-  fit with the column of the term computed beforehand. On a `poly()` term,
-  whose basis the chunks computed again through the `predvars` of the terms,
-  the 128 calls are `identical()` to before. The warnings are those of before
-  on every call.
+  fit with the column of the term computed beforehand. The warnings are those
+  of before on every call.
+- On a `poly()` term a value can change in its last bits: the chunks computed
+  the basis again by the recurrence of the `predvars` of the terms, and the
+  design of the fit holds the basis that `poly()` computed by its QR
+  decomposition. With `set.seed(101); n <- 500;
+  d <- data.frame(x1 = runif(n, 0.5, 3), x2 = rnorm(n), x3 = rexp(n));
+  d$y <- 2 + d$x1 - 0.7 * d$x2 + 0.3 * d$x3 + rnorm(n, sd = d$x1)`,
+  `performBPTestStreaming(lm(y ~ poly(x1, 2) + x2, d), d)` gave
+  156.20252285478642 and gives 156.20252285478654; of 621 such calls of the
+  review of this step, 38 changed, by at most 9.9e-14 relative. The 48 calls
+  of the corpus with a value on a `poly()` term are `identical()` to before.
 
 ### Which models the tests accept
 

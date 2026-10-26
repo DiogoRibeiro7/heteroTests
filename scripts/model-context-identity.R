@@ -1429,11 +1429,11 @@ identity_data_name_change <- function(before, after, formula) {
       changed <- TRUE
       next
     }
-    # Increment 7: an entry that runs another test than before, as the test
-    # the runner names where it ran a fallback, carries the data.name of that
-    # test; the rules of the runner judge the rest.
-    if (!identical(before[[k]]$diagnostic, after[[k]]$diagnostic) ||
-          !identical(before[[k]]$status, after[[k]]$status)) {
+    # Increment 7: an entry that runs the test the runner names where it ran a
+    # fallback on main carries the data.name of that test, the formula of the
+    # model; the rules of the runner judge the rest.
+    if (identical(before[[k]]$status, "fallback") && is.null(after[[k]]$status) &&
+          identical(after[[k]]$diagnostic, k) && identical(db, formula)) {
       next
     }
     return("unexpected")
@@ -1529,7 +1529,26 @@ identity_white_streaming <- c(
 # its auxiliary regression, the squares of dummies or of a poly() basis. On a
 # cell where it stopped before reaching that regression, on a variable that
 # `data` or the model frame lacked (L1, L2) or on the new levels of cut() (N7,
-# B6), it now reaches it, and may stop there (identity_defects()).
+# B6), it now reaches it, and on a cell of such terms stops there
+# (identity_defects()): the terms of `context_white_streaming_collinear` of
+# helper-model-context.R, which the comparison does not source, read from the
+# id of the cell (identity_cell_terms()).
+identity_white_streaming_collinear <- c("poly", "square", "median", "cut", "factor", "log_factor")
+identity_cell_terms <- function(cell) {
+  if (is.null(cell) || length(cell) != 1L) {
+    return(NA_character_)
+  }
+  if (startsWith(cell, "terms/")) {
+    return(strsplit(cell, "/", fixed = TRUE)[[1L]][4L])
+  }
+  if (startsWith(cell, "missing/median")) {
+    return("median")
+  }
+  if (startsWith(cell, "group/na_factor")) {
+    return("factor")
+  }
+  "none"
+}
 identity_messages$N3 <- "Auxiliary regression became rank deficient"
 identity_message_scope$N3 <- identity_white_streaming
 for (defect in c("frame", "M8")) {
@@ -2137,8 +2156,9 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
 identity_defects <- function(record, scope = identity_defect_scope) {
   defects <- record$defect
   # Increment 7: White's streaming test reaches its auxiliary regression where
-  # it stopped before it, and may stop on its collinear terms (N3).
-  if (record$fn %in% identity_white_streaming && any(c("L1", "L2", "N7", "B6") %in% defects)) {
+  # it stopped before it, and on the cells of collinear terms stops there (N3).
+  if (record$fn %in% identity_white_streaming && any(c("L1", "L2", "N7", "B6") %in% defects) &&
+        identity_cell_terms(record$cell) %in% identity_white_streaming_collinear) {
     defects <- c(defects, "N3")
   }
   if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
@@ -2524,6 +2544,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       stored_checked = checked,
       stored_identical = checked && !identical(decided, "unexpected"),
       last_bits_checked = !is.null(rounded),
+      # Whether the branch returned a value, not an error or a skip.
+      with_value = !(is.list(after$value) &&
+                       (isTRUE(after$value$.error) || isTRUE(after$value$.skip))),
       # "formula" when a data.name of the runner changed, to the formula of the
       # model; "none" when none did; NA for a call that is not a runner's.
       data_name = data_name,
@@ -2614,12 +2637,19 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   if (nrow(segments) > 0L) {
     rounded <- segments[segments$change == "value_change", , drop = FALSE]
     largest <- if (nrow(rounded) > 0L) max(rounded$everything_relative) else 0
+    valued <- segments[segments$with_value, , drop = FALSE]
+    streaming <- segments$fn %in% identity_rebuilt_per_chunk
     template <- paste0(
-      "Decision 1, segments refitted from the formula before (N1): %d poly() calls with ",
-      "a value, %d identical() to main, %d differing by at most %.2g relative on any number\n"
+      "Decision 1, terms rebuilt from the formula before (the segments of Goldfeld-Quandt, N1, ",
+      "and the chunks of the streaming tests, increment 7): %d poly() calls (%d of the ",
+      "streaming tests), %d of them with a value (%d of the streaming tests); of these %d ",
+      "identical() to main and %d differing by at most %.2g relative on any number; the other ",
+      "%d stop as on main\n"
     )
-    cat(sprintf(template, nrow(segments), sum(segments$change == "identical"), nrow(rounded),
-                largest))
+    cat(sprintf(template, nrow(segments), sum(streaming), nrow(valued),
+                sum(valued$fn %in% identity_rebuilt_per_chunk),
+                sum(valued$change == "identical"), nrow(rounded), largest,
+                sum(!segments$with_value & segments$change == "identical")))
   }
   to_value <- calls[calls$verdict != "identical" &
                       calls$change %in% c("error_to_value", "value_change"), , drop = FALSE]

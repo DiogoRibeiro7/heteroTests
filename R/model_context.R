@@ -132,7 +132,10 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
     # `data`, and used only if it gives the response and the fitted values of
     # the fit (rcontext_frame_from_data()).
     rebuilt <- if (is.data.frame(data)) rcontext_frame_from_data(model, data)
-    if (is.null(rebuilt)) {
+    if (!is.data.frame(rebuilt)) {
+      # `data` that lack rows named as the observations of the fit, as the
+      # tibble of a fit to named data does, cannot be matched to them.
+      unmatched <- if (is.list(rebuilt)) rebuilt$unmatched
       rstop_model_context(sprintf(
         paste0(
           "%s() cannot use the model frame of `model`: it cannot be rebuilt (%s)%s. ",
@@ -142,7 +145,15 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
         ),
         caller,
         if (inherits(frame, "error")) conditionMessage(frame) else "not a data frame",
-        if (is.data.frame(data)) {
+        if (length(unmatched) > 0L) {
+          sprintf(
+            paste0(
+              ", and the rows of `data` cannot be matched to the observations of the fit: ",
+              "`data` has no rows named %s"
+            ),
+            paste(unmatched, collapse = ", ")
+          )
+        } else if (is.data.frame(data)) {
           ", and `data` does not give the response and the fitted values of the fit"
         } else {
           ""
@@ -267,9 +278,16 @@ rcontext_ids <- function(model, frame) {
 #' of the fit and, times the coefficients plus its offset, the fitted linear
 #' predictor, the checks of [rcheck_model_frame()], to `1e-8`.
 #'
+#' The rows are matched by the names of the observations of the fit. When
+#' `data` lacks some of them, as a tibble, which numbers its rows, lacks those
+#' of a fit to data with row names of their own, the frame is not built, and
+#' the names `data` lacks are returned, so that the refusal can say so.
+#'
 #' @param model The fitted model.
 #' @param data The `data` argument of the calling test.
-#' @return The model frame, on the rows of the fit in its order, or `NULL`.
+#' @return The model frame, on the rows of the fit in its order; `NULL`; or,
+#'   when `data` lacks rows named as observations of the fit, a list with the
+#'   first three of their names as `unmatched`.
 #' @keywords internal
 #' @noRd
 rcontext_frame_from_data <- function(model, data) {
@@ -283,7 +301,7 @@ rcontext_frame_from_data <- function(model, data) {
   }
   rows <- match(ids, rownames(frame))
   if (anyNA(rows)) {
-    return(NULL)
+    return(list(unmatched = utils::head(ids[is.na(rows)], 3L)))
   }
   if (!identical(rows, seq_len(nrow(frame)))) {
     model_terms <- attr(frame, "terms")

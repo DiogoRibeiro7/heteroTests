@@ -1193,10 +1193,25 @@ after it.
     penalised `gam` (step 11), settles it. Changes a value, or refuses one.
     Step 7 keeps the design of the variables of the formula, built from the
     model frame, so that the values are those of before, and leaves the
-    question to step 11, unless the author settles it in step 7: on the
-    stored design the Breusch-Pagan and Koenker streaming tests would give
-    the values of the exact tests, and White's would refuse the collinear
-    squares of the basis of the smooths (N3).
+    question to step 11, as decision 23 provides for every test outside step
+    2 (the review of step 7 agreed): on the stored design the Breusch-Pagan
+    and Koenker streaming tests would give the values of the exact tests,
+    and White's would refuse the collinear squares of the basis of the
+    smooths (N3).
+  - [ ] The three streaming tests refuse squared residuals that do not vary,
+    "requires variation in squared residuals", by an absolute threshold:
+    `chunked_regression_r2()` compares their total sum of squares with
+    `.Machine$double.eps`, whatever their scale. Residuals of about `1e-5`
+    are refused: with `set.seed(11); n <- 120;
+    d <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n));
+    d$y <- 1e-5 * rnorm(n, sd = d$x1); m <- lm(y ~ x1 + x2, data = d)`,
+    `performWhiteTestStreaming(m, d)`, `performBPTestStreaming(m, d)` and
+    `performKoenkerTestStreaming(m, d)` stop, where `performWhiteTest()`
+    gives 12.787 on 5 degrees of freedom, `performBPTest()` 12.997 and
+    `performKoenkerTest()` 10.289; the same data times `1e5` stream to
+    12.787. Found in step 7 of the model context, which leaves it as it was.
+    Compare the total with the scale of the squared residuals. Errors become
+    values.
   - [x] The review of the follow-up of N2 found that the refusal of a
     saturated auxiliary regression missed an exact fit with fewer terms than
     observations. On a paired design, `lm(y ~ treat + subject)` with two
