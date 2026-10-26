@@ -103,6 +103,11 @@ statistic \(h\) is unchanged; \(Q\) and the p-value change for every
 fit, on `lm(mpg ~ wt + qsec, mtcars)` ordered by `wt` from -0.6494 and
 0.7420 to -0.6626 and 0.7462.
 
+The test needs at least two residual degrees of freedom, \(\nu \ge 2\).
+With one the residuals lie on a single line, \(h\) takes the same value
+whatever the errors and its null variance is 0: since 0.16.0 the test
+refuses such a fit, for which it returned a value before.
+
 The residuals and weights are those of the fit, and `order_by` is read from
 the rows of `data` that hold its observations (the model context, since
 0.16.0); the package validation helpers check that the ordering variable is

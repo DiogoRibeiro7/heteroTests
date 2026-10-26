@@ -317,6 +317,16 @@ alternatives, the registered `"szroeter"` that `runHeteroTests()` runs, its
 `test_factory` entry and every fit the test accepts change in the same way;
 `method`, `parameter`, `alternative` and `data.name` do not.
 
+**`performSzroeterTest()` refuses a fit with one residual degree of freedom,
+for which it returned a value.** With `n - k = 1` the residuals lie on one
+line, so `h` takes the same value whatever the errors and its null variance
+is 0. On 15 observations of `y ~ g`, with `g` a factor of 14 levels, one of
+them observed twice, `h` is 8.5 for any response, and the test returned
+Q = 0.3169 (p = 0.3756) ordered by another variable; it stops with "Szroeter
+test needs at least two residual degrees of freedom: the fit has 15
+observations and 14 estimable coefficients, so h takes the same value
+whatever the errors and there is nothing to test."
+
 ### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
 
 **With `auto_enhance = FALSE`, the Breusch-Pagan entry of

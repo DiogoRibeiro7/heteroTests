@@ -735,6 +735,11 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' fit, on `lm(mpg ~ wt + qsec, mtcars)` ordered by `wt` from -0.6494 and
 #' 0.7420 to -0.6626 and 0.7462.
 #'
+#' The test needs at least two residual degrees of freedom, \eqn{\nu \ge 2}.
+#' With one the residuals lie on a single line, \eqn{h} takes the same value
+#' whatever the errors and its null variance is 0: since 0.16.0 the test
+#' refuses such a fit, for which it returned a value before.
+#'
 #' The residuals and weights are those of the fit, and `order_by` is read from
 #' the rows of `data` that hold its observations (the model context, since
 #' 0.16.0); the package validation helpers check that the ordering variable is
@@ -1013,13 +1018,29 @@ rszroeter_moments <- function(basis, k) {
   tr_ma <- sum(ranks) - sum(ranks * leverage)
   tr_mama <- sum(ranks^2) - 2 * sum(ranks^2 * leverage) + sum(crossprod(q1, q1 * ranks)^2)
   moments <- c(mean = tr_ma / nu, var = 2 * (nu * tr_mama - tr_ma^2) / (nu^2 * (nu + 2)))
-  if (nu < 2L || !all(is.finite(moments)) || moments[["var"]] <= 0) {
-    .std_error(
-      "rassumption_violation",
-      assumption = paste0(
-        "Szroeter test needs a statistic that can vary: with this design and ",
-        "ordering it takes the same value whatever the errors"
-      )
+  # With one residual degree of freedom the residuals lie on one line, h is
+  # the same whatever the errors and its null variance is 0. Before 0.16.0 the
+  # test standardised it with the fixed moments and returned a value.
+  if (nu < 2L) {
+    stop(
+      sprintf(
+        paste0(
+          "Szroeter test needs at least two residual degrees of freedom: the fit has %d ",
+          "observations and %d estimable coefficients, so h takes the same value whatever ",
+          "the errors and there is nothing to test."
+        ),
+        as.integer(n), as.integer(k)
+      ),
+      call. = FALSE
+    )
+  }
+  if (!all(is.finite(moments)) || moments[["var"]] <= 0) {
+    stop(
+      paste0(
+        "Szroeter test cannot test this fit: with its design and this ordering, h ",
+        "takes the same value whatever the errors (its null variance is 0)."
+      ),
+      call. = FALSE
     )
   }
   moments

@@ -248,6 +248,30 @@ test_that("the O(n k^2) moments of Szroeter's h equal those of the eigenvalues",
                tolerance = 1e-14)
 })
 
+test_that("performSzroeterTest refuses a fit with one residual degree of freedom", {
+  # With n - k = 1 the residuals lie on one line and h is the same whatever
+  # the response: 8.5 here. 0.15.0 returned Q = 0.3169 (p = 0.3756).
+  set.seed(1)
+  d <- data.frame(g = factor(c(letters[1:14], "a")), z = rnorm(15))
+  for (s in 1:2) {
+    d$y <- rnorm(15)
+    m <- lm(y ~ g, data = d)
+    e <- residuals(m)[order(d$z)]
+    expect_equal(sum(seq_len(15) * e^2) / sum(e^2), 8.5, tolerance = 1e-12)
+    expect_error(
+      performSzroeterTest(m, d, order_by = "z"),
+      paste0(
+        "Szroeter test needs at least two residual degrees of freedom: the fit has 15 ",
+        "observations and 14 estimable coefficients"
+      ),
+      fixed = TRUE
+    )
+  }
+  # Two residual degrees of freedom are tested.
+  d2 <- data.frame(g = factor(c(letters[1:13], "a", "b")), z = rnorm(15), y = rnorm(15))
+  expect_true(is.finite(performSzroeterTest(lm(y ~ g, data = d2), d2, order_by = "z")$statistic))
+})
+
 test_that("performSzroeterTest gives the values of the design-based null on its examples", {
   # inst/validation/szroeter-design-null-size.R computes these from the
   # eigenvalues of the design; 0.15.0 gave Q = -0.6494 and p = 0.7420.
