@@ -840,7 +840,7 @@ after it.
     does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
     forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
     audit; no value changes.
-- [ ] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
+- [x] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
     the warning of `warnDiagnosticAssumptions()` for a sample of fewer than 100
     observations, but two other strings still recommend the wild bootstrap for
     such a sample: `suggestDiagnosticsForProfile()` adds it with the rationale
@@ -852,7 +852,14 @@ after it.
     100 observations: with centred exponential errors it rejects 0.082, 0.073
     and 0.061 of the time at the 5% level with the Rademacher multiplier. Say
     what the warning says, or drop the claim. Recorded, not fixed, in 0.15.0;
-    only the text changes.
+    only the text changes. Done in 0.16.0: both say what the warning says. The
+    rationale reads "In the package's validation study, at 30 to 100
+    observations, the wild bootstrap rejected a true null hypothesis 4.3% to
+    5.1% of the time at the 5% level with normal and t5 errors, but 6% to 8% of
+    the time with skewed errors. ...", and step 1 "Add the wild bootstrap and
+    rank permutation tests; with skewed errors ...", the caution of the warning
+    (`rwild_small_sample_caution()`). The same tests are recommended and the
+    same steps given (`test-intelligent-recommendations.R`).
 - [ ] **`ht_analyse_failure()` labels a failure by its message, ignoring
     case.** It calls a failure a rank deficiency when the message matches
     `"rank|singular"` and a data-quality issue when it matches
@@ -870,12 +877,99 @@ after it.
     execution failed". Match whole words, and `NA` only in capitals, or give the
     refusal of such a `glm` an issue of its own. Recorded, not fixed, in
     0.15.0; only the message and the recorded `issue` change.
-- [ ] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
+- [x] **`performFlignerKilleenTest()` and a tie at the median.** The statistic
     depends on rounding when the number of residuals is even: the two in the
     middle tie at exactly half their difference from the median, and which
     ranks first decides about `1e-6` of the statistic. Found on 2026-10-15
     comparing a Gaussian `glm` with the same `lm`. Average the ranks of values
-    tied to within a tolerance. Changes a value, by that much.
+    tied to within a tolerance. Changes a value, by that much. Done in 0.16.0:
+    absolute deviations from the group medians closer than `8 * eps * s`, with
+    `eps = .Machine$double.eps` and `s` the largest absolute residual of the
+    group (the smaller of the two for deviations of different groups), are
+    ranked as tied (`rfligner_rounding_ties()`). The centring opens a gap of at
+    most `eps * s` between the two in the middle of a group. The scale is that
+    of the group, so that a group far from zero does not widen the tolerance
+    of the others, as one shifted by 1e8 did with the largest residual of all
+    (decided after the review of #156). On `lm(y ~ x1 + x2)` with four groups
+    of 30 the `lm` gave 9.3670076662 and the Gaussian `glm` 9.3670316854; both
+    give 9.3670316854, `identical()`, as the matrix of the model context now
+    checks (`context_fligner_tolerance`, 1e-4 before, 1e-10 now; `identical()`
+    on Windows). In the identity harness of the model context
+    (`scripts/model-context-identity.R`), 128 of the 351 calls of the test
+    change, by 1.1e-6 to 4.4e-6 of the statistic, and the 91 of them whose cell
+    has another fit of the model as its reference are now `identical()` to it;
+    the other 19,628 calls are `identical()` to main
+    (`test-fligner-killeen-ties.R`, `test-pass-b-reference.R`).
+- [x] **`performFlignerKilleenTest()` on residuals whose ties the fit
+    broke.** The tolerance of the item above is that of the centring. On an
+    integer response regressed on a factor, residuals that are equal in exact
+    arithmetic are computed equal by the Gaussian `glm` but not by the `lm`,
+    whose QR decomposition leaves them apart by more than the tolerance, which
+    catches some of them only. In 20 fits of `y <- rpois(n, 3)` on four equal
+    groups the largest gap was 17 times `eps * max(abs(r))` at 60
+    observations, 400 times at 600 and 6,900 times at 6,000, and 208 times at
+    60 with `rpois(n, 300)`: the rounding of the fit is relative to the size of
+    the response rather than of the residuals, and grows with the number of
+    observations, so no fixed multiple of `eps * max(abs(r))` covers it. The
+    statistic of the `lm` then stays off that of exact ties: from
+    `set.seed(3)` with 60 observations in groups of 15, 6.10, where the `glm`
+    and `stats::fligner.test()` of the responses give 6.66 (4.49 before
+    0.16.0). Found in 0.16.0 with the item above. Done in 0.16.0, at the
+    source (decided after the review of #156): the test ranks the residuals
+    `sqrt(w) * (y - X b - o)`, computed observation by observation with `X b`
+    summed in the same order for every row (`rfligner_residuals()`), as the
+    Gaussian `glm` computes them, then applies the tolerance of the item
+    above; where neither changes a rank it passes the residuals of the fit on
+    as before. Observations with the same values of the model's variables,
+    weight and offset are given one residual, that of the first of them
+    (`rfligner_same_observations()`), where their residuals agree to within
+    64 times `eps` of the size of the numbers they are computed from, so that
+    a term of the row position (`seq_along(x)`, `cumsum(x)`) keeps them apart;
+    this needs `data`, or a model frame that holds the variables. It is done
+    since `poly()` builds its basis with a QR decomposition of its own and can
+    give them design rows that differ in their last bits (from the
+    confirmation review of #156: on 70 observations
+    repeating 30, `y ~ poly(x, 3)` gave 0.80190 where `y ~ x + I(x^2) +
+    I(x^3)` gives 0.91385; both now give 0.91385). On 480 fits of `lm(y ~ g)`
+    with integer responses (`rpois(n, 3)`, `rpois(n, 300)`,
+    `1e4 + rpois(n, 3)`, four groups, balanced and unbalanced, 60 to 60,000
+    observations, all accepted: the smallest group has 6 observations) the
+    statistic equals that of exact ties in all 480, where through the package
+    it did in none before 0.16.0 and in 38 with the tolerance alone (at
+    99d446e). On `sleep`, `PlantGrowth`, `warpbreaks`,
+    `InsectSprays` and `iris[-c(50, 100, 150), ]` it equals
+    `stats::fligner.test()` of the responses scaled to integers (`sleep` 0.154
+    before, 0.213 now; `warpbreaks` 3.44 and 3.90). On 3,000 continuous fits of
+    20 to 10,000 observations no two deviations that differ in exact
+    arithmetic are tied, and the `lm` and the `glm` give the same value,
+    unless the residuals of a group are 1e8 times their spread: there the
+    tolerance tied such deviations in 41 of 200 fits of 1,000 and 10,000
+    observations, and the `lm` and the `glm` differed in 4. Over a corpus of
+    55 calls the 20 in which no rank changes are `identical()` to before; 14
+    of the 17 with repeated observations change, by up to 38%, and 21 of the
+    38 with continuous responses, by 7.9e-7 to 3.2e-5 of the statistic.
+- [ ] **`performFlignerKilleenTest()` and ties of decimal arithmetic between
+    different observations.** Two different observations can have deviations
+    that are equal in exact decimal arithmetic, as when two pairs of
+    observations of a regressor recorded with few digits differ by the same
+    amounts; the binary values of the data break such a tie by a few units in
+    the last place of the response, which can exceed the tolerance of
+    `8 * eps * s`, scaled by the residuals. On `iris` with every row twice,
+    `lm(Sepal.Length ~ Petal.Length)` by `Species`, one of the 106 sets of
+    exact ties stays broken, by 10.4 times `eps * s`, and the statistic is
+    8.14863 where the residuals computed exactly, scaled to integers, give
+    8.14287 (8.13778 before 0.16.0); with `+ Species`, 0.479152 against
+    0.479156. Two forms of one model can differ by several percent: on 70
+    observations that repeat 30 values of `x` recorded with one decimal,
+    `y ~ poly(x, 3) + g` gives 1.21547, and `y ~ x + I(x^2) + I(x^3) + g` and
+    `y ~ poly(x, 3, raw = TRUE) + g` give 1.30280, 7% more: repeated values of
+    `x` in different groups are different observations, rightly not given one
+    residual, and `poly()` breaks their decimal ties in its last bits (the
+    second review of #156). On `iris` itself and on the one-way fits of `sleep`,
+    `PlantGrowth`, `warpbreaks`, `InsectSprays` and `iris[-c(50, 100, 150), ]`
+    the value is exact. Found in 0.16.0 with the items above; recorded, not
+    fixed. A tolerance scaled by the response would cover it, at the cost of
+    merging deviations of continuous data that differ (the review of #156).
 - [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
     Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
     weight, whose Pearson residual is an artificial zero, but not the same

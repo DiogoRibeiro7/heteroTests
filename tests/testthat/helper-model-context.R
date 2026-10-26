@@ -729,18 +729,24 @@ context_group_readers <- function() {
 
 # Fligner-Killeen's statistic ranks the absolute deviations of the residuals
 # from their group medians. In a group of even size the two residuals in the
-# middle lie at the same distance from the median, and whether rounding leaves
-# that tie exact differs from one fit of the model to another, such as the lm
-# and the gam or the Gaussian glm (N15, a separate pull request): on the data
-# of the matrix, two of the four ties are exact for the lm and all four for the
-# gam. The statistic then moves by up to 2.6e-6 of its value and the p-value
-# by up to 1.1e-5 (measured on Windows, the gam against the lm), and which
-# ties are exact depends on the platform too: the Gaussian glm with an offset
-# and the glm of y - o, equal on Windows to 1e-10, differed on CI by 1.5e-7 of
-# the statistic on Linux (1.98307876 against 1.98307847) and by 1.9e-6 on
-# macOS (1.9830772 against 1.9830809). Where its reference is another fit of
-# the same model, its value is compared to this tolerance.
-context_fligner_tolerance <- 1e-4
+# middle lie at the same distance from the median, and before 0.16.0 whether
+# rounding left that tie exact differed from one fit of the model to another,
+# such as the lm and the gam or the Gaussian glm: on the data of the matrix,
+# two of the four ties were exact for the lm and all four for the gam. The
+# statistic then moved by up to 2.6e-6 of its value and the p-value by up to
+# 1.1e-5 (measured on Windows, the gam against the lm), and which ties were
+# exact depended on the platform too: the Gaussian glm with an offset and the
+# glm of y - o, equal on Windows to 1e-10, differed on CI by 1.5e-7 of the
+# statistic on Linux (1.98307876 against 1.98307847) and by 1.9e-6 on macOS
+# (1.9830772 against 1.9830809); this tolerance was 1e-4. Since 0.16.0 (N15)
+# the residuals are computed observation by observation and deviations that
+# only rounding tells apart are ranked as tied (rfligner_residuals() and
+# rfligner_rounding_ties(), R/performFlignerKilleenTest.R), so the fits of
+# the same model give the same ranks, and the statistic, which depends on the
+# ranks alone, is the same: identical() on the matrix, measured on Windows.
+# Where its reference is another fit of the same model, its value is compared
+# to the tolerance of the other tests.
+context_fligner_tolerance <- 1e-10
 
 # The functions of `context_migrated` that can run here: the quantile
 # regression test needs quantreg, and the spatial test spdep, suggested

@@ -422,8 +422,8 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
   plain <- mgcv::gam(y ~ x1 + x2, data = d)
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
   for (fn in context_runnable()) {
-    # Fligner-Killeen's ranks tie at a group median on one fit and not, by
-    # rounding, on the other (N15, context_fligner_tolerance).
+    # Before 0.16.0 Fligner-Killeen's ranks tied at a group median on one fit
+    # and not, by rounding, on the other (N15, context_fligner_tolerance).
     fligner <- identical(fn, "performFlignerKilleenTest")
     tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (data in list(d, NULL)) {
@@ -826,10 +826,11 @@ test_that("an offset is the model of the response minus the offset", {
     # Hartley's test and the group tests group by a variable the model frame
     # does not hold.
     forms <- if (fn %in% context_group_readers()) "data_frame" else c("data_frame", "null")
-    # The fit of y - o is another fit of the model, whose rounding can leave
+    # The fit of y - o is another fit of the model, whose rounding could leave
     # a tie of Fligner-Killeen's ranks at a group median exact where the fit
-    # with the offset breaks it (N15): measured on the Gaussian glm, 1.5e-7 of
-    # the statistic on Linux and 1.9e-6 on macOS (context_fligner_tolerance).
+    # with the offset broke it before 0.16.0 (N15): measured on the Gaussian
+    # glm, 1.5e-7 of the statistic on Linux and 1.9e-6 on macOS
+    # (context_fligner_tolerance).
     fligner <- identical(fn, "performFlignerKilleenTest")
     tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (fit in fits) {
@@ -899,8 +900,8 @@ test_that("a term is the column it computes, taken from the fit", {
       for (terms in names(precomputed)) {
         expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
         # The fit with the columns computed beforehand is another fit of the
-        # model: Fligner-Killeen's ranks may tie at a group median on one and
-        # not on the other (N15).
+        # model: before 0.16.0 Fligner-Killeen's ranks could tie at a group
+        # median on one and not on the other (N15).
         tolerance <- if (identical(fn, "performFlignerKilleenTest")) {
           context_fligner_tolerance
         } else if (terms == "poly") {
@@ -931,8 +932,8 @@ test_that("weights are the weights of the fit, whatever holds them", {
   for (fn in setdiff(context_runnable(), "performQuantileRegressionTest")) {
     run <- function(m) context_run(fn, list(build = function() list(m = m, data = d)))
     wls <- run(context_model(d, "wls"))
-    # Fligner-Killeen's ranks tie at a group median on one fit and not, by
-    # rounding, on the other (N15, context_fligner_tolerance).
+    # Before 0.16.0 Fligner-Killeen's ranks tied at a group median on one fit
+    # and not, by rounding, on the other (N15, context_fligner_tolerance).
     tolerance <- if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-8
     context_same(run(context_model(d, "glm")), wls, paste(fn, "glm"), tolerance = tolerance)
     context_same(run(context_model(d, "wvec")), wls, paste(fn, "wvec"))
@@ -1011,8 +1012,10 @@ context_group_oracle <- function(fn, r, g) {
   switch(fn,
     performLeveneTest = levene(mean),
     performBrownForsytheTest = levene(stats::median),
+    # With the tie at each group median exact (helper-fligner.R), as
+    # performFlignerKilleenTest() computes it since 0.16.0.
     performFlignerKilleenTest = {
-      t <- stats::fligner.test(r, g)
+      t <- fligner_median_tied(r, g)
       c(t$statistic, t$p.value)
     },
     performBartlettTest = {

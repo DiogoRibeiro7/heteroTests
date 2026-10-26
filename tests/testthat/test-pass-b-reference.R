@@ -51,8 +51,23 @@ test_that("Bartlett reproduces stats::bartlett.test on model residuals", {
 })
 
 test_that("Fligner-Killeen reproduces stats::fligner.test on model residuals", {
-  obj <- make_group_model()
+  # Groups of 31: the median of each is one of its residuals, and no tie is
+  # broken by rounding.
+  obj <- make_group_model(n_per_group = 31L)
   ref <- stats::fligner.test(residuals(obj$model), obj$grp)
+  ours <- performFlignerKilleenTest(obj$model, obj$data, "grp")
+
+  expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 0)
+  expect_equal(unname(ours$parameter), unname(ref$parameter), tolerance = 0)
+  expect_equal(ours$p.value, ref$p.value, tolerance = 0)
+
+  # Groups of 30: the two residuals in the middle of a group tie at its
+  # median, and rounding can break the tie, so that stats::fligner.test()
+  # ranks one of the two first; on Windows it does on these residuals, by
+  # 3.4e-6 of the statistic. Since 0.16.0 the tie is exact, as with the
+  # reference built by hand (helper-fligner.R).
+  obj <- make_group_model()
+  ref <- fligner_median_tied(residuals(obj$model), obj$grp)
   ours <- performFlignerKilleenTest(obj$model, obj$data, "grp")
 
   expect_equal(unname(ours$statistic), unname(ref$statistic), tolerance = 0)

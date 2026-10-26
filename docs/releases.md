@@ -6,6 +6,123 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
+### The Fligner-Killeen test and its ties
+
+**On data with repeated observations, observations with the same values of
+the model's variables such as integer responses or responses recorded with
+few digits, `performFlignerKilleenTest()` now ranks their deviations as
+tied, as in exact arithmetic, which can change its value a lot: on
+`lm(extra ~ group, data = sleep)` the statistic was 0.154 and is 0.213 (the
+p-value 0.695 and 0.645), and on `lm(breaks ~ tension, data = warpbreaks)`
+it was 3.44 and is 3.90 (0.179 and 0.142), the values of exact ties.** On
+continuous data it changes much less: in simulated fits by up to about 1e-2
+of the statistic at 20 observations, where the statistic is often near zero
+(by at most about 0.005 in absolute terms, and 2.2e-4 in the p-value), and
+by about 1e-5 of it at 100 or more, up to 2.4e-5 with a group whose
+residuals are far from zero (below).
+
+The test ranks the absolute deviations of the residuals from their group
+medians, and averages the ranks of equal values, but rounding broke ties in
+two places. It read the residuals an `lm` stores, which its QR decomposition
+rounds differently from one observation to the next: two observations with
+the same response and design row, equal in exact arithmetic, had residuals
+that differed in their last bits, and the test ranked them apart. In 20 fits
+of `rpois(n, 3)` on four groups the gaps reached 17 times
+`eps * max(abs(r))` at 60 observations and 6,900 times at 6,000, with
+`eps = .Machine$double.eps` and `r` the residuals. The test now computes the
+residuals observation by observation, `sqrt(w) * (y - X b - o)` with `X b`
+summed in the same order for every row, as the Gaussian `glm` computes them;
+for an `mgcv::gam()` fit `X` is its linear predictor matrix. Observations
+with the same values of the model's variables, weight and offset are then
+given one residual, that of the first of them, where their residuals agree
+to within rounding (64 times `eps` of the size of the numbers they are
+computed from), since a basis such as `poly()`, built with a QR
+decomposition of its own, can give them design rows that differ in their
+last bits: on 70 observations that repeat 30, `lm(y ~ poly(x, 3))` gave
+0.8001 before 0.16.0 and gives 0.91385, the value of
+`lm(y ~ x + I(x^2) + I(x^3))`. A term of the row position, such as
+`seq_along(x)` or `cumsum(x)`, gives such observations residuals that differ
+by much more, and keeps them apart. This needs the model's variables: it is
+done when `data` is given, or when the model frame holds them, as it holds a
+variable the model uses under its own name (`x`, not `poly(x, 3)`); on those
+70 observations `lm(y ~ poly(x, 3) + g)` gives 1.21547 with `data` and
+1.22684 without. And in a group of even size the two
+residuals in the middle lie at the same distance from the median, half their
+difference, a tie that the centring breaks by up to `eps * s`, with `s` the
+largest absolute residual of the group: deviations closer than
+`8 * eps * s`, with the smaller `s` of the two groups for deviations of
+different groups, are given the mean of their ranks. Where neither changes a
+rank, the residuals of the fit are passed to `stats::fligner.test()` as
+before, and the value is `identical()` to before.
+
+An `lm` and the Gaussian `glm` of the same model now give the same value,
+`identical()`. On `lm(y ~ x1 + x2)` with 120 observations in four groups of
+30, the `lm` gave 9.3670076662104975, with a p-value of 0.0247890868, and
+the `glm` 9.3670316853686657 and 0.0247888156; both now give the second, the
+value the `gam` gave already.
+
+- On 480 fits of `lm(y ~ g)` with integer responses (`rpois(n, 3)`,
+    `rpois(n, 300)` and `1e4 + rpois(n, 3)`, four groups, balanced and
+    unbalanced, 60 to 60,000 observations), the statistic equals that of exact
+    ties, `stats::fligner.test()` of the responses, in all 480, where it did in
+    none before. On `sleep`, `PlantGrowth`, `warpbreaks`, `InsectSprays` and
+    `iris[-c(50, 100, 150), ]`, each fitted on its groups, it equals
+    `stats::fligner.test()` of the responses scaled to integers, and on `iris`
+    with every row twice the `lm` and the `glm` give the same value. A tie
+    between different observations that exact decimal arithmetic would give,
+    as when two pairs of observations of a regressor recorded with few digits
+    differ by the same amounts, is restored only when rounding leaves it
+    within the tolerance: on `iris` with every row twice, regressed on
+    `Petal.Length`, one of 106 sets of such ties stays broken, and the
+    statistic is 8.14863 where exact arithmetic gives 8.14287. Two forms of one
+    model can then differ by several percent: on the 70 observations above,
+    `y ~ poly(x, 3) + g` gives 1.21547, and `y ~ x + I(x^2) + I(x^3) + g` and
+    `y ~ poly(x, 3, raw = TRUE) + g` give 1.30280, 7% more, since `poly()`
+    breaks in its last bits the ties between repeated values of `x` in
+    different groups (recorded under 0.16.0 in the roadmap).
+- On 3,000 continuous fits of 20 to 10,000 observations (normal, `t3`,
+    Cauchy, exponential and scale-mixture errors, with and without weights,
+    with an intercept of 0 or 1e6, or with a group whose residuals are far
+    from zero), no two deviations that differ in exact arithmetic are tied, and
+    the `lm` and the `glm` give the same value, unless the residuals of a group
+    are 1e8 times their spread. Then the tolerance is a few units in the last
+    place of those residuals, and it tied such deviations in 41 of the 200
+    fits of 1,000 and 10,000 observations, and the `lm` and the `glm` differed
+    in 4.
+- Over a corpus of 55 calls, the 20 calls in which no rank changes are
+    `identical()` to before. Of the 17 with repeated observations, 14 change,
+    by up to 38% of the statistic (`sleep`); of the 38 with continuous
+    responses, 21 change, by 7.9e-7 to 3.2e-5 of the statistic and at most
+    6.1e-6 in the p-value. In the identity harness of the model context, 128 of
+    the 351 calls of the test change, by 1.1e-6 to 4.4e-6 of the statistic. The
+    test is not run by `runHeteroTests()`, the registry or `test_factory`, so
+    nothing else changes.
+
+### The wild bootstrap in the advice for a small sample
+
+`suggestDiagnosticsForProfile()` recommended the wild bootstrap for a sample
+of fewer than 100 observations with the rationale `"Bootstrap inference
+performs well in small samples."`, and step 1 of
+`buildDiagnosticDecisionTree()` said `"Emphasise wild bootstrap and rank
+permutation tests."`. With centred exponential errors the wild bootstrap
+rejects a true null hypothesis 8.2%, 7.3% and 6.1% of the time at the 5%
+level at 30, 50 and 100 observations, with the Rademacher multiplier
+(`inst/validation/wild-multiplier-size.R`). Both now say what the warning of
+`warnDiagnosticAssumptions()` says since 0.15.0. The rationale reads:
+
+```text
+In the package's validation study, at 30 to 100 observations, the wild
+bootstrap rejected a true null hypothesis 4.3% to 5.1% of the time at the 5%
+level with normal and t5 errors, but 6% to 8% of the time with skewed errors.
+Check the residuals for skewness and read p-values near the level with
+caution.
+```
+
+and step 1 reads "Add the wild bootstrap and rank permutation tests;" followed
+by the caution of the warning, "with skewed errors the wild bootstrap does not
+hold its level here: ...". Only the text changes: the same tests are
+recommended, and the same steps given.
+
 ### Fixed effects for small groups
 
 **White's, Koenker's and the Breusch-Pagan tests warn when a term of the
