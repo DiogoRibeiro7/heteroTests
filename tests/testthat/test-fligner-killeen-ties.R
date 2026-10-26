@@ -95,6 +95,33 @@ test_that("repeated observations tie, as in exact arithmetic", {
   }
 })
 
+test_that("observations a term of the row position tells apart are not given one residual", {
+  # seq_along(x) and cumsum(x) depend on the position of the row, not on the
+  # variables of the model: observations with the same x and y have
+  # different residuals in exact arithmetic. Merged by their variables alone,
+  # 178 of these 200 observations got one residual each, and the statistic
+  # was 0.16605. They are merged only when their residuals already agree to
+  # within rounding, so the value is that of the same model with the trend as
+  # a column of the data.
+  set.seed(12)
+  n <- 200
+  d <- data.frame(g = factor(rep(1:4, length.out = n)), x = sample(1:4, n, TRUE))
+  d$y <- round(1e6 + d$x + 2e-4 * seq_len(n) + stats::rnorm(n))
+  d$trend <- seq_len(n)
+  position <- performFlignerKilleenTest(lm(y ~ x + seq_along(x), data = d), d, "g")
+  column <- performFlignerKilleenTest(lm(y ~ x + trend, data = d), d, "g")
+  expect_equal(unname(position$statistic), unname(column$statistic), tolerance = 1e-12)
+  expect_equal(position$p.value, column$p.value, tolerance = 1e-12)
+  expect_gt(unname(position$statistic), 0.25)
+
+  d$y <- round(1e6 + d$x + 2e-4 * cumsum(d$x) + stats::rnorm(n))
+  d$running <- cumsum(d$x)
+  position <- performFlignerKilleenTest(lm(y ~ x + cumsum(x), data = d), d, "g")
+  column <- performFlignerKilleenTest(lm(y ~ x + running, data = d), d, "g")
+  expect_equal(unname(position$statistic), unname(column$statistic), tolerance = 1e-12)
+  expect_equal(position$p.value, column$p.value, tolerance = 1e-12)
+})
+
 test_that("a tie that rounding broke at a group median is ranked as a tie", {
   # Two groups of four whose middle residuals, 0.1 and 0.3 in the first and
   # 0.7 and 1.3 in the second, sit at the same distance from the median in

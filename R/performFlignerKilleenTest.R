@@ -301,17 +301,33 @@ rfligner_residuals <- function(ctx, data, group, kept) {
   }
   used <- !is.na(coefs)
   x <- design[, used, drop = FALSE]
-  fitted_mean <- rowSums(x * rep(unname(coefs[used]), each = nrow(x)))
+  contributions <- x * rep(unname(coefs[used]), each = nrow(x))
+  fitted_mean <- rowSums(contributions)
+  # The size of the numbers each residual is computed from, the scale of its
+  # rounding.
+  size <- abs(as.vector(response)) + rowSums(abs(contributions))
   if (!is.null(ctx$offset)) {
     fitted_mean <- fitted_mean + ctx$offset
+    size <- size + abs(ctx$offset)
   }
   own <- as.vector(response) - fitted_mean
   if (!is.null(ctx$weights)) {
     own <- sqrt(ctx$weights) * own
     fitted_mean <- sqrt(ctx$weights) * fitted_mean
+    size <- sqrt(ctx$weights) * size
   }
+  # An observation takes the residual of the first with the same values of
+  # the model's variables only when the two already agree to within rounding,
+  # 64 * eps of the larger size: that restores a tie that rounding broke and
+  # imposes none. A term that depends on the position of the row, such as
+  # seq_along(x) or cumsum(x), gives such observations residuals that differ
+  # by much more, and they are left apart. The gaps poly() opens between
+  # repeated observations reached 2.7 * eps of that size (on iris with every
+  # row twice and poly(Petal.Length, 3)).
   first <- rfligner_same_observations(ctx, data)
   if (length(first) == length(own)) {
+    apart <- abs(own - own[first]) > 64 * .Machine$double.eps * pmax(size, size[first])
+    first[apart] <- which(apart)
     own <- own[first]
   }
   if (length(own) != length(kept)) {
