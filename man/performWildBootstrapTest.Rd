@@ -73,19 +73,52 @@ all power. Each bootstrap sample is therefore built from leverage-standardised,
 mean-centred residuals \eqn{r_i = e_i/\sqrt{1-h_{ii}}} (which have a common
 variance under \eqn{H_0}) resampled i.i.d. and perturbed by a wild multiplier
 \eqn{v_i}, so that \eqn{y_i^* = \hat y_i + r^*_i v_i}. The statistic is recomputed
-on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. In the package's validation study of
-the multiplier, with \code{B = 999}, the test held its level under \eqn{H_0} with
-heavy-tailed \eqn{t_5} errors but not with skewed ones: with centred
-exponential errors and 30, 50 and 100 observations it rejected a true null
-hypothesis 8.2\%, 7.3\% and 6.1\% of the time at the 5\% level with the
-Rademacher multiplier, and 7.8\%, 7.0\% and 5.9\% with the Mammen multiplier. Under the
-alternative the observed statistic is extreme relative to the homoscedastic reference, giving
-power.
+on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. The test holds its level with Gaussian
+and heavy-tailed \eqn{t_5} errors, and with skewed errors only from about
+200 observations; see \emph{Size}. Under the
+alternative the observed statistic is extreme relative to the homoscedastic
+reference, giving power.
 
 Each replicate is refitted on the design matrix of the fit, with its
 offset, whether that was given as an argument or written in the formula.
 The formula is not evaluated again, so a transformed regressor such as
 \code{log(x)}, or a transformed response, is refitted on the scale of the fit.
+}
+\section{Size}{
+
+In \code{inst/validation/wild-multiplier-size.R} and
+\code{inst/validation/wild-no-multiplier-size.R}, with \code{B = 999}, 5000
+replications per cell and the design \code{lm(y ~ x1 + x2)} with \code{x1} uniform on
+(1, 5) and \code{x2} standard normal, the test rejected a true null hypothesis at
+the 5\% level as often as this. With \code{B = 999} a test whose level is exact
+rejects 4.9\% of the time, and the release gate's interval is 0.042 to 0.058.
+
+\tabular{llrrrr}{
+   Errors \tab Multiplier \tab n = 30 \tab n = 50 \tab n = 100 \tab n = 200 \cr
+   Gaussian \tab Rademacher \tab 0.0442 \tab 0.0476 \tab 0.0482 \tab 0.0448 \cr
+   Gaussian \tab Mammen \tab 0.0430 \tab 0.0508 \tab 0.0488 \tab 0.0470 \cr
+   \eqn{t_5} \tab Rademacher \tab 0.0472 \tab 0.0444 \tab 0.0492 \tab 0.0438 \cr
+   \eqn{t_5} \tab Mammen \tab 0.0460 \tab 0.0454 \tab 0.0476 \tab 0.0460 \cr
+   centred exponential \tab Rademacher \tab 0.0820 \tab 0.0734 \tab 0.0608 \tab 0.0526 \cr
+   centred exponential \tab Mammen \tab 0.0782 \tab 0.0698 \tab 0.0586 \tab 0.0534 \cr
+}
+
+With skewed errors, \code{rexp(n) - 1}, either multiplier needs about 200
+observations to hold the level: both are outside the gate at 30, 50 and 100
+and inside it at 200. The excess comes from the multiplier. The Rademacher multiplier
+makes the bootstrap errors symmetric, so the reference distribution loses
+the skewness of the residuals, on which the squared residuals of the refit
+depend; the Mammen multiplier keeps their third moment but doubles their fourth. A plain
+residual bootstrap, the same resampling without a multiplier (\eqn{v_i = 1}),
+which already imposes the null hypothesis, rejected 0.0648, 0.0562, 0.0482
+and 0.0466 of the time with the same errors at 30, 50, 100 and 200
+observations, holding the level from 50, and 0.042 to 0.047 with Gaussian
+and \eqn{t_5} errors. It costs a little power in small samples: against
+\eqn{\sigma_i^2 = \exp(0.4 x_{1i})}{sigma_i^2 = exp(0.4 x1_i)} with Gaussian
+errors it rejected 0.180, 0.354 and 0.744 of the time at 30, 50 and 100
+observations, where the Rademacher multiplier rejected 0.194, 0.361 and 0.745,
+about 1.4 points less at 30. It will be available as
+\code{distribution = "none"} in 1.0.0, with \code{"rademacher"} kept as the default.
 }
 \section{Weighted fits}{
 

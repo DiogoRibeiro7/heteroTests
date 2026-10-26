@@ -67,6 +67,8 @@ test that remains.
 | `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
 | `wild-multiplier-size.R` | `performWildBootstrapTest()` with Rademacher and with Mammen multipliers on the same samples: size under Gaussian, `t5` and skewed errors at 30, 50 and 100 observations, and power. `Rscript inst/validation/wild-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `MC_CORES`, `UNITS`, `PART`, `MERGE` and `CSV` overridable. |
 | `wild-multiplier-size.csv` | Its output, one row per multiplier, block, error distribution and sample size, with the counts of samples only that multiplier rejected. |
+| `wild-no-multiplier-size.R` | The resampling of `performWildBootstrapTest()` reproduced with Rademacher's and Mammen's multipliers and without one (`v = 1`, a plain residual bootstrap), on the samples and seeds of `wild-multiplier-size.R` and at 200 observations as well: size under Gaussian, `t5` and skewed errors, and power. The first `CHECK_REPS` replications of each cell are checked against `performWildBootstrapTest()`. `Rscript inst/validation/wild-no-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `CHECK_REPS`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. |
+| `wild-no-multiplier-size.csv` | Its output, one row per cell and variant, against the release gate and the 99% interval around 0.049. |
 | `fixed-effects-size.R` | White's, Koenker's and the Breusch-Pagan tests on `lm(y ~ x + subject)` with G subjects of T observations: their size on a grid of G and T, and on unbalanced groups, two regressors and a regressor correlated with the subject effects, each checked against the package. `Rscript inst/validation/fixed-effects-size.R`, with `N_MC`, `N_MC_LARGE`, `CHECK_REPS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. |
 | `fixed-effects-size.csv` | Its output with `N_MC = 2000` and `CHECK_REPS = 5`, one row per block, design and test, with the rates at 1, 5 and 10%, the mean and variance of the statistic, and the check against the package. |
 | `fixed-effects-size-10000.csv` | The same with `N_MC = 10000` and `CHECK_REPS = 3`, on the same seeds. |
@@ -1993,6 +1995,28 @@ Every one of the 96,000 tests returned a p-value. Five things follow.
 
 This study changes no value: the default of `distribution` is `"rademacher"`
 before and after it.
+
+**Without a multiplier.** `wild-no-multiplier-size.R` repeats this study,
+reproducing the function's resampling, with a third variant, `v = 1`: a
+plain residual bootstrap of the same leverage-standardised, centred
+residuals, which already imposes the null hypothesis, drawn as the
+residuals of the Rademacher variant so that the two differ only by the
+multiplier. Its Rademacher and Mammen rates are those of the tables above,
+exactly, and it adds 200 observations. With exponential errors Rademacher's
+multiplier rejects 0.0820, 0.0734, 0.0608 and 0.0526 of the time at 30, 50,
+100 and 200 observations, Mammen's 0.0782, 0.0698, 0.0586 and 0.0534, and the
+plain residual bootstrap 0.0648, 0.0562, 0.0482 and 0.0466: the multipliers
+reach the gate at 200 observations, the residual bootstrap at 50. Dropping
+the multiplier lowers the rate by 1.7 points at 30 and 50 observations
+(paired z = -9.2 and -9.4), 1.3 at 100 and 0.6 at 200. With Gaussian and
+`t5` errors all three are inside the gate in every cell, the residual
+bootstrap at 0.042 to 0.047. Against `sigma^2 = exp(0.4 x1)` it rejects
+0.180, 0.354 and 0.744 of the time at 30, 50 and 100 observations, against
+0.194, 0.361 and 0.745 for Rademacher's: 1.4 points less at 30 (paired
+s.e. 0.0045), none at 100. The author decided on 2026-10-25 to document this
+on the help page now and to offer the residual bootstrap as
+`distribution = "none"` in 1.0.0, keeping Rademacher's as the default; no
+value changes in 0.16.0.
 
 ### Fixed effects for small groups
 

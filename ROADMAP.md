@@ -741,7 +741,7 @@ after it.
   observations, unweighted 0.0482, 0.0498 and 0.0494. `h` is `identical()`;
   every `Q` and p-value changes (announced in bold), unweighted by a median
   0.006 at 40 observations and 0.0006 at 400.
-- [ ] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
+- [x] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
   already resamples the leverage-standardised residuals i.i.d., which imposes
   the null hypothesis, and multiplies them by `v` on top. In
   `inst/validation/wild-multiplier-size.R` it is outside the release gate
@@ -755,7 +755,18 @@ after it.
   standard errors of about 0.0018. Measure a no-multiplier option to evidence
   grade in the design of that study. The option, and still more a default,
   changes values the function returns, so it is the author's decision. The
-  help page's claim about heavy-tailed errors is corrected in #125.
+  help page's claim about heavy-tailed errors is corrected in #125. Measured
+  in 0.16.0 by `inst/validation/wild-no-multiplier-size.R`, on the samples
+  of that study at 5000 replications and at 200 observations as well: with
+  exponential errors Rademacher's multiplier rejects 0.0820, 0.0734, 0.0608
+  and 0.0526 of the time at 30, 50, 100 and 200 observations, Mammen's
+  0.0782, 0.0698, 0.0586 and 0.0534, and no multiplier 0.0648, 0.0562,
+  0.0482 and 0.0466, inside the gate from 50 observations where the
+  multipliers are from 200; with Gaussian and `t5` errors all three are
+  inside it. No multiplier costs 1.4 points of power at 30 observations and
+  none at 100. Decided on 2026-10-25: document it now, with no change of
+  value in 0.16.0 (the help page's *Size* section has the table), and offer
+  it as `distribution = "none"` in 1.0.0, listed there.
 - [ ] **Provenance of a study run in chunks.** Commit the script before a
   chunked run is launched, and record its md5 in the settings of each part,
   so that `MERGE` refuses parts written by another version of the script.
@@ -1673,6 +1684,15 @@ after it.
   what the runner returns, an API change, so it waits for 1.0.0 and is not
   part of 0.16.0. It settles the item on the fallback of `runHeteroTests()`
   under 0.16.0. Not implemented.
+- [ ] **`distribution = "none"` in `performWildBootstrapTest()`** (decided by
+  the author on 2026-10-25). A third value of `distribution`, the plain
+  residual bootstrap of the leverage-standardised, centred residuals,
+  without a multiplier (`v = 1`), with `"rademacher"` kept as the default.
+  In `inst/validation/wild-no-multiplier-size.R` it held the level with
+  skewed errors from 50 observations, where both multipliers need about
+  200, at a cost of 1.4 points of power at 30 observations. It adds a value
+  to an argument and changes no existing call; its `method` string should
+  say that no multiplier is used. Not implemented.
 - [ ] Reference index of the documentation site (`tools/reference-index.R`)
   grouped by the frozen API: tests by family
   (auxiliary regression, group-wise, rank-based, time series, panel and
