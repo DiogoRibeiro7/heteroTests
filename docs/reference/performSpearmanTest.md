@@ -35,7 +35,14 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also refuses
+a multivariate `lm` ("needs a model with one response"), a fit whose coefficients, residuals or
+weights were changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
+from the data it was fitted to, no longer holds its response, because those data changed after the
+fit, with or without `data`. A fit with `model = FALSE` whose data are gone is tested on
+`data` that give its response and fitted values, and refused without them. The test reads
+nothing from `data`, which is checked as before: it must hold the variables of the model and
+the row names of the fit. Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References

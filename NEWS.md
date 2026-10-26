@@ -1718,10 +1718,9 @@ and `fitWLS(m, var_formula = ~ hp2)` a fit with the weights of `hp2`. They now
 stop with "The following variables are missing from the model frame of
 `model`: hp2. ... Variables that are not part of the model must be supplied
 through `data`: those of `var_formula` are not read from the workspace.", of
-class
-`heteroTests_model_context_error`, and with `data` that lack it with "The
-following variables are missing from input data: hp2.", as Cook-Weisberg's
-test did. The functions of the formula, such as `log()` or `I()`, are found
+class `heteroTests_model_context_error`, and with `data` that lack it with
+"The following variables are missing from input data: hp2.", as
+Cook-Weisberg's test did. The functions of the formula, such as `log()` or `I()`, are found
 as before, and a variable of the model is read from the model frame.
 
 **A fit with `model = FALSE` whose data changed after the fit is refused by

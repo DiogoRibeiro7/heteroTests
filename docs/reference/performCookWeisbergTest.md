@@ -18,7 +18,7 @@ performCookWeisbergTest(model, data = NULL, var_formula = NULL)
 :   an object of class `lm`.
 
 `data`
-:   optional data frame the model was fitted to, in which `var_formula` is evaluated; its rows are matched to the residuals by row name. When `NULL`, the default, the model frame of `model` is used. Without `var_formula` the statistic is computed from the residuals and fitted values of `model`, and `data` does not change the result.
+:   optional data frame the model was fitted to, in which `var_formula` is evaluated. When `NULL`, the default, the model frame of `model` is used. Without `var_formula` the statistic is computed from the residuals and fitted values of `model`, and `data` does not change the result. With it, the variables of `var_formula` are read at the rows of `data` that hold the observations of the fit, matched as the tests that read `data` match them: data with row names of their own in any order, data that number their rows (a tibble, a data.table) in the order of the fit. Since 0.16.0 that includes numbered data with one row per observation, such as the complete rows of a fit that dropped rows numbered again, unless two rows of the fit tie on every column of the model frame and `var_formula` names a variable beyond it. A variable of `var_formula` is read from `data`, or without `data` from the model frame, which holds the variables of the model under their own names; since 0.16.0 one that neither holds is refused, where it was found in the workspace, whatever the order of its values.
 
 `var_formula`
 :   optional one-sided formula giving the variance model, evaluated in `data` (for example `~ x1 + x2`). When `NULL`, the default, the fitted values are the variance regressor and the result is what this function returned before 0.14.0; otherwise it is what the deprecated `performNCVTest(model, var_formula)` returned, labels included. In 0.14.0 `var_formula` was the second argument: a formula passed there by position is still read as `var_formula`, with a warning that shows the new call; that form stops working in 1.0.0.
@@ -44,7 +44,15 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also refuses
+a multivariate `lm` ("needs a model with one response"), a fit whose coefficients, residuals or
+weights were changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
+from the data it was fitted to, no longer holds its response, because those data changed after the
+fit, with or without `data`. A fit with `model = FALSE` whose data are gone is tested on
+`data` that give its response and fitted values, and refused without them. Without
+`var_formula` the test reads nothing from `data`, which is checked as before: it must
+hold the variables of the model and the row names of the fit. Which model each test accepts, and
+why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References

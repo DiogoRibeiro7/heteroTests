@@ -35,7 +35,13 @@ performVarianceFormTest(
 `data`
 :   Optional [base::data.frame](https://rdrr.io/r/base/data.frame.html) holding the variables named in
     `var_formula` or `against`. It is needed only when they are not in the
-    model frame, and is matched to the fitted rows by row name.
+    model frame. Since 0.16.0 its rows are matched to the observations of the
+    fit as the tests that read `data` match them, data with row names of
+    their own in any order and data that number their rows (a tibble) in the
+    order of the fit, and other data are refused, where numbered data in
+    another order were read by position. A variable of the formulas that
+    neither `data` nor the model frame holds is refused, where it was found
+    in the workspace.
 
 `var_formula`
 :   One-sided formula naming the variance regressors
@@ -142,8 +148,15 @@ logarithms of the others, so the value is not that of the model without them; it
 the order of the terms, as the value of the model without them does. It refuses weights that did
 not come from `fitWLS()`, the prior weights of a Gaussian `glm` among them, a `glm`
 of another family or link, a `survey::svyglm()` fit, a coefficient that is not finite for another reason,
-and `data` that lack rows or variables of the fit. Which model each test accepts, and why, is
-set out in [`test_results`](test_results.md), under *Supported models*.
+and `data` that lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also
+refuses a multivariate `lm`, a fit whose coefficients, residuals or weights were
+changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
+from the data it was fitted to, no longer holds its response, because those data
+changed after the fit: it refitted that frame and returned a value. A fit with
+`model = FALSE` whose data are gone is tested on `data` that give its response and
+fitted values. Without `var_formula` or `against`, the test reads nothing from
+`data`, which is checked as before. Which model each test accepts, and why, is set
+out in [`test_results`](test_results.md), under *Supported models*.
 
 ## References
 
