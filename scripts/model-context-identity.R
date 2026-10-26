@@ -56,6 +56,19 @@
 # branch gives that reference, with every other number of its result main's
 # or computed from it (identity_n2_check()).
 #
+# Szroeter's null moments, outside the context ("szroeter_moments"): since
+# 0.16.0 performSzroeterTest() standardises h with its null mean and variance
+# given the design, where it used (n + 1) / 2 and (n^2 - 1) / (6 n), so every
+# Q and p-value of the Szroeter calls changes. Each run traces .szroeter_test()
+# and records, for each call that reaches it, h, the moments and Q computed
+# without the package from what the test read: the design of the fit without
+# its aliased columns, times sqrt(w), in the order of the test, and the
+# Pearson residuals (identity_szroeter_by_hand()). A change of a Szroeter call
+# is allowed only when every field of the result but the statistic and the
+# p-value is identical() to main's, the estimate h included, the two runs
+# computed the same reference, and the branch's Q and p-value are those of the
+# reference (identity_szroeter_verdict()).
+#
 # The data.name of the runner, outside the context: since 0.16.0 a test that
 # runHeteroTests() runs and that reported "model" reports the formula of the
 # model. Each run records the formula of every cell; a runner's data.name may
@@ -235,6 +248,14 @@ identity_increment3 <- c(
   identity_reads_data, "performSpatialHeteroTest", "registry szroeter", "test_factory szroeter",
   "registry spatial_hetero", "test_factory spatial_hetero", identity_registry_runner3
 )
+# The calls of Szroeter's test, whose null moments come from the design since
+# 0.16.0 ("szroeter_moments"): the function, with its help examples (records
+# of kind "example" under its name), the registered test, its test_factory
+# entry and the runner that runs it.
+identity_szroeter_calls <- c(
+  "performSzroeterTest", "registry szroeter", "test_factory szroeter",
+  identity_registry_runner_szroeter
+)
 # The calls of increment 4: the five group tests, which read the `group` of
 # `data` besides the model. None of them is registered, in test_factory or in
 # a runner, so their calls are the direct ones.
@@ -318,7 +339,8 @@ identity_defect_scope <- list(
   B4 = "performScatterDiagnostic",
   B16 = identity_increment5,
   R2 = identity_pesaran,
-  N12 = identity_pesaran
+  N12 = identity_pesaran,
+  szroeter_moments = identity_szroeter_calls
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -1014,6 +1036,140 @@ identity_n2_chain <- function(n2, record, after) {
   identity_n2_agrees(v, n2$reference)
 }
 
+# Szroeter's null moments ("szroeter_moments"). While a run is in a call, the
+# id of its record is in `identity_sz$id`; the exit tracer of .szroeter_test()
+# (identity_szroeter_trace()) keeps, under that id, what the test read: the
+# design of the fit, its prior weights, the rank the null takes (the fit's,
+# or for an mgcv::gam() that of its design at the tolerance of the fit), the
+# Pearson residuals and the order of the test. Both versions of the package
+# compute these as `ctx`, `residuals` and `ord`.
+identity_sz <- new.env()
+identity_sz$id <- NULL
+identity_sz$captured <- list()
+
+identity_szroeter_capture <- function(frame) {
+  id <- identity_sz$id
+  if (is.null(id) || !all(c("ctx", "ord", "residuals") %in% ls(frame, all.names = TRUE))) {
+    return(invisible(NULL))
+  }
+  ctx <- get("ctx", envir = frame)
+  coefs <- stats::coef(ctx$model)
+  keep <- if (length(coefs) == ncol(ctx$design)) !is.na(coefs) else rep(TRUE, ncol(ctx$design))
+  identity_sz$captured[[id]] <- list(
+    design = ctx$design[, keep, drop = FALSE], weights = ctx$weights,
+    rank = if (inherits(ctx$model, "gam")) NULL else ctx$model$rank,
+    tol = ctx$qr_tol, residuals = unname(get("residuals", envir = frame)),
+    ord = get("ord", envir = frame)
+  )
+  invisible(NULL)
+}
+
+identity_szroeter_trace <- function(on) {
+  ns <- asNamespace("heteroTests")
+  if (on) {
+    suppressMessages(trace(
+      ".szroeter_test", exit = quote(identity_szroeter_capture(environment())),
+      where = ns, print = FALSE
+    ))
+  } else {
+    suppressMessages(untrace(".szroeter_test", where = ns))
+  }
+  invisible(NULL)
+}
+
+# h, its null mean and variance and Q written out from what the test read,
+# with the full n x n residual-maker M of the ordered, weighted design and
+# A = diag(1, ..., n): E h = tr(MA) / nu, Var h = 2 (nu tr(MAMA) - tr(MA)^2) /
+# (nu^2 (nu + 2)), nu = n - k. The package computes the traces from the
+# leverages and Q1' A Q1 instead (rszroeter_moments()).
+identity_szroeter_by_hand <- function(cap) {
+  if (is.null(cap)) {
+    return(NULL)
+  }
+  X <- cap$design
+  if (!is.null(cap$weights)) {
+    X <- sqrt(cap$weights) * X
+  }
+  X <- X[cap$ord, , drop = FALSE]
+  e <- cap$residuals[cap$ord]
+  n <- length(e)
+  a <- seq_len(n)
+  basis <- qr(X, tol = cap$tol)
+  k <- if (is.null(cap$rank)) basis$rank else cap$rank
+  q1 <- qr.Q(basis)[, seq_len(k), drop = FALSE]
+  B <- (diag(n) - tcrossprod(q1)) * rep(a, each = n)
+  trace_ma <- sum(diag(B))
+  trace_mama <- sum(B * t(B))
+  nu <- n - k
+  h <- sum(a * e^2) / sum(e^2)
+  mean <- trace_ma / nu
+  var <- 2 * (nu * trace_mama - trace_ma^2) / (nu^2 * (nu + 2))
+  list(n = n, k = k, h = h, mean = mean, var = var, Q = (h - mean) / sqrt(var))
+}
+
+# The Szroeter result of a record's value: the test, or the runner's entry.
+identity_szroeter_part <- function(record) {
+  v <- record$value
+  if (!is.list(v) || isTRUE(v$.error) || isTRUE(v$.skip)) {
+    return(NULL)
+  }
+  if (record$kind %in% c("runner", "stored_runner", "reference_runner")) v[["szroeter"]] else v
+}
+
+identity_szroeter_tolerance <- 1e-9
+
+# NULL when the rule does not apply (not a Szroeter call, or not a change of
+# value); otherwise whether the change is the new null: every field but the
+# statistic and the p-value identical() to main's (of each test of a runner),
+# the estimate h included; main's and the branch's references identical, so
+# that the test read the same design, residuals and order; and the branch's h,
+# Q and p-value those of the reference, to `identity_szroeter_tolerance`.
+identity_szroeter_verdict <- function(before, after, verdict) {
+  if (!before$fn %in% identity_szroeter_calls || !identical(verdict$change, "value_change")) {
+    return(NULL)
+  }
+  a <- identity_szroeter_part(before)
+  b <- identity_szroeter_part(after)
+  ref <- after$szroeter
+  if (is.null(a) || is.null(b) || is.null(ref) || !identical(before$szroeter, ref)) {
+    return(FALSE)
+  }
+  rest <- function(v) {
+    v$statistic <- NULL
+    v$p.value <- NULL
+    v
+  }
+  runner <- before$kind %in% c("runner", "stored_runner", "reference_runner")
+  same_rest <- if (runner) {
+    identical(lapply(before$value, rest), lapply(after$value, rest))
+  } else {
+    identical(rest(before$value), rest(after$value))
+  }
+  if (!same_rest) {
+    return(FALSE)
+  }
+  close <- function(x, y) {
+    x <- as.double(unname(x))
+    length(x) == 1L && is.finite(x) && abs(x - y) <= identity_szroeter_tolerance * max(1, abs(y))
+  }
+  if (!is.null(b$estimate) && !close(b$estimate, ref$h)) {
+    return(FALSE)
+  }
+  alternative <- if (is.null(b$alternative) || grepl("increases", b$alternative, fixed = TRUE)) {
+    "greater"
+  } else if (grepl("decreases", b$alternative, fixed = TRUE)) {
+    "less"
+  } else {
+    "two.sided"
+  }
+  p_ref <- switch(alternative,
+    greater = stats::pnorm(ref$Q, lower.tail = FALSE),
+    less = stats::pnorm(ref$Q),
+    two.sided = 2 * stats::pnorm(-abs(ref$Q))
+  )
+  close(b$statistic, ref$Q) && close(b$p.value, p_ref)
+}
+
 # 0.16.0, outside the context: through runHeteroTests() a test whose data.name
 # is "model" reports the formula of the model instead, as Koenker's test does.
 # White's test, its bootstrap and its form without cross products, the
@@ -1285,15 +1441,25 @@ identity_run <- function(where, out, root = ".") {
   recipes <- c(contract_recipes[setdiff(names(contract_recipes), "performBoxMTest")],
                identity_extra_recipes)
   records <- list()
+  # The call is run when `outcome` is forced, with its id in identity_sz$id,
+  # so that the tracer of .szroeter_test() files what the test read under it
+  # (identity_szroeter_capture()).
   add <- function(kind, fn, cell, outcome) {
     id <- paste(kind, fn, cell$id, sep = " | ")
+    identity_sz$id <- id
+    force(outcome)
+    identity_sz$id <- NULL
     records[[id]] <<- c(
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
            defect = cell$defect, reference = identity_chain_reference(fn, cell),
            externals = c(identity_external_ids(fn, cell), identity_rank_reference(fn, cell))),
-      outcome
+      outcome,
+      list(szroeter = identity_szroeter_by_hand(identity_sz$captured[[id]]))
     )
+    identity_sz$captured[[id]] <- NULL
   }
+  identity_szroeter_trace(TRUE)
+  on.exit(identity_szroeter_trace(FALSE), add = TRUE)
   started <- Sys.time()
   run_cell <- function(cell, built, fns, recipe_kind, runner_kind) {
     # The data.name the runner gives a test that names its argument "model"
@@ -1427,7 +1593,10 @@ identity_run <- function(where, out, root = ".") {
     env <- new.env(parent = globalenv())
     set.seed(1)
     for (k in seq_along(expressions)) {
+      # The expression runs here, before add(), under the id of its record.
+      identity_sz$id <- paste("example", topic, paste("expression", k), sep = " | ")
       outcome <- identity_outcome(function() eval(expressions[[k]], env))
+      identity_sz$id <- NULL
       calls_topic <- is.call(expressions[[k]]) &&
         identical(deparse(expressions[[k]][[1L]]), topic)
       if (inherits(outcome$value, "htest") || calls_topic || is.list(outcome$value) &&
@@ -1436,6 +1605,7 @@ identity_run <- function(where, out, root = ".") {
       }
     }
   }
+  identity_sz$captured <- list()
   meta <- list(
     where = where,
     version = as.character(utils::packageVersion("heteroTests")),
@@ -1537,6 +1707,10 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   defects <- record$defect
   if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
     defects <- c(defects, "null")
+  }
+  # Every call of Szroeter's test, on any cell (identity_szroeter_verdict()).
+  if (record$fn %in% identity_szroeter_calls) {
+    defects <- c(defects, "szroeter_moments")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))
@@ -1812,15 +1986,26 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     checked <- !is.null(decided)
     n2 <- identity_n2(before, main$records)
     n2_mode <- identity_n2_mode(before$fn, n2, verdict$change)
-    allowed <- identity_allow(before, verdict, after, stored, n2, n2_mode)
+    # A change of a Szroeter call that is the new null and nothing else is
+    # allowed, verified by its reference; any other is judged by the rules
+    # above, as before.
+    szroeter <- identity_szroeter_verdict(before, after, verdict)
+    allowed <- if (isTRUE(szroeter)) {
+      "allowed"
+    } else {
+      identity_allow(before, verdict, after, stored, n2, n2_mode)
+    }
     n2_change <- !is.null(n2_mode) && !identical(allowed, "identical")
     # An allowed change to a value must be verified against a reference; one
     # of N2 is, by identity_n2_check() or identity_n2_fallback(), against
     # White's test written out on the centred design, and by "chain" against
-    # the same call on the reference of the cell.
+    # the same call on the reference of the cell; one of Szroeter's null
+    # against h and the moments written out from its design.
     to_value <- identical(allowed, "allowed") &&
       verdict$change %in% c("error_to_value", "value_change")
-    verified <- if (to_value && isTRUE(n2_mode %in% c("check", "fallback"))) {
+    verified <- if (to_value && isTRUE(szroeter)) {
+      "Q from h and the design's moments"
+    } else if (to_value && isTRUE(n2_mode %in% c("check", "fallback"))) {
       "lm(e^2 ~ Z_c)"
     } else if (to_value) {
       identity_verify(before, main$records, branch$records)
@@ -1850,6 +2035,7 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       defect = paste(c(identity_defects(before), if (n2_change) "N2"), collapse = " "),
       n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
       n2_mode = if (n2_change) n2_mode else NA_character_,
+      szroeter = if (is.null(szroeter)) NA else szroeter,
       change = verdict$change,
       verdict = allowed,
       verified_by = if (to_value) verified else NA_character_,
@@ -1913,6 +2099,15 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     cells <- stats::aggregate(cell ~ n2, data = n2, FUN = function(x) length(unique(x)))
     names(cells)[2L] <- "cells"
     print(cells, row.names = FALSE)
+  }
+  sz <- calls[!is.na(calls$szroeter), , drop = FALSE]
+  if (nrow(sz) > 0L) {
+    cat(sprintf(paste0(
+      "\nszroeter_moments: %d calls of Szroeter's test change value; %d are the null of the ",
+      "design and nothing else (every field but the statistic and the p-value identical(), ",
+      "h, Q and the p-value those written out from the ordered, weighted design to %.0e), ",
+      "and %d are judged by the other rules\n"
+    ), nrow(sz), sum(sz$szroeter), identity_szroeter_tolerance, sum(!sz$szroeter)))
   }
   renamed <- calls[!is.na(calls$data_name) & calls$data_name == "formula", , drop = FALSE]
   runners <- calls[!is.na(calls$data_name), , drop = FALSE]
