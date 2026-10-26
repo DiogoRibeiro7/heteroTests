@@ -1011,19 +1011,21 @@ rpanel_cell_key <- function(id_values, time_values) {
   (unit - 1) * max(c(period, 0L)) + period
 }
 
-#' Refuse an unbalanced panel
+#' Refuse an unbalanced panel on the reading of a fit with na.exclude
 #'
-#' [performPesaranTest()] arranges the residuals in a matrix of periods by
-#' units, and needs every unit of the fit observed at the same periods. Before
-#' 0.16.0 a unit observed at fewer periods than the panel holds stopped the
-#' statistic ("number of items to replace is not a multiple of replacement
-#' length"), or, when its number of periods divides that of the panel, had its
-#' residuals recycled over the periods it lacks, and the test returned a wrong
-#' value without an error (N12 of the design of the model context). Such panels
-#' are refused, with the class of the refusals of the context, until the
-#' statistic of an unbalanced panel is computed from the periods each pair of
-#' units shares, as `plm::pcdtest()` computes it (decided by the author on
-#' 2026-10-24). A fit that drops every row of a unit keeps a balanced panel.
+#' [performPesaranTest()] arranges the residuals of a balanced panel in a
+#' matrix of periods by units. Before 0.16.0 a unit observed at fewer periods
+#' than the panel holds stopped the statistic ("number of items to replace is
+#' not a multiple of replacement length"), or, when its number of periods
+#' divides that of the panel, had its residuals recycled over the periods it
+#' lacks, and the test returned a wrong value without an error (N12 of the
+#' design of the model context). The fifth step of the model context refused
+#' such panels on every route (decided by the author on 2026-10-24); since the
+#' pull request of N12 the statistic of an unbalanced panel is computed from
+#' the periods each pair of units shares, as `plm::pcdtest()` computes it, and
+#' the refusal is left to a fit with `na.action = na.exclude`, whose padded
+#' residuals the test reads against the rows of `data` by position until the
+#' step that moves na.exclude (decision 29).
 #'
 #' @param id_values,time_values The units and the periods, one per
 #'   observation, without missing values or repeated pairs.
@@ -1045,11 +1047,12 @@ rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
   first <- short[1L]
   rstop_model_context(sprintf(
     paste0(
-      "%s() needs a balanced panel, every unit observed at the same periods, and the panel ",
-      "of the fit is unbalanced: %d of its %d units %s observed at fewer of its %d periods, ",
-      "%s = %s at %d of them. The statistic is computed here on a matrix of periods by ",
-      "units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an ",
-      "unbalanced panel from the periods each pair of units shares."
+      "%s() reads a fit with na.action = na.exclude by position, on a matrix of periods by ",
+      "units, and needs a balanced panel, every unit observed at the same periods; the ",
+      "panel of the rows of `data` is unbalanced: %d of its %d units %s observed at fewer ",
+      "of its %d periods, %s = %s at %d of them. Refit the model with na.action = na.omit: ",
+      "the statistic of an unbalanced panel is then computed from the periods each pair of ",
+      "units shares, as plm::pcdtest() computes it."
     ),
     fn, length(short), length(units), if (length(short) == 1L) "is" else "are", n_periods,
     id, as.character(units[first]), held[first]

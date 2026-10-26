@@ -24,7 +24,8 @@
 #'   cross-sectional dimension).
 #' @param time Character scalar naming the column that indexes time periods.
 #'   Each pair of `id` and `time` must hold one observation of the fit: since
-#'   0.16.0 a pair that holds more is refused.
+#'   0.16.0 a pair that holds more is refused. The units need not be observed
+#'   at the same periods (Details).
 #'
 #' @return A \code{htest} object containing the standardised CD statistic and
 #'   its two-sided p-value under the asymptotic standard normal reference
@@ -45,24 +46,44 @@
 #' statistic cautiously or consider small-sample adjustments available in the
 #' literature.
 #'
-#' The statistic is computed on a balanced panel, every unit observed once in
-#' every period. Since 0.16.0 a pair of `id` and `time` that holds two
-#' observations of the fit is refused, and so is an unbalanced panel, as that
-#' of a fit that dropped some rows of some units: the test stopped on it, or,
-#' when the number of periods of a unit divided that of the panel, returned a
-#' wrong value computed on its residuals recycled over the periods it lacks.
-#' A fit that drops every row of a unit keeps a balanced panel.
-#' `plm::pcdtest()` computes the statistic of an unbalanced panel from the
-#' periods each pair of units shares (Pesaran 2015); the package will too, on
-#' the roadmap, and the refusal will then go.
+#' Each pair of `id` and `time` must hold one observation of the fit: since
+#' 0.16.0 a pair that holds two is refused. On an unbalanced panel, whose units
+#' are not all observed at the same periods, as that of a fit that dropped
+#' some rows of some units, the statistic is computed, since 0.16.0, from the
+#' periods each pair of units shares (Pesaran 2004, Section 9, equation 31),
+#' as `plm::pcdtest()` computes it:
+#' \deqn{\text{CD} = \sqrt{\frac{1}{P}} \sum_{i < j} \sqrt{T_{ij}}\,
+#'   \hat{\rho}_{ij},}
+#' where \eqn{T_{ij}} is the number of periods at which units \eqn{i} and
+#' \eqn{j} are both observed, \eqn{\hat{\rho}_{ij}} the correlation of their
+#' residuals over those periods, each centred at its mean over them, and
+#' \eqn{P} the number of pairs that share at least two periods, the pairs of
+#' the sum; \eqn{P = N (N - 1) / 2} when every pair does, and on a balanced
+#' panel, where \eqn{T_{ij} = T}, the statistic is the one above. A pair that
+#' shares fewer than two periods has no correlation and is left out, with a
+#' warning, as `plm::pcdtest()` leaves it out; a panel in which no pair shares
+#' two periods is refused. Pesaran gives the statistic its standard normal
+#' limit for \eqn{T_{ij} > 3}. Before 0.16.0 the test stopped on an unbalanced
+#' panel ("number of items to replace is not a multiple of replacement
+#' length"), or, when the number of periods of a unit divided that of the
+#' panel, returned a wrong value computed on its residuals recycled over the
+#' periods it lacks. A fit with `na.action = na.exclude` is read as before,
+#' by position, until a later step: its panel must be balanced in `data`.
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
-#' panels. *CESifo Working Paper Series No. 1229*.
+#' panels. *CESifo Working Paper Series No. 1229*. Section 9, "CD tests in the
+#' case of unbalanced panels".
 #'
 #' Pesaran, M. H. (2015). Testing weak cross-sectional dependence in large
 #' panels. *Econometric Reviews, 34*(6-10), 1089–1117.
 #' <https://doi.org/10.1080/07474938.2014.956623>
+#'
+#' Croissant, Y. and Millo, G. (2008). Panel data econometrics in R: the plm
+#' package. *Journal of Statistical Software, 27*(2), 1–43.
+#' <https://doi.org/10.18637/jss.v027.i02>. The statistic of an unbalanced
+#' panel is that of `plm::pcdtest(test = "cd")` (plm 2.6-6), whose help page
+#' says its tests are "suitable also for unbalanced panels".
 #'
 #' @examples
 #' df <- data.frame(
@@ -121,50 +142,62 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   read <- rcontext_columns_at_fit(
     ctx, data, c(id = id, time = time), "performPesaranTest", test_label
   )
-  # The matrix of periods by units below needs a balanced panel, every unit
-  # observed once at every period, on every route, a fit with na.exclude
-  # included. A unit or a period missing at an observation, on which the
-  # statistic stopped before, is refused with a message that names it; a pair
-  # of `id` and `time` that holds two observations, which put one of them in
-  # the cell of another period, is refused (decision 13 of the design of the
-  # model context); and so is an unbalanced panel, on which the statistic
-  # stopped ("number of items to replace is not a multiple of replacement
-  # length") or recycled the residuals of a unit over the periods it lacks
-  # (N12), until the statistic of an unbalanced panel is computed from the
-  # periods each pair of units shares (decided by the author on 2026-10-24).
+  # A unit or a period missing at an observation, on which the statistic
+  # stopped before, is refused with a message that names it; and a pair of
+  # `id` and `time` that holds two observations, which put one of them in the
+  # cell of another period, is refused (decision 13 of the design of the
+  # model context), on every route, a fit with na.exclude included.
   rstop_missing_variable(ctx, read$columns$id, id, "id", test_label, ids = read$ids)
   rstop_missing_variable(ctx, read$columns$time, time, "time", test_label, ids = read$ids)
   rstop_repeated_panel_cells(read$columns$id, read$columns$time, id, time,
                              "performPesaranTest")
-  rstop_unbalanced_panel(read$columns$id, read$columns$time, id, "performPesaranTest")
+  # A fit with na.exclude is read by position until the step of the model
+  # context that moves na.exclude (decision 29): its residuals are padded with
+  # NA at the rows it dropped, and the panel of the rows of `data` it reads
+  # must be balanced, as since the fifth step (N12, decision 28).
+  if (read$padded) {
+    rstop_unbalanced_panel(read$columns$id, read$columns$time, id, "performPesaranTest")
+  }
   df <- data.frame(id = read$columns$id, time = read$columns$time, res = read$residuals)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)
   times <- unique(df$time)
   N <- length(ids)
   T <- length(times)
-  # Each unit fills a column of periods, in the order of the periods.
-  mat <- matrix(NA, nrow = T, ncol = N)
-  for (i in seq_along(ids)) {
-    mat[, i] <- df$res[df$id == ids[i]]
-  }
-  rho <- stats::cor(mat)
-  cor_vals <- rho[upper.tri(rho)]
+  if (nrow(df) < N * T) {
+    # An unbalanced panel (N12): without repeated pairs, some unit lacks some
+    # period. The statistic is computed from the periods each pair of units
+    # shares, as plm::pcdtest() computes it (decided by the author on
+    # 2026-10-24). Before 0.16.0 the matrix below stopped on such a panel, or
+    # recycled the residuals of a unit over the periods it lacks; the fifth
+    # step of the model context refused it until now.
+    CD <- rpesaran_cd_unbalanced(read$residuals, read$columns$id, read$columns$time,
+                                 "performPesaranTest")
+  } else {
+    # Each unit fills a column of periods, in the order of the periods.
+    mat <- matrix(NA, nrow = T, ncol = N)
+    for (i in seq_along(ids)) {
+      mat[, i] <- df$res[df$id == ids[i]]
+    }
+    rho <- stats::cor(mat)
+    cor_vals <- rho[upper.tri(rho)]
 
-  # Pesaran (2004, 2015):
-  #
-  #   CD = sqrt( 2T / (N (N - 1)) ) * sum_{i<j} rho_ij
-  #
-  # which is asymptotically standard normal under cross-sectional
-  # independence. Before 0.11.0 this read sqrt(N (N - 1) / (2T)) times the
-  # *mean* correlation, which is the same quantity divided by T: the statistic
-  # came out T times too small -- measured standard deviation 0.133 against
-  # 1.067 for the published form at T = 8 -- so the test never rejected.
-  pairs_used <- sum(!is.na(cor_vals))
-  if (pairs_used == 0L) {
-    stop("No usable pairwise residual correlations.", call. = FALSE)
+    # Pesaran (2004, 2015):
+    #
+    #   CD = sqrt( 2T / (N (N - 1)) ) * sum_{i<j} rho_ij
+    #
+    # which is asymptotically standard normal under cross-sectional
+    # independence. Before 0.11.0 this read sqrt(N (N - 1) / (2T)) times the
+    # *mean* correlation, which is the same quantity divided by T: the
+    # statistic came out T times too small -- measured standard deviation
+    # 0.133 against 1.067 for the published form at T = 8 -- so the test never
+    # rejected.
+    pairs_used <- sum(!is.na(cor_vals))
+    if (pairs_used == 0L) {
+      stop("No usable pairwise residual correlations.", call. = FALSE)
+    }
+    CD <- sqrt(2 * T / (N * (N - 1))) * sum(cor_vals, na.rm = TRUE)
   }
-  CD <- sqrt(2 * T / (N * (N - 1))) * sum(cor_vals, na.rm = TRUE)
   # As above, the upper tail rather than its complement, so a large |CD|
   # does not collapse to a p-value of exactly zero.
   p_value <- 2 * stats::pnorm(abs(CD), lower.tail = FALSE)
@@ -179,4 +212,92 @@ performPesaranTest <- function(model, data = NULL, id, time) {
     ),
     class = "htest"
   )
+}
+
+#' Pesaran's CD statistic of an unbalanced panel
+#'
+#' The statistic of an unbalanced panel of Pesaran (2004, Section 9, equation
+#' 31), computed as `plm::pcdtest(test = "cd")` computes it (plm 2.6-6, its
+#' internal `pcdres()`): the residuals of each pair of units are correlated
+#' over the periods both are observed at, each centred at its mean over those
+#' periods (`stats::cor(use = "pairwise.complete.obs")`), and the correlation
+#' of a pair is weighted by the square root of the number of those periods,
+#' `T_ij`:
+#'
+#'   CD = sqrt(1 / P) * sum_{i<j} sqrt(T_ij) rho_ij,
+#'
+#' over the P pairs that share at least two periods. P is N (N - 1) / 2 when
+#' every pair does, and on a balanced panel, where T_ij = T, this is the
+#' statistic [performPesaranTest()] computes on its matrix of periods by
+#' units. A pair that shares one period or none has no correlation: plm leaves
+#' it out of the sum and of P, with a warning, and so does this function; a
+#' panel in which no pair shares two periods is refused. A correlation that is
+#' not defined because the residuals of a unit are constant over the periods
+#' of a pair adds nothing to the sum and stays in P, as on a balanced panel,
+#' with a warning; plm returns `NA` there, on a balanced panel too.
+#'
+#' @param residuals The residuals, one per observation, without missing
+#'   values.
+#' @param id_values,time_values The units and the periods, one per
+#'   observation, without missing values or repeated pairs.
+#' @param fn Character scalar naming the calling test.
+#' @return The statistic.
+#' @keywords internal
+#' @noRd
+rpesaran_cd_unbalanced <- function(residuals, id_values, time_values, fn) {
+  units <- sort(unique(id_values))
+  periods <- sort(unique(time_values))
+  n_units <- length(units)
+  # The residuals in a matrix of periods by units, NA where a unit is not
+  # observed, and the number of periods each pair of units shares.
+  wide <- matrix(NA_real_, nrow = length(periods), ncol = n_units)
+  wide[cbind(match(time_values, periods), match(id_values, units))] <- residuals
+  shared <- crossprod(!is.na(wide))
+  pairs <- upper.tri(shared)
+  kept <- pairs & shared >= 2
+  n_pairs <- sum(pairs)
+  n_kept <- sum(kept)
+  if (n_kept == 0L) {
+    rstop_model_context(sprintf(
+      paste0(
+        "%s() needs a pair of units observed together at two periods or more, and no pair ",
+        "of the %d units of the fit shares more than one period. The residuals of two units ",
+        "are correlated over the periods both are observed at."
+      ),
+      fn, n_units
+    ))
+  }
+  if (n_kept < n_pairs) {
+    warning(sprintf(
+      paste0(
+        "%s(): %d of the %d pairs of units share fewer than two periods and are left out ",
+        "of the statistic, as plm::pcdtest() leaves them out; it is computed on the ",
+        "other %d."
+      ),
+      fn, n_pairs - n_kept, n_pairs, n_kept
+    ), call. = FALSE)
+  }
+  # cor() warns "the standard deviation is zero" for each pair it cannot
+  # correlate, those that share fewer than two periods among them; the pairs
+  # of the statistic whose correlation is not defined are counted below.
+  rho <- withCallingHandlers(
+    stats::cor(wide, use = "pairwise.complete.obs"),
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+  terms <- sqrt(shared[kept]) * rho[kept]
+  undefined <- sum(is.na(terms))
+  if (undefined == n_kept) {
+    stop("No usable pairwise residual correlations.", call. = FALSE)
+  }
+  if (undefined > 0L) {
+    warning(sprintf(
+      paste0(
+        "%s(): the residuals of a unit are constant over the periods it shares with ",
+        "another in %d of the %d pairs of the statistic, whose correlation is not ",
+        "defined; they add nothing to its sum."
+      ),
+      fn, undefined, n_kept
+    ), call. = FALSE)
+  }
+  sqrt(1 / n_kept) * sum(terms, na.rm = TRUE)
 }
