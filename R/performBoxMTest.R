@@ -30,6 +30,11 @@
 #' made the statistic too small and the test conservative. The example on
 #' `iris` gave 135.2229.
 #'
+#' The groups are the levels of `group` that have observations: a level with
+#' none, as `subset()` leaves on a factor, is dropped (since 0.16.0; before, it
+#' made the result `NA`). A group of one observation has no covariance matrix,
+#' and gives `NA`.
+#'
 #' @section Size:
 #' In `inst/validation/box-m-approximations-size.R`, at 5000 replications per
 #' cell and the 5% level, with \eqn{g} = 2, 3 or 5 groups of 10 to 100
@@ -102,7 +107,12 @@ performBoxMTest <- function(data, group) {
   if (!is.data.frame(data) && !is.matrix(data)) {
     stop("data must be a data.frame or matrix")
   }
-  group <- as.factor(group)
+  # The groups are the levels observed in the rows tested. A level with no
+  # observation, as subset() leaves on a factor, gave a covariance matrix of
+  # NAs and an NA result before 0.16.0; it is dropped, so the test is that of
+  # the groups observed. A group of one observation, or of fewer
+  # observations than variables, is kept and treated as before.
+  group <- droplevels(as.factor(group))
   k <- ncol(data)
   groups <- levels(group)
   g <- length(groups)

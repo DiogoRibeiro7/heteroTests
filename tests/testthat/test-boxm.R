@@ -61,6 +61,43 @@ test_that("performBoxMTest is Box's chi-square approximation for any number of g
   }
 })
 
+test_that("performBoxMTest tests the groups observed and drops an empty level", {
+  # subset() keeps the level "virginica" with no observation. Before 0.16.0 its
+  # covariance matrix was all NA and so was the result, on 20 degrees of
+  # freedom; the test is now that of the two species observed, the value of
+  # droplevels() of the subset and of biotools::boxM() 4.3 on the subset,
+  # 66.8104812066 on 10 degrees of freedom.
+  sub <- subset(iris, Species != "virginica")
+  expect_identical(levels(sub$Species), levels(iris$Species))
+  res <- performBoxMTest(sub[, 1:4], sub$Species)
+  two <- droplevels(sub)
+  ref <- performBoxMTest(two[, 1:4], two$Species)
+  expect_identical(unname(res$statistic), unname(ref$statistic))
+  expect_identical(unname(res$parameter), unname(ref$parameter))
+  expect_identical(res$p.value, ref$p.value)
+  expect_equal(unname(res$statistic), 66.8104812066, tolerance = 1e-10)
+  expect_equal(unname(res$parameter), 10, tolerance = 0)
+  expect_equal(res$p.value, 1.8233e-10, tolerance = 1e-4)
+
+  # A character group has no empty level, and gives the same values.
+  chr <- performBoxMTest(sub[, 1:4], as.character(sub$Species))
+  expect_identical(unname(chr$statistic), unname(res$statistic))
+  expect_identical(chr$p.value, res$p.value)
+
+  # An unused level of a factor of mtcars' cylinders.
+  cyl <- factor(mtcars$cyl, levels = c(4, 6, 8, 10))
+  expect_identical(
+    unname(performBoxMTest(mtcars[, c("mpg", "hp", "wt")], cyl)$statistic),
+    unname(performBoxMTest(mtcars[, c("mpg", "hp", "wt")], factor(mtcars$cyl))$statistic)
+  )
+
+  # A group of one observation still has no covariance matrix, and the result
+  # is NA as before, whether the group is a factor or a character vector.
+  one <- rbind(sub, iris[iris$Species == "virginica", ][1, ])
+  expect_true(is.na(performBoxMTest(one[, 1:4], one$Species)$statistic))
+  expect_true(is.na(performBoxMTest(one[, 1:4], as.character(one$Species))$statistic))
+})
+
 test_that("performBoxMTest with two groups is unchanged by the correction of 0.16.0", {
   # With two groups the factor of 0.15.0, (g - 1) c1, is c1: the values are
   # those of 0.15.0, which gave 66.8104812066 for two species of iris and

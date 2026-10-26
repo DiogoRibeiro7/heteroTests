@@ -10,7 +10,9 @@ his correction factor is
 \deqn{c_1 = \left(\sum_i \frac{1}{\nu_i} - \frac{1}{\nu}\right) \frac{2p^2 + 3p - 1}{6 (p + 1) (g - 1)},}{c1 = (sum_i 1/nu_i - 1/nu) (2 p^2 + 3 p - 1) / (6 (p + 1) (g - 1)),}
 and \eqn{M (1 - c_1)}{M (1 - c1)} is referred to a chi-square distribution with \eqn{f_1 = (g - 1) p (p + 1) / 2}{f1 = (g - 1) p (p + 1) / 2} degrees of freedom: Box's (1949) chi-square approximation. The test assumes that each group is multivariate normal. It gives the values of \code{biotools::boxM()}, \code{heplots::boxM()} and \code{rstatix::box_m()}: 140.9430 on 20 degrees of freedom for the example on \code{iris}.
 
-Before 0.16.0 the correction factor was \eqn{(g - 1) c_1}{(g - 1) c1}: the same for two groups, whose values do not change, and too large for three or more, which made the statistic too small and the test conservative. The example on \code{iris} gave 135.2229.}
+Before 0.16.0 the correction factor was \eqn{(g - 1) c_1}{(g - 1) c1}: the same for two groups, whose values do not change, and too large for three or more, which made the statistic too small and the test conservative. The example on \code{iris} gave 135.2229.
+
+The groups are the levels of \code{group} that have observations: a level with none, as \code{subset()} leaves on a factor, is dropped (since 0.16.0; before, it made the result \code{NA}). A group of one observation has no covariance matrix, and gives \code{NA}.}
 \section{Size}{
 In \code{inst/validation/box-m-approximations-size.R}, at 5000 replications per cell and the 5\% level, with
 \eqn{g} = 2, 3 or 5 groups of 10 to 100 observations of \eqn{p} = 1 to 10 variables, the test held its level

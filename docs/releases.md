@@ -260,6 +260,16 @@ cells of groups of 10 with 4 or 6 variables), not robust to heavy tails
 (`t5` coordinates, 0.26 to 0.48) and conservative with light tails. The
 statistic keeps its name, `M`, and `parameter` its `df`.
 
+**`performBoxMTest()` drops a level of `group` with no observation, which
+made the result `NA`.** A factor keeps its levels when rows are taken out, so
+`sub <- subset(iris, Species != "virginica")` has a `virginica` level with no
+row, whose covariance matrix was all `NA`:
+`performBoxMTest(sub[, 1:4], sub$Species)` gave `NA` on 20 degrees of
+freedom, and gives the test of the two species observed, 66.8105 on 10
+(p = 1.8e-10), the value of `droplevels(sub)` and of `biotools::boxM()`. A
+character group, which has no empty level, and a factor without one give
+what they gave, `identical()`; a group of one observation still gives `NA`.
+
 ### Szroeter's test
 
 **`performSzroeterTest()` takes the null mean and variance of its statistic

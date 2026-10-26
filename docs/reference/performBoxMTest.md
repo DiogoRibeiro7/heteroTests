@@ -46,6 +46,8 @@ and \(M (1 - c_1)\) is referred to a chi-square distribution with \(f_1 = (g - 1
 
 Before 0.16.0 the correction factor was \((g - 1) c_1\): the same for two groups, whose values do not change, and too large for three or more, which made the statistic too small and the test conservative. The example on `iris` gave 135.2229.
 
+The groups are the levels of `group` that have observations: a level with none, as `subset()` leaves on a factor, is dropped (since 0.16.0; before, it made the result `NA`). A group of one observation has no covariance matrix, and gives `NA`.
+
 ## Size
 
 In `inst/validation/box-m-approximations-size.R`, at 5000 replications per cell and the 5% level, with
