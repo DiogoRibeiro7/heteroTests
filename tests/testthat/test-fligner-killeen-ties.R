@@ -1,8 +1,10 @@
 # performFlignerKilleenTest() and its ties (0.16.0). The deviations from the
 # group medians are ranked on residuals computed observation by observation,
-# sqrt(w) (y - X b - o), so that repeated observations get the same residual,
-# where the residuals an lm stores, from its QR decomposition, differ in their
-# last bits (rfligner_residuals()); and deviations closer than
+# sqrt(w) (y - X b - o), where the residuals an lm stores, from its QR
+# decomposition, differ in their last bits between repeated observations
+# (rfligner_residuals()), and observations with the same values of the
+# model's variables are given one residual (rfligner_same_observations());
+# and deviations closer than
 # 8 * .Machine$double.eps times the largest absolute residual of their group
 # are ranked as tied, which restores the tie of the two residuals in the
 # middle of a group of even size (rfligner_rounding_ties()).
@@ -66,9 +68,26 @@ test_that("repeated observations tie, as in exact arithmetic", {
   out <- performFlignerKilleenTest(lm(breaks ~ tension, data = warpbreaks), warpbreaks, "tension")
   expect_equal(unname(out$statistic), unname(exact$statistic), tolerance = 1e-12)
 
+  # poly() builds its basis with a QR decomposition of its own, which gives
+  # repeated observations design rows that differ in their last bits. They
+  # have the same values of the model's variables, so they are given one
+  # residual, and the poly() form gives the value of the raw powers, that of
+  # exact ties, 0.91385; before 0.16.0 it gave 0.8001.
+  set.seed(5)
+  b <- data.frame(x = round(stats::runif(30, 0, 10), 1))
+  b$y <- round(10 * b$x + stats::rnorm(30), 1)
+  d <- b[c(1:30, 1:30, 1:10), ]
+  d$g <- factor(rep(1:4, length.out = 70))
+  basis <- performFlignerKilleenTest(lm(y ~ poly(x, 3), data = d), d, "g")
+  powers <- performFlignerKilleenTest(lm(y ~ x + I(x^2) + I(x^3), data = d), d, "g")
+  expect_equal(unname(basis$statistic), unname(powers$statistic), tolerance = 1e-12)
+  expect_equal(basis$p.value, powers$p.value, tolerance = 1e-12)
+  expect_equal(unname(basis$statistic), 0.91385, tolerance = 1e-4)
+
   # Every row twice: the lm and the glm give the same statistic.
   twice <- iris[c(seq_len(150), seq_len(150)), ]
-  for (f in list(Sepal.Length ~ Petal.Length, Sepal.Length ~ Petal.Length + Species)) {
+  for (f in list(Sepal.Length ~ Petal.Length, Sepal.Length ~ Petal.Length + Species,
+                 Sepal.Length ~ poly(Petal.Length, 2) + Species)) {
     a <- performFlignerKilleenTest(lm(f, data = twice), twice, "Species")
     b <- performFlignerKilleenTest(glm(f, data = twice), twice, "Species")
     expect_identical(a$statistic, b$statistic)

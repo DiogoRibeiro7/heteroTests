@@ -49,23 +49,29 @@
 #' \eqn{r_i = \sqrt{w_i}\,(y_i - x_i^\top \hat\beta - o_i)} computed
 #' observation by observation, as the Gaussian `glm` computes them, and not
 #' the residuals an `lm` stores, which its QR decomposition rounds differently
-#' from one observation to the next: repeated observations, such as equal
-#' values of an integer response or of a response recorded with few digits,
-#' get equal residuals and tie, as in exact arithmetic. For an `mgcv::gam()`
-#' fit \eqn{x_i} is the row of its linear predictor matrix. And absolute
-#' deviations closer than \eqn{8 \epsilon s_j}, with \eqn{\epsilon} =
-#' `.Machine$double.eps` and \eqn{s_j} the largest \eqn{|r_i|} of group
+#' from one observation to the next; and observations with the same values of
+#' the model's variables, weight and offset, such as repeated values of an
+#' integer response or of a response recorded with few digits, are given the
+#' same residual, as in exact arithmetic, even where a basis such as `poly()`
+#' gives them design rows that differ in their last bits. For an
+#' `mgcv::gam()` fit \eqn{x_i} is the row of its linear predictor matrix. And
+#' absolute deviations closer than \eqn{8 \epsilon s_j}, with \eqn{\epsilon}
+#' = `.Machine$double.eps` and \eqn{s_j} the largest \eqn{|r_i|} of group
 #' \eqn{j} (the smaller of the two for deviations of different groups), are
 #' ranked as tied: in a group of even size the two residuals in the middle lie
 #' at the same distance from the median of the group, half their difference,
 #' a tie that the centring breaks by up to \eqn{\epsilon s_j}. On data with
-#' repeated observations the statistic is now that of exact ties, and can
-#' differ much from before: on `lm(extra ~ group, data = sleep)` it was 0.154
-#' and is 0.213. On continuous data it moves by much less (see `NEWS`). Where
+#' repeated observations the statistic can differ much from before: on
+#' `lm(extra ~ group, data = sleep)` it was 0.154 and is 0.213, the value of
+#' exact ties. On continuous data it moves by much less (see `NEWS`). Where
 #' neither changes a rank, the value is that of [stats::fligner.test()] on
-#' the residuals of the fit, as before. In a group whose residuals are far
-#' from zero, \eqn{10^8} times their spread, the tolerance may also tie two
-#' deviations that differ by a few units in the last place of the residuals.
+#' the residuals of the fit, as before. Two limits remain. A tie between
+#' different observations that exact decimal arithmetic would give, as when
+#' two pairs of observations of a regressor recorded with few digits differ by
+#' the same amounts, is restored only when rounding leaves it within the
+#' tolerance. And in a group whose residuals are far from zero, \eqn{10^8}
+#' times their spread, the tolerance may also tie two deviations that differ
+#' by a few units in the last place of the residuals.
 #'
 #' @references
 #' Conover, W. J., Johnson, M. E., & Johnson, M. M. (1981). A comparative study
@@ -274,13 +280,17 @@ rfligner_centred <- function(x, g) {
 # The Pearson residuals sqrt(w) (y - (X b + o)) of the observations the test
 # keeps, with X b summed column by column in the same order for every row
 # (rowSums(), not the BLAS of %*%, whose paths may round some rows
-# otherwise), so that observations with the same response, design row,
-# offset and weight get the same residual. X is the design the context
-# stores, model.matrix() of the fit, which for an mgcv::gam() fit is its
-# linear predictor matrix, smooth terms included; the aliased columns of a
-# rank-deficient fit are left out with their coefficients. NULL when they
-# cannot be computed, or when they are not the residuals of the fit up to
-# rounding, which the test then ranks as before.
+# otherwise). X is the design the context stores, model.matrix() of the fit,
+# which for an mgcv::gam() fit is its linear predictor matrix, smooth terms
+# included; the aliased columns of a rank-deficient fit are left out with
+# their coefficients. Observations with the same values of the model's
+# variables, the same weight and the same offset have the same residual in
+# exact arithmetic, but not always the same design row: poly() builds its
+# basis with a QR decomposition of its own, which can give two such rows that
+# differ in their last bits. So each set of them is given one value, the
+# residual of its first member (rfligner_same_observations()). NULL when the
+# residuals cannot be computed, or when they are not the residuals of the fit
+# up to rounding, which the test then ranks as before.
 rfligner_residuals <- function(ctx, data, group, kept) {
   coefs <- stats::coef(ctx$model)
   design <- ctx$design
@@ -300,6 +310,10 @@ rfligner_residuals <- function(ctx, data, group, kept) {
     own <- sqrt(ctx$weights) * own
     fitted_mean <- sqrt(ctx$weights) * fitted_mean
   }
+  first <- rfligner_same_observations(ctx, data)
+  if (length(first) == length(own)) {
+    own <- own[first]
+  }
   if (length(own) != length(kept)) {
     # The observations whose group, or a variable of the model, is missing in
     # the rows that hold them, which rcontext_group_rows() left out.
@@ -318,6 +332,48 @@ rfligner_residuals <- function(ctx, data, group, kept) {
     return(NULL)
   }
   own
+}
+
+# For each observation of the fit, the first observation with the same values
+# of the model's variables (the response and every variable of the formula),
+# the same weight and the same offset, or NULL. The variables are read from
+# the rows of `data` that the context matched to the observations and
+# checked against the model frame, or, without `data`, from the model frame,
+# which holds a variable under its own name only when the model uses it so
+# (`x`, not `poly(x, 3)`); when a variable is held by neither, the columns of
+# the model frame stand for it, as computed, so that two observations whose
+# computed terms differ in their last bits are taken as different. Values are
+# compared exactly.
+rfligner_same_observations <- function(ctx, data) {
+  frame <- ctx$frame
+  n <- NROW(frame)
+  rows <- if (!is.null(data) && length(ctx$rows) == n) data[ctx$rows, , drop = FALSE]
+  columns <- list()
+  held <- TRUE
+  for (variable in all.vars(stats::terms(ctx$model))) {
+    if (!is.null(rows) && variable %in% names(rows)) {
+      columns <- c(columns, list(rows[[variable]]))
+    } else if (variable %in% names(frame)) {
+      columns <- c(columns, list(frame[[variable]]))
+    } else {
+      held <- FALSE
+    }
+  }
+  if (!held) {
+    columns <- c(columns, as.list(frame))
+  }
+  columns <- Filter(Negate(is.null), c(columns, list(ctx$weights, ctx$offset)))
+  # Matrix columns, such as a matrix response or a poly() basis in the model
+  # frame, are compared column by column.
+  columns <- unlist(lapply(columns, function(v) {
+    if (is.matrix(v)) lapply(seq_len(ncol(v)), function(j) v[, j]) else list(v)
+  }), recursive = FALSE)
+  if (length(columns) == 0L || !all(vapply(columns, NROW, integer(1)) == n)) {
+    return(NULL)
+  }
+  codes <- lapply(columns, function(v) match(v, unique(v)))
+  key <- do.call(paste, c(codes, sep = "\r"))
+  match(key, key)
 }
 
 # The ties that rounding broke when the residuals were centred at their group

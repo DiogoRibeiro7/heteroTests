@@ -916,14 +916,22 @@ after it.
   summed in the same order for every row (`rfligner_residuals()`), as the
   Gaussian `glm` computes them, then applies the tolerance of the item
   above; where neither changes a rank it passes the residuals of the fit on
-  as before. On 480 fits of `lm(y ~ g)` with integer responses
-  (`rpois(n, 3)`, `rpois(n, 300)`, `1e4 + rpois(n, 3)`, four groups,
-  balanced and unbalanced, 60 to 60,000 observations) the statistic equals
-  that of exact ties in all 480, where it did in none before and in 38 with
-  the tolerance alone. On `sleep`, `PlantGrowth`, `warpbreaks`,
+  as before. Observations with the same values of the model's variables,
+  weight and offset are given one residual, that of the first of them
+  (`rfligner_same_observations()`), since `poly()` builds its basis with a
+  QR decomposition of its own and can give them design rows that differ in
+  their last bits (from the confirmation review of #156: on 70 observations
+  repeating 30, `y ~ poly(x, 3)` gave 0.80190 where `y ~ x + I(x^2) +
+  I(x^3)` gives 0.91385; both now give 0.91385). On 480 fits of `lm(y ~ g)`
+  with integer responses (`rpois(n, 3)`, `rpois(n, 300)`,
+  `1e4 + rpois(n, 3)`, four groups, balanced and unbalanced, 60 to 60,000
+  observations, all accepted: the smallest group has 6 observations) the
+  statistic equals that of exact ties in all 480, where through the package
+  it did in none before 0.16.0 and in 38 with the tolerance alone (at
+  99d446e). On `sleep`, `PlantGrowth`, `warpbreaks`,
   `InsectSprays` and `iris[-c(50, 100, 150), ]` it equals
   `stats::fligner.test()` of the responses scaled to integers (`sleep` 0.154
-  before, 0.213 now; `warpbreaks` 3.44 and 3.90). On 1,200 continuous fits of
+  before, 0.213 now; `warpbreaks` 3.44 and 3.90). On 3,000 continuous fits of
   20 to 10,000 observations no two deviations that differ in exact
   arithmetic are tied, and the `lm` and the `glm` give the same value,
   unless the residuals of a group are 1e8 times their spread: there the
@@ -932,6 +940,22 @@ after it.
   55 calls the 20 in which no rank changes are `identical()` to before; 14
   of the 17 with repeated observations change, by up to 38%, and 21 of the
   38 with continuous responses, by 7.9e-7 to 3.2e-5 of the statistic.
+- [ ] **`performFlignerKilleenTest()` and ties of decimal arithmetic between
+  different observations.** Two different observations can have deviations
+  that are equal in exact decimal arithmetic, as when two pairs of
+  observations of a regressor recorded with few digits differ by the same
+  amounts; the binary values of the data break such a tie by a few units in
+  the last place of the response, which can exceed the tolerance of
+  `8 * eps * s`, scaled by the residuals. On `iris` with every row twice,
+  `lm(Sepal.Length ~ Petal.Length)` by `Species`, one of the 106 sets of
+  exact ties stays broken, by 10.4 times `eps * s`, and the statistic is
+  8.14863 where the residuals computed exactly, scaled to integers, give
+  8.14287 (8.13778 before 0.16.0); with `+ Species`, 0.479152 against
+  0.479156. On `iris` itself and on the one-way fits of `sleep`,
+  `PlantGrowth`, `warpbreaks`, `InsectSprays` and `iris[-c(50, 100, 150), ]`
+  the value is exact. Found in 0.16.0 with the items above; recorded, not
+  fixed. A tolerance scaled by the response would cover it, at the cost of
+  merging deviations of continuous data that differ (the review of #156).
 - [x] **A Gaussian `glm` with a zero prior weight.** The tests that read the
   Pearson residuals through `rpearson_residuals()` refuse an `lm` with a zero
   weight, whose Pearson residual is an artificial zero, but not the same

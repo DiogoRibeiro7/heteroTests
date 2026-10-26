@@ -8,15 +8,18 @@ The changes in each version, from the package's `NEWS.md`.
 
 ### The Fligner-Killeen test and its ties
 
-**On data with repeated observations, such as integer responses or
-responses recorded with few digits, `performFlignerKilleenTest()` now gives
-the value of exact ties, which can differ a lot from before: on
+**On data with repeated observations, observations with the same values of
+the model's variables such as integer responses or responses recorded with
+few digits, `performFlignerKilleenTest()` now ranks their deviations as
+tied, as in exact arithmetic, which can change its value a lot: on
 `lm(extra ~ group, data = sleep)` the statistic was 0.154 and is 0.213 (the
 p-value 0.695 and 0.645), and on `lm(breaks ~ tension, data = warpbreaks)`
-it was 3.44 and is 3.90 (0.179 and 0.142).** On continuous data the
-statistic changes much less: in simulated fits by at most 8.6e-4 of its
-value with 20 observations and 7.5e-6 with 100 or more, and by at most
-1.2e-3 and 2.4e-5 with a group whose residuals are far from zero (below).
+it was 3.44 and is 3.90 (0.179 and 0.142), the values of exact ties.** On
+continuous data it changes much less: in simulated fits by up to about 1e-2
+of the statistic at 20 observations, where the statistic is often near zero
+(by at most about 0.005 in absolute terms, and 2.2e-4 in the p-value), and
+by about 1e-5 of it at 100 or more, up to 2.4e-5 with a group whose
+residuals are far from zero (below).
 
 The test ranks the absolute deviations of the residuals from their group
 medians, and averages the ranks of equal values, but rounding broke ties in
@@ -28,9 +31,14 @@ of `rpois(n, 3)` on four groups the gaps reached 17 times
 `eps * max(abs(r))` at 60 observations and 6,900 times at 6,000, with
 `eps = .Machine$double.eps` and `r` the residuals. The test now computes the
 residuals observation by observation, `sqrt(w) * (y - X b - o)` with `X b`
-summed in the same order for every row, as the Gaussian `glm` computes them,
-so that such observations have equal residuals; for an `mgcv::gam()` fit `X`
-is its linear predictor matrix. And in a group of even size the two
+summed in the same order for every row, as the Gaussian `glm` computes them;
+for an `mgcv::gam()` fit `X` is its linear predictor matrix. Observations
+with the same values of the model's variables, weight and offset are then
+given one residual, that of the first of them, since a basis such as
+`poly()`, built with a QR decomposition of its own, can give them design
+rows that differ in their last bits: on 70 observations that repeat 30,
+`lm(y ~ poly(x, 3))` gave 0.8001 before 0.16.0 and gives 0.91385, the
+value of `lm(y ~ x + I(x^2) + I(x^3))`. And in a group of even size the two
 residuals in the middle lie at the same distance from the median, half their
 difference, a tie that the centring breaks by up to `eps * s`, with `s` the
 largest absolute residual of the group: deviations closer than
@@ -52,8 +60,15 @@ value the `gam` gave already.
     none before. On `sleep`, `PlantGrowth`, `warpbreaks`, `InsectSprays` and
     `iris[-c(50, 100, 150), ]`, each fitted on its groups, it equals
     `stats::fligner.test()` of the responses scaled to integers, and on `iris`
-    with every row twice the `lm` and the `glm` give the same value.
-- On 1,200 continuous fits of 20 to 10,000 observations (normal, `t3`,
+    with every row twice the `lm` and the `glm` give the same value. A tie
+    between different observations that exact decimal arithmetic would give,
+    as when two pairs of observations of a regressor recorded with few digits
+    differ by the same amounts, is restored only when rounding leaves it
+    within the tolerance: on `iris` with every row twice, regressed on
+    `Petal.Length`, one of 106 sets of such ties stays broken, and the
+    statistic is 8.14863 where exact arithmetic gives 8.14287 (recorded under
+    0.16.0 in the roadmap).
+- On 3,000 continuous fits of 20 to 10,000 observations (normal, `t3`,
     Cauchy, exponential and scale-mixture errors, with and without weights,
     with an intercept of 0 or 1e6, or with a group whose residuals are far
     from zero), no two deviations that differ in exact arithmetic are tied, and
