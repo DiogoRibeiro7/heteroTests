@@ -20,7 +20,10 @@ leave the observation out, and gives the value of the fit to the observations wi
 a coefficient that is not finite for another reason, \code{data} that lack rows or variables of
 the fit, and, since 0.16.0, a fit with \code{model = FALSE} whose model frame, rebuilt from the
 data it was fitted to, no longer holds its response, because those data changed after the fit:
-it read that frame and returned a value.
+it read that frame and returned a value. A fit with \code{model = FALSE} whose data are gone is
+tested on \code{data} that give its response and fitted values (since 0.16.0; it refused such a fit
+until the tests computed from the model alone were built on the model context), and refused
+without them.
 It refuses a multivariate \code{lm} ("needs a model with one response"), which it tested without
 \code{data} before 0.16.0, and, since 0.16.0, an \code{mgcv::gam()} fit with smooth terms: a
 smooth term is usually penalised, and a penalised fit is not the least-squares fit of the design

@@ -27,7 +27,14 @@ or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-defici
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also refuses
+a multivariate \code{lm} ("needs a model with one response"), a fit whose coefficients, residuals or
+weights were changed after the fit, and a fit with \code{model = FALSE} whose model frame, rebuilt
+from the data it was fitted to, no longer holds its response, because those data changed after the
+fit, with or without \code{data}. A fit with \code{model = FALSE} whose data are gone is tested on
+\code{data} that give its response and fitted values, and refused without them. The test reads
+nothing from \code{data}, which is checked as before: it must hold the variables of the model and
+the row names of the fit. Which model each test accepts, and why, is set out in
 \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{

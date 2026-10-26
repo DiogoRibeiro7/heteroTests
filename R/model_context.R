@@ -37,7 +37,12 @@
 # performBartlettTest() and performOBrienTest() (rcontext_group_rows()), and
 # (increment 5) performPesaranTest(), performBPRandomEffectsTest() and
 # performScatterDiagnostic() (rcontext_columns_at_fit()), and so
-# runPanelTests(), which runs the two panel tests; the other tests still
+# runPanelTests(), which runs the two panel tests, and (increment 6) the tests
+# computed from the model alone, performSpearmanTest(), performHarveyTest(),
+# performArchLMTest(), performMcLeodLiTest(), performCookWeisbergTest() and
+# performNCVTest(), performSpreadLevelTest(), performDavidianCarrollTest() and
+# performVarianceFormTest(), with fitWLS() (rcontext_model_alone(),
+# rcontext_second_formula(), rcontext_formula_rows()); the other tests still
 # prepare the model and data with rdata_or_model_frame() and
 # prepare_model_data_for_test().
 

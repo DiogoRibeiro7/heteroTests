@@ -8,10 +8,21 @@
 #' @param model A fitted [stats::lm] object whose residuals will be analysed for
 #'   variance patterns.
 #' @param data Optional data frame the model was fitted to, in which
-#'   `var_formula` is evaluated; its rows are matched to the residuals by row
-#'   name. When `NULL`, the default, the model frame of `model` is used.
-#'   Without `var_formula` the statistic is computed from the residuals and
-#'   fitted values of `model`, and `data` does not change the result.
+#'   `var_formula` is evaluated. When `NULL`, the default, the model frame of
+#'   `model` is used. Without `var_formula` the statistic is computed from the
+#'   residuals and fitted values of `model`, and `data` does not change the
+#'   result. With it, the variables of `var_formula` are read at the rows of
+#'   `data` that hold the observations of the fit, matched as the tests that
+#'   read `data` match them: data with row names of their own in any order,
+#'   data that number their rows (a tibble, a data.table) in the order of the
+#'   fit. Since 0.16.0 that includes numbered data with one row per
+#'   observation, such as the complete rows of a fit that dropped rows
+#'   numbered again, unless two rows of the fit tie on every column of the
+#'   model frame and `var_formula` names a variable beyond it. A variable of
+#'   `var_formula` is read from `data`, or without `data` from the model frame,
+#'   which holds the variables of the model under their own names; since
+#'   0.16.0 one that neither holds is refused, where it was found in the
+#'   workspace, whatever the order of its values.
 #' @param var_formula Optional one-sided formula giving the variance model,
 #'   evaluated in `data`, for example `~ x1 + x2`. When `NULL`, the default,
 #'   the fitted values are the variance regressor and the result is what this

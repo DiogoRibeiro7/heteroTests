@@ -31,7 +31,10 @@
 # Hartley and the spatial test; increment 4: the five group tests, Levene,
 # Brown-Forsythe, Fligner-Killeen, Bartlett and O'Brien; increment 5: the two
 # panel tests, the scatter diagnostic and runPanelTests(), which runs the
-# panel tests.
+# panel tests; increment 6: the tests computed from the model alone,
+# Spearman's, Harvey's, the ARCH LM, McLeod-Li, Cook-Weisberg and NCV tests,
+# the spread-level, Davidian-Carroll and variance form tests (and RESET, of
+# increment 2).
 context_migrated <- c(
   "performWhiteTest", "performBPTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest",
@@ -42,21 +45,60 @@ context_migrated <- c(
   "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
   "performBartlettTest", "performOBrienTest",
   "performPesaranTest", "performBPRandomEffectsTest", "performScatterDiagnostic",
-  "runPanelTests"
+  "runPanelTests",
+  "performSpearmanTest", "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
+  "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
+  "performDavidianCarrollTest", "performVarianceFormTest"
 )
 
 # The calls of the matrix: a recipe for every function of `context_migrated`.
 # Those of helper-test-recipes.R, which test-return-contract.R holds to an
 # htest, and the two functions of increment 5 that are not tests: the scatter
 # diagnostic, which returns a correlation for each variable, and
-# runPanelTests(), which returns a list of the two panel tests. A function,
-# since testthat sources helper-test-recipes.R after this file.
+# runPanelTests(), which returns a list of the two panel tests. And the calls
+# of increment 6 that evaluate a second formula (`context_second_formula`),
+# fitWLS() among them, as the vector of its coefficients and estimated
+# weights. A function, since testthat sources helper-test-recipes.R after this
+# file.
 context_recipes <- function() {
+  wls_numbers <- function(fit) c(stats::coef(fit), unname(stats::weights(fit)))
   c(contract_recipes, list(
     performScatterDiagnostic = function(m, d) performScatterDiagnostic(m, d, c("x1", "x2")),
-    runPanelTests = function(m, d) runPanelTests(m, d, id = "id", time = "time")
+    runPanelTests = function(m, d) runPanelTests(m, d, id = "id", time = "time"),
+    `performCookWeisbergTest(var_formula = ~ z)` = function(m, d) {
+      performCookWeisbergTest(m, d, var_formula = ~ z)
+    },
+    `performVarianceFormTest(var_formula = ~ z)` = function(m, d) {
+      performVarianceFormTest(m, d, var_formula = ~ z)
+    },
+    `performVarianceFormTest(against = ~ z)` = function(m, d) {
+      performVarianceFormTest(m, d, against = ~ z)
+    },
+    `fitWLS(var_formula = ~ z)` = function(m, d) wls_numbers(fitWLS(m, d, var_formula = ~ z)),
+    fitWLS = function(m, d) wls_numbers(fitWLS(m, d))
   ))
 }
+
+# The tests computed from the model alone (increment 6), with RESET
+# (increment 2), and the label each names itself with in the messages on the
+# rows of `data`.
+context_model_alone <- c(
+  performSpearmanTest = "Spearman rank", performHarveyTest = "Harvey",
+  performArchLMTest = "ARCH LM", performMcLeodLiTest = "McLeod-Li",
+  performCookWeisbergTest = "Cook-Weisberg", performNCVTest = "NCV",
+  performSpreadLevelTest = "Spread-level", performDavidianCarrollTest = "Davidian-Carroll",
+  performVarianceFormTest = "Variance form test", performRESETTest = "RESET"
+)
+
+# The calls of increment 6 that evaluate a second formula of z, a variable no
+# model frame of the matrix holds, on the rows of `data`; and fitWLS()
+# without one, which reads nothing from `data`. They are run on every cell by
+# a test of their own (test-model-context.R), as the cell is seen by
+# context_cell_for_formula().
+context_second_formula <- c(
+  "performCookWeisbergTest(var_formula = ~ z)", "performVarianceFormTest(var_formula = ~ z)",
+  "performVarianceFormTest(against = ~ z)", "fitWLS(var_formula = ~ z)", "fitWLS"
+)
 
 # Fixture B of the design: contract_data() with weights, an offset outside the
 # span of the regressors, and a positive response for the log model.
@@ -527,6 +569,24 @@ context_cells <- function() {
   }, form = "shuffled", reference = "fit/ols/none/none/data_frame",
   defect = c("B3", "B4", "R2"))
 
+  # A variable of a second formula, z, missing at an observation of the fit,
+  # and at a row the fit dropped (increment 6). Cook-Weisberg's test with
+  # `var_formula` dropped the incomplete rows of `data`, with the warning
+  # "Removed N observations due to missing values in z", and then lacked the
+  # row of the fit; fitWLS() and the variance form test evaluated the formula
+  # on the rows of the fit and refused the missing value. A test that does not
+  # read z gives the value of its data without z.
+  d_z <- d
+  d_z$z[5] <- NA
+  add(context_cell("variance/z_missing", "variance", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_z), data = d_z)
+  }, reference = "fit/ols/none/none/data_frame"))
+  d_zn <- d_na
+  d_zn$z[7] <- NA
+  add(context_cell("variance/z_missing_dropped", "variance", function() {
+    list(m = stats::lm(y ~ x1 + x2, data = d_zn), data = d_zn)
+  }, reference = "missing/complete_fit", defect = "B16"))
+
   # A fit to a subset given by index (B15): the reference is the fit to the
   # same rows.
   kept <- d[21:120, ]
@@ -696,6 +756,28 @@ context_cells <- function() {
     assign("changed", d[order(d$x1), ], envir = env)
     list(m = m, data = NULL)
   }, form = "null", expect = "cannot use the model frame of `model`", defect = "N6"))
+  # Increment 6. The same fit given its data: the frame it rebuilds is stale,
+  # whatever `data` holds, and every test built on the context refuses it. The
+  # tests computed from the model alone read it or ignored it, and returned a
+  # value, Harvey's test and the variance form test on the stale design (N6).
+  # And a fit with model = FALSE whose data are kept as they were: its frame
+  # is rebuilt, reproduces the fit, and is used.
+  model_false_with <- function(changed) {
+    env <- new.env()
+    assign("kept", d, envir = env)
+    m <- eval(quote(stats::lm(y ~ x1 + x2, data = kept, model = FALSE)), env)
+    if (changed) assign("kept", d[order(d$x1), ], envir = env)
+    m
+  }
+  add(context_cell("class/model_false_changed_data", "class", function() {
+    list(m = model_false_with(TRUE), data = d)
+  }, expect = "cannot use the model frame of `model`", defect = "N6"))
+  add(context_cell("class/model_false_kept", "class", function() {
+    list(m = model_false_with(FALSE), data = d)
+  }, reference = "fit/ols/none/none/data_frame"))
+  add(context_cell("class/model_false_kept_null", "class", function() {
+    list(m = model_false_with(FALSE), data = NULL)
+  }, form = "null", reference = "fit/ols/none/none/null"))
   # A fit whose coefficient was changed after the fit (M8): refused by every
   # test built on the context once `data` is matched. The group tests returned
   # a value before increment 4, computed from the residuals the edit leaves
@@ -907,7 +989,7 @@ context_unbalanced <- function(cell) {
   missing_rows || identical(cell$block, "terms") && identical(cell$terms, "cut") ||
     cell$id %in% c("group/na_dropped", "group/na_dropped_shuffled", "group/na_dropped_renumbered",
                    "group/na_factor", "group/na_factor_complete", "panel/half_unit",
-                   "panel/half_unit_full")
+                   "panel/half_unit_full", "variance/z_missing_dropped")
 }
 
 # The reference of the panel tests and the scatter diagnostic on a cell of a
@@ -1088,6 +1170,9 @@ context_cell_for <- function(fn, cell) {
   if (fn %in% context_increment5) {
     return(context_cell_for_panel(fn, cell))
   }
+  if (fn %in% context_second_formula) {
+    return(context_cell_for_formula(fn, cell))
+  }
   if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth") &&
         (!identical(cell$expect, "guard") || identical(fn, "performRESETTest"))) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
@@ -1133,47 +1218,182 @@ context_cell_for <- function(fn, cell) {
     cell$expect <- "where group, the `group` variable, is missing."
     cell$reference <- NULL
   }
-  if (identical(fn, "performRESETTest")) {
-    rows_lacking <- c(
-      "missing/complete_renumbered", "ident/repeated_fit_tibble",
-      "ident/character_names_tibble", "ident/repeated_names", "group/na_dropped_renumbered"
-    )
-    if (cell$id %in% rows_lacking) {
-      cell$expect <- "RESET requires `data` to contain the rows used to fit the model."
-      cell$reference <- NULL
-    } else if (cell$id %in% c("panel/unit_gam_full", "panel/unit_gam_shuffled")) {
-      # The residuals of a gam carry no names, and the check of `data` RESET
-      # keeps compares the number of rows of `data` with that of the fit.
-      cell$expect <- paste(
-        "RESET requires `data` with 110 observations to match the fitted model,", "got 120."
-      )
-      cell$reference <- NULL
-    } else if (identical(cell$expect, "guard") && !is.null(cell$base)) {
-      # A class of model given data the guard refuses: what RESET gives on the
-      # data frame of the fit.
-      base <- cell
-      base$id <- cell$base
-      base$form <- "data_frame"
-      base$expect <- cell$base_expect
-      base$base <- NULL
-      seen <- context_cell_for(fn, base)
-      cell$expect <- seen$expect
-      cell$reference <- if (identical(seen$expect, "value")) cell$base
-    } else if (identical(cell$expect, "guard")) {
+  if (fn %in% names(context_model_alone)) {
+    return(context_cell_for_model_alone(fn, cell))
+  }
+  cell
+}
+
+# The cell as the calls of increment 6 that evaluate a second formula of z see
+# it (context_second_formula), and fitWLS() without one.
+#
+# - fitWLS() without `var_formula` reads nothing from `data`, and does not
+#   check it, as before: it gives the value of the fit on every form of data,
+#   and it is not a test, so it neither checks that the fit reproduces itself
+#   nor refuses a zero weight.
+# - With `var_formula = ~ z` or `against = ~ z`, z is read at the rows the
+#   alignment confirmed (B9): the forms of data the guard refuses are refused,
+#   and so is the tibble of a fit to repeated rows, whose rows tie, z being
+#   beyond the model frame; numbered data with one row per observation are
+#   taken in the order of the fit. No model frame holds z: without `data` it is
+#   refused (M1, R3), and with the model frame as `data` by the message of
+#   `data`, after the refusals that come first in each: Cook-Weisberg's test
+#   refuses a zero weight before it reads z, and the variance form test
+#   weights that did not come from fitWLS(), and a variance formula on a
+#   fitWLS() fit. A missing z at an observation of the fit is refused,
+#   Cook-Weisberg's test naming it (decision 8).
+context_cell_for_formula <- function(fn, cell) {
+  wls <- startsWith(fn, "fitWLS")
+  variance_form <- startsWith(fn, "performVarianceFormTest")
+  edited <- grepl("does not reproduce its residuals", cell$expect, fixed = TRUE)
+  zero_weight <- identical(cell$expect, "zero or non-finite weights")
+  # fitWLS() refits a rank-deficient fit with its aliased coefficient, and a
+  # fit with na.exclude from its residuals without the padding: values of
+  # their own.
+  if (wls && cell$id %in% c("class/rank_deficient", "missing/na_exclude")) {
+    cell$expect <- "value"
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (identical(fn, "fitWLS")) {
+    if (identical(cell$expect, "guard")) {
       cell$expect <- "value"
-      cell$reference <- if (cell$block %in% c("fit", "terms")) {
+      cell$reference <- if (!is.null(cell$base)) {
+        cell$base
+      } else if (cell$block %in% c("fit", "terms")) {
         paste(cell$block, cell$fit, cell$offset, cell$terms, "data_frame", sep = "/")
       } else {
         "fit/ols/none/none/data_frame"
       }
-    } else if (cell$id %in% c("class/model_false", "class/model_false_shuffled")) {
-      cell$expect <- "cannot use the model frame of `model`"
+    } else if (zero_weight || edited) {
+      cell$expect <- "value"
+      cell$reference <- cell$base
+    }
+    return(cell)
+  }
+  if (wls && (zero_weight || edited)) {
+    cell$expect <- "value"
+    cell$reference <- if (identical(cell$form, "shuffled")) cell$base
+  }
+  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm") ||
+    startsWith(cell$id, "class/zero_weight")
+  if (variance_form && !identical(cell$expect, "guard")) {
+    value_like <- cell$expect %in% c("value", "zero or non-finite weights")
+    if (weighted && value_like) {
+      cell$expect <- "was fitted with weights that did not come from fitWLS()"
       cell$reference <- NULL
-    } else if (identical(cell$id, "missing/na_exclude")) {
+      return(cell)
+    }
+    if (identical(fn, "performVarianceFormTest(var_formula = ~ z)") &&
+          identical(cell$fit, "fitwls") && identical(cell$expect, "value")) {
+      cell$expect <- "is a fitWLS() fit and carries the variance function to test"
+      cell$reference <- NULL
+      return(cell)
+    }
+  }
+  no_data <- identical(cell$form, "null") || identical(cell$id, "missing/median_null")
+  model_frame <- identical(cell$form, "model_frame")
+  if ((no_data || model_frame) && identical(cell$expect, "value")) {
+    cell$expect <- if (no_data) {
+      "The following variables are missing from the model frame of `model`: z."
+    } else {
+      "The following variables are missing from input data: z."
+    }
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (identical(cell$id, "ident/repeated_fit_tibble")) {
+    cell$expect <- "guard"
+    cell$reference <- NULL
+  }
+  if (identical(cell$id, "variance/z_missing")) {
+    cell$expect <- if (startsWith(fn, "performCookWeisbergTest")) {
+      "where z, the `var_formula` variable, is missing."
+    } else {
+      "produced missing or non-finite values on the fitted rows."
+    }
+    cell$reference <- NULL
+  }
+  cell
+}
+
+# The cell as a test computed from the model alone sees it (increment 6), and
+# RESET (decision 24). They read nothing from `data`, and build their context
+# without it, but to rebuild the model frame of a fit with model = FALSE whose
+# data are gone; they keep the check of `data` of 0.15.0
+# (rcheck_data_argument()), which looks for the variables of the model and the
+# row names of the fit and compares no values. So they give the value of the
+# fit on the forms of data the guard refuses, and on a class of model what
+# they give on the data frame of the fit; refuse data whose row names lack
+# those of the fit, and the data of a gam, whose residuals carry no names,
+# whose number of rows is not the fit's; and refuse, with every test built on
+# the context, a stale model frame (N6), a multivariate lm, a fit whose data
+# are gone without `data` that give its response, and an edited fit (M8).
+# Each keeps the refusals of its own: RESET accepts a zero weight, which the
+# others refuse with the Pearson residuals, and refuses a gam with smooth
+# terms (decision 23) and the padded fitted values of na.exclude, which the
+# spread-level and Davidian-Carroll tests take, and the others refuse with
+# the checks of the model; the variance form test refuses weights that did
+# not come from fitWLS().
+context_cell_for_model_alone <- function(fn, cell) {
+  label <- context_model_alone[[fn]]
+  rows_lacking <- c(
+    "missing/complete_renumbered", "ident/repeated_fit_tibble",
+    "ident/character_names_tibble", "ident/repeated_names", "group/na_dropped_renumbered"
+  )
+  if (cell$id %in% rows_lacking) {
+    cell$expect <- sprintf("%s requires `data` to contain the rows used to fit the model.", label)
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (cell$id %in% c("panel/unit_gam_full", "panel/unit_gam_shuffled")) {
+    # The residuals of a gam carry no names, and the check of `data` compares
+    # the number of rows of `data` with that of the fit.
+    cell$expect <- sprintf(
+      "%s requires `data` with 110 observations to match the fitted model, got 120.", label
+    )
+    cell$reference <- NULL
+    return(cell)
+  }
+  if (identical(cell$expect, "guard") && !is.null(cell$base)) {
+    # A class of model given data the guard refuses: what the test gives on
+    # the data frame of the fit.
+    base <- cell
+    base$id <- cell$base
+    base$form <- "data_frame"
+    base$expect <- cell$base_expect
+    base$base <- NULL
+    seen <- context_cell_for_model_alone(fn, base)
+    cell$expect <- seen$expect
+    cell$reference <- if (identical(seen$expect, "value")) cell$base
+    return(cell)
+  }
+  if (identical(cell$expect, "guard")) {
+    cell$expect <- "value"
+    cell$reference <- if (cell$block %in% c("fit", "terms")) {
+      paste(cell$block, cell$fit, cell$offset, cell$terms, "data_frame", sep = "/")
+    } else {
+      "fit/ols/none/none/data_frame"
+    }
+  }
+  if (identical(cell$id, "missing/na_exclude")) {
+    if (identical(fn, "performRESETTest")) {
       cell$expect <- "NA/NaN/Inf in 'x'"
-    } else if (startsWith(cell$id, "class/zero_weight")) {
+    } else if (fn %in% c("performSpreadLevelTest", "performDavidianCarrollTest")) {
       cell$expect <- "value"
     }
+    return(cell)
+  }
+  zero_weight <- startsWith(cell$id, "class/zero_weight")
+  if (zero_weight && identical(fn, "performRESETTest")) {
+    cell$expect <- "value"
+    return(cell)
+  }
+  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm")
+  if (identical(fn, "performVarianceFormTest") && weighted &&
+        (identical(cell$expect, "value") || zero_weight)) {
+    cell$expect <- "was fitted with weights that did not come from fitWLS()"
+    cell$reference <- NULL
   }
   cell
 }

@@ -112,7 +112,17 @@ test_that("the migrated tests give the value of the fit on every form of data th
 })
 
 test_that("a subset of the matrix runs on CRAN", {
-  context_check_matrix(context_cran_cells)
+  context_check_matrix(context_cran_cells, c(context_runnable(), context_second_formula))
+})
+
+test_that("a second formula is evaluated on the rows of the fit, on every form of data", {
+  # Increment 6. Cook-Weisberg's test with `var_formula`, the variance form
+  # test with `var_formula` or `against`, and fitWLS() with `var_formula` read
+  # the variables of the formula at the rows the alignment confirmed (B9),
+  # never from the workspace (R3); fitWLS() without one reads nothing from
+  # `data` (context_cell_for_formula()).
+  skip_unless_full_matrix()
+  context_check_matrix(names(context_cells()), context_second_formula)
 })
 
 test_that("the context holds the parts of the fit, one per observation", {
@@ -424,18 +434,17 @@ test_that("a fit with model = FALSE whose data are gone is tested on data that r
   env <- new.env()
   assign("gone", d, envir = env)
   m <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
-  # RESET reads nothing from `data` and builds its context without it, so it
-  # cannot rebuild the frame from `data`, and refuses such a fit (below).
-  fns <- setdiff(context_runnable(), "performRESETTest")
+  # The tests computed from the model alone and RESET read nothing from
+  # `data`, but build their context with it to rebuild such a frame (increment
+  # 6); before, RESET refused the fit, and the others stopped without a model
+  # frame ("Input data must be a data.frame") or gave the value of the fit
+  # unchecked. And the second formulas, which read z at the rows of `data`.
+  fns <- c(context_runnable(), context_second_formula)
   expected <- lapply(fns, function(fn) {
     context_run(fn, list(build = function() list(m = m, data = d)))
   })
   rm("gone", envir = env)
   expect_error(stats::model.frame(m))
-  refused <- context_run("performRESETTest", list(build = function() list(m = m, data = d)))
-  expect_s3_class(refused, "heteroTests_model_context_error")
-  expect_match(conditionMessage(refused),
-               "performRESETTest() cannot use the model frame of `model`", fixed = TRUE)
   for (k in seq_along(fns)) {
     fn <- fns[k]
     got <- context_run(fn, list(build = function() list(m = m, data = d)))
@@ -871,9 +880,21 @@ test_that("an offset is the model of the response minus the offset", {
   shifted <- d
   shifted$y <- d$y - d$o
   # RESET is the nested F test of the model with its offset (below), and the
-  # quantile regression test refuses a weighted fit.
-  for (fn in setdiff(context_runnable(), "performRESETTest")) {
-    fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else context_fits
+  # quantile regression test refuses a weighted fit. The tests computed from
+  # the fitted values, Spearman's, Cook-Weisberg's, the NCV, spread-level and
+  # Davidian-Carroll tests, read X b + o on a fit with an offset, and X b on
+  # the fit of y - o: another test. The variance form test refuses weights that
+  # did not come from fitWLS().
+  fitted_readers <- c("performSpearmanTest", "performCookWeisbergTest", "performNCVTest",
+                      "performSpreadLevelTest", "performDavidianCarrollTest")
+  for (fn in setdiff(context_runnable(), c("performRESETTest", fitted_readers))) {
+    fits <- if (identical(fn, "performQuantileRegressionTest")) {
+      "ols"
+    } else if (identical(fn, "performVarianceFormTest")) {
+      c("ols", "fitwls")
+    } else {
+      context_fits
+    }
     # Hartley's test and the group tests group by a variable the model frame
     # does not hold, the panel tests read identifiers it does not hold, and
     # the scatter diagnostic and runPanelTests() need `data`.
@@ -947,7 +968,10 @@ test_that("a term is the column it computes, taken from the fit", {
   d <- context_data()
   precomputed <- context_precomputed()$formulas
   for (fn in context_runnable()) {
-    fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else c("ols", "wls")
+    # The quantile regression test and the variance form test refuse a
+    # weighted fit.
+    single <- fn %in% c("performQuantileRegressionTest", "performVarianceFormTest")
+    fits <- if (single) "ols" else c("ols", "wls")
     for (fit in fits) {
       for (terms in names(precomputed)) {
         # cut() drops the row at the minimum of x1, and the panel of the fit
@@ -986,8 +1010,10 @@ test_that("a term is the column it computes, taken from the fit", {
 
 test_that("weights are the weights of the fit, whatever holds them", {
   d <- context_data()
-  # The quantile regression test refuses a weighted fit.
-  for (fn in setdiff(context_runnable(), "performQuantileRegressionTest")) {
+  # The quantile regression test refuses a weighted fit, and the variance form
+  # test weights that did not come from fitWLS().
+  for (fn in setdiff(context_runnable(),
+                     c("performQuantileRegressionTest", "performVarianceFormTest"))) {
     run <- function(m) context_run(fn, list(build = function() list(m = m, data = d)))
     wls <- run(context_model(d, "wls"))
     # Before 0.16.0 Fligner-Killeen's ranks tied at a group median on one fit
@@ -1707,4 +1733,195 @@ test_that("a fit with na.exclude is read by the panel tests as before", {
   set.seed(3)
   expect_error(performBPRandomEffectsTest(m, d[sample(nrow(d)), ], "id"),
                "are not in the order of the fit", class = "heteroTests_data_rows_error")
+})
+
+test_that("a second formula is read at the rows of the fit, not by position (B9)", {
+  # Increment 6. fitWLS() and the variance form test matched the rows of
+  # `data` to the fit by row name and, when no name matched and the counts
+  # agreed, took them by position, unchecked: on a tibble in another order
+  # than the fit they evaluated the variance formula on other rows and
+  # returned another value without an error (the variance form test with
+  # `var_formula = ~ z` 0.449 where the fit gives 0.00833, with
+  # `against = ~ z` 0.316 for 0.840, and fitWLS() the slope of x1 1.196 for
+  # 1.188). They read the variables at the rows the alignment confirmed, as
+  # Cook-Weisberg's test with `var_formula` does: named data in any order,
+  # numbered data in the order of the fit.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  m <- lm(y ~ x1 + x2, data = d)
+  set.seed(3)
+  perm <- sample(nrow(d))
+  calls <- list(
+    fitWLS = function(model, data) fitWLS(model, data, var_formula = ~ z),
+    var_formula = function(model, data) performVarianceFormTest(model, data, var_formula = ~ z),
+    against = function(model, data) performVarianceFormTest(model, data, against = ~ z),
+    cook_weisberg = function(model, data) performCookWeisbergTest(model, data, var_formula = ~ z)
+  )
+  numbers <- function(x) {
+    if (inherits(x, "lm")) c(coef(x), weights(x)) else c(unname(x$statistic), x$p.value)
+  }
+  expect_equal(unname(performVarianceFormTest(m, d, var_formula = ~ z)$statistic), 0.00832938,
+               tolerance = 1e-5)
+  expect_equal(unname(performVarianceFormTest(m, d, against = ~ z)$statistic), 0.839585,
+               tolerance = 1e-6)
+  expect_equal(unname(coef(fitWLS(m, d, var_formula = ~ z))[["x1"]]), 1.18803, tolerance = 1e-5)
+  # The complete rows of a fit that dropped rows, numbered again.
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  m_na <- lm(y ~ x1 + x2, data = d_na)
+  complete <- d_na[stats::complete.cases(d_na[, c("y", "x1", "x2")]), ]
+  renumbered <- complete
+  rownames(renumbered) <- NULL
+  reversed <- renumbered[rev(seq_len(nrow(renumbered))), ]
+  rownames(reversed) <- NULL
+  # A fit to repeated rows, whose tibble ties on every compared column: z is
+  # beyond the model frame, and could belong to other rows.
+  repeated <- d[c(seq_len(nrow(d)), 1:5), ]
+  m_repeated <- lm(y ~ x1 + x2, data = repeated)
+  for (nm in names(calls)) {
+    f <- calls[[nm]]
+    expected <- numbers(f(m, d))
+    expect_identical(numbers(f(m, d[perm, ])), expected, info = nm)
+    for (refused in list(dplyr::as_tibble(d)[perm, ], dplyr::arrange(d, x1), rbind(d[1:5, ], d))) {
+      expect_error(f(m, refused), "cannot match the rows of `data`",
+                   class = "heteroTests_data_rows_error", info = nm)
+    }
+    expect_identical(numbers(f(m_na, renumbered)), numbers(f(m_na, complete)), info = nm)
+    expect_error(f(m_na, reversed), class = "heteroTests_data_rows_error", info = nm)
+    expect_error(f(m_repeated, dplyr::as_tibble(repeated)),
+                 "tie on every column of the model frame that is compared",
+                 class = "heteroTests_data_rows_error", info = nm)
+  }
+})
+
+test_that("a variable of a second formula is not read from the workspace (R3)", {
+  # Decided on 2026-10-16 (decision 9). Before 0.16.0 a variable that neither
+  # `data` nor the model frame held was found in the environment of the
+  # formula, the workspace, whatever the order of its values: with
+  # zz <- rev(d$z), Cook-Weisberg's test without `data` returned 5.521
+  # (p = 0.0188), the variance form test 1.143 (p = 0.287) with
+  # `var_formula = ~ zz` and 2.114 (p = 0.149) with `against = ~ zz`, and
+  # fitWLS() its weights; with `data` that lack zz, all but Cook-Weisberg's
+  # test did the same. Without `data` they are refused with M1, and with it
+  # with the message of `data`, as Cook-Weisberg's test refused it.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  m <- lm(y ~ x1 + x2, data = d)
+  zz <- rev(d$z)
+  calls <- list(
+    cook_weisberg = function(data) performCookWeisbergTest(m, data, var_formula = ~ zz),
+    ncv = function(data) suppressWarnings(performNCVTest(m, data, var_formula = ~ zz)),
+    fitWLS = function(data) fitWLS(m, data, var_formula = ~ zz),
+    fitWLS_power = function(data) fitWLS(m, data, var_formula = ~ zz, form = "power"),
+    var_formula = function(data) performVarianceFormTest(m, data, var_formula = ~ zz),
+    against = function(data) performVarianceFormTest(m, data, against = ~ zz)
+  )
+  for (nm in names(calls)) {
+    expect_error(calls[[nm]](NULL),
+                 "The following variables are missing from the model frame of `model`: zz.",
+                 fixed = TRUE, class = "heteroTests_model_context_error", info = nm)
+    expect_error(calls[[nm]](NULL), "not from the workspace", fixed = TRUE, info = nm)
+    expect_error(calls[[nm]](d), "The following variables are missing from input data: zz.",
+                 fixed = TRUE, info = nm)
+  }
+  # Given as a column of `data`, it is read at the rows of the fit: the value
+  # the workspace gave, whose values were in the order of the fit.
+  dz <- d
+  dz$zz <- zz
+  expect_equal(unname(performCookWeisbergTest(m, dz, var_formula = ~ zz)$statistic), 5.521162,
+               tolerance = 1e-6)
+  expect_equal(unname(performVarianceFormTest(m, dz, var_formula = ~ zz)$statistic), 1.142589,
+               tolerance = 1e-6)
+  # A variable the model frame holds under its own name is read from it, and
+  # the functions of the formula from its environment.
+  expect_identical(performCookWeisbergTest(m, var_formula = ~ x1)$statistic,
+                   performCookWeisbergTest(m, d, var_formula = ~ x1)$statistic)
+  expect_identical(coef(fitWLS(m, var_formula = ~ log(x1) + I(x2^2))),
+                   coef(fitWLS(m, d, var_formula = ~ log(x1) + I(x2^2))))
+})
+
+test_that("the tests computed from the model alone refuse a stale model frame (N6)", {
+  # Increment 6. A fit with model = FALSE rebuilds its model frame from the
+  # data it was fitted on; reordered after the fit, the rebuilt frame no longer
+  # holds the response of the fit. RESET read it until increment 2; the tests
+  # computed from the model alone read it, or ignored it, and returned a
+  # value: Harvey's test on the design of the reordered data, 3.022 where the
+  # fit gives 11.984, the variance form test 1.289 for 1.845, and fitWLS()
+  # refitted the reordered response (the slope of x1 1.009 for 0.869); the
+  # others the value of the fit. They refuse it now, with or without `data`, as
+  # every test built on the context does.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  env <- new.env()
+  assign("changed", d, envir = env)
+  m <- eval(quote(lm(y ~ x1 + x2, data = changed, model = FALSE)), env)
+  recipes <- context_recipes()
+  fns <- c(names(context_model_alone), context_second_formula)
+  run <- function(fn, data) suppressWarnings(recipes[[fn]](m, data))
+  fresh <- lapply(stats::setNames(fns, fns), function(fn) run(fn, d))
+  expect_equal(unname(fresh$performHarveyTest$statistic), 11.98384, tolerance = 1e-6)
+  expect_equal(unname(fresh$performVarianceFormTest$statistic), 1.844774, tolerance = 1e-6)
+  assign("changed", d[order(d$x1), ], envir = env)
+  stale <- "cannot use the model frame of `model`: the model was fitted with `model = FALSE`"
+  for (fn in fns) {
+    for (data in list(NULL, d)) {
+      expect_error(run(fn, data), stale, fixed = TRUE, class = "heteroTests_data_rows_error",
+                   info = fn)
+    }
+  }
+  registry <- heteroTests:::.diagnostic_registry
+  for (name in c("cook_weisberg", "ncv", "spread_level", "variance_form")) {
+    expect_error(get(name, envir = registry)(m, NULL), stale, fixed = TRUE, info = name)
+  }
+  expect_error(runTimeSeriesTests(m, lags = 2), stale, fixed = TRUE)
+  expect_error(
+    suppressWarnings(runHeteroTests(m, tests = "cook_weisberg", use_cache = FALSE,
+                                    progress = FALSE)),
+    class = "heteroTests_data_rows_error"
+  )
+  # Restored, the frame holds the fit again, and the values are those of
+  # before.
+  assign("changed", d, envir = env)
+  for (fn in fns) {
+    context_same(run(fn, d), fresh[[fn]], fn)
+  }
+})
+
+test_that("a variable of var_formula missing at an observation of the fit is named", {
+  # Cook-Weisberg's test with `var_formula` dropped the incomplete rows of
+  # `data`, with the warning "Removed N observations due to missing values in
+  # z", and then lacked a row of the fit. It still gives the warning and
+  # refuses such a value, and names the variable (decision 8); a value
+  # missing at a row the fit dropped is not read. fitWLS() and the variance
+  # form test refuse it, as before, with their message.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d$z[5] <- NA
+  m <- lm(y ~ x1 + x2, data = d)
+  expect_warning(
+    expect_error(performCookWeisbergTest(m, d, var_formula = ~ z),
+                 "Missing rows: 5, where z, the `var_formula` variable, is missing.", fixed = TRUE),
+    "Removed 1 observations due to missing values in z", fixed = TRUE
+  )
+  expect_error(fitWLS(m, d, var_formula = ~ z),
+               "`var_formula` produced missing or non-finite values on the fitted rows.",
+               fixed = TRUE)
+  expect_error(performVarianceFormTest(m, d, against = ~ z),
+               "`against` produced missing or non-finite values on the fitted rows.", fixed = TRUE)
+  dropped <- context_data()
+  dropped$x2[c(3, 7, 11)] <- NA
+  dropped$z[7] <- NA
+  m_dropped <- lm(y ~ x1 + x2, data = dropped)
+  expect_warning(out <- performCookWeisbergTest(m_dropped, dropped, var_formula = ~ z),
+                 "Removed 1 observations due to missing values in z", fixed = TRUE)
+  complete <- dropped[stats::complete.cases(dropped[, c("y", "x1", "x2")]), ]
+  expect_identical(
+    out$statistic,
+    performCookWeisbergTest(lm(y ~ x1 + x2, data = complete), complete, var_formula = ~ z)$statistic
+  )
 })

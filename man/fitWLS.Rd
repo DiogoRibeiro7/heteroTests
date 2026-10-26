@@ -16,8 +16,14 @@ fitWLS(
 family and the identity link.}
 
 \item{data}{Optional \link[base:data.frame]{base::data.frame} holding the variables named in
-\code{var_formula}. It is needed only when they are not in the model frame, and
-is matched to the fitted rows by row name.}
+\code{var_formula}. It is needed only when they are not in the model frame.
+Since 0.16.0 its rows are matched to the observations of the fit as the
+tests that read \code{data} match them, data with row names of their own in any
+order and data that number their rows (a tibble) in the order of the fit,
+and other data are refused, where numbered data in another order were read
+by position. A variable of \code{var_formula} that neither \code{data} nor the model
+frame holds is refused, where it was found in the workspace. Without
+\code{var_formula}, \code{data} is not read.}
 
 \item{var_formula}{One-sided formula naming the variance regressors, for
 example \code{~ x}. \code{NULL}, the default, uses the regressors of \code{model}.}
@@ -107,7 +113,13 @@ offset was given as an argument, \code{lm(..., offset = o)}, or written in the
 formula, \code{offset(o)}. Its coefficients, fitted values and residuals are
 those \code{lm()} returns for the same call with the estimated weights added.
 On a model fitted with weights, the refit uses the estimated weights in
-their place, and \code{weights()} of the result returns them.
+their place, and \code{weights()} of the result returns them. Since 0.16.0 the
+response, the design and the offset are read from the fit, as the tests read
+them, and a fit with \code{model = FALSE} whose model frame, rebuilt from the data
+it was fitted to, no longer holds its response, because those data changed
+after the fit, is refused, where it was refitted to the response of the
+changed data; a fit with \code{model = FALSE} whose data are gone is refitted
+from \code{data} that give its response and fitted values.
 
 A \code{glm} with the Gaussian family and the identity link is a least-squares
 fit, with the design and residuals of the \code{lm}, and since 0.16.0 the result
