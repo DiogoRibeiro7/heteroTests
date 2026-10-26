@@ -1,6 +1,93 @@
 # heteroTests News
 
-## Development version
+## 0.16.0
+
+0.16.0 moves the tests onto a model context and corrects the statistics found
+wrong on the way to 1.0.0. In the first seven of the eleven steps of the model
+context the tests of a model, but the resampling tests, read the response, the
+design, the residuals, the weights, the offset and the rank from one internal,
+validated object per call, built from the stored fit, and match the rows of
+`data` to the observations of the fit before they read anything from them,
+named data in any order and numbered data in the order of the fit, where they
+rebuilt the design from `data` or read `data` by position (*The model
+context*; the other four steps are planned for 0.17.0). White's test takes its
+degrees of freedom from the rank of its auxiliary regression with the
+intercept and refuses one that fits the squared residuals exactly; the caches
+follow a contract, set out on `?cachedTest`; `print()` and `summary()` of the
+results of `runHeteroTests()` lay them out as `summary.lm()` does; the
+streaming tests run only when asked for; White's, Koenker's and the
+Breusch-Pagan tests warn on fixed effects for small groups; and the
+Fligner-Killeen, Box's M, Szroeter, Pesaran and quantile regression tests,
+`runAdvancedDiagnostics()`, the Szroeter entry of `test_factory` and the
+advice for a small sample are corrected. No export or argument changes; the
+default of `chunk_threshold_mb` becomes `Inf`, and eight S3 methods are added
+for the suites. The documentation site moves to Material for MkDocs, and CI
+runs the suite once per job and the full matrix of the model context in one
+job.
+
+The changes in bold change what calls return. Through the model context a term
+computed from all the rows of the data, such as `I(x > median(x))` or
+`cut(x, quantile(x))`, is tested as the fit computed it, in every chunk of the
+streaming tests too; on a model with an offset the studentized Breusch-Pagan
+statistic, Goldfeld-Quandt and the quantile regression test give the value of
+that model, and RESET the nested F test of it; Goldfeld-Quandt and the
+quantile regression test fit the design of the fit; Harrison-McCabe takes the
+rank of the fit, at its tolerance; the tests that read a column of `data`
+beyond the model match a `gam` to its data by row name; the panel tests and
+the scatter diagnostic match `data` by name, and the random-effects test and
+the scatter diagnostic give the value of a fit that dropped rows; the tests
+computed from the model alone match `data` as every other test does, and a
+second formula is evaluated on the rows of the fit, its variables never read
+from the workspace; without `data`, `runHeteroTests()` runs White's and
+Koenker's tests on a fit whose weights or offset are a column of the data; the
+registered `"szroeter"` orders a `gam` with an `offset` argument by its fitted
+values with the offset, and `runHeteroTests(tests = "spatial_hetero")` runs on
+data it stopped on; and the tests refuse a fit whose coefficients, residuals
+or weights were changed after it was fitted, a fit with `model = FALSE` whose
+data changed after the fit, or are gone and are not given in a `data` that
+holds its rows, a multivariate `lm` in RESET and the Davidian-Carroll test, a
+fit with smooth terms in RESET, Goldfeld-Quandt, the quantile regression test
+and the studentized statistic, a fit whose model frame cannot be rebuilt under
+its levels in `bootstrapTestStatistic()` and the robust tests with
+`bootstrap = TRUE`, and a repeated pair of `id` and `time` in Pesaran's test,
+where they returned a value. Of the models the tests accept, a rank-deficient
+fit is tested on the estimable part of its design; a Gaussian `glm` with a
+zero prior weight, and a near-perfect one, are refused as the same `lm`;
+`performWhiteTestStreaming()`, `performHarrisonMcCabeTest()` and
+`performVarianceFormTest()` accept a Gaussian `glm` with the identity link;
+`fitWLS()` refits one as the `lm` it is and refuses any other `glm`;
+`performScatterDiagnostic()` refuses a `glm` that is not a least-squares fit
+and data that lack a variable of the model; the registry name `"ncv"` checks
+the data it is given; `runHeteroTests()` on a tidymodels workflow without
+`data` runs the tests on the model frame of the engine's fit; and the calls
+that go through the tests change with them. White's test counts one degree of
+freedom fewer where its auxiliary columns span the constant, keeps the columns
+`lm()` keeps on a nearly collinear auxiliary design, no longer depends on
+where its regressors are located, and refuses an auxiliary regression that
+fits the squared residuals exactly, where it returned the number of
+observations. A cached result is the result of its own call; the checks of the
+model are those of the model; a test that draws random numbers is never
+cached, and the check of normality draws its sample on every call;
+`runHeteroTests()` stores no call that fell back on a diagnostic the caches
+may not hold, and returns with the cache the suite it returns without it; and
+the names of the estimates of the quantile regression test do not depend on
+the options. `runHeteroTests()` runs the exact tests on data of any size by
+default. White's, Koenker's and the Breusch-Pagan tests warn when a term of
+the model that holds a factor has more levels than observations per level,
+with their values unchanged. And of the single tests, `performPesaranTest()`
+computes the statistic of an unbalanced panel from the periods each pair of
+units shares, as `plm::pcdtest()` does; `performFlignerKilleenTest()` ranks
+the deviations of repeated observations as tied, as in exact arithmetic;
+`performBoxMTest()` applies Box's correction factor with three groups or more,
+drops a level of `group` with no observation, and refuses a group with no more
+observations than variables, a group whose covariance matrix is singular and
+data with fewer than two groups; `performSzroeterTest()` takes the null mean
+and variance of its statistic from the design of the fit, and refuses a fit
+with one residual degree of freedom; the Breusch-Pagan entry of
+`runAdvancedDiagnostics()` is Koenker's studentized statistic with
+`auto_enhance = FALSE`, and `tests = "bp"` runs it; and
+`performQuantileRegressionTest()` gives a value on a model with a single
+regressor.
 
 ### Pesaran's test on an unbalanced panel
 
