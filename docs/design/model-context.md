@@ -48,8 +48,12 @@ tests computed from the model alone, `performSpearmanTest()`,
 that it refuses a stale `model = FALSE` frame (N6); a second formula,
 `var_formula` or `against`,
 evaluated on the rows the alignment confirmed (B9), its variables never read
-from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increments 7
-to 11 are planned; see [Migration plan](#migration-plan).
+from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increment 7 is
+in 0.16.0 too: the three streaming tests, `performWhiteTestStreaming()`,
+`performBPTestStreaming()` and `performKoenkerTestStreaming()`, built on it,
+reading the stored design chunk by chunk (`rstreaming_design()`, in
+`R/performance.R`). Increments 8 to 11 are planned; see
+[Migration plan](#migration-plan).
 
 ## The problem
 
@@ -144,7 +148,10 @@ guard as its alignment step and removes the rebuilding behind it.
   `heteroTests_model_context_error`): it is not the least-squares fit of its
   design, which they fit again. The five of increment 1, the six of
   increment 3, the five of increment 4, the three of increment 5 and the nine
-  of increment 6 test it as before 0.16.0, and
+  of increment 6 test it as before 0.16.0, and so do the three streaming tests
+  of increment 7, on the design of the variables of its formula, which its
+  model frame holds, not on its stored design, the basis of its smooths
+  (below), and
   increment 11 settles it for every test (decision 23). The residuals of a
   `gam` carry no names; its
   observations are those of the row names of its model frame
@@ -274,7 +281,7 @@ seen by any alignment (N16).
 | M2, M4 | rows of the fit absent; another number of rows | `rstop_data_rows()`, today's text ("requires `data` to contain the rows used to fit the model. Missing rows: ...") |
 | M7 | a multivariate `lm` | "performKoenkerTest() needs a model with one response; `model` has 2." |
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
-| frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..." |
+| frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..."; since increment 7, for `data` that lack rows named as the observations of the fit, as the tibble of a fit to named data does, "..., and the rows of `data` cannot be matched to the observations of the fit: `data` has no rows named Mazda RX4, Mazda RX4 Wag, Datsun 710. ..." |
 | R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more". On the positional reading of a fit with `na.exclude` the checks run on the rows of `data`, so a refusal can name a row the fit dropped: with `d$time[2] <- 1L` and `d$x2[2] <- NA` this message counts row 2 among the "observations of the fit", and with `d$time[3] <- NA` and `d$x2[3] <- NA` the refusal of a missing period says "Missing rows: 3", a row the fit did not use. Both refusals are right: the matrix would hold those rows, with `NA` residuals |
 | N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28): on every route in increment 5; since the pull request of N12, which computes the statistic of an unbalanced panel, on the positional reading of a fit with `na.exclude` only, until increment 9 | Increment 5: "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." Since the pull request of N12: "performPesaranTest() reads a fit with na.action = na.exclude by position, on a matrix of periods by units, and needs a balanced panel, every unit observed at the same periods; the panel of the rows of `data` is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. Refit the model with na.action = na.omit: the statistic of an unbalanced panel is then computed from the periods each pair of units shares, as plm::pcdtest() computes it." And, on any route, a panel in which no pair of units shares two periods: "performPesaranTest() needs a pair of units observed together at two periods or more, and no pair of the 6 units of the fit shares more than one period. ..." |
 
@@ -306,8 +313,9 @@ For the functions built on the context, in increment 1:
   the fit"), as it was refused before with "factor has new levels". The
   streaming tests, which `runHeteroTests()` runs in their place only when a
   finite `chunk_threshold_mb` asks for them (decision 27; up to 0.15.0 the
-  runner and the exact tests switched to them above 100 MB), still rebuild the
-  design chunk by chunk until increment 7.
+  runner and the exact tests switched to them above 100 MB), rebuilt the
+  design chunk by chunk until increment 7, which builds them on the context
+  (below).
 - **Values that change.** A term computed from all the rows of the data on a
   fit that dropped rows, such as `I(x1 > median(x1))` with `na.omit`, is
   tested on the design of the fit instead of a rebuilt one (B5). Without
@@ -496,7 +504,7 @@ For the functions built on the context in increment 3:
 - **Still matched by position** (N17): the group tests until increment 4
   (below), Pesaran and the random-effects test (5), the three streaming tests
   (7) and the replicates of the White bootstrap (8) on a `gam` given data in
-  another order; each is closed by its increment.
+  another order; each is closed by its increment (the streaming tests, below).
 
 For the functions built on the context in increment 4:
 
@@ -772,6 +780,96 @@ For the functions built on the context in increment 6:
   nine; and every message the test suite pins ("`data` in f() must be a data
   frame or NULL." among them).
 
+For the functions built on the context in increment 7:
+
+- **What the change reaches.** `performWhiteTestStreaming()`,
+  `performBPTestStreaming()` and `performKoenkerTestStreaming()`, and
+  `runHeteroTests()` and `runDiagnostics()` with a finite
+  `chunk_threshold_mb`, which run them in place of the exact tests, and their
+  fallbacks on one another (decision 27). The three build the context, read
+  the Pearson residuals and the weights from the fit, and read the rows of the
+  stored design chunk by chunk (`rstreaming_design()`, `R/performance.R`): the
+  design of the fit without its aliased columns (`rcontext_design()`), as the
+  exact tests read it whole. Up to 0.16.0 each chunk built its own design from
+  the formula, on its rows of `data`, through the `predvars` of the terms.
+  The design is held whole, as by the exact tests and as the model frame is;
+  what the streaming spares is the auxiliary design, built chunk by chunk,
+  with 2p + p(p - 1)/2 columns for White's test. They read no column of
+  `data` beyond the model frame: they pass no `reads`, and data in the order
+  of the fit whose rows tie are taken.
+- **The accepted path is unchanged.** `chunked_regression_r2()` still
+  accumulates the cross-products of each chunk in the order of the chunks and
+  decides the rank of the auxiliary regression by `qr()` of the uncentred
+  cross-products and fits it by `solve()`, so where the chunks built before
+  the rows of the design the fit built, the value is `identical()` to before;
+  the refused regression keeps the centred cross-products of #151
+  (`rcentred_cross_fit()`). White's streaming test on collinear terms of its
+  auxiliary regression, the squares of dummies or of an orthogonal `poly()`
+  basis, still stops, which is N3, a pull request of its own (decision 22).
+- **Values that change** (B6, B5). A term computed from the rows it is given,
+  in chunks smaller than the data: on the term cell of the matrix,
+  `y ~ I(x1 > median(x1)) + x2`, the Breusch-Pagan test gave 11.375 in chunks
+  of 7 and 12.344 in chunks of 40, and Koenker's 8.165 and 8.861, where the
+  fit gives 12.901 and 9.260; on a fit that dropped rows (`missing/median_full`),
+  where the one chunk computed the median of the rows the fit kept, 13.345,
+  12.299 and 5.746 in chunks of 10,000, 40 and 7 for 12.464, and 9.276, 8.549
+  and 3.994 for 8.664. Each new value equals the same fit with the column
+  computed beforehand, to `1e-10`, and the exact test, to `1e-8`. N17: a
+  `gam` given its data in another order under their own row names, which each
+  chunk read by position: White's streaming test 8.887 for 11.145, the
+  Breusch-Pagan test 6.759 for 12.448 and Koenker's 4.910 for 9.044, the
+  values of the data in the order of the fit.
+- **Errors that become values**: `cut(x1, quantile(x1))`, which took the
+  breaks of each chunk and of the rows of the fit, which dropped the row at the
+  minimum of `x1`, and stopped with "factor ... has new levels" in chunks of
+  any size (N7): the Breusch-Pagan test 12.425 and Koenker's 10.052 on 4
+  degrees of freedom, the values of the exact tests; transformed variables and
+  `offset()` terms without `data` (L1), the model frame of such a fit as
+  `data` (L2), the complete rows of an `na.omit` fit renumbered and the tibble
+  in fit order of a fit to character-named data (B14). B12 and B15 gave values
+  already: the three read the weights from the fit, and matched the rows of a
+  subset by name.
+- **Messages.** M7 for a multivariate `lm`, where they stopped with "'length =
+  4' in coercion to 'logical(1)'"; the frame message for a `model = FALSE` fit
+  whose data are gone, without `data`, where they stopped with "Expected a
+  data.frame for input data"; White's streaming test on `cut()`, the refusal
+  of its collinear auxiliary terms, where it stopped on the new levels. And,
+  for every test built on the context, a `model = FALSE` fit whose data are
+  gone, to data with row names of their own, given numbered data that lack
+  those names, such as the tibble of `mtcars`: the frame message says that
+  the rows of `data` cannot be matched to the observations of the fit and
+  names the rows `data` lacks (`rcontext_frame_from_data()`), where it said
+  that `data` does not give the response and the fitted values of the fit,
+  and the streaming tests said "Missing rows".
+- **New refusals**, announced in bold (decision 14): a fit whose coefficients,
+  residuals or weights were changed after it was fitted (M8), from which they
+  computed the values of the fit before the edit (White's streaming test
+  11.145 on the cell `class/edited`, 11.82 on `mtcars`), and a fit with
+  `model = FALSE` whose data are gone, given a shuffled tibble ("frame"), from
+  which they computed the values of other rows (8.887 for 11.145); and the
+  runner that streams them, which keeps the refusals final (decision 6).
+- **A `gam` with smooth terms.** Its stored design is the basis of its smooths
+  (`model.matrix()` of a `gam`), on which the exact tests test it. The streaming
+  tests built the design of each chunk from its `terms`, those of the
+  variables of its formula, and so tested it on `[1, x1, x2]` for
+  `y ~ s(x1) + x2`: they keep that design, built from its model frame, so
+  that its values are those of before (Breusch-Pagan 11.185 and Koenker 8.537
+  on 2 degrees of freedom on the cell `class/gam_smooth`, where the exact
+  tests give 23.995 and 18.313 on 10), until increment 11 settles which tests
+  take such a fit, as decision 23 provides for every test outside increment 2
+  (the review of increment 7 agreed). Reading the stored design would give
+  the exact tests' values for the Breusch-Pagan and Koenker tests and make
+  White's streaming test refuse the collinear terms of the basis (N3), and
+  refusing the fit, as the tests of increment 2 do, would be new refusals.
+- **Unchanged**: every other value on valid calls; the zero-weight refusals
+  and the refusals of the guard; a fit with `na.action = na.exclude`, refused
+  as before ("Model residuals must be finite"), until increment 9; and the
+  refusal of a regression of squared residuals that do not vary, "requires
+  variation in squared residuals", decided against the absolute threshold
+  `.Machine$double.eps` on their total sum of squares, which refuses residuals
+  of about `1e-5` that the exact tests take (outside the context, an open
+  item of ROADMAP.md).
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -787,7 +885,7 @@ migrations that keep every value, then the riskier resampling and
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go; the observations with a missing group left out with their warning, as before (`rcontext_group_rows()`) | the character-named fit with its tibble and the complete rows renumbered (B14); R7; L1, L2, M1 for `group`; N17 for these (B12 and B15 gave values already) | **Done, 0.16.0** |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29) | **Done, 0.16.0** |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)`: `rcontext_second_formula()`, `rcontext_formula_rows()`; `rvariance_frame()` goes. The tests that read nothing from `data`, RESET included, match it through the guard, as every test does (decision 31): the check of 0.15.0 goes, but for its check of the type of `data` | B9, R3, N6; M7, M8 and "frame" for these; decision 31 | **Done, 0.16.0** |
-| 7 | The three streaming tests, chunk by chunk from the stored design | B6; B12, B14, L1 for these | Planned |
+| 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design: `performWhiteTestBootstrap()`, whose observed statistic and replicates move together, and `rwhite_test_rebuilt_design()`, which keeps them on the rebuilt design until then, goes; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`, which refuse a fit whose frame cannot be rebuilt from `data` until then | B12 for replicates, N8 | Planned |
 | 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned |
 | 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()` and the copies of the old preparation go | B11, N5 | Planned |
@@ -1119,6 +1217,65 @@ Against `main` before #159 (0fb5138), on the corpus of increment 5: 22,542
 calls, 22,473 identical, 69 allowed, the same changes on 23 cells, and 0
 unexpected.
 
+Increment 7 adds the routes of the three streaming tests to the corpus: their
+recipes of `helper-test-recipes.R`, in one chunk of 10,000 observations,
+which the earlier increments ran unchanged, the same tests in chunks of 7 and
+of 40 (`identity_streaming_chunked`), and `runHeteroTests()` with the three
+asked for on data of any size, `chunk_threshold_mb = 0`, in chunks of 10,000
+and of 7 (`identity_streaming_runners`), on every cell, among them reordered
+data, rows after those of the fit, the `gam` fits, the Gaussian `glm`, the
+weighted fits and the `model = FALSE` fits; and the examples of their three
+help pages. No cell is added: the cells of B6 are the term cells of
+`I(x1 > median(x1))` and `cut(x1, quantile(x1))`, tagged `B6`
+(`context_cell_defects()`), and `missing/median_full`. The allow-list gains B6
+for these calls (values that change, and errors that become values), and N17,
+"frame" and M8 are scoped to them; the defects of the cells that concern
+every test built on the context (B5, B12, B14, B15, L1, L2, N7, R4) apply to
+them as to the others. Three rules are added. White's streaming test, on a
+cell of collinear terms (`context_white_streaming_collinear`) where it
+stopped before its auxiliary regression (L1, L2, N7, B6), may stop on those
+terms (N3, outside the context; `identity_defects()`). On a `poly()` term
+main has no stored-design value of the streaming tests, whose chunks computed
+the basis again by the recurrence of the `predvars` of the terms, where the
+design of the fit holds the basis `poly()` computed by its QR decomposition,
+so a value can change in its last bits; the branch must equal main to `1e-12`
+relative, as Goldfeld-Quandt's segments, where both ran the same tests
+(`identity_same_tests()`). Of the 128 such calls, 8 of Goldfeld-Quandt and
+120 of the streaming tests, 77 stop as on `main`, 72 of them refusals of
+collinear terms by White's streaming test, and the 51 with a value, 48 of the
+streaming tests, are `identical()` to `main`; in 621 calls of the review of
+this increment, on other designs, 38 `poly()` values changed, by at most
+9.9e-14 relative (`performBPTestStreaming(lm(y ~ poly(x1, 2) + x2, d), d)`
+156.20252285478642 on `main` and 156.20252285478654). And a runner entry
+that runs the test it names where `main` ran a fallback carries the data.name
+of that test, the formula of the model (`identity_data_name_change()`).
+
+Increment 7, against `main` with increment 6 (e05a568): 33,339 calls on 361
+cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
+N2 and the examples of thirty-nine help pages, of which 32,577 identical, 762
+allowed changes (378 errors that become values, 184 values that change, 145
+messages, 55 new refusals) and 0 unexpected, every one of them a call of the
+three streaming tests or of the runner that streams them; of the 4,117
+streaming calls, 3,355 are `identical()` to `main`. The 562 changes to a value
+are each verified against a reference: 432 against the call on the cell they
+reproduce, 26 against the fit with the column of the term computed
+beforehand, and 104 through both. The 184 values that change are 66 of the
+tests themselves, B6 and B5 on the cells of the median in chunks of 7 and 40
+and on the fit that dropped rows, and N17 on the `gam` fits given their data
+shuffled, and 118 of the runner, which put a fallback under the names of the
+tests where they stopped (White's test without cross products, the NCV test
+under `breusch_pagan` and `koenker`) and runs them; the 55 new refusals are
+those of the edited fit (M8, 44) and of the `model = FALSE` fit given a
+shuffled tibble ("frame", 11). Of the 145 messages, 81 are the refusal of
+collinear terms by White's streaming test (N3), 55 M7 and 9 the frame
+message. The 536 `poly()` calls that `main` computes on the stored design are
+`identical()` to it, and the warnings are those of `main` on every call.
+Against `main` before increment 6 (0fb5138), on 356 cells: 25,497 calls,
+24,735 identical, the same 762 allowed (386 errors that become values, 176
+values that change) and 0 unexpected; the 8 calls that differ in kind are the
+runner on numbered data in the order of the fit (B14), which stopped there
+and, with decision 31, puts the NCV fallback under the names of the tests.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -1168,11 +1325,16 @@ the span of the regressors, and a positive response `ypos`.
   the block of panels, and the fits to the complete rows of a fit that dropped
   rows with an indicator computed beforehand and of a model of the group; and
   (increment 6) the cells of the stale and kept `model = FALSE` frames and of
-  a missing `z`: 361 cells, run through each of the thirty-three functions,
-  with `B = 19` for the resampling test, and through the five calls of a
-  second formula (`context_second_formula`: Cook-Weisberg with
+  a missing `z`: 361 cells, run through each of the thirty-six functions, the
+  three streaming tests of increment 7 among them, in one chunk of 10,000
+  observations, with `B = 19` for the resampling test, through the five calls
+  of a second formula (`context_second_formula`: Cook-Weisberg with
   `var_formula = ~ z`, the variance form test with `var_formula = ~ z` and
-  `against = ~ z`, `fitWLS()` with and without `var_formula = ~ z`).
+  `against = ~ z`, `fitWLS()` with and without `var_formula = ~ z`), and, in a
+  test of their own, through the streaming tests in chunks of 7
+  (`context_streaming_recipes()`), where White's streaming test refuses the
+  collinear squares of a dummy, of `poly()` and of `x1` beside `I(x1^2)`
+  (`context_cell_for_streaming()`).
   Where a test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
   a test that reads a variable the model frame does not hold (`context_reads`:
@@ -1234,6 +1396,7 @@ the span of the regressors, and a positive response `ypos`.
 | the tests computed from the model alone (increment 6) | numbered data in another order, rows in front of those of the fit and repeated row names refused by the guard, named data in any order and the complete rows of a fit that dropped rows, numbered again, `identical()` to the data frame of the fit (decision 31); a stale `model = FALSE` frame refused by the nine, RESET, `fitWLS()`, the registered names and `runTimeSeriesTests()`, with and without `data`, and the values of before once the frame is restored; a fit whose data are gone tested on its data, in fit order and shuffled under their row names, `identical()` to the fit with its frame |
 | a second formula (increment 6) | `var_formula = ~ z` and `against = ~ z` on named data shuffled `identical()` to the data frame; numbered data in another order, rows in front and the tibble of a fit to repeated rows refused by the guard; the complete rows numbered again `identical()` to the fit to the complete rows; a variable of the workspace refused (M1, the message of `data`), and given as a column of `data` the value it gave from the workspace; a variable of the model read from the model frame and the functions of the formula from its environment |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
+| the streaming tests | in chunks of 7, 40 and 10,000, a term computed from its rows (`I(x1 > median(x1))`, `cut(x1, quantile(x1))`, and the median of a fit that dropped rows) against the same column computed beforehand, to `1e-10`, and against the exact test, to `1e-8`; in chunks of 7, 25, 119, 120 and 10,000, the exact test on unweighted, weighted, Gaussian `glm`, offset, `log()` and rank-deficient fits, to `1e-8` (`test-streaming.R`); on a `gam` with smooth terms, the Breusch-Pagan and Koenker statistics written out on the variables of its formula, to `1e-8`; the refusals of the context final in the runner that streams them |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
@@ -1256,38 +1419,38 @@ that fixes each.
 | --- | --- | --- |
 | B1, B2 | Numbered data in another order, or with rows in front | Refused since 0.15.0; stays refused (decision 3) |
 | B3, B4 | The panel tests and the scatter diagnostic read `data` by position | Refused since 0.15.0; fixed in increment 5: they match the rows by name, by number or in fit order |
-| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five, in increment 2 for its four; the others follow their increments |
-| B6 | Streaming evaluates terms per chunk | Increment 7 |
+| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests; the others follow their increments |
+| B6 | Streaming evaluates terms per chunk | Fixed in increment 7: the chunks are rows of the stored design |
 | B7 | Offsets left out of a refit | Refused by #134; fixed in increment 2 |
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
 | B9 | A second formula matched by position | Fixed in increment 6: `var_formula` and `against` are evaluated on the rows the alignment confirmed (`rcontext_formula_rows()`); `rvariance_frame()` is gone |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
-| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; the group tests of increment 4 gave values already; replicates in increment 8 |
+| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; the group tests of increment 4 and the streaming tests of increment 7 gave values already; replicates in increment 8 |
 | B13 | `na.exclude` | Increment 9 |
-| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic |
-| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3 and the five of increment 4 gave values already |
+| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests |
+| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3, the five of increment 4 and the streaming tests of increment 7 gave values already |
 | B16 | The panel tests on a fit that dropped rows | Fixed in increment 5 for the random-effects test and the scatter diagnostic; Pesaran's test reaches the panel of the fit, which is unbalanced unless every row of a unit was dropped, and refused it (N12, decision 28) until the pull request of N12, since which it gives the value of the fit to the complete rows |
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Refused by Pesaran's test since increment 5 (decision 13); the random-effects test reads no period |
 | R3 | `var_formula` variables from the workspace | Refused since increment 6 (decision 9), with or without `data`, and the variables of `against` too |
-| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests, in increment 5 for the panel tests and the scatter diagnostic |
+| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five, in increment 4 for the group tests |
-| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1) |
+| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1), in increment 7 for the streaming tests |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2 | White's degrees of freedom when the auxiliary columns span the constant | Fixed in 0.16.0 by a separate pull request (decision 22): the rank of the auxiliary design with its intercept, minus one, as `lmtest::bptest()` with the same terms; the harness allows the changes on the cells where main's count was wrong (the `poly()` fits, and the `gam` with a smooth term, whose auxiliary regression lost a column to its intercept and whose statistic changes by 0.28%) and verifies each against White's test written out (`identity_white_by_hand()`). Its follow-up (decisions 25 and 26) decides the rank on the auxiliary design of the centred regressors, refuses an auxiliary regression that fits the squared residuals exactly, saturated or not, and fits it with `lm.fit()`; the harness runs cells of its own for them, checks every number of a changed result, and requires the refusal on the exact fits |
 | N3 | White streaming on collinear terms | A separate pull request (decision 22) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET, in increment 6 for the other tests computed from the model alone and `fitWLS()` |
-| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four |
+| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests, in chunks of any size (B6) |
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
 | N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refused an unbalanced panel. Fixed by the pull request of N12, which removes the refusal: the statistic of an unbalanced panel is computed from the periods each pair of units shares, as `plm::pcdtest(test = "cd")` computes it (Pesaran 2004, Section 9, equation 31), `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, `rho_ij` the correlation of the residuals of units `i` and `j` over the `T_ij` periods both are observed at, each centred at its mean over them, over the `P` pairs with `T_ij >= 2` (`N (N - 1) / 2` when every pair has); a pair with `T_ij < 2` is left out with a warning, as plm leaves it out, and a panel without such a pair is refused; a correlation that is not defined, a unit constant over the periods of a pair, adds nothing and the pair stays in `P`, with a warning, as on a balanced panel, where plm returns `NA`; -0.373 on that panel, and plm's value to `1e-10` on 252 panels of 5 to 30 units and 4 to 12 periods, 228 of them unbalanced (late entry, early exit, gaps, 1 to 20 rows missing at random, a unit observed once), by an `lm`, a weighted `lm` and a Gaussian `glm`, weighted or not, directly, on the full data of a fit with `na.omit` and through `runPanelTests()`: 5,040 comparisons, the largest difference 3.6e-15 on the statistic, and on the cells of the matrix (below). A balanced panel keeps the matrix of periods by units, every value `identical()`. The refusal stays on the positional reading of a fit with `na.exclude` until increment 9 (decision 29) |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
-| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic; open for the streaming tests until 7, the White bootstrap's replicates until 8 |
+| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests; open for the White bootstrap's replicates until 8 |
 
 ## Decisions
 

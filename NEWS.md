@@ -544,6 +544,152 @@ stopped on the same squares. The values of the rows above 100 MB were
 computed on the 120 observations of the design, with the size the package
 measures for the data set to 150 MB (`tests/testthat/test-streaming.R`).
 
+The seventh step of the model context (*The model context*, below) builds the
+three streaming tests on it. `performWhiteTestStreaming()`,
+`performBPTestStreaming()` and `performKoenkerTestStreaming()` read the
+response, the residuals, the weights and the design from the fit, and the
+design chunk by chunk, its rows in the order of the fit; the auxiliary design,
+several times wider than the design for White's test, is still built chunk by
+chunk. `data` that are given are matched to the observations of the fit as by
+the tests built on the context: named data in any order, numbered data in fit
+order. This reaches the three functions and `runHeteroTests()` and
+`runDiagnostics()` with a finite `chunk_threshold_mb`. Every value is
+`identical()` to before but for the changes in bold below, and, on a `poly()`
+term, in its last bits (below).
+
+**A term computed from the rows it is given keeps the values of the fit in
+every chunk.** Each chunk built its own design from the formula, on its rows
+of `data`, so `I(x > median(x))` took the median of each chunk. On
+`m <- lm(mpg ~ I(wt > median(wt)) + qsec, data = mtcars)`:
+
+| Call | 0.15.0 | Now, the value of the fit |
+| --- | ---: | ---: |
+| `performBPTestStreaming(m, mtcars, chunk_size = 8)` | 2.268 (p = 0.322) | 4.892 (p = 0.087) |
+| `performBPTestStreaming(m, mtcars, chunk_size = 16)` | 2.577 (p = 0.276) | 4.892 (p = 0.087) |
+| `performKoenkerTestStreaming(m, mtcars, chunk_size = 8)` | 2.993 (p = 0.224) | 6.455 (p = 0.040) |
+| `performKoenkerTestStreaming(m, mtcars, chunk_size = 16)` | 3.400 (p = 0.183) | 6.455 (p = 0.040) |
+| `runHeteroTests(m, mtcars, tests = c("breusch_pagan", "koenker"), chunk_threshold_mb = 0, chunk_size = 8)` | 2.268 and 2.993 | 4.892 and 6.455 |
+
+The new values are those of `performBPTest()` and `performKoenkerTest()`, and
+of the same fit with the column computed beforehand, in chunks of any size.
+In one chunk the median was that of the rows of the fit: on a fit that dropped
+rows the test computed it on the rows it kept, and gave the value of another
+design, in chunks of any size. On the 120 observations of `contract_data()`
+(`tests/testthat/helper-test-recipes.R`) with `x2` missing in rows 3, 7 and
+11, `lm(y ~ I(x1 > median(x1)) + x2, data = d)` gave a Breusch-Pagan
+statistic of 13.35 in one chunk and 5.75 in chunks of 7, where the fit gives
+12.46, and Koenker's 9.28 and 3.99 where it gives 8.66.
+`cut(x, quantile(x))`, which took the breaks of each
+chunk, stopped the three with "factor cut(wt, quantile(wt)) has new levels"
+in chunks of any size, since the fit drops the row at the minimum of `wt`; on
+`lm(mpg ~ cut(wt, quantile(wt)) + qsec, data = mtcars)` the Breusch-Pagan
+test gives 12.94 on 4 degrees of freedom (p = 0.012) and Koenker's 11.13
+(p = 0.025), and `runHeteroTests()` with `chunk_threshold_mb = 0`, which put
+the NCV test under both names (5.34), gives them. White's streaming test
+stops there on the squares of the dummies, collinear with the dummies, as on
+any factor, where it stopped on the new levels.
+
+**A `gam` given its data in another order is matched to them by row name, by
+the streaming tests too.** Each chunk read the rows of `data` by position,
+which the residuals of an `mgcv::gam()` fit, which carry no names, did not
+check. On `g <- mgcv::gam(mpg ~ wt + qsec, data = mtcars)` with the data
+shuffled, `mtcars[sample(32), ]` after `set.seed(1)`, White's streaming test
+returned 16.86 where the data in the order of the fit give 11.82, the
+Breusch-Pagan test 5.12 for 3.13 and Koenker's 5.04 for 3.09; each now gives
+the value of the call on `mtcars`.
+
+**A fit whose coefficients, residuals or weights were changed after it was
+fitted is refused by the streaming tests, as by the tests built on the
+context**, and so is `runHeteroTests()` that streams them, without a fallback
+("The fitted model does not reproduce its residuals from its design and
+coefficients", of class `heteroTests_model_context_error`). On
+`lm(mpg ~ wt + qsec, data = mtcars)` with 0.5 added to the coefficient of
+`wt` they returned the values of the fit before the edit: White's streaming
+test 11.82 (p = 0.037), the Breusch-Pagan test 3.13 and Koenker's 3.09.
+
+**A fit with `model = FALSE` whose data are gone, given numbered data in
+another order than the fit, is refused by the streaming tests**, with "...
+cannot use the model frame of `model`: it cannot be rebuilt (...), and `data`
+does not give the response and the fitted values of the fit", as by the tests
+built on the context. They read its rows by position and returned the values
+of other rows: on `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120
+observations of `contract_data()`, given `dplyr::as_tibble(d)[sample(120), ]`
+after `set.seed(3)`, White's streaming test returned 8.887 where the data in
+the order of the fit give 11.145. Given data that hold its rows, by row name,
+or by row number for a fit to data that number their rows, and give its
+response and fitted values, such a fit is tested on them, as before. The
+numbered data of a fit to data with row names of their own, such as
+`dplyr::as_tibble(mtcars)` for a fit to `mtcars`, lack those names, and are
+refused, as before, now with "... cannot use the model frame of `model`: it
+cannot be rebuilt (...), and the rows of `data` cannot be matched to the
+observations of the fit: `data` has no rows named Mazda RX4, Mazda RX4 Wag,
+...", by every test built on the context, where the streaming tests said
+"Missing rows" and the others that `data` does not give the response and the
+fitted values of the fit.
+
+Also, for the three:
+
+- Errors that become values. Without `data`, a model that transforms its
+  variables or has an `offset()` term stopped with "The following variables
+  are missing from input data: mpg, wt" (or `o`): on
+  `lm(log(mpg) ~ log(wt) + qsec, data = mtcars)` White's streaming test gives
+  12.32 (p = 0.031), the value of `performWhiteTest()`. The complete rows of a
+  fit with `na.omit` numbered again, and the tibble in the order of the fit of
+  a fit to named data, such as `dplyr::as_tibble(mtcars)`, stopped with
+  "Missing rows: 32" or "Missing rows: Mazda RX4, Mazda RX4 Wag, ...";
+  they give the value on the rows of the fit.
+- A multivariate `lm` is refused with "... needs a model with one response;
+  `model` has 2.", where they stopped with "'length = 4' in coercion to
+  'logical(1)'"; a fit with `model = FALSE` whose data are gone, without
+  `data`, with the message of the context, where they stopped with "Expected
+  a data.frame for input data".
+- An `mgcv::gam()` fit with smooth terms is tested as before, on the design
+  of the variables of its formula, which its model frame holds: on
+  `mgcv::gam(mpg ~ s(wt) + qsec, data = mtcars)` the Breusch-Pagan statistic
+  is 4.75 on 2 degrees of freedom, where `performBPTest()`, which tests such a
+  fit on the basis of its smooths, gives 14.64 on 10. Which tests take such a
+  fit, and on which design, is left to a later step of the model context.
+- White's streaming test still stops on collinear terms of its auxiliary
+  regression, the squares of dummies or of an orthogonal `poly()` basis,
+  which `performWhiteTest()` drops; that is the subject of a pull request of
+  its own. Where it stopped before reaching that regression, on a variable
+  missing from the model frame or on the new levels of `cut()`, it now stops
+  there.
+- `runHeteroTests()` with a finite `chunk_threshold_mb`, which put a fallback
+  under the names of the streaming tests where they stopped as above (White's
+  test without cross products under `white`, and the NCV test under
+  `breusch_pagan` and `koenker`), runs them: on
+  `lm(y ~ x1 + x2 + offset(o))` without `data`, on the data of the test
+  matrix (`context_data()`, `tests/testthat/helper-model-context.R`), it gave
+  White's test without cross products, 10.80, and the NCV test's 2.22 under
+  both other names, and gives White's streaming test, 11.28, the Breusch-Pagan
+  test's 11.66 and Koenker's 9.29.
+- Unchanged: every other value of a valid call, the refusals of a zero weight
+  and of the guard, and every message the test suite pins. A corpus of 33,339
+  calls, the three in chunks of 7, 40 and 10,000 and through the runner with
+  `chunk_threshold_mb = 0`, and every other test, on 361 combinations of fits,
+  offsets, terms, forms of `data`, dropped rows, missing groups, row names,
+  panels and classes, on the five fits of the table of the Harrison-McCabe
+  rank and the eight designs of White's degrees of freedom, and the examples
+  of thirty-nine help pages, returns what it returned before, `identical()`,
+  but for the 762 calls of the changes above (`scripts/model-context-identity.R`),
+  every one of them a call of the three or of the runner that streams them,
+  55 of them the new refusals in bold; each of the 562 that now return a
+  value, or another one, gives the value of its reference: the same call on
+  the data frame of the fit or on the data of a `gam` in its order, or the
+  fit with the column of the term computed beforehand. The warnings are those
+  of before on every call.
+- On a `poly()` term a value can change in its last bits: the chunks computed
+  the basis again by the recurrence of the `predvars` of the terms, and the
+  design of the fit holds the basis that `poly()` computed by its QR
+  decomposition. With `set.seed(101); n <- 500;
+  d <- data.frame(x1 = runif(n, 0.5, 3), x2 = rnorm(n), x3 = rexp(n));
+  d$y <- 2 + d$x1 - 0.7 * d$x2 + 0.3 * d$x3 + rnorm(n, sd = d$x1)`,
+  `performBPTestStreaming(lm(y ~ poly(x1, 2) + x2, d), d)` gave
+  156.20252285478642 and gives 156.20252285478654; of 621 such calls of the
+  review of this step, 38 changed, by at most 9.9e-14 relative. The 48 calls
+  of the corpus with a value on a `poly()` term are `identical()` to before.
+
 ### Which models the tests accept
 
 Every exported test was run on an `lm`, a weighted `lm`, an `lm` with a zero

@@ -22,6 +22,10 @@
 #   - the default battery of runHeteroTests() on every cell, and the
 #     registered names of increments 2 and 3 (`identity_registry_tests`,
 #     `identity_registry_runner_szroeter`, `identity_registry_runner_spatial`);
+#   - (increment 7) the streaming tests in chunks of 7 and of 40 besides those
+#     of 10,000 of their recipes, and the runner with the streaming tests
+#     asked for, `chunk_threshold_mb = 0`, in chunks of 10,000 and of 7
+#     (`identity_streaming_chunked`, `identity_streaming_runners`);
 #   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
 #     every recipe;
 #   - the examples of the help pages of the functions built on the context.
@@ -1425,6 +1429,13 @@ identity_data_name_change <- function(before, after, formula) {
       changed <- TRUE
       next
     }
+    # Increment 7: an entry that runs the test the runner names where it ran a
+    # fallback on main carries the data.name of that test, the formula of the
+    # model; the rules of the runner judge the rest.
+    if (identical(before[[k]]$status, "fallback") && is.null(after[[k]]$status) &&
+          identical(after[[k]]$diagnostic, k) && identical(db, formula)) {
+      next
+    }
     return("unexpected")
   }
   if (changed) "formula" else "none"
@@ -1446,6 +1457,127 @@ identity_data_names <- function(main, branch) {
     branch[[id]]$value <- identity_drop_data_name(after)
   }
   list(main = main, branch = branch, verdicts = verdicts)
+}
+
+# --- increment 7: the streaming tests --------------------------------------------
+
+# The three streaming tests read the stored design chunk by chunk. Their
+# recipes of helper-test-recipes.R read chunks of 10,000 observations, one
+# chunk on every cell; these read chunks of 7, 18 chunks on 120 observations
+# and a last chunk of one, and of 40. The runner runs them on any data with
+# `chunk_threshold_mb = 0`, in chunks of 10,000 and of 7
+# (`identity_streaming_runners`, run on every cell by run_cell()); without
+# `data` it runs the exact tests, as on main.
+identity_streaming_chunked <- list(
+  `performWhiteTestStreaming(chunk_size = 7)` = function(m, d) {
+    performWhiteTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+  },
+  `performBPTestStreaming(chunk_size = 7)` = function(m, d) {
+    performBPTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+  },
+  `performKoenkerTestStreaming(chunk_size = 7)` = function(m, d) {
+    performKoenkerTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+  },
+  `performWhiteTestStreaming(chunk_size = 40)` = function(m, d) {
+    performWhiteTestStreaming(m, d, chunk_size = 40, progress = FALSE)
+  },
+  `performBPTestStreaming(chunk_size = 40)` = function(m, d) {
+    performBPTestStreaming(m, d, chunk_size = 40, progress = FALSE)
+  },
+  `performKoenkerTestStreaming(chunk_size = 40)` = function(m, d) {
+    performKoenkerTestStreaming(m, d, chunk_size = 40, progress = FALSE)
+  }
+)
+identity_extra_recipes <- c(identity_extra_recipes, identity_streaming_chunked)
+identity_streaming_runner_tests <- c("white", "breusch_pagan", "koenker")
+identity_streaming_runners <- c(
+  `runHeteroTests(chunk_threshold_mb = 0)` = 10000,
+  `runHeteroTests(chunk_threshold_mb = 0, chunk_size = 7)` = 7
+)
+identity_streaming <- c(
+  "performWhiteTestStreaming", "performBPTestStreaming", "performKoenkerTestStreaming",
+  names(identity_streaming_chunked)
+)
+identity_increment7 <- c(identity_streaming, names(identity_streaming_runners))
+identity_affected <- c(identity_affected, identity_increment7)
+# The calls of the streaming tests, by the test they compute: a chunked recipe
+# is seen as its test (identity_base_fn(), context_cell_for()).
+identity_streaming_base <- function(fn) sub("\\(chunk_size = [0-9]+\\)$", "", fn)
+# B6: on a term computed from the rows it is given, I(x1 > median(x1)) or
+# cut(x1, quantile(x1)), each chunk built its own design from the formula, on
+# its rows of `data`: values that change in chunks smaller than the data, and
+# errors that become values where cut() computed other breaks in a chunk
+# ("factor has new levels", N7, also in one chunk of the rows of a fit that
+# dropped the row at the minimum of x1). White's streaming test stops there
+# on the collinear squares of the dummies (N3, a pull request of its own),
+# where it stopped on the new levels. The defects of the cells that concern
+# every test built on the context (B5, B12, B14, B15, L1, L2, N7, R4) apply to
+# these calls too, and N17, "frame" and M8 are scoped to them as to the tests
+# of increments 3 to 6.
+identity_allowed$value_change <- c(identity_allowed$value_change, "B6")
+identity_allowed$error_to_value <- c(identity_allowed$error_to_value, "B6")
+identity_runner_allowed <- c(identity_runner_allowed, "B6", "N17")
+identity_defect_scope$B6 <- identity_increment7
+for (defect in c("frame", "N17", "M8")) {
+  identity_defect_scope[[defect]] <- c(identity_defect_scope[[defect]], identity_increment7)
+}
+identity_white_streaming <- c(
+  "performWhiteTestStreaming", grep("^performWhiteTestStreaming\\(", names(identity_streaming_chunked),
+                                    value = TRUE)
+)
+# N3, outside the context: White's streaming test stops on collinear terms of
+# its auxiliary regression, the squares of dummies or of a poly() basis. On a
+# cell where it stopped before reaching that regression, on a variable that
+# `data` or the model frame lacked (L1, L2) or on the new levels of cut() (N7,
+# B6), it now reaches it, and on a cell of such terms stops there
+# (identity_defects()): the terms of `context_white_streaming_collinear` of
+# helper-model-context.R, which the comparison does not source, read from the
+# id of the cell (identity_cell_terms()).
+identity_white_streaming_collinear <- c("poly", "square", "median", "cut", "factor", "log_factor")
+identity_cell_terms <- function(cell) {
+  if (is.null(cell) || length(cell) != 1L) {
+    return(NA_character_)
+  }
+  if (startsWith(cell, "terms/")) {
+    return(strsplit(cell, "/", fixed = TRUE)[[1L]][4L])
+  }
+  if (startsWith(cell, "missing/median")) {
+    return("median")
+  }
+  if (startsWith(cell, "group/na_factor")) {
+    return("factor")
+  }
+  "none"
+}
+identity_messages$N3 <- "Auxiliary regression became rank deficient"
+identity_message_scope$N3 <- identity_white_streaming
+for (defect in c("frame", "M8")) {
+  identity_message_scope[[defect]] <- c(identity_message_scope[[defect]], identity_increment7)
+}
+# Decision 1: the streaming tests built the design of each chunk from the
+# formula, through the `predvars` of its terms, and so computed a poly() basis
+# again on the rows of each chunk, as `x = TRUE` does not change; main has no
+# stored-design value of them, and the branch must equal main to
+# `identity_last_bits` relative on every number, as Goldfeld-Quandt's
+# segments, where both ran the same tests: where the runner ran a fallback on
+# main and the test it names on the branch, the rules of the runner decide
+# (identity_same_tests()).
+identity_rebuilt_per_chunk <- identity_increment7
+
+# Whether the two results of a call hold the same tests: for a runner, the
+# same names, each run as the same diagnostic with the same status.
+identity_same_tests <- function(before, after) {
+  if (!before$kind %in% identity_runner_kinds) {
+    return(TRUE)
+  }
+  a <- before$value
+  b <- after$value
+  if (!identity_tests_of(a) || !identity_tests_of(b) || !identical(names(a), names(b))) {
+    return(FALSE)
+  }
+  all(vapply(names(a), function(k) {
+    identical(a[[k]]$diagnostic, b[[k]]$diagnostic) && identical(a[[k]]$status, b[[k]]$status)
+  }, logical(1)))
 }
 
 # --- canonical results ---------------------------------------------------------
@@ -1547,6 +1679,10 @@ identity_trace <- function(on) {
 
 # The test a call computes.
 identity_base_fn <- function(fn) {
+  # Increment 7: a streaming test in chunks of another size is that test.
+  if (fn %in% names(identity_streaming_chunked)) {
+    return(identity_streaming_base(fn))
+  }
   if (fn %in% identity_studentized) {
     return("performStudentizedBPTest")
   }
@@ -1744,6 +1880,18 @@ identity_run <- function(where, out, root = ".") {
         runHeteroTests(built$m, built$data, use_cache = FALSE, progress = FALSE)
       )
     }))
+    # Increment 7: the runner with the streaming tests, asked for on data of
+    # any size, in chunks of 10,000 and of 7.
+    for (streaming in names(identity_streaming_runners)) {
+      add(runner_kind, streaming, cell, identity_outcome(function() {
+        set.seed(7)
+        identity_runner_summary(runHeteroTests(
+          built$m, built$data, tests = identity_streaming_runner_tests, use_cache = FALSE,
+          chunk_threshold_mb = 0, chunk_size = identity_streaming_runners[[streaming]],
+          progress = FALSE
+        ))
+      }))
+    }
     add(runner_kind, identity_registry_runner, cell, identity_outcome(function() {
       testthat::skip_if_not_installed("quantreg")
       set.seed(7)
@@ -1800,8 +1948,12 @@ identity_run <- function(where, out, root = ".") {
   # Increment 5: the cut() term drops the row at the minimum of x1, whose data
   # the panel tests and the scatter diagnostic refused (B16); they give the
   # value of the fit with the factor computed beforehand.
+  # Increment 7: the streaming tests, whose cut() terms stopped on the breaks
+  # of the rows they were given, and whose terms computed from the rows of a
+  # chunk give the values of the columns computed beforehand (B6).
   verified_fns <- intersect(
-    names(recipes), c(identity_increment2, identity_increment3, identity_increment5)
+    names(recipes),
+    c(identity_increment2, identity_increment3, identity_increment5, identity_increment7)
   )
   reference_cell <- function(id) list(id = id, form = "data_frame", defect = character())
   # N12: plm::pcdtest() on each unbalanced cell (identity_plm_cd()), the
@@ -1869,7 +2021,9 @@ identity_run <- function(where, out, root = ".") {
   # that calls the function of its page: the scatter diagnostic returns its
   # correlations, and runPanelTests() a list of tests (increment 5).
   scratch <- dirname(normalizePath(out, mustWork = FALSE))
-  for (topic in c("performWhiteTest", "performBPTest", "performKoenkerTest",
+  for (topic in c("performWhiteTestStreaming", "performBPTestStreaming",
+                  "performKoenkerTestStreaming", "performWhiteTest", "performBPTest",
+                  "performKoenkerTest",
                   "performRankPermutationTest", "performHighDimensionalTest",
                   "performStudentizedBPTest", "performBPTestRobust", "performRESETTest",
                   "performGQTest", "performQuantileRegressionTest", "performGlejserTest",
@@ -2001,6 +2155,12 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
 # the calls of the tests they concern only (`scope`).
 identity_defects <- function(record, scope = identity_defect_scope) {
   defects <- record$defect
+  # Increment 7: White's streaming test reaches its auxiliary regression where
+  # it stopped before it, and on the cells of collinear terms stops there (N3).
+  if (record$fn %in% identity_white_streaming && any(c("L1", "L2", "N7", "B6") %in% defects) &&
+        identity_cell_terms(record$cell) %in% identity_white_streaming_collinear) {
+    defects <- c(defects, "N3")
+  }
   if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
     defects <- c(defects, "null")
   }
@@ -2079,11 +2239,13 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
   defects <- identity_defects(record)
   # Decision 1: a value on a poly() term must be main's value on the stored
   # design, identical(), whether or not it is main's on its rebuilt one; for a
-  # test that refitted the segments from the formula, main's value but for
-  # rounding.
+  # test that refitted the segments from the formula, or built the design of
+  # each chunk from it (increment 7), main's value but for rounding.
   if ("decision1" %in% defects && record$fn %in% identity_affected) {
     decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects) {
       identity_last_bits_verdict(verdict)
+    } else if (record$fn %in% identity_rebuilt_per_chunk) {
+      if (identity_same_tests(record, after)) identity_last_bits_verdict(verdict)
     } else {
       identity_stored_verdict(record, verdict, after, stored)
     }
@@ -2306,9 +2468,11 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     stored <- main$records[[stored_id(id)]]
     verdict <- identity_classify(before, after)
     decision1 <- "decision1" %in% before$defect && before$fn %in% identity_affected
-    by_segments <- decision1 && before$fn %in% identity_segment_refits &&
-      "N1" %in% identity_defects(before)
-    decided <- if (decision1 && !by_segments) {
+    by_segments <- decision1 && (before$fn %in% identity_segment_refits &&
+      "N1" %in% identity_defects(before) ||
+      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after))
+    # The streaming tests have no stored-design value on main (above).
+    decided <- if (decision1 && !by_segments && !before$fn %in% identity_rebuilt_per_chunk) {
       identity_stored_verdict(before, verdict, after, stored)
     }
     rounded <- if (by_segments) identity_last_bits_verdict(verdict)
@@ -2380,6 +2544,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       stored_checked = checked,
       stored_identical = checked && !identical(decided, "unexpected"),
       last_bits_checked = !is.null(rounded),
+      # Whether the branch returned a value, not an error or a skip.
+      with_value = !(is.list(after$value) &&
+                       (isTRUE(after$value$.error) || isTRUE(after$value$.skip))),
       # "formula" when a data.name of the runner changed, to the formula of the
       # model; "none" when none did; NA for a call that is not a runner's.
       data_name = data_name,
@@ -2470,12 +2637,19 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   if (nrow(segments) > 0L) {
     rounded <- segments[segments$change == "value_change", , drop = FALSE]
     largest <- if (nrow(rounded) > 0L) max(rounded$everything_relative) else 0
+    valued <- segments[segments$with_value, , drop = FALSE]
+    streaming <- segments$fn %in% identity_rebuilt_per_chunk
     template <- paste0(
-      "Decision 1, segments refitted from the formula before (N1): %d poly() calls with ",
-      "a value, %d identical() to main, %d differing by at most %.2g relative on any number\n"
+      "Decision 1, terms rebuilt from the formula before (the segments of Goldfeld-Quandt, N1, ",
+      "and the chunks of the streaming tests, increment 7): %d poly() calls (%d of the ",
+      "streaming tests), %d of them with a value (%d of the streaming tests); of these %d ",
+      "identical() to main and %d differing by at most %.2g relative on any number; the other ",
+      "%d stop as on main\n"
     )
-    cat(sprintf(template, nrow(segments), sum(segments$change == "identical"), nrow(rounded),
-                largest))
+    cat(sprintf(template, nrow(segments), sum(streaming), nrow(valued),
+                sum(valued$fn %in% identity_rebuilt_per_chunk),
+                sum(valued$change == "identical"), nrow(rounded), largest,
+                sum(!segments$with_value & segments$change == "identical")))
   }
   to_value <- calls[calls$verdict != "identical" &
                       calls$change %in% c("error_to_value", "value_change"), , drop = FALSE]

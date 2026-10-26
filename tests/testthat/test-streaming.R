@@ -45,6 +45,51 @@ test_that("streaming Koenker test matches exact implementation", {
   expect_equal(streamed$p.value, exact$p.value, tolerance = 1e-8)
 })
 
+test_that("the streaming tests give the value of the exact tests in chunks of any size", {
+  # Since 0.16.0 they read the design of the fit chunk by chunk, as the exact
+  # tests read it whole (the model context); before, each chunk built its own
+  # design from the formula, on its rows of `data`. Chunks of 7 leave a last
+  # chunk of one observation, 119 one of one, 120 a single chunk.
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  d$w <- 1 / d$x1^2
+  d$o <- 0.3 * d$x2
+  fits <- list(
+    ols = lm(y ~ x1 + x2, data = d),
+    wls = lm(y ~ x1 + x2, data = d, weights = w),
+    glm = glm(y ~ x1 + x2, data = d, weights = w),
+    offset = lm(y ~ x1 + x2, data = d, offset = o),
+    log = lm(y ~ log(x1) + x2, data = d),
+    deficient = lm(y ~ x1 + x2 + I(2 * x2), data = d)
+  )
+  pairs <- list(
+    list(performWhiteTestStreaming, performWhiteTest),
+    list(performBPTestStreaming, performBPTest),
+    list(performKoenkerTestStreaming, performKoenkerTest)
+  )
+  for (nm in names(fits)) {
+    m <- fits[[nm]]
+    for (pair in pairs) {
+      exact <- pair[[2]](m, d)
+      for (chunk in c(7, 25, 119, 120, 10000)) {
+        for (data in list(d, NULL)) {
+          # White's streaming test warns of the collinearity of the
+          # rank-deficient fit.
+          streamed <- suppressWarnings(pair[[1]](m, data, chunk_size = chunk, progress = FALSE))
+          info <- paste(nm, exact$method, chunk, is.null(data))
+          expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-8,
+                       info = info)
+          expect_equal(streamed$p.value, exact$p.value, tolerance = 1e-8, info = info)
+          expect_equal(unname(streamed$parameter), unname(exact$parameter), info = info)
+          expect_identical(streamed$chunks_processed, as.integer(ceiling(nrow(d) / chunk)),
+                           info = info)
+        }
+      }
+    }
+  }
+})
+
 test_that("runHeteroTests caches and reuses results", {
   test_obj <- setup_test_model(n = 120, seed = 777)
   clearAnalysisCache()

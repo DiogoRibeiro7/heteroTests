@@ -31,21 +31,41 @@ should_use_sparse <- function(rows, cols) {
   requireNamespace("Matrix", quietly = TRUE) && rows * cols > 1e6
 }
 
-chunked_regression_r2 <- function(model, data, residuals, chunk_size,
+# The design the streaming tests read, chunk by chunk, from the model context
+# (R/model_context.R): the design of the fit without the columns a
+# rank-deficient fit aliased (rcontext_design()), as the exact tests read it,
+# one row per observation in the order of the fit. Up to 0.16.0 each chunk of
+# rows of `data` built its own design from the formula, so a term computed
+# from the rows it is given, such as I(x > median(x)) or cut(x, quantile(x)),
+# took other values in each chunk than in the fit (B6 of the design of the
+# model context). An mgcv::gam() fit with smooth terms, whose stored design is
+# the basis of its smooths, is tested as before 0.16.0, on the design of the
+# variables of its formula, which its model frame holds, until the last step
+# of the model context settles which tests take such a fit (decision 23).
+rstreaming_design <- function(ctx) {
+  model <- ctx$model
+  if (identical(ctx$kind, "gam") && length(model$smooth) > 0L) {
+    design <- stats::model.matrix(stats::terms(model), ctx$frame,
+                                  contrasts.arg = model$contrasts, xlev = model$xlevels)
+    return(rnon_aliased_columns(design, model))
+  }
+  rcontext_design(ctx)
+}
+
+chunked_regression_r2 <- function(design, residuals, chunk_size,
                                   predictor_builder, response_builder,
                                   progress = FALSE, progress_label = "Processing chunks") {
   n <- length(residuals)
   if (n == 0L) {
     stop("No observations available after preprocessing.", call. = FALSE)
   }
+  if (NROW(design) != n) {
+    stop("Internal error: the design and the residuals differ in length.", call. = FALSE)
+  }
 
   chunks <- chunk_indices(n, chunk_size)
   progress_bar <- chunk_progress_bar(length(chunks), progress, progress_label)
   on.exit(progress_bar$close(), add = TRUE)
-
-  terms_obj <- stats::terms(model)
-  contrasts <- model$contrasts
-  xlevels <- model$xlevels
 
   XtX <- NULL
   XtY <- NULL
@@ -56,17 +76,11 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
 
   for (i in seq_along(chunks)) {
     idx <- chunks[[i]]
-    chunk_data <- data[idx, , drop = FALSE]
-    # Without the columns a rank-deficient fit aliased, as the exact tests
-    # build their design (rnon_aliased_columns()).
-    mm_chunk <- rnon_aliased_columns(stats::model.matrix(
-      terms_obj,
-      data = chunk_data,
-      contrasts.arg = contrasts,
-      xlev = xlevels
-    ), model)
+    # The rows of the stored design (rstreaming_design()), not a design built
+    # again from the rows of `data` in the chunk.
+    mm_chunk <- design[idx, , drop = FALSE]
 
-    predictors <- predictor_builder(mm_chunk, chunk_data, residuals[idx])
+    predictors <- predictor_builder(mm_chunk)
     predictors <- as.matrix(predictors)
 
     if (ncol(predictors) == 0) {
@@ -97,7 +111,7 @@ chunked_regression_r2 <- function(model, data, residuals, chunk_size,
       stop("Inconsistent design matrix dimensions between chunks.", call. = FALSE)
     }
 
-    response <- response_builder(residuals[idx], chunk_data, mm_chunk)
+    response <- response_builder(residuals[idx])
     response <- as.numeric(response)
     if (length(response) != nrow(design_chunk)) {
       stop("Response builder returned a vector of incorrect length.", call. = FALSE)
@@ -215,8 +229,10 @@ rcross_regressors_exact <- function(cross, regressors) {
   fit$total > 0 && isTRUE(1 - fit$r_squared <= rwhite_exact_tolerance)
 }
 
+# The builders of the auxiliary regressions: the predictors from the rows of
+# the design in a chunk, and the response from the residuals of those rows.
 white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10) {
-  function(model_matrix, data_chunk, residuals_chunk) {
+  function(model_matrix) {
     if (ncol(model_matrix) < 2L) {
       stop("White test requires at least one regressor beyond the intercept.", call. = FALSE)
     }
@@ -254,7 +270,7 @@ white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10
   }
 }
 
-bp_predictor_builder <- function(model_matrix, data_chunk, residuals_chunk) {
+bp_predictor_builder <- function(model_matrix) {
   if (colnames(model_matrix)[1] == "(Intercept)") {
     predictors <- model_matrix[, -1, drop = FALSE]
   } else {
@@ -266,19 +282,19 @@ bp_predictor_builder <- function(model_matrix, data_chunk, residuals_chunk) {
   predictors
 }
 
-koenker_predictor_builder <- function(model_matrix, data_chunk, residuals_chunk) {
-  bp_predictor_builder(model_matrix, data_chunk, residuals_chunk)
+koenker_predictor_builder <- function(model_matrix) {
+  bp_predictor_builder(model_matrix)
 }
 
-white_response_builder <- function(residuals_chunk, data_chunk, model_matrix_chunk) {
+white_response_builder <- function(residuals_chunk) {
   residuals_chunk^2
 }
 
-bp_response_builder <- function(residuals_chunk, data_chunk, model_matrix_chunk) {
+bp_response_builder <- function(residuals_chunk) {
   residuals_chunk^2
 }
 
-koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_chunk) {
+koenker_response_builder <- function(residuals_chunk) {
   # Koenker's studentized BP regresses the squared residuals on the regressors
   # (n R^2); it is the squared-residual auxiliary regression, not the absolute one.
   residuals_chunk^2
@@ -291,15 +307,18 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' to scale to datasets that would otherwise exhaust available RAM.
 #'
 #' @inheritParams performWhiteTest
-#' @param data A [base::data.frame] (or object coercible to one) containing the
-#'   variables referenced by `model`. It must include the observations used to
-#'   fit `model` and will be checked for missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.16.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param chunk_size Positive integer specifying the number of observations per
 #'   chunk. Smaller values reduce memory usage at the expense of additional
 #'   iteration overhead.
@@ -318,6 +337,19 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' reducing peak memory usage. When `Matrix` is installed, sparse cross-products
 #' are leveraged automatically for large chunks.
 #'
+#' Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
+#' itself as [performWhiteTest()] reads it, so the value does not depend on the
+#' size of the chunks but by rounding; the auxiliary design, several times
+#' wider, is built chunk by chunk. Up to 0.16.0 each chunk built its own design
+#' from the formula, on its rows of `data`, so a term computed from the rows it
+#' is given took other values in each chunk than in the fit:
+#' `I(x > median(x))` the median of the chunk, and `cut(x, quantile(x))` its
+#' breaks, which stopped the test ("factor has new levels") in chunks of any
+#' size on a fit that dropped the row at the minimum of `x`. An `mgcv::gam()`
+#' fit with smooth terms is tested as before, on the design of the variables of
+#' its formula, which its model frame holds, rather than on the basis of its
+#' smooths, on which [performWhiteTest()] tests it.
+#'
 #' @references
 #' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator
 #' and a direct test for heteroscedasticity. *Econometrica, 48*(4), 817–838.
@@ -333,8 +365,11 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 #' it runs read the R-squared of `summary()`, which a `glm` does not report; they
 #' read that of the least-squares fit now. It refuses a `glm` of another family or
 #' link, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is
-#' not finite for another reason, and `data` that lack rows or variables of the
-#' fit. It stops when terms of its auxiliary regression are
+#' not finite for another reason, `data` that lack rows or variables of the
+#' fit, and, since 0.16.0, a multivariate `lm`, a fit changed after it was
+#' fitted and a fit with `model = FALSE` whose data are gone, unless `data`
+#' gives its response and fitted values (see [test_results]). It stops when
+#' terms of its auxiliary regression are
 #' collinear, as the squares of dummy variables are, which [performWhiteTest()]
 #' drops, and, since 0.16.0, with the refusal of [performWhiteTest()] (see its
 #' section *Too few observations*) when its independent terms are at least as
@@ -354,36 +389,31 @@ koenker_response_builder <- function(residuals_chunk, data_chunk, model_matrix_c
 performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                       cross_products = TRUE, max_interactions = 10,
                                       progress = interactive()) {
+  test_label <- "White test"
   # A Gaussian glm with the identity link is a least-squares fit, accepted
   # since 0.16.0 (see the section on supported models); any other glm is not.
   # It refused every glm before, because checkModel(enhanced = TRUE) read the
   # R-squared of summary(), which a glm does not report; it reads that of the
-  # least-squares fit now (rleast_squares_r_squared()).
-  rrefuse_non_gaussian_glm(model, "performWhiteTestStreaming")
-  data <- rdata_or_model_frame(model, data)
-  checkModel(model, data, enhanced = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "White test",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  # least-squares fit now (rleast_squares_r_squared()). The response, design,
+  # weights and residuals come from the fit; `data`, when given, is matched to
+  # its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performWhiteTestStreaming", test_label = test_label)
+  # The warnings of the checks of the model, on the data the test reads, or
+  # the model frame.
+  checkModel(model, if (is.null(data)) ctx$frame else data, enhanced = TRUE)
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("white", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   stats <- chunked_regression_r2(
-    model = model,
-    data = working_data,
+    design = rstreaming_design(ctx),
     residuals = residuals,
     chunk_size = chunk_size,
     predictor_builder = white_predictor_builder(cross_products, max_interactions),
@@ -444,8 +474,7 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # (rwarn_small_groups(), R/model_context.R). A factor that is a main effect
   # stops the test above, on the squares of its dummies; one that enters only
   # through an interaction with a regressor may not.
-  rwarn_small_groups(model, tryCatch(stats::model.frame(model), error = function(e) NULL),
-                     "White's test", "performWhiteTest")
+  rwarn_small_groups(model, ctx$frame, "White's test", "performWhiteTest")
 
   structure(
     list(
@@ -470,15 +499,12 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' implementation while substantially reducing peak memory usage.
 #'
 #' @inheritParams performBPTest
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default,
+#'   read as [performWhiteTestStreaming()] reads it: the response, design,
+#'   weights and offset come from the fit itself, so a model that transforms
+#'   its variables, has an `offset()` term, or takes its `weights` or `offset`
+#'   from a column of the data needs no `data` (since 0.16.0), and data that
+#'   are given are matched to the observations of the fit.
 #' @param chunk_size Positive integer giving the number of observations per
 #'   streaming chunk.
 #' @param progress Logical flag indicating whether a textual progress bar should
@@ -487,27 +513,23 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @return A \code{htest} object mirroring [performBPTest()] with additional
 #'   metadata describing the chunking configuration.
 #'
+#' @details Since 0.16.0 the chunks are rows of the design of the fit, as in
+#'   [performWhiteTestStreaming()], whose details say what changed.
+#'
 #' @export
 performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                    progress = interactive()) {
-  rrefuse_non_gaussian_glm(model, "performBPTestStreaming")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Breusch-Pagan"
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performBPTestStreaming", test_label = test_label)
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   rprocessValidationResult(requirements)
@@ -521,8 +543,7 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   }
 
   stats <- chunked_regression_r2(
-    model = model,
-    data = working_data,
+    design = rstreaming_design(ctx),
     residuals = residuals,
     chunk_size = chunk_size,
     predictor_builder = bp_predictor_builder,
@@ -558,8 +579,7 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # The warning of performBPTest() on a factor with more levels than
   # observations per level, counted on the model frame of the fit
   # (rwarn_small_groups(), R/model_context.R).
-  rwarn_small_groups(model, tryCatch(stats::model.frame(model), error = function(e) NULL),
-                     "the Breusch-Pagan test", "performBPTest")
+  rwarn_small_groups(model, ctx$frame, "the Breusch-Pagan test", "performBPTest")
 
   structure(
     list(
@@ -584,14 +604,12 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' allocating the full auxiliary regression matrix.
 #'
 #' @inheritParams performKoenkerTest
-#' @param data A [base::data.frame] containing the variables referenced in
-#'   `model`. The data must align with the observations used to fit `model`.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default,
+#'   read as [performWhiteTestStreaming()] reads it: the response, design,
+#'   weights and offset come from the fit itself, so a model that transforms
+#'   its variables, has an `offset()` term, or takes its `weights` or `offset`
+#'   from a column of the data needs no `data` (since 0.16.0), and data that
+#'   are given are matched to the observations of the fit.
 #' @param chunk_size Positive integer giving the number of observations processed
 #'   per streaming chunk.
 #' @param progress Logical indicating whether to display a textual progress bar.
@@ -599,34 +617,29 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @return A \code{htest} result equivalent to [performKoenkerTest()] with
 #'   additional metadata describing the streaming configuration.
 #'
+#' @details Since 0.16.0 the chunks are rows of the design of the fit, as in
+#'   [performWhiteTestStreaming()], whose details say what changed.
+#'
 #' @export
 performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
                                         progress = interactive()) {
-  rrefuse_non_gaussian_glm(model, "performKoenkerTestStreaming")
-  data <- rdata_or_model_frame(model, data)
   test_label <- "Koenker"
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  # The response, design, weights and residuals come from the fit; `data`, when
+  # given, is matched to its observations and checked (R/model_context.R).
+  ctx <- rmodel_context(model, data, fn = "performKoenkerTestStreaming", test_label = test_label)
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("koenker", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   stats <- chunked_regression_r2(
-    model = model,
-    data = working_data,
+    design = rstreaming_design(ctx),
     residuals = residuals,
     chunk_size = chunk_size,
     predictor_builder = koenker_predictor_builder,
@@ -656,8 +669,7 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # The warning of performKoenkerTest() on a factor with more levels than
   # observations per level, counted on the model frame of the fit
   # (rwarn_small_groups(), R/model_context.R).
-  rwarn_small_groups(model, tryCatch(stats::model.frame(model), error = function(e) NULL),
-                     "Koenker's test", "performKoenkerTest")
+  rwarn_small_groups(model, ctx$frame, "Koenker's test", "performKoenkerTest")
 
   structure(
     list(

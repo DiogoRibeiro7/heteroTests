@@ -28,15 +28,18 @@ performWhiteTestStreaming(
     to be diagnosed.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or object coercible to one) containing the
-    variables referenced by `model`. It must include the observations used to
-    fit `model` and will be checked for missing values.
-    When `NULL`, the default, the model frame of `model` is used. It holds the
-    terms of the model rather than its variables (`log(x)` rather than `x`), so
-    a model that transforms a variable needs `data`, as does a
-    model with an `offset()` term, and so may a fit whose `weights` or `offset`
-    argument is a column of the data, which the model frame holds as
-    `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default.
+    The response, design, weights and offset are read from the fit itself, so
+    a model that transforms its variables, has an `offset()` term, or takes
+    its `weights` or `offset` from a column of the data needs no `data`, and
+    the model frame of `model` is accepted as `data` (since 0.16.0; before,
+    such models needed `data`). Data that are given are matched to the
+    observations of the fit: rows with row names of their own by name, in any
+    order; rows that only number themselves (a tibble, a data.table, a data
+    frame whose row names were reset) by the row numbers of the fit, or in the
+    order of the fit when they hold one row per observation. The rows the fit
+    dropped may be there or not. Data whose rows cannot be shown to hold the
+    observations of the fit are refused; see [test\_results](test_results.md).
 
 `chunk_size`
 :   Positive integer specifying the number of observations per
@@ -74,6 +77,19 @@ in the standard White test, ensuring numerical equivalence while dramatically
 reducing peak memory usage. When `Matrix` is installed, sparse cross-products
 are leveraged automatically for large chunks.
 
+Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
+itself as [`performWhiteTest()`](performWhiteTest.md) reads it, so the value does not depend on the
+size of the chunks but by rounding; the auxiliary design, several times
+wider, is built chunk by chunk. Up to 0.16.0 each chunk built its own design
+from the formula, on its rows of `data`, so a term computed from the rows it
+is given took other values in each chunk than in the fit:
+`I(x > median(x))` the median of the chunk, and `cut(x, quantile(x))` its
+breaks, which stopped the test ("factor has new levels") in chunks of any
+size on a fit that dropped the row at the minimum of `x`. An `mgcv::gam()`
+fit with smooth terms is tested as before, on the design of the variables of
+its formula, which its model frame holds, rather than on the basis of its
+smooths, on which [`performWhiteTest()`](performWhiteTest.md) tests it.
+
 ## Supported models
 
 It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the identity
@@ -85,7 +101,9 @@ test gives the value of the `lm`. It refused every `glm` before 0.16.0, because 
 checks it runs read the R-squared of `summary()`, which a `glm` does not report; they read
 that of the least-squares fit now. It refuses a `glm` of another family or link, a
 `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, and `data` that lack rows or variables of the fit. It stops when terms of its auxiliary
+reason, `data` that lack rows or variables of the fit, and, since 0.16.0, a multivariate `lm`, a
+fit changed after it was fitted and a fit with `model = FALSE` whose data are gone, unless `data`
+gives its response and fitted values (see [`test_results`](test_results.md)). It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which
 [`performWhiteTest()`](performWhiteTest.md) drops, and, since 0.16.0, with the refusal of
 [`performWhiteTest()`](performWhiteTest.md) (see its section *Too few observations*) when its

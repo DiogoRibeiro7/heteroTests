@@ -68,14 +68,14 @@ context_installed <- function(cell) {
 
 # Runs `fns` on `ids` and checks each cell: its value against its reference,
 # `identical()`, or its refusal, as the test sees the cell
-# (context_cell_for()).
-context_check_matrix <- function(ids, fns = context_runnable()) {
+# (context_cell_for()). `recipes` holds the call of each of `fns`.
+context_check_matrix <- function(ids, fns = context_runnable(), recipes = context_recipes()) {
   cells <- context_cells()
   for (fn in fns) {
     results <- new.env(parent = emptyenv())
     result_of <- function(id) {
       if (is.null(results[[id]])) {
-        results[[id]] <- list(context_run(fn, cells[[id]]))
+        results[[id]] <- list(context_run(fn, cells[[id]], recipes))
       }
       results[[id]][[1L]]
     }
@@ -637,7 +637,9 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
   # gam with an `offset` argument. Increment 5: the panel tests and the
   # scatter diagnostic, which refused other data with row names of their own
   # in another order than the fit, but read those of a gam by position
-  # (Breusch-Pagan random effects 0.163 for 3.100).
+  # (Breusch-Pagan random effects 0.163 for 3.100). Increment 7: the streaming
+  # tests, which built their design from the rows of `data` by position
+  # (White's streaming test 8.887 for 11.145).
   skip_if_not_installed("mgcv")
   d <- context_data()
   set.seed(3)
@@ -646,14 +648,236 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
     mgcv::gam(y ~ x1 + x2, data = d), mgcv::gam(y ~ s(x1) + x2, data = d),
     mgcv::gam(y ~ x1 + x2, data = d, offset = o)
   )
+  fns <- c(context_increment3, context_increment4, context_increment5, context_streaming)
   for (m in fits) {
-    for (fn in context_runnable(c(context_increment3, context_increment4, context_increment5))) {
+    for (fn in context_runnable(fns)) {
       expected <- context_run(fn, list(build = function() list(m = m, data = d)))
       context_expect_value(expected, fn)
       context_same(context_run(fn, list(build = function() list(m = m, data = shuffled))),
                    expected, paste(fn, deparse(stats::formula(m))))
     }
   }
+})
+
+test_that("the streaming tests read the stored design in chunks, on every form of data", {
+  # Increment 7: in chunks of 7 observations, 18 on the 120 of the matrix and
+  # a last one of a single observation, each value is that of the data frame
+  # of the fit, identical(), as in the one chunk of 10,000 of the matrix.
+  skip_unless_full_matrix()
+  context_check_matrix(names(context_cells()), context_streaming_chunked,
+                       context_streaming_recipes())
+})
+
+test_that("a term computed from its rows keeps the values of the fit in every chunk (B6)", {
+  # Up to 0.16.0 each chunk built its own design from the formula, on its rows
+  # of `data`. I(x1 > median(x1)) took the median of each chunk: on the term
+  # cell of the matrix, in chunks of 7, the Breusch-Pagan test gave 11.375
+  # and Koenker's 8.165, in chunks of 40 12.344 and 8.861, where the fit gives
+  # 12.901 and 9.260. cut(x1, quantile(x1)) took the breaks of each chunk, and
+  # of the rows of the fit, which dropped the row at the minimum of x1, so it
+  # stopped on "factor cut(x1, quantile(x1)) has new levels" in chunks of any
+  # size (N7). On the fit that dropped rows, the median of the rows of the fit
+  # replaced that of all the rows the fit saw (B5): 13.345 and 9.276 in one
+  # chunk, 5.746 and 3.994 in chunks of 7, where the fit gives 12.464 and
+  # 8.664. Each now gives the value of the same fit with the column computed
+  # beforehand, and that of the exact test.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d_med <- d
+  d_med$x2[c(3, 7, 11)] <- NA
+  d_med$high <- d_med$x1 > stats::median(d_med$x1)
+  cases <- list(
+    median = list(m = context_model(d, "ols", "none", "median"), data = d,
+                  reference = context_precomputed_fit("ols", "median")),
+    cut = list(m = context_model(d, "ols", "none", "cut"), data = d,
+               reference = context_precomputed_fit("ols", "cut")),
+    dropped = list(m = lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = d_med,
+                   reference = list(m = lm(y ~ high + x2, data = d_med), data = d_med))
+  )
+  exact <- list(performBPTestStreaming = performBPTest,
+                performKoenkerTestStreaming = performKoenkerTest)
+  for (case in names(cases)) {
+    m <- cases[[case]]$m
+    data <- cases[[case]]$data
+    reference <- cases[[case]]$reference
+    for (chunk in c(7, 40, 10000)) {
+      for (fn in names(exact)) {
+        info <- paste(fn, case, chunk)
+        run <- function(model, data) {
+          suppressWarnings(get(fn)(model, data, chunk_size = chunk, progress = FALSE))
+        }
+        out <- run(m, data)
+        context_same(out, run(reference$m, reference$data), info, tolerance = 1e-10)
+        context_same(out, run(m, NULL), info, tolerance = 1e-10)
+        # The exact tests warn of the rows the fit dropped.
+        expect_equal(unname(out$statistic),
+                     unname(suppressWarnings(exact[[fn]](m, data))$statistic),
+                     tolerance = 1e-8, info = info)
+      }
+      # White's streaming test stops on the collinear squares of the dummies
+      # (N3, a pull request of its own), where it stopped on the new levels.
+      expect_error(suppressWarnings(performWhiteTestStreaming(m, data, chunk_size = chunk,
+                                                              progress = FALSE)),
+                   "Auxiliary regression became rank deficient", fixed = TRUE)
+    }
+  }
+})
+
+test_that("the streaming tests take the inputs of the tests built on the context", {
+  # Increment 7. Without `data`, a model that transforms its variables or has
+  # an offset() term stopped with "The following variables are missing from
+  # input data" (L1); the complete rows of a fit with na.omit numbered again,
+  # and the tibble in fit order of a fit to named data, with "Missing rows"
+  # (B14). They give the value of the data frame of the fit.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  renumbered <- d_na[stats::complete.cases(d_na[, c("y", "x1", "x2")]), ]
+  rownames(renumbered) <- NULL
+  named <- d
+  rownames(named) <- paste0("obs", seq_len(nrow(d)))
+  cases <- list(
+    list(m = lm(log(ypos) ~ log(x1) + x2, data = d), data = NULL, reference = d),
+    list(m = lm(y ~ x1 + x2 + offset(o), data = d), data = NULL, reference = d),
+    list(m = lm(y ~ x1 + x2, data = d_na), data = renumbered, reference = d_na)
+  )
+  if (requireNamespace("dplyr", quietly = TRUE)) {
+    cases <- c(cases, list(list(m = lm(y ~ x1 + x2, data = named),
+                                data = dplyr::as_tibble(named), reference = named)))
+  }
+  recipes <- c(context_recipes(), context_streaming_recipes())
+  for (k in seq_along(cases)) {
+    m <- cases[[k]]$m
+    for (fn in c(context_streaming, context_streaming_chunked)) {
+      info <- paste(fn, k)
+      expected <- context_run(fn, list(build = function() list(m = m, data = cases[[k]]$reference)),
+                              recipes)
+      context_expect_value(expected, info)
+      context_same(context_run(fn, list(build = function() list(m = m, data = cases[[k]]$data)),
+                               recipes),
+                   expected, info)
+    }
+  }
+})
+
+test_that("the runner keeps the refusals of the streaming tests final", {
+  # The runner runs the streaming tests when `chunk_threshold_mb` asks for
+  # them. A fit edited after it was fitted, which they tested before
+  # increment 7 (White's streaming test 11.145, the value of the fit before
+  # the edit), a multivariate lm, on which they stopped with a coercion error,
+  # and a fit with model = FALSE whose data are gone, given its rows shuffled
+  # as a tibble (8.887, a value of other rows), are refused by the context,
+  # and the runner stops with the refusal, its class kept, without a fallback
+  # under the name of the test (decision 6).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  run <- function(m, data, chunk_size = 7) {
+    suppressWarnings(runHeteroTests(m, data, tests = c("white", "breusch_pagan", "koenker"),
+                                    use_cache = FALSE, chunk_threshold_mb = 0,
+                                    chunk_size = chunk_size, progress = FALSE))
+  }
+  edited <- lm(y ~ x1 + x2, data = d)
+  edited$coefficients[["x1"]] <- edited$coefficients[["x1"]] + 0.5
+  expect_error(run(edited, d), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
+  for (fn in context_streaming) {
+    expect_error(suppressWarnings(get(fn)(edited, d, progress = FALSE)),
+                 "does not reproduce its residuals", class = "heteroTests_model_context_error")
+  }
+  expect_error(run(lm(cbind(y, ypos) ~ x1 + x2, data = d), d),
+               "performWhiteTestStreaming() needs a model with one response; `model` has 2.",
+               fixed = TRUE, class = "heteroTests_model_context_error")
+  skip_if_not_installed("dplyr")
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  set.seed(3)
+  shuffled <- dplyr::as_tibble(d)[sample(nrow(d)), ]
+  expect_error(run(m_false, shuffled), "cannot use the model frame of `model`",
+               class = "heteroTests_model_context_error")
+  # Given its data, it is tested on them, streamed: the values of the fit.
+  streamed <- run(m_false, d)
+  expected <- run(lm(y ~ x1 + x2, data = d), d)
+  for (nm in names(expected)) {
+    expect_true(attr(streamed[[nm]], "extras")$streaming, info = nm)
+    context_same(streamed[[nm]], expected[[nm]], nm)
+  }
+  # On a term computed from its rows, the runner's streaming tests give the
+  # values of the fit in every chunk (B6), and White's falls back on White's
+  # test without cross products, as before.
+  m <- context_model(d, "ols", "none", "median")
+  chunked <- run(m, d)
+  for (nm in c("breusch_pagan", "koenker")) {
+    expect_true(attr(chunked[[nm]], "extras")$streaming, info = nm)
+    expect_null(attr(chunked[[nm]], "extras")$status)
+    context_same(chunked[[nm]], run(m, d, chunk_size = 10000)[[nm]], nm, tolerance = 1e-10)
+  }
+  expect_identical(attr(chunked$white, "extras")$status, "fallback")
+})
+
+test_that("a gam with smooth terms is streamed as before, on the variables of its formula", {
+  # Its stored design is the basis of its smooths, on which the exact tests
+  # test it (decision 23). The streaming tests built the design of each chunk
+  # from its terms, those of the variables of its formula, and keep that
+  # design, now from its model frame, until the last step of the model
+  # context settles which tests take such a fit: Breusch-Pagan's and Koenker's
+  # statistics of its residuals on x1 and x2, written out here.
+  skip_if_not_installed("mgcv")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
+  e2 <- unname(stats::residuals(smooth))^2
+  X <- cbind(d$x1, d$x2)
+  g <- e2 / mean(e2) - 1
+  bp <- 0.5 * sum(stats::fitted(stats::lm(g ~ X))^2)
+  koenker <- length(e2) * summary(stats::lm(e2 ~ X))$r.squared
+  for (chunk in c(7, 10000)) {
+    out_bp <- performBPTestStreaming(smooth, d, chunk_size = chunk, progress = FALSE)
+    out_k <- performKoenkerTestStreaming(smooth, NULL, chunk_size = chunk, progress = FALSE)
+    expect_equal(unname(out_bp$statistic), bp, tolerance = 1e-8)
+    expect_equal(unname(out_k$statistic), koenker, tolerance = 1e-8)
+    expect_equal(unname(out_bp$parameter), 2)
+    expect_equal(unname(out_k$parameter), 2)
+  }
+})
+
+test_that("a model = FALSE fit to named data says why numbered data cannot rebuild its frame", {
+  # The frame of a fit with model = FALSE whose data are gone is rebuilt from
+  # `data`, whose rows are matched by the names of the observations of the
+  # fit, which a tibble of such data, numbering its rows, lacks. The tests
+  # built on the context said that `data` does not give the response and the
+  # fitted values of the fit, and the streaming tests before increment 7
+  # "Missing rows: Mazda RX4, Mazda RX4 Wag, Datsun 710"; the refusal names
+  # the rows `data` lacks.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  env <- new.env()
+  assign("gone", mtcars, envir = env)
+  m <- eval(quote(lm(mpg ~ wt + qsec, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  unmatched <- paste(
+    "the rows of `data` cannot be matched to the observations of the fit: `data` has no rows",
+    "named Mazda RX4, Mazda RX4 Wag, Datsun 710."
+  )
+  for (fn in c(context_streaming, "performWhiteTest", "performKoenkerTest")) {
+    test <- match.fun(fn)
+    expect_s3_class(suppressWarnings(test(m, mtcars)), "htest")
+    expect_error(suppressWarnings(test(m, dplyr::as_tibble(mtcars))), unmatched, fixed = TRUE,
+                 class = "heteroTests_model_context_error", info = fn)
+  }
+  # Data with the names of the fit that do not give its response keep the
+  # message on the response and the fitted values.
+  reversed <- mtcars
+  reversed$mpg <- rev(reversed$mpg)
+  expect_error(performKoenkerTest(m, reversed),
+               "`data` does not give the response and the fitted values of the fit", fixed = TRUE)
 })
 
 test_that("Harrison-McCabe takes the rank of the fit, decided at its tolerance (N4)", {
@@ -996,12 +1220,24 @@ test_that("a term is the column it computes, taken from the fit", {
         # runPanelTests() need `data`.
         readers <- c(names(context_reads), context_increment5)
         forms <- if (fn %in% readers) "data_frame" else c("data_frame", "null")
+        # White's streaming test stops on the collinear squares of these terms,
+        # and of their columns computed beforehand (N3).
+        collinear <- identical(fn, "performWhiteTestStreaming") &&
+          terms %in% context_white_streaming_collinear
         for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, "none", terms)
             list(m = m, data = context_form(form, m, d))
           }))
-          context_same(out, expected, paste(fn, fit, terms, form), tolerance = tolerance)
+          if (collinear) {
+            for (refused in list(out, expected)) {
+              expect_s3_class(refused, "error")
+              expect_match(conditionMessage(refused), "Auxiliary regression became rank deficient",
+                           fixed = TRUE, info = paste(fn, fit, terms, form))
+            }
+          } else {
+            context_same(out, expected, paste(fn, fit, terms, form), tolerance = tolerance)
+          }
         }
       }
     }

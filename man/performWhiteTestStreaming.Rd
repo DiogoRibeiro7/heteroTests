@@ -17,15 +17,18 @@ performWhiteTestStreaming(
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
 to be diagnosed.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
-variables referenced by \code{model}. It must include the observations used to
-fit \code{model} and will be checked for missing values.
-When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
-terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, as does a
-model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
-argument is a column of the data, which the model frame holds as
-\code{(weights)} or \code{(offset)}.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default.
+The response, design, weights and offset are read from the fit itself, so
+a model that transforms its variables, has an \code{offset()} term, or takes
+its \code{weights} or \code{offset} from a column of the data needs no \code{data}, and
+the model frame of \code{model} is accepted as \code{data} (since 0.16.0; before,
+such models needed \code{data}). Data that are given are matched to the
+observations of the fit: rows with row names of their own by name, in any
+order; rows that only number themselves (a tibble, a data.table, a data
+frame whose row names were reset) by the row numbers of the fit, or in the
+order of the fit when they hold one row per observation. The rows the fit
+dropped may be there or not. Data whose rows cannot be shown to hold the
+observations of the fit are refused; see \link{test_results}.}
 
 \item{chunk_size}{Positive integer specifying the number of observations per
 chunk. Smaller values reduce memory usage at the expense of additional
@@ -61,6 +64,19 @@ for the response. The final \eqn{n R^2} statistic is then computed exactly as
 in the standard White test, ensuring numerical equivalence while dramatically
 reducing peak memory usage. When \code{Matrix} is installed, sparse cross-products
 are leveraged automatically for large chunks.
+
+Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
+itself as \code{\link[=performWhiteTest]{performWhiteTest()}} reads it, so the value does not depend on the
+size of the chunks but by rounding; the auxiliary design, several times
+wider, is built chunk by chunk. Up to 0.16.0 each chunk built its own design
+from the formula, on its rows of \code{data}, so a term computed from the rows it
+is given took other values in each chunk than in the fit:
+\code{I(x > median(x))} the median of the chunk, and \code{cut(x, quantile(x))} its
+breaks, which stopped the test ("factor has new levels") in chunks of any
+size on a fit that dropped the row at the minimum of \code{x}. An \code{mgcv::gam()}
+fit with smooth terms is tested as before, on the design of the variables of
+its formula, which its model frame holds, rather than on the basis of its
+smooths, on which \code{\link[=performWhiteTest]{performWhiteTest()}} tests it.
 }
 \section{Supported models}{
 It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity
@@ -72,7 +88,9 @@ test gives the value of the \code{lm}. It refused every \code{glm} before 0.16.0
 checks it runs read the R-squared of \code{summary()}, which a \code{glm} does not report; they read
 that of the least-squares fit now. It refuses a \code{glm} of another family or link, a
 \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, and \code{data} that lack rows or variables of the fit. It stops when terms of its auxiliary
+reason, \code{data} that lack rows or variables of the fit, and, since 0.16.0, a multivariate \code{lm}, a
+fit changed after it was fitted and a fit with \code{model = FALSE} whose data are gone, unless \code{data}
+gives its response and fitted values (see \code{\link{test_results}}). It stops when terms of its auxiliary
 regression are collinear, as the squares of dummy variables are, which
 \code{\link{performWhiteTest}()} drops, and, since 0.16.0, with the refusal of
 \code{\link{performWhiteTest}()} (see its section \emph{Too few observations}) when its
