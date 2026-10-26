@@ -4,18 +4,27 @@
 #' by averaging pairwise residual correlations across individuals within each
 #' period of a panel dataset.
 #'
-#' @param model A fitted [stats::lm] object estimated on panel data. The residuals
-#'   must be ordered consistently with `data`.
-#' @param data A [base::data.frame] containing the variables used in `model` and
-#'   the panel identifiers supplied via `id` and `time`.
-#'   When `NULL`, the default, the model frame of `model` is used, so `id` and
-#'   `time` must then be variables of the model. The model frame holds the terms
-#'   of the model rather than its variables (`log(x)` rather than `x`), so a
-#'   model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term.
+#' @param model A fitted [stats::lm] object estimated on panel data, the pooled
+#'   `lm()` of the panel.
+#' @param data The data frame `model` was fitted to, holding the panel
+#'   identifiers named by `id` and `time`, or `NULL`, the default. The
+#'   residuals and weights are read from the fit itself, and `id` and `time`
+#'   from the rows of `data` that hold the observations of the fit. Without
+#'   `data` they are read from the model frame of `model`, which holds them
+#'   only when they are variables of the model under their own names (`id`,
+#'   not `factor(id)`); identifiers the model does not use need `data`. Since
+#'   0.16.0, data that are given are matched to the observations of the fit:
+#'   rows with row names of their own by name, in any order; rows that only
+#'   number themselves (a tibble, a data.table, a data frame whose row names
+#'   were reset) by the row numbers of the fit, or in the order of the fit when
+#'   they hold one row per observation. The rows the fit dropped may be there
+#'   or not. Data whose rows cannot be shown to hold the observations of the
+#'   fit are refused; see [test_results].
 #' @param id Character scalar naming the column that identifies individuals (the
 #'   cross-sectional dimension).
 #' @param time Character scalar naming the column that indexes time periods.
+#'   Each pair of `id` and `time` must hold one observation of the fit: since
+#'   0.16.0 a pair that holds more is refused.
 #'
 #' @return A \code{htest} object containing the standardised CD statistic and
 #'   its two-sided p-value under the asymptotic standard normal reference
@@ -35,6 +44,17 @@
 #' spatial corrections to inference. For small samples users should interpret the
 #' statistic cautiously or consider small-sample adjustments available in the
 #' literature.
+#'
+#' The statistic is computed on a balanced panel, every unit observed once in
+#' every period. Since 0.16.0 a pair of `id` and `time` that holds two
+#' observations of the fit is refused, and so is an unbalanced panel, as that
+#' of a fit that dropped some rows of some units: the test stopped on it, or,
+#' when the number of periods of a unit divided that of the panel, returned a
+#' wrong value computed on its residuals recycled over the periods it lacks.
+#' A fit that drops every row of a unit keeps a balanced panel.
+#' `plm::pcdtest()` computes the statistic of an unbalanced panel from the
+#' periods each pair of units shares (Pesaran 2015); the package will too, on
+#' the roadmap, and the refusal will then go.
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
@@ -65,36 +85,65 @@
 #' [performBPRandomEffectsTest()] for related random-effects diagnostics and
 #' [performSpatialHeteroTest()] when spatial dependence is suspected.
 performPesaranTest <- function(model, data = NULL, id, time) {
+  test_label <- "Pesaran CD test"
+  # A model the tests do not take, and `data` that is not a data frame, are
+  # refused first, with the messages of before 0.16.0.
   rrefuse_non_gaussian_glm(model, "performPesaranTest")
-  data <- rdata_or_model_frame(model, data)
-  if (!inherits(model, "lm")) {
-    stop("`model` must be an object of class 'lm'.")
-  }
-  if (!is.data.frame(data)) {
+  if (!is.null(data) && !is.data.frame(data)) {
     stop("`data` must be a data frame.")
   }
-  if (!all(c(id, time) %in% names(data))) {
+  # The residuals and weights come from the fit; `data`, when given, is matched
+  # to its observations and checked (R/model_context.R). `id` and `time` are
+  # read from the rows of `data` that hold the observations, so data taken in
+  # the order of the fit must tell those rows apart when they are not columns
+  # of the model frame.
+  ctx <- rmodel_context(
+    model, data, fn = "performPesaranTest", test_label = test_label,
+    reads = c(
+      if (!missing(id) && is.character(id)) id,
+      if (!missing(time) && is.character(time)) time
+    )
+  )
+  if (!is.null(data) && !all(c(id, time) %in% names(data))) {
     stop("`id` and `time` must be columns in `data`.")
   }
-  rrefuse_nonfinite_coefficients(model, "Pesaran CD test", allow_aliased = TRUE)
-  # The rows of `data` are read in the order of the residuals, so data that
-  # lack rows of the fit or a variable of the model are refused, as by the
-  # tests that read `data`. Before 0.15.0 they returned a value: data.frame()
-  # below recycled data with half the rows, and a missing variable was never
-  # looked for.
-  rcheck_data_matches_model(model, data, "Pesaran CD test")
+  rrefuse_nonfinite_coefficients(model, test_label, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  res <- rpearson_residuals(model)
-  # The i-th row is read with the i-th residual, so data with its own row
-  # names in another order than the fit, or with more rows than the fit, which
-  # data.frame() below recycled, are refused until 0.16.0 matches by name.
-  rcheck_data_in_fit_order(res, data, "performPesaranTest", "Pesaran CD test")
-  df <- data.frame(id = data[[id]], time = data[[time]], res = res)
+  # The units and the periods, one per observation in the order of the fit:
+  # from the confirmed rows of `data`, or without `data` from the model frame
+  # when it holds them under their own names; and the Pearson residuals of the
+  # fit, which refuse a zero weight. Before 0.16.0 the i-th row of `data` was
+  # read with the i-th residual, and data with row names of their own in
+  # another order than the fit, with rows after those of the fit, or of a fit
+  # that dropped rows, were refused. A fit with na.exclude is read as before
+  # (rcontext_columns_at_fit()).
+  read <- rcontext_columns_at_fit(
+    ctx, data, c(id = id, time = time), "performPesaranTest", test_label
+  )
+  # The matrix of periods by units below needs a balanced panel, every unit
+  # observed once at every period, on every route, a fit with na.exclude
+  # included. A unit or a period missing at an observation, on which the
+  # statistic stopped before, is refused with a message that names it; a pair
+  # of `id` and `time` that holds two observations, which put one of them in
+  # the cell of another period, is refused (decision 13 of the design of the
+  # model context); and so is an unbalanced panel, on which the statistic
+  # stopped ("number of items to replace is not a multiple of replacement
+  # length") or recycled the residuals of a unit over the periods it lacks
+  # (N12), until the statistic of an unbalanced panel is computed from the
+  # periods each pair of units shares (decided by the author on 2026-10-24).
+  rstop_missing_variable(ctx, read$columns$id, id, "id", test_label, ids = read$ids)
+  rstop_missing_variable(ctx, read$columns$time, time, "time", test_label, ids = read$ids)
+  rstop_repeated_panel_cells(read$columns$id, read$columns$time, id, time,
+                             "performPesaranTest")
+  rstop_unbalanced_panel(read$columns$id, read$columns$time, id, "performPesaranTest")
+  df <- data.frame(id = read$columns$id, time = read$columns$time, res = read$residuals)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)
   times <- unique(df$time)
   N <- length(ids)
   T <- length(times)
+  # Each unit fills a column of periods, in the order of the periods.
   mat <- matrix(NA, nrow = T, ncol = N)
   for (i in seq_along(ids)) {
     mat[, i] <- df$res[df$id == ids[i]]

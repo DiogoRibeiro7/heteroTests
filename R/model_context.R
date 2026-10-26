@@ -34,8 +34,11 @@
 # performHarrisonMcCabeTest(), performHartleyFmaxTest() and
 # performSpatialHeteroTest(), and (increment 4) the five group tests,
 # performLeveneTest(), performBrownForsytheTest(), performFlignerKilleenTest(),
-# performBartlettTest() and performOBrienTest() (rcontext_group_rows()); the
-# other tests still prepare the model and data with rdata_or_model_frame() and
+# performBartlettTest() and performOBrienTest() (rcontext_group_rows()), and
+# (increment 5) performPesaranTest(), performBPRandomEffectsTest() and
+# performScatterDiagnostic() (rcontext_columns_at_fit()), and so
+# runPanelTests(), which runs the two panel tests; the other tests still
+# prepare the model and data with rdata_or_model_frame() and
 # prepare_model_data_for_test().
 
 #' Build the model context of a test
@@ -645,10 +648,14 @@ rcontext_mean <- function(ctx) {
 #' @param variable Character scalar, the name of the variable.
 #' @param argument Character scalar, the argument of the test that names it.
 #' @param test_label Character scalar naming the test.
+#' @param ids The names of the observations `values` holds: those of the fit,
+#'   or, for a fit with `na.exclude` that [performPesaranTest()] reads by
+#'   position, the row names of `data`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
-rstop_missing_variable <- function(ctx, values, variable, argument, test_label) {
+rstop_missing_variable <- function(ctx, values, variable, argument, test_label,
+                                   ids = ctx$obs_id) {
   absent <- if (is.matrix(values) || is.data.frame(values)) {
     !stats::complete.cases(values)
   } else {
@@ -663,7 +670,7 @@ rstop_missing_variable <- function(ctx, values, variable, argument, test_label) 
         "%s requires `data` to contain the rows used to fit the model. Missing rows: %s, ",
         "where %s, the `%s` variable, is missing."
       ),
-      test_label, paste(utils::head(ctx$obs_id[absent], 3L), collapse = ", "), variable, argument
+      test_label, paste(utils::head(ids[absent], 3L), collapse = ", "), variable, argument
     ),
     call. = FALSE
   )
@@ -742,6 +749,167 @@ rcontext_group_rows <- function(ctx, data, group) {
     residuals <- residuals[-cleaned$removed_cases]
   }
   list(residuals = residuals, data = cleaned$data)
+}
+
+#' The residuals and the columns of `data` that a panel test or the scatter
+#' diagnostic reads
+#'
+#' [performPesaranTest()], [performBPRandomEffectsTest()] and
+#' [performScatterDiagnostic()] read columns of `data` beside the residuals of
+#' the fit: the units and the periods of a panel, the variables the absolute
+#' residuals are correlated with. Before 0.16.0 they read the i-th row of
+#' `data` with the i-th residual, and from 0.15.0 refused `data` they could not
+#' show to be in the order of the fit (defects B3 and B4 of the design of the
+#' model context): rows with names of their own in another order, rows after
+#' those of the fit, and the data of a fit that dropped rows (B16). The
+#' columns are now read at the rows the alignment confirmed, in the order of
+#' the fit ([rcontext_variables()]), or without `data` from the model frame,
+#' and the residuals are the Pearson residuals of the fit
+#' ([rcontext_pearson()]), which refuses a zero weight, as before.
+#'
+#' A fit with `na.action = na.exclude` is read as before until the step of
+#' the model context that moves `na.exclude` (B13): its Pearson residuals,
+#' padded with `NA` at the rows the fit dropped, against the rows of `data`,
+#' or of the model frame, by position, which must then hold the rows of the
+#' fit in its order ([rcheck_data_in_fit_order()]).
+#'
+#' @param ctx The model context.
+#' @param data The `data` argument of the calling test, or `NULL`.
+#' @param columns Character vector of the columns the test reads; its names,
+#'   when given, name the elements of `columns` in the result.
+#' @param fn Character scalar naming the calling test.
+#' @param test_label Character scalar naming the test in the messages on rows
+#'   that `data` lacks.
+#' @return A list with `residuals`, the Pearson residuals, `columns`, a named
+#'   list of the columns, each with one value per residual, `ids`, the names
+#'   of the observations they hold (the row names of the rows read, for a fit
+#'   with `na.exclude`), and `padded`, `TRUE` for the residuals of a fit with
+#'   `na.exclude`, read as before.
+#' @keywords internal
+#' @noRd
+rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
+  roles <- names(columns)
+  if (is.null(roles)) {
+    roles <- columns
+  }
+  roles[!nzchar(roles)] <- columns[!nzchar(roles)]
+  # Without `data`, a column the model frame does not hold under its own name
+  # is refused here (M1), for a fit with na.exclude too.
+  values <- rcontext_variables(ctx, data, stats::setNames(columns, roles))
+  if (inherits(ctx$na_action, "exclude")) {
+    rows <- if (is.null(data)) ctx$frame else data
+    rcheck_data_matches_model(ctx$model, rows, test_label)
+    residuals <- rpearson_residuals(ctx$model)
+    rcheck_data_in_fit_order(residuals, rows, fn, test_label)
+    values <- stats::setNames(lapply(columns, function(v) rows[[v]]), roles)
+    return(list(residuals = residuals, columns = values, ids = rownames(rows), padded = TRUE))
+  }
+  list(residuals = rcontext_pearson(ctx), columns = values, ids = ctx$obs_id, padded = FALSE)
+}
+
+#' Refuse a panel in which a unit holds two observations of one period
+#'
+#' [performPesaranTest()] arranges the residuals in a matrix of periods by
+#' units, one cell for each pair of `id` and `time`. A pair that holds two
+#' observations of the fit puts one of them in the cell of another period, and
+#' before 0.16.0 the statistic was computed so without an error. Such panels
+#' are refused (decision 13 of the design of the model context), with the
+#' class of the refusals of the context.
+#'
+#' @param id_values,time_values The units and the periods, one per
+#'   observation of the fit, without missing values.
+#' @param id,time Character scalars, the names of the two columns.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_repeated_panel_cells <- function(id_values, time_values, id, time, fn) {
+  # One pass over the observations: each pair gets a number, the repeated
+  # numbers are found by duplicated(), and their observations counted by
+  # tabulate(). It counted each repeated pair with a scan of every
+  # observation, 18 s for the 40,000 repeated pairs of 120,000 observations.
+  key <- rpanel_cell_key(id_values, time_values)
+  repeated <- duplicated(key)
+  if (!any(repeated)) {
+    return(invisible(NULL))
+  }
+  # The pairs in the order in which they first repeat, each shown by its first
+  # observation, and the number of observations of each.
+  cells <- unique(key[repeated])
+  first <- match(cells, key)
+  counts <- tabulate(match(key, cells), nbins = length(cells))
+  shown <- utils::head(seq_along(cells), 3L)
+  listed <- paste(
+    sprintf("%s = %s and %s = %s (%d observations)", id, as.character(id_values[first[shown]]),
+            time, as.character(time_values[first[shown]]), counts[shown]),
+    collapse = "; "
+  )
+  if (length(cells) > 3L) {
+    listed <- sprintf("%s, and %d more", listed, length(cells) - 3L)
+  }
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() needs one observation of the fit for each pair of `%s` and `%s`, and %d %s ",
+      "more than one: %s. The residuals are arranged in a matrix of periods by units, ",
+      "with one cell for each pair. Pass a panel with one row per unit and period."
+    ),
+    fn, id, time, length(cells), if (length(cells) == 1L) "pair holds" else "pairs hold", listed
+  ))
+}
+
+# The number of the cell of each observation in the matrix of periods by
+# units: the same number for the same pair of unit and period, a different
+# one for another, from the positions of the unit and the period among the
+# distinct values, exact in double precision up to 2^53 cells.
+rpanel_cell_key <- function(id_values, time_values) {
+  unit <- match(id_values, unique(id_values))
+  period <- match(time_values, unique(time_values))
+  (unit - 1) * max(c(period, 0L)) + period
+}
+
+#' Refuse an unbalanced panel
+#'
+#' [performPesaranTest()] arranges the residuals in a matrix of periods by
+#' units, and needs every unit of the fit observed at the same periods. Before
+#' 0.16.0 a unit observed at fewer periods than the panel holds stopped the
+#' statistic ("number of items to replace is not a multiple of replacement
+#' length"), or, when its number of periods divides that of the panel, had its
+#' residuals recycled over the periods it lacks, and the test returned a wrong
+#' value without an error (N12 of the design of the model context). Such panels
+#' are refused, with the class of the refusals of the context, until the
+#' statistic of an unbalanced panel is computed from the periods each pair of
+#' units shares, as `plm::pcdtest()` computes it (decided by the author on
+#' 2026-10-24). A fit that drops every row of a unit keeps a balanced panel.
+#'
+#' @param id_values,time_values The units and the periods, one per
+#'   observation, without missing values or repeated pairs.
+#' @param id Character scalar, the name of the column of the units.
+#' @param fn Character scalar naming the calling test.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
+  # The periods of each unit, counted in one pass over its distinct pairs.
+  units <- sort(unique(id_values))
+  n_periods <- length(unique(time_values))
+  distinct <- !duplicated(rpanel_cell_key(id_values, time_values))
+  held <- tabulate(match(id_values[distinct], units), nbins = length(units))
+  short <- which(held < n_periods)
+  if (length(short) == 0L) {
+    return(invisible(NULL))
+  }
+  first <- short[1L]
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() needs a balanced panel, every unit observed at the same periods, and the panel ",
+      "of the fit is unbalanced: %d of its %d units %s observed at fewer of its %d periods, ",
+      "%s = %s at %d of them. The statistic is computed here on a matrix of periods by ",
+      "units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an ",
+      "unbalanced panel from the periods each pair of units shares."
+    ),
+    fn, length(short), length(units), if (length(short) == 1L) "is" else "are", n_periods,
+    id, as.character(units[first]), held[first]
+  ))
 }
 
 #' Warn about the incomplete rows of `data`, dropping nothing

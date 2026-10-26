@@ -732,9 +732,13 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
 #' `performScatterDiagnostic()` read `data` by position, the i-th row with the
 #' i-th residual, where the other tests match its rows by name. Data with its
 #' own row names in another order than the fit, which the others match
-#' correctly, were read against other residuals and gave wrong values. They
-#' are refused, until 0.16.0 matches them by name, and so are data whose row
-#' names are not those of the fit, which cannot show their order.
+#' correctly, were read against other residuals and gave wrong values. From
+#' 0.15.0 they were refused, and so were data whose row names are not those of
+#' the fit, which cannot show their order. Since 0.16.0 the three read the
+#' rows the model context confirmed ([rcontext_columns_at_fit()]), and call
+#' this check only for a fit with `na.action = na.exclude`, whose padded
+#' residuals they read by position, as before, until the step of the model
+#' context that moves `na.exclude`.
 #'
 #' @param residuals The residuals the test reads, named by observation.
 #' @param data The data the test reads, after [rcheck_data_rows()].

@@ -8,7 +8,44 @@
 # offset), on a term the value of the same column computed beforehand, and on
 # a fit that dropped rows the value of the fit to the complete rows.
 
+# The results of runPanelTests(): a named list of htest results.
+context_is_suite <- function(x) {
+  is.list(x) && !inherits(x, c("htest", "condition")) && length(x) > 0L &&
+    all(vapply(x, inherits, logical(1), "htest"))
+}
+
+# A value of a function of the matrix: an htest result, the correlations of
+# the scatter diagnostic, or the results of runPanelTests().
+context_expect_value <- function(object, info) {
+  expect_true(
+    inherits(object, "htest") || is.numeric(object) || context_is_suite(object),
+    info = paste(info, if (inherits(object, "condition")) conditionMessage(object))
+  )
+}
+
 context_same <- function(object, expected, info, tolerance = NULL) {
+  # The scatter diagnostic returns a correlation for each variable, and
+  # runPanelTests() a list of the panel tests.
+  if (is.numeric(expected)) {
+    expect_true(is.numeric(object), info = info)
+    if (is.null(tolerance)) {
+      expect_identical(object, expected, info = info)
+    } else {
+      expect_equal(object, expected, tolerance = tolerance, info = info)
+    }
+    return(invisible(NULL))
+  }
+  if (context_is_suite(expected)) {
+    expect_true(context_is_suite(object), info = info)
+    if (!context_is_suite(object)) {
+      return(invisible(NULL))
+    }
+    expect_identical(names(object), names(expected), info = info)
+    for (k in names(expected)) {
+      context_same(object[[k]], expected[[k]], paste(info, k), tolerance)
+    }
+    return(invisible(NULL))
+  }
   expect_s3_class(object, "htest")
   expect_s3_class(expected, "htest")
   if (!inherits(object, "htest") || !inherits(expected, "htest")) {
@@ -48,7 +85,7 @@ context_check_matrix <- function(ids, fns = context_runnable()) {
       out <- result_of(id)
       info <- paste(fn, id)
       if (identical(cell$expect, "value")) {
-        expect_s3_class(out, "htest")
+        context_expect_value(out, info)
         if (!is.null(cell$reference) && context_installed(cells[[cell$reference]])) {
           tolerance <- if (id %in% context_rounded_cells) {
             if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-10
@@ -257,8 +294,9 @@ test_that("a fit changed after it was fitted is refused", {
   reweighted <- weighted
   reweighted$weights <- rev(reweighted$weights)
   reproduce <- "does not reproduce its residuals from its design and coefficients"
+  recipes <- context_recipes()
   for (fn in context_runnable()) {
-    recipe <- contract_recipes[[fn]]
+    recipe <- recipes[[fn]]
     expect_error(suppressWarnings(recipe(coefficient, d)), reproduce, fixed = TRUE, info = fn)
     expect_error(suppressWarnings(recipe(residual, d)), reproduce, fixed = TRUE, info = fn)
     # The quantile regression test refuses a weighted fit first.
@@ -411,6 +449,9 @@ test_that("a fit with model = FALSE whose data are gone is tested on data that r
     expect_s3_class(refused, "heteroTests_model_context_error")
     expect_match(conditionMessage(refused), "`data` does not give the response and the fitted",
                  fixed = TRUE, info = fn)
+    # The scatter diagnostic and runPanelTests() need `data`, which they check
+    # before the model.
+    if (fn %in% c("performScatterDiagnostic", "runPanelTests")) next
     expect_s3_class(context_run(fn, list(build = function() list(m = m, data = NULL))),
                     "heteroTests_model_context_error")
   }
@@ -428,9 +469,10 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
     tolerance <- if (fligner) context_fligner_tolerance else 1e-10
     for (data in list(d, NULL)) {
       # Hartley's test and the group tests group by a variable of `data` that
-      # the model frame does not hold: without `data` they are refused (M1), as
-      # the matrix checks.
-      if (is.null(data) && fn %in% context_group_readers()) next
+      # the model frame does not hold, and so do the panel tests: without
+      # `data` they are refused (M1), as the matrix checks; the scatter
+      # diagnostic and runPanelTests() need `data`.
+      if (is.null(data) && fn %in% context_data_readers()) next
       context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                    paste(fn, "gam"), tolerance = tolerance)
@@ -443,8 +485,8 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
         refusal <- "%s() cannot test an mgcv::gam() fit with smooth terms (s(x1))"
         expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
       } else {
-        # Those of increments 1 and 3 test it as before 0.16.0.
-        expect_s3_class(out, "htest")
+        # Those of increments 1, 3, 4 and 5 test it as before 0.16.0.
+        context_expect_value(out, fn)
       }
     }
   }
@@ -583,7 +625,10 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
   # -0.322 for 3.626 on the gam without smooth terms. The context matches the
   # rows by the row names of the model frame. Increment 4: the five group
   # tests, which matched it by position too (Bartlett 4.548 for 12.38), and a
-  # gam with an `offset` argument.
+  # gam with an `offset` argument. Increment 5: the panel tests and the
+  # scatter diagnostic, which refused other data with row names of their own
+  # in another order than the fit, but read those of a gam by position
+  # (Breusch-Pagan random effects 0.163 for 3.100).
   skip_if_not_installed("mgcv")
   d <- context_data()
   set.seed(3)
@@ -593,9 +638,9 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
     mgcv::gam(y ~ x1 + x2, data = d, offset = o)
   )
   for (m in fits) {
-    for (fn in context_runnable(c(context_increment3, context_increment4))) {
+    for (fn in context_runnable(c(context_increment3, context_increment4, context_increment5))) {
       expected <- context_run(fn, list(build = function() list(m = m, data = d)))
-      expect_s3_class(expected, "htest")
+      context_expect_value(expected, fn)
       context_same(context_run(fn, list(build = function() list(m = m, data = shuffled))),
                    expected, paste(fn, deparse(stats::formula(m))))
     }
@@ -782,11 +827,12 @@ test_that("the registered tests of increment 3 keep the refusals of the context 
   expect_identical(out$method, "Spatial heteroscedasticity test (Moran's I on squared residuals)")
 })
 
-test_that("a fit with a zero weight is refused on every route of increments 3 and 4", {
+test_that("a fit with a zero weight is refused on every route of increments 3 to 5", {
   # The tests refused it before 0.16.0 by the Pearson residuals of the fit,
   # and still do, with data, without and with the rows shuffled; Hartley's
-  # test and the five group tests without `data` lack their groups first (the
-  # matrix checks it).
+  # test, the five group tests and the panel tests without `data` lack their
+  # groups or identifiers first, and the scatter diagnostic and runPanelTests()
+  # need `data` (the matrix checks it).
   zero <- context_data()
   zero$w0 <- zero$w
   zero$w0[1] <- 0
@@ -795,12 +841,14 @@ test_that("a fit with a zero weight is refused on every route of increments 3 an
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   szroeter <- get("szroeter", envir = heteroTests:::.diagnostic_registry)
+  recipes <- context_recipes()
   for (m in list(lm(y ~ x1 + x2, data = zero, weights = w0),
                  glm(y ~ x1 + x2, data = zero, weights = w0))) {
     for (data in list(zero, NULL, shuffled)) {
-      for (fn in context_runnable(c(context_increment3, context_increment4))) {
-        if (is.null(data) && fn %in% context_group_readers()) next
-        expect_error(suppressWarnings(contract_recipes[[fn]](m, data)),
+      fns <- c(context_increment3, context_increment4, context_increment5)
+      for (fn in context_runnable(fns)) {
+        if (is.null(data) && fn %in% context_data_readers()) next
+        expect_error(suppressWarnings(recipes[[fn]](m, data)),
                      "zero or non-finite weights", info = fn)
       }
       expect_error(szroeter(m, data), "zero or non-finite weights")
@@ -824,8 +872,9 @@ test_that("an offset is the model of the response minus the offset", {
   for (fn in setdiff(context_runnable(), "performRESETTest")) {
     fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else context_fits
     # Hartley's test and the group tests group by a variable the model frame
-    # does not hold.
-    forms <- if (fn %in% context_group_readers()) "data_frame" else c("data_frame", "null")
+    # does not hold, the panel tests read identifiers it does not hold, and
+    # the scatter diagnostic and runPanelTests() need `data`.
+    forms <- if (fn %in% context_data_readers()) "data_frame" else c("data_frame", "null")
     # The fit of y - o is another fit of the model, whose rounding could leave
     # a tie of Fligner-Killeen's ranks at a group median exact where the fit
     # with the offset broke it before 0.16.0 (N15): measured on the Gaussian
@@ -898,6 +947,9 @@ test_that("a term is the column it computes, taken from the fit", {
     fits <- if (identical(fn, "performQuantileRegressionTest")) "ols" else c("ols", "wls")
     for (fit in fits) {
       for (terms in names(precomputed)) {
+        # cut() drops the row at the minimum of x1, and the panel of the fit
+        # is unbalanced, which Pesaran's test refuses either way (N12).
+        if (identical(terms, "cut") && fn %in% c("performPesaranTest", "runPanelTests")) next
         expected <- context_run(fn, list(build = function() context_precomputed_fit(fit, terms)))
         # The fit with the columns computed beforehand is another fit of the
         # model: before 0.16.0 Fligner-Killeen's ranks could tie at a group
@@ -910,10 +962,13 @@ test_that("a term is the column it computes, taken from the fit", {
           1e-10
         }
         # Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read x1,
-        # which the model frame of these fits does not hold, and Hartley's
-        # test groups by a variable it does not hold either: without `data`
-        # they are refused (the matrix checks it).
-        forms <- if (fn %in% names(context_reads)) "data_frame" else c("data_frame", "null")
+        # which the model frame of these fits does not hold, Hartley's test
+        # groups by a variable it does not hold either, and the panel tests
+        # read identifiers it does not hold: without `data` they are refused
+        # (the matrix checks it), and the scatter diagnostic and
+        # runPanelTests() need `data`.
+        readers <- c(names(context_reads), context_increment5)
+        forms <- if (fn %in% readers) "data_frame" else c("data_frame", "null")
         for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, "none", terms)
@@ -947,19 +1002,22 @@ test_that("models the tests do not take are refused first, with today's messages
   d <- context_data()
   d$high <- as.integer(d$y > stats::median(d$y))
   binomial_fit <- glm(high ~ x1 + x2, data = d, family = binomial)
+  recipes <- context_recipes()
   for (fn in context_runnable()) {
-    recipe <- contract_recipes[[fn]]
+    recipe <- recipes[[fn]]
     expect_error(recipe(binomial_fit, d), "needs a model fitted by stats::lm()", fixed = TRUE,
                  info = fn)
+    # runPanelTests() refuses a model through the first test it runs.
+    refused_by <- if (identical(fn, "runPanelTests")) "performBPRandomEffectsTest" else fn
     expect_error(recipe(lm(cbind(y, ypos) ~ x1 + x2, data = d), d),
-                 sprintf("%s() needs a model with one response; `model` has 2.", fn),
+                 sprintf("%s() needs a model with one response; `model` has 2.", refused_by),
                  fixed = TRUE, info = fn)
   }
   skip_if_not_installed("survey")
   design <- survey::svydesign(ids = ~1, weights = ~w, data = d)
   survey_fit <- survey::svyglm(y ~ x1 + x2, design = design)
   for (fn in context_runnable()) {
-    expect_error(contract_recipes[[fn]](survey_fit, d), "The model is a survey::svyglm() fit",
+    expect_error(recipes[[fn]](survey_fit, d), "The model is a survey::svyglm() fit",
                  fixed = TRUE, info = fn)
   }
 })
@@ -1236,4 +1294,414 @@ test_that("a group test run by the runner keeps the refusals of the context fina
     expect_identical(unname(out$statistic), unname(suppressWarnings(recipe(plain, d))$statistic),
                      info = fn)
   }
+})
+
+# The panel tests and the scatter diagnostic written out without the package,
+# on the residuals `r` of a fit and the columns of the rows that hold its
+# observations, in the same order: Pesaran's CD from the correlations of the
+# residuals of each pair of units over the periods, the Breusch-Pagan LM
+# statistic of Breusch and Pagan (1980), equation 5, with the mean number of
+# periods, and Spearman's correlation of the absolute residuals with `x`.
+context_panel_oracle <- function(fn, r, id, time = NULL, x = NULL) {
+  r <- unname(r)
+  switch(fn,
+    performPesaranTest = {
+      units <- sort(unique(id))
+      periods <- sort(unique(time))
+      wide <- matrix(NA_real_, length(periods), length(units))
+      wide[cbind(match(time, periods), match(id, units))] <- r
+      rho <- stats::cor(wide)
+      n_units <- length(units)
+      cd <- sqrt(2 * length(periods) / (n_units * (n_units - 1))) * sum(rho[upper.tri(rho)])
+      c(cd, 2 * stats::pnorm(abs(cd), lower.tail = FALSE))
+    },
+    performBPRandomEffectsTest = {
+      sums <- tapply(r, id, sum)
+      periods <- mean(tapply(r, id, length))
+      lm_stat <- length(r) / (2 * (periods - 1)) * (sum(sums^2) / sum(r^2) - 1)^2
+      c(lm_stat, stats::pchisq(lm_stat, 1, lower.tail = FALSE))
+    },
+    performScatterDiagnostic = stats::cor(abs(r), x, method = "spearman")
+  )
+}
+
+test_that("the panel tests and the scatter diagnostic match data by name (B3, B4)", {
+  # Before 0.16.0 they read the i-th row of `data` with the i-th residual:
+  # data with row names of their own in another order gave other values, and
+  # from 0.15.0 they were refused, as were rows after those of the fit. On the
+  # design of the 0.15.0 release notes, the Pesaran statistic was -0.987 on
+  # `d` and -0.392 on `d[sample(n), ]`, the random-effects statistic 1.19 and
+  # 0.506, and the scatter diagnostic 0.468 and -0.080. They match the rows by
+  # name, and give the values on `d`.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  n <- 120
+  d <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
+  d$y <- 1 + d$x + d$z + rnorm(n, sd = d$x)
+  m <- lm(y ~ x + z, d)
+  d$id <- rep(1:12, each = 10)
+  d$time <- rep(1:10, 12)
+  set.seed(2)
+  dp <- d[sample(n), ]
+  end <- rbind(d, d[1:5, ])
+  calls <- list(
+    pesaran = function(data) performPesaranTest(m, data, "id", "time"),
+    random_effects = function(data) performBPRandomEffectsTest(m, data, "id"),
+    scatter = function(data) performScatterDiagnostic(m, data, c("x", "z")),
+    runner = function(data) runPanelTests(m, data, "id", "time")
+  )
+  expected <- lapply(calls, function(f) f(d))
+  expect_equal(unname(expected$pesaran$statistic), -0.986877, tolerance = 1e-6)
+  expect_equal(unname(expected$random_effects$statistic), 1.18698, tolerance = 1e-5)
+  expect_equal(unname(expected$scatter[["x"]]), 0.468074, tolerance = 1e-6)
+  for (name in names(calls)) {
+    context_same(calls[[name]](dp), expected[[name]], paste(name, "shuffled"))
+    context_same(calls[[name]](end), expected[[name]], paste(name, "rows at the end"))
+  }
+  # Each is the test written out on the residuals and the rows of `d` that
+  # carry their names, whatever the order of `dp`.
+  r <- stats::residuals(m)
+  rows <- dp[names(r), ]
+  for (fn in c("performPesaranTest", "performBPRandomEffectsTest")) {
+    out <- calls[[if (fn == "performPesaranTest") "pesaran" else "random_effects"]](dp)
+    expect_equal(unname(c(out$statistic, out$p.value)),
+                 context_panel_oracle(fn, r, rows$id, rows$time), tolerance = 1e-10, info = fn)
+  }
+  expect_equal(unname(calls$scatter(dp)[["x"]]),
+               context_panel_oracle("performScatterDiagnostic", r, x = rows$x), tolerance = 1e-12)
+})
+
+test_that("the panel tests and the scatter diagnostic take the data of a fit that drops rows", {
+  # B16.
+  # On lm(y ~ x1 + x2) with x2 missing in three rows the random-effects test
+  # and the scatter diagnostic refused the full data ("requires `data` with
+  # 117 observations to match the fitted model, got 120"). They give the
+  # values on the rows of the fit, those of the fit to the complete rows, on
+  # every form of data that holds them.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  complete <- d_na[stats::complete.cases(d_na[, c("y", "x1", "x2")]), ]
+  m <- lm(y ~ x1 + x2, data = d_na)
+  m_complete <- lm(y ~ x1 + x2, data = complete)
+  set.seed(3)
+  forms <- list(full = d_na, shuffled = d_na[sample(nrow(d_na)), ], tibble = dplyr::as_tibble(d_na))
+  random_effects <- function(model, data) {
+    suppressWarnings(performBPRandomEffectsTest(model, data, "id"))
+  }
+  scatter <- function(model, data) performScatterDiagnostic(model, data, c("x1", "x2"))
+  expected_re <- random_effects(m_complete, complete)
+  expect_equal(unname(expected_re$statistic), 2.01616, tolerance = 1e-5)
+  for (form in names(forms)) {
+    context_same(random_effects(m, forms[[form]]), expected_re, paste("random effects", form))
+    context_same(scatter(m, forms[[form]]), scatter(m_complete, complete), paste("scatter", form))
+  }
+  # The units 1 and 2 lose two and one of their ten periods, and the panel is
+  # unbalanced: Pesaran's test refuses it, on the complete rows as on the full
+  # data (N12, the test below), where it stopped on the complete rows with
+  # "number of items to replace is not a multiple of replacement length" and
+  # refused the full data for their number of rows.
+  for (data in list(d_na, complete)) {
+    expect_error(performPesaranTest(m, data, "id", "time"),
+                 "2 of its 12 units are observed at fewer of its 10 periods, id = 1 at 8 of them.",
+                 fixed = TRUE, class = "heteroTests_model_context_error")
+  }
+  # A fit that drops every row of a unit keeps a balanced panel, on which
+  # Pesaran's test gives the value of the fit to the complete rows.
+  d_unit <- d
+  d_unit$x2[111:120] <- NA
+  m_unit <- lm(y ~ x1 + x2, data = d_unit)
+  expected <- performPesaranTest(lm(y ~ x1 + x2, data = d_unit[1:110, ]), d_unit[1:110, ],
+                                 "id", "time")
+  set.seed(3)
+  for (data in list(d_unit, d_unit[sample(nrow(d_unit)), ], dplyr::as_tibble(d_unit))) {
+    context_same(performPesaranTest(m_unit, data, "id", "time"), expected,
+                 "Pesaran, a unit dropped")
+  }
+  r <- stats::residuals(m_unit)
+  rows <- d_unit[names(r), ]
+  expect_equal(unname(c(expected$statistic, expected$p.value)),
+               context_panel_oracle("performPesaranTest", r, rows$id, rows$time), tolerance = 1e-10)
+  expect_error(performPesaranTest(m_unit, d_unit[1:100, ], "id", "time"),
+               paste("Pesaran CD test requires `data` to contain the rows used to fit the model.",
+                     "Missing rows: 101"),
+               fixed = TRUE)
+})
+
+test_that("Pesaran's test refuses an unbalanced panel (N12)", {
+  # Decided by the author on 2026-10-24: until the statistic of an unbalanced
+  # panel is computed from the periods each pair of units shares, as
+  # plm::pcdtest() computes it, the test refuses a panel whose units are not
+  # all observed at the same periods. It filled a matrix of periods by units,
+  # and a unit with fewer periods than the panel stopped it, or, when that
+  # number divided the number of periods, had its residuals recycled over the
+  # periods it lacks: without the first five rows of contract_data(), unit 1
+  # keeps 5 of its 10 periods, and the test returned 0.234 (p = 0.815), where
+  # plm::pcdtest(model = "pooling") gives -0.373.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  refusal <- paste0(
+    "performPesaranTest() needs a balanced panel, every unit observed at the same periods, ",
+    "and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 ",
+    "periods, id = 1 at 5 of them."
+  )
+  # The recycling case: a fit to the rows of such a panel, and the full data
+  # of a fit that dropped those rows, shuffled or not.
+  half <- d[-(1:5), ]
+  d_half <- d
+  d_half$x2[1:5] <- NA
+  set.seed(3)
+  calls <- list(
+    list(m = lm(y ~ x1 + x2, data = half), data = half),
+    list(m = lm(y ~ x1 + x2, data = d_half), data = d_half),
+    list(m = lm(y ~ x1 + x2, data = d_half), data = d_half[sample(nrow(d_half)), ])
+  )
+  for (call in calls) {
+    expect_error(performPesaranTest(call$m, call$data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+    # The runner stops on the refusal of its second test, after the warning of
+    # the random-effects test on unequal panel lengths, and returns nothing.
+    expect_error(suppressWarnings(runPanelTests(call$m, call$data, "id", "time")), refusal,
+                 fixed = TRUE, class = "heteroTests_model_context_error")
+    expect_error(runPanelTests(call$m, call$data, "id", "time", tests = "pesaran"), refusal,
+                 fixed = TRUE, class = "heteroTests_model_context_error")
+    # The random-effects test takes an unbalanced panel, with its warning.
+    expect_warning(re <- runPanelTests(call$m, call$data, "id", tests = "bp_random"),
+                   "Unequal panel lengths")
+    expect_s3_class(re$bp_random, "htest")
+  }
+  # The stopping case: units observed at periods that do not divide the
+  # panel's, which stopped with "number of items to replace is not a multiple
+  # of replacement length"; the message names the variable the call gives.
+  gaps <- d
+  gaps$period <- gaps$time
+  gaps <- gaps[-c(3, 14, 15), ]
+  m_gaps <- lm(y ~ x1 + x2, data = gaps)
+  expect_error(
+    performPesaranTest(m_gaps, gaps, "id", "period"),
+    paste("2 of its 12 units are observed at fewer of its 10 periods, id = 1 at 9 of them.",
+          "The statistic is computed here on a matrix of periods by units"),
+    fixed = TRUE, class = "heteroTests_model_context_error"
+  )
+  expect_error(performPesaranTest(m_gaps, gaps, "id", "period"),
+               "plm::pcdtest() computes it for an unbalanced panel", fixed = TRUE)
+  # A unit whose rows are all dropped leaves the panel balanced, and the
+  # statistic is that of the eleven others.
+  d_unit <- d
+  d_unit$x2[111:120] <- NA
+  eleven <- performPesaranTest(lm(y ~ x1 + x2, data = d_unit[1:110, ]), d_unit[1:110, ],
+                               "id", "time")
+  context_same(performPesaranTest(lm(y ~ x1 + x2, data = d_unit), d_unit, "id", "time"), eleven,
+               "a unit dropped")
+  context_same(runPanelTests(lm(y ~ x1 + x2, data = d_unit), d_unit, "id", "time")$pesaran, eleven,
+               "a unit dropped, the runner")
+  # Without data, from the model frame of a model of the identifiers.
+  ids_model <- lm(y ~ x1 + x2 + id + time, data = half)
+  expect_error(performPesaranTest(ids_model, NULL, "id", "time"), refusal, fixed = TRUE)
+  # plm::pcdtest() calls plm() without its namespace, so plm is attached for
+  # this block, as in test-panel-reference.R.
+  skip_if_not_installed("plm")
+  skip_if_not_installed("withr")
+  suppressMessages(withr::local_package("plm"))
+  pd <- plm::pdata.frame(half, index = c("id", "time"))
+  reference <- suppressWarnings(
+    plm::pcdtest(y ~ x1 + x2, data = pd, test = "cd", model = "pooling")
+  )
+  expect_equal(unname(reference$statistic), -0.372652, tolerance = 1e-6)
+})
+
+test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {
+  # Decided on 2026-10-18 (decision 13). The residuals are arranged in a
+  # matrix of periods by units, and a pair that holds two observations put
+  # one of them in the cell of another period: with the second observation of
+  # unit 1 moved to period 5, the test returned 0.516 where the panel gives
+  # 0.264, without an error. It is refused, with the class of the refusals of
+  # the context; the random-effects test, which reads no period, is unchanged.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  panel <- d
+  panel$time[2] <- 5L
+  m <- lm(y ~ x1 + x2, data = panel)
+  refusal <- paste0(
+    "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, ",
+    "and 1 pair holds more than one: id = 1 and time = 5 (2 observations)."
+  )
+  set.seed(3)
+  for (data in list(panel, panel[sample(nrow(panel)), ])) {
+    expect_error(performPesaranTest(m, data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+    expect_error(runPanelTests(m, data, "id", "time"), refusal, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+    expect_identical(performBPRandomEffectsTest(m, data, "id")$statistic,
+                     performBPRandomEffectsTest(lm(y ~ x1 + x2, data = d), d, "id")$statistic)
+    expect_identical(runPanelTests(m, data, "id", tests = "bp_random")$bp_random$statistic,
+                     performBPRandomEffectsTest(m, d, "id")$statistic)
+  }
+  # More than one pair, and the names the call gives the columns.
+  twice <- d
+  twice$period <- twice$time
+  twice$period[c(2, 12, 22, 32)] <- twice$period[c(1, 11, 21, 31)]
+  m_twice <- lm(y ~ x1 + x2, data = twice)
+  expect_error(
+    performPesaranTest(m_twice, twice, "id", "period"),
+    "and 4 pairs hold more than one: id = 1 and period = 1 (2 observations); id = 2 and period = 1",
+    fixed = TRUE
+  )
+  expect_error(performPesaranTest(m_twice, twice, "id", "period"), "and 1 more", fixed = TRUE)
+  # A fit with na.exclude is read by position until its step of the model
+  # context, and the pair is refused there too; from the review of increment
+  # 5, where the test returned 0.253 on it, with the repeated pair.
+  excluded <- panel
+  excluded$x2[50] <- NA
+  m_excluded <- lm(y ~ x1 + x2, data = excluded, na.action = na.exclude)
+  expect_error(performPesaranTest(m_excluded, excluded, "id", "time"), refusal, fixed = TRUE,
+               class = "heteroTests_model_context_error")
+  # A unit or a period missing at an observation of the fit stopped the
+  # statistic ("number of items to replace ..."); the refusal names it.
+  gap <- d
+  gap$time[5] <- NA
+  expect_error(performPesaranTest(lm(y ~ x1 + x2, data = gap), gap, "id", "time"),
+               "Missing rows: 5, where time, the `time` variable, is missing.", fixed = TRUE)
+})
+
+test_that("the refusals of Pesaran's test take linear time", {
+  # From the review of increment 5: the refusal of repeated pairs counted each
+  # with a scan of every observation, and took 18 to 53 s on 120,000
+  # observations with 40,000 repeated pairs; one pass takes well under a
+  # second, and so does the check of balance, which scanned the observations
+  # once for each unit. The bounds are generous, to hold on a slow machine.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  big <- data.frame(id = rep(1:4000, each = 30), time = rep(rep(1:10, each = 3), 4000))
+  big$x <- rnorm(nrow(big))
+  big$y <- big$x + rnorm(nrow(big))
+  m <- lm(y ~ x, data = big)
+  elapsed <- system.time(expect_error(
+    performPesaranTest(m, big, "id", "time"),
+    "and 40000 pairs hold more than one: id = 1 and time = 1 (3 observations);",
+    fixed = TRUE, class = "heteroTests_model_context_error"
+  ))[["elapsed"]]
+  expect_lt(elapsed, 10)
+  expect_lt(system.time(
+    expect_error(rstop_repeated_panel_cells(big$id, big$time, "id", "time", "f"),
+                 "and 39997 more", fixed = TRUE)
+  )[["elapsed"]], 1)
+  balanced <- data.frame(id = rep(1:4000, each = 30), time = rep(1:30, 4000))[-1, ]
+  expect_lt(system.time(
+    expect_error(rstop_unbalanced_panel(balanced$id, balanced$time, "id", "f"),
+                 "1 of its 4000 units is observed at fewer of its 30 periods, id = 1 at 29 of them",
+                 fixed = TRUE)
+  )[["elapsed"]], 1)
+})
+
+test_that("the panel tests read their identifiers at rows told apart", {
+  # The case of the review of increment 1: numbered data taken in the order of
+  # the fit could exchange rows that tie on every compared column, and the
+  # identifiers, which the model frame does not hold, would then belong to
+  # other rows. Such data are refused; the scatter diagnostic, which reads
+  # columns of the frame, takes them, and refuses them for a column beyond it.
+  set.seed(42)
+  n <- 60
+  named <- data.frame(x = rep(1:3, 20))
+  named$y <- round(named$x + rnorm(n))
+  named$z <- runif(n, 1, 2)
+  named$id <- rep(1:6, each = 10)
+  named$time <- rep(1:10, 6)
+  rownames(named) <- paste0("obs", seq_len(n))
+  m <- lm(y ~ x, data = named)
+  numbered <- named
+  rownames(numbered) <- NULL
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  ties <- "tie on every column of the model frame that is compared"
+  expect_s3_class(performPesaranTest(m, named, "id", "time"), "htest")
+  expect_s3_class(performBPRandomEffectsTest(m, named, "id"), "htest")
+  expect_error(performPesaranTest(m, numbered, "id", "time"), ties,
+               class = "heteroTests_data_rows_error")
+  expect_error(performBPRandomEffectsTest(m, numbered, "id"), ties,
+               class = "heteroTests_data_rows_error")
+  expect_error(runPanelTests(m, numbered, "id", "time"), ties,
+               class = "heteroTests_data_rows_error")
+  expect_identical(performScatterDiagnostic(m, numbered, "x"),
+                   performScatterDiagnostic(m, named, "x"))
+  expect_error(performScatterDiagnostic(m, numbered, "z"), ties,
+               class = "heteroTests_data_rows_error")
+})
+
+test_that("the panel tests and the scatter diagnostic keep the refusals of the context", {
+  # Without `data` the panel tests read `id` and `time` from the model frame,
+  # when the model uses them under their own names (M1 otherwise); the
+  # scatter diagnostic and runPanelTests() need `data`. An edited fit and a
+  # fit with model = FALSE whose data are gone, given numbered data in another
+  # order, are refused, by runPanelTests() too, with the class of the context;
+  # they returned the values of other rows.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  with_ids <- lm(y ~ x1 + x2 + id + time, data = d)
+  context_same(performPesaranTest(with_ids, NULL, "id", "time"),
+               performPesaranTest(with_ids, d, "id", "time"), "the model frame")
+  m <- lm(y ~ x1 + x2, data = d)
+  expect_error(performPesaranTest(m, NULL, "id", "time"),
+               "The following variables are missing from the model frame of `model`: id, time.",
+               fixed = TRUE, class = "heteroTests_model_context_error")
+  expect_error(performBPRandomEffectsTest(m, NULL, "id"),
+               "The following variables are missing from the model frame of `model`: id.",
+               fixed = TRUE, class = "heteroTests_model_context_error")
+  expect_error(performPesaranTest(m, stats::model.frame(m), "id", "time"),
+               "`id` and `time` must be columns in `data`.", fixed = TRUE)
+  expect_error(performScatterDiagnostic(m, NULL, "x1"), "`data` must be a data frame.",
+               fixed = TRUE)
+  edited <- m
+  edited$coefficients[["x1"]] <- edited$coefficients[["x1"]] + 0.5
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(lm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  set.seed(3)
+  shuffled_tibble <- dplyr::as_tibble(d)[sample(nrow(d)), ]
+  calls <- list(
+    function(model, data) performPesaranTest(model, data, "id", "time"),
+    function(model, data) performBPRandomEffectsTest(model, data, "id"),
+    function(model, data) performScatterDiagnostic(model, data, c("x1", "x2")),
+    function(model, data) runPanelTests(model, data, "id", "time")
+  )
+  for (f in calls) {
+    expect_error(f(edited, d), "does not reproduce its residuals",
+                 class = "heteroTests_model_context_error")
+    expect_error(f(m_false, shuffled_tibble), "cannot use the model frame of `model`",
+                 class = "heteroTests_model_context_error")
+    expect_error(f(m, shuffled_tibble), "cannot match the rows of `data`",
+                 class = "heteroTests_data_rows_error")
+    context_same(f(m_false, d), f(m, d), "model = FALSE")
+  }
+})
+
+test_that("a fit with na.exclude is read by the panel tests as before", {
+  # Its residuals are padded with NA at the rows it dropped, and the panel
+  # tests and the scatter diagnostic read them against the rows of `data` by
+  # position, as before 0.16.0, until the step of the model context that
+  # moves na.exclude: the statistics are NA, or computed with the NA, and data
+  # in another order are refused.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d$x2[c(3, 7, 11)] <- NA
+  m <- lm(y ~ x1 + x2, data = d, na.action = na.exclude)
+  expect_true(is.na(performBPRandomEffectsTest(m, d, "id")$statistic))
+  expect_true(all(is.na(performScatterDiagnostic(m, d, c("x1", "x2")))))
+  expect_equal(unname(performPesaranTest(m, d, "id", "time")$statistic), 0.713259,
+               tolerance = 1e-6)
+  set.seed(3)
+  expect_error(performBPRandomEffectsTest(m, d[sample(nrow(d)), ], "id"),
+               "are not in the order of the fit", class = "heteroTests_data_rows_error")
 })
