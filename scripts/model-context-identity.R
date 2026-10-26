@@ -478,14 +478,15 @@ identity_decision31 <- c(
 # plm::pcdtest() does, where the fifth step refused it, directly and through
 # runPanelTests() (the scope of N12 below). Each of those errors that become
 # values must give plm's value, directly or through the cell it reproduces
-# (identity_plm_cd(), identity_compare()).
+# (identity_plm_cd(), identity_compare()). N12 is no longer among the new
+# refusals: a call of an unbalanced cell that started refusing is unexpected.
 identity_allowed <- list(
   error_to_value = c(
     "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17",
     "decision31", "constant", "N12"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3", "decision31")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "B9", "R3", "decision31")
 )
 # The defects of increments 2 to 6 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
@@ -563,14 +564,20 @@ identity_runner_allowed <- c(
 # an unbalanced panel (decided by the author on 2026-10-24); and for
 # Pesaran's test on a repeated pair of `id` and `time`, where it stopped on
 # the unbalanced panel of a fit to repeated rows or refused data with row
-# names in another order, the refusal of the pair (R2). Any other change of a
-# message is unexpected, but those of identity_m1() and identity_m1_panel()
-# below.
+# names in another order, the refusal of the pair (R2). Since the pull
+# request of N12 that refusal is left to the positional reading of a fit with
+# na.exclude that dropped rows, and only its message there, which names
+# na.exclude, is allowed for B16 and N12 (`identity_n12_message`). Any other
+# change of a message is unexpected, but those of identity_m1() and
+# identity_m1_panel() below.
 identity_m8 <- c(
   "does not reproduce its residuals from its design and coefficients",
   "not those its coefficients were fitted with"
 )
-identity_n12_message <- "needs a balanced panel, every unit observed at the same periods"
+identity_n12_message <- paste(
+  "reads a fit with na.action = na.exclude by position, on a matrix of periods by units,",
+  "and needs a balanced panel, every unit observed at the same periods"
+)
 identity_r2_message <- "needs one observation of the fit for each pair of `id` and `time`"
 # Increment 6: the refusals of a second formula. The guard's, on rows of
 # `data` it cannot match (B9), and of a variable that neither `data` nor the
@@ -724,10 +731,9 @@ identity_new_refusals <- list(
   # fit (increment 4), and the functions of increment 5.
   M8 = identity_m8,
   # Pesaran's test on a repeated pair of `id` and `time` (increment 5,
-  # decision 13), and on an unbalanced panel, on which it recycled the
-  # residuals of a unit (N12, decided 2026-10-24).
+  # decision 13). Its refusal of an unbalanced panel (N12, decided
+  # 2026-10-24) is no longer a new refusal since the pull request of N12.
   R2 = identity_r2_message,
-  N12 = identity_n12_message,
   # Increment 6: a second formula on rows of `data` the alignment refuses,
   # which it read by position (B9), and a variable of the workspace (R3).
   B9 = identity_b9_message,

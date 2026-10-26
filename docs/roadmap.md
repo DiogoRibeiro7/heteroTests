@@ -918,15 +918,19 @@ after it.
     and `P` the number of pairs that share two periods or more, as
     `plm::pcdtest(test = "cd")` computes it; a pair that shares fewer is left
     out with a warning, as plm leaves it out, and a panel in which no pair
-    shares two periods is refused. The example gives -0.373 (p = 0.709), and
+    shares two periods is refused; a correlation that is not defined, a unit
+    constant over the periods of a pair, adds nothing and the pair stays in
+    `P`, with a warning, where plm returns `NA`. The example gives -0.373
+    (p = 0.709), and
     every value equals plm's to `1e-10` on 252 panels, 228 of them
     unbalanced, in 5,040 comparisons: late entry, early
     exit, gaps, 1 to 20 rows missing at random, a unit observed once, balanced
     panels, weighted fits and a Gaussian `glm`, the full data of a fit with
     `na.omit`, and through `runPanelTests()`. On a balanced panel every value
-    is `identical()` to before. A fit with `na.action = na.exclude` is read by
-    position until step 9, and an unbalanced panel of the rows of `data` stays
-    refused there, with a message that points to `na.omit`.
+    is `identical()` to before. A fit with `na.action = na.exclude` that
+    dropped rows is read by position until step 9, and an unbalanced panel of
+    the rows of `data` stays refused there, with a message that points to
+    `na.omit`; one that dropped no row is tested as any other.
 - [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
     that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
     `performStudentizedBPTest()`, the three `*Enhanced` functions,

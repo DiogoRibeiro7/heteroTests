@@ -10,9 +10,10 @@ The changes in each version, from the package's `NEWS.md`.
 
 **`performPesaranTest()`, and so `runPanelTests()`, now compute the statistic
 of an unbalanced panel, whose units are not all observed at the same periods,
-from the periods each pair of units shares, as `plm::pcdtest()` computes it,
-where 0.16.0's development version refused such a panel and 0.15.0 stopped on
-it or returned a wrong value.** 0.15.0 filled a matrix of periods by units,
+from the periods each pair of units shares, as `plm::pcdtest()` computes it
+except where a correlation is undefined (below), where 0.16.0's development
+version refused such a panel and 0.15.0 stopped on it or returned a wrong
+value.** 0.15.0 filled a matrix of periods by units,
 and a unit observed at fewer periods than the panel holds stopped it with
 "number of items to replace is not a multiple of replacement length", or,
 when its number of periods divides that of the panel, had its residuals
@@ -35,7 +36,13 @@ over them, and `P` the number of pairs that share two periods or more,
 `N (N - 1) / 2` when every pair does. A pair that shares fewer than two
 periods has no correlation, and is left out of the sum and of `P` with a
 warning, as `plm::pcdtest()` leaves it out; a panel in which no pair shares
-two periods is refused, of class `heteroTests_model_context_error`. Compared
+two periods is refused, of class `heteroTests_model_context_error`. A
+correlation that is not defined, the residuals of a unit constant over the
+periods of a pair, adds nothing to the sum and the pair stays in `P`, with a
+warning, as on a balanced panel, where `plm::pcdtest()` returns `NA`: on
+four units at periods 1 to 4 without the first and the last observation,
+with the response of unit 2 constant, `lm(y ~ 1)` gives 0.758, plm `NA`
+(the response drawn by `set.seed(4); sample(1:9, 16, TRUE)`). Compared
 with `plm::pcdtest()` on 252 panels of 5 to 30 units and 4 to 12 periods,
 228 of them unbalanced, the statistic and the p-value agree to `1e-10` in
 each of 5,040 comparisons, by at most 3.6e-15 and 3.9e-16: units that enter
@@ -50,11 +57,13 @@ missing in rows 3, 7 and 11 of `contract_data()`, 0.189 (p = 0.850),
 `plm::pcdtest()`'s on the rows of the fit.
 
 On a balanced panel the statistic is computed as before, and every value is
-`identical()` to before. A fit with `na.action = na.exclude` is read as
-before, by position, until the step of the model context that moves
-`na.exclude`: the panel of the rows of `data` it reads must be balanced, and
-an unbalanced one stays refused, with a message that now points to
-`na.omit`, on which the statistic of an unbalanced panel is computed.
+`identical()` to before. A fit with `na.action = na.exclude` that dropped
+rows is read as before, by position, until the step of the model context
+that moves `na.exclude`: the panel of the rows of `data` it reads must be
+balanced, and an unbalanced one stays refused, with a message that now
+points to `na.omit`, on which the statistic of an unbalanced panel is
+computed. A fit with `na.exclude` that dropped no row is tested as any
+other, its panel balanced or not.
 
 ### The Fligner-Killeen test and its ties
 

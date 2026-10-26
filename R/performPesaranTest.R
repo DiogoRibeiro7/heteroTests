@@ -62,13 +62,22 @@
 #' panel, where \eqn{T_{ij} = T}, the statistic is the one above. A pair that
 #' shares fewer than two periods has no correlation and is left out, with a
 #' warning, as `plm::pcdtest()` leaves it out; a panel in which no pair shares
-#' two periods is refused. Pesaran gives the statistic its standard normal
-#' limit for \eqn{T_{ij} > 3}. Before 0.16.0 the test stopped on an unbalanced
-#' panel ("number of items to replace is not a multiple of replacement
-#' length"), or, when the number of periods of a unit divided that of the
-#' panel, returned a wrong value computed on its residuals recycled over the
-#' periods it lacks. A fit with `na.action = na.exclude` is read as before,
-#' by position, until a later step: its panel must be balanced in `data`.
+#' two periods is refused. A correlation that is not defined, the residuals of
+#' a unit constant over the periods of a pair, adds nothing to the sum and the
+#' pair stays in \eqn{P}, as on a balanced panel, with a warning, where
+#' `plm::pcdtest()` returns `NA`: the statistic is that of `plm::pcdtest()`
+#' except where a correlation is undefined. Pesaran (2004) states its standard normal limit
+#' under the null of independence for \eqn{T_i > k + 1} and
+#' \eqn{T_{ij} > 3}, with \eqn{N} large, \eqn{T_i} being the number of periods
+#' of unit \eqn{i} and \eqn{k} the number of regressors of its own regression.
+#' Before 0.16.0 the test stopped on an unbalanced panel ("number of items to
+#' replace is not a multiple of replacement length"), or, when the number of
+#' periods of a unit divided that of the panel, returned a wrong value
+#' computed on its residuals recycled over the periods it lacks. A fit with
+#' `na.action = na.exclude` that dropped rows is read as before, by position,
+#' until a later step: the panel of the rows of `data` must then be balanced,
+#' and an unbalanced one is refused, with a message that points to `na.omit`.
+#' A fit with `na.exclude` that dropped no row is tested as any other.
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in

@@ -6,7 +6,7 @@
 \deqn{\mathrm{CD} = \sqrt{\frac{2T}{N(N - 1)}} \sum_{i < j} \hat{\rho}_{ij},}{CD = sqrt(2 T / (N (N - 1))) sum_{i < j} rho_ij,}
 where \eqn{\hat{\rho}_{ij}}{rho_ij} is the correlation of the residuals of units \eqn{i} and \eqn{j}. On an unbalanced panel, whose units are not all observed at the same periods, it is computed, since 0.16.0, from the periods each pair of units shares (Pesaran 2004, Section 9, equation 31), as \code{plm::pcdtest(test = "cd")} computes it:
 \deqn{\mathrm{CD} = \sqrt{\frac{1}{P}} \sum_{i < j} \sqrt{T_{ij}}\, \hat{\rho}_{ij},}{CD = sqrt(1 / P) sum_{i < j} sqrt(T_ij) rho_ij,}
-where \eqn{T_{ij}}{T_ij} is the number of periods at which units \eqn{i} and \eqn{j} are both observed, \eqn{\hat{\rho}_{ij}}{rho_ij} the correlation of their residuals over those periods, each centred at its mean over them, and \eqn{P} the number of pairs that share at least two periods, the pairs of the sum: \eqn{N(N - 1)/2} when every pair does. On a balanced panel, where \eqn{T_{ij} = T}{T_ij = T}, the two are the same statistic. A pair that shares fewer than two periods has no correlation and is left out, with a warning, as \code{plm::pcdtest()} leaves it out, and a panel in which no pair shares two periods is refused. A correlation that is not defined, the residuals of a unit constant over the periods of a pair, adds nothing to the sum and the pair stays in the count, as on a balanced panel, with a warning; \code{plm::pcdtest()} returns \code{NA} there. Pesaran gives the statistic its standard normal limit for \eqn{T_{ij} > 3}{T_ij > 3}.}
+where \eqn{T_{ij}}{T_ij} is the number of periods at which units \eqn{i} and \eqn{j} are both observed, \eqn{\hat{\rho}_{ij}}{rho_ij} the correlation of their residuals over those periods, each centred at its mean over them, and \eqn{P} the number of pairs that share at least two periods, the pairs of the sum: \eqn{N(N - 1)/2} when every pair does. On a balanced panel, where \eqn{T_{ij} = T}{T_ij = T}, the two are the same statistic. A pair that shares fewer than two periods has no correlation and is left out, with a warning, as \code{plm::pcdtest()} leaves it out, and a panel in which no pair shares two periods is refused. A correlation that is not defined, the residuals of a unit constant over the periods of a pair, adds nothing to the sum and the pair stays in the count, as on a balanced panel, with a warning; \code{plm::pcdtest()} returns \code{NA} there, so the statistic is that of \code{plm::pcdtest()} except where a correlation is undefined. Pesaran (2004) states its standard normal limit under the null of independence for \eqn{T_i > k + 1}{T_i > k + 1} and \eqn{T_{ij} > 3}{T_ij > 3}, with \eqn{N} large, \eqn{T_i}{T_i} being the number of periods of unit \eqn{i} and \eqn{k} the number of regressors of its own regression.}
 \usage{performPesaranTest(model, data = NULL, id, time)}
 \arguments{
   \item{model}{an object of class \code{lm}, the pooled \code{lm()} of the panel.}
@@ -26,11 +26,13 @@ the periods as columns of \code{data}; a \code{plm::plm()} fit is not an \code{l
 Since 0.16.0 a pair of \code{id} and \code{time} that holds two observations of the fit is refused.
 An unbalanced panel, as that of a fit that dropped some rows of some units, is tested since 0.16.0,
 from the periods each pair of units shares (Details), and gives the value of
-\code{plm::pcdtest(test = "cd")} on the residuals of the fit: before, the test stopped on it, or,
-when the number of periods of a unit divided that of the panel, returned a wrong value computed on
-its residuals recycled over the periods it lacks. A fit with \code{na.action = na.exclude} is read
-as before, by position, until a later step: the panel of the rows of \code{data} must then be
-balanced, and an unbalanced one is refused, with a message that points to \code{na.omit}.
+\code{plm::pcdtest(test = "cd")} on the residuals of the fit, except where a correlation is
+undefined (Details): before, the test stopped on it, or, when the number of periods of a unit
+divided that of the panel, returned a wrong value computed on its residuals recycled over the
+periods it lacks. A fit with \code{na.action = na.exclude} that dropped rows is read as before, by
+position, until a later step: the panel of the rows of \code{data} must then be balanced, and an
+unbalanced one is refused, with a message that points to \code{na.omit}. A fit with
+\code{na.exclude} that dropped no row is tested as any other.
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
 \emph{Supported models}.
 }

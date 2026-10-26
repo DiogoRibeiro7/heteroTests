@@ -44,7 +44,7 @@ where \(\hat{\rho}_{ij}\) is the correlation of the residuals of units \(i\) and
 \mathrm{CD} = \sqrt{\frac{1}{P}} \sum_{i < j} \sqrt{T_{ij}}\, \hat{\rho}_{ij},
 \]
 
-where \(T_{ij}\) is the number of periods at which units \(i\) and \(j\) are both observed, \(\hat{\rho}_{ij}\) the correlation of their residuals over those periods, each centred at its mean over them, and \(P\) the number of pairs that share at least two periods, the pairs of the sum: \(N(N - 1)/2\) when every pair does. On a balanced panel, where \(T_{ij} = T\), the two are the same statistic. A pair that shares fewer than two periods has no correlation and is left out, with a warning, as `plm::pcdtest()` leaves it out, and a panel in which no pair shares two periods is refused. A correlation that is not defined, the residuals of a unit constant over the periods of a pair, adds nothing to the sum and the pair stays in the count, as on a balanced panel, with a warning; `plm::pcdtest()` returns `NA` there. Pesaran gives the statistic its standard normal limit for \(T_{ij} > 3\).
+where \(T_{ij}\) is the number of periods at which units \(i\) and \(j\) are both observed, \(\hat{\rho}_{ij}\) the correlation of their residuals over those periods, each centred at its mean over them, and \(P\) the number of pairs that share at least two periods, the pairs of the sum: \(N(N - 1)/2\) when every pair does. On a balanced panel, where \(T_{ij} = T\), the two are the same statistic. A pair that shares fewer than two periods has no correlation and is left out, with a warning, as `plm::pcdtest()` leaves it out, and a panel in which no pair shares two periods is refused. A correlation that is not defined, the residuals of a unit constant over the periods of a pair, adds nothing to the sum and the pair stays in the count, as on a balanced panel, with a warning; `plm::pcdtest()` returns `NA` there, so the statistic is that of `plm::pcdtest()` except where a correlation is undefined. Pesaran (2004) states its standard normal limit under the null of independence for \(T_i > k + 1\) and \(T_{ij} > 3\), with \(N\) large, \(T_i\) being the number of periods of unit \(i\) and \(k\) the number of regressors of its own regression.
 
 ## Supported models
 
@@ -58,11 +58,13 @@ the periods as columns of `data`; a `plm::plm()` fit is not an `lm` and is refus
 Since 0.16.0 a pair of `id` and `time` that holds two observations of the fit is refused.
 An unbalanced panel, as that of a fit that dropped some rows of some units, is tested since 0.16.0,
 from the periods each pair of units shares (Details), and gives the value of
-`plm::pcdtest(test = "cd")` on the residuals of the fit: before, the test stopped on it, or,
-when the number of periods of a unit divided that of the panel, returned a wrong value computed on
-its residuals recycled over the periods it lacks. A fit with `na.action = na.exclude` is read
-as before, by position, until a later step: the panel of the rows of `data` must then be
-balanced, and an unbalanced one is refused, with a message that points to `na.omit`.
+`plm::pcdtest(test = "cd")` on the residuals of the fit, except where a correlation is
+undefined (Details): before, the test stopped on it, or, when the number of periods of a unit
+divided that of the panel, returned a wrong value computed on its residuals recycled over the
+periods it lacks. A fit with `na.action = na.exclude` that dropped rows is read as before, by
+position, until a later step: the panel of the rows of `data` must then be balanced, and an
+unbalanced one is refused, with a message that points to `na.omit`. A fit with
+`na.exclude` that dropped no row is tested as any other.
 Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
 *Supported models*.
 
