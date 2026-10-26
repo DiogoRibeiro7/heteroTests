@@ -1129,7 +1129,7 @@ shuffled, `d[sample(120), ]` after `set.seed(3)`:
 | --- | ---: | ---: | ---: | ---: |
 | `performGlejserTest(m, data, "x1")` | -0.322 | 3.626 | -0.429 | 3.583 |
 | `performParkTest(m, data, "x1")` | 0.118 | 3.263 | -0.728 | 3.155 |
-| `performSzroeterTest(m, data, order_by = "x1")` | -0.537 | 3.185 | -0.369 | 3.184 |
+| `performSzroeterTest(m, data, order_by = "x1")` | -0.537 | 3.179 | -0.369 | 3.029 |
 | `performHarrisonMcCabeTest(m, data, order_by = "x1")` | 0.4818 | 0.3184 | 0.4661 | 0.3148 |
 | `performHartleyFmaxTest(m, data, "group")` | 2.185 | 3.080 | 1.867 | 2.773 |
 
@@ -1151,7 +1151,7 @@ and the `lm` with that offset (decided 2026-10-20). With `set.seed(1)`,
 `mtcars$o <- rnorm(32)` and
 `m <- mgcv::gam(mpg ~ wt + qsec, data = mtcars, offset = o)`,
 `runHeteroTests(m, mtcars, tests = "szroeter")` returned Q = 0.800386
-(p = 0.2117), and returns 0.962844 (p = 0.1678), the value of
+(p = 0.2117), and returns 0.992131 (p = 0.1606), the value of
 `gam(mpg ~ wt + qsec + offset(o))` and of `lm(mpg ~ wt + qsec, offset = o)`.
 
 **A fit with `model = FALSE` whose data are gone, given numbered data in
@@ -1167,7 +1167,7 @@ returned a value. On `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120
 observations of `contract_data()`, with `gone` removed after the fit and the
 data given as `dplyr::as_tibble(d)[sample(120), ]` after `set.seed(3)`,
 Glejser's test returned -0.322 where the data in the order of the fit give
-3.626, Park's 0.118 for 3.263, Szroeter's -0.537 for 3.185 and Hartley's 2.185
+3.626, Park's 0.118 for 3.263, Szroeter's -0.537 for 3.179 and Hartley's 2.185
 for 3.080, values of other rows; the spatial test, which reads no column of
 `data`, returned its value, 0.0938, and is refused too. The Harrison-McCabe test
 stopped already, with "object 'gone' not found".
