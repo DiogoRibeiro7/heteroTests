@@ -34,11 +34,19 @@ residuals observation by observation, `sqrt(w) * (y - X b - o)` with `X b`
 summed in the same order for every row, as the Gaussian `glm` computes them;
 for an `mgcv::gam()` fit `X` is its linear predictor matrix. Observations
 with the same values of the model's variables, weight and offset are then
-given one residual, that of the first of them, since a basis such as
-`poly()`, built with a QR decomposition of its own, can give them design
-rows that differ in their last bits: on 70 observations that repeat 30,
-`lm(y ~ poly(x, 3))` gave 0.8001 before 0.16.0 and gives 0.91385, the
-value of `lm(y ~ x + I(x^2) + I(x^3))`. And in a group of even size the two
+given one residual, that of the first of them, where their residuals agree
+to within rounding (64 times `eps` of the size of the numbers they are
+computed from), since a basis such as `poly()`, built with a QR
+decomposition of its own, can give them design rows that differ in their
+last bits: on 70 observations that repeat 30, `lm(y ~ poly(x, 3))` gave
+0.8001 before 0.16.0 and gives 0.91385, the value of
+`lm(y ~ x + I(x^2) + I(x^3))`. A term of the row position, such as
+`seq_along(x)` or `cumsum(x)`, gives such observations residuals that differ
+by much more, and keeps them apart. This needs the model's variables: it is
+done when `data` is given, or when the model frame holds them, as it holds a
+variable the model uses under its own name (`x`, not `poly(x, 3)`); on those
+70 observations `lm(y ~ poly(x, 3) + g)` gives 1.21547 with `data` and
+1.22684 without. And in a group of even size the two
 residuals in the middle lie at the same distance from the median, half their
 difference, a tie that the centring breaks by up to `eps * s`, with `s` the
 largest absolute residual of the group: deviations closer than
@@ -66,8 +74,12 @@ value the `gam` gave already.
     differ by the same amounts, is restored only when rounding leaves it
     within the tolerance: on `iris` with every row twice, regressed on
     `Petal.Length`, one of 106 sets of such ties stays broken, and the
-    statistic is 8.14863 where exact arithmetic gives 8.14287 (recorded under
-    0.16.0 in the roadmap).
+    statistic is 8.14863 where exact arithmetic gives 8.14287. Two forms of one
+    model can then differ by several percent: on the 70 observations above,
+    `y ~ poly(x, 3) + g` gives 1.21547, and `y ~ x + I(x^2) + I(x^3) + g` and
+    `y ~ poly(x, 3, raw = TRUE) + g` give 1.30280, 7% more, since `poly()`
+    breaks in its last bits the ties between repeated values of `x` in
+    different groups (recorded under 0.16.0 in the roadmap).
 - On 3,000 continuous fits of 20 to 10,000 observations (normal, `t3`,
     Cauchy, exponential and scale-mixture errors, with and without weights,
     with an intercept of 0 or 1e6, or with a group whose residuals are far

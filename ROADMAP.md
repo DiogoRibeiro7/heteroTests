@@ -918,9 +918,13 @@ after it.
   above; where neither changes a rank it passes the residuals of the fit on
   as before. Observations with the same values of the model's variables,
   weight and offset are given one residual, that of the first of them
-  (`rfligner_same_observations()`), since `poly()` builds its basis with a
-  QR decomposition of its own and can give them design rows that differ in
-  their last bits (from the confirmation review of #156: on 70 observations
+  (`rfligner_same_observations()`), where their residuals agree to within
+  64 times `eps` of the size of the numbers they are computed from, so that
+  a term of the row position (`seq_along(x)`, `cumsum(x)`) keeps them apart;
+  this needs `data`, or a model frame that holds the variables. It is done
+  since `poly()` builds its basis with a QR decomposition of its own and can
+  give them design rows that differ in their last bits (from the
+  confirmation review of #156: on 70 observations
   repeating 30, `y ~ poly(x, 3)` gave 0.80190 where `y ~ x + I(x^2) +
   I(x^3)` gives 0.91385; both now give 0.91385). On 480 fits of `lm(y ~ g)`
   with integer responses (`rpois(n, 3)`, `rpois(n, 300)`,
@@ -951,7 +955,13 @@ after it.
   exact ties stays broken, by 10.4 times `eps * s`, and the statistic is
   8.14863 where the residuals computed exactly, scaled to integers, give
   8.14287 (8.13778 before 0.16.0); with `+ Species`, 0.479152 against
-  0.479156. On `iris` itself and on the one-way fits of `sleep`,
+  0.479156. Two forms of one model can differ by several percent: on 70
+  observations that repeat 30 values of `x` recorded with one decimal,
+  `y ~ poly(x, 3) + g` gives 1.21547, and `y ~ x + I(x^2) + I(x^3) + g` and
+  `y ~ poly(x, 3, raw = TRUE) + g` give 1.30280, 7% more: repeated values of
+  `x` in different groups are different observations, rightly not given one
+  residual, and `poly()` breaks their decimal ties in its last bits (the
+  second review of #156). On `iris` itself and on the one-way fits of `sleep`,
   `PlantGrowth`, `warpbreaks`, `InsectSprays` and `iris[-c(50, 100, 150), ]`
   the value is exact. Found in 0.16.0 with the items above; recorded, not
   fixed. A tolerance scaled by the response would cover it, at the cost of

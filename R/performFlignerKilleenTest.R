@@ -49,12 +49,16 @@
 #' \eqn{r_i = \sqrt{w_i}\,(y_i - x_i^\top \hat\beta - o_i)} computed
 #' observation by observation, as the Gaussian `glm` computes them, and not
 #' the residuals an `lm` stores, which its QR decomposition rounds differently
-#' from one observation to the next; and observations with the same values of
+#' from one observation to the next. For an `mgcv::gam()` fit \eqn{x_i} is the
+#' row of its linear predictor matrix. Observations with the same values of
 #' the model's variables, weight and offset, such as repeated values of an
-#' integer response or of a response recorded with few digits, are given the
-#' same residual, as in exact arithmetic, even where a basis such as `poly()`
-#' gives them design rows that differ in their last bits. For an
-#' `mgcv::gam()` fit \eqn{x_i} is the row of its linear predictor matrix. And
+#' integer response or of a response recorded with few digits, are then given
+#' the same residual, as in exact arithmetic, where their residuals agree to
+#' within rounding, even when a basis such as `poly()` gives them design rows
+#' that differ in their last bits; a term of the row position, such as
+#' `seq_along(x)`, keeps them apart. This needs the model's variables: it is
+#' done when `data` is given, or when the model frame holds them, as it holds
+#' a variable the model uses under its own name (`x`, not `poly(x, 3)`). And
 #' absolute deviations closer than \eqn{8 \epsilon s_j}, with \eqn{\epsilon}
 #' = `.Machine$double.eps` and \eqn{s_j} the largest \eqn{|r_i|} of group
 #' \eqn{j} (the smaller of the two for deviations of different groups), are
@@ -69,9 +73,15 @@
 #' different observations that exact decimal arithmetic would give, as when
 #' two pairs of observations of a regressor recorded with few digits differ by
 #' the same amounts, is restored only when rounding leaves it within the
-#' tolerance. And in a group whose residuals are far from zero, \eqn{10^8}
-#' times their spread, the tolerance may also tie two deviations that differ
-#' by a few units in the last place of the residuals.
+#' tolerance, and two forms of one model can then differ by several percent:
+#' on 70 observations that repeat 30 values of \eqn{x} recorded with one
+#' decimal, `y ~ poly(x, 3) + g` gives 1.21547, and
+#' `y ~ x + I(x^2) + I(x^3) + g` and `y ~ poly(x, 3, raw = TRUE) + g` give
+#' 1.30280, since `poly()` breaks in its last bits the ties between repeated
+#' values of \eqn{x} in different groups. And in a group whose residuals are
+#' far from zero, \eqn{10^8} times their spread, the tolerance may also tie
+#' two deviations that differ by a few units in the last place of the
+#' residuals.
 #'
 #' @references
 #' Conover, W. J., Johnson, M. E., & Johnson, M. M. (1981). A comparative study
