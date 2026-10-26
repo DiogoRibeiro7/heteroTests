@@ -1673,7 +1673,7 @@ weights from the fit, as before, and nothing from `data`, which they check
 as before, for the variables of the model and the row names of the fit, as
 RESET has since the second step; `data` enters their context only to
 rebuild the model frame of a fit with `model = FALSE` whose data are gone.
-A second formula, the `var_formula` of Cook-Weisberg's test, of the variance
+A second formula, the `var_formula` of the Cook-Weisberg test, of the variance
 form test and of `fitWLS()`, and the `against` of the variance form test, is
 evaluated on the rows of `data` the comparison confirmed, or, without
 `data`, on the model frame. Every value is `identical()` to before but for
@@ -1687,7 +1687,7 @@ variance formula on other rows and returned another value without an error.
 They now match `data` as the other tests do, named data in any order and
 numbered data in the order of the fit, and refuse other data with the
 message and class of the guard (`heteroTests_data_rows_error`).
-Cook-Weisberg's test with `var_formula` refused such data already. On
+The Cook-Weisberg test with `var_formula` refused such data already. On
 `mtcars` with its row names reset, `d <- mtcars; rownames(d) <- NULL`,
 `m <- lm(mpg ~ wt + qsec, data = d)` and
 `tb <- dplyr::as_tibble(d)[sample(32), ]` after `set.seed(1)`:
@@ -1719,8 +1719,8 @@ stop with "The following variables are missing from the model frame of
 `model`: hp2. ... Variables that are not part of the model must be supplied
 through `data`: those of `var_formula` are not read from the workspace.", of
 class `heteroTests_model_context_error`, and with `data` that lack it with
-"The following variables are missing from input data: hp2.", as
-Cook-Weisberg's test did. The functions of the formula, such as `log()` or `I()`, are found
+"The following variables are missing from input data: hp2.", as the
+Cook-Weisberg test did. The functions of the formula, such as `log()` or `I()`, are found
 as before, and a variable of the model is read from the model frame.
 
 **A fit with `model = FALSE` whose data changed after the fit is refused by
@@ -1738,7 +1738,7 @@ design of the reordered data, 3.041 (p = 0.219) for 2.446 (p = 0.294), and
 `fitWLS(m0)` refitted the reordered response, with coefficients 28.42, -5.863
 and 0.594 for 14.08, -4.728 and 1.194; the others gave the value of the fit,
 which their statistic does not take from the frame (Spearman's test 1.445,
-Cook-Weisberg's 0.591).
+the Cook-Weisberg test 0.591).
 
 **A fit whose coefficients, residuals or weights were changed after it was
 fitted is refused by the nine tests**, as by the first twenty-four ("The
@@ -1755,9 +1755,9 @@ fit as before.
 **A fit with `model = FALSE` whose data are gone is refused without `data`**,
 with the message of the context, "... cannot use the model frame of
 `model`: it cannot be rebuilt (...)", of class
-`heteroTests_model_context_error`: Cook-Weisberg's and the NCV, spread-level
-and Davidian-Carroll tests returned the value of the fit (Cook-Weisberg's
-0.591 on `mtcars`), which nothing checked. Given numbered data in another
+`heteroTests_model_context_error`: the Cook-Weisberg, NCV, spread-level
+and Davidian-Carroll tests returned the value of the fit (the Cook-Weisberg
+test 0.591 on `mtcars`), which nothing checked. Given numbered data in another
 order than the fit, such as a shuffled tibble, they are refused with the same
 message, as the first twenty-four are: those data do not give the response
 of the fit.
@@ -1779,14 +1779,14 @@ Also, for these:
   stopped with "Input data must be a data.frame", RESET refused it, and
   `fitWLS()` stopped with "object 'gone' not found"; on `mtcars`, Harvey's
   test gives 2.446 and RESET 6.731 (p = 0.0043), the values of the fit with
-  its model frame. Cook-Weisberg's test with `var_formula` and the variance
+  its model frame. The Cook-Weisberg test with `var_formula` and the variance
   form test with `var_formula` or `against` give the value of the fit on
   numbered data with one row per observation in the order of the fit, such as
   the complete rows of a fit that dropped rows numbered again, or the tibble
   of a fit to data with character row names, which they refused with "Missing
   rows", and on the data of an `mgcv::gam()` fit that dropped rows, which
   they refused for their number of rows.
-- Values that change: Cook-Weisberg's test with `var_formula` on an
+- Values that change: the Cook-Weisberg test with `var_formula` on an
   `mgcv::gam()` fit given its data in another order under their own row
   names: the residuals of a `gam` carry no names, and it read such data by
   position (N17); it matches them by the row names of the model frame of the
@@ -1799,13 +1799,13 @@ Also, for these:
   variables are missing from input data"; with a second formula, data the
   guard refuses are refused before the model is checked, so that on such data
   a weighted fit, which the variance form test refuses, or a fit with a zero
-  weight, which Cook-Weisberg's test refuses, meets the refusal of the guard
+  weight, which the Cook-Weisberg test refuses, meets the refusal of the guard
   first; repeated row names and the tibble of a fit to repeated rows are
   refused by the guard, where the variance form test said "Variance form test
   requires `data` to contain the rows used to fit the model. Missing rows:
   ..."; a multivariate `lm` and a
   fit with `model = FALSE` whose data are gone are refused with the messages
-  of the context; and Cook-Weisberg's test with `var_formula` refuses a
+  of the context; and the Cook-Weisberg test with `var_formula` refuses a
   variable of the formula that is missing at an observation of the fit with
   "Cook-Weisberg test requires `data` to contain the rows used to fit the
   model. Missing rows: 5, where z, the `var_formula` variable, is missing.",
@@ -1817,7 +1817,7 @@ Also, for these:
   of the model or the row names of the fit, as the complete rows of a fit that
   dropped rows numbered again; `fitWLS()` without `var_formula` reads no
   `data`. Every other value of a valid call, every refusal of the guard, the
-  zero-weight refusals and RESET's acceptance of a zero weight, a smooth
+  zero-weight refusals and the acceptance of a zero weight by RESET, a smooth
   `gam` tested as before by the nine, and every message the test suite pins.
   A corpus of 28,848 calls, the nine, `fitWLS()`, their second formulas,
   registered names and `runTimeSeriesTests()`, and every other test, on 361

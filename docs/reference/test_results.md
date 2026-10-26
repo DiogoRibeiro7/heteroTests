@@ -131,7 +131,7 @@ the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, s
 tests computed from the model alone read nothing from `data`: they build their context without it, but to
 rebuild the model frame of a fit with `model = FALSE` whose data are gone, and keep the check of `data` of
 0.15.0, for the variables of the model and the row names of the fit (`fitWLS()` reads and checks no
-`data` without `var_formula`). A second formula, the `var_formula` of Cook-Weisberg's test, of the
+`data` without `var_formula`). A second formula, the `var_formula` of the Cook-Weisberg test, of the
 variance form test and of `fitWLS()`, and the `against` of the variance form test, is evaluated on the
 confirmed rows of `data`, or, without `data`, on the model frame; a variable that neither holds is refused,
 where it was found in the workspace.

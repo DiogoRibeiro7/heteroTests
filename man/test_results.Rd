@@ -99,7 +99,7 @@ the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/
 tests computed from the model alone read nothing from \code{data}: they build their context without it, but to
 rebuild the model frame of a fit with \code{model = FALSE} whose data are gone, and keep the check of \code{data} of
 0.15.0, for the variables of the model and the row names of the fit (\code{fitWLS()} reads and checks no
-\code{data} without \code{var_formula}). A second formula, the \code{var_formula} of Cook-Weisberg's test, of the
+\code{data} without \code{var_formula}). A second formula, the \code{var_formula} of the Cook-Weisberg test, of the
 variance form test and of \code{fitWLS()}, and the \code{against} of the variance form test, is evaluated on the
 confirmed rows of \code{data}, or, without \code{data}, on the model frame; a variable that neither holds is refused,
 where it was found in the workspace.
