@@ -882,7 +882,7 @@ after it.
   unbalanced, and refuses it (the item below); on a fit that drops every row
   of a unit, whose panel stays balanced, it gives the value of the fit to the
   complete rows.
-- [ ] **Pesaran's test on an unbalanced panel** (N12 of the design of the
+- [x] **Pesaran's test on an unbalanced panel** (N12 of the design of the
   model context). `performPesaranTest()` fills a matrix of periods by units
   with the residuals of each unit in the order of its periods, and a unit
   observed in fewer periods than the panel holds does not fit its column: the
@@ -893,7 +893,7 @@ after it.
   `contract_data()` without the first five rows, unit 1 keeps 5 of its 10
   periods, and the test returns 0.234 (p = 0.815), where
   `plm::pcdtest(model = "pooling")`, which correlates each pair of units over
-  the periods both hold (Pesaran 2015, unbalanced panels), gives -0.373. As
+  the periods both hold (Pesaran 2004, Section 9), gives -0.373. As
   in 0.14.0; the fifth step of the model context lets more data reach it:
   the full data of a fit that dropped half the rows of a unit, which the test
   refused for their number of rows, would give the recycled value, as the
@@ -906,8 +906,27 @@ after it.
   assignment can no longer be reached; a fit that drops every row of a unit
   keeps a balanced panel and is tested. The fix, a pull request of its own,
   computes the statistic of an unbalanced panel on the periods each pair of
-  units shares, as `plm::pcdtest()` does (Pesaran 2015), and removes the
-  refusal; it changes what such calls return, announced in bold.
+  units shares, as `plm::pcdtest()` does (Pesaran 2004, Section 9), and
+  removes the refusal; it changes what such calls return, announced in bold.
+  Done in 0.16.0: `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, with
+  `rho_ij` the correlation of the residuals of units `i` and `j` over the
+  `T_ij` periods both are observed at, each centred at its mean over them,
+  and `P` the number of pairs that share two periods or more, as
+  `plm::pcdtest(test = "cd")` computes it; a pair that shares fewer is left
+  out with a warning, as plm leaves it out, and a panel in which no pair
+  shares two periods is refused; a correlation that is not defined, a unit
+  constant over the periods of a pair, adds nothing and the pair stays in
+  `P`, with a warning, where plm returns `NA`. The example gives -0.373
+  (p = 0.709), and
+  every value equals plm's to `1e-10` on 252 panels, 228 of them
+  unbalanced, in 5,040 comparisons: late entry, early
+  exit, gaps, 1 to 20 rows missing at random, a unit observed once, balanced
+  panels, weighted fits and a Gaussian `glm`, the full data of a fit with
+  `na.omit`, and through `runPanelTests()`. On a balanced panel every value
+  is `identical()` to before. A fit with `na.action = na.exclude` that
+  dropped rows is read by position until step 9, and an unbalanced panel of
+  the rows of `data` stays refused there, with a message that points to
+  `na.omit`; one that dropped no row is tested as any other.
 - [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
@@ -1570,7 +1589,9 @@ after it.
     with `model = FALSE` whose data are gone given a shuffled tibble, and an
     edited fit (M8), from which they computed a value, are refused, as by the
     first twenty. On a fit that dropped some rows of some units Pesaran's test
-    refuses the unbalanced panel (N12, the item above). A fit with
+    refused the unbalanced panel (N12, the item above), and since the pull
+    request of N12 computes it from the periods each pair of units shares. A
+    fit with
     `na.action = na.exclude` is read as before, by position, until step 9.
     Done in 0.16.0.
   - [x] 6. The tests computed from the model alone, Cook-Weisberg with

@@ -36,7 +36,10 @@ the alignment gone. Increment 5 is in 0.16.0 too: the two panel tests,
 `runPanelTests()`, and `performScatterDiagnostic()`, built on it, reading `id`,
 `time` and `vars` at the confirmed rows (`rcontext_columns_at_fit()`), with the
 repeated pairs of `id` and `time` (decision 13) and an unbalanced panel
-(decision 28) refused by Pesaran's test. Increment 6 is in 0.16.0 too: the
+(decision 28) refused by Pesaran's test; the pull request of N12 lifted the
+second refusal, and the test computes the statistic of an unbalanced panel
+from the periods each pair of units shares, as `plm::pcdtest()` does.
+Increment 6 is in 0.16.0 too: the
 tests computed from the model alone, `performSpearmanTest()`,
 `performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`,
 `performCookWeisbergTest()` and `performNCVTest()`, `performSpreadLevelTest()`,
@@ -212,7 +215,7 @@ The functions of `R/model_context.R`:
 | `rcontext_group_rows(ctx, data, group)` | The five group tests (increment 4): the group read as `rcontext_variables()` reads it (M1 without `data`), the Pearson residuals (`rcontext_pearson()`, which refuses a zero weight), and the confirmed rows of `data` in fit order, or the model frame, without the observations whose group or variable of the model is missing, left out by `rhandleMissingValues()` with its warning, as before (decision 8). |
 | `rcontext_columns_at_fit(ctx, data, columns, fn, test_label)` | The panel tests and the scatter diagnostic (increment 5): the columns they read, `id`, `time` or `vars`, as `rcontext_variables()` reads them (M1 without `data`), and the Pearson residuals (`rcontext_pearson()`); for a fit with `na.exclude`, its padded residuals against the rows of `data` by position, checked by `rcheck_data_in_fit_order()`, as before, until increment 9. |
 | `rstop_repeated_panel_cells(id_values, time_values, id, time, fn)` | Pesaran's test (increment 5): refuses a pair of `id` and `time` that holds two observations of the fit, naming up to three pairs, with the class of the context (decision 13). |
-| `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). |
+| `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). Since the pull request of N12, on the positional reading of a fit with `na.exclude` only, until increment 9; on every other route the statistic of an unbalanced panel is computed (`rpesaran_cd_unbalanced()`, `R/performPesaranTest.R`). |
 | `rcontext_second_formula(model, data, formulas, fn, test_label, check_type)` | The functions that may evaluate a second formula (increment 6): the type of `data` checked first (`rcheck_data_argument()`, whose message the test suite pins; not by `fitWLS()`), then the context built with `data`, the variables of the formulas passed as `reads` (`.` reads every column). The tests computed from the model alone and RESET call `rcheck_data_argument()` and `rmodel_context(model, data, ...)` themselves (decision 31). |
 | `rcontext_formula_rows(ctx, data, formula, arg)` | The rows a second formula is evaluated on (increment 6): the confirmed rows of `data` in fit order (`rcontext_rows()`), or the model frame without its terms; a variable of the formula that `data`, or without `data` the model frame, does not hold is refused, with the message of `data` or M1 (R3, decision 9). |
 | `rformula_constants(formula, names)` | The names of a second formula that are constants (from the review of increment 6): not columns, and of a value, found from the environment of the formula as `eval()` finds it, that is an atomic vector of length one; `rcontext_formula_rows()` lets them through, and refuses every other name it cannot find in `data` or the model frame. |
@@ -273,7 +276,7 @@ seen by any alignment (N16).
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
 | frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..." |
 | R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more". On the positional reading of a fit with `na.exclude` the checks run on the rows of `data`, so a refusal can name a row the fit dropped: with `d$time[2] <- 1L` and `d$x2[2] <- NA` this message counts row 2 among the "observations of the fit", and with `d$time[3] <- NA` and `d$x2[3] <- NA` the refusal of a missing period says "Missing rows: 3", a row the fit did not use. Both refusals are right: the matrix would hold those rows, with `NA` residuals |
-| N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28), on every route | "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." |
+| N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28): on every route in increment 5; since the pull request of N12, which computes the statistic of an unbalanced panel, on the positional reading of a fit with `na.exclude` only, until increment 9 | Increment 5: "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." Since the pull request of N12: "performPesaranTest() reads a fit with na.action = na.exclude by position, on a matrix of periods by units, and needs a balanced panel, every unit observed at the same periods; the panel of the rows of `data` is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. Refit the model with na.action = na.omit: the statistic of an unbalanced panel is then computed from the periods each pair of units shares, as plm::pcdtest() computes it." And, on any route, a panel in which no pair of units shares two periods: "performPesaranTest() needs a pair of units observed together at two periods or more, and no pair of the 6 units of the fit shares more than one period. ..." |
 
 M1, M7, M8, the frame message, R2 and N12 have class
 `heteroTests_model_context_error`. Both panel refusals find the repeated pairs
@@ -637,9 +640,11 @@ For the functions built on the context in increment 5:
   pair, so the error of the assignment can no longer be reached; the message
   names a unit and its count of periods against the panel's, and points to
   `plm::pcdtest()`, which computes the statistic of an unbalanced panel on the
-  periods each pair of units shares (Pesaran 2015). A fit that drops every row
-  of a unit keeps a balanced panel and is tested. The refusal comes off in the
-  pull request of N12, which computes the statistic so. `runPanelTests()`
+  periods each pair of units shares (Pesaran 2004, Section 9). A fit that
+  drops every row of a unit keeps a balanced panel and is tested. The refusal
+  comes off in the pull request of N12, which computes the statistic so (done:
+  the refusal stays on the positional reading of a fit with `na.exclude`
+  only, decision 28). `runPanelTests()`
   reports the refusal of one of its tests by stopping with it, its class kept:
   it returns no list, and runs no other test in its place.
 - **Unchanged**: every other value on valid calls; the zero-weight refusals,
@@ -654,8 +659,9 @@ For the functions built on the context in increment 5:
   `missing/na_exclude`, whose panel is balanced in `data` but not in the fit
   (`x2` missing in rows 3, 7 and 11), gives 0.713 as on `main`, computed with
   `NA` residuals at the dropped rows, where `plm::pcdtest()` gives 0.189 on
-  the rows of the fit and the same fit with `na.omit` is refused; the value is
-  left to increment 9;
+  the rows of the fit and the same fit with `na.omit`, refused in increment
+  5, gives 0.189 since the pull request of N12; the value is left to
+  increment 9;
   a smooth `gam`, tested as before (decision 23); and every message the test
   suite pins ("`id` must be a column in `data`.", "`id` and `time` must be
   columns in `data`." for data that lack them).
@@ -1085,6 +1091,34 @@ are `identical()` to it. The warnings are those of `main` on every call.
 Before decision 31 the counts were 27,107 identical and 1,741 allowed, of
 28,848, against 217c093, and at decision 31 25,319 and 3,529.
 
+The pull request of N12, outside the increments, lifts the refusal of an
+unbalanced panel by Pesaran's test (decision 28): the calls that `main`
+refused for it now give a value, which must be that of
+`plm::pcdtest(test = "cd")` on the Pearson residuals of the fit, a pseries
+indexed by the units and periods of the rows of `data` that carry their
+names (`identity_plm_cd()`), to `1e-10` relative on the statistic and the
+p-value, on the cell or on the cell it reproduces; the allow-list gains N12
+among the errors that become values, scoped to Pesaran's test and
+`runPanelTests()`, and a change of N12 not verified against plm is
+unexpected. N12 leaves the new refusals, and its message, for N12 and B16,
+is only the refusal of the positional reading of a fit with `na.exclude`,
+which names it (from the review of the pull request). The corpus is that of increment 6, with plm's value recorded on
+each unbalanced cell; against `main` with #159 (e05a568): 30,344 calls, of
+which 30,272 identical, 72 allowed changes and 0 unexpected. The 72 are
+errors that become values, Pesaran's test, `runPanelTests()` and
+`runPanelTests(tests = "pesaran")` on the 24 unbalanced cells of the matrix
+(the fits that dropped rows of some units, given their data in every
+accepted form, the `cut()` term on the unweighted and the weighted fit, the
+missing groups, `z` missing at a row the fit dropped, and the panel of unit 1
+at 5 of its 10 periods), each verified against plm: 54 on the cell, 18
+through the cell they reproduce (the tibbles and the renumbered rows, whose
+rows do not carry the names of the residuals). Every other call is
+`identical()` to `main`, those of a balanced panel among them, and the 536
+`poly()` calls on the stored design too; the warnings are those of `main`.
+Against `main` before #159 (0fb5138), on the corpus of increment 5: 22,542
+calls, 22,473 identical, 69 allowed, the same changes on 23 cells, and 0
+unexpected.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -1155,8 +1189,10 @@ the span of the regressors, and a positive response `ypos`.
   matrix uses, or the `x1` and `x2` of the scatter diagnostic: without `data`
   the panel tests give M1 and the scatter diagnostic and `runPanelTests()` the
   message on `data`, the model frame lacks `id` and `time`, Pesaran's test
-  refuses a repeated pair (R2) and an unbalanced panel, as that of a fit that
-  dropped some rows of some units (N12), the scatter diagnostic refuses a zero
+  refuses a repeated pair (R2), and since the pull request of N12 tests an
+  unbalanced panel, as that of a fit that dropped some rows of some units,
+  against the same reference as the random-effects test, where increment 5
+  refused it (N12), the scatter diagnostic refuses a zero
   weight before the guard, a fit with `na.exclude` is read as before, and the
   fits that dropped rows are compared with their fit to the complete rows;
   the tests computed from the model alone and RESET
@@ -1194,7 +1230,7 @@ the span of the regressors, and a positive response `ypos`.
 | ties | for each test of increments 3 and 4 that reads a column beyond the model frame, the reviewer's case of increment 1 (numbered data in fit order, and the same data exchanged within ties, as data frames and tibbles): the guard's refusal; a column of the frame and the spatial test: the value of the named data |
 | the group tests | against the test computed without the package, on the residuals of the fit (`weighted.residuals()` for a weighted fit) and the groups of the data it was fitted to, in its order: `car::leveneTest()` centred at the means (Levene) and at the medians (Brown-Forsythe), `stats::fligner.test()`, `stats::bartlett.test()` and O'Brien's transformation written out with `anova()` of `lm()` (`context_group_oracle()`), to `1e-10`, on a `gam` with and without smooth terms or an `offset` argument given its data shuffled, the character-named fit given its tibble, the complete rows renumbered, a model of the group without `data` and with its model frame, a weighted fit, and missing groups, left out |
 | missing groups | the five group tests on a group missing at observations of the fit: the warning "Removed N observations due to missing values in group" and the value of the data frame of the fit on every accepted form of data; a group missing at a row the fit dropped is not counted |
-| the panel tests and the scatter diagnostic | against the statistic written out without the package on the residuals of the fit and the rows of `data` that carry their names (`context_panel_oracle()`), to `1e-10`: Pesaran's CD from the correlations of each pair of units over the periods, the LM statistic of Breusch and Pagan (1980), equation 5, with the mean number of periods, and Spearman's correlation of the absolute residuals; on data shuffled with their row names and on a fit that drops every row of a unit; the 0.15.0 example in fit order and shuffled, and with rows after those of the fit, `identical()`; a repeated pair of `id` and `time` refused by Pesaran's test and not by the random-effects test; an unbalanced panel refused by Pesaran's test and `runPanelTests()`, where it recycled the residuals of a unit or stopped, and against `plm::pcdtest()`, -0.373, which the refusal names; ties in numbered data in fit order refused for `id` and `time` and for a column of the scatter diagnostic beyond the model frame |
+| the panel tests and the scatter diagnostic | against the statistic written out without the package on the residuals of the fit and the rows of `data` that carry their names (`context_panel_oracle()`), to `1e-10`: Pesaran's CD from the correlations of each pair of units over the periods, the LM statistic of Breusch and Pagan (1980), equation 5, with the mean number of periods, and Spearman's correlation of the absolute residuals; on data shuffled with their row names and on a fit that drops every row of a unit; the 0.15.0 example in fit order and shuffled, and with rows after those of the fit, `identical()`; a repeated pair of `id` and `time` refused by Pesaran's test and not by the random-effects test; an unbalanced panel, where Pesaran's test recycled the residuals of a unit or stopped, increment 5 refused it, and since the pull request of N12 it gives, directly and through `runPanelTests()`, the CD written out from the periods each pair of units shares, and `plm::pcdtest()`'s value, -0.373, to `1e-10`; ties in numbered data in fit order refused for `id` and `time` and for a column of the scatter diagnostic beyond the model frame |
 | the tests computed from the model alone (increment 6) | numbered data in another order, rows in front of those of the fit and repeated row names refused by the guard, named data in any order and the complete rows of a fit that dropped rows, numbered again, `identical()` to the data frame of the fit (decision 31); a stale `model = FALSE` frame refused by the nine, RESET, `fitWLS()`, the registered names and `runTimeSeriesTests()`, with and without `data`, and the values of before once the frame is restored; a fit whose data are gone tested on its data, in fit order and shuffled under their row names, `identical()` to the fit with its frame |
 | a second formula (increment 6) | `var_formula = ~ z` and `against = ~ z` on named data shuffled `identical()` to the data frame; numbered data in another order, rows in front and the tibble of a fit to repeated rows refused by the guard; the complete rows numbered again `identical()` to the fit to the complete rows; a variable of the workspace refused (M1, the message of `data`), and given as a column of `data` the value it gave from the workspace; a variable of the model read from the model frame and the functions of the formula from its environment |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
@@ -1230,7 +1266,7 @@ that fixes each.
 | B13 | `na.exclude` | Increment 9 |
 | B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic |
 | B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3 and the five of increment 4 gave values already |
-| B16 | The panel tests on a fit that dropped rows | Fixed in increment 5 for the random-effects test and the scatter diagnostic; Pesaran's test reaches the panel of the fit, which is unbalanced unless every row of a unit was dropped, and refuses it (N12, decision 28) |
+| B16 | The panel tests on a fit that dropped rows | Fixed in increment 5 for the random-effects test and the scatter diagnostic; Pesaran's test reaches the panel of the fit, which is unbalanced unless every row of a unit was dropped, and refused it (N12, decision 28) until the pull request of N12, since which it gives the value of the fit to the complete rows |
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Refused by Pesaran's test since increment 5 (decision 13); the random-effects test reads no period |
@@ -1249,7 +1285,7 @@ that fixes each.
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
-| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refuses an unbalanced panel, until the pull request of N12 computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does, and removes the refusal |
+| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refused an unbalanced panel. Fixed by the pull request of N12, which removes the refusal: the statistic of an unbalanced panel is computed from the periods each pair of units shares, as `plm::pcdtest(test = "cd")` computes it (Pesaran 2004, Section 9, equation 31), `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, `rho_ij` the correlation of the residuals of units `i` and `j` over the `T_ij` periods both are observed at, each centred at its mean over them, over the `P` pairs with `T_ij >= 2` (`N (N - 1) / 2` when every pair has); a pair with `T_ij < 2` is left out with a warning, as plm leaves it out, and a panel without such a pair is refused; a correlation that is not defined, a unit constant over the periods of a pair, adds nothing and the pair stays in `P`, with a warning, as on a balanced panel, where plm returns `NA`; -0.373 on that panel, and plm's value to `1e-10` on 252 panels of 5 to 30 units and 4 to 12 periods, 228 of them unbalanced (late entry, early exit, gaps, 1 to 20 rows missing at random, a unit observed once), by an `lm`, a weighted `lm` and a Gaussian `glm`, weighted or not, directly, on the full data of a fit with `na.omit` and through `runPanelTests()`: 5,040 comparisons, the largest difference 3.6e-15 on the statistic, and on the cells of the matrix (below). A balanced panel keeps the matrix of periods by units, every value `identical()`. The refusal stays on the positional reading of a fit with `na.exclude` until increment 9 (decision 29) |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
 | N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic; open for the streaming tests until 7, the White bootstrap's replicates until 8 |
 
@@ -1283,7 +1319,7 @@ that fixes each.
 | 25 | After the review of N2, White's test decides its rank on the auxiliary design of the centred regressors, so that it does not depend on where they are located, fitting the columns as they are whenever that fit keeps them all; and it refuses an auxiliary regression with as many independent terms as observations, the runner falling back on White's test without cross products. Decided by the author. | 2026-10-21 |
 | 26 | After the review of the follow-up of N2, White's test also refuses an auxiliary regression that fits the squared residuals exactly with fewer terms than observations, as on a paired design: its residual sum of squares at most `sqrt(.Machine$double.eps)` of the total. The refusal advises what the call allows, and the runner takes no fallback when the regressors alone fit the squared residuals exactly, since the Breusch-Pagan and Koenker tests would fit them exactly too. The same refusal in those two tests is left to a pull request of its own. | 2026-10-22 |
 | 27 | The streaming tests run only when asked for, outside the context: `runHeteroTests()` and `runDiagnostics()` default to `chunk_threshold_mb = Inf`, a finite value asks for them, and `performWhiteTest()`, `performBPTest()`, `performKoenkerTest()` and the White bootstrap no longer switch to them above 100 MB. Streaming saves memory mainly in White's test, and the White streaming test stops on any model with a factor. The three streaming tests stay exported, not deprecated, and increment 7 still builds them on the stored design. Decided by the author. | 2026-10-22 |
-| 28 | Pesaran's test refuses an unbalanced panel, whose units are not all observed at the same periods, in increment 5, with the class of the context and on every route, so that it never returns the value of recycled residuals; a fit that drops every row of a unit keeps a balanced panel. The refusal comes off in the pull request of N12, which computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does. Decided by the author: refuse now, fix later. | 2026-10-24 |
+| 28 | Pesaran's test refuses an unbalanced panel, whose units are not all observed at the same periods, in increment 5, with the class of the context and on every route, so that it never returns the value of recycled residuals; a fit that drops every row of a unit keeps a balanced panel. The refusal comes off in the pull request of N12, which computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does. Decided by the author: refuse now, fix later. Done in the pull request of N12 (2026-10-26): the refusal is off on every route but the positional reading of a fit with `na.exclude`, left to increment 9 (decision 29); a pair of units that shares fewer than two periods is left out of the statistic with a warning, as `plm::pcdtest()` leaves it out, rather than refused, and a panel in which no pair shares two periods is refused. | 2026-10-24 |
 | 29 | The panel tests and the scatter diagnostic read a fit with `na.exclude` as before, its padded residuals against the rows of `data` by position, until increment 9. Decided by the author. | 2026-10-24 |
 | 30 | A repeated pair of `id` and `time` is refused by Pesaran's test only, and so by `runPanelTests()` when it runs that test; the random-effects test reads no period. Decided by the author. | 2026-10-24 |
 | 31 | The tests that read nothing from `data`, the nine tests computed from the model alone, RESET and `fitWLS()` without `var_formula`, match `data` through the guard, as every test built on the context does: one rule for every test. Data the guard cannot match are refused, where they returned the value of the fit, and numbered data in the order of the fit that the check of 0.15.0 refused are taken; that check goes, but for the type of `data`. It ends decision 24. Decided by the author, on the open question of the first version of increment 6. | 2026-10-26 |
