@@ -95,11 +95,12 @@ alone, \code{\link{performSpearmanTest}()}, \code{\link{performHarveyTest}()}, \
 \code{\link{performVarianceFormTest}()}, with \code{\link{fitWLS}()}, read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 \code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
-the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET and the
-tests computed from the model alone read nothing from \code{data}: they build their context without it, but to
-rebuild the model frame of a fit with \code{model = FALSE} whose data are gone, and keep the check of \code{data} of
-0.15.0, for the variables of the model and the row names of the fit (\code{fitWLS()} reads and checks no
-\code{data} without \code{var_formula}). A second formula, the \code{var_formula} of the Cook-Weisberg test, of the
+the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET, the
+tests computed from the model alone and \code{fitWLS()} without \code{var_formula} read nothing from \code{data},
+and match it as the other tests do, so that every test takes and refuses the same data; until 0.16.0 they gave the
+value of the fit on numbered data in another order, rows in front of those of the fit and repeated row names, and
+refused numbered data in the order of the fit whose row numbers are not the fit's (\code{fitWLS()} ignored
+\code{data}). A second formula, the \code{var_formula} of the Cook-Weisberg test, of the
 variance form test and of \code{fitWLS()}, and the \code{against} of the variance form test, is evaluated on the
 confirmed rows of \code{data}, or, without \code{data}, on the model frame; a variable that neither holds is refused,
 where it was found in the workspace.

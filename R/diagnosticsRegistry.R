@@ -122,9 +122,11 @@ rregister_package_diagnostic("ncv", function(model, data) {
   # "koenker" and "breusch_pagan", runHeteroTests() on such data returned the
   # Cook-Weisberg statistic under their names. Since 0.16.0 it builds the
   # model context, as performNCVTest() does, which refuses a model frame that
-  # `model = FALSE` rebuilt from data changed after the fit, and the fit must
-  # reproduce itself (rcontext_model_alone()).
-  ctx <- rcontext_model_alone(model, data, "performNCVTest", "NCV")
+  # `model = FALSE` rebuilt from data changed after the fit and matches `data`
+  # to the observations of the fit (decision 31), and the fit must reproduce
+  # itself.
+  rcheck_data_argument(data, "performNCVTest")
+  ctx <- rmodel_context(model, data, fn = "performNCVTest", test_label = "NCV")
   .ncv_test(model, ctx = ctx)
 })
 rregister_package_diagnostic(

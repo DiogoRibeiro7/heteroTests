@@ -155,8 +155,10 @@ from the data it was fitted to, no longer holds its response, because those data
 changed after the fit: it refitted that frame and returned a value. A fit with
 `model = FALSE` whose data are gone is tested on `data` that give its response and
 fitted values. Without `var_formula` or `against`, the test reads nothing from
-`data`, which is checked as before. Which model each test accepts, and why, is set
-out in [`test_results`](test_results.md), under *Supported models*.
+`data`, which it matches as every test does, and refuses numbered data in another
+order, rows in front of those of the fit and repeated row names, where it gave the
+value of the fit. Which model each test accepts, and why, is set out in
+[`test_results`](test_results.md), under *Supported models*.
 
 ## References
 

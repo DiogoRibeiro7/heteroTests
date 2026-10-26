@@ -18,7 +18,7 @@ performRESETTest(model, data = NULL, power = 2:3)
 :   A fitted `lm` model.
 
 `data`
-:   optional data frame the model was fitted to, or `NULL`, the default. The statistic is computed from the response, fitted values, design, weights and offset of the fit itself, so `data` does not change the result; it is accepted so that every test takes `(model, data, ...)`, and must hold the variables of the model and the row names of the fit. Before 0.15.0 the second argument was `power`: a number passed there by position is still read as `power` in 0.15.x, with a warning that shows the new call, and stops working in 1.0.0.
+:   optional data frame the model was fitted to, or `NULL`, the default. The statistic is computed from the response, fitted values, design, weights and offset of the fit itself, so `data` does not change the result; it is accepted so that every test takes `(model, data, ...)`; since 0.16.0 its rows are matched to the observations of the fit as by every test, data with row names of their own in any order and data that number their rows in the order of the fit, and other data are refused, where it needed only the variables of the model and the row names of the fit. Before 0.15.0 the second argument was `power`: a number passed there by position is still read as `power` in 0.15.x, with a warning that shows the new call, and stops working in 1.0.0.
 
 `power`
 :   Numeric vector of powers to include.
@@ -49,7 +49,8 @@ data it was fitted to, no longer holds its response, because those data changed 
 it read that frame and returned a value. A fit with `model = FALSE` whose data are gone is
 tested on `data` that give its response and fitted values (since 0.16.0; it refused such a fit
 until the tests computed from the model alone were built on the model context), and refused
-without them.
+without them. Since then it also refuses numbered data in another order than the fit, rows in front
+of those of the fit and repeated row names, as every test does, where it gave the value of the fit.
 It refuses a multivariate `lm` ("needs a model with one response"), which it tested without
 `data` before 0.16.0, and, since 0.16.0, an `mgcv::gam()` fit with smooth terms: a
 smooth term is usually penalised, and a penalised fit is not the least-squares fit of the design

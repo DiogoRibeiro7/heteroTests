@@ -20,9 +20,12 @@
 #' @param data Optional data frame the model was fitted to, or `NULL`, the
 #'   default. The statistic is computed from the response, fitted values,
 #'   design, weights and offset of the fit itself, so `data` does not change
-#'   the result; it is accepted so that every test takes `(model, data, ...)`,
-#'   and must hold the variables of the model and the row names of the fit.
-#'   Before 0.15.0 the second argument was `power`: a
+#'   the result; it is accepted so that every test takes `(model, data, ...)`;
+#'   since 0.16.0 its rows are matched to the observations of the fit as by
+#'   every test, data with row names of their own in any order and data that
+#'   number their rows in the order of the fit, and other data are refused,
+#'   where it needed only the variables of the model and the row names of the
+#'   fit. Before 0.15.0 the second argument was `power`: a
 #'   number passed there by position is still read as `power` in 0.15.x, with a
 #'   warning that shows the new call, and stops working in 1.0.0.
 #' @param power Numeric vector of powers to include. Defaults to `2:3`.
@@ -41,13 +44,13 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   # The response, design, weights and offset come from the fit, through the
   # model context (R/model_context.R), which also refuses a model frame that
   # `model = FALSE` rebuilt from data changed after the fit: before 0.16.0 the
-  # test read such a frame. RESET reads nothing from `data`, so the context is
-  # built without it, but to rebuild the model frame of a fit with
-  # `model = FALSE` whose data are gone, and `data` keeps the check of the
-  # tests computed from the model alone (rcontext_model_alone()).
-  ctx <- rcontext_model_alone(model, data, "performRESETTest", "RESET", check_data = FALSE)
+  # test read such a frame. RESET reads nothing from `data`, which is matched
+  # to the observations of the fit as by every test built on the context
+  # (decision 31; from increment 2 to increment 6 the context was built without
+  # `data`, which kept the check of 0.15.0, decision 24).
+  rcheck_data_argument(data, "performRESETTest")
+  ctx <- rmodel_context(model, data, fn = "performRESETTest", test_label = "RESET")
   rrefuse_smooth_gam(ctx, "performRESETTest")
-  rcheck_data_argument(data, "performRESETTest", model, "RESET")
   checkModel(model)
   rrefuse_nonfinite_coefficients(model, "RESET test", allow_aliased = TRUE)
   rvalidate_model_context(ctx)

@@ -612,8 +612,8 @@ context_cells <- function() {
   # shuffled tibble, which the guard refuses unless the fit is refused first,
   # and as the model frame (increment 4). `shuffled_defect` names the defects
   # of the shuffled cell alone; `base` is the cell of the data frame of the
-  # fit, and `base_expect` its expectation, for RESET, which reads nothing
-  # from `data` (context_cell_for()).
+  # fit, the reference of fitWLS(), which refits a zero weight and an edited
+  # fit (context_cell_for_formula()), and `base_expect` its expectation.
   set.seed(3)
   class_perm <- sample(nrow(d))
   class_forms <- function(id, build, expect = "value", defect = character(), needs = character(),
@@ -1137,7 +1137,8 @@ context_runnable <- function(fns = context_migrated) {
 #
 # - The tests of increment 2 refuse an mgcv::gam() fit with smooth
 #   terms (context_increment2), once `data` is matched: a shuffled tibble is
-#   refused by the guard first, but by RESET, which matches no `data`.
+#   refused by the guard first, by RESET too since it matches `data`
+#   (decision 31).
 # - The quantile regression test refuses a weighted fit, and a MASS::rlm()
 #   fit, whose weights it reads, once `data` is aligned.
 # - Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read `x1`,
@@ -1152,15 +1153,10 @@ context_runnable <- function(fns = context_migrated) {
 # - A group missing at observations of the fit: Hartley's test refuses them
 #   (decision 8); the five group tests leave them out, with a warning, as
 #   before.
-# - RESET reads nothing from `data`. It builds its context without `data` and
-#   keeps the check of `data` of the tests computed from the model alone
-#   (rcheck_data_argument()), which looks for the row names of the fit and
-#   compares no values, until increment 6 moves those tests. So it gives the
-#   value of the fit on the forms of data the guard refuses, and on a class of
-#   model what it gives on the data frame of the fit, refuses data whose row
-#   names lack those of the fit, refuses a model = FALSE fit whose data are
-#   gone, stops on the padded fitted values of na.exclude (increment 9), and
-#   accepts a zero weight.
+# - RESET and the tests computed from the model alone read nothing from
+#   `data`, which they match as the others do (decision 31), and keep their
+#   own refusals (context_cell_for_model_alone()): RESET stops on the padded
+#   fitted values of na.exclude (increment 9) and accepts a zero weight.
 # - The functions of increment 5 read `id`, `time` or the variables of the
 #   scatter diagnostic beside the model (context_cell_for_panel()): without
 #   `data` the panel tests are refused (M1) and the others need a data frame;
@@ -1176,7 +1172,7 @@ context_cell_for <- function(fn, cell) {
     return(context_cell_for_formula(fn, cell))
   }
   if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth") &&
-        (!identical(cell$expect, "guard") || identical(fn, "performRESETTest"))) {
+        !identical(cell$expect, "guard")) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
   }
@@ -1229,10 +1225,10 @@ context_cell_for <- function(fn, cell) {
 # The cell as the calls of increment 6 that evaluate a second formula of z see
 # it (context_second_formula), and fitWLS() without one.
 #
-# - fitWLS() without `var_formula` reads nothing from `data`, and does not
-#   check it, as before: it gives the value of the fit on every form of data,
-#   and it is not a test, so it neither checks that the fit reproduces itself
-#   nor refuses a zero weight.
+# - fitWLS() without `var_formula` reads nothing from `data`, which it
+#   matches as the tests do (decision 31; it did not check it before), and it
+#   is not a test, so it neither checks that the fit reproduces itself nor
+#   refuses a zero weight.
 # - With `var_formula = ~ z` or `against = ~ z`, z is read at the rows the
 #   alignment confirmed (B9): the forms of data the guard refuses are refused,
 #   and so is the tibble of a fit to repeated rows, whose rows tie, z being
@@ -1258,16 +1254,7 @@ context_cell_for_formula <- function(fn, cell) {
     return(cell)
   }
   if (identical(fn, "fitWLS")) {
-    if (identical(cell$expect, "guard")) {
-      cell$expect <- "value"
-      cell$reference <- if (!is.null(cell$base)) {
-        cell$base
-      } else if (cell$block %in% c("fit", "terms")) {
-        paste(cell$block, cell$fit, cell$offset, cell$terms, "data_frame", sep = "/")
-      } else {
-        "fit/ols/none/none/data_frame"
-      }
-    } else if (zero_weight || edited) {
+    if (zero_weight || edited) {
       cell$expect <- "value"
       cell$reference <- cell$base
     }
@@ -1320,63 +1307,22 @@ context_cell_for_formula <- function(fn, cell) {
 }
 
 # The cell as a test computed from the model alone sees it (increment 6), and
-# RESET (decision 24). They read nothing from `data`, and build their context
-# without it, but to rebuild the model frame of a fit with model = FALSE whose
-# data are gone; they keep the check of `data` of 0.15.0
-# (rcheck_data_argument()), which looks for the variables of the model and the
-# row names of the fit and compares no values. So they give the value of the
-# fit on the forms of data the guard refuses, and on a class of model what
-# they give on the data frame of the fit; refuse data whose row names lack
-# those of the fit, and the data of a gam, whose residuals carry no names,
-# whose number of rows is not the fit's; and refuse, with every test built on
-# the context, a stale model frame (N6), a multivariate lm, a fit whose data
-# are gone without `data` that give its response, and an edited fit (M8).
-# Each keeps the refusals of its own: RESET accepts a zero weight, which the
-# others refuse with the Pearson residuals, and refuses a gam with smooth
-# terms (decision 23) and the padded fitted values of na.exclude, which the
-# spread-level and Davidian-Carroll tests take, and the others refuse with
-# the checks of the model; the variance form test refuses weights that did
-# not come from fitWLS().
+# RESET. They read nothing from `data`, which they match to the observations
+# of the fit as every test built on the context does (decision 31): the guard
+# refuses what it refuses, numbered data with one row per observation are
+# taken in the order of the fit, and, since they read no column beyond the
+# model frame, data in that order whose rows tie are taken too. Until decision
+# 31 they kept the check of 0.15.0, the variables of the model and the row
+# names of the fit, and gave the value of the fit on the data the guard
+# refuses. Each keeps the refusals of its own, once `data` is matched: RESET
+# accepts a zero weight, which the others refuse with the Pearson residuals,
+# and refuses a gam with smooth terms (decision 23) and the padded fitted
+# values of na.exclude, which the spread-level and Davidian-Carroll tests
+# take, and the others refuse with the checks of the model; the variance form
+# test refuses weights that did not come from fitWLS().
 context_cell_for_model_alone <- function(fn, cell) {
-  label <- context_model_alone[[fn]]
-  rows_lacking <- c(
-    "missing/complete_renumbered", "ident/repeated_fit_tibble",
-    "ident/character_names_tibble", "ident/repeated_names", "group/na_dropped_renumbered"
-  )
-  if (cell$id %in% rows_lacking) {
-    cell$expect <- sprintf("%s requires `data` to contain the rows used to fit the model.", label)
-    cell$reference <- NULL
-    return(cell)
-  }
-  if (cell$id %in% c("panel/unit_gam_full", "panel/unit_gam_shuffled")) {
-    # The residuals of a gam carry no names, and the check of `data` compares
-    # the number of rows of `data` with that of the fit.
-    cell$expect <- sprintf(
-      "%s requires `data` with 110 observations to match the fitted model, got 120.", label
-    )
-    cell$reference <- NULL
-    return(cell)
-  }
-  if (identical(cell$expect, "guard") && !is.null(cell$base)) {
-    # A class of model given data the guard refuses: what the test gives on
-    # the data frame of the fit.
-    base <- cell
-    base$id <- cell$base
-    base$form <- "data_frame"
-    base$expect <- cell$base_expect
-    base$base <- NULL
-    seen <- context_cell_for_model_alone(fn, base)
-    cell$expect <- seen$expect
-    cell$reference <- if (identical(seen$expect, "value")) cell$base
-    return(cell)
-  }
   if (identical(cell$expect, "guard")) {
-    cell$expect <- "value"
-    cell$reference <- if (cell$block %in% c("fit", "terms")) {
-      paste(cell$block, cell$fit, cell$offset, cell$terms, "data_frame", sep = "/")
-    } else {
-      "fit/ols/none/none/data_frame"
-    }
+    return(cell)
   }
   if (identical(cell$id, "missing/na_exclude")) {
     if (identical(fn, "performRESETTest")) {

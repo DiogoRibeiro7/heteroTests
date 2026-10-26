@@ -1893,6 +1893,59 @@ test_that("the tests computed from the model alone refuse a stale model frame (N
   }
 })
 
+test_that("the tests that read nothing from data match it as every test does (decision 31)", {
+  # Decided by the author on 2026-10-26: one rule for every test built on the
+  # context. The tests computed from the model alone, RESET and fitWLS()
+  # without `var_formula` read nothing from `data`, and until increment 6 kept
+  # the check of 0.15.0, the variables of the model and the row names of the
+  # fit. On mtcars with its row names reset they gave the value of the fit,
+  # Spearman's test 1.445 (p = 0.159), on numbered data in another order, rows
+  # in front of those of the fit and repeated row names, which the guard
+  # refuses; and refused the complete rows of a fit that dropped rows,
+  # numbered again ("Missing rows: 31, 32"), which the guard takes in the order
+  # of the fit.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- mtcars
+  rownames(d) <- NULL
+  m <- lm(mpg ~ wt + qsec, data = d)
+  set.seed(1)
+  perm <- sample(nrow(d))
+  repeated <- rbind(d, d[1, ])
+  attr(repeated, "row.names") <- c(seq_len(nrow(d)), 1L)
+  refused <- list(
+    tibble = dplyr::as_tibble(d)[perm, ], front = rbind(d[1:5, ], d), repeated = repeated
+  )
+  dn <- d
+  dn$qsec[c(3, 7)] <- NA
+  mn <- lm(mpg ~ wt + qsec, data = dn)
+  renumbered <- dn[stats::complete.cases(dn[, c("mpg", "wt", "qsec")]), ]
+  rownames(renumbered) <- NULL
+  recipes <- context_recipes()
+  numbers <- function(x) if (is.numeric(x)) x else c(unname(x$statistic), x$p.value)
+  for (fn in c(names(context_model_alone), "fitWLS")) {
+    run <- function(model, data) suppressWarnings(recipes[[fn]](model, data))
+    expected <- numbers(run(m, d))
+    for (nm in names(refused)) {
+      expect_error(run(m, refused[[nm]]), "cannot match the rows of `data`",
+                   class = "heteroTests_data_rows_error", info = paste(fn, nm))
+    }
+    expect_identical(numbers(run(m, d[perm, ])), expected, info = fn)
+    expect_identical(numbers(run(mn, renumbered)), numbers(run(mn, dn)), info = fn)
+  }
+  expect_equal(unname(performSpearmanTest(m, d)$statistic), 1.445, tolerance = 1e-3)
+  expect_equal(unname(performSpearmanTest(mn, renumbered)$statistic), 0.9509, tolerance = 1e-4)
+  # The registered "ncv", a fallback of the runner, and the runner.
+  expect_error(get("ncv", envir = heteroTests:::.diagnostic_registry)(m, refused$tibble),
+               class = "heteroTests_data_rows_error")
+  expect_error(
+    suppressWarnings(runHeteroTests(m, refused$tibble, tests = "cook_weisberg",
+                                    use_cache = FALSE, progress = FALSE)),
+    class = "heteroTests_data_rows_error"
+  )
+})
+
 test_that("a variable of var_formula missing at an observation of the fit is named", {
   # Cook-Weisberg's test with `var_formula` dropped the incomplete rows of
   # `data`, with the warning "Removed N observations due to missing values in

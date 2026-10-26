@@ -32,10 +32,9 @@ a multivariate \code{lm} ("needs a model with one response"), a fit whose coeffi
 weights were changed after the fit, and a fit with \code{model = FALSE} whose model frame, rebuilt
 from the data it was fitted to, no longer holds its response, because those data changed after the
 fit, with or without \code{data}. A fit with \code{model = FALSE} whose data are gone is tested on
-\code{data} that give its response and fitted values, and refused without them. Without
-\code{var_formula} the test reads nothing from \code{data}, which is checked as before: it must
-hold the variables of the model and the row names of the fit; with it, \code{data} is read as by
-\code{\link{performCookWeisbergTest}}. Which model each test accepts, and why, is set out in
+\code{data} that give its response and fitted values, and refused without them. \code{data} is
+matched to the observations of the fit as by \code{\link{performCookWeisbergTest}}, with or without
+\code{var_formula}. Which model each test accepts, and why, is set out in
 \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{

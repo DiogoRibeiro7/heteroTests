@@ -1393,10 +1393,9 @@ after it.
             `performSpreadLevelTest()`, `performDavidianCarrollTest()`,
             `performVarianceFormTest()` without a second formula,
             `performRESETTest()`) accept reordered data and return the value of the
-            fit. They still do after the sixth step of the model context, which
-            builds them on it but keeps their check of `data`; whether they should
-            refuse such data, as the others do, is left to the author (step 6
-            below).
+            fit. Since the sixth step of the model context they match `data` as
+            every other test does (decision 31 of the design), and refuse such
+            data.
         - The columns a test reads besides the model (`group`, `order_by`,
             `variable`, `id`, `time`) are not compared. When every column of the
             model frame is compared, two rows that tie on all of them (response,
@@ -1585,20 +1584,16 @@ after it.
         and `fitWLS()` build the context, which refuses a stale `model = FALSE`
         frame (N6), a multivariate `lm`, an edited fit (M8; not `fitWLS()`), and a
         fit whose data are gone unless `data` gives its response and fitted
-        values; they read nothing from `data`, which they check as RESET does,
-        with `rcheck_data_argument()`. A second formula (`var_formula`,
-        `against`) is evaluated on the rows the alignment confirmed (B9), and its
-        variables come from `data` or the model frame, never from the workspace
-        (R3, decision 9). Done in 0.16.0.
-        - Left to the author, from step 6: whether the tests that read nothing
-            from `data` (these nine, RESET, `fitWLS()` without `var_formula`) should
-            match `data` through the guard as every other test does, which would
-            refuse numbered data in another order than the fit, rows in front of
-            those of the fit and data whose values are not the fit's, from which
-            they compute the value of the fit, and accept the complete rows of a fit
-            that dropped rows numbered again, which `rcheck_data_argument()`
-            refuses. Decision 24 kept RESET's check "until increment 6"; step 6 keeps
-            it, for all of them, until that is decided.
+        values. They read nothing from `data`, and match it through the guard as
+        every test does, RESET and `fitWLS()` without `var_formula` too (decision
+        31, decided by the author on 2026-10-26: one rule for every test, which
+        ends decision 24): they refuse numbered data in another order than the
+        fit, rows in front of those of the fit and repeated row names, from which
+        they computed the value of the fit, and take the complete rows of a fit
+        that dropped rows numbered again, which the check of 0.15.0 refused. A
+        second formula (`var_formula`, `against`) is evaluated on the rows the
+        alignment confirmed (B9), and its variables come from `data` or the model
+        frame, never from the workspace (R3, decision 9). Done in 0.16.0.
     - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
         Closes B6, and N17 for these.
     - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from

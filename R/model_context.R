@@ -41,8 +41,9 @@
 # computed from the model alone, performSpearmanTest(), performHarveyTest(),
 # performArchLMTest(), performMcLeodLiTest(), performCookWeisbergTest() and
 # performNCVTest(), performSpreadLevelTest(), performDavidianCarrollTest() and
-# performVarianceFormTest(), with fitWLS() (rcontext_model_alone(),
-# rcontext_second_formula(), rcontext_formula_rows()); the other tests still
+# performVarianceFormTest(), with fitWLS() (rcontext_second_formula(),
+# rcontext_formula_rows()), which match `data` as every test built on the
+# context does (decision 31); the other tests still
 # prepare the model and data with rdata_or_model_frame() and
 # prepare_model_data_for_test().
 
@@ -483,57 +484,17 @@ rstop_missing_from_frame <- function(ctx, absent, also = NULL) {
   ))
 }
 
-#' The model context of a test computed from the model alone
-#'
-#' The tests whose statistic needs nothing beyond the residuals, fitted values
-#' and design of the fit, [performSpearmanTest()], [performHarveyTest()],
-#' [performArchLMTest()], [performMcLeodLiTest()], [performCookWeisbergTest()]
-#' and [performNCVTest()] without `var_formula`, [performSpreadLevelTest()],
-#' [performDavidianCarrollTest()], [performVarianceFormTest()] without a second
-#' formula and [performRESETTest()], and [fitWLS()] without `var_formula`, read
-#' nothing from `data`. Since 0.16.0 (increment 6 of the design of the model
-#' context) they build the context, so that it refuses what it refuses for
-#' every test: a model frame that `model = FALSE` rebuilt from data that
-#' changed after the fit (N6), which they read before (Harvey's design, the
-#' refit of the variance form test and of `fitWLS()`), a multivariate `lm`, and
-#' a fit with `model = FALSE` whose data are gone, unless `data` gives its
-#' response and fitted values. `data` enters the context only to rebuild such a
-#' frame; otherwise it is checked as before, its variables and the row names
-#' of the fit ([rcheck_data_argument()]), as RESET has checked it since 0.16.0
-#' (decision 24). Whether these tests should match `data` through the guard as
-#' the others do, which would refuse numbered data in another order than the
-#' fit, from which they compute the value of the fit, is left open.
-#'
-#' @param model The fitted model of the calling test.
-#' @param data The `data` argument of the calling test, or `NULL`.
-#' @param fn,test_label As in [rmodel_context()].
-#' @param check_data Logical: check `data` with [rcheck_data_argument()]?
-#'   [fitWLS()], which never checked a `data` it does not read, passes
-#'   `FALSE`.
-#' @return The model context, built without `data` unless the model frame of
-#'   the fit cannot be rebuilt and `data` is a data frame.
-#' @keywords internal
-#' @noRd
-rcontext_model_alone <- function(model, data, fn, test_label = fn, check_data = TRUE) {
-  gone <- is.data.frame(data) &&
-    !is.data.frame(tryCatch(stats::model.frame(model), error = function(e) NULL))
-  ctx <- rmodel_context(model, if (gone) data, fn = fn, test_label = test_label)
-  if (isTRUE(check_data)) {
-    rcheck_data_argument(data, fn, model, test_label)
-  }
-  ctx
-}
-
 #' The model context of a function that may evaluate a second formula
 #'
-#' With `data` and a second formula (`var_formula`, `against`), the variables
-#' of the formula are read from `data`, so `data` is matched to the
-#' observations of the fit by the alignment of the context, and the variables
-#' of the formulas that are not columns of the model frame make it stricter
-#' for data taken in the order of the fit (`reads`, [rcontext_align()]);
-#' `.` reads every column. Otherwise the function reads nothing from `data`,
-#' and its context is that of a test computed from the model alone
-#' ([rcontext_model_alone()]).
+#' [performCookWeisbergTest()] and [performNCVTest()] with `var_formula`,
+#' [performVarianceFormTest()] with `var_formula` or `against`, and [fitWLS()]
+#' with `var_formula`, read the variables of the formula from `data`; without
+#' one they read nothing from it. Either way `data` is matched to the
+#' observations of the fit by the alignment of the context, as for every test
+#' built on it (decision 31 of the design of the model context), and the
+#' variables of the formulas that are not columns of the model frame make it
+#' stricter for data taken in the order of the fit (`reads`,
+#' [rcontext_align()]); `.` reads every column.
 #'
 #' @param model The fitted model of the calling function.
 #' @param data The `data` argument of the calling function, or `NULL`.
@@ -541,16 +502,18 @@ rcontext_model_alone <- function(model, data, fn, test_label = fn, check_data = 
 #'   anything that is not a formula, such as `against = "squares"`, read
 #'   nothing.
 #' @param fn,test_label As in [rmodel_context()].
-#' @param check_data As in [rcontext_model_alone()].
+#' @param check_type Logical: refuse `data` that is neither a data frame nor
+#'   `NULL` first, with the message of the tests computed from the model alone
+#'   ([rcheck_data_argument()])? [fitWLS()] passes `FALSE`.
 #' @return The model context.
 #' @keywords internal
 #' @noRd
 rcontext_second_formula <- function(model, data, formulas, fn, test_label = fn,
-                                    check_data = TRUE) {
-  formulas <- Filter(function(f) inherits(f, "formula"), formulas)
-  if (is.null(data) || length(formulas) == 0L) {
-    return(rcontext_model_alone(model, data, fn, test_label, check_data))
+                                    check_type = TRUE) {
+  if (isTRUE(check_type)) {
+    rcheck_data_argument(data, fn)
   }
+  formulas <- Filter(function(f) inherits(f, "formula"), formulas)
   reads <- unique(unlist(lapply(formulas, all.vars), use.names = FALSE))
   if ("." %in% reads && is.data.frame(data)) {
     reads <- union(setdiff(reads, "."), names(data))

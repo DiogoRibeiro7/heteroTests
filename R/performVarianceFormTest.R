@@ -154,8 +154,10 @@
 #' changed after the fit: it refitted that frame and returned a value. A fit with
 #' `model = FALSE` whose data are gone is tested on `data` that give its response and
 #' fitted values. Without `var_formula` or `against`, the test reads nothing from
-#' `data`, which is checked as before. Which model each test accepts, and why, is set
-#' out in [test_results], under *Supported models*.
+#' `data`, which it matches as every test does, and refuses numbered data in another
+#' order, rows in front of those of the fit and repeated row names, where it gave the
+#' value of the fit. Which model each test accepts, and why, is set out in
+#' [test_results], under *Supported models*.
 #'
 #' @examples
 #' # Standard deviation proportional to x, so the variance is a power of x
@@ -192,13 +194,11 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # The response, design and offset come from the model context
   # (R/model_context.R), which refuses a model frame that `model = FALSE`
   # rebuilt from data changed after the fit, from which the model was refitted
-  # before 0.16.0. With `var_formula` or `against` and `data`, `data` is
-  # matched to the observations of the fit, and the variables of the formulas
-  # are read at the rows it confirmed: before, they were matched by row name,
-  # or, when no name matched, by position, unchecked (B9). Otherwise the test
-  # reads nothing from `data`, and data that lack rows of the fit or a
-  # variable of the model are refused as before; before 0.15.0 they returned
-  # a value.
+  # before 0.16.0. `data` is matched to the observations of the fit, as for
+  # every test built on the context (decision 31), and the variables of
+  # `var_formula` or `against` are read at the rows it confirmed: before, they
+  # were matched by row name, or, when no name matched, by position, unchecked
+  # (B9). Without them the test reads nothing from `data`.
   ctx <- rcontext_second_formula(
     model, data, list(var_formula, against), "performVarianceFormTest", "Variance form test"
   )

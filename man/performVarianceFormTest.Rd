@@ -152,8 +152,10 @@ from the data it was fitted to, no longer holds its response, because those data
 changed after the fit: it refitted that frame and returned a value. A fit with
 \code{model = FALSE} whose data are gone is tested on \code{data} that give its response and
 fitted values. Without \code{var_formula} or \code{against}, the test reads nothing from
-\code{data}, which is checked as before. Which model each test accepts, and why, is set
-out in \code{\link{test_results}}, under \emph{Supported models}.
+\code{data}, which it matches as every test does, and refuses numbered data in another
+order, rows in front of those of the fit and repeated row names, where it gave the
+value of the fit. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 # Standard deviation proportional to x, so the variance is a power of x

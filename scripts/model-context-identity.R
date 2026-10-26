@@ -372,6 +372,16 @@ identity_increment6 <- c(
 # (M8).
 identity_increment6_tests <- setdiff(identity_increment6, grep("^fitWLS", identity_increment6,
                                                                 value = TRUE))
+# Decision 31 (decided by the author on 2026-10-26): the calls that read
+# nothing from `data` and are given it, the tests computed from the model
+# alone, their registered names, RESET and fitWLS() without a variance
+# formula, and the runner with the registered tests, match `data` through the
+# guard, as every test built on the context does. runTimeSeriesTests() and
+# runDiagnostics(), which run their tests without `data`, are not among them.
+identity_decision31 <- c(
+  setdiff(identity_model_alone, c("runTimeSeriesTests", "runDiagnostics()$reset")),
+  identity_registry_runner6
+)
 # The defects of the design whose cells may change, by the kind of change.
 # Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
 # every test built on it, and so for those of increment 2 too. Increment 2:
@@ -420,13 +430,19 @@ identity_increment6_tests <- setdiff(identity_increment6, grep("^fitWLS", identi
 # rows tie (identity_defects()); R3, a variable of a second formula found in
 # the workspace, refused (decision 9), and a variable that neither `data` nor
 # the model frame holds, refused with M1 or the message of `data`; and
-# "frame" and M8 for these.
+# "frame" and M8 for these. Decision 31: the calls of the tests that read
+# nothing from `data` match it through the guard, which refuses numbered data
+# in another order, rows in front of those of the fit and repeated row names,
+# from which they computed the value of the fit, and takes numbered data with
+# one row per observation in the order of the fit, and the data of a gam that
+# dropped rows, which the check of 0.15.0 refused (identity_defects()).
 identity_allowed <- list(
   error_to_value = c(
-    "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17"
+    "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17",
+    "decision31"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3", "decision31")
 )
 # The defects of increments 2 to 6 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
@@ -450,7 +466,8 @@ identity_defect_scope <- list(
   N12 = identity_pesaran,
   szroeter_moments = identity_szroeter_calls,
   B9 = c(identity_second_formula, identity_workspace),
-  R3 = c(identity_second_formula, identity_workspace)
+  R3 = c(identity_second_formula, identity_workspace),
+  decision31 = identity_decision31
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -474,7 +491,7 @@ identity_null_routes <- c("registry student_bp", "registry szroeter")
 # test it names now runs; and the registered Szroeter test on a gam with an
 # `offset` argument, which the runner runs ("gam_offset").
 identity_runner_allowed <- c(
-  "B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame", "gam_offset"
+  "B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame", "gam_offset", "decision31"
 )
 # A message, of a test or of the runner that runs it, that changes only to the
 # test's own documented refusal: M7, a model with more than one response
@@ -540,7 +557,10 @@ identity_messages <- list(
   R3 = identity_r3_messages,
   # Decision 8: a variable of `var_formula` missing at an observation of the
   # fit, which Cook-Weisberg's test refused as a missing row, is named.
-  decision8 = "the `var_formula` variable, is missing."
+  decision8 = "the `var_formula` variable, is missing.",
+  # Decision 31: data the guard refuses, where the check of 0.15.0 refused them
+  # otherwise (repeated row names, which lacked a row of the fit).
+  decision31 = identity_b9_message
 )
 identity_message_scope <- list(
   B7 = identity_increment2, L1 = c("performGQTest", identity_reads_data),
@@ -557,7 +577,8 @@ identity_message_scope <- list(
   N6 = identity_increment6,
   B9 = c(identity_second_formula, identity_workspace),
   R3 = c(identity_second_formula, identity_workspace),
-  decision8 = identity_second_formula
+  decision8 = identity_second_formula,
+  decision31 = identity_decision31
 )
 # M1, for the tests that read a variable of `data` besides the model (the
 # variable, ordering or groups they name): a call that stopped because `data`,
@@ -666,7 +687,10 @@ identity_new_refusals <- list(
   # Increment 6: a second formula on rows of `data` the alignment refuses,
   # which it read by position (B9), and a variable of the workspace (R3).
   B9 = identity_b9_message,
-  R3 = identity_r3_messages
+  R3 = identity_r3_messages,
+  # Decision 31: data the guard refuses, given to a test that reads nothing
+  # from them and returned the value of the fit.
+  decision31 = identity_b9_message
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
@@ -1891,6 +1915,11 @@ identity_defects <- function(record, scope = identity_defect_scope) {
     if (identical(record$cell, "variance/z_missing")) {
       defects <- c(defects, "decision8")
     }
+  }
+  # Decision 31: the calls that read nothing from `data` match it through the
+  # guard, on every cell with `data`.
+  if (record$fn %in% identity_decision31 && !identical(record$form, "null")) {
+    defects <- c(defects, "decision31")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))

@@ -113,9 +113,11 @@ performHarveyTest <- function(model, data = NULL,
   }
   # The model context (R/model_context.R) refuses a model frame that
   # `model = FALSE` rebuilt from data changed after the fit, from which the
-  # design was read before 0.16.0; the test reads nothing from `data`, which is
-  # checked as before (rcontext_model_alone()).
-  ctx <- rcontext_model_alone(model, data, "performHarveyTest", "Harvey")
+  # design was read before 0.16.0. The test reads nothing from `data`, which is
+  # matched to the observations of the fit as by every test built on the
+  # context (decision 31).
+  rcheck_data_argument(data, "performHarveyTest")
+  ctx <- rmodel_context(model, data, fn = "performHarveyTest", test_label = "Harvey")
   auxiliary <- match.arg(auxiliary)
   if (!is.logical(studentize) || length(studentize) != 1L || is.na(studentize)) {
     stop("`studentize` must be a single logical value.", call. = FALSE)

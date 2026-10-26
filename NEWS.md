@@ -1669,15 +1669,42 @@ and `performNCVTest()`, `performSpreadLevelTest()`,
 `fitWLS()`, and so their registered names (`"cook_weisberg"`, `"ncv"`,
 `"spread_level"`, `"variance_form"`), `runTimeSeriesTests()`, and the
 runners with them. They read the residuals, fitted values, design and
-weights from the fit, as before, and nothing from `data`, which they check
-as before, for the variables of the model and the row names of the fit, as
-RESET has since the second step; `data` enters their context only to
-rebuild the model frame of a fit with `model = FALSE` whose data are gone.
-A second formula, the `var_formula` of the Cook-Weisberg test, of the variance
+weights from the fit, as before, and nothing from `data`, which they now
+match to the observations of the fit as every other test does, and so does
+RESET (below). A second formula, the `var_formula` of the Cook-Weisberg test, of the variance
 form test and of `fitWLS()`, and the `against` of the variance form test, is
 evaluated on the rows of `data` the comparison confirmed, or, without
 `data`, on the model frame. Every value is `identical()` to before but for
 the changes in bold below.
+
+**The tests computed from the model alone match `data` as every other test
+does** (decision 31 of the design of the model context, decided by the
+author on 2026-10-26: one rule for every test). The nine, RESET and
+`fitWLS()` without `var_formula` read nothing from `data`, and only checked
+that it held the variables of the model and the row names of the fit; RESET
+kept that check through the second step. They now match `data` through the
+guard, named data in any order and numbered data in the order of the fit, so
+data the guard cannot match are refused, with its message and class
+(`heteroTests_data_rows_error`), where they returned the value of the fit,
+correct since they read nothing from `data`: numbered data in another order,
+rows in front of those of the fit and repeated row names, 1,491 calls of the
+corpus below. Numbered data in the order of the fit whose row numbers
+are not the fit's, which the check of 0.15.0 refused, are taken. On `mtcars`
+with its row names reset, `d <- mtcars; rownames(d) <- NULL` and
+`m <- lm(mpg ~ wt + qsec, data = d)`:
+
+| Call | 0.15.0 | Now |
+| --- | --- | --- |
+| `performSpearmanTest(m, dplyr::as_tibble(d)[sample(32), ])`, after `set.seed(1)` | 1.445 (p = 0.159) | Error, the refusal of the guard: "... cannot match the rows of `data` to the observations of the model: `data` has no row names of its own ..." |
+| `performSpearmanTest(m, rbind(d[1:5, ], d))` | 1.445 (p = 0.159) | Error, the same |
+| `performSpearmanTest(m, dup)`, with `dup <- rbind(d, d[1, ])` and `attr(dup, "row.names") <- c(1:32, 1L)` | 1.445 (p = 0.159) | Error: "... the row names of `data` are not unique ..." |
+| `performSpearmanTest(mn, renumbered)`, the 30 complete rows of a fit that dropped rows 3 and 7, `mn <- lm(mpg ~ wt + qsec, data = dn)`, numbered again | Error: "Spearman rank requires `data` to contain the rows used to fit the model. Missing rows: 31, 32" | 0.951 (p = 0.35), the value on the full data `dn` |
+
+The same holds for the other eight, RESET (6.731 on `d`) and `fitWLS()`,
+which ignored `data`; named data in another order, `d[sample(32), ]`, give the
+value on `d`, as before. A `data` that is neither a data frame nor `NULL` is
+refused as before, with the message "`data` in ... must be a data frame or
+NULL." of each test.
 
 **A second formula is evaluated on the rows of the fit.** `fitWLS()` and the
 variance form test matched the rows of `data` to the fit by row name, and,
@@ -1779,13 +1806,13 @@ Also, for these:
   stopped with "Input data must be a data.frame", RESET refused it, and
   `fitWLS()` stopped with "object 'gone' not found"; on `mtcars`, Harvey's
   test gives 2.446 and RESET 6.731 (p = 0.0043), the values of the fit with
-  its model frame. The Cook-Weisberg test with `var_formula` and the variance
-  form test with `var_formula` or `against` give the value of the fit on
-  numbered data with one row per observation in the order of the fit, such as
-  the complete rows of a fit that dropped rows numbered again, or the tibble
-  of a fit to data with character row names, which they refused with "Missing
-  rows", and on the data of an `mgcv::gam()` fit that dropped rows, which
-  they refused for their number of rows.
+  its model frame. The nine and RESET, with or without a second formula, give
+  the value of the fit on numbered data with one row per observation in the
+  order of the fit, such as the complete rows of a fit that dropped rows
+  numbered again, the tibble of a fit to data with character row names or of
+  a fit to repeated rows, which they refused with "Missing rows" (above), and
+  on the data of an `mgcv::gam()` fit that dropped rows, which they refused
+  for their number of rows.
 - Values that change: the Cook-Weisberg test with `var_formula` on an
   `mgcv::gam()` fit given its data in another order under their own row
   names: the residuals of a `gam` carry no names, and it read such data by
@@ -1811,12 +1838,7 @@ Also, for these:
   model. Missing rows: 5, where z, the `var_formula` variable, is missing.",
   with the warning "Removed 1 observations due to missing values in z" of
   before, where it said "Missing rows: 5".
-- Unchanged: without a second formula, the nine and RESET read nothing from
-  `data` and check it as before: they give the value of the fit on numbered
-  data in another order than the fit, and refuse data that lack the variables
-  of the model or the row names of the fit, as the complete rows of a fit that
-  dropped rows numbered again; `fitWLS()` without `var_formula` reads no
-  `data`. Every other value of a valid call, every refusal of the guard, the
+- Unchanged: every other value of a valid call, every refusal of the guard, the
   zero-weight refusals and the acceptance of a zero weight by RESET, a smooth
   `gam` tested as before by the nine, and every message the test suite pins.
   A corpus of 28,848 calls, the nine, `fitWLS()`, their second formulas,
@@ -1826,14 +1848,14 @@ Also, for these:
   fits of the table of the Harrison-McCabe rank and the eight designs of
   White's degrees of freedom, the default battery and the registered names
   through `runHeteroTests()`, and the examples of the thirty-six help pages,
-  returns what it returned before, `identical()`, but for the 1,741 calls of
-  the changes above (`scripts/model-context-identity.R`), 1,019 of them the
-  new refusals in bold, 576 of those with a variable of the workspace; each of
-  the 52 that now return a value, or another one, gives the value of its
-  reference, compared on every number of the result: the same call on the
-  data frame of the fit, on the fit to the complete rows, or on the data of a
-  `gam` in its order. The warnings of the calls of the corpus are those of
-  before.
+  returns what it returned before, `identical()`, but for the 3,529 calls of
+  the changes above (`scripts/model-context-identity.R`), 2,510 of them the
+  new refusals in bold, 1,491 of those of data the guard refuses (decision 31)
+  and 576 with a variable of the workspace; each of the 142 that now return a
+  value, or another one, gives the value of its reference, compared on every
+  number of the result: the same call on the data frame of the fit, on the fit
+  to the complete rows, or on the data of a `gam` in its order, or the test a
+  route computes. The warnings of the calls of the corpus are those of before.
 
 The caches of `cachedTest()` and of `runHeteroTests(use_cache = TRUE)`, its
 default, and the cache of the checks the tests make first, follow a contract

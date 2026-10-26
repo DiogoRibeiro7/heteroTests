@@ -127,11 +127,12 @@ alone, [`performSpearmanTest()`](performSpearmanTest.md), [`performHarveyTest()`
 [`performVarianceFormTest()`](performVarianceFormTest.md), with [`fitWLS()`](fitWLS.md), read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
-the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET and the
-tests computed from the model alone read nothing from `data`: they build their context without it, but to
-rebuild the model frame of a fit with `model = FALSE` whose data are gone, and keep the check of `data` of
-0.15.0, for the variables of the model and the row names of the fit (`fitWLS()` reads and checks no
-`data` without `var_formula`). A second formula, the `var_formula` of the Cook-Weisberg test, of the
+the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET, the
+tests computed from the model alone and `fitWLS()` without `var_formula` read nothing from `data`,
+and match it as the other tests do, so that every test takes and refuses the same data; until 0.16.0 they gave the
+value of the fit on numbered data in another order, rows in front of those of the fit and repeated row names, and
+refused numbered data in the order of the fit whose row numbers are not the fit's (`fitWLS()` ignored
+`data`). A second formula, the `var_formula` of the Cook-Weisberg test, of the
 variance form test and of `fitWLS()`, and the `against` of the variance form test, is evaluated on the
 confirmed rows of `data`, or, without `data`, on the model frame; a variable that neither holds is refused,
 where it was found in the workspace.

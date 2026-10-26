@@ -59,10 +59,9 @@ a multivariate `lm` ("needs a model with one response"), a fit whose coefficient
 weights were changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
 from the data it was fitted to, no longer holds its response, because those data changed after the
 fit, with or without `data`. A fit with `model = FALSE` whose data are gone is tested on
-`data` that give its response and fitted values, and refused without them. Without
-`var_formula` the test reads nothing from `data`, which is checked as before: it must
-hold the variables of the model and the row names of the fit; with it, `data` is read as by
-[`performCookWeisbergTest`](performCookWeisbergTest.md). Which model each test accepts, and why, is set out in
+`data` that give its response and fitted values, and refused without them. `data` is
+matched to the observations of the fit as by [`performCookWeisbergTest`](performCookWeisbergTest.md), with or without
+`var_formula`. Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## References

@@ -74,9 +74,11 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
     data <- NULL
   }
   # The model context (R/model_context.R) refuses a model frame that
-  # `model = FALSE` rebuilt from data changed after the fit; the test reads
-  # nothing from `data`, which is checked as before (rcontext_model_alone()).
-  ctx <- rcontext_model_alone(model, data, "performMcLeodLiTest", "McLeod-Li")
+  # `model = FALSE` rebuilt from data changed after the fit. The test reads
+  # nothing from `data`, which is matched to the observations of the fit as by
+  # every test built on the context (decision 31).
+  rcheck_data_argument(data, "performMcLeodLiTest")
+  ctx <- rmodel_context(model, data, fn = "performMcLeodLiTest", test_label = "McLeod-Li")
   if (!is.numeric(lags) || length(lags) != 1L || is.na(lags) || lags < 1) {
     stop("`lags` must be a positive integer.", call. = FALSE)
   }

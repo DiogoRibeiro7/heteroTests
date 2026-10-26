@@ -23,7 +23,8 @@ order and data that number their rows (a tibble) in the order of the fit,
 and other data are refused, where numbered data in another order were read
 by position. A variable of \code{var_formula} that neither \code{data} nor the model
 frame holds is refused, where it was found in the workspace. Without
-\code{var_formula}, \code{data} is not read.}
+\code{var_formula}, \code{data} is not read, but it is matched in the same way, and
+other data are refused, where they were ignored.}
 
 \item{var_formula}{One-sided formula naming the variance regressors, for
 example \code{~ x}. \code{NULL}, the default, uses the regressors of \code{model}.}

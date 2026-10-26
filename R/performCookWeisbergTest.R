@@ -95,10 +95,10 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
     data <- NULL
   }
   # The model context (R/model_context.R) refuses a model frame that
-  # `model = FALSE` rebuilt from data changed after the fit. With
-  # `var_formula` and `data` it matches `data` to the observations of the fit,
-  # whose variables the variance model reads at the confirmed rows; otherwise
-  # the test reads nothing from `data`, which is checked as before.
+  # `model = FALSE` rebuilt from data changed after the fit, and matches `data`
+  # to the observations of the fit, as for every test built on it (decision
+  # 31); with `var_formula` the variance model reads its variables at the
+  # confirmed rows, and without it the test reads nothing from `data`.
   ctx <- rcontext_second_formula(
     model, data, list(var_formula), "performCookWeisbergTest", "Cook-Weisberg"
   )

@@ -95,7 +95,8 @@
 #'   and other data are refused, where numbered data in another order were read
 #'   by position. A variable of `var_formula` that neither `data` nor the model
 #'   frame holds is refused, where it was found in the workspace. Without
-#'   `var_formula`, `data` is not read.
+#'   `var_formula`, `data` is not read, but it is matched in the same way, and
+#'   other data are refused, where they were ignored.
 #' @param var_formula One-sided formula naming the variance regressors, for
 #'   example `~ x`. `NULL`, the default, uses the regressors of `model`.
 #' @param form Character scalar choosing the variance function:
@@ -137,17 +138,17 @@ fitWLS <- function(model, data = NULL, var_formula = NULL,
   form <- match.arg(form)
   # The response, design and offset come from the model context
   # (R/model_context.R), which refuses a model frame that `model = FALSE`
-  # rebuilt from data changed after the fit, and a multivariate lm. With
-  # `var_formula` and `data`, `data` is matched to the observations of the fit
-  # and the variables of the variance model are read at the rows it confirmed;
-  # before 0.16.0 they were matched by row name, or, when no name matched, by
-  # position, unchecked (B9). Without `var_formula`, `data` is not read, and
-  # not checked, as before.
+  # rebuilt from data changed after the fit, and a multivariate lm, and
+  # matches `data` to the observations of the fit, as for every test built on
+  # it (decision 31). With `var_formula` the variables of the variance model
+  # are read at the rows it confirmed; before 0.16.0 they were matched by row
+  # name, or, when no name matched, by position, unchecked (B9). Without
+  # `var_formula`, `data` is not read; before, it was not checked either.
   if (inherits(var_formula, "formula") && length(var_formula) == 2L && !is.null(data)) {
     rcheck_wls_data(model, data)
   }
   ctx <- rcontext_second_formula(model, data, list(var_formula), "fitWLS", "fitWLS()",
-                                 check_data = FALSE)
+                                 check_type = FALSE)
   rweighted_refit(model, rfit_variance_function(model, data, var_formula, form, ctx = ctx),
                   ctx = ctx)
 }

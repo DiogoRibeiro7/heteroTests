@@ -69,9 +69,12 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
     data <- NULL
   }
   # The model context (R/model_context.R) refuses a model frame that
-  # `model = FALSE` rebuilt from data changed after the fit; the test reads
-  # nothing from `data`, which is checked as before (rcontext_model_alone()).
-  ctx <- rcontext_model_alone(model, data, "performDavidianCarrollTest", "Davidian-Carroll")
+  # `model = FALSE` rebuilt from data changed after the fit. The test reads
+  # nothing from `data`, which is matched to the observations of the fit as by
+  # every test built on the context (decision 31).
+  rcheck_data_argument(data, "performDavidianCarrollTest")
+  ctx <- rmodel_context(model, data, fn = "performDavidianCarrollTest",
+                        test_label = "Davidian-Carroll")
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }

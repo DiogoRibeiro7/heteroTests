@@ -33,7 +33,8 @@ fitWLS(
     and other data are refused, where numbered data in another order were read
     by position. A variable of `var_formula` that neither `data` nor the model
     frame holds is refused, where it was found in the workspace. Without
-    `var_formula`, `data` is not read.
+    `var_formula`, `data` is not read, but it is matched in the same way, and
+    other data are refused, where they were ignored.
 
 `var_formula`
 :   One-sided formula naming the variance regressors, for

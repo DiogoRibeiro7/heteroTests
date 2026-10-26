@@ -21,8 +21,11 @@ weights were changed after the fit, and a fit with \code{model = FALSE} whose mo
 from the data it was fitted to, no longer holds its response, because those data changed after the
 fit, with or without \code{data}. A fit with \code{model = FALSE} whose data are gone is tested on
 \code{data} that give its response and fitted values, and refused without them. The test reads
-nothing from \code{data}, which is checked as before: it must hold the variables of the model and
-the row names of the fit. Which model each test accepts, and why, is set out in
+nothing from \code{data}, and since 0.16.0 matches it to the observations of the fit as every
+test does: data with row names of their own in any order, data that number their rows (a tibble,
+a data.table) in the order of the fit; other numbered data, rows in front of those of the fit and
+repeated row names are refused, where it gave the value of the fit. Which model each test
+accepts, and why, is set out in
 \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
