@@ -144,10 +144,11 @@ observation of the fit; the group tests leave such observations out, with the wa
 to missing values in ...", as before 0.16.0. The panel tests read their `id` and `time`, and the scatter
 diagnostic its `vars`, from the confirmed rows of `data`; without `data` the panel tests read them from
 the model frame, when it holds them under their own names, and the scatter diagnostic needs `data`. Pesaran's
-test refuses a pair of `id` and `time` that holds two observations of the fit, a unit or a period
-missing at an observation of the fit, and an unbalanced panel, whose units are not all observed at the same periods
-("needs a balanced panel", until a later step computes its statistic); a fit with `na.action = na.exclude` is
-read by the three as before 0.16.0, by position, until a later step. The registered `"szroeter"` orders by the fitted values, which it computes
+test refuses a pair of `id` and `time` that holds two observations of the fit and a unit or a period
+missing at an observation of the fit, and computes the statistic of an unbalanced panel, whose units are not all
+observed at the same periods, from the periods each pair of units shares, as `plm::pcdtest()` does; a fit with
+`na.action = na.exclude` is read by the three as before 0.16.0, by position, until a later step, and Pesaran's
+test refuses there an unbalanced panel of the rows of `data` ("needs a balanced panel"). The registered `"szroeter"` orders by the fitted values, which it computes
 from the fit, and the spatial test reads no column of `data`: its `listw` lists the observations of the
 fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (`1e-7` for an
 `lm`, `1e-11` for a `glm`). These tests

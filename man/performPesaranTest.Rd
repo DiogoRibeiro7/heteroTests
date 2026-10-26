@@ -44,5 +44,5 @@ Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in 
 
 Pesaran, M. H. (2015). Testing weak cross-sectional dependence in large panels. \emph{Econometric Reviews} 34(6-10), 1089--1117. \doi{10.1080/07474938.2014.956623}.
 
-Croissant, Y. and Millo, G. (2008). Panel data econometrics in R: the plm package. \emph{Journal of Statistical Software} 27(2), 1--43. \doi{10.18637/jss.v027.i02}. The statistic of an unbalanced panel is that of \code{plm::pcdtest(test = "cd")} (plm 2.6-6), whose help page says its tests are \dQuote{suitable also for unbalanced panels}.
+Croissant, Y. and Millo, G. (2008). Panel data econometrics in R: the \pkg{plm} package. \emph{Journal of Statistical Software} 27(2), 1--43. \doi{10.18637/jss.v027.i02}. The statistic of an unbalanced panel is that of \code{plm::pcdtest(test = "cd")} (plm 2.6-6), whose help page says its tests are \dQuote{suitable also for unbalanced panels}.
 }

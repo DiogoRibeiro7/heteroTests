@@ -6,6 +6,56 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
+### Pesaran's test on an unbalanced panel
+
+**`performPesaranTest()`, and so `runPanelTests()`, now compute the statistic
+of an unbalanced panel, whose units are not all observed at the same periods,
+from the periods each pair of units shares, as `plm::pcdtest()` computes it,
+where 0.16.0's development version refused such a panel and 0.15.0 stopped on
+it or returned a wrong value.** 0.15.0 filled a matrix of periods by units,
+and a unit observed at fewer periods than the panel holds stopped it with
+"number of items to replace is not a multiple of replacement length", or,
+when its number of periods divides that of the panel, had its residuals
+recycled over the periods it lacks. The development version refused such a
+panel with "needs a balanced panel" (*The model context*, below). On the 120
+observations of `contract_data()` (`tests/testthat/helper-test-recipes.R`)
+without the first five rows, unit 1 keeps 5 of its 10 periods:
+
+| `performPesaranTest(lm(y ~ x1 + x2, data = d), d, "id", "time")` | Result |
+| --- | --- |
+| 0.15.0 | 0.234 (p = 0.815), the residuals of unit 1 recycled over the periods it lacks |
+| 0.16.0's development version, before this change | Error: ``performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. ...`` |
+| Now | -0.373 (p = 0.709), the value of `plm::pcdtest(test = "cd", model = "pooling")` |
+
+The statistic is that of Pesaran (2004, Section 9, equation 31),
+`CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, where `T_ij` is the number of
+periods at which units `i` and `j` are both observed, `rho_ij` the
+correlation of their residuals over those periods, each centred at its mean
+over them, and `P` the number of pairs that share two periods or more,
+`N (N - 1) / 2` when every pair does. A pair that shares fewer than two
+periods has no correlation, and is left out of the sum and of `P` with a
+warning, as `plm::pcdtest()` leaves it out; a panel in which no pair shares
+two periods is refused, of class `heteroTests_model_context_error`. Compared
+with `plm::pcdtest()` on 252 panels of 5 to 30 units and 4 to 12 periods,
+228 of them unbalanced, the statistic and the p-value agree to `1e-10` in
+each of 5,040 comparisons, by at most 3.6e-15 and 3.9e-16: units that enter
+late, leave early or skip periods, 1, 3, 5, 10 or 20 rows missing at random,
+a unit observed at one period, and balanced panels; an `lm`, a weighted
+`lm` and a Gaussian `glm`, weighted or not, against `plm::pcdtest()` on their
+Pearson residuals, and the `lm` against its pooled fit too; the full data of a
+fit with `na.omit`; and each through `runPanelTests()`. The full data of a
+fit that dropped some rows of some units, which 0.15.0 refused for their
+number of rows, give the value of the fit to the complete rows: with `x2`
+missing in rows 3, 7 and 11 of `contract_data()`, 0.189 (p = 0.850),
+`plm::pcdtest()`'s on the rows of the fit.
+
+On a balanced panel the statistic is computed as before, and every value is
+`identical()` to before. A fit with `na.action = na.exclude` is read as
+before, by position, until the step of the model context that moves
+`na.exclude`: the panel of the rows of `data` it reads must be balanced, and
+an unbalanced one stays refused, with a message that now points to
+`na.omit`, on which the statistic of an unbalanced panel is computed.
+
 ### The Fligner-Killeen test and its ties
 
 **On data with repeated observations, observations with the same values of
@@ -1515,7 +1565,7 @@ periods it lacks, and the test returned a wrong value without an error. On the
 120 observations of `contract_data()` without the first five rows, unit 1
 keeps 5 of its 10 periods, and `performPesaranTest(m, d, "id", "time")`
 returned 0.234 (p = 0.815), where `plm::pcdtest(model = "pooling")`, which
-correlates each pair of units over the periods both hold (Pesaran 2015),
+correlates each pair of units over the periods both hold (Pesaran 2004),
 gives -0.373. The test now stops, on every form of `data` and through
 `runPanelTests()`, with ``performPesaranTest() needs a balanced panel, every
 unit observed at the same periods, and the panel of the fit is unbalanced: 1 of
@@ -1524,8 +1574,9 @@ which points to `plm::pcdtest()` for such a panel, of class
 `heteroTests_model_context_error`. The full data of a fit that dropped such
 rows, which it refused for their number of rows, are refused so too. A fit that
 drops every row of a unit keeps a balanced panel, and is tested (above). The
-refusal goes when a later step computes the statistic of an unbalanced panel
-from the periods each pair of units shares.
+refusal went when a later change computed the statistic of an unbalanced
+panel from the periods each pair of units shares (*Pesaran's test on an
+unbalanced panel*, above).
 
 **Pesaran's test refuses a pair of `id` and `time` that holds more than one
 observation of the fit** (decided 2026-10-18). It arranges the residuals in a
@@ -1589,7 +1640,8 @@ Also, for these four:
     with `na.omit` numbered again, the tibble of such a fit and the tibble it
     was fitted on, which they refused with "Missing rows" or for their number of
     rows, give the value on the rows of the fit (Pesaran's test where that
-    panel is balanced), and so does a fit with `model = FALSE` whose data are
+    panel is balanced, and on an unbalanced one since *Pesaran's test on an
+    unbalanced panel*, above), and so does a fit with `model = FALSE` whose data are
     gone, given its rows shuffled under their own row names.
 - Without `data`, the panel tests read `id` and `time` from the model frame,
     when the model uses them under their own names, as before, and refuse them
@@ -1635,7 +1687,8 @@ Also, for these four:
     that step. With `x2` missing in rows 3, 7 and 11 of `contract_data()`, whose
     panel is balanced in `data` but not in the fit, Pesaran's test returns 0.713
     on such a fit, as before, where `plm::pcdtest()` gives 0.189 on the rows of
-    the fit and the same fit with `na.omit` is refused.
+    the fit and the same fit with `na.omit` was refused (it gives 0.189 since
+    *Pesaran's test on an unbalanced panel*, above).
 - The scatter diagnostic refuses a fit with a zero weight before it matches
     `data`, as before; the panel tests refuse it after, as before. A model
     written with the columns of a data frame, `lm(d$y ~ d$x + d$z)`, given `d`,

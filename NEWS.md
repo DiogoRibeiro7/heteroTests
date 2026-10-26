@@ -20,7 +20,7 @@ without the first five rows, unit 1 keeps 5 of its 10 periods:
 | `performPesaranTest(lm(y ~ x1 + x2, data = d), d, "id", "time")` | Result |
 | --- | --- |
 | 0.15.0 | 0.234 (p = 0.815), the residuals of unit 1 recycled over the periods it lacks |
-| 0.16.0's development version, before this change | Error: "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. ..." |
+| 0.16.0's development version, before this change | Error: ``performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. ...`` |
 | Now | -0.373 (p = 0.709), the value of `plm::pcdtest(test = "cd", model = "pooling")` |
 
 The statistic is that of Pesaran (2004, Section 9, equation 31),
@@ -37,8 +37,8 @@ with `plm::pcdtest()` on 252 panels of 5 to 30 units and 4 to 12 periods,
 each of 5,040 comparisons, by at most 3.6e-15 and 3.9e-16: units that enter
 late, leave early or skip periods, 1, 3, 5, 10 or 20 rows missing at random,
 a unit observed at one period, and balanced panels; an `lm`, a weighted
-`lm` and a Gaussian `glm`, weighted or not, against plm on their Pearson
-residuals, and the `lm` against plm's own pooled fit too; the full data of a
+`lm` and a Gaussian `glm`, weighted or not, against `plm::pcdtest()` on their
+Pearson residuals, and the `lm` against its pooled fit too; the full data of a
 fit with `na.omit`; and each through `runPanelTests()`. The full data of a
 fit that dropped some rows of some units, which 0.15.0 refused for their
 number of rows, give the value of the fit to the complete rows: with `x2`
