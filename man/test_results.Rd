@@ -88,12 +88,22 @@ Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{p
 \code{\link{performBrownForsytheTest}()}, \code{\link{performFlignerKilleenTest}()},
 \code{\link{performBartlettTest}()} and \code{\link{performOBrienTest}()}, the two panel tests,
 \code{\link{performPesaranTest}()} and \code{\link{performBPRandomEffectsTest}()}, and so
-\code{\link{runPanelTests}()}, and \code{\link{performScatterDiagnostic}()}, read the response, the design, the
+\code{\link{runPanelTests}()}, and \code{\link{performScatterDiagnostic}()}, and the tests computed from the model
+alone, \code{\link{performSpearmanTest}()}, \code{\link{performHarveyTest}()}, \code{\link{performArchLMTest}()},
+\code{\link{performMcLeodLiTest}()}, \code{\link{performCookWeisbergTest}()} and \code{\link{performNCVTest}()},
+\code{\link{performSpreadLevelTest}()}, \code{\link{performDavidianCarrollTest}()} and
+\code{\link{performVarianceFormTest}()}, with \code{\link{fitWLS}()}, read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 \code{data} only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
-the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET reads
-nothing from \code{data}: it builds its context without it, and keeps the check of \code{data} of the tests computed
-from the model alone, for the variables of the model and the row names of the fit, until a later step.
+the site, \url{https://diogoribeiro7.github.io/heteroTests/design/model-context/}, sets out the plan). RESET, the
+tests computed from the model alone and \code{fitWLS()} without \code{var_formula} read nothing from \code{data},
+and match it as the other tests do, so that every test takes and refuses the same data; until 0.16.0 they gave the
+value of the fit on numbered data in another order, rows in front of those of the fit and repeated row names, and
+refused numbered data in the order of the fit whose row numbers are not the fit's (\code{fitWLS()} ignored
+\code{data}). A second formula, the \code{var_formula} of the Cook-Weisberg test, of the
+variance form test and of \code{fitWLS()}, and the \code{against} of the variance form test, is evaluated on the
+confirmed rows of \code{data}, or, without \code{data}, on the model frame; a variable that neither holds is refused,
+where it was found in the workspace.
 The Goldfeld-Quandt, Szroeter and Harrison-McCabe tests read their \code{order_by}, Glejser's and Park's their
 \code{variable} and Hartley's and the group tests their \code{group} from the confirmed rows of \code{data}, or,
 without \code{data}, from the model frame when it holds the variable under its own name ("The following variables
@@ -119,7 +129,7 @@ are refused, as by the other tests. They need no \code{data} for a model that tr
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 \code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
-values, on which it is then tested (RESET, which builds its context without \code{data}, refuses it). RESET,
+values, on which it is then tested. RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
 \code{mgcv::gam()} fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
 fit of its design, until a later step settles which tests take it; the others test it as before 0.16.0. The

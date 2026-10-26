@@ -69,7 +69,13 @@
 #' formula, `offset(o)`. Its coefficients, fitted values and residuals are
 #' those `lm()` returns for the same call with the estimated weights added.
 #' On a model fitted with weights, the refit uses the estimated weights in
-#' their place, and `weights()` of the result returns them.
+#' their place, and `weights()` of the result returns them. Since 0.16.0 the
+#' response, the design and the offset are read from the fit, as the tests read
+#' them, and a fit with `model = FALSE` whose model frame, rebuilt from the data
+#' it was fitted to, no longer holds its response, because those data changed
+#' after the fit, is refused, where it was refitted to the response of the
+#' changed data; a fit with `model = FALSE` whose data are gone is refitted
+#' from `data` that give its response and fitted values.
 #'
 #' A `glm` with the Gaussian family and the identity link is a least-squares
 #' fit, with the design and residuals of the `lm`, and since 0.16.0 the result
@@ -82,8 +88,15 @@
 #' @param model A fitted model of class `lm`, or a `glm` with the Gaussian
 #'   family and the identity link.
 #' @param data Optional [base::data.frame] holding the variables named in
-#'   `var_formula`. It is needed only when they are not in the model frame, and
-#'   is matched to the fitted rows by row name.
+#'   `var_formula`. It is needed only when they are not in the model frame.
+#'   Since 0.16.0 its rows are matched to the observations of the fit as the
+#'   tests that read `data` match them, data with row names of their own in any
+#'   order and data that number their rows (a tibble) in the order of the fit,
+#'   and other data are refused, where numbered data in another order were read
+#'   by position. A variable of `var_formula` that neither `data` nor the model
+#'   frame holds is refused, where it was found in the workspace. Without
+#'   `var_formula`, `data` is not read, but it is matched in the same way, and
+#'   other data are refused, where they were ignored.
 #' @param var_formula One-sided formula naming the variance regressors, for
 #'   example `~ x`. `NULL`, the default, uses the regressors of `model`.
 #' @param form Character scalar choosing the variance function:
@@ -123,18 +136,71 @@ fitWLS <- function(model, data = NULL, var_formula = NULL,
   # every test refused.
   rrefuse_non_gaussian_glm(model, "fitWLS")
   form <- match.arg(form)
-  rweighted_refit(model, rfit_variance_function(model, data, var_formula, form))
+  # The response, design and offset come from the model context
+  # (R/model_context.R), which refuses a model frame that `model = FALSE`
+  # rebuilt from data changed after the fit, and a multivariate lm, and
+  # matches `data` to the observations of the fit, as for every test built on
+  # it (decision 31). With `var_formula` the variables of the variance model
+  # are read at the rows it confirmed; before 0.16.0 they were matched by row
+  # name, or, when no name matched, by position, unchecked (B9). Without
+  # `var_formula`, `data` is not read; before, it was not checked either, and
+  # a `data` that is not a data frame is refused with the message of every
+  # test ("`data` in fitWLS() must be a data frame or NULL."), where it was
+  # ignored. With `var_formula`, the checks of 0.15.0 come first, with their
+  # messages (rcheck_wls_data()).
+  if (inherits(var_formula, "formula") && length(var_formula) == 2L && !is.null(data)) {
+    rcheck_wls_data(model, data)
+  }
+  ctx <- rcontext_second_formula(model, data, list(var_formula), "fitWLS", "fitWLS()")
+  rweighted_refit(model, rfit_variance_function(model, data, var_formula, form, ctx = ctx),
+                  ctx = ctx)
+}
+
+#' Refuse `data` for a variance formula with the messages of 0.15.0
+#'
+#' Before 0.16.0 [fitWLS()] refused `data` that is not a data frame, and data
+#' none of whose row names is a row name of the fit and whose number of rows is
+#' not the number of observations, with the messages below, which the test
+#' suite pins; it matched other data by row name, or by position. Since 0.16.0
+#' the alignment of the model context matches what this lets through
+#' ([rcontext_second_formula()]), and refuses what it cannot confirm.
+#'
+#' @param model The model [fitWLS()] refits.
+#' @param data The `data` argument, not `NULL`.
+#' @return `NULL`, invisibly; called for the errors.
+#' @keywords internal
+#' @noRd
+rcheck_wls_data <- function(model, data) {
+  .check_data(data)
+  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
+  if (is.data.frame(frame) && anyNA(match(rownames(frame), rownames(data))) &&
+        nrow(data) != nrow(frame)) {
+    stop(
+      sprintf(
+        paste(
+          "`data` must contain the %d rows the model was fitted to; it has",
+          "%d rows and their names do not match."
+        ),
+        nrow(frame), nrow(data)
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Refit a model with the weights of a fitted variance function
 #'
 #' @param model A fitted `lm`.
 #' @param variance The result of `rfit_variance_function()`.
+#' @param ctx The model context of `model`, from which the model frame and the
+#'   design are read, or `NULL` to read them from `model`, as for the initial
+#'   fit of a bootstrap replicate.
 #' @return The weighted fit [fitWLS()] returns.
 #' @keywords internal
 #' @noRd
-rweighted_refit <- function(model, variance) {
-  mf <- stats::model.frame(model)
+rweighted_refit <- function(model, variance, ctx = NULL) {
+  mf <- if (is.null(ctx)) stats::model.frame(model) else ctx$frame
   response <- stats::model.response(mf)
   # The design stored with the fit, and its offset, whether it was given as an
   # argument or written in the formula, so that the weighted fit is the model
@@ -145,7 +211,7 @@ rweighted_refit <- function(model, variance) {
   # "(offset)", so the call failed on a transformed regressor, on a weighted
   # model and on most offsets. Where it did not fail, lm.wfit() was called
   # without the offset, which it then dropped.
-  design <- stats::model.matrix(model)
+  design <- if (is.null(ctx)) stats::model.matrix(model) else ctx$design
   offset <- stats::model.offset(mf)
   w <- variance$weights
 
@@ -208,58 +274,30 @@ rleast_squares_call <- function(model) {
   call
 }
 
-#' Data frame aligned with the rows a model was fitted to
-#'
-#' With `data = NULL` this is the model frame, stripped of its terms so that a
-#' second formula can be evaluated in it. Otherwise `data` is matched to the
-#' fitted rows by row name, as the tests match it to the residuals.
-#'
-#' @param model A fitted `lm`.
-#' @param data A data frame, or `NULL`.
-#' @return A data frame with one row per fitted observation.
-#' @keywords internal
-#' @noRd
-rvariance_frame <- function(model, data) {
-  mf <- stats::model.frame(model)
-  if (is.null(data)) {
-    plain <- as.data.frame(mf)
-    attr(plain, "terms") <- NULL
-    return(plain)
-  }
-  .check_data(data)
-  idx <- match(rownames(mf), rownames(data))
-  if (anyNA(idx)) {
-    if (nrow(data) != nrow(mf)) {
-      stop(
-        sprintf(
-          paste(
-            "`data` must contain the %d rows the model was fitted to; it has",
-            "%d rows and their names do not match."
-          ),
-          nrow(mf), nrow(data)
-        ),
-        call. = FALSE
-      )
-    }
-    return(data)
-  }
-  data[idx, , drop = FALSE]
-}
-
 #' Design matrix of a one-sided formula on the fitted rows
+#'
+#' The formula is evaluated on the rows of the fit (rcontext_formula_rows()):
+#' those of `data` the alignment of the model context confirmed, in the order
+#' of the fit, or, without `data`, the model frame. Before 0.16.0 `data` was
+#' matched to the fitted rows by row name, and when no name matched and the
+#' counts agreed, taken by position without a check (B9 of the design of the
+#' model context); and a variable that neither `data` nor the model frame held
+#' was looked for in the environment of the formula (R3).
 #'
 #' @param model A fitted `lm`.
 #' @param data A data frame, or `NULL` for the model frame.
 #' @param formula One-sided formula, or `NULL` for the regressors of `model`.
 #' @param arg Name of the argument, for error messages.
+#' @param ctx The model context of `model`, built with `data` when `data` and
+#'   `formula` are given ([rcontext_second_formula()]).
 #' @return A list with `matrix`, the regressors without an intercept column, and
 #'   `label`, a description for printing.
 #' @keywords internal
 #' @noRd
-rvariance_regressors <- function(model, data, formula, arg = "var_formula") {
-  n <- nrow(stats::model.frame(model))
+rvariance_regressors <- function(model, data, formula, arg = "var_formula", ctx) {
+  n <- nrow(ctx$frame)
   if (is.null(formula)) {
-    design <- stats::model.matrix(model)
+    design <- ctx$design
     Z <- design[, colnames(design) != "(Intercept)", drop = FALSE]
     if (ncol(Z) == 0L) {
       stop(
@@ -272,7 +310,7 @@ rvariance_regressors <- function(model, data, formula, arg = "var_formula") {
   if (!inherits(formula, "formula") || length(formula) != 2L) {
     stop(sprintf("`%s` must be a one-sided formula, e.g. ~ x1 + x2.", arg), call. = FALSE)
   }
-  frame <- rvariance_frame(model, data)
+  frame <- rcontext_formula_rows(ctx, data, formula, arg)
   aux <- tryCatch(
     stats::model.frame(formula, data = frame, na.action = stats::na.pass),
     error = function(e) e
@@ -325,18 +363,19 @@ rvariance_regressors <- function(model, data, formula, arg = "var_formula") {
 #' @param data,var_formula,form As in [fitWLS()].
 #' @param warn Whether an unusable fit warns. [performVarianceFormTest()] turns
 #'   the warning off because it raises an error instead.
+#' @param ctx The model context of `model` ([rcontext_second_formula()]).
 #' @return A list: `weights` (equal weights when the fit is unusable), `form`,
 #'   `var_formula`, `label`, `regressors` (on the scale the form uses),
 #'   `coefficients`, `index` (the fitted log-variance), `usable` and `reason`.
 #' @keywords internal
 #' @noRd
-rfit_variance_function <- function(model, data, var_formula, form, warn = TRUE) {
+rfit_variance_function <- function(model, data, var_formula, form, warn = TRUE, ctx) {
   # model$residuals, not residuals(model): under na.action = na.exclude the
   # latter is padded back to the original row count with NA placeholders, while
   # the model matrix and response cover only the fitted rows, and lm.wfit()
   # then fails with "incompatible dimensions".
   res <- model$residuals
-  regressors <- rvariance_regressors(model, data, var_formula)
+  regressors <- rvariance_regressors(model, data, var_formula, ctx = ctx)
   Z <- regressors$matrix
 
   if (identical(form, "power")) {

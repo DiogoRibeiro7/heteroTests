@@ -375,11 +375,13 @@ test_that("Harvey and Park warn when residuals are floored before taking logs", 
   # Force one residual to be exactly zero.
   model$residuals[1] <- 0
 
-  expect_warning(performHarveyTest(model), "numerically zero")
-  # Since 0.16.0 Park's test reads the fit through the model context, which
-  # refuses a fit whose residuals were changed after it was fitted. An
-  # observation that lies on the regression of the others has a residual that
-  # is zero but for rounding, in a fit that is not edited.
+  # Since 0.16.0 Park's test (increment 3) and Harvey's (increment 6) read the
+  # fit through the model context, which refuses a fit whose residuals were
+  # changed after it was fitted. An observation that lies on the regression of
+  # the others has a residual that is zero but for rounding, in a fit that is
+  # not edited.
+  expect_error(performHarveyTest(model), "does not reproduce its residuals",
+               class = "heteroTests_model_context_error")
   expect_error(performParkTest(model, d, "x"), "does not reproduce its residuals",
                class = "heteroTests_model_context_error")
   on_line <- d

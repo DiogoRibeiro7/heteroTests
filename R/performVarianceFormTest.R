@@ -14,7 +14,13 @@
 #'   defaults.
 #' @param data Optional [base::data.frame] holding the variables named in
 #'   `var_formula` or `against`. It is needed only when they are not in the
-#'   model frame, and is matched to the fitted rows by row name.
+#'   model frame. Since 0.16.0 its rows are matched to the observations of the
+#'   fit as the tests that read `data` match them, data with row names of
+#'   their own in any order and data that number their rows (a tibble) in the
+#'   order of the fit, and other data are refused, where numbered data in
+#'   another order were read by position. A variable of the formulas that
+#'   neither `data` nor the model frame holds is refused, where it was found
+#'   in the workspace.
 #' @param var_formula One-sided formula naming the variance regressors
 #'   \eqn{z_i}, for example `~ x`. `NULL`, the default, uses the regressors of
 #'   `model`.
@@ -141,7 +147,16 @@
 #' `fitWLS()`, the prior weights of a Gaussian `glm` among them, a `glm` of
 #' another family or link, a `survey::svyglm()` fit, a
 #' coefficient that is not finite for another reason, and `data` that lack rows or
-#' variables of the fit. Which model each test accepts, and why, is set out in
+#' variables of the fit. Since 0.16.0 it is built on the model context, and also
+#' refuses a multivariate `lm`, a fit whose coefficients, residuals or weights were
+#' changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
+#' from the data it was fitted to, no longer holds its response, because those data
+#' changed after the fit: it refitted that frame and returned a value. A fit with
+#' `model = FALSE` whose data are gone is tested on `data` that give its response and
+#' fitted values. Without `var_formula` or `against`, the test reads nothing from
+#' `data`, which it matches as every test does, and refuses numbered data in another
+#' order, rows in front of those of the fit and repeated row names, where it gave the
+#' value of the fit. Which model each test accepts, and why, is set out in
 #' [test_results], under *Supported models*.
 #'
 #' @examples
@@ -176,18 +191,26 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # A Gaussian glm with the identity link is a least-squares fit, accepted
   # since 0.16.0 (see the section on supported models); any other glm is not.
   rrefuse_non_gaussian_glm(model, "performVarianceFormTest")
-  # Data that lack rows of the fit or a variable of the model are refused, as
-  # by the tests that read `data`. Before 0.15.0 they returned a value.
-  rcheck_data_argument(data, "performVarianceFormTest", model, "Variance form test")
+  # The response, design and offset come from the model context
+  # (R/model_context.R), which refuses a model frame that `model = FALSE`
+  # rebuilt from data changed after the fit, from which the model was refitted
+  # before 0.16.0. `data` is matched to the observations of the fit, as for
+  # every test built on the context (decision 31), and the variables of
+  # `var_formula` or `against` are read at the rows it confirmed: before, they
+  # were matched by row name, or, when no name matched, by position, unchecked
+  # (B9). Without them the test reads nothing from `data`.
+  ctx <- rcontext_second_formula(
+    model, data, list(var_formula, against), "performVarianceFormTest", "Variance form test"
+  )
   rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L, allow_aliased = TRUE)
-  model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  requirements <- rvalidateTestRequirements("variance_form", model = model, data = model_data)
+  rvalidate_model_context(ctx)
+  requirements <- rvalidateTestRequirements("variance_form", model = model, data = ctx$frame)
   rprocessValidationResult(requirements)
 
   resolved <- if (missing(form)) {
-    rresolve_variance_fit(model, data, var_formula)
+    rresolve_variance_fit(model, data, var_formula, ctx = ctx)
   } else {
-    rresolve_variance_fit(model, data, var_formula, match.arg(form))
+    rresolve_variance_fit(model, data, var_formula, match.arg(form), ctx = ctx)
   }
   variance <- resolved$variance
   weighted <- resolved$weighted
@@ -208,7 +231,7 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # The variance regressors are the score direction of a log-linear variance
   # function, d sigma^2 / d gamma divided by sigma^2. They stay in the
   # regression and the added terms are tested beyond them.
-  added <- rvariance_added_terms(weighted, data, against, variance)
+  added <- rvariance_added_terms(weighted, data, against, variance, ctx)
   restricted <- cbind("(Intercept)" = 1, variance$regressors)
   test <- radded_terms_f_test(r, restricted, added$matrix)
 
@@ -252,11 +275,12 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
 #' @param data,var_formula As in [performVarianceFormTest()].
 #' @param form The form the caller asked for, or `NULL` when it was left at its
 #'   default.
+#' @param ctx The model context of `model`.
 #' @return A list with `variance`, the fitted variance function, and
 #'   `weighted`, the weighted fit.
 #' @keywords internal
 #' @noRd
-rresolve_variance_fit <- function(model, data, var_formula, form = NULL) {
+rresolve_variance_fit <- function(model, data, var_formula, form = NULL, ctx) {
   variance <- attr(model, "variance_function")
   if (!is.null(variance)) {
     if (!is.null(var_formula) || !is.null(form)) {
@@ -284,8 +308,8 @@ rresolve_variance_fit <- function(model, data, var_formula, form = NULL) {
       form <- "exponential"
     }
     # warn = FALSE: an unusable fit is an error below, not a fallback.
-    variance <- rfit_variance_function(model, data, var_formula, form, warn = FALSE)
-    weighted <- rweighted_refit(model, variance)
+    variance <- rfit_variance_function(model, data, var_formula, form, warn = FALSE, ctx = ctx)
+    weighted <- rweighted_refit(model, variance, ctx = ctx)
   }
 
   if (!isTRUE(variance$usable)) {
@@ -305,15 +329,17 @@ rresolve_variance_fit <- function(model, data, var_formula, form = NULL) {
 #' @param weighted The weighted fit.
 #' @param data,against As in [performVarianceFormTest()].
 #' @param variance The fitted variance function.
+#' @param ctx The model context of the model the test was given, whose
+#'   observations, and model frame, are those of the weighted fit.
 #' @return A list with `matrix`, the added terms, and `label`.
 #' @keywords internal
 #' @noRd
-rvariance_added_terms <- function(weighted, data, against, variance) {
+rvariance_added_terms <- function(weighted, data, against, variance, ctx) {
   if (is.character(against) && length(against) == 1L && identical(against, "squares")) {
     added <- rsquares_and_products(variance$regressors)
     label <- "squares and products of the variance regressors"
   } else if (inherits(against, "formula")) {
-    named <- rvariance_regressors(weighted, data, against, arg = "against")
+    named <- rvariance_regressors(weighted, data, against, arg = "against", ctx = ctx)
     added <- named$matrix
     label <- named$label
   } else {

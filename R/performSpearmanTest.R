@@ -46,11 +46,16 @@
 #' on monotonic variance patterns.
 performSpearmanTest <- function(model, data = NULL) {
   rrefuse_non_gaussian_glm(model, "performSpearmanTest")
-  rcheck_data_argument(data, "performSpearmanTest", model, "Spearman rank")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit. The test reads
+  # nothing from `data`, which is matched to the observations of the fit as by
+  # every test built on the context (decision 31).
+  rcheck_data_argument(data, "performSpearmanTest")
+  ctx <- rmodel_context(model, data, fn = "performSpearmanTest", test_label = "Spearman rank")
   rvalidateModelInputs(model, test_name = "Spearman rank", min_obs = 10L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
 
-  model_data <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  requirements <- rvalidateTestRequirements("spearman", model = model, data = model_data)
+  requirements <- rvalidateTestRequirements("spearman", model = model, data = ctx$frame)
   rprocessValidationResult(requirements)
 
   ht_log("INFO", "Running Spearman rank correlation test")

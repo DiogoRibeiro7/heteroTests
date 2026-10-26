@@ -3,32 +3,32 @@
 # `model`. performBoxMTest(data, group) is the documented exception: it tests
 # the data, not the residuals of a model.
 
-#' Check the `data` argument of a test computed from the model alone
+#' Check the type of the `data` argument of a test computed from the model
+#' alone
 #'
 #' Tests whose statistic needs nothing beyond the residuals, fitted values and
 #' model matrix of `model` accept `data` so that every test takes
 #' `(model, data, ...)`. `NULL`, the default, stands for the model frame.
 #'
-#' Data that are given must still be the data the model was fitted to: they
-#' must hold the variables of the model and the rows the fit used, which is
-#' checked with the messages the tests that read `data` give.
+#' Data that are given must still be the data the model was fitted to. Until
+#' 0.16.0 this function also checked that they held the variables of the model
+#' and the row names of the fit ([rcheck_data_matches_model()]); since the sixth
+#' step of the model context these tests match `data` to the observations of
+#' the fit through its alignment, as every test built on it does (decision 31),
+#' and this function refuses, with its message of before, a `data` that is
+#' neither a data frame nor `NULL`.
 #'
 #' @param data The `data` argument of the calling test.
 #' @param fn Character scalar naming the calling test.
-#' @param model The fitted model, or `NULL` to check the type of `data` only.
-#' @param test_label Character scalar naming the test in messages.
 #' @return `data`, invisibly.
 #' @keywords internal
 #' @noRd
-rcheck_data_argument <- function(data, fn, model = NULL, test_label = fn) {
+rcheck_data_argument <- function(data, fn) {
   if (is.null(data)) {
     return(invisible(NULL))
   }
   if (!is.data.frame(data)) {
     stop(sprintf("`data` in %s() must be a data frame or NULL.", fn), call. = FALSE)
-  }
-  if (!is.null(model)) {
-    rcheck_data_matches_model(model, data, test_label)
   }
   invisible(data)
 }
@@ -813,7 +813,11 @@ rtest_name <- function(frame, default = NULL) {
 # Does `data` hold the variables of `model` and the rows its fit used? A model
 # that is not an lm, or has no residuals, is left to the model checks that
 # follow. The model frame itself, whose columns are the terms rather than the
-# variables (`log(y)` rather than `y`), is accepted as it is.
+# variables (`log(y)` rather than `y`), is accepted as it is. Since the sixth
+# step of the model context the tests computed from the model alone no longer
+# call it (decision 31); the panel tests and the scatter diagnostic do, for a
+# fit with na.exclude that they read by position (rcontext_columns_at_fit()),
+# until the step that moves na.exclude.
 rcheck_data_matches_model <- function(model, data, test_label) {
   if (!inherits(model, "lm")) {
     return(invisible(NULL))

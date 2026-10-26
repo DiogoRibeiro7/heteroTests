@@ -36,8 +36,17 @@ the alignment gone. Increment 5 is in 0.16.0 too: the two panel tests,
 `runPanelTests()`, and `performScatterDiagnostic()`, built on it, reading `id`,
 `time` and `vars` at the confirmed rows (`rcontext_columns_at_fit()`), with the
 repeated pairs of `id` and `time` (decision 13) and an unbalanced panel
-(decision 28) refused by Pesaran's test. Increments 6 to 11 are
-planned; see [Migration plan](#migration-plan).
+(decision 28) refused by Pesaran's test. Increment 6 is in 0.16.0 too: the
+tests computed from the model alone, `performSpearmanTest()`,
+`performHarveyTest()`, `performArchLMTest()`, `performMcLeodLiTest()`,
+`performCookWeisbergTest()` and `performNCVTest()`, `performSpreadLevelTest()`,
+`performDavidianCarrollTest()` and `performVarianceFormTest()`, with
+`fitWLS()`, built on it, matching `data` as every test does (decision 31), so
+that it refuses a stale `model = FALSE` frame (N6); a second formula,
+`var_formula` or `against`,
+evaluated on the rows the alignment confirmed (B9), its variables never read
+from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increments 7
+to 11 are planned; see [Migration plan](#migration-plan).
 
 ## The problem
 
@@ -131,8 +140,8 @@ guard as its alignment step and removes the rebuilding behind it.
   increment 2 (`rrefuse_smooth_gam()`, class
   `heteroTests_model_context_error`): it is not the least-squares fit of its
   design, which they fit again. The five of increment 1, the six of
-  increment 3, the five of increment 4 and the three of increment 5 test it as
-  before 0.16.0, and
+  increment 3, the five of increment 4, the three of increment 5 and the nine
+  of increment 6 test it as before 0.16.0, and
   increment 11 settles it for every test (decision 23). The residuals of a
   `gam` carry no names; its
   observations are those of the row names of its model frame
@@ -204,6 +213,10 @@ The functions of `R/model_context.R`:
 | `rcontext_columns_at_fit(ctx, data, columns, fn, test_label)` | The panel tests and the scatter diagnostic (increment 5): the columns they read, `id`, `time` or `vars`, as `rcontext_variables()` reads them (M1 without `data`), and the Pearson residuals (`rcontext_pearson()`); for a fit with `na.exclude`, its padded residuals against the rows of `data` by position, checked by `rcheck_data_in_fit_order()`, as before, until increment 9. |
 | `rstop_repeated_panel_cells(id_values, time_values, id, time, fn)` | Pesaran's test (increment 5): refuses a pair of `id` and `time` that holds two observations of the fit, naming up to three pairs, with the class of the context (decision 13). |
 | `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). |
+| `rcontext_second_formula(model, data, formulas, fn, test_label, check_type)` | The functions that may evaluate a second formula (increment 6): the type of `data` checked first (`rcheck_data_argument()`, whose message the test suite pins; not by `fitWLS()`), then the context built with `data`, the variables of the formulas passed as `reads` (`.` reads every column). The tests computed from the model alone and RESET call `rcheck_data_argument()` and `rmodel_context(model, data, ...)` themselves (decision 31). |
+| `rcontext_formula_rows(ctx, data, formula, arg)` | The rows a second formula is evaluated on (increment 6): the confirmed rows of `data` in fit order (`rcontext_rows()`), or the model frame without its terms; a variable of the formula that `data`, or without `data` the model frame, does not hold is refused, with the message of `data` or M1 (R3, decision 9). |
+| `rformula_constants(formula, names)` | The names of a second formula that are constants (from the review of increment 6): not columns, and of a value, found from the environment of the formula as `eval()` finds it, that is an atomic vector of length one; `rcontext_formula_rows()` lets them through, and refuses every other name it cannot find in `data` or the model frame. |
+| `rstop_missing_from_frame(ctx, absent, also)` | M1, for `rcontext_variables()` and `rcontext_formula_rows()`, which adds that the variables of the formula are not read from the workspace. |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
@@ -254,7 +267,7 @@ seen by any alignment (N16).
 | Code | When | Text |
 | --- | --- | --- |
 | guard | rows that differ, repeated names, data that cannot be confirmed, a stale `model = FALSE` frame; rows in the order of the fit that tie, for a test that reads beyond the model frame | the messages of `rstop_data_rows_unmatched()`, unchanged, and for the ties "... rows of the fit tie on every column of the model frame that is compared (...)", class `heteroTests_data_rows_error` |
-| M1 | an extra variable the model frame does not hold, without `data` | "The following variables are missing from the model frame of `model`: x1. It holds the terms of the model (log(ypos), log(x1), x2), not the variables they are computed from; pass the data the model was fitted to as `data`." |
+| M1 | an extra variable the model frame does not hold, without `data`; a variable of a second formula (increment 6, R3) | "The following variables are missing from the model frame of `model`: x1. It holds the terms of the model (log(ypos), log(x1), x2), not the variables they are computed from; pass the data the model was fitted to as `data`.", and for a second formula "Variables that are not part of the model must be supplied through `data`: those of `var_formula` are not read from the workspace.", whose first words are the message of 0.15.0 the test suite pins |
 | M2, M4 | rows of the fit absent; another number of rows | `rstop_data_rows()`, today's text ("requires `data` to contain the rows used to fit the model. Missing rows: ...") |
 | M7 | a multivariate `lm` | "performKoenkerTest() needs a model with one response; `model` has 2." |
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
@@ -384,7 +397,9 @@ For the functions built on the context in increment 2:
   builds its context without `data` and keeps the check of `data` of the tests
   computed from the model alone (`rcheck_data_argument()`), the variables of
   the model and the row names of the fit, until increment 6, so that its value
-  on every form of `data` is that of 0.15.0.
+  on every form of `data` is that of 0.15.0. Increment 6 ends it: RESET, with
+  the tests computed from the model alone, matches `data` through the guard,
+  as every test built on the context does (decision 31, below).
 - **Unchanged**: every other value on valid calls, the zero-weight refusals of
   Goldfeld-Quandt and the studentized statistic and RESET's acceptance of a
   zero weight, and every message the test suite pins.
@@ -645,6 +660,112 @@ For the functions built on the context in increment 5:
   suite pins ("`id` must be a column in `data`.", "`id` and `time` must be
   columns in `data`." for data that lack them).
 
+For the functions built on the context in increment 6:
+
+- **What the change reaches.** The nine tests computed from the model alone,
+  `performSpearmanTest()`, `performHarveyTest()`, `performArchLMTest()`,
+  `performMcLeodLiTest()`, `performCookWeisbergTest()` and `performNCVTest()`,
+  `performSpreadLevelTest()`, `performDavidianCarrollTest()` and
+  `performVarianceFormTest()`, with `fitWLS()`; their registered names
+  (`"cook_weisberg"`, `"ncv"`, a fallback of White's, Koenker's and the
+  Breusch-Pagan tests in the runner, `"spread_level"`, `"variance_form"`),
+  `runTimeSeriesTests()`, and the runners with them; and RESET, which builds
+  its context the same way. They read the residuals, fitted values, design and
+  weights from the fit, as before, and nothing from `data`, which they match
+  to the observations of the fit through the guard, as every test built on
+  the context does (`rmodel_context(model, data, ...)`, decision 31);
+  `rcheck_data_argument()` keeps only its check of the type of `data`, whose
+  message the test suite pins, and `rcheck_data_matches_model()` remains for
+  the positional reading of a fit with `na.exclude` by the panel tests, until
+  increment 9. A second formula, the `var_formula` of Cook-Weisberg's test (and
+  NCV), of the variance form test and of `fitWLS()`, and the `against` of the
+  variance form test, is evaluated on the rows the alignment confirmed, the
+  variables of the formula passed as `reads` (`rcontext_second_formula()`), or
+  on the model frame without `data` (`rcontext_formula_rows()`);
+  `rvariance_frame()` goes.
+- **Decision 31: one rule for every test.** Decision 24 kept RESET's check of
+  `data` of 0.15.0 "until increment 6", for the variables of the model and the
+  row names of the fit; the first version of this increment kept it for the
+  nine too, as an open question, and the author decided on 2026-10-26 that
+  the tests that read nothing from `data` match it as every other test does.
+  So they refuse what the guard refuses, numbered data in another order than
+  the fit, rows in front of those of the fit and repeated row names, from
+  which they computed the value of the fit; and take numbered data with one
+  row per observation in the order of the fit, and the data of a `gam` that
+  dropped rows, which the check of 0.15.0 refused by their row names or
+  number. On `mtcars` with its row names reset, Spearman's test gave 1.445
+  (p = 0.159) on `dplyr::as_tibble(d)[sample(32), ]` after `set.seed(1)`, on
+  `rbind(d[1:5, ], d)` and on `d` with a repeated row name, and refuses them;
+  on the complete rows of a fit that drops two rows, numbered again, it stopped
+  with "Spearman rank requires `data` to contain the rows used to fit the
+  model. Missing rows: 31, 32" and gives 0.951 (p = 0.35), the value on the
+  full data. `fitWLS()` without `var_formula` ignored `data`, and matches it
+  too, refusing a `data` that is not a data frame, a list or a matrix, with
+  the message of the tests ("`data` in fitWLS() must be a data frame or
+  NULL.", from the review of increment 6), where it returned the fit.
+- **B9.** On numbered data in another order than the fit, rows in front of
+  those of the fit, repeated row names, and the tibble of a fit to repeated
+  rows when the formula names a variable beyond the model frame, `fitWLS()`
+  and the variance form test read the variables of the second formula by
+  position and returned another value without an error; they are refused by
+  the guard (decision 3). On `mtcars` with its row names reset and the data as
+  `dplyr::as_tibble(d)[sample(32), ]` after `set.seed(1)`: `fitWLS(var_formula
+  = ~ hp)` 22.01, -4.953, 0.804 for 16.38, -4.587, 1.028; the variance form
+  test 0.0203 for 0.0631 (`var_formula = ~ hp`) and 0.0890 for 0.00297
+  (`against = ~ hp`). Cook-Weisberg's test refused such data already (the
+  guard since 0.15.0).
+- **R3** (decision 9). A variable of a second formula that neither `data` nor
+  the model frame holds under its own name was found in the environment of
+  the formula; it is refused, with M1 and a sentence on the workspace
+  without `data`, and with the message of `data` with it. On `mtcars` with
+  `hp2 <- rev(mtcars$hp)`: Cook-Weisberg 1.453, the variance form test 4.374
+  (`var_formula`) and 0.266 (`against`), and `fitWLS()` a fit with those
+  weights, now refused; `fitWLS()` and the variance form test with `data`
+  that lack `hp2` too, which Cook-Weisberg's test refused already. A
+  constant, a value of length one found from the environment of the formula
+  as `eval()` finds it (`k <- 2` in `~ I(hp^k)`, `pi`), is not a variable and
+  is evaluated as R evaluates it (`rformula_constants()`, from the review of
+  increment 6): Cook-Weisberg 0.5496 on `lm(mpg ~ wt + hp, mtcars)` with
+  `~ I(hp^k)`, `car::ncvTest(m, ~ I(hp^2))`, as before without `data`, and
+  given `mtcars`, where it refused `k` as a variable `data` lacked.
+- **N6.** A model frame that `model = FALSE` rebuilt from data changed after
+  the fit is refused, with or without `data`, by the nine and `fitWLS()`: on
+  `mtcars` reordered by `wt` after the fit, the variance form test returned
+  5.817 for 1.765, Harvey's test 3.041 for 2.446 (its design), `fitWLS()`
+  refitted the reordered response, and the others gave the value of the fit,
+  which they do not read from the frame.
+- **New refusals**, announced in bold (decision 14), besides B9, R3, N6 and
+  the data the guard refuses (decision 31):
+  an edited fit (M8) by the nine, not by `fitWLS()`, which is not a test and
+  refits it as before; a fit with `model = FALSE` whose data are gone,
+  without `data` or given a shuffled tibble ("frame"), from which
+  Cook-Weisberg's, the NCV, spread-level and Davidian-Carroll tests computed
+  the value of the fit unchecked; and a multivariate `lm` without `data` by
+  Davidian-Carroll's test, which returned a statistic of neither response
+  (M7).
+- **Errors that become values**: a fit with `model = FALSE` whose data are
+  gone, given `data` that give its response and fitted values ("frame"), for
+  the five that stopped without a model frame, RESET, which refused it, and
+  `fitWLS()`; numbered data in the order of the fit (B14) and the data of a
+  `gam` that dropped rows (N17), which the nine and RESET refused by their row
+  names or number, with or without a second formula (decision 31).
+- **Values that change** (N17): Cook-Weisberg's test with `var_formula` on a
+  `gam` given its data in another order under their own row names, which it
+  read by position; the value of the data in the order of the fit.
+- **Messages**: M1 or the message of `data` for a variable of a second
+  formula the model frame does not hold, where the formula stopped on the
+  object not found; M7; the frame message; the refusal of the guard before
+  the refusal of a weighted fit or a zero weight, and of repeated row names,
+  where the check of 0.15.0 said "Missing rows"; and
+  decision 8 for a variable of `var_formula` missing at an observation of the
+  fit, named by Cook-Weisberg's test, with the warning "Removed N
+  observations due to missing values in ..." of before.
+- **Unchanged**: every other value; the values on named data in any order and
+  on numbered data in the order of the fit; the zero-weight refusals and
+  RESET's acceptance of a zero weight; a smooth `gam` tested as before by the
+  nine; and every message the test suite pins ("`data` in f() must be a data
+  frame or NULL." among them).
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -659,7 +780,7 @@ migrations that keep every value, then the riskier resampling and
 | 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, L1, L2, M1 for `variable`, `order_by`, `group`; N4; N17 for these (B15 gave values already) | **Done, 0.16.0** |
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go; the observations with a missing group left out with their warning, as before (`rcontext_group_rows()`) | the character-named fit with its tibble and the complete rows renumbered (B14); R7; L1, L2, M1 for `group`; N17 for these (B12 and B15 gave values already) | **Done, 0.16.0** |
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29) | **Done, 0.16.0** |
-| 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)` | B9, R3, N6 | Planned |
+| 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)`: `rcontext_second_formula()`, `rcontext_formula_rows()`; `rvariance_frame()` goes. The tests that read nothing from `data`, RESET included, match it through the guard, as every test does (decision 31): the check of 0.15.0 goes, but for its check of the type of `data` | B9, R3, N6; M7, M8 and "frame" for these; decision 31 | **Done, 0.16.0** |
 | 7 | The three streaming tests, chunk by chunk from the stored design | B6; B12, B14, L1 for these | Planned |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design: `performWhiteTestBootstrap()`, whose observed statistic and replicates move together, and `rwhite_test_rebuilt_design()`, which keeps them on the rebuilt design until then, goes; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`, which refuse a fit whose frame cannot be rebuilt from `data` until then | B12 for replicates, N8 | Planned |
 | 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned |
@@ -896,6 +1017,74 @@ at 400 replications) and in block 1 of the weighted fits (800 at 400) are
 `identical()` to `main`, replication by replication, and their rates are those
 of the committed tables.
 
+Increment 6 adds the routes of its functions to the corpus: `fitWLS()`, as the
+vector of its coefficients and estimated weights, without and with
+`var_formula = ~ z` and with `var_formula = ~ x1, form = "power"`;
+Cook-Weisberg's and the NCV tests with `var_formula = ~ z` and the variance
+form test with `var_formula = ~ z` and `against = ~ z`, `z` being a variable no
+model frame of the matrix holds; the same three with a variable of the
+workspace, `zw`, one value per observation (R3); the registered
+`"cook_weisberg"`, `"ncv"`, `"spread_level"` and `"variance_form"`;
+`runTimeSeriesTests()`; `runHeteroTests()` with the three registered names
+it runs without a deprecation warning; and the examples of the eleven help
+pages. And five cells: a `model = FALSE` fit whose data changed after the
+fit, given its data (N6); a `model = FALSE` fit whose data are kept, with and
+without `data`; and `z` missing at an observation of the fit, and at a row
+the fit dropped (the block `variance/`). The allow-list gains B9 (new
+refusals by the guard, and its messages, on data it refuses, for the calls of
+a second formula: `identity_defects()` tags the cells the guard refuses and
+the tibble of a fit to repeated rows), R3 (new refusals and messages, M1 or
+the message of `data`, for those calls on every cell) and decision 8 (the
+message of Cook-Weisberg's test on a missing `z`), each scoped to those calls,
+N6, "frame", M8 (not for `fitWLS()`) and N17 (errors that become values
+and values that change, for a second formula on a `gam`) for the functions of
+the increment, and decision 31 for the calls that read nothing from `data`
+(the nine, their registered names, RESET, `fitWLS()` without `var_formula`
+and the runner with the registered names), on every cell with `data`: new
+refusals and messages, the guard's, and errors that become values, each
+verified. From the review of increment 6, the calls of a second formula with
+a constant (`rformula_constants()`): Cook-Weisberg's test with
+`var_formula = ~ I(x1^k)`, `k <- 2` in the recipe, and with `~ I(x1^2)`, its
+reference, the variance form test with `~ I(x1^k)` and `fitWLS()` with
+`~ I(pi * x1)`, with "constant" for the errors that become values of
+Cook-Weisberg's test given `data`, which refused `k` as a variable `data`
+lacked, each verified against the same formula written with the number.
+
+Increment 6, with decision 31 and its review, against `main` with #158
+(0fb5138): 30,344 calls on 361 cells, the 5 cells of Harrison-McCabe's rank,
+the 8 cells of the follow-up of N2 and the examples of thirty-six help
+pages, of which 26,254 identical, 4,090 allowed changes (341 errors that
+become values, 9 values that change, 2,674 new refusals, 1,066 messages) and 0
+unexpected, every one of them a call of the functions of the increment; the
+350 changes to a value are each verified against a reference: 121 against
+the call on the cell they reproduce (the data frame of the fit, the fit to
+the complete rows, the data of a `gam` in its order), 14 through two cells,
+180 against the same formula written with the number (the constant `k`), and
+35 through the test a route computes and one or two cells. Of the 2,674 new
+refusals, 1,613 are of the tests computed from the model alone, their routes
+and `fitWLS()` (1,491 of data the guard refuses, decision 31, on the cells of
+numbered data in another order, rows in front of those of the fit and the
+shuffled tibbles of the classes; M8 75, N6 32, "frame" 14, M7 1), 485 of the
+calls of a second formula of `z`, `x1` or a constant (B9 on the data the
+guard refuses, M8, N6, "frame"), and 576 of those of the variable of the
+workspace (R3, or a refusal that comes first). The 341 errors that become
+values are 189 of Cook-Weisberg's test with the constant `k` and `data`
+("constant"), 90 of decision 31 (numbered data in the order of the fit and
+the data of a `gam` that dropped rows, six cells through the fifteen calls
+that read nothing from `data`), 18 of a `model = FALSE` fit whose data are
+gone given its data ("frame"), and 44 of a second formula ("frame", B14 and
+N17); the 9 values that change are those of N17. Of the 1,066 messages, 207
+are of decision 31, where the guard now refuses first data on which the test
+refused another defect (weights, a zero weight, a smooth term) or repeated
+row names, which it refused as missing rows. The calls with a constant
+change only in those categories, as the calls of `z` do: no value of `main`
+changes, and Cook-Weisberg's test given `data` gives the value of the same
+formula with the number, where it refused `k`.
+The 530 `poly()` calls with a value that `main` computes on the stored design
+are `identical()` to it. The warnings are those of `main` on every call.
+Before decision 31 the counts were 27,107 identical and 1,741 allowed, of
+28,848, against 217c093, and at decision 31 25,319 and 3,529.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -925,7 +1114,10 @@ the span of the regressors, and a positive response `ypos`.
   unit, by an `lm`, a weighted `lm`, a weighted Gaussian `glm` and a `gam`, in
   fit order, shuffled and as a tibble, against the fit to the complete rows,
   an unbalanced panel fitted to its rows and dropped from the full data (N12),
-  and a repeated `(id, time)`, shuffled.
+  and a repeated `(id, time)`, shuffled. Increment 6: a `model = FALSE` fit
+  whose data changed after the fit given its data, one whose data are kept,
+  with and without `data`, and a variable of a second formula, `z`, missing at
+  an observation of the fit and at a row the fit dropped.
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
@@ -940,9 +1132,13 @@ the span of the regressors, and a positive response `ypos`.
   form of data, the data frame, `NULL`, shuffled, a shuffled tibble and the
   model frame (`class_forms()`), an edited fit among them; and (increment 5)
   the block of panels, and the fits to the complete rows of a fit that dropped
-  rows with an indicator computed beforehand and of a model of the group:
-  356 cells, run through each of the twenty-four functions, with `B = 19` for
-  the resampling test.
+  rows with an indicator computed beforehand and of a model of the group; and
+  (increment 6) the cells of the stale and kept `model = FALSE` frames and of
+  a missing `z`: 361 cells, run through each of the thirty-three functions,
+  with `B = 19` for the resampling test, and through the five calls of a
+  second formula (`context_second_formula`: Cook-Weisberg with
+  `var_formula = ~ z`, the variance form test with `var_formula = ~ z` and
+  `against = ~ z`, `fitWLS()` with and without `var_formula = ~ z`).
   Where a test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
   a test that reads a variable the model frame does not hold (`context_reads`:
@@ -962,7 +1158,18 @@ the span of the regressors, and a positive response `ypos`.
   refuses a repeated pair (R2) and an unbalanced panel, as that of a fit that
   dropped some rows of some units (N12), the scatter diagnostic refuses a zero
   weight before the guard, a fit with `na.exclude` is read as before, and the
-  fits that dropped rows are compared with their fit to the complete rows.
+  fits that dropped rows are compared with their fit to the complete rows;
+  the tests computed from the model alone and RESET
+  (`context_cell_for_model_alone()`) read nothing from `data`, which they
+  match as every test does (decision 31), and keep their own refusals: the
+  spread-level and Davidian-Carroll tests take a fit with `na.exclude`, RESET
+  a zero weight, and the variance form test refuses weights that did not
+  come from `fitWLS()`; and the calls of a second formula
+  (`context_cell_for_formula()`) read `z` at the confirmed rows, so that the
+  guard refuses what it refuses, `z` is refused without `data` (M1) and with
+  the model frame as `data`, after a zero weight (Cook-Weisberg) or weights
+  (the variance form test), and `fitWLS()`, which is not a test, takes a zero
+  weight and an edited fit.
   Fligner-Killeen's test ranks the absolute
   deviations from the group medians, and the two residuals in the middle of a
   group of even size tie at the median exactly on one fit of a model and not,
@@ -988,6 +1195,8 @@ the span of the regressors, and a positive response `ypos`.
 | the group tests | against the test computed without the package, on the residuals of the fit (`weighted.residuals()` for a weighted fit) and the groups of the data it was fitted to, in its order: `car::leveneTest()` centred at the means (Levene) and at the medians (Brown-Forsythe), `stats::fligner.test()`, `stats::bartlett.test()` and O'Brien's transformation written out with `anova()` of `lm()` (`context_group_oracle()`), to `1e-10`, on a `gam` with and without smooth terms or an `offset` argument given its data shuffled, the character-named fit given its tibble, the complete rows renumbered, a model of the group without `data` and with its model frame, a weighted fit, and missing groups, left out |
 | missing groups | the five group tests on a group missing at observations of the fit: the warning "Removed N observations due to missing values in group" and the value of the data frame of the fit on every accepted form of data; a group missing at a row the fit dropped is not counted |
 | the panel tests and the scatter diagnostic | against the statistic written out without the package on the residuals of the fit and the rows of `data` that carry their names (`context_panel_oracle()`), to `1e-10`: Pesaran's CD from the correlations of each pair of units over the periods, the LM statistic of Breusch and Pagan (1980), equation 5, with the mean number of periods, and Spearman's correlation of the absolute residuals; on data shuffled with their row names and on a fit that drops every row of a unit; the 0.15.0 example in fit order and shuffled, and with rows after those of the fit, `identical()`; a repeated pair of `id` and `time` refused by Pesaran's test and not by the random-effects test; an unbalanced panel refused by Pesaran's test and `runPanelTests()`, where it recycled the residuals of a unit or stopped, and against `plm::pcdtest()`, -0.373, which the refusal names; ties in numbered data in fit order refused for `id` and `time` and for a column of the scatter diagnostic beyond the model frame |
+| the tests computed from the model alone (increment 6) | numbered data in another order, rows in front of those of the fit and repeated row names refused by the guard, named data in any order and the complete rows of a fit that dropped rows, numbered again, `identical()` to the data frame of the fit (decision 31); a stale `model = FALSE` frame refused by the nine, RESET, `fitWLS()`, the registered names and `runTimeSeriesTests()`, with and without `data`, and the values of before once the frame is restored; a fit whose data are gone tested on its data, in fit order and shuffled under their row names, `identical()` to the fit with its frame |
+| a second formula (increment 6) | `var_formula = ~ z` and `against = ~ z` on named data shuffled `identical()` to the data frame; numbered data in another order, rows in front and the tibble of a fit to repeated rows refused by the guard; the complete rows numbered again `identical()` to the fit to the complete rows; a variable of the workspace refused (M1, the message of `data`), and given as a column of `data` the value it gave from the workspace; a variable of the model read from the model frame and the functions of the formula from its environment |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
@@ -1015,7 +1224,7 @@ that fixes each.
 | B6 | Streaming evaluates terms per chunk | Increment 7 |
 | B7 | Offsets left out of a refit | Refused by #134; fixed in increment 2 |
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
-| B9 | A second formula matched by position | Increment 6 |
+| B9 | A second formula matched by position | Fixed in increment 6: `var_formula` and `against` are evaluated on the rows the alignment confirmed (`rcontext_formula_rows()`); `rvariance_frame()` is gone |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
 | B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; the group tests of increment 4 gave values already; replicates in increment 8 |
 | B13 | `na.exclude` | Increment 9 |
@@ -1025,7 +1234,7 @@ that fixes each.
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Refused by Pesaran's test since increment 5 (decision 13); the random-effects test reads no period |
-| R3 | `var_formula` variables from the workspace | Increment 6 |
+| R3 | `var_formula` variables from the workspace | Refused since increment 6 (decision 9), with or without `data`, and the variables of `against` too |
 | R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests, in increment 5 for the panel tests and the scatter diagnostic |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five, in increment 4 for the group tests |
@@ -1035,7 +1244,7 @@ that fixes each.
 | N3 | White streaming on collinear terms | A separate pull request (decision 22) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
-| N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET; increment 6 for the other tests computed from the model alone |
+| N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET, in increment 6 for the other tests computed from the model alone and `fitWLS()` |
 | N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four |
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
@@ -1056,7 +1265,7 @@ that fixes each.
 | 6 | A refusal of the context inside `runHeteroTests()` is final: no fallback test runs under its name. | 2026-10-16 |
 | 7 | The "Removed N observations" warning is kept, and nothing is dropped. | 2026-10-16 |
 | 8 | An extra variable that is `NA` for a fitted row: each test keeps its behaviour, with a message that names the variable and the rows. | 2026-10-18 |
-| 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. | 2026-10-16 |
+| 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. Increment 6 applies it to every second formula (`var_formula`, `against`) and with `data` too: a variable that neither `data`, when it is given, nor, without `data`, the model frame holds is refused (with the message of `data`, or M1), never read from the workspace. A constant, a value of length one such as `k` in `~ I(hp^k)` or `pi`, is not a variable and is evaluated as R evaluates it (from the review of increment 6). | 2026-10-16 |
 | 10 | A grouped run of a `fitWLS()` fit is refused, with a final error class. | 2026-10-18 |
 | 11 | The estimated weights of `fitWLS()` are not written into `(weights)` of its model frame, since the guard would then refuse every `fitWLS()` fit of a weighted model given `data`. | 2026-10-18 |
 | 12 | The tests build tibbles with `dplyr::as_tibble()` under `skip_if_not_installed("dplyr")`; dplyr and data.table stay in Suggests. | 2026-10-18 |
@@ -1077,6 +1286,7 @@ that fixes each.
 | 28 | Pesaran's test refuses an unbalanced panel, whose units are not all observed at the same periods, in increment 5, with the class of the context and on every route, so that it never returns the value of recycled residuals; a fit that drops every row of a unit keeps a balanced panel. The refusal comes off in the pull request of N12, which computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does. Decided by the author: refuse now, fix later. | 2026-10-24 |
 | 29 | The panel tests and the scatter diagnostic read a fit with `na.exclude` as before, its padded residuals against the rows of `data` by position, until increment 9. Decided by the author. | 2026-10-24 |
 | 30 | A repeated pair of `id` and `time` is refused by Pesaran's test only, and so by `runPanelTests()` when it runs that test; the random-effects test reads no period. Decided by the author. | 2026-10-24 |
+| 31 | The tests that read nothing from `data`, the nine tests computed from the model alone, RESET and `fitWLS()` without `var_formula`, match `data` through the guard, as every test built on the context does: one rule for every test. Data the guard cannot match are refused, where they returned the value of the fit, and numbered data in the order of the fit that the check of 0.15.0 refused are taken; that check goes, but for the type of `data`. It ends decision 24. Decided by the author, on the open question of the first version of increment 6. | 2026-10-26 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

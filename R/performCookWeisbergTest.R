@@ -8,10 +8,21 @@
 #' @param model A fitted [stats::lm] object whose residuals will be analysed for
 #'   variance patterns.
 #' @param data Optional data frame the model was fitted to, in which
-#'   `var_formula` is evaluated; its rows are matched to the residuals by row
-#'   name. When `NULL`, the default, the model frame of `model` is used.
-#'   Without `var_formula` the statistic is computed from the residuals and
-#'   fitted values of `model`, and `data` does not change the result.
+#'   `var_formula` is evaluated. When `NULL`, the default, the model frame of
+#'   `model` is used. Without `var_formula` the statistic is computed from the
+#'   residuals and fitted values of `model`, and `data` does not change the
+#'   result. With it, the variables of `var_formula` are read at the rows of
+#'   `data` that hold the observations of the fit, matched as the tests that
+#'   read `data` match them: data with row names of their own in any order,
+#'   data that number their rows (a tibble, a data.table) in the order of the
+#'   fit. Since 0.16.0 that includes numbered data with one row per
+#'   observation, such as the complete rows of a fit that dropped rows
+#'   numbered again, unless two rows of the fit tie on every column of the
+#'   model frame and `var_formula` names a variable beyond it. A variable of
+#'   `var_formula` is read from `data`, or without `data` from the model frame,
+#'   which holds the variables of the model under their own names; since
+#'   0.16.0 one that neither holds is refused, where it was found in the
+#'   workspace, whatever the order of its values.
 #' @param var_formula Optional one-sided formula giving the variance model,
 #'   evaluated in `data`, for example `~ x1 + x2`. When `NULL`, the default,
 #'   the fitted values are the variance regressor and the result is what this
@@ -83,7 +94,14 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
     var_formula <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performCookWeisbergTest", model, "Cook-Weisberg")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit, and matches `data`
+  # to the observations of the fit, as for every test built on it (decision
+  # 31); with `var_formula` the variance model reads its variables at the
+  # confirmed rows, and without it the test reads nothing from `data`.
+  ctx <- rcontext_second_formula(
+    model, data, list(var_formula), "performCookWeisbergTest", "Cook-Weisberg"
+  )
   rvalidateModelInputs(model, test_name = "Cook-Weisberg", min_obs = 10L, allow_aliased = TRUE)
 
   ht_log("INFO", "Running Cook-Weisberg test")
@@ -91,13 +109,13 @@ performCookWeisbergTest <- function(model, data = NULL, var_formula = NULL) {
   # With a variance model of its own the test is the score test that the
   # deprecated performNCVTest() computed, returned as it returned it.
   if (!is.null(var_formula)) {
-    return(.ncv_test(model, var_formula, data))
+    return(.ncv_test(model, var_formula, data, ctx))
   }
 
   # The Cook-Weisberg statistic is the score test of performNCVTest() with the
   # fitted values as the sole variance regressor; delegate so the two cannot
   # drift apart.
-  result <- .ncv_test(model)
+  result <- .ncv_test(model, ctx = ctx)
   result$method <- "Cook-Weisberg test for heteroscedasticity"
   result$data.name <- deparse(stats::formula(model))
   result$alternative <- "error variance depends on the fitted values"

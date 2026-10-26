@@ -21,7 +21,13 @@ defaults.}
 
 \item{data}{Optional \link[base:data.frame]{base::data.frame} holding the variables named in
 \code{var_formula} or \code{against}. It is needed only when they are not in the
-model frame, and is matched to the fitted rows by row name.}
+model frame. Since 0.16.0 its rows are matched to the observations of the
+fit as the tests that read \code{data} match them, data with row names of
+their own in any order and data that number their rows (a tibble) in the
+order of the fit, and other data are refused, where numbered data in
+another order were read by position. A variable of the formulas that
+neither \code{data} nor the model frame holds is refused, where it was found
+in the workspace.}
 
 \item{var_formula}{One-sided formula naming the variance regressors
 \eqn{z_i}, for example \code{~ x}. \code{NULL}, the default, uses the regressors of
@@ -139,8 +145,17 @@ logarithms of the others, so the value is not that of the model without them; it
 the order of the terms, as the value of the model without them does. It refuses weights that did
 not come from \code{fitWLS()}, the prior weights of a Gaussian \code{glm} among them, a \code{glm}
 of another family or link, a \code{survey::svyglm()} fit, a coefficient that is not finite for another reason,
-and \code{data} that lack rows or variables of the fit. Which model each test accepts, and why, is
-set out in \code{\link{test_results}}, under \emph{Supported models}.
+and \code{data} that lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also
+refuses a multivariate \code{lm}, a fit whose coefficients, residuals or weights were
+changed after the fit, and a fit with \code{model = FALSE} whose model frame, rebuilt
+from the data it was fitted to, no longer holds its response, because those data
+changed after the fit: it refitted that frame and returned a value. A fit with
+\code{model = FALSE} whose data are gone is tested on \code{data} that give its response and
+fitted values. Without \code{var_formula} or \code{against}, the test reads nothing from
+\code{data}, which it matches as every test does, and refuses numbered data in another
+order, rows in front of those of the fit and repeated row names, where it gave the
+value of the fit. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 # Standard deviation proportional to x, so the variance is a power of x

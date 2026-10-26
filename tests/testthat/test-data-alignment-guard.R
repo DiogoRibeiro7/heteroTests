@@ -22,7 +22,14 @@ guarded_tests <- c(
   "performSpatialHeteroTest", "performLeveneTest", "performGlejserTest",
   "performBrownForsytheTest", "performFlignerKilleenTest", "performBartlettTest",
   "performHartleyFmaxTest", "performOBrienTest", "performPesaranTest",
-  "performBPRandomEffectsTest"
+  "performBPRandomEffectsTest",
+  # The tests computed from the model alone read nothing from `data`, and
+  # gave the value of the fit on data the guard refuses; since 0.16.0 they
+  # match `data` as every test built on the model context does (decision 31
+  # of its design).
+  "performSpearmanTest", "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
+  "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
+  "performDavidianCarrollTest", "performVarianceFormTest", "performRESETTest"
 )
 # These read `data` by position, the i-th row with the i-th residual, so from
 # 0.15.0 they also refused data with its own row names in another order than
@@ -147,15 +154,13 @@ test_that("reordered tibbles, data.tables and dplyr::arrange() output are refuse
   }
 })
 
-test_that("the tests that do not read data still return the value of the fit", {
-  skip_if_not_installed("dplyr")
-  d <- guard_data()
-  m <- lm(y ~ x1 + x2, data = d)
-  arranged <- dplyr::arrange(d, x1)
-  recipes <- guard_recipes()
-  for (fn in setdiff(names(recipes), c(guarded_tests, positional_tests))) {
-    expect_same_result(guard_run(fn, m, arranged, recipes), guard_run(fn, m, d, recipes), info = fn)
-  }
+test_that("every test refuses data the guard cannot match, those that read nothing too", {
+  # Until 0.16.0 the tests computed from the model alone gave the value of the
+  # fit on such data, which they do not read; since decision 31 of the design
+  # of the model context every test matches `data` the same way, so no test
+  # is left outside the guard.
+  expect_identical(setdiff(names(guard_recipes()), c(guarded_tests, positional_tests)),
+                   character())
 })
 
 test_that("rows in front of those of the fit are refused, rows after them are not", {
@@ -380,9 +385,17 @@ test_that("the variables of var_formula are read from rows the guard confirmed",
     "performCookWeisbergTest() cannot match the rows of `data`",
     fixed = TRUE
   )
-  # Without var_formula the test reads nothing from `data`.
+  # Without var_formula the test reads nothing from `data`, which since 0.16.0
+  # it matches as every test built on the model context does (decision 31 of
+  # its design): before, it gave the value of the fit on data in another
+  # order.
+  expect_error(
+    performCookWeisbergTest(m, dplyr::arrange(d, x1)),
+    "performCookWeisbergTest() cannot match the rows of `data`",
+    fixed = TRUE
+  )
   expect_identical(
-    performCookWeisbergTest(m, dplyr::arrange(d, x1))$statistic,
+    performCookWeisbergTest(m, shuffled)$statistic,
     performCookWeisbergTest(m, d)$statistic
   )
 })

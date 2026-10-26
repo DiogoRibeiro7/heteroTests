@@ -110,6 +110,13 @@ identity_registry_runner <- "runHeteroTests(tests = c(\"student_bp\", \"quantile
 identity_registry_runner_szroeter <- "runHeteroTests(tests = \"szroeter\")"
 identity_registry_runner_spatial <- "runHeteroTests(tests = \"spatial_hetero\")"
 identity_registry_runner3 <- c(identity_registry_runner_szroeter, identity_registry_runner_spatial)
+# Increment 6: the registered tests computed from the model alone that the
+# runner runs when asked, on every cell. The registered "ncv", a fallback of
+# White's, Koenker's and the Breusch-Pagan tests, is called directly
+# (identity_extra_recipes), since the runner warns that its name is deprecated.
+identity_registry_tests6 <- c("cook_weisberg", "spread_level", "variance_form")
+identity_registry_runner6 <-
+  "runHeteroTests(tests = c(\"cook_weisberg\", \"spread_level\", \"variance_form\"))"
 
 # The spatial weights of the recipe of performSpatialHeteroTest()
 # (helper-test-recipes.R), one per observation of the fit, attached to `data`
@@ -194,8 +201,79 @@ identity_extra_recipes <- list(
   },
   `runPanelTests(tests = "pesaran")` = function(m, d) {
     runPanelTests(m, d, id = "id", time = "time", tests = "pesaran")
+  },
+  # Increment 6: fitWLS(), which returns a model, as the vector of its
+  # coefficients and estimated weights (identity_wls_numbers()), without and
+  # with a variance formula; the tests that evaluate a second formula, with a
+  # variable that no model frame of the matrix holds, z, and with x1, which
+  # the frames of the models that transform it lack; the registered names of
+  # the tests computed from the model alone, and runTimeSeriesTests(), which
+  # runs the two time-series tests without `data`. And R3: a variable of the
+  # workspace, `zw` (identity_workspace_z()), which the formula found in its
+  # environment when neither `data` nor the model frame held it.
+  fitWLS = function(m, d) identity_wls_numbers(fitWLS(m, d)),
+  `fitWLS(var_formula = ~ z)` = function(m, d) {
+    identity_wls_numbers(fitWLS(m, d, var_formula = ~ z))
+  },
+  `fitWLS(var_formula = ~ x1, form = "power")` = function(m, d) {
+    identity_wls_numbers(fitWLS(m, d, var_formula = ~ x1, form = "power"))
+  },
+  `performCookWeisbergTest(var_formula = ~ z)` = function(m, d) {
+    performCookWeisbergTest(m, d, var_formula = ~ z)
+  },
+  `performNCVTest(var_formula = ~ z)` = function(m, d) performNCVTest(m, d, var_formula = ~ z),
+  `performVarianceFormTest(var_formula = ~ z)` = function(m, d) {
+    performVarianceFormTest(m, d, var_formula = ~ z)
+  },
+  `performVarianceFormTest(against = ~ z)` = function(m, d) {
+    performVarianceFormTest(m, d, against = ~ z)
+  },
+  `registry cook_weisberg` = function(m, d) {
+    get("cook_weisberg", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `registry ncv` = function(m, d) get("ncv", envir = heteroTests:::.diagnostic_registry)(m, d),
+  `registry spread_level` = function(m, d) {
+    get("spread_level", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  `registry variance_form` = function(m, d) {
+    get("variance_form", envir = heteroTests:::.diagnostic_registry)(m, d)
+  },
+  runTimeSeriesTests = function(m, d) runTimeSeriesTests(m, lags = 2),
+  `fitWLS(var_formula = ~ zw)` = function(m, d) {
+    zw <- identity_workspace_z(m)
+    identity_wls_numbers(fitWLS(m, d, var_formula = ~ zw))
+  },
+  `performCookWeisbergTest(var_formula = ~ zw)` = function(m, d) {
+    zw <- identity_workspace_z(m)
+    performCookWeisbergTest(m, d, var_formula = ~ zw)
+  },
+  `performVarianceFormTest(var_formula = ~ zw)` = function(m, d) {
+    zw <- identity_workspace_z(m)
+    performVarianceFormTest(m, d, var_formula = ~ zw)
+  },
+  # From the review of increment 6: a constant of the workspace, `k`, or of
+  # base R, `pi`, is not a variable (rformula_constants()), and is evaluated
+  # as R evaluates it; Cook-Weisberg's test with `k` is verified against the
+  # same formula written with 2.
+  `performCookWeisbergTest(var_formula = ~ I(x1^k))` = function(m, d) {
+    k <- 2
+    performCookWeisbergTest(m, d, var_formula = ~ I(x1^k))
+  },
+  `performCookWeisbergTest(var_formula = ~ I(x1^2))` = function(m, d) {
+    performCookWeisbergTest(m, d, var_formula = ~ I(x1^2))
+  },
+  `performVarianceFormTest(var_formula = ~ I(x1^k))` = function(m, d) {
+    k <- 2
+    performVarianceFormTest(m, d, var_formula = ~ I(x1^k))
+  },
+  `fitWLS(var_formula = ~ I(pi * x1))` = function(m, d) {
+    identity_wls_numbers(fitWLS(m, d, var_formula = ~ I(pi * x1)))
   }
 )
+# The numbers of a fitWLS() fit: its coefficients and its estimated weights.
+identity_wls_numbers <- function(fit) c(stats::coef(fit), unname(stats::weights(fit)))
+# A variable of the workspace with one value per observation of the fit.
+identity_workspace_z <- function(m) 2 + sin(seq_len(NROW(m$residuals)))
 # The functions whose values may change: those built on the context, the
 # deprecated name and the wrappers and routes that compute their statistic
 # through them, and the runner, whose default battery is White's and
@@ -212,8 +290,11 @@ identity_affected <- c(
   "performLeveneTest", "performBrownForsytheTest", "performFlignerKilleenTest",
   "performBartlettTest", "performOBrienTest",
   "performPesaranTest", "performBPRandomEffectsTest",
+  "performSpearmanTest", "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
+  "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
+  "performDavidianCarrollTest", "performVarianceFormTest",
   names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
-  identity_registry_runner3
+  identity_registry_runner3, identity_registry_runner6
 )
 # The bootstrap recipes, whose replicates refit the formula until increment 8.
 identity_bootstraps <- c(
@@ -278,6 +359,52 @@ identity_panel_tests <- c(
 )
 identity_panel_readers <- c("performPesaranTest", "performBPRandomEffectsTest")
 identity_increment5 <- c(identity_panel_tests, "performScatterDiagnostic")
+# The calls of increment 6. `identity_model_alone`: the tests computed from
+# the model alone, their registered names, runTimeSeriesTests() and fitWLS()
+# without a variance formula, which read nothing from `data`, with RESET, which
+# builds its context as they do since this increment; `identity_second_formula`:
+# the calls that evaluate a second formula (`var_formula`, `against`) on the
+# rows of `data`, or of the model frame; `identity_workspace`: those whose
+# formula names a variable of the workspace (R3); and the runner with the
+# registered tests.
+identity_model_alone <- c(
+  "performSpearmanTest", "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
+  "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
+  "performDavidianCarrollTest", "performVarianceFormTest", "registry cook_weisberg",
+  "registry ncv", "registry spread_level", "registry variance_form", "runTimeSeriesTests",
+  "fitWLS", identity_reset
+)
+identity_second_formula <- c(
+  "fitWLS(var_formula = ~ z)", "fitWLS(var_formula = ~ x1, form = \"power\")",
+  "performCookWeisbergTest(var_formula = ~ z)", "performNCVTest(var_formula = ~ z)",
+  "performVarianceFormTest(var_formula = ~ z)", "performVarianceFormTest(against = ~ z)",
+  "performCookWeisbergTest(var_formula = ~ I(x1^k))", "performCookWeisbergTest(var_formula = ~ I(x1^2))",
+  "performVarianceFormTest(var_formula = ~ I(x1^k))", "fitWLS(var_formula = ~ I(pi * x1))"
+)
+# The call with a constant that Cook-Weisberg's test refused with `data`, as a
+# variable `data` lacks ("constant"), and the call it must reproduce.
+identity_constant <- "performCookWeisbergTest(var_formula = ~ I(x1^k))"
+identity_workspace <- c(
+  "fitWLS(var_formula = ~ zw)", "performCookWeisbergTest(var_formula = ~ zw)",
+  "performVarianceFormTest(var_formula = ~ zw)"
+)
+identity_increment6 <- c(
+  identity_model_alone, identity_second_formula, identity_workspace, identity_registry_runner6
+)
+# fitWLS() is not a test: it does not check that the fit reproduces itself
+# (M8).
+identity_increment6_tests <- setdiff(identity_increment6, grep("^fitWLS", identity_increment6,
+                                                                value = TRUE))
+# Decision 31 (decided by the author on 2026-10-26): the calls that read
+# nothing from `data` and are given it, the tests computed from the model
+# alone, their registered names, RESET and fitWLS() without a variance
+# formula, and the runner with the registered tests, match `data` through the
+# guard, as every test built on the context does. runTimeSeriesTests() and
+# runDiagnostics(), which run their tests without `data`, are not among them.
+identity_decision31 <- c(
+  setdiff(identity_model_alone, c("runTimeSeriesTests", "runDiagnostics()$reset")),
+  identity_registry_runner6
+)
 # The defects of the design whose cells may change, by the kind of change.
 # Increment 1: B5, B12, B14, B15, L1, L2 and N7, which the context closes for
 # every test built on it, and so for those of increment 2 too. Increment 2:
@@ -315,32 +442,60 @@ identity_increment5 <- c(identity_panel_tests, "performScatterDiagnostic")
 # N12, an unbalanced panel, on which Pesaran's test stopped or recycled the
 # residuals of a unit and returned a wrong value, and which it refuses
 # (decided by the author on 2026-10-24); and N17, "frame" and M8 for these.
+# Increment 6: N6 for the tests computed from the model alone, fitWLS() and
+# the variance form test, a model frame that model = FALSE rebuilt from data
+# changed after the fit, which they read (Harvey's design, the refits of the
+# variance form test and fitWLS()) or ignored, and refuse; B9, a second formula
+# (`var_formula`, `against`) evaluated on rows of `data` matched by position,
+# unchecked, now matched by the alignment, which refuses numbered data in
+# another order, rows in front of those of the fit, repeated row names, and,
+# for a variable beyond the model frame, data in the order of the fit whose
+# rows tie (identity_defects()); R3, a variable of a second formula found in
+# the workspace, refused (decision 9), and a variable that neither `data` nor
+# the model frame holds, refused with M1 or the message of `data`; and
+# "frame" and M8 for these. Decision 31: the calls of the tests that read
+# nothing from `data` match it through the guard, which refuses numbered data
+# in another order, rows in front of those of the fit and repeated row names,
+# from which they computed the value of the fit, and takes numbered data with
+# one row per observation in the order of the fit, and the data of a gam that
+# dropped rows, which the check of 0.15.0 refused (identity_defects()).
+# From the review of increment 6: "constant", a constant of the workspace in
+# a second formula, which Cook-Weisberg's test refused with `data` as a
+# variable `data` lacks, and evaluates as R does: an error that becomes the
+# value of the same formula written with the number (identity_base_fn()).
 identity_allowed <- list(
   error_to_value = c(
-    "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16"
+    "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17",
+    "decision31", "constant"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
-  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12")
+  value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3", "decision31")
 )
-# The defects of increments 2 to 5 apply to the calls of the tests they
+# The defects of increments 2 to 6 apply to the calls of the tests they
 # concern only: on any other call such a change is unexpected.
 identity_defect_scope <- list(
   B7 = identity_increment2,
   N1 = c("performGQTest", identity_quantile, identity_registry_runner),
-  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5),
-  N6 = identity_reset,
+  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5,
+            identity_increment6),
+  N6 = c(identity_reset, identity_increment6),
   null = c("registry student_bp", "registry szroeter"),
   gam = identity_increment2,
   N4 = "performHarrisonMcCabeTest",
-  N17 = c(identity_reads_data, identity_increment4, identity_increment5),
+  N17 = c(identity_reads_data, identity_increment4, identity_increment5, identity_second_formula,
+          identity_workspace),
   gam_offset = c("registry szroeter", identity_registry_runner_szroeter),
-  M8 = c(identity_increment4, identity_increment5),
+  M8 = c(identity_increment4, identity_increment5, identity_increment6_tests),
   B3 = identity_panel_tests,
   B4 = "performScatterDiagnostic",
   B16 = identity_increment5,
   R2 = identity_pesaran,
   N12 = identity_pesaran,
-  szroeter_moments = identity_szroeter_calls
+  szroeter_moments = identity_szroeter_calls,
+  B9 = c(identity_second_formula, identity_workspace),
+  R3 = c(identity_second_formula, identity_workspace),
+  decision31 = identity_decision31,
+  constant = identity_constant
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -364,7 +519,7 @@ identity_null_routes <- c("registry student_bp", "registry szroeter")
 # test it names now runs; and the registered Szroeter test on a gam with an
 # `offset` argument, which the runner runs ("gam_offset").
 identity_runner_allowed <- c(
-  "B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame", "gam_offset"
+  "B12", "L1", "L2", "B14", "B15", "N7", "B5", "B7", "N1", "frame", "gam_offset", "decision31"
 )
 # A message, of a test or of the runner that runs it, that changes only to the
 # test's own documented refusal: M7, a model with more than one response
@@ -401,6 +556,14 @@ identity_m8 <- c(
 )
 identity_n12_message <- "needs a balanced panel, every unit observed at the same periods"
 identity_r2_message <- "needs one observation of the fit for each pair of `id` and `time`"
+# Increment 6: the refusals of a second formula. The guard's, on rows of
+# `data` it cannot match (B9), and of a variable that neither `data` nor the
+# model frame holds (R3): M1 without `data`, the message of `data` with it.
+identity_b9_message <- "cannot match the rows of `data`"
+identity_r3_messages <- c(
+  "The following variables are missing from the model frame of `model`",
+  "The following variables are missing from input data"
+)
 identity_messages <- list(
   R4 = "needs a model with one response",
   B7 = c("cannot match the rows of `data`", "The following variables are missing from input data"),
@@ -416,19 +579,34 @@ identity_messages <- list(
   M8 = identity_m8,
   B16 = identity_n12_message,
   N12 = identity_n12_message,
-  R2 = identity_r2_message
+  R2 = identity_r2_message,
+  N6 = "cannot use the model frame of `model`",
+  B9 = identity_b9_message,
+  R3 = identity_r3_messages,
+  # Decision 8: a variable of `var_formula` missing at an observation of the
+  # fit, which Cook-Weisberg's test refused as a missing row, is named.
+  decision8 = "the `var_formula` variable, is missing.",
+  # Decision 31: data the guard refuses, where the check of 0.15.0 refused them
+  # otherwise (repeated row names, which lacked a row of the fit).
+  decision31 = identity_b9_message
 )
 identity_message_scope <- list(
   B7 = identity_increment2, L1 = c("performGQTest", identity_reads_data),
   L2 = c("performGQTest", identity_reads_data),
-  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5),
+  frame = c(identity_increment2, identity_increment3, identity_increment4, identity_increment5,
+            identity_increment6),
   null = c("registry student_bp", "registry szroeter"),
   gam = identity_increment2,
   B14 = c(identity_reads_data, identity_increment4, identity_increment5),
-  M8 = c(identity_increment4, identity_increment5),
+  M8 = c(identity_increment4, identity_increment5, identity_increment6_tests),
   B16 = identity_pesaran,
   N12 = identity_pesaran,
-  R2 = identity_pesaran
+  R2 = identity_pesaran,
+  N6 = identity_increment6,
+  B9 = c(identity_second_formula, identity_workspace),
+  R3 = c(identity_second_formula, identity_workspace),
+  decision8 = identity_second_formula,
+  decision31 = identity_decision31
 )
 # M1, for the tests that read a variable of `data` besides the model (the
 # variable, ordering or groups they name): a call that stopped because `data`,
@@ -533,7 +711,14 @@ identity_new_refusals <- list(
   # decision 13), and on an unbalanced panel, on which it recycled the
   # residuals of a unit (N12, decided 2026-10-24).
   R2 = identity_r2_message,
-  N12 = identity_n12_message
+  N12 = identity_n12_message,
+  # Increment 6: a second formula on rows of `data` the alignment refuses,
+  # which it read by position (B9), and a variable of the workspace (R3).
+  B9 = identity_b9_message,
+  R3 = identity_r3_messages,
+  # Decision 31: data the guard refuses, given to a test that reads nothing
+  # from them and returned the value of the fit.
+  decision31 = identity_b9_message
 )
 # The bootstraps: on a cell whose base statistic stopped before (B12, L1, L2,
 # N7), or that refused an offset (B7, the robust Breusch-Pagan bootstrap), the
@@ -1362,6 +1547,18 @@ identity_base_fn <- function(fn) {
   if (identical(fn, identity_panel_runner_pesaran)) {
     return("performPesaranTest")
   }
+  # Increment 6: the registered tests computed from the model alone.
+  # And the call with a constant, the same formula written with the number.
+  registered <- c(
+    `registry cook_weisberg` = "performCookWeisbergTest", `registry ncv` = "performNCVTest",
+    `registry spread_level` = "performSpreadLevelTest",
+    `registry variance_form` = "performVarianceFormTest",
+    `performCookWeisbergTest(var_formula = ~ I(x1^k))` =
+      "performCookWeisbergTest(var_formula = ~ I(x1^2))"
+  )
+  if (fn %in% names(registered)) {
+    return(registered[[fn]])
+  }
   fn
 }
 
@@ -1372,7 +1569,11 @@ identity_chain_reference <- function(fn, cell) {
     return(NULL)
   }
   base <- identity_base_fn(fn)
-  if (base %in% context_migrated) context_cell_for(base, cell)$reference else cell$reference
+  if (base %in% c(context_migrated, context_second_formula)) {
+    context_cell_for(base, cell)$reference
+  } else {
+    cell$reference
+  }
 }
 
 # The references outside the matrix that the call must reproduce.
@@ -1451,7 +1652,8 @@ identity_run <- function(where, out, root = ".") {
     identity_sz$id <- NULL
     records[[id]] <<- c(
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
-           defect = cell$defect, reference = identity_chain_reference(fn, cell),
+           defect = cell$defect, expect = cell$expect,
+           reference = identity_chain_reference(fn, cell),
            externals = c(identity_external_ids(fn, cell), identity_rank_reference(fn, cell))),
       outcome,
       list(szroeter = identity_szroeter_by_hand(identity_sz$captured[[id]]))
@@ -1501,6 +1703,13 @@ identity_run <- function(where, out, root = ".") {
       set.seed(7)
       identity_runner_summary(runHeteroTests(
         built$m, data, tests = "spatial_hetero", use_cache = FALSE, progress = FALSE
+      ))
+    }))
+    add(runner_kind, identity_registry_runner6, cell, identity_outcome(function() {
+      set.seed(7)
+      identity_runner_summary(runHeteroTests(
+        built$m, built$data, tests = identity_registry_tests6, use_cache = FALSE,
+        progress = FALSE
       ))
     }))
   }
@@ -1585,7 +1794,11 @@ identity_run <- function(where, out, root = ".") {
                   "performHartleyFmaxTest", "performSpatialHeteroTest", "performLeveneTest",
                   "performBrownForsytheTest", "performFlignerKilleenTest", "performBartlettTest",
                   "performOBrienTest", "performPesaranTest", "performBPRandomEffectsTest",
-                  "performScatterDiagnostic", "runPanelTests")) {
+                  "performScatterDiagnostic", "runPanelTests", "performSpearmanTest",
+                  "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
+                  "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
+                  "performDavidianCarrollTest", "performVarianceFormTest", "fitWLS",
+                  "runTimeSeriesTests")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -1711,6 +1924,38 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   # Every call of Szroeter's test, on any cell (identity_szroeter_verdict()).
   if (record$fn %in% identity_szroeter_calls) {
     defects <- c(defects, "szroeter_moments")
+  }
+  # Increment 6. A second formula reads its variables from `data` or the
+  # model frame, never from the workspace (R3), on every cell; and on the
+  # cells whose `data` the guard refuses, or whose rows, in the order of the
+  # fit, tie (the tibble of a fit to repeated rows), the alignment refuses
+  # what was read by position (B9).
+  if (record$fn %in% c(identity_second_formula, identity_workspace)) {
+    defects <- c(defects, "R3")
+    if (identical(record$expect, "guard") || identical(record$cell, "ident/repeated_fit_tibble")) {
+      defects <- c(defects, "B9")
+    }
+    # N17 for a second formula: the residuals of an mgcv::gam() fit carry no
+    # names, and Cook-Weisberg's test matched `data` to them by position, or
+    # refused the full data of a gam that dropped rows for their number of
+    # rows; it now matches them by the row names of its model frame.
+    if (identical(record$cell, "panel/unit_gam_full")) {
+      defects <- c(defects, "N17")
+    }
+    # Decision 8: z missing at an observation of the fit.
+    if (identical(record$cell, "variance/z_missing")) {
+      defects <- c(defects, "decision8")
+    }
+    # A constant of the workspace, which Cook-Weisberg's test refused with
+    # `data`.
+    if (record$fn %in% identity_constant) {
+      defects <- c(defects, "constant")
+    }
+  }
+  # Decision 31: the calls that read nothing from `data` match it through the
+  # guard, on every cell with `data`.
+  if (record$fn %in% identity_decision31 && !identical(record$form, "null")) {
+    defects <- c(defects, "decision31")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))

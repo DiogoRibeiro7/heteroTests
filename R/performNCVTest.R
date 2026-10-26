@@ -99,16 +99,30 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
     var_formula <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performNCVTest", model, "NCV")
-  .ncv_test(model, var_formula, data)
+  ctx <- rcontext_second_formula(model, data, list(var_formula), "performNCVTest", "NCV")
+  .ncv_test(model, var_formula, data, ctx)
 }
 
 # The implementation behind the deprecated performNCVTest(), the "ncv"
 # registry name and performCookWeisbergTest(); unchanged in 0.14.0. Since
 # 0.15.0 `var_formula` can be evaluated in `data` rather than in the model
 # frame; with `data = NULL` the computation is the one of 0.14.0.
-.ncv_test <- function(model, var_formula = NULL, data = NULL) {
+#
+# Since 0.16.0 the callers build the model context (`ctx`) first, and the fit
+# must reproduce itself (rvalidate_model_context()). The variables of
+# `var_formula` are read at the rows of `data` the alignment confirmed, in the
+# order of the fit, or without `data` from the model frame, where it holds
+# them under their own names, and never from the workspace
+# (rcontext_formula_rows()): before, with `data = NULL`, a variable that
+# neither held was found in the environment of the formula (R3, decision 9).
+# Without a context, as from the internal benchmarks, the residuals and
+# fitted values are read from `model`, which is all the test without
+# `var_formula` reads.
+.ncv_test <- function(model, var_formula = NULL, data = NULL, ctx = NULL) {
   rvalidateModelInputs(model, test_name = "NCV", min_obs = 10L, allow_aliased = TRUE)
+  if (!is.null(ctx)) {
+    rvalidate_model_context(ctx)
+  }
 
   ht_log("INFO", "Running NCV score test")
 
@@ -133,33 +147,26 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
     if (!inherits(var_formula, "formula") || length(var_formula) != 2L) {
       stop("`var_formula` must be a one-sided formula, e.g. ~ x1 + x2.", call. = FALSE)
     }
-    if (is.null(data)) {
-      mf <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-      if (is.null(mf)) {
-        stop(
-          "`var_formula` requires a model frame, which could not be recovered from `model`.",
-          call. = FALSE
-        )
+    if (is.null(ctx)) {
+      ctx <- rcontext_second_formula(model, data, list(var_formula), "performNCVTest", "NCV")
+    }
+    # The model frame without `data`, stripped of the terms of the mean model,
+    # which model.matrix() would otherwise check the variance formula against;
+    # with `data`, the rows the alignment confirmed, in the order of the fit.
+    plain <- rcontext_formula_rows(ctx, data, var_formula)
+    if (!is.null(data)) {
+      # As before 0.16.0: the checks of the model for "Cook-Weisberg test",
+      # whose warnings name it, the warning on the rows of `data` with a
+      # missing value in a variable of `var_formula`, and the refusal of such a
+      # value at an observation of the fit, which now names the variable
+      # (decision 8). Nothing is dropped before the rows are matched.
+      rvalidateModelInputs(model, test_name = "Cook-Weisberg test", min_obs = 10L,
+                           allow_aliased = TRUE)
+      read <- intersect(setdiff(all.vars(var_formula), "."), names(data))
+      rwarn_incomplete_rows(data, NULL, also = read)
+      for (v in read) {
+        rstop_missing_variable(ctx, plain[[v]], v, "var_formula", "Cook-Weisberg test")
       }
-      # Drop the fitted model's terms attribute before rebuilding a model frame
-      # for the variance formula; model.matrix() otherwise validates the new
-      # formula against the mean model's terms and errors out.
-      plain <- as.data.frame(mf)
-      attr(plain, "terms") <- NULL
-    } else {
-      # The rows of `data` the model was fitted to, in the order of the
-      # residuals, once rcheck_data_rows() has confirmed that the row names
-      # pick them.
-      rcheck_data_rows(model, data, fn = rtest_name(sys.parent()))
-      plain <- prepare_model_data_for_test(
-        model,
-        data,
-        required_vars = all.vars(var_formula),
-        test_label = "Cook-Weisberg test",
-        min_obs_model = 10L,
-        min_obs_data = 10L,
-        allow_aliased = TRUE
-      )$data
     }
     aux_frame <- stats::model.frame(var_formula, data = plain)
     Z <- stats::model.matrix(var_formula, data = aux_frame)

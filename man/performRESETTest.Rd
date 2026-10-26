@@ -6,7 +6,7 @@
 
 On a fit with an offset the fitted values are the design times the coefficients plus the offset, and the test is the nested F test of the model with its offset against the model augmented with the powers of those fitted values, fitted with the same offset and weights (since 0.16.0, decided 2026-10-18). It is not RESET of the model fitted to the response minus the offset, which augments that model with the powers of the design times the coefficients alone. Before 0.16.0 the augmented model was fitted without the offset, so the two models were not nested.}
 \usage{performRESETTest(model, data = NULL, power = 2:3)}
-\arguments{\item{model}{A fitted \code{lm} model.}\item{data}{optional data frame the model was fitted to, or \code{NULL}, the default. The statistic is computed from the response, fitted values, design, weights and offset of the fit itself, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}, and must hold the variables of the model and the row names of the fit. Before 0.15.0 the second argument was \code{power}: a number passed there by position is still read as \code{power} in 0.15.x, with a warning that shows the new call, and stops working in 1.0.0.}\item{power}{Numeric vector of powers to include.}}
+\arguments{\item{model}{A fitted \code{lm} model.}\item{data}{optional data frame the model was fitted to, or \code{NULL}, the default. The statistic is computed from the response, fitted values, design, weights and offset of the fit itself, so \code{data} does not change the result; it is accepted so that every test takes \code{(model, data, ...)}; since 0.16.0 its rows are matched to the observations of the fit as by every test, data with row names of their own in any order and data that number their rows in the order of the fit, and other data are refused, where it needed only the variables of the model and the row names of the fit. Before 0.15.0 the second argument was \code{power}: a number passed there by position is still read as \code{power} in 0.15.x, with a warning that shows the new call, and stops working in 1.0.0.}\item{power}{Numeric vector of powers to include.}}
 \value{An object of class \code{htest}.}
 \section{Supported models}{
 It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, weighted or
@@ -20,7 +20,11 @@ leave the observation out, and gives the value of the fit to the observations wi
 a coefficient that is not finite for another reason, \code{data} that lack rows or variables of
 the fit, and, since 0.16.0, a fit with \code{model = FALSE} whose model frame, rebuilt from the
 data it was fitted to, no longer holds its response, because those data changed after the fit:
-it read that frame and returned a value.
+it read that frame and returned a value. A fit with \code{model = FALSE} whose data are gone is
+tested on \code{data} that give its response and fitted values (since 0.16.0; it refused such a fit
+until the tests computed from the model alone were built on the model context), and refused
+without them. Since then it also refuses numbered data in another order than the fit, rows in front
+of those of the fit and repeated row names, as every test does, where it gave the value of the fit.
 It refuses a multivariate \code{lm} ("needs a model with one response"), which it tested without
 \code{data} before 0.16.0, and, since 0.16.0, an \code{mgcv::gam()} fit with smooth terms: a
 smooth term is usually penalised, and a penalised fit is not the least-squares fit of the design

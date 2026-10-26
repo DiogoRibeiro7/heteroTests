@@ -26,8 +26,15 @@ fitWLS(
 
 `data`
 :   Optional [base::data.frame](https://rdrr.io/r/base/data.frame.html) holding the variables named in
-    `var_formula`. It is needed only when they are not in the model frame, and
-    is matched to the fitted rows by row name.
+    `var_formula`. It is needed only when they are not in the model frame.
+    Since 0.16.0 its rows are matched to the observations of the fit as the
+    tests that read `data` match them, data with row names of their own in any
+    order and data that number their rows (a tibble) in the order of the fit,
+    and other data are refused, where numbered data in another order were read
+    by position. A variable of `var_formula` that neither `data` nor the model
+    frame holds is refused, where it was found in the workspace. Without
+    `var_formula`, `data` is not read, but it is matched in the same way, and
+    other data are refused, where they were ignored.
 
 `var_formula`
 :   One-sided formula naming the variance regressors, for
@@ -119,7 +126,13 @@ offset was given as an argument, `lm(..., offset = o)`, or written in the
 formula, `offset(o)`. Its coefficients, fitted values and residuals are
 those `lm()` returns for the same call with the estimated weights added.
 On a model fitted with weights, the refit uses the estimated weights in
-their place, and `weights()` of the result returns them.
+their place, and `weights()` of the result returns them. Since 0.16.0 the
+response, the design and the offset are read from the fit, as the tests read
+them, and a fit with `model = FALSE` whose model frame, rebuilt from the data
+it was fitted to, no longer holds its response, because those data changed
+after the fit, is refused, where it was refitted to the response of the
+changed data; a fit with `model = FALSE` whose data are gone is refitted
+from `data` that give its response and fitted values.
 
 A `glm` with the Gaussian family and the identity link is a least-squares
 fit, with the design and residuals of the `lm`, and since 0.16.0 the result

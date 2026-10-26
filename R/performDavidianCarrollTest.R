@@ -68,11 +68,18 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
     degree <- data
     data <- NULL
   }
-  rcheck_data_argument(data, "performDavidianCarrollTest", model, "Davidian-Carroll")
+  # The model context (R/model_context.R) refuses a model frame that
+  # `model = FALSE` rebuilt from data changed after the fit. The test reads
+  # nothing from `data`, which is matched to the observations of the fit as by
+  # every test built on the context (decision 31).
+  rcheck_data_argument(data, "performDavidianCarrollTest")
+  ctx <- rmodel_context(model, data, fn = "performDavidianCarrollTest",
+                        test_label = "Davidian-Carroll")
   if (!inherits(model, "lm")) {
     stop("`model` must be an object of class 'lm'.")
   }
   rrefuse_nonfinite_coefficients(model, "Davidian-Carroll test", allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
   if (!is.numeric(degree) || degree < 1) {
     stop("`degree` must be a positive integer.")
   }

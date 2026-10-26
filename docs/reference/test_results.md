@@ -120,12 +120,22 @@ Breusch-Pagan statistic ([`performStudentizedBPTest()`](performStudentizedBPTest
 [`performBrownForsytheTest()`](performBrownForsytheTest.md), [`performFlignerKilleenTest()`](performFlignerKilleenTest.md),
 [`performBartlettTest()`](performBartlettTest.md) and [`performOBrienTest()`](performOBrienTest.md), the two panel tests,
 [`performPesaranTest()`](performPesaranTest.md) and [`performBPRandomEffectsTest()`](performBPRandomEffectsTest.md), and so
-[`runPanelTests()`](runPanelTests.md), and [`performScatterDiagnostic()`](performScatterDiagnostic.md), read the response, the design, the
+[`runPanelTests()`](runPanelTests.md), and [`performScatterDiagnostic()`](performScatterDiagnostic.md), and the tests computed from the model
+alone, [`performSpearmanTest()`](performSpearmanTest.md), [`performHarveyTest()`](performHarveyTest.md), [`performArchLMTest()`](performArchLMTest.md),
+[`performMcLeodLiTest()`](performMcLeodLiTest.md), [`performCookWeisbergTest()`](performCookWeisbergTest.md) and [`performNCVTest()`](performNCVTest.md),
+[`performSpreadLevelTest()`](performSpreadLevelTest.md), [`performDavidianCarrollTest()`](performDavidianCarrollTest.md) and
+[`performVarianceFormTest()`](performVarianceFormTest.md), with [`fitWLS()`](fitWLS.md), read the response, the design, the
 residuals, the weights and the offset from the fit, through the model context of the package, and read from
 `data` only the rows the comparison above confirmed; the other tests follow in later steps (the design page of
-the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET reads
-nothing from `data`: it builds its context without it, and keeps the check of `data` of the tests computed
-from the model alone, for the variables of the model and the row names of the fit, until a later step.
+the site, <https://diogoribeiro7.github.io/heteroTests/design/model-context/>, sets out the plan). RESET, the
+tests computed from the model alone and `fitWLS()` without `var_formula` read nothing from `data`,
+and match it as the other tests do, so that every test takes and refuses the same data; until 0.16.0 they gave the
+value of the fit on numbered data in another order, rows in front of those of the fit and repeated row names, and
+refused numbered data in the order of the fit whose row numbers are not the fit's (`fitWLS()` ignored
+`data`). A second formula, the `var_formula` of the Cook-Weisberg test, of the
+variance form test and of `fitWLS()`, and the `against` of the variance form test, is evaluated on the
+confirmed rows of `data`, or, without `data`, on the model frame; a variable that neither holds is refused,
+where it was found in the workspace.
 The Goldfeld-Quandt, Szroeter and Harrison-McCabe tests read their `order_by`, Glejser's and Park's their
 `variable` and Hartley's and the group tests their `group` from the confirmed rows of `data`, or,
 without `data`, from the model frame when it holds the variable under its own name ("The following variables
@@ -151,7 +161,7 @@ are refused, as by the other tests. They need no `data` for a model that transfo
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
 coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
 `model = FALSE` whose model frame can no longer be rebuilt, unless `data` gives its response and fitted
-values, on which it is then tested (RESET, which builds its context without `data`, refuses it). RESET,
+values, on which it is then tested. RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
 `mgcv::gam()` fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
 fit of its design, until a later step settles which tests take it; the others test it as before 0.16.0. The
