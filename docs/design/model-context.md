@@ -1235,26 +1235,31 @@ such calls are `identical()` to main. And a runner entry that runs another
 test than on main, the test it names where main ran a fallback, carries the
 data.name of that test (`identity_data_name_change()`).
 
-Increment 7: 25,497 calls on 356 cells, the 5 cells of Harrison-McCabe's rank,
-the 8 cells of the follow-up of N2 and the examples of twenty-eight help
-pages, of which 24,735 identical, 762 allowed changes (386 errors that become
-values, 176 values that change, 145 messages, 55 new refusals) and 0
-unexpected, every one of them a call of the three streaming tests or of the
-runner that streams them; of the 4,062 streaming calls, 3,300 are
-`identical()` to `main`. The 562 changes to a value are each verified against
-a reference: 432 against the call on the cell they reproduce, 26 against the
-fit with the column of the term computed beforehand, and 104 through both.
-The 176 values that change are 66 of the tests themselves, B6 and B5 on the
-cells of the median in chunks of 7 and 40 and on the fit that dropped rows,
-and N17 on the `gam` fits given their data shuffled, and 110 of the runner,
-which put a fallback under the names of the tests where they stopped (White's
-test without cross products, the NCV test under `breusch_pagan` and
-`koenker`) and runs them; the 55 new refusals are those of the edited fit
-(M8, 44) and of the `model = FALSE` fit given a shuffled tibble ("frame",
-11). Of the 145 messages, 81 are the refusal of collinear terms by White's
-streaming test (N3), 55 M7 and 9 the frame message. The 340 `poly()` calls
-that `main` computes on the stored design are `identical()` to it, and the
-warnings are those of `main` on every call.
+Increment 7, against `main` with increment 6 (e05a568): 33,339 calls on 361
+cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
+N2 and the examples of thirty-nine help pages, of which 32,577 identical, 762
+allowed changes (378 errors that become values, 184 values that change, 145
+messages, 55 new refusals) and 0 unexpected, every one of them a call of the
+three streaming tests or of the runner that streams them; of the 4,117
+streaming calls, 3,355 are `identical()` to `main`. The 562 changes to a value
+are each verified against a reference: 432 against the call on the cell they
+reproduce, 26 against the fit with the column of the term computed
+beforehand, and 104 through both. The 184 values that change are 66 of the
+tests themselves, B6 and B5 on the cells of the median in chunks of 7 and 40
+and on the fit that dropped rows, and N17 on the `gam` fits given their data
+shuffled, and 118 of the runner, which put a fallback under the names of the
+tests where they stopped (White's test without cross products, the NCV test
+under `breusch_pagan` and `koenker`) and runs them; the 55 new refusals are
+those of the edited fit (M8, 44) and of the `model = FALSE` fit given a
+shuffled tibble ("frame", 11). Of the 145 messages, 81 are the refusal of
+collinear terms by White's streaming test (N3), 55 M7 and 9 the frame
+message. The 536 `poly()` calls that `main` computes on the stored design are
+`identical()` to it, and the warnings are those of `main` on every call.
+Against `main` before increment 6 (0fb5138), on 356 cells: 25,497 calls,
+24,735 identical, the same 762 allowed (386 errors that become values, 176
+values that change) and 0 unexpected; the 8 calls that differ in kind are the
+runner on numbered data in the order of the fit (B14), which stopped there
+and, with decision 31, puts the NCV fallback under the names of the tests.
 
 ## Test matrix and oracles
 
