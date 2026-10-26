@@ -630,7 +630,7 @@ Also, for the three:
     12.32 (p = 0.031), the value of `performWhiteTest()`. The complete rows of a
     fit with `na.omit` numbered again, and the tibble in the order of the fit of
     a fit to named data, such as `dplyr::as_tibble(mtcars)`, stopped with
-    "Missing rows: 32" or "Missing rows: Mazda RX4, Mazda RX4 Wag, Datsun 710";
+    "Missing rows: 32" or "Missing rows: Mazda RX4, Mazda RX4 Wag, ...";
     they give the value on the rows of the fit.
 - A multivariate `lm` is refused with "... needs a model with one response;
     `model` has 2.", where they stopped with "'length = 4' in coercion to
