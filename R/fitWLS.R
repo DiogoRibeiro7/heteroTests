@@ -143,12 +143,15 @@ fitWLS <- function(model, data = NULL, var_formula = NULL,
   # it (decision 31). With `var_formula` the variables of the variance model
   # are read at the rows it confirmed; before 0.16.0 they were matched by row
   # name, or, when no name matched, by position, unchecked (B9). Without
-  # `var_formula`, `data` is not read; before, it was not checked either.
+  # `var_formula`, `data` is not read; before, it was not checked either, and
+  # a `data` that is not a data frame is refused with the message of every
+  # test ("`data` in fitWLS() must be a data frame or NULL."), where it was
+  # ignored. With `var_formula`, the checks of 0.15.0 come first, with their
+  # messages (rcheck_wls_data()).
   if (inherits(var_formula, "formula") && length(var_formula) == 2L && !is.null(data)) {
     rcheck_wls_data(model, data)
   }
-  ctx <- rcontext_second_formula(model, data, list(var_formula), "fitWLS", "fitWLS()",
-                                 check_type = FALSE)
+  ctx <- rcontext_second_formula(model, data, list(var_formula), "fitWLS", "fitWLS()")
   rweighted_refit(model, rfit_variance_function(model, data, var_formula, form, ctx = ctx),
                   ctx = ctx)
 }

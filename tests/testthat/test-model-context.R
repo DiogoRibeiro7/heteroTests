@@ -1845,6 +1845,65 @@ test_that("a variable of a second formula is not read from the workspace (R3)", 
                    coef(fitWLS(m, d, var_formula = ~ log(x1) + I(x2^2))))
 })
 
+test_that("a constant of a second formula is evaluated as R evaluates it", {
+  # From the review of increment 6: R3 and decision 9 concern variables, with
+  # one value per observation and so an order; a value of length one, such as
+  # `k` in `~ I(hp^k)` or `pi`, is a constant, found in the environment of the
+  # formula as eval() finds it, as before 0.16.0 (rformula_constants()). The
+  # Cook-Weisberg test gives car::ncvTest(m, ~ I(hp^2)), 0.5496 (p = 0.458),
+  # and, given `data`, where it refused `k` as a variable `data` lacked. A
+  # value of any other length is a variable, and is still refused.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  m <- lm(mpg ~ wt + hp, data = mtcars)
+  k <- 2
+  squared <- performCookWeisbergTest(m, var_formula = ~ I(hp^2))
+  expect_equal(unname(squared$statistic), 0.549586699, tolerance = 1e-8)
+  expect_identical(performCookWeisbergTest(m, var_formula = ~ I(hp^k))$statistic,
+                   squared$statistic)
+  expect_identical(performCookWeisbergTest(m, mtcars, var_formula = ~ I(hp^k))$statistic,
+                   squared$statistic)
+  expect_identical(performVarianceFormTest(m, var_formula = ~ I(hp^k))$statistic,
+                   performVarianceFormTest(m, var_formula = ~ I(hp^2))$statistic)
+  expect_identical(performVarianceFormTest(m, mtcars, against = ~ I(hp^k))$statistic,
+                   performVarianceFormTest(m, mtcars, against = ~ I(hp^2))$statistic)
+  expect_identical(coef(fitWLS(m, var_formula = ~ I(hp^k))),
+                   coef(fitWLS(m, var_formula = ~ I(hp^2))))
+  # pi, a constant of base R.
+  expect_equal(unname(performCookWeisbergTest(m, var_formula = ~ hp + I(pi * hp))$statistic),
+               1.02417975, tolerance = 1e-8)
+  expect_equal(unname(coef(fitWLS(m, mtcars, var_formula = ~ I(pi * hp)))),
+               c(36.785952, -3.792354, -0.030690295), tolerance = 1e-6)
+  # The functions of the formula are not variables.
+  expect_s3_class(performCookWeisbergTest(m, var_formula = ~ log(hp)), "htest")
+  # A vector of the workspace, of length n or any other length above one, is
+  # a variable: refused without `data` (M1) and with `data` that lack it.
+  hp_rev <- rev(mtcars$hp)
+  two <- c(1, 2)
+  for (f in list(~ hp_rev, ~ I(hp * two))) {
+    v <- all.vars(f)[length(all.vars(f))]
+    expect_error(performCookWeisbergTest(m, var_formula = f),
+                 sprintf("missing from the model frame of `model`: %s.", v), fixed = TRUE)
+    expect_error(fitWLS(m, var_formula = f),
+                 sprintf("missing from the model frame of `model`: %s.", v), fixed = TRUE)
+    expect_error(performVarianceFormTest(m, mtcars, var_formula = f),
+                 sprintf("missing from input data: %s.", v), fixed = TRUE)
+  }
+})
+
+test_that("fitWLS() refuses a data that is not a data frame, as every test does", {
+  # Decision 31. Without `var_formula` fitWLS() ignored `data`, and returned
+  # the fit for a list or a matrix; it refuses them with the message the
+  # tests give. With `var_formula` it keeps the message of 0.15.0.
+  m <- lm(mpg ~ wt + hp, data = mtcars)
+  for (bad in list(list(a = 1), as.matrix(mtcars))) {
+    expect_error(fitWLS(m, bad), "`data` in fitWLS() must be a data frame or NULL.",
+                 fixed = TRUE)
+  }
+  expect_error(fitWLS(m, list(a = 1), var_formula = ~ hp), "Input data must be a data.frame",
+               fixed = TRUE)
+})
+
 test_that("the tests computed from the model alone refuse a stale model frame (N6)", {
   # Increment 6. A fit with model = FALSE rebuilds its model frame from the
   # data it was fitted on; reordered after the fit, the rebuilt frame no longer

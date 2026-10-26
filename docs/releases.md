@@ -1707,8 +1707,11 @@ with its row names reset, `d <- mtcars; rownames(d) <- NULL` and
 The same holds for the other eight, RESET (6.731 on `d`) and `fitWLS()`,
 which ignored `data`; named data in another order, `d[sample(32), ]`, give the
 value on `d`, as before. A `data` that is neither a data frame nor `NULL` is
-refused as before, with the message "`data` in ... must be a data frame or
-NULL." of each test.
+refused by the nine and RESET as before, with the message "`data` in ... must
+be a data frame or NULL." of each test, and now by `fitWLS()` too, with
+"`data` in fitWLS() must be a data frame or NULL.": without `var_formula` it
+ignored such a `data`, a list or a matrix, and returned the fit (with
+`var_formula` it refused it, and keeps its message).
 
 **A second formula is evaluated on the rows of the fit.** `fitWLS()` and the
 variance form test matched the rows of `data` to the fit by row name, and,
@@ -1751,8 +1754,15 @@ stop with "The following variables are missing from the model frame of
 through `data`: those of `var_formula` are not read from the workspace.", of
 class `heteroTests_model_context_error`, and with `data` that lack it with
 "The following variables are missing from input data: hp2.", as the
-Cook-Weisberg test did. The functions of the formula, such as `log()` or `I()`, are found
-as before, and a variable of the model is read from the model frame.
+Cook-Weisberg test did. The functions of the formula, such as `log()` or
+`I()`, are found as before, a variable of the model is read from the model
+frame, and a constant, a value of length one such as `k <- 2` in
+`~ I(hp^k)` or `pi`, is not a variable and is evaluated as R evaluates it, as
+before: on `lm(mpg ~ wt + hp, data = mtcars)`,
+`performCookWeisbergTest(m, var_formula = ~ I(hp^k))` gives 0.5496
+(p = 0.458), the value of `car::ncvTest(m, ~ I(hp^2))`, and given `mtcars`
+too, where it refused `k` with "The following variables are missing from
+input data: k.".
 
 **A fit with `model = FALSE` whose data changed after the fit is refused by
 the tests computed from the model alone and `fitWLS()`**, with or without
@@ -1778,8 +1788,8 @@ coefficients", "The weights of the model are not those its coefficients were
 fitted with", of class `heteroTests_model_context_error`). They returned the
 values of the fit before the edit: on `lm(mpg ~ wt + qsec, data = mtcars)`
 with 0.5 added to the coefficient of `wt`, Spearman's test 1.445
-(p = 0.159), Harvey's 2.446, the ARCH LM test 3.457, McLeod-Li 10.74,
-Cook-Weisberg 0.591, the spread-level test 0.438, Davidian-Carroll 1.746 and
+(p = 0.159), Harvey's 2.446, the ARCH LM test 3.457 with `lags = 2`,
+McLeod-Li 10.74 with `lags = 5`, Cook-Weisberg 0.591, the spread-level test 0.438, Davidian-Carroll 1.746 and
 the variance form test 1.765. `fitWLS()`, which is not a test, refits such a
 fit as before.
 
@@ -1845,21 +1855,25 @@ Also, for these:
 - Unchanged: every other value of a valid call, every refusal of the guard, the
     zero-weight refusals and the acceptance of a zero weight by RESET, a smooth
     `gam` tested as before by the nine, and every message the test suite pins.
-    A corpus of 28,848 calls, the nine, `fitWLS()`, their second formulas,
-    registered names and `runTimeSeriesTests()`, and every other test, on 361
+    A corpus of 30,344 calls, the nine, `fitWLS()`, their second formulas, with
+    variables and with constants, registered names and `runTimeSeriesTests()`,
+    and every other test, on 361
     combinations of fits, offsets, terms, forms of `data`, dropped rows,
     missing groups and variables, row names, panels and classes, on the five
     fits of the table of the Harrison-McCabe rank and the eight designs of
     White's degrees of freedom, the default battery and the registered names
     through `runHeteroTests()`, and the examples of the thirty-six help pages,
-    returns what it returned before, `identical()`, but for the 3,529 calls of
-    the changes above (`scripts/model-context-identity.R`), 2,510 of them the
-    new refusals in bold, 1,491 of those of data the guard refuses (decision 31)
-    and 576 with a variable of the workspace; each of the 142 that now return a
+    returns what it returned before, `identical()`, but for the 4,090 calls of
+    the changes above (`scripts/model-context-identity.R`), 2,674 of them the new
+    refusals in bold, 1,491 of those of data the guard refuses (decision 31)
+    and 576 with a variable of the workspace; each of the 350 that now return a
     value, or another one, gives the value of its reference, compared on every
     number of the result: the same call on the data frame of the fit, on the fit
-    to the complete rows, or on the data of a `gam` in its order, or the test a
-    route computes. The warnings of the calls of the corpus are those of before.
+    to the complete rows, or on the data of a `gam` in its order, the same
+    formula with the number in place of a constant, or the test a route
+    computes. The warnings of the calls of the corpus are those of before.
+
+### The caches
 
 The caches of `cachedTest()` and of `runHeteroTests(use_cache = TRUE)`, its
 default, and the cache of the checks the tests make first, follow a contract

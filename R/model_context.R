@@ -502,17 +502,13 @@ rstop_missing_from_frame <- function(ctx, absent, also = NULL) {
 #'   anything that is not a formula, such as `against = "squares"`, read
 #'   nothing.
 #' @param fn,test_label As in [rmodel_context()].
-#' @param check_type Logical: refuse `data` that is neither a data frame nor
-#'   `NULL` first, with the message of the tests computed from the model alone
-#'   ([rcheck_data_argument()])? [fitWLS()] passes `FALSE`.
-#' @return The model context.
+#' @return The model context. A `data` that is neither a data frame nor `NULL`
+#'   is refused first, with the message of the tests computed from the model
+#'   alone ([rcheck_data_argument()]).
 #' @keywords internal
 #' @noRd
-rcontext_second_formula <- function(model, data, formulas, fn, test_label = fn,
-                                    check_type = TRUE) {
-  if (isTRUE(check_type)) {
-    rcheck_data_argument(data, fn)
-  }
+rcontext_second_formula <- function(model, data, formulas, fn, test_label = fn) {
+  rcheck_data_argument(data, fn)
   formulas <- Filter(function(f) inherits(f, "formula"), formulas)
   reads <- unique(unlist(lapply(formulas, all.vars), use.names = FALSE))
   if ("." %in% reads && is.data.frame(data)) {
@@ -539,9 +535,13 @@ rcontext_second_formula <- function(model, data, formulas, fn, test_label = fn,
 #' model frame. Every variable the formula names must be a column of them:
 #' without `data`, one the model frame holds under its own name (M1
 #' otherwise, decision 9); with `data`, a column of `data` (the message of
-#' `data` otherwise). Only the functions of the formula, such as `log()` or
-#' `I()`, are then found in its environment. `.` stands for every column, as
-#' before.
+#' `data` otherwise). The functions of the formula, such as `log()` or `I()`,
+#' are then found in its environment, and so are its constants: a name that
+#' is not a column and whose value, found from the environment of the formula
+#' as `eval()` finds it, is an atomic vector of length one, as `k` in
+#' `~ I(hp^k)` or `pi` ([rformula_constants()]). A constant has no rows that
+#' could be read in another order than the fit; a value of any other length is
+#' a variable, and refused. `.` stands for every column, as before.
 #'
 #' @param ctx The model context, built with `data` when it is given.
 #' @param data The `data` argument of the calling function, or `NULL`.
@@ -554,6 +554,7 @@ rcontext_formula_rows <- function(ctx, data, formula, arg = "var_formula") {
   needed <- setdiff(all.vars(formula), ".")
   if (is.null(data)) {
     absent <- setdiff(needed, names(ctx$frame))
+    absent <- setdiff(absent, rformula_constants(formula, absent))
     if (length(absent) > 0L) {
       # "supplied through `data`" is the message of 0.15.0, which the test
       # suite pins.
@@ -573,10 +574,42 @@ rcontext_formula_rows <- function(ctx, data, formula, arg = "var_formula") {
     rstop_model_context("Internal error: `data` was not matched to the observations of the fit.")
   }
   absent <- setdiff(needed, names(data))
+  absent <- setdiff(absent, rformula_constants(formula, absent))
   if (length(absent) > 0L) {
     rvalidateDataInputs(data, required_vars = absent, min_obs = 0L)
   }
   rcontext_rows(ctx, data)
+}
+
+#' The constants of a second formula
+#'
+#' R3 and decision 9 of the design of the model context concern the variables
+#' of a second formula, which have one value per observation and so an order
+#' that can differ from the fit's. A name of the formula that is not a column
+#' of `data` or of the model frame, and whose value, found from the
+#' environment of the formula and its enclosures as `eval()` finds it, is an
+#' atomic vector of length one, such as `k <- 2` in `~ I(hp^k)` or `pi`, is a
+#' constant: it has no rows, and is evaluated as R evaluates it. A function is
+#' not a variable, and `all.vars()` does not name the functions a formula calls
+#' (`I`, `log`); a value of any other length, a vector of the workspace with
+#' one value per observation among them, is a variable.
+#'
+#' @param formula The one-sided formula.
+#' @param names Character vector, the names of the formula that are not
+#'   columns.
+#' @return The names among `names` that are constants.
+#' @keywords internal
+#' @noRd
+rformula_constants <- function(formula, names) {
+  env <- environment(formula)
+  if (is.null(env) || length(names) == 0L) {
+    return(character())
+  }
+  constant <- vapply(names, function(v) {
+    value <- get0(v, envir = env, inherits = TRUE)
+    !is.null(value) && is.atomic(value) && length(value) == 1L
+  }, logical(1))
+  names[constant]
 }
 
 #' Check that the fit reproduces itself

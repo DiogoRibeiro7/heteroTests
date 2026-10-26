@@ -215,6 +215,7 @@ The functions of `R/model_context.R`:
 | `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). |
 | `rcontext_second_formula(model, data, formulas, fn, test_label, check_type)` | The functions that may evaluate a second formula (increment 6): the type of `data` checked first (`rcheck_data_argument()`, whose message the test suite pins; not by `fitWLS()`), then the context built with `data`, the variables of the formulas passed as `reads` (`.` reads every column). The tests computed from the model alone and RESET call `rcheck_data_argument()` and `rmodel_context(model, data, ...)` themselves (decision 31). |
 | `rcontext_formula_rows(ctx, data, formula, arg)` | The rows a second formula is evaluated on (increment 6): the confirmed rows of `data` in fit order (`rcontext_rows()`), or the model frame without its terms; a variable of the formula that `data`, or without `data` the model frame, does not hold is refused, with the message of `data` or M1 (R3, decision 9). |
+| `rformula_constants(formula, names)` | The names of a second formula that are constants (from the review of increment 6): not columns, and of a value, found from the environment of the formula as `eval()` finds it, that is an atomic vector of length one; `rcontext_formula_rows()` lets them through, and refuses every other name it cannot find in `data` or the model frame. |
 | `rstop_missing_from_frame(ctx, absent, also)` | M1, for `rcontext_variables()` and `rcontext_formula_rows()`, which adds that the variables of the formula are not read from the workspace. |
 
 The guard of 0.15.0 is split in two, so that the alignment can run its
@@ -699,7 +700,9 @@ For the functions built on the context in increment 6:
   with "Spearman rank requires `data` to contain the rows used to fit the
   model. Missing rows: 31, 32" and gives 0.951 (p = 0.35), the value on the
   full data. `fitWLS()` without `var_formula` ignored `data`, and matches it
-  too.
+  too, refusing a `data` that is not a data frame, a list or a matrix, with
+  the message of the tests ("`data` in fitWLS() must be a data frame or
+  NULL.", from the review of increment 6), where it returned the fit.
 - **B9.** On numbered data in another order than the fit, rows in front of
   those of the fit, repeated row names, and the tibble of a fit to repeated
   rows when the formula names a variable beyond the model frame, `fitWLS()`
@@ -718,7 +721,13 @@ For the functions built on the context in increment 6:
   `hp2 <- rev(mtcars$hp)`: Cook-Weisberg 1.453, the variance form test 4.374
   (`var_formula`) and 0.266 (`against`), and `fitWLS()` a fit with those
   weights, now refused; `fitWLS()` and the variance form test with `data`
-  that lack `hp2` too, which Cook-Weisberg's test refused already.
+  that lack `hp2` too, which Cook-Weisberg's test refused already. A
+  constant, a value of length one found from the environment of the formula
+  as `eval()` finds it (`k <- 2` in `~ I(hp^k)`, `pi`), is not a variable and
+  is evaluated as R evaluates it (`rformula_constants()`, from the review of
+  increment 6): Cook-Weisberg 0.5496 on `lm(mpg ~ wt + hp, mtcars)` with
+  `~ I(hp^k)`, `car::ncvTest(m, ~ I(hp^2))`, as before without `data`, and
+  given `mtcars`, where it refused `k` as a variable `data` lacked.
 - **N6.** A model frame that `model = FALSE` rebuilt from data changed after
   the fit is refused, with or without `data`, by the nine and `fitWLS()`: on
   `mtcars` reordered by `wt` after the fit, the variance form test returned
@@ -1033,36 +1042,48 @@ the increment, and decision 31 for the calls that read nothing from `data`
 (the nine, their registered names, RESET, `fitWLS()` without `var_formula`
 and the runner with the registered names), on every cell with `data`: new
 refusals and messages, the guard's, and errors that become values, each
-verified.
+verified. From the review of increment 6, the calls of a second formula with
+a constant (`rformula_constants()`): Cook-Weisberg's test with
+`var_formula = ~ I(x1^k)`, `k <- 2` in the recipe, and with `~ I(x1^2)`, its
+reference, the variance form test with `~ I(x1^k)` and `fitWLS()` with
+`~ I(pi * x1)`, with "constant" for the errors that become values of
+Cook-Weisberg's test given `data`, which refused `k` as a variable `data`
+lacked, each verified against the same formula written with the number.
 
-Increment 6, with decision 31: 28,848 calls on 361 cells, the 5 cells of
-Harrison-McCabe's rank, the 8 cells of the follow-up of N2 and the examples
-of thirty-six help pages, of which 25,319 identical, 3,529 allowed changes
-(136 errors that become values, 6 values that change, 2,510 new refusals, 877
-messages) and 0 unexpected, every one of them a call of the functions of the
-increment; the 142 changes to a value are each verified against a reference:
-104 against the call on the cell they reproduce (the data frame of the fit,
-the fit to the complete rows, the data of a `gam` in its order), 12 through
-two cells, and 26 through the test a route computes and one or two cells. Of
-the 2,510 new refusals, 1,613 are of the tests computed from the model alone,
-their routes and `fitWLS()` (1,491 of data the guard refuses, decision 31, on
-the cells of numbered data in another order, rows in front of those of the
-fit and the shuffled tibbles of the classes; M8 75, N6 32, "frame" 14, M7 1),
-321 of the calls of a second formula of `z` or `x1` (B9 304, M8 10, N6 5,
-"frame" 2), and 576 of those of the variable of the workspace (R3, or a
-refusal that comes first). The 136 errors that become values are 90 of
-decision 31 (numbered data in the order of the fit and the data of a `gam`
-that dropped rows, six cells through the fifteen calls that read nothing
-from `data`), 18 of a `model = FALSE` fit whose data are gone given its data
-("frame"), 8 more of "frame" with a second formula, 12 of numbered data in
-the order of the fit with a second formula (B14) and 8 of a `gam` that
-dropped rows (N17); the 6 values that change are those of N17. Of the 877
-messages, 207 are of decision 31, where the guard now refuses first data on
-which the test refused another defect (weights, a zero weight, a smooth
-term) or repeated row names, which it refused as missing rows. The 515
-`poly()` calls with a value that `main` computes on the stored design are
-`identical()` to it. The warnings are those of `main` on every call. Before
-decision 31 the counts were 27,107 identical and 1,741 allowed, of 28,848.
+Increment 6, with decision 31 and its review, against `main` with #158
+(0fb5138): 30,344 calls on 361 cells, the 5 cells of Harrison-McCabe's rank,
+the 8 cells of the follow-up of N2 and the examples of thirty-six help
+pages, of which 26,254 identical, 4,090 allowed changes (341 errors that
+become values, 9 values that change, 2,674 new refusals, 1,066 messages) and 0
+unexpected, every one of them a call of the functions of the increment; the
+350 changes to a value are each verified against a reference: 121 against
+the call on the cell they reproduce (the data frame of the fit, the fit to
+the complete rows, the data of a `gam` in its order), 14 through two cells,
+180 against the same formula written with the number (the constant `k`), and
+35 through the test a route computes and one or two cells. Of the 2,674 new
+refusals, 1,613 are of the tests computed from the model alone, their routes
+and `fitWLS()` (1,491 of data the guard refuses, decision 31, on the cells of
+numbered data in another order, rows in front of those of the fit and the
+shuffled tibbles of the classes; M8 75, N6 32, "frame" 14, M7 1), 485 of the
+calls of a second formula of `z`, `x1` or a constant (B9 on the data the
+guard refuses, M8, N6, "frame"), and 576 of those of the variable of the
+workspace (R3, or a refusal that comes first). The 341 errors that become
+values are 189 of Cook-Weisberg's test with the constant `k` and `data`
+("constant"), 90 of decision 31 (numbered data in the order of the fit and
+the data of a `gam` that dropped rows, six cells through the fifteen calls
+that read nothing from `data`), 18 of a `model = FALSE` fit whose data are
+gone given its data ("frame"), and 44 of a second formula ("frame", B14 and
+N17); the 9 values that change are those of N17. Of the 1,066 messages, 207
+are of decision 31, where the guard now refuses first data on which the test
+refused another defect (weights, a zero weight, a smooth term) or repeated
+row names, which it refused as missing rows. The calls with a constant
+change only in those categories, as the calls of `z` do: no value of `main`
+changes, and Cook-Weisberg's test given `data` gives the value of the same
+formula with the number, where it refused `k`.
+The 530 `poly()` calls with a value that `main` computes on the stored design
+are `identical()` to it. The warnings are those of `main` on every call.
+Before decision 31 the counts were 27,107 identical and 1,741 allowed, of
+28,848, against 217c093, and at decision 31 25,319 and 3,529.
 
 ## Test matrix and oracles
 
@@ -1244,7 +1265,7 @@ that fixes each.
 | 6 | A refusal of the context inside `runHeteroTests()` is final: no fallback test runs under its name. | 2026-10-16 |
 | 7 | The "Removed N observations" warning is kept, and nothing is dropped. | 2026-10-16 |
 | 8 | An extra variable that is `NA` for a fitted row: each test keeps its behaviour, with a message that names the variable and the rows. | 2026-10-18 |
-| 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. | 2026-10-16 |
+| 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. Increment 6 applies it to every second formula (`var_formula`, `against`) and with `data` too: a variable that neither `data`, when it is given, nor, without `data`, the model frame holds is refused (with the message of `data`, or M1), never read from the workspace. A constant, a value of length one such as `k` in `~ I(hp^k)` or `pi`, is not a variable and is evaluated as R evaluates it (from the review of increment 6). | 2026-10-16 |
 | 10 | A grouped run of a `fitWLS()` fit is refused, with a final error class. | 2026-10-18 |
 | 11 | The estimated weights of `fitWLS()` are not written into `(weights)` of its model frame, since the guard would then refuse every `fitWLS()` fit of a weighted model given `data`. | 2026-10-18 |
 | 12 | The tests build tibbles with `dplyr::as_tibble()` under `skip_if_not_installed("dplyr")`; dplyr and data.table stay in Suggests. | 2026-10-18 |

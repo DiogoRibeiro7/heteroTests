@@ -250,6 +250,24 @@ identity_extra_recipes <- list(
   `performVarianceFormTest(var_formula = ~ zw)` = function(m, d) {
     zw <- identity_workspace_z(m)
     performVarianceFormTest(m, d, var_formula = ~ zw)
+  },
+  # From the review of increment 6: a constant of the workspace, `k`, or of
+  # base R, `pi`, is not a variable (rformula_constants()), and is evaluated
+  # as R evaluates it; Cook-Weisberg's test with `k` is verified against the
+  # same formula written with 2.
+  `performCookWeisbergTest(var_formula = ~ I(x1^k))` = function(m, d) {
+    k <- 2
+    performCookWeisbergTest(m, d, var_formula = ~ I(x1^k))
+  },
+  `performCookWeisbergTest(var_formula = ~ I(x1^2))` = function(m, d) {
+    performCookWeisbergTest(m, d, var_formula = ~ I(x1^2))
+  },
+  `performVarianceFormTest(var_formula = ~ I(x1^k))` = function(m, d) {
+    k <- 2
+    performVarianceFormTest(m, d, var_formula = ~ I(x1^k))
+  },
+  `fitWLS(var_formula = ~ I(pi * x1))` = function(m, d) {
+    identity_wls_numbers(fitWLS(m, d, var_formula = ~ I(pi * x1)))
   }
 )
 # The numbers of a fitWLS() fit: its coefficients and its estimated weights.
@@ -359,8 +377,13 @@ identity_model_alone <- c(
 identity_second_formula <- c(
   "fitWLS(var_formula = ~ z)", "fitWLS(var_formula = ~ x1, form = \"power\")",
   "performCookWeisbergTest(var_formula = ~ z)", "performNCVTest(var_formula = ~ z)",
-  "performVarianceFormTest(var_formula = ~ z)", "performVarianceFormTest(against = ~ z)"
+  "performVarianceFormTest(var_formula = ~ z)", "performVarianceFormTest(against = ~ z)",
+  "performCookWeisbergTest(var_formula = ~ I(x1^k))", "performCookWeisbergTest(var_formula = ~ I(x1^2))",
+  "performVarianceFormTest(var_formula = ~ I(x1^k))", "fitWLS(var_formula = ~ I(pi * x1))"
 )
+# The call with a constant that Cook-Weisberg's test refused with `data`, as a
+# variable `data` lacks ("constant"), and the call it must reproduce.
+identity_constant <- "performCookWeisbergTest(var_formula = ~ I(x1^k))"
 identity_workspace <- c(
   "fitWLS(var_formula = ~ zw)", "performCookWeisbergTest(var_formula = ~ zw)",
   "performVarianceFormTest(var_formula = ~ zw)"
@@ -436,10 +459,14 @@ identity_decision31 <- c(
 # from which they computed the value of the fit, and takes numbered data with
 # one row per observation in the order of the fit, and the data of a gam that
 # dropped rows, which the check of 0.15.0 refused (identity_defects()).
+# From the review of increment 6: "constant", a constant of the workspace in
+# a second formula, which Cook-Weisberg's test refused with `data` as a
+# variable `data` lacks, and evaluates as R does: an error that becomes the
+# value of the same formula written with the number (identity_base_fn()).
 identity_allowed <- list(
   error_to_value = c(
     "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17",
-    "decision31"
+    "decision31", "constant"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
   value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3", "decision31")
@@ -467,7 +494,8 @@ identity_defect_scope <- list(
   szroeter_moments = identity_szroeter_calls,
   B9 = c(identity_second_formula, identity_workspace),
   R3 = c(identity_second_formula, identity_workspace),
-  decision31 = identity_decision31
+  decision31 = identity_decision31,
+  constant = identity_constant
 )
 # A cut() term, whose replicates would compute other breaks than the stored
 # design, is refused by the bootstraps (rdata_reproduces_fit()), as main
@@ -1520,10 +1548,13 @@ identity_base_fn <- function(fn) {
     return("performPesaranTest")
   }
   # Increment 6: the registered tests computed from the model alone.
+  # And the call with a constant, the same formula written with the number.
   registered <- c(
     `registry cook_weisberg` = "performCookWeisbergTest", `registry ncv` = "performNCVTest",
     `registry spread_level` = "performSpreadLevelTest",
-    `registry variance_form` = "performVarianceFormTest"
+    `registry variance_form` = "performVarianceFormTest",
+    `performCookWeisbergTest(var_formula = ~ I(x1^k))` =
+      "performCookWeisbergTest(var_formula = ~ I(x1^2))"
   )
   if (fn %in% names(registered)) {
     return(registered[[fn]])
@@ -1914,6 +1945,11 @@ identity_defects <- function(record, scope = identity_defect_scope) {
     # Decision 8: z missing at an observation of the fit.
     if (identical(record$cell, "variance/z_missing")) {
       defects <- c(defects, "decision8")
+    }
+    # A constant of the workspace, which Cook-Weisberg's test refused with
+    # `data`.
+    if (record$fn %in% identity_constant) {
+      defects <- c(defects, "constant")
     }
   }
   # Decision 31: the calls that read nothing from `data` match it through the
