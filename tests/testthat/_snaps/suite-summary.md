@@ -175,7 +175,7 @@
                     Statistic df df2 p-value  
       white            11.822  5  NA  0.0373 *
       variance_form     1.765  3  26  0.1786  
-      szroeter          1.106 NA  NA  0.1344  
+      szroeter          1.137 NA  NA  0.1278  
       ---
       Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
       

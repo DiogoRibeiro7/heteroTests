@@ -696,19 +696,44 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #'
 #' @return An object of class \code{htest} reporting Szroeter's
 #'   standardised statistic `Q`, the sample size, the underlying rank-weighted
-#'   statistic `h` in `estimate`, and the p-value from the asymptotic normal
-#'   reference distribution.
+#'   statistic `h` in `estimate`, and the p-value from the normal reference
+#'   distribution, with the null mean and variance of `h` given the design.
 #'
 #' @details
 #' After ordering the residuals \eqn{\hat{e}_{(i)}} by `order_by`, the test forms
 #' the rank-weighted average of the squared residuals
 #' \deqn{h = \frac{\sum_{i = 1}^n i \, \hat{e}_{(i)}^2}{\sum_{i = 1}^n \hat{e}_{(i)}^2},}
 #' which is Szroeter's (1978) class of statistics evaluated at the canonical
-#' weights \eqn{h_i = i}. Under homoskedasticity \eqn{h} is centred on the mean
-#' rank \eqn{(n + 1) / 2} with variance \eqn{(n^2 - 1) / (6n)}, so
-#' \deqn{Q = \frac{h - (n + 1) / 2}{\sqrt{(n^2 - 1) / (6n)}}}
-#' is asymptotically standard normal. Variance that grows with `order_by` shifts
-#' weight onto the high ranks and drives \eqn{Q} upwards.
+#' weights \eqn{h_i = i}. Variance that grows with `order_by` shifts weight onto
+#' the high ranks and drives \eqn{h} upwards.
+#'
+#' Since 0.16.0 the null mean and variance of \eqn{h} are those of the design.
+#' Let \eqn{M} be the residual-maker of the design in the order of the test
+#' (the rows \eqn{\sqrt{w_i}\, x_i} on a weighted fit), \eqn{A = \mathrm{diag}(1,
+#' \ldots, n)}, \eqn{k} the rank of the design and \eqn{\nu = n - k}. Under normal
+#' errors of constant variance (given the weights) the residuals make \eqn{h} a
+#' ratio of quadratic forms, \eqn{h = \sum_j \lambda_j z_j^2 / \sum_j z_j^2},
+#' with \eqn{z_j} independent standard normal and \eqn{\lambda_j} the
+#' \eqn{\nu} eigenvalues of \eqn{MAM} on the residual space. The ratio is
+#' independent of its denominator, so its moments are ratios of moments:
+#' \deqn{E\,h = \frac{\mathrm{tr}(MA)}{\nu} = \frac{n (n + 1) / 2 - \sum_i i\, l_{(i)}}{\nu},
+#'   \qquad \mathrm{Var}\,h = \frac{2\, (\nu\, \mathrm{tr}(MAMA) - \mathrm{tr}(MA)^2)}{\nu^2 (\nu + 2)},}
+#' with \eqn{l_{(i)}} the leverages in the order of the test and
+#' \eqn{\mathrm{tr}(MAMA) = \sum_i i^2 - 2 \sum_i i^2 l_{(i)} + \|Q_1' A Q_1\|_F^2},
+#' \eqn{Q_1} an orthonormal basis of the design, so that no eigenvalue is
+#' computed and the cost is \eqn{O(n k^2)}. The test refers
+#' \deqn{Q = \frac{h - E\,h}{\sqrt{\mathrm{Var}\,h}}}
+#' to the standard normal distribution. The moments are derived here, by the
+#' argument that gives those of the Durbin-Watson statistic, and are not taken
+#' from Szroeter (1978). Without regressors they are \eqn{(n + 1) / 2} and
+#' \eqn{(n^2 - 1) / (6 (n + 2))}. Before 0.16.0 the test used \eqn{(n + 1) / 2}
+#' and \eqn{(n^2 - 1) / (6n)}, Szroeter's asymptotic moments, whatever the
+#' design: on a weighted fit whose leverage falls along the ordering the mean
+#' of \eqn{h} is above \eqn{(n + 1) / 2} (by about 0.44 in the design of the
+#' validation below, at every \eqn{n}), and the test rejected too often. The
+#' statistic \eqn{h} is unchanged; \eqn{Q} and the p-value change for every
+#' fit, on `lm(mpg ~ wt + qsec, mtcars)` ordered by `wt` from -0.6494 and
+#' 0.7420 to -0.6626 and 0.7462.
 #'
 #' The residuals and weights are those of the fit, and `order_by` is read from
 #' the rows of `data` that hold its observations (the model context, since
@@ -737,12 +762,28 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' refused both ("Missing rows").
 #'
 #' @section Validation:
-#' The statistic and its null variance are checked against an independent
-#' reconstruction of Szroeter (1978) in
-#' `tests/testthat/test-pass-a-reference.R`. Releases before 0.7.0 divided
+#' The statistic and its null moments are checked against an independent
+#' reconstruction from the full residual-maker in
+#' `tests/testthat/test-pass-a-reference.R`, and the moments against the
+#' eigenvalues of \eqn{MAM} to `1e-13`. Releases before 0.7.0 divided
 #' the centred statistic by a further \eqn{\sqrt{n}}, shrinking \eqn{Q} by a
 #' factor of roughly \eqn{2 / \sqrt{n}} and leaving the test with essentially no
 #' power against any alternative; see `NEWS.md`.
+#'
+#' `inst/validation/szroeter-design-null-size.R` tested the samples of
+#' `inst/validation/harrison-mccabe-size-power.R`, `lm(y ~ x1 + x2)` ordered by
+#' `x1`, at 5000 replications per cell. With Gaussian errors the test rejected
+#' a true null hypothesis at the 5% level 0.048, 0.050 and 0.049 of the time at
+#' 40, 100 and 400 observations, and 0.049, 0.047 and 0.050 on a correctly
+#' weighted fit (weights \eqn{1 / x_1^2}), all inside the release gate's
+#' interval, 0.042 to 0.058; with the moments of 0.15.0 it rejected 0.044, 0.048
+#' and 0.049, and on the weighted fit 0.067, 0.056 and 0.055. Its moments
+#' agreed with those of 100,000 simulated samples of one design of each size,
+#' variances within 1%. The exact null distribution of \eqn{h} given the design,
+#' from the eigenvalues by Imhof's (1961) method, gave the same rates within
+#' 0.0006, at a cost of \eqn{O(n^3)} per call. Under \eqn{t_5} errors no version
+#' holds the level (0.10 to 0.15): the null assumes normal errors, and
+#' [performGlejserTest()] with `robust = TRUE` is the test to use there.
 #'
 #' @references
 #' Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
@@ -751,6 +792,10 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #'
 #' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
 #' University Press. Section 5.4 outlines the Szroeter test.
+#'
+#' Imhof, J. P. (1961). Computing the distribution of quadratic forms in
+#' normal variables. *Biometrika, 48*(3-4), 419--426.
+#' \doi{10.1093/biomet/48.3-4.419}
 #'
 #' @section Supported models:
 #' It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
@@ -766,7 +811,10 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' which tests take such a fit; since 0.16.0 its observations are matched to the
 #' rows of `data` by the row names of its model frame. Before, they were matched
 #' by position, since the residuals of a `gam` carry no names, and `data` with
-#' the rows of the fit in another order gave a wrong value.
+#' the rows of the fit in another order gave a wrong value. The null moments of
+#' a `gam` with smooth terms are those of its design as an unpenalised
+#' least-squares fit, with the rank of that design, as
+#' [performHarrisonMcCabeTest()] takes its null distribution.
 #' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
@@ -873,12 +921,35 @@ performSzroeterTest <- function(model, data = NULL, order_by,
   ranks <- seq_len(n)
   h_stat <- sum(ranks * e_ordered^2) / sum(e_ordered^2)
 
-  # Under homoskedasticity h has mean (n + 1) / 2 (the mean rank) and variance
-  # (n^2 - 1) / (6 n), giving an asymptotically standard normal Q. Note the
-  # sqrt(n) in the scale factor: h is a weighted mean of the ranks, so its
-  # dispersion grows with n and the centred statistic must NOT be divided by a
-  # further sqrt(n).
-  q_stat <- (h_stat - (n + 1) / 2) / sqrt((n^2 - 1) / (6 * n))
+  # The design of the equivalent unweighted regression, taken as
+  # performHarrisonMcCabeTest() takes it: the design of the fit without the
+  # columns a rank-deficient fit aliased, times sqrt(w) on a weighted fit
+  # (the prior weights of an lm or a Gaussian glm), in the order of the test,
+  # with the rank of the fit (rhmc_rank()). Its residual-maker gives the null
+  # moments of h.
+  design <- rcontext_design(ctx)
+  if (!is.null(ctx$weights)) {
+    design <- sqrt(ctx$weights) * design
+  }
+  if (nrow(design) != n) {
+    stop(
+      sprintf(
+        "%s could not align the model matrix with the residuals (%d rows, %d residuals).",
+        test_label, nrow(design), n
+      ),
+      call. = FALSE
+    )
+  }
+  basis <- qr(design[ord, , drop = FALSE], tol = ctx$qr_tol)
+  moments <- rszroeter_moments(basis, rhmc_rank(ctx, basis))
+
+  # Q standardises h with its mean and variance under normal errors of
+  # constant variance, given the design (rszroeter_moments()). Before 0.16.0
+  # they were (n + 1) / 2 and (n^2 - 1) / (6 n), whatever the design, which on
+  # a weighted fit whose leverage falls along the ordering made the test
+  # liberal (0.067 at the 5% level with 40 observations). The reference is
+  # still the standard normal distribution.
+  q_stat <- (h_stat - moments[["mean"]]) / sqrt(moments[["var"]])
 
   p_value <- switch(
     alternative,
@@ -906,4 +977,50 @@ performSzroeterTest <- function(model, data = NULL, order_by,
     ),
     class = "htest"
   )
+}
+
+#' The null mean and variance of Szroeter's h, given the design
+#'
+#' With \eqn{M} the residual-maker of the design in the order of the test,
+#' \eqn{A = \mathrm{diag}(1, \ldots, n)}, \eqn{k} the rank of the design and
+#' \eqn{\nu = n - k}, the residuals under normal errors of constant variance
+#' make \eqn{h = \sum_j \lambda_j z_j^2 / \sum_j z_j^2}, with \eqn{z_j}
+#' independent standard normal and \eqn{\lambda_j} the eigenvalues of
+#' \eqn{M A M} on the residual space. The ratio is independent of its
+#' denominator, so its moments are ratios of moments:
+#' \eqn{E h = \mathrm{tr}(MA) / \nu} and
+#' \eqn{\mathrm{Var}\, h = 2 (\nu\, \mathrm{tr}(MAMA) - \mathrm{tr}(MA)^2) /
+#' (\nu^2 (\nu + 2))}. With \eqn{Q_1} an orthonormal basis of the design and
+#' \eqn{h_{(i)}} the leverages in the order of the test,
+#' \eqn{\mathrm{tr}(MA) = n (n + 1) / 2 - \sum_i i\, h_{(i)}} and
+#' \eqn{\mathrm{tr}(MAMA) = \sum_i i^2 - 2 \sum_i i^2 h_{(i)} +
+#' \|Q_1' A Q_1\|_F^2}, so no eigenvalue is computed and the cost is
+#' \eqn{O(n k^2)}. Without regressors the moments are \eqn{(n + 1) / 2} and
+#' \eqn{(n^2 - 1) / (6 (n + 2))}.
+#'
+#' @param basis The QR decomposition of the design, rows in the order of the
+#'   test.
+#' @param k The rank of the design: the columns of `qr.Q(basis)` that span it.
+#' @return A named numeric vector, `mean` and `var`.
+#' @keywords internal
+#' @noRd
+rszroeter_moments <- function(basis, k) {
+  n <- nrow(basis$qr)
+  nu <- n - k
+  ranks <- seq_len(n)
+  q1 <- qr.Q(basis)[, seq_len(k), drop = FALSE]
+  leverage <- rowSums(q1^2)
+  tr_ma <- sum(ranks) - sum(ranks * leverage)
+  tr_mama <- sum(ranks^2) - 2 * sum(ranks^2 * leverage) + sum(crossprod(q1, q1 * ranks)^2)
+  moments <- c(mean = tr_ma / nu, var = 2 * (nu * tr_mama - tr_ma^2) / (nu^2 * (nu + 2)))
+  if (nu < 2L || !all(is.finite(moments)) || moments[["var"]] <= 0) {
+    .std_error(
+      "rassumption_violation",
+      assumption = paste0(
+        "Szroeter test needs a statistic that can vary: with this design and ",
+        "ordering it takes the same value whatever the errors"
+      )
+    )
+  }
+  moments
 }

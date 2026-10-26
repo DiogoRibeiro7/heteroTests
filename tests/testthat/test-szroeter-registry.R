@@ -17,13 +17,24 @@ run_szroeter <- function(model, data) {
 }
 
 # Szroeter (1978) with h_i = i, as in test-pass-a-reference.R, with the
-# residuals of `model` ordered by `key`. order() is stable, so ties keep the
-# order of the rows.
+# residuals of an unweighted `model` ordered by `key`. order() is stable, so
+# ties keep the order of the rows. Since 0.16.0 h is standardised with its
+# null mean and variance given the design, in the same order: with M the
+# residual-maker of the design, A = diag(1, ..., n) and nu = n - k,
+# tr(MA) / nu and 2 (nu tr(MAMA) - tr(MA)^2) / (nu^2 (nu + 2)), computed here
+# from the full n x n matrices. Before, this oracle used (n + 1) / 2 and
+# (n^2 - 1) / (6 n), whatever the design.
 szroeter_q <- function(model, key) {
-  e_ordered <- residuals(model)[order(key)]
+  ord <- order(key)
+  e_ordered <- residuals(model)[ord]
   n <- length(e_ordered)
   h <- sum(seq_len(n) * e_ordered^2) / sum(e_ordered^2)
-  c(h = h, q = (h - (n + 1) / 2) / sqrt((n^2 - 1) / (6 * n)))
+  X <- model.matrix(model)[ord, !is.na(coef(model)), drop = FALSE]
+  nu <- n - qr(X)$rank
+  MA <- (diag(n) - X %*% solve(crossprod(X), t(X))) %*% diag(seq_len(n))
+  P <- sum(diag(MA))
+  Q <- sum(diag(MA %*% MA))
+  c(h = h, q = (h - P / nu) / sqrt(2 * (nu * Q - P^2) / (nu^2 * (nu + 2))))
 }
 
 test_that("the registered Szroeter test orders the residuals by the fitted values", {

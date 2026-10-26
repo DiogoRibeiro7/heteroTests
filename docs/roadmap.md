@@ -724,7 +724,7 @@ after it.
     its help page. The F approximation, closer to the level in the
     small-sample cells, changes the statistic and its parameters, and was not
     adopted.
-- [ ] **`performSzroeterTest()` on a weighted fit.** In
+- [x] **`performSzroeterTest()` on a weighted fit.** In
     `inst/validation/harrison-mccabe-size-power.R`, on a correctly weighted fit
     with Gaussian errors, it rejects 0.067 of the time at 40 observations,
     outside the release gate, and 0.056 and 0.055 at 100 and 400; without
@@ -733,7 +733,18 @@ after it.
     design, and in that weighted design the start of the ordering has the larger
     leverages. Either take its null distribution from the weighted design, as
     `performHarrisonMcCabeTest()` does, or document the restriction on the help
-    page.
+    page. Done in 0.16.0 (decided 2026-10-25: the exact moments, the normal
+    reference kept). `inst/validation/szroeter-design-null-size.R` compared,
+    on the samples of that study, the moments of `h` given the design with
+    the exact null from the eigenvalues: within 0.0006 of each other in every
+    cell, and both inside the gate in all six Gaussian cells. The test now
+    standardises `h` with `E h = tr(M A) / nu` and
+    `Var h = 2 (nu tr(M A M A) - tr(M A)^2) / (nu^2 (nu + 2))` of the weighted,
+    ordered design, taken as `performHarrisonMcCabeTest()` takes it, at a cost
+    of `O(n k^2)`: weighted 0.0494, 0.0470 and 0.0498 at 40, 100 and 400
+    observations, unweighted 0.0482, 0.0498 and 0.0494. `h` is `identical()`;
+    every `Q` and p-value changes (announced in bold), unweighted by a median
+    0.006 at 40 observations and 0.0006 at 400.
 - [ ] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
     already resamples the leverage-standardised residuals i.i.d., which imposes
     the null hypothesis, and multiplies them by `v` on top. In

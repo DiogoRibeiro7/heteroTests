@@ -260,6 +260,34 @@ cells of groups of 10 with 4 or 6 variables), not robust to heavy tails
 (`t5` coordinates, 0.26 to 0.48) and conservative with light tails. The
 statistic keeps its name, `M`, and `parameter` its `df`.
 
+### Szroeter's test
+
+**`performSzroeterTest()` takes the null mean and variance of its statistic
+from the design of the fit, and every `Q` and p-value changes.** The test
+standardised `h`, the rank-weighted average of the squared residuals, with
+`(n + 1) / 2` and `(n^2 - 1) / (6 n)` whatever the design. Under normal
+errors `h` is a ratio of quadratic forms in the residuals, and its exact
+mean and variance given the design are now used: with `M` the residual-maker
+of the design in the order of the test (`sqrt(w) x` on a weighted fit),
+`A = diag(1, ..., n)` and `nu = n - k`, `E h = tr(M A) / nu` and
+`Var h = 2 (nu tr(M A M A) - tr(M A)^2) / (nu^2 (nu + 2))`, computed from the
+leverages and `Q1' A Q1` at a cost of `O(n k^2)`. The reference is still the
+standard normal distribution, and `h`, the `estimate`, is unchanged,
+`identical()`. On a weighted fit whose leverage falls along the ordering the
+test rejected too often: in `inst/validation/szroeter-design-null-size.R`,
+on the samples of `harrison-mccabe-size-power.R`, the correctly weighted fit
+of 40 observations rejected a true null hypothesis at 5% 0.0666 of the time
+and rejects 0.0494, and 0.0560 and 0.0550 at 100 and 400 observations become
+0.0470 and 0.0498; unweighted, 0.0444, 0.0484 and 0.0490 become 0.0482,
+0.0498 and 0.0494. Unweighted p-values move by a median 0.006 at 40
+observations, 0.002 at 100 and 0.0006 at 400 on those samples; weighted, by
+a median 0.051 at 40. The help example
+`performSzroeterTest(lm(mpg ~ wt + qsec, mtcars), mtcars, order_by = "wt")`
+gave Q = -0.6494 (p = 0.7420) and gives Q = -0.6626 (p = 0.7462). The other
+alternatives, the registered `"szroeter"` that `runHeteroTests()` runs, its
+`test_factory` entry and every fit the test accepts change in the same way;
+`method`, `parameter`, `alternative` and `data.name` do not.
+
 ### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
 
 **With `auto_enhance = FALSE`, the Breusch-Pagan entry of

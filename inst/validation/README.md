@@ -77,6 +77,8 @@ test that remains.
 | `fixed-effects-variants-size.csv` | Its output, one row per design and route, with the rates at 1, 5 and 10%, the warnings per call and the refusals. |
 | `box-m-approximations-size.R` | `performBoxMTest()` beside Box's chi-square and F approximations written out, on the same samples: size under Gaussian data with 2, 3 and 5 groups, balanced and not, under `t5` coordinates, and in the design of the full sweep, with the three checked against `biotools::boxM()`, `heplots::boxM()`, `DFA.CANCOR::HOMOGENEITY()` and `stats::bartlett.test()` where they are installed. `Rscript inst/validation/box-m-approximations-size.R`, with `N_MC`, `CHUNK_SIZE`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. It was run on 0.15.0, whose `performBoxMTest()` is the column `package_chisq`; run on 0.16.0 or later, that column is Box's chi-square, and its check of the factor of 0.15.0 fails. |
 | `box-m-approximations-size.csv` | Its output, one row per cell, approximation and level, with Box's constants of the cell. |
+| `szroeter-design-null-size.R` | `performSzroeterTest()` beside two nulls taken from the design, on the samples of `harrison-mccabe-size-power.R`: the moments of `h` given the weighted, ordered design with the normal reference, and the exact null from the eigenvalues by Imhof's method; size with Gaussian and `t5` errors and after a weighted fit at 40, 100 and 400 observations, and the null distribution given one design of each size. `Rscript inst/validation/szroeter-design-null-size.R`, with `N_MC`, `N_NULL`, `CHUNK_SIZE`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. It was run on 0.15.0, whose test is the column `current`; since 0.16.0 the test is `design_moments`, and run on it the column `current` gives those values. |
+| `szroeter-design-null-size.csv` | Its output, one row per block, error distribution, sample size, weights, method and level. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -428,7 +430,10 @@ what the same tests do without weights, so this table cannot tell them apart.
 For Szroeter a larger study does: at 5000 replications, on the weighted design
 of `harrison-mccabe-size-power.R`, it rejects 0.067 of the time at 40
 observations, outside the release gate, and 0.056 and 0.055 at 100 and 400.
-See the section on the Harrison-McCabe test.
+See the section on the Harrison-McCabe test. Since 0.16.0 its null moments
+come from the weighted design, and it rejects 0.049, 0.047 and 0.050 on
+those samples; its row in this table was measured before, and was not run
+again.
 
 The test marked `refused` fits quantile regressions without the weights, and
 stops with an error on a weighted fit instead of testing a different model;
@@ -1485,8 +1490,12 @@ the start of the ordering, where `x1` is small, carry the largest weights and
 have the largest leverages, so their residuals are the smallest and the
 variance appears to rise along the ordering. The Harrison-McCabe and
 Goldfeld-Quandt tests, whose null distributions use the weighted design, are
-at 0.048 to 0.053 in the same cells. The finding is an open item in
-`ROADMAP.md`.
+at 0.048 to 0.053 in the same cells. Since 0.16.0 Szroeter's test takes the
+null mean and variance of its statistic from the design too; on these
+samples it rejects 0.049, 0.047 and 0.050 of the time on the weighted fit,
+and 0.048, 0.050 and 0.049 unweighted (`szroeter-design-null-size.R`, in its
+section below). The rows of `performSzroeterTest()` in the tables above were
+measured with the null of 0.15.0, and were not run again.
 
 ### A consistent test of the variance function: a prototype
 
@@ -2225,6 +2234,43 @@ The author decided on 2026-10-25 to correct the factor and keep the
 chi-square approximation, whose statistic and degrees of freedom the test
 returns, and to give the sizes on the help page. The F approximation would
 have changed the statistic, its parameters and every p-value.
+
+### Szroeter's test with a null from the design
+
+Until 0.15.0 `performSzroeterTest()` standardised `h` with `(n + 1) / 2` and
+`(n^2 - 1) / (6 n)`, whatever the design, and on the weighted fit of the
+Harrison-McCabe study it rejected 0.067 of the time at 40 observations.
+`szroeter-design-null-size.R` tests the samples of that study, drawn from its
+seeds, with two nulls taken from the design: the exact mean and variance of
+`h` under normal errors given the weighted, ordered design, with the normal
+reference (`design_moments`), and the exact distribution of `h` from the
+eigenvalues of `M A M` by Imhof's method (`design_exact`), as
+`performHarrisonMcCabeTest()` computes its own. The column `current`
+reproduces that study's rates for the test of 0.15.0 exactly.
+
+- **Both hold the level under Gaussian errors, with and without weights.**
+  At 40, 100 and 400 observations `design_moments` rejects 0.0482, 0.0498
+  and 0.0494 of the time unweighted and 0.0494, 0.0470 and 0.0498 weighted;
+  `design_exact` is within 0.0006 of it in every cell. The null of 0.15.0
+  gave 0.0444, 0.0484 and 0.0490, and 0.0666, 0.0560 and 0.0550 weighted:
+  on a weighted fit the leverage is largest at the start of the ordering,
+  and `E h` exceeds `(n + 1) / 2` by about 0.44 at every size, so the excess
+  shrank only like `n^(-1/2)`.
+- **The moments are those of `h`.** On 100,000 samples of one design of each
+  size, weighted and not, the simulated mean of `h` is within 1.4 Monte Carlo
+  standard errors of `E h`, and its variance within 1% of `Var h` (ratios
+  0.991 to 1.005), where the fixed mean is 1.1 to 58 standard errors away.
+- **Under `t5` errors no version holds the level** (0.10 to 0.15): the null
+  assumes normal errors.
+
+The author decided on 2026-10-25 to take the moments: within Monte Carlo
+error they do as well as the exact null in every cell, at a cost of
+`O(n k^2)` where the eigenvalues cost `O(n^3)`. Since 0.16.0 the test is
+`design_moments`. The package reproduces that column on all 45,000 samples of
+the size cells: `h` identical, p-values to `6e-15`, and its moments those of
+the eigenvalues to `3e-15` (relative). The rows of `performSzroeterTest()` in
+the full sweep, the weighted fits and the Harrison-McCabe study were measured
+with the null of 0.15.0, and were not run again.
 
 ## History
 

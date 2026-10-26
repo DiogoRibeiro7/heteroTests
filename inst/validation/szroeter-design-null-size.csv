@@ -1,0 +1,136 @@
+"block","errors","n","weights","method","level","replications","rejection_rate","mc_se","in_gate"
+"null distribution","normal",40,"none","current",0.01,100000,0.00888,0.000296667247939505,NA
+"null distribution","normal",40,"none","design_moments",0.01,100000,0.00915,0.000301102598793169,NA
+"null distribution","normal",40,"none","design_exact",0.01,100000,0.00978,0.000311196908725006,NA
+"null distribution","normal",40,"none","current",0.05,100000,0.05046,0.000692197864775672,NA
+"null distribution","normal",40,"none","design_moments",0.05,100000,0.05049,0.000692392662439457,NA
+"null distribution","normal",40,"none","design_exact",0.05,100000,0.05057,0.000692911791644507,NA
+"null distribution","normal",40,"none","current",0.1,100000,0.10256,0.000959382334629943,NA
+"null distribution","normal",40,"none","design_moments",0.1,100000,0.10128,0.000954056400848503,NA
+"null distribution","normal",40,"none","design_exact",0.1,100000,0.10045,0.00095057770592414,NA
+"null distribution","normal",100,"none","current",0.01,100000,0.0093,0.000303537641817288,NA
+"null distribution","normal",100,"none","design_moments",0.01,100000,0.00972,0.000310250247381046,NA
+"null distribution","normal",100,"none","design_exact",0.01,100000,0.00986,0.000312454483085137,NA
+"null distribution","normal",100,"none","current",0.05,100000,0.049,0.000682634602111554,NA
+"null distribution","normal",100,"none","design_moments",0.05,100000,0.04984,0.000688156772835958,NA
+"null distribution","normal",100,"none","design_exact",0.05,100000,0.04974,0.000687502235632729,NA
+"null distribution","normal",100,"none","current",0.1,100000,0.09898,0.00094436729930679,NA
+"null distribution","normal",100,"none","design_moments",0.1,100000,0.10022,0.000949610191604955,NA
+"null distribution","normal",100,"none","design_exact",0.1,100000,0.09981,0.000947881658752821,NA
+"null distribution","normal",400,"none","current",0.01,100000,0.00983,0.000311983510782221,NA
+"null distribution","normal",400,"none","design_moments",0.01,100000,0.00987,0.000312611309776214,NA
+"null distribution","normal",400,"none","design_exact",0.01,100000,0.0099,0.000313081299345713,NA
+"null distribution","normal",400,"none","current",0.05,100000,0.04957,0.000686387755572606,NA
+"null distribution","normal",400,"none","design_moments",0.05,100000,0.04966,0.000686978052051155,NA
+"null distribution","normal",400,"none","design_exact",0.05,100000,0.04964,0.000686846929089735,NA
+"null distribution","normal",400,"none","current",0.1,100000,0.09883,0.000943729998993356,NA
+"null distribution","normal",400,"none","design_moments",0.1,100000,0.0988,0.000943602458665724,NA
+"null distribution","normal",400,"none","design_exact",0.1,100000,0.09873,0.000943304760403551,NA
+"null distribution","normal",40,"exact","current",0.01,100000,0.01381,0.00036904313975469,NA
+"null distribution","normal",40,"exact","design_moments",0.01,100000,0.00926,0.000302890283766251,NA
+"null distribution","normal",40,"exact","design_exact",0.01,100000,0.00993,0.000313550555732245,NA
+"null distribution","normal",40,"exact","current",0.05,100000,0.0685,0.000798797533796894,NA
+"null distribution","normal",40,"exact","design_moments",0.05,100000,0.05085,0.000694724963564719,NA
+"null distribution","normal",40,"exact","design_exact",0.05,100000,0.05112,0.000696467842760884,NA
+"null distribution","normal",40,"exact","current",0.1,100000,0.13129,0.00106795569149661,NA
+"null distribution","normal",40,"exact","design_moments",0.1,100000,0.1008,0.000952047057660492,NA
+"null distribution","normal",40,"exact","design_exact",0.1,100000,0.10021,0.000949568090765481,NA
+"null distribution","normal",100,"exact","current",0.01,100000,0.01235,0.000349248872582289,NA
+"null distribution","normal",100,"exact","design_moments",0.01,100000,0.00999,0.000314486882079364,NA
+"null distribution","normal",100,"exact","design_exact",0.01,100000,0.0102,0.000317741404289715,NA
+"null distribution","normal",100,"exact","current",0.05,100000,0.05996,0.000750764932585427,NA
+"null distribution","normal",100,"exact","design_moments",0.05,100000,0.05019,0.000690441626062624,NA
+"null distribution","normal",100,"exact","design_exact",0.05,100000,0.05026,0.000690897477199041,NA
+"null distribution","normal",100,"exact","current",0.1,100000,0.11742,0.00101800070530427,NA
+"null distribution","normal",100,"exact","design_moments",0.1,100000,0.09953,0.000946698363260442,NA
+"null distribution","normal",100,"exact","design_exact",0.1,100000,0.09933,0.000945851738381867,NA
+"null distribution","normal",400,"exact","current",0.01,100000,0.01215,0.000346444476070842,NA
+"null distribution","normal",400,"exact","design_moments",0.01,100000,0.01047,0.000321875427766706,NA
+"null distribution","normal",400,"exact","design_exact",0.01,100000,0.01051,0.000322483176305369,NA
+"null distribution","normal",400,"exact","current",0.05,100000,0.05693,0.000732727610371003,NA
+"null distribution","normal",400,"exact","design_moments",0.05,100000,0.05024,0.000690767271951994,NA
+"null distribution","normal",400,"exact","design_exact",0.05,100000,0.05024,0.000690767271951994,NA
+"null distribution","normal",400,"exact","current",0.1,100000,0.11174,0.000996263882713812,NA
+"null distribution","normal",400,"exact","design_moments",0.1,100000,0.10121,0.000953763785745716,NA
+"null distribution","normal",400,"exact","design_exact",0.1,100000,0.10115,0.000953512860427168,NA
+"size","normal",40,"none","current",0.01,5000,0.0074,0.00121204290353106,NA
+"size","normal",40,"none","current",0.05,5000,0.0444,0.00291302729132427,TRUE
+"size","normal",40,"none","current",0.1,5000,0.0964,0.00417389602170442,NA
+"size","normal",40,"none","design_moments",0.01,5000,0.0092,0.00135021183523179,NA
+"size","normal",40,"none","design_moments",0.05,5000,0.0482,0.00302908435009658,TRUE
+"size","normal",40,"none","design_moments",0.1,5000,0.1008,0.00425768387741504,NA
+"size","normal",40,"none","design_exact",0.01,5000,0.0094,0.00136467138901642,NA
+"size","normal",40,"none","design_exact",0.05,5000,0.048,0.00302311098043059,TRUE
+"size","normal",40,"none","design_exact",0.1,5000,0.1006,0.00425393088801405,NA
+"size","normal",100,"none","current",0.01,5000,0.0086,0.00130583613060751,NA
+"size","normal",100,"none","current",0.05,5000,0.0484,0.00303504332753257,TRUE
+"size","normal",100,"none","current",0.1,5000,0.0934,0.0041152506606524,NA
+"size","normal",100,"none","design_moments",0.01,5000,0.0092,0.00135021183523179,NA
+"size","normal",100,"none","design_moments",0.05,5000,0.0498,0.00307636018697421,TRUE
+"size","normal",100,"none","design_moments",0.1,5000,0.0952,0.00415058935574215,NA
+"size","normal",100,"none","design_exact",0.01,5000,0.0094,0.00136467138901642,NA
+"size","normal",100,"none","design_exact",0.05,5000,0.0494,0.0030646252625729,TRUE
+"size","normal",100,"none","design_exact",0.1,5000,0.095,0.00414668542332307,NA
+"size","normal",400,"none","current",0.01,5000,0.01,0.00140712472794703,NA
+"size","normal",400,"none","current",0.05,5000,0.049,0.00305283474822991,TRUE
+"size","normal",400,"none","current",0.1,5000,0.101,0.00426143168430517,NA
+"size","normal",400,"none","design_moments",0.01,5000,0.01,0.00140712472794703,NA
+"size","normal",400,"none","design_moments",0.05,5000,0.0494,0.0030646252625729,TRUE
+"size","normal",400,"none","design_moments",0.1,5000,0.1014,0.00426891180513254,NA
+"size","normal",400,"none","design_exact",0.01,5000,0.01,0.00140712472794703,NA
+"size","normal",400,"none","design_exact",0.05,5000,0.0494,0.0030646252625729,TRUE
+"size","normal",400,"none","design_exact",0.1,5000,0.1012,0.00426517432234604,NA
+"size","t5",40,"none","current",0.01,5000,0.04,0.0027712812921102,NA
+"size","t5",40,"none","current",0.05,5000,0.0956,0.00415838045397484,FALSE
+"size","t5",40,"none","current",0.1,5000,0.1538,0.00510187338141589,NA
+"size","t5",40,"none","design_moments",0.01,5000,0.0428,0.00286245209566903,NA
+"size","t5",40,"none","design_moments",0.05,5000,0.1018,0.00427637135899117,FALSE
+"size","t5",40,"none","design_moments",0.1,5000,0.1612,0.00520027999246194,NA
+"size","t5",40,"none","design_exact",0.01,5000,0.0436,0.00288787257336608,NA
+"size","t5",40,"none","design_exact",0.05,5000,0.1014,0.00426891180513254,FALSE
+"size","t5",40,"none","design_exact",0.1,5000,0.16,0.00518459255872629,NA
+"size","t5",100,"none","current",0.01,5000,0.0558,0.00324611644892786,NA
+"size","t5",100,"none","current",0.05,5000,0.1292,0.00474357165013874,FALSE
+"size","t5",100,"none","current",0.1,5000,0.1888,0.00553452003339043,NA
+"size","t5",100,"none","design_moments",0.01,5000,0.057,0.00327874976172321,NA
+"size","t5",100,"none","design_moments",0.05,5000,0.1304,0.00476226500732582,FALSE
+"size","t5",100,"none","design_moments",0.1,5000,0.191,0.0055591186351795,NA
+"size","t5",100,"none","design_exact",0.01,5000,0.057,0.00327874976172321,NA
+"size","t5",100,"none","design_exact",0.05,5000,0.1304,0.00476226500732582,FALSE
+"size","t5",100,"none","design_exact",0.1,5000,0.191,0.0055591186351795,NA
+"size","t5",400,"none","current",0.01,5000,0.0754,0.00373402838767999,NA
+"size","t5",400,"none","current",0.05,5000,0.1534,0.00509643875662212,FALSE
+"size","t5",400,"none","current",0.1,5000,0.209,0.00575011304236708,NA
+"size","t5",400,"none","design_moments",0.01,5000,0.0754,0.00373402838767999,NA
+"size","t5",400,"none","design_moments",0.05,5000,0.1542,0.00510729595774516,FALSE
+"size","t5",400,"none","design_moments",0.1,5000,0.2092,0.00575213629880238,NA
+"size","t5",400,"none","design_exact",0.01,5000,0.0756,0.00373857298979169,NA
+"size","t5",400,"none","design_exact",0.05,5000,0.1542,0.00510729595774516,FALSE
+"size","t5",400,"none","design_exact",0.1,5000,0.2092,0.00575213629880238,NA
+"size, weighted fit","normal",40,"exact","current",0.01,5000,0.0118,0.00152713850059515,NA
+"size, weighted fit","normal",40,"exact","current",0.05,5000,0.0666,0.00352603006226549,FALSE
+"size, weighted fit","normal",40,"exact","current",0.1,5000,0.1266,0.00470260438480636,NA
+"size, weighted fit","normal",40,"exact","design_moments",0.01,5000,0.0088,0.00132079975772257,NA
+"size, weighted fit","normal",40,"exact","design_moments",0.05,5000,0.0494,0.0030646252625729,TRUE
+"size, weighted fit","normal",40,"exact","design_moments",0.1,5000,0.1022,0.00428381045332307,NA
+"size, weighted fit","normal",40,"exact","design_exact",0.01,5000,0.0094,0.00136467138901642,NA
+"size, weighted fit","normal",40,"exact","design_exact",0.05,5000,0.05,0.00308220700148449,TRUE
+"size, weighted fit","normal",40,"exact","design_exact",0.1,5000,0.1016,0.00427264414619331,NA
+"size, weighted fit","normal",100,"exact","current",0.01,5000,0.012,0.00153987012439361,NA
+"size, weighted fit","normal",100,"exact","current",0.05,5000,0.056,0.00325158422926425,TRUE
+"size, weighted fit","normal",100,"exact","current",0.1,5000,0.1104,0.00443197111903947,NA
+"size, weighted fit","normal",100,"exact","design_moments",0.01,5000,0.009,0.00133558975737312,NA
+"size, weighted fit","normal",100,"exact","design_moments",0.05,5000,0.047,0.00299302522541993,TRUE
+"size, weighted fit","normal",100,"exact","design_moments",0.1,5000,0.0956,0.00415838045397484,NA
+"size, weighted fit","normal",100,"exact","design_exact",0.01,5000,0.009,0.00133558975737312,NA
+"size, weighted fit","normal",100,"exact","design_exact",0.05,5000,0.047,0.00299302522541993,TRUE
+"size, weighted fit","normal",100,"exact","design_exact",0.1,5000,0.095,0.00414668542332307,NA
+"size, weighted fit","normal",400,"exact","current",0.01,5000,0.0126,0.00157741814367656,NA
+"size, weighted fit","normal",400,"exact","current",0.05,5000,0.055,0.0032241277890307,TRUE
+"size, weighted fit","normal",400,"exact","current",0.1,5000,0.1102,0.00442845255139987,NA
+"size, weighted fit","normal",400,"exact","design_moments",0.01,5000,0.011,0.00147505932084103,NA
+"size, weighted fit","normal",400,"exact","design_moments",0.05,5000,0.0498,0.00307636018697421,TRUE
+"size, weighted fit","normal",400,"exact","design_moments",0.1,5000,0.1004,0.0042501727023734,NA
+"size, weighted fit","normal",400,"exact","design_exact",0.01,5000,0.0112,0.00148825804214189,NA
+"size, weighted fit","normal",400,"exact","design_exact",0.05,5000,0.0498,0.00307636018697421,TRUE
+"size, weighted fit","normal",400,"exact","design_exact",0.1,5000,0.1004,0.0042501727023734,NA
