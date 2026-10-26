@@ -290,6 +290,32 @@ of freedom, with "Box's M test compares the covariance matrices of two groups
 or more". Data where every group has more observations than variables give
 what they gave, `identical()`; `n_i = p + 1` is computed.
 
+**`performBoxMTest()` refuses a group whose covariance matrix is singular
+with more observations than variables.** A variable that is constant in a
+group, or a linear combination of the others in it, makes the group's
+covariance matrix singular, and the statistic is not defined: with
+`d <- iris[, 1:4]; d[1:50, 4] <- 0.2`, `performBoxMTest(d, iris$Species)`
+returned `Inf` on 20 degrees of freedom (p = 0), and `iris[, 1:4]` with a
+fifth column, the sum of the first two, returned `NaN` with "NaNs produced"
+warnings.
+Both stop, naming the group and the cause:
+
+```text
+Box's M test needs a nonsingular covariance matrix in each group, and that of
+group 'setosa' is singular: the variable 'Petal.Width' is constant in it. Its
+log-determinant is -Inf and the statistic is not defined, whatever the data.
+Leave out the variable, or the combination of variables, that does not vary
+in the group.
+```
+
+or "a variable is a linear combination of the others in it (its 5 variables
+have rank 4)". A group is checked by the rank of its centred data at the
+tolerance of `qr()`, and a log-determinant that under- or overflows on the
+scale of the data, which gave `NaN`, is refused with its own message. On 198
+data sets with nonsingular groups the values are `identical()` to those
+before; a missing value in `data` or in `group` still gives `NA` (the
+roadmap records it).
+
 ### Szroeter's test
 
 **`performSzroeterTest()` takes the null mean and variance of its statistic

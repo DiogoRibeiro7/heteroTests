@@ -40,7 +40,13 @@
 #' an error that names the groups; before, rounding made the statistic a finite
 #' number (133.74, p = 7.7e-19, for a group of three observations of four
 #' variables beside two species of `iris`), a group of one gave `NA` and a
-#' single group `NaN`.
+#' single group `NaN`. With more observations than variables a group's
+#' covariance matrix is still singular when a variable is constant in the
+#' group, or a linear combination of the others in it; the test refuses that
+#' too, naming the group and saying which, where it returned `Inf` (p = 0) or
+#' `NaN` with warnings. A group is checked by the rank of its centred data at
+#' the tolerance of `qr()`. A missing value in `data` or in `group` still
+#' gives `NA`.
 #'
 #' @section Size:
 #' In `inst/validation/box-m-approximations-size.R`, at 5000 replications per
@@ -127,12 +133,13 @@ performBoxMTest <- function(data, group) {
   n <- nrow(data)
   ns <- as.numeric(table(group))
   rboxm_refuse_groups(groups, ns, k)
-  covmats <- lapply(groups, function(gr) {
-    x <- as.matrix(data[group == gr, , drop = FALSE])
-    cov(x)
-  })
+  xs <- lapply(groups, function(gr) as.matrix(data[group == gr, , drop = FALSE]))
+  covmats <- lapply(xs, cov)
   pooled <- Reduce(`+`, Map(function(S, n) (n - 1) * S, covmats, ns)) / (n - g)
-  M <- (n - g) * log(det(pooled)) - sum((ns - 1) * vapply(covmats, function(S) log(det(S)), 0))
+  logdet_groups <- suppressWarnings(vapply(covmats, function(S) log(det(S)), 0))
+  logdet_pooled <- suppressWarnings(log(det(pooled)))
+  rboxm_refuse_singular(groups, xs, logdet_groups, logdet_pooled)
+  M <- (n - g) * logdet_pooled - sum((ns - 1) * logdet_groups)
   # Box's (1949) correction factor c1, with nu_i = n_i - 1 and nu = n - g:
   # (sum 1 / nu_i - 1 / nu) (2 k^2 + 3 k - 1) / (6 (k + 1) (g - 1)). Before
   # 0.16.0 the factor (g - 1) stood in the numerator too, where it cancelled
@@ -151,6 +158,99 @@ performBoxMTest <- function(data, group) {
     ),
     class = "htest"
   )
+}
+
+#' Refuse a group whose covariance matrix is singular
+#'
+#' With more observations than variables a group's covariance matrix can
+#' still be singular: a variable that is constant in the group, or that is a
+#' linear combination of others in it. Its log-determinant is then
+#' \eqn{-\infty}, or `NaN` when rounding leaves the determinant negative, and
+#' the statistic is not defined, whatever the data: before 0.16.0 the test
+#' returned `Inf` on 20 degrees of freedom (p = 0) for `iris` with
+#' `Petal.Width` set to 0.2 in the setosa rows, and `NaN`, with warnings, with
+#' a fifth column the sum of the first two. A group is refused when the rank of
+#' its centred data, from [qr()] at its default tolerance, is below the number
+#' of variables, or when the log-determinant of its covariance matrix, or of
+#' the pooled one, is not finite. Data with a missing value give `NA` as
+#' before, and are not checked here.
+#'
+#' @param groups The levels of the group that have observations.
+#' @param xs The data of each group, as matrices.
+#' @param logdet_groups,logdet_pooled The log-determinants of the covariance
+#'   matrices of the groups and of the pooled one.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rboxm_refuse_singular <- function(groups, xs, logdet_groups, logdet_pooled) {
+  if (any(vapply(xs, anyNA, logical(1)))) {
+    return(invisible(NULL))
+  }
+  p <- ncol(xs[[1L]])
+  variables <- colnames(xs[[1L]])
+  if (is.null(variables)) {
+    variables <- paste0("V", seq_len(p))
+  }
+  for (i in seq_along(groups)) {
+    x <- xs[[i]]
+    rank <- qr(sweep(x, 2L, colMeans(x)))$rank
+    if (rank >= p && is.finite(logdet_groups[[i]])) {
+      next
+    }
+    if (rank >= p) {
+      # Full rank, but det() under- or overflows on the scale of the data.
+      stop(
+        sprintf(
+          paste0(
+            "Box's M test could not compute the log-determinant of the covariance matrix ",
+            "of group '%s': its variables have full rank, and their scale makes the ",
+            "determinant under- or overflow. Rescale the variables."
+          ),
+          groups[[i]]
+        ),
+        call. = FALSE
+      )
+    }
+    constant <- variables[apply(x, 2L, function(v) diff(range(v)) == 0)]
+    why <- if (length(constant) > 0L) {
+      sprintf(
+        "%s %s %s constant in it",
+        if (length(constant) > 1L) "the variables" else "the variable",
+        paste0("'", constant, "'", collapse = ", "),
+        if (length(constant) > 1L) "are" else "is"
+      )
+    } else {
+      sprintf(
+        "a variable is a linear combination of the others in it (its %d variables have rank %d)",
+        as.integer(p), as.integer(rank)
+      )
+    }
+    stop(
+      sprintf(
+        paste0(
+          "Box's M test needs a nonsingular covariance matrix in each group, and that of ",
+          "group '%s' is singular: %s. Its log-determinant is -Inf and the statistic is not ",
+          "defined, whatever the data. Leave out the variable, or the combination of ",
+          "variables, that does not vary in the group."
+        ),
+        groups[[i]], why
+      ),
+      call. = FALSE
+    )
+  }
+  # Nonsingular groups make the pooled matrix nonsingular too: only its scale
+  # can leave its log-determinant not finite.
+  if (!is.finite(logdet_pooled)) {
+    stop(
+      paste0(
+        "Box's M test could not compute the log-determinant of the pooled covariance ",
+        "matrix: the scale of the variables makes the determinant under- or overflow. ",
+        "Rescale the variables."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Refuse groups on which Box's M is not defined

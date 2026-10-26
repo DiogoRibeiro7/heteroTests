@@ -800,6 +800,14 @@ after it.
     classical test is still `performBPTestRobust(studentize = FALSE)`. With
     `auto_enhance = FALSE` the entry changes, from 3.135 (p = 0.2086) to 3.086
     (p = 0.2138) on `lm(mpg ~ wt + qsec, data = mtcars)` (announced in bold).
+- [ ] **`performBoxMTest()` with a missing value in `group` or `data`**
+    returns `NA`: a row whose group is `NA` becomes a row of `NA`s in every
+    group (`data[group == gr, ]`), and a missing value in `data` makes its
+    group's covariance matrix `NA`. Found by the review of #158 (2026-10-26),
+    where the test now refuses the groups on which it is not defined. Either
+    refuse such data with a message that names the rows, or leave the rows
+    out with a warning, as the group tests do ("Removed N observations due
+    to missing values"). Either changes what such calls return.
 - [ ] **`checkModel(<glm>, data, enhanced = TRUE)`** stops with "missing value
     where TRUE/FALSE needed", Gaussian and binomial alike: the enhanced check
     reads the R-squared of `summary()`, which a `glm` does not have. Since 0.15.0

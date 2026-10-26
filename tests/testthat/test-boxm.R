@@ -150,6 +150,43 @@ test_that("performBoxMTest refuses a group with no more observations than variab
                fixed = TRUE)
 })
 
+test_that("performBoxMTest refuses a group whose covariance matrix is singular", {
+  # A constant variable in a group gave Inf on 20 df (p = 0).
+  d <- iris[, 1:4]
+  d[1:50, 4] <- 0.2
+  expect_error(
+    performBoxMTest(d, iris$Species),
+    paste0(
+      "Box's M test needs a nonsingular covariance matrix in each group, and that of ",
+      "group 'setosa' is singular: the variable 'Petal.Width' is constant in it."
+    ),
+    fixed = TRUE
+  )
+  # A column that is a combination of others gave NaN, with warnings.
+  d2 <- iris[, 1:4]
+  d2$dup <- d2[, 1] + d2[, 2]
+  expect_error(
+    performBoxMTest(d2, iris$Species),
+    "a variable is a linear combination of the others in it (its 5 variables have rank 4)",
+    fixed = TRUE
+  )
+  # Nearly, but not exactly, a combination: computed as before.
+  set.seed(4)
+  d3 <- iris[, 1:4]
+  d3$near <- d3[, 1] + d3[, 2] + rnorm(150, sd = 0.1)
+  res <- performBoxMTest(d3, iris$Species)
+  expect_true(is.finite(res$statistic))
+  expect_equal(unname(res$statistic), unname(box_m_by_hand(d3, iris$Species)[["statistic"]]),
+               tolerance = 1e-10)
+  # A missing value still gives NA (ROADMAP).
+  na_data <- iris[, 1:4]
+  na_data[5, 2] <- NA
+  expect_true(is.na(performBoxMTest(na_data, iris$Species)$statistic))
+  na_group <- iris$Species
+  na_group[7] <- NA
+  expect_true(is.na(performBoxMTest(iris[, 1:4], na_group)$statistic))
+})
+
 test_that("performBoxMTest with two groups is unchanged by the correction of 0.16.0", {
   # With two groups the factor of 0.15.0, (g - 1) c1, is c1: the values are
   # those of 0.15.0, which gave 66.8104812066 for two species of iris and
