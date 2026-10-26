@@ -32,8 +32,15 @@
 #'
 #' The groups are the levels of `group` that have observations: a level with
 #' none, as `subset()` leaves on a factor, is dropped (since 0.16.0; before, it
-#' made the result `NA`). A group of one observation has no covariance matrix,
-#' and gives `NA`.
+#' made the result `NA`). There must be at least two of them, and each group
+#' needs more observations than there are variables, \eqn{n_i > p}: a group
+#' of \eqn{n_i \le p} observations has a singular covariance matrix (a group of
+#' one has none), whose log-determinant is \eqn{-\infty}, and the statistic is
+#' not defined, whatever the data. Since 0.16.0 the test refuses such data with
+#' an error that names the groups; before, rounding made the statistic a finite
+#' number (133.74, p = 7.7e-19, for a group of three observations of four
+#' variables beside two species of `iris`), a group of one gave `NA` and a
+#' single group `NaN`.
 #'
 #' @section Size:
 #' In `inst/validation/box-m-approximations-size.R`, at 5000 replications per
@@ -76,7 +83,9 @@
 #' `DFA.CANCOR` on ten data sets, and measures the sizes above.
 #'
 #' @param data A numeric data frame or matrix.
-#' @param group A factor indicating group membership.
+#' @param group A factor indicating group membership. At least two groups must
+#'   have observations, and each of them more observations than `data` has
+#'   variables.
 #'
 #' @return An object of class \code{htest}: `statistic`, named `M`, is Box's
 #'   corrected statistic \eqn{M (1 - c_1)}; `parameter`, named `df`, its
@@ -110,18 +119,18 @@ performBoxMTest <- function(data, group) {
   # The groups are the levels observed in the rows tested. A level with no
   # observation, as subset() leaves on a factor, gave a covariance matrix of
   # NAs and an NA result before 0.16.0; it is dropped, so the test is that of
-  # the groups observed. A group of one observation, or of fewer
-  # observations than variables, is kept and treated as before.
+  # the groups observed.
   group <- droplevels(as.factor(group))
   k <- ncol(data)
   groups <- levels(group)
   g <- length(groups)
   n <- nrow(data)
+  ns <- as.numeric(table(group))
+  rboxm_refuse_groups(groups, ns, k)
   covmats <- lapply(groups, function(gr) {
     x <- as.matrix(data[group == gr, , drop = FALSE])
     cov(x)
   })
-  ns <- as.numeric(table(group))
   pooled <- Reduce(`+`, Map(function(S, n) (n - 1) * S, covmats, ns)) / (n - g)
   M <- (n - g) * log(det(pooled)) - sum((ns - 1) * vapply(covmats, function(S) log(det(S)), 0))
   # Box's (1949) correction factor c1, with nu_i = n_i - 1 and nu = n - g:
@@ -141,5 +150,68 @@ performBoxMTest <- function(data, group) {
       data.name = data_name
     ),
     class = "htest"
+  )
+}
+
+#' Refuse groups on which Box's M is not defined
+#'
+#' Box's M compares the covariance matrices of two groups or more, and needs
+#' each of them to be nonsingular. A group of \eqn{n_i \le p} observations of
+#' \eqn{p} variables has a singular covariance matrix (of rank at most
+#' \eqn{n_i - 1}), or none at all for one observation, so its log-determinant
+#' is \eqn{-\infty} and the statistic is not defined, whatever the data.
+#' Before 0.16.0 rounding made it a finite number, 133.74 (p = 7.7e-19) for a
+#' group of three observations of four variables, a group of one gave `NA`,
+#' and one group with observations gave `NaN` on 0 degrees of freedom. All
+#' are refused, with the plain error of a test's own refusal.
+#'
+#' @param groups The levels of the group that have observations.
+#' @param ns Their numbers of observations.
+#' @param p The number of variables.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rboxm_refuse_groups <- function(groups, ns, p) {
+  if (length(groups) < 2L) {
+    stop(
+      sprintf(
+        paste0(
+          "Box's M test compares the covariance matrices of two groups or more, ",
+          "and `group` has %s with observations%s."
+        ),
+        if (length(groups) == 1L) "one level" else "no level",
+        if (length(groups) == 1L) sprintf(" ('%s')", groups) else ""
+      ),
+      call. = FALSE
+    )
+  }
+  small <- ns <= p
+  if (!any(small)) {
+    return(invisible(NULL))
+  }
+  observations <- function(m) {
+    sprintf("%d observation%s", as.integer(m), if (m == 1) "" else "s")
+  }
+  named <- sprintf("'%s' (%s)", groups[small], vapply(ns[small], observations, ""))
+  listed <- if (length(named) > 1L) {
+    paste(paste(named[-length(named)], collapse = ", "), "and", named[length(named)])
+  } else {
+    named
+  }
+  stop(
+    sprintf(
+      paste0(
+        "Box's M test needs more observations than variables in each group: with %d ",
+        "variable%s, group%s %s %s no more. The covariance matrix of such a group is ",
+        "singular%s, so its log-determinant is -Inf and the statistic is not defined, ",
+        "whatever the data. Each group needs at least %d observations; use more data, ",
+        "fewer variables or fewer groups."
+      ),
+      as.integer(p), if (p == 1) "" else "s", if (sum(small) > 1L) "s" else "",
+      listed, if (sum(small) > 1L) "have" else "has",
+      if (any(ns[small] == 1)) " (a group of one observation has none)" else "",
+      as.integer(p) + 1L
+    ),
+    call. = FALSE
   )
 }

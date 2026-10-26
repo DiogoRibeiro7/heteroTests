@@ -12,7 +12,7 @@ and \eqn{M (1 - c_1)}{M (1 - c1)} is referred to a chi-square distribution with 
 
 Before 0.16.0 the correction factor was \eqn{(g - 1) c_1}{(g - 1) c1}: the same for two groups, whose values do not change, and too large for three or more, which made the statistic too small and the test conservative. The example on \code{iris} gave 135.2229.
 
-The groups are the levels of \code{group} that have observations: a level with none, as \code{subset()} leaves on a factor, is dropped (since 0.16.0; before, it made the result \code{NA}). A group of one observation has no covariance matrix, and gives \code{NA}.}
+The groups are the levels of \code{group} that have observations: a level with none, as \code{subset()} leaves on a factor, is dropped (since 0.16.0; before, it made the result \code{NA}). There must be at least two of them, and each group needs more observations than there are variables, \eqn{n_i > p}{n_i > p}: a group of \eqn{n_i \le p}{n_i <= p} observations has a singular covariance matrix (a group of one has none), whose log-determinant is \eqn{-\infty}{-Inf}, and the statistic is not defined, whatever the data. Since 0.16.0 the test refuses such data with an error that names the groups; before, rounding made the statistic a finite number (133.74, p = 7.7e-19, for a group of three observations of four variables beside two species of \code{iris}), a group of one gave \code{NA} and a single group \code{NaN}.}
 \section{Size}{
 In \code{inst/validation/box-m-approximations-size.R}, at 5000 replications per cell and the 5\% level, with
 \eqn{g} = 2, 3 or 5 groups of 10 to 100 observations of \eqn{p} = 1 to 10 variables, the test held its level
@@ -47,7 +47,7 @@ with \code{biotools}, \code{heplots} and \code{DFA.CANCOR} on ten data sets, and
 \usage{performBoxMTest(data, group)}
 \arguments{
   \item{data}{A numeric data frame or matrix.}
-  \item{group}{A factor indicating group membership.}
+  \item{group}{A factor indicating group membership. At least two groups must have observations, and each of them more observations than \code{data} has variables.}
 }
 \value{An object of class \code{htest}: \code{statistic}, named \code{M}, is Box's corrected statistic
 \eqn{M (1 - c_1)}{M (1 - c1)}; \code{parameter}, named \code{df}, its degrees of freedom \eqn{f_1}{f1};

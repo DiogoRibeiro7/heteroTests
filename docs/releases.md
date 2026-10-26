@@ -268,7 +268,30 @@ row, whose covariance matrix was all `NA`:
 freedom, and gives the test of the two species observed, 66.8105 on 10
 (p = 1.8e-10), the value of `droplevels(sub)` and of `biotools::boxM()`. A
 character group, which has no empty level, and a factor without one give
-what they gave, `identical()`; a group of one observation still gives `NA`.
+what they gave, `identical()`.
+
+**`performBoxMTest()` refuses a group with no more observations than
+variables, and data with fewer than two groups.** A group of `n_i <= p`
+observations of `p` variables has a singular covariance matrix, whose
+log-determinant is `-Inf`, and the statistic is not defined, whatever the
+data; rounding made it a finite number. On
+`d <- rbind(subset(iris, Species != "virginica"), iris[101:103, ])`,
+`performBoxMTest(d[, 1:4], d$Species)` gave 133.74 on 20 degrees of freedom
+(p = 7.7e-19), and stops with
+
+```text
+Box's M test needs more observations than variables in each group: with 4
+variables, group 'virginica' (3 observations) has no more. The covariance
+matrix of such a group is singular, so its log-determinant is -Inf and the
+statistic is not defined, whatever the data. Each group needs at least 5
+observations; use more data, fewer variables or fewer groups.
+```
+
+A group of one observation, which gave `NA`, is refused with the same
+message, and a single group with observations, which gave `NaN` on 0 degrees
+of freedom, with "Box's M test compares the covariance matrices of two groups
+or more". Data where every group has more observations than variables give
+what they gave, `identical()`; `n_i = p + 1` is computed.
 
 ### Szroeter's test
 

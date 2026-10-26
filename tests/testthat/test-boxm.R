@@ -91,11 +91,63 @@ test_that("performBoxMTest tests the groups observed and drops an empty level", 
     unname(performBoxMTest(mtcars[, c("mpg", "hp", "wt")], factor(mtcars$cyl))$statistic)
   )
 
-  # A group of one observation still has no covariance matrix, and the result
-  # is NA as before, whether the group is a factor or a character vector.
+  # A group of one observation has no covariance matrix: it gave NA and is
+  # refused (next test), whether the group is a factor or a character vector.
   one <- rbind(sub, iris[iris$Species == "virginica", ][1, ])
-  expect_true(is.na(performBoxMTest(one[, 1:4], one$Species)$statistic))
-  expect_true(is.na(performBoxMTest(one[, 1:4], as.character(one$Species))$statistic))
+  refused <- "Box's M test needs more observations than variables in each group"
+  expect_error(performBoxMTest(one[, 1:4], one$Species), refused, fixed = TRUE)
+  expect_error(performBoxMTest(one[, 1:4], as.character(one$Species)), refused, fixed = TRUE)
+})
+
+test_that("performBoxMTest refuses a group with no more observations than variables", {
+  # A group of n_i <= p observations of p variables has a singular covariance
+  # matrix, so log|S_i| is -Inf and the statistic is not defined; rounding gave
+  # 133.74 (p = 7.7e-19) for three observations of virginica beside the other
+  # two species.
+  three <- rbind(subset(iris, Species != "virginica"), iris[iris$Species == "virginica", ][1:3, ])
+  expect_error(
+    performBoxMTest(three[, 1:4], three$Species),
+    paste0(
+      "Box's M test needs more observations than variables in each group: with 4 ",
+      "variables, group 'virginica' (3 observations) has no more. The covariance matrix ",
+      "of such a group is singular, so its log-determinant is -Inf and the statistic is ",
+      "not defined, whatever the data. Each group needs at least 5 observations"
+    ),
+    fixed = TRUE
+  )
+  # The boundary: n_i = p is refused, n_i = p + 1 is computed.
+  four <- rbind(subset(iris, Species != "virginica"), iris[iris$Species == "virginica", ][1:4, ])
+  expect_error(performBoxMTest(four[, 1:4], four$Species), "'virginica' (4 observations)",
+               fixed = TRUE)
+  five <- rbind(subset(iris, Species != "virginica"), iris[iris$Species == "virginica", ][1:5, ])
+  res <- performBoxMTest(five[, 1:4], five$Species)
+  expect_true(is.finite(res$statistic))
+  expect_equal(unname(res$statistic), unname(box_m_by_hand(five[, 1:4], five$Species)[["statistic"]]),
+               tolerance = 1e-12)
+  # With one variable a group needs two observations.
+  set.seed(2)
+  y <- data.frame(y = rnorm(30))
+  g <- factor(rep(c("a", "b"), c(1, 29)))
+  expect_error(performBoxMTest(y, g), "group 'a' (1 observation) has no more", fixed = TRUE)
+  expect_error(performBoxMTest(y, g), "(a group of one observation has none)", fixed = TRUE)
+  g2 <- factor(rep(c("a", "b"), c(2, 28)))
+  expect_true(is.finite(performBoxMTest(y, g2)$statistic))
+  # Several groups are named together.
+  set.seed(3)
+  Y <- as.data.frame(matrix(rnorm(60 * 4), 60, 4))
+  several <- factor(rep(c("a", "b", "c", "d"), c(2, 4, 4, 50)))
+  expect_error(performBoxMTest(Y, several),
+               "groups 'a' (2 observations), 'b' (4 observations) and 'c' (4 observations) have no more",
+               fixed = TRUE)
+  # One group with observations gave NaN on 0 degrees of freedom.
+  setosa <- subset(iris, Species == "setosa")
+  expect_error(
+    performBoxMTest(setosa[, 1:4], setosa$Species),
+    "Box's M test compares the covariance matrices of two groups or more, and `group` has one level with observations ('setosa').",
+    fixed = TRUE
+  )
+  expect_error(performBoxMTest(setosa[, 1:4], droplevels(setosa$Species)), "two groups or more",
+               fixed = TRUE)
 })
 
 test_that("performBoxMTest with two groups is unchanged by the correction of 0.16.0", {
