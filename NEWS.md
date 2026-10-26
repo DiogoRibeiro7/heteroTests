@@ -642,9 +642,35 @@ Also, for the three:
 - White's streaming test still stops on collinear terms of its auxiliary
   regression, the squares of dummies or of an orthogonal `poly()` basis,
   which `performWhiteTest()` drops; that is the subject of a pull request of
-  its own.
+  its own. Where it stopped before reaching that regression, on a variable
+  missing from the model frame or on the new levels of `cut()`, it now stops
+  there.
+- `runHeteroTests()` with a finite `chunk_threshold_mb`, which put a fallback
+  under the names of the streaming tests where they stopped as above (White's
+  test without cross products under `white`, and the NCV test under
+  `breusch_pagan` and `koenker`), runs them: on
+  `lm(y ~ x1 + x2 + offset(o))` without `data`, on the data of the test
+  matrix (`context_data()`, `tests/testthat/helper-model-context.R`), it gave
+  White's test without cross products, 10.80, and the NCV test's 2.22 under
+  both other names, and gives White's streaming test, 11.28, the Breusch-Pagan
+  test's 11.66 and Koenker's 9.29.
 - Unchanged: every other value of a valid call, the refusals of a zero weight
-  and of the guard, and every message the test suite pins.
+  and of the guard, and every message the test suite pins. A corpus of 25,497
+  calls, the three in chunks of 7, 40 and 10,000 and through the runner with
+  `chunk_threshold_mb = 0`, and every other test, on 356 combinations of fits,
+  offsets, terms, forms of `data`, dropped rows, missing groups, row names,
+  panels and classes, on the five fits of the table of the Harrison-McCabe
+  rank and the eight designs of White's degrees of freedom, and the examples
+  of twenty-eight help pages, returns what it returned before, `identical()`,
+  but for the 762 calls of the changes above (`scripts/model-context-identity.R`),
+  every one of them a call of the three or of the runner that streams them,
+  55 of them the new refusals in bold; each of the 562 that now return a
+  value, or another one, gives the value of its reference: the same call on
+  the data frame of the fit or on the data of a `gam` in its order, or the
+  fit with the column of the term computed beforehand. On a `poly()` term,
+  whose basis the chunks computed again through the `predvars` of the terms,
+  the 128 calls are `identical()` to before. The warnings are those of before
+  on every call.
 
 ### Which models the tests accept
 

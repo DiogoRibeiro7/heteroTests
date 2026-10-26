@@ -1210,6 +1210,52 @@ Against `main` before #159 (0fb5138), on the corpus of increment 5: 22,542
 calls, 22,473 identical, 69 allowed, the same changes on 23 cells, and 0
 unexpected.
 
+Increment 7 adds the routes of the three streaming tests to the corpus: their
+recipes of `helper-test-recipes.R`, in one chunk of 10,000 observations,
+which the earlier increments ran unchanged, the same tests in chunks of 7 and
+of 40 (`identity_streaming_chunked`), and `runHeteroTests()` with the three
+asked for on data of any size, `chunk_threshold_mb = 0`, in chunks of 10,000
+and of 7 (`identity_streaming_runners`), on every cell, among them reordered
+data, rows after those of the fit, the `gam` fits, the Gaussian `glm`, the
+weighted fits and the `model = FALSE` fits; and the examples of their three
+help pages. No cell is added: the cells of B6 are the term cells of
+`I(x1 > median(x1))` and `cut(x1, quantile(x1))`, tagged `B6`
+(`context_cell_defects()`), and `missing/median_full`. The allow-list gains B6
+for these calls (values that change, and errors that become values), and N17,
+"frame" and M8 are scoped to them; the defects of the cells that concern
+every test built on the context (B5, B12, B14, B15, L1, L2, N7, R4) apply to
+them as to the others. Three rules are added. White's streaming test, on a
+cell where it stopped before its auxiliary regression (L1, L2, N7, B6), may
+stop on its collinear terms (N3, outside the context; `identity_defects()`).
+On a `poly()` term main has no stored-design value of the streaming tests,
+whose chunks computed the basis again through the `predvars` of the terms,
+and the branch must equal main to `1e-12` relative, as Goldfeld-Quandt's
+segments, where both ran the same tests (`identity_same_tests()`): the 128
+such calls are `identical()` to main. And a runner entry that runs another
+test than on main, the test it names where main ran a fallback, carries the
+data.name of that test (`identity_data_name_change()`).
+
+Increment 7: 25,497 calls on 356 cells, the 5 cells of Harrison-McCabe's rank,
+the 8 cells of the follow-up of N2 and the examples of twenty-eight help
+pages, of which 24,735 identical, 762 allowed changes (386 errors that become
+values, 176 values that change, 145 messages, 55 new refusals) and 0
+unexpected, every one of them a call of the three streaming tests or of the
+runner that streams them; of the 4,062 streaming calls, 3,300 are
+`identical()` to `main`. The 562 changes to a value are each verified against
+a reference: 432 against the call on the cell they reproduce, 26 against the
+fit with the column of the term computed beforehand, and 104 through both.
+The 176 values that change are 66 of the tests themselves, B6 and B5 on the
+cells of the median in chunks of 7 and 40 and on the fit that dropped rows,
+and N17 on the `gam` fits given their data shuffled, and 110 of the runner,
+which put a fallback under the names of the tests where they stopped (White's
+test without cross products, the NCV test under `breusch_pagan` and
+`koenker`) and runs them; the 55 new refusals are those of the edited fit
+(M8, 44) and of the `model = FALSE` fit given a shuffled tibble ("frame",
+11). Of the 145 messages, 81 are the refusal of collinear terms by White's
+streaming test (N3), 55 M7 and 9 the frame message. The 340 `poly()` calls
+that `main` computes on the stored design are `identical()` to it, and the
+warnings are those of `main` on every call.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in

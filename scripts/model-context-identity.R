@@ -1429,6 +1429,13 @@ identity_data_name_change <- function(before, after, formula) {
       changed <- TRUE
       next
     }
+    # Increment 7: an entry that runs another test than before, as the test
+    # the runner names where it ran a fallback, carries the data.name of that
+    # test; the rules of the runner judge the rest.
+    if (!identical(before[[k]]$diagnostic, after[[k]]$diagnostic) ||
+          !identical(before[[k]]$status, after[[k]]$status)) {
+      next
+    }
     return("unexpected")
   }
   if (changed) "formula" else "none"
@@ -1518,8 +1525,13 @@ identity_white_streaming <- c(
   "performWhiteTestStreaming", grep("^performWhiteTestStreaming\\(", names(identity_streaming_chunked),
                                     value = TRUE)
 )
-identity_messages$B6 <- "Auxiliary regression became rank deficient"
-identity_message_scope$B6 <- identity_white_streaming
+# N3, outside the context: White's streaming test stops on collinear terms of
+# its auxiliary regression, the squares of dummies or of a poly() basis. On a
+# cell where it stopped before reaching that regression, on a variable that
+# `data` or the model frame lacked (L1, L2) or on the new levels of cut() (N7,
+# B6), it now reaches it, and may stop there (identity_defects()).
+identity_messages$N3 <- "Auxiliary regression became rank deficient"
+identity_message_scope$N3 <- identity_white_streaming
 for (defect in c("frame", "M8")) {
   identity_message_scope[[defect]] <- c(identity_message_scope[[defect]], identity_increment7)
 }
@@ -1528,8 +1540,26 @@ for (defect in c("frame", "M8")) {
 # again on the rows of each chunk, as `x = TRUE` does not change; main has no
 # stored-design value of them, and the branch must equal main to
 # `identity_last_bits` relative on every number, as Goldfeld-Quandt's
-# segments.
+# segments, where both ran the same tests: where the runner ran a fallback on
+# main and the test it names on the branch, the rules of the runner decide
+# (identity_same_tests()).
 identity_rebuilt_per_chunk <- identity_increment7
+
+# Whether the two results of a call hold the same tests: for a runner, the
+# same names, each run as the same diagnostic with the same status.
+identity_same_tests <- function(before, after) {
+  if (!before$kind %in% identity_runner_kinds) {
+    return(TRUE)
+  }
+  a <- before$value
+  b <- after$value
+  if (!identity_tests_of(a) || !identity_tests_of(b) || !identical(names(a), names(b))) {
+    return(FALSE)
+  }
+  all(vapply(names(a), function(k) {
+    identical(a[[k]]$diagnostic, b[[k]]$diagnostic) && identical(a[[k]]$status, b[[k]]$status)
+  }, logical(1)))
+}
 
 # --- canonical results ---------------------------------------------------------
 
@@ -2106,6 +2136,11 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
 # the calls of the tests they concern only (`scope`).
 identity_defects <- function(record, scope = identity_defect_scope) {
   defects <- record$defect
+  # Increment 7: White's streaming test reaches its auxiliary regression where
+  # it stopped before it, and may stop on its collinear terms (N3).
+  if (record$fn %in% identity_white_streaming && any(c("L1", "L2", "N7", "B6") %in% defects)) {
+    defects <- c(defects, "N3")
+  }
   if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
     defects <- c(defects, "null")
   }
@@ -2187,9 +2222,10 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
   # test that refitted the segments from the formula, or built the design of
   # each chunk from it (increment 7), main's value but for rounding.
   if ("decision1" %in% defects && record$fn %in% identity_affected) {
-    decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects ||
-                     record$fn %in% identity_rebuilt_per_chunk) {
+    decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects) {
       identity_last_bits_verdict(verdict)
+    } else if (record$fn %in% identity_rebuilt_per_chunk) {
+      if (identity_same_tests(record, after)) identity_last_bits_verdict(verdict)
     } else {
       identity_stored_verdict(record, verdict, after, stored)
     }
@@ -2413,8 +2449,10 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     verdict <- identity_classify(before, after)
     decision1 <- "decision1" %in% before$defect && before$fn %in% identity_affected
     by_segments <- decision1 && (before$fn %in% identity_segment_refits &&
-      "N1" %in% identity_defects(before) || before$fn %in% identity_rebuilt_per_chunk)
-    decided <- if (decision1 && !by_segments) {
+      "N1" %in% identity_defects(before) ||
+      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after))
+    # The streaming tests have no stored-design value on main (above).
+    decided <- if (decision1 && !by_segments && !before$fn %in% identity_rebuilt_per_chunk) {
       identity_stored_verdict(before, verdict, after, stored)
     }
     rounded <- if (by_segments) identity_last_bits_verdict(verdict)
