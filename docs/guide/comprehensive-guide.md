@@ -92,7 +92,7 @@ performSzroeterTest(fit, dat, order_by = "x")
 #> 	Szroeter test for ordered heteroscedasticity
 #>
 #> data:  fit
-#> Q = 9.062, n = 250, p-value < 2.2e-16
+#> Q = 9.0935, n = 250, p-value < 2.2e-16
 #> alternative hypothesis: variance increases with 'x'
 #> sample estimates:
 #>        h

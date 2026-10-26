@@ -38,8 +38,8 @@ form is the usual choice.}
 \value{
 An object of class \code{htest} reporting Szroeter's
 standardised statistic \code{Q}, the sample size, the underlying rank-weighted
-statistic \code{h} in \code{estimate}, and the p-value from the asymptotic normal
-reference distribution.
+statistic \code{h} in \code{estimate}, and the p-value from the normal reference
+distribution, with the null mean and variance of \code{h} given the design.
 }
 \description{
 Detects monotonic changes in variance when observations can be meaningfully
@@ -51,11 +51,41 @@ After ordering the residuals \eqn{\hat{e}_{(i)}} by \code{order_by}, the test fo
 the rank-weighted average of the squared residuals
 \deqn{h = \frac{\sum_{i = 1}^n i \, \hat{e}_{(i)}^2}{\sum_{i = 1}^n \hat{e}_{(i)}^2},}
 which is Szroeter's (1978) class of statistics evaluated at the canonical
-weights \eqn{h_i = i}. Under homoskedasticity \eqn{h} is centred on the mean
-rank \eqn{(n + 1) / 2} with variance \eqn{(n^2 - 1) / (6n)}, so
-\deqn{Q = \frac{h - (n + 1) / 2}{\sqrt{(n^2 - 1) / (6n)}}}
-is asymptotically standard normal. Variance that grows with \code{order_by} shifts
-weight onto the high ranks and drives \eqn{Q} upwards.
+weights \eqn{h_i = i}. Variance that grows with \code{order_by} shifts weight onto
+the high ranks and drives \eqn{h} upwards.
+
+Since 0.16.0 the null mean and variance of \eqn{h} are those of the design.
+Let \eqn{M} be the residual-maker of the design in the order of the test
+(the rows \eqn{\sqrt{w_i}\, x_i} on a weighted fit), \eqn{A = \mathrm{diag}(1,
+\ldots, n)}, \eqn{k} the rank of the design and \eqn{\nu = n - k}. Under normal
+errors of constant variance (given the weights) the residuals make \eqn{h} a
+ratio of quadratic forms, \eqn{h = \sum_j \lambda_j z_j^2 / \sum_j z_j^2},
+with \eqn{z_j} independent standard normal and \eqn{\lambda_j} the
+\eqn{\nu} eigenvalues of \eqn{MAM} on the residual space. The ratio is
+independent of its denominator, so its moments are ratios of moments:
+\deqn{E\,h = \frac{\mathrm{tr}(MA)}{\nu} = \frac{n (n + 1) / 2 - \sum_i i\, l_{(i)}}{\nu},
+  \qquad \mathrm{Var}\,h = \frac{2\, (\nu\, \mathrm{tr}(MAMA) - \mathrm{tr}(MA)^2)}{\nu^2 (\nu + 2)},}
+with \eqn{l_{(i)}} the leverages in the order of the test and
+\eqn{\mathrm{tr}(MAMA) = \sum_i i^2 - 2 \sum_i i^2 l_{(i)} + \|Q_1' A Q_1\|_F^2},
+\eqn{Q_1} an orthonormal basis of the design, so that no eigenvalue is
+computed and the cost is \eqn{O(n k^2)}. The test refers
+\deqn{Q = \frac{h - E\,h}{\sqrt{\mathrm{Var}\,h}}}
+to the standard normal distribution. The moments are derived here, by the
+argument that gives those of the Durbin-Watson statistic, and are not taken
+from Szroeter (1978). Without regressors they are \eqn{(n + 1) / 2} and
+\eqn{(n^2 - 1) / (6 (n + 2))}. Before 0.16.0 the test used \eqn{(n + 1) / 2}
+and \eqn{(n^2 - 1) / (6n)}, Szroeter's asymptotic moments, whatever the
+design: on a weighted fit whose leverage falls along the ordering the mean
+of \eqn{h} is above \eqn{(n + 1) / 2} (by about 0.44 in the design of the
+validation below, at every \eqn{n}), and the test rejected too often. The
+statistic \eqn{h} is unchanged; \eqn{Q} and the p-value change for every
+fit, on \code{lm(mpg ~ wt + qsec, mtcars)} ordered by \code{wt} from -0.6494 and
+0.7420 to -0.6626 and 0.7462.
+
+The test needs at least two residual degrees of freedom, \eqn{\nu \ge 2}.
+With one the residuals lie on a single line, \eqn{h} takes the same value
+whatever the errors and its null variance is 0: since 0.16.0 the test
+refuses such a fit, for which it returned a value before.
 
 The residuals and weights are those of the fit, and \code{order_by} is read from
 the rows of \code{data} that hold its observations (the model context, since
@@ -85,12 +115,28 @@ refused both ("Missing rows").
 }
 \section{Validation}{
 
-The statistic and its null variance are checked against an independent
-reconstruction of Szroeter (1978) in
-\file{tests/testthat/test-pass-a-reference.R}. Releases before 0.7.0 divided
+The statistic and its null moments are checked against an independent
+reconstruction from the full residual-maker in
+\file{tests/testthat/test-pass-a-reference.R}, and the moments against the
+eigenvalues of \eqn{MAM} to \code{1e-13}. Releases before 0.7.0 divided
 the centred statistic by a further \eqn{\sqrt{n}}, shrinking \eqn{Q} by a
 factor of roughly \eqn{2 / \sqrt{n}} and leaving the test with essentially no
 power against any alternative; see \file{NEWS.md}.
+
+\code{inst/validation/szroeter-design-null-size.R} tested the samples of
+\code{inst/validation/harrison-mccabe-size-power.R}, \code{lm(y ~ x1 + x2)} ordered by
+\code{x1}, at 5000 replications per cell. With Gaussian errors the test rejected
+a true null hypothesis at the 5\% level 0.048, 0.050 and 0.049 of the time at
+40, 100 and 400 observations, and 0.049, 0.047 and 0.050 on a correctly
+weighted fit (weights \eqn{1 / x_1^2}), all inside the release gate's
+interval, 0.042 to 0.058; with the moments of 0.15.0 it rejected 0.044, 0.048
+and 0.049, and on the weighted fit 0.067, 0.056 and 0.055. Its moments
+agreed with those of 100,000 simulated samples of one design of each size,
+variances within 1\%. The exact null distribution of \eqn{h} given the design,
+from the eigenvalues by Imhof's (1961) method, gave the same rates within
+0.0006, at a cost of \eqn{O(n^3)} per call. Under \eqn{t_5} errors no version
+holds the level (0.10 to 0.15): the null assumes normal errors, and
+\code{\link[=performGlejserTest]{performGlejserTest()}} with \code{robust = TRUE} is the test to use there.
 }
 
 \section{Supported models}{
@@ -108,7 +154,10 @@ tested as before 0.16.0, with smooth terms too, until a later step settles
 which tests take such a fit; since 0.16.0 its observations are matched to the
 rows of \code{data} by the row names of its model frame. Before, they were matched
 by position, since the residuals of a \code{gam} carry no names, and \code{data} with
-the rows of the fit in another order gave a wrong value.
+the rows of the fit in another order gave a wrong value. The null moments of
+a \code{gam} with smooth terms are those of its design as an unpenalised
+least-squares fit, with the rank of that design, as
+\code{\link[=performHarrisonMcCabeTest]{performHarrisonMcCabeTest()}} takes its null distribution.
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
 \emph{Supported models}.
 }
@@ -137,6 +186,10 @@ linear econometric models. \emph{Econometrica, 46}(6), 1311–1327.
 
 Godfrey, L. G. (1988). \emph{Misspecification Tests in Econometrics}. Cambridge
 University Press. Section 5.4 outlines the Szroeter test.
+
+Imhof, J. P. (1961). Computing the distribution of quadratic forms in
+normal variables. \emph{Biometrika, 48}(3-4), 419--426.
+\doi{10.1093/biomet/48.3-4.419}
 }
 \seealso{
 \code{\link[=performKoenkerTest]{performKoenkerTest()}} for the regressor-based alternative and

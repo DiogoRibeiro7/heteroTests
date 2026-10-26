@@ -753,9 +753,12 @@ test_that("the registered Szroeter test orders by the fitted values of the conte
     szroeter_registered <- get("szroeter", envir = heteroTests:::.diagnostic_registry)
     on_gam <- szroeter_registered(mgcv::gam(mpg ~ wt + qsec, data = mt, offset = o), mt)
     on_lm <- szroeter_registered(lm(mpg ~ wt + qsec, data = mt, offset = o), mt)
-    # 0.800386 (p = 0.2117) before 0.16.0, ordered by X b alone.
+    # 0.800386 (p = 0.2117) before 0.16.0, ordered by X b alone. Ordered by
+    # X b + o it was 0.962844 with the null moments (n + 1) / 2 and
+    # (n^2 - 1) / (6 n); since 0.16.0 they are those of the design in that
+    # order (rszroeter_moments()), which gives 0.992131 (p = 0.1606).
     expect_equal(unname(on_gam$statistic), unname(on_lm$statistic), tolerance = 1e-10)
-    expect_equal(unname(on_gam$statistic), 0.962844, tolerance = 1e-6)
+    expect_equal(unname(on_gam$statistic), 0.992131, tolerance = 1e-6)
   }
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)

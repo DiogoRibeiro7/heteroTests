@@ -431,8 +431,8 @@ For the functions built on the context in increment 3:
   design at `1e-7`, as before. The registered `"szroeter"` on a `gam` with an
   `offset` argument (the review of increment 3; decided by the coordinator on
   2026-10-20): it ordered by `predict()`, which leaves that offset out, and
-  orders by the fitted values with it, 0.800386 (p 0.2117) becoming 0.962844
-  (p 0.1678) on the fit of `mtcars` in NEWS, the value of the same `gam` with
+  orders by the fitted values with it, 0.800386 (p 0.2117) becoming 0.992131
+  (p 0.1606) on the fit of `mtcars` in NEWS, the value of the same `gam` with
   an `offset()` term ("gam_offset"). And an `mgcv::gam()` fit given its data in another order (N17): its
   residuals carry no names, and the five tests that read a column of `data`
   matched `data` to them by position, returning a wrong value without an error
@@ -459,7 +459,7 @@ For the functions built on the context in increment 3:
 - **New refusals**, announced in bold (decision 14). A fit with
   `model = FALSE` whose data are gone, given numbered data in another order
   than the fit (a shuffled tibble), from which the six computed a value (a
-  wrong one for the five that read a column: Szroeter -0.537 for 3.185 in
+  wrong one for the five that read a column: Szroeter -0.537 for 3.179 in
   fit order): the frame built from such data does not give the response of
   the fit, and the six refuse it with the frame message, directly, through
   the registered names, `test_factory` and the runner, as the first nine did

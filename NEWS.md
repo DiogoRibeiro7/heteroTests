@@ -224,6 +224,136 @@ derive a test for this setting. Testing against the regressors without the
 dummies, and that test, are recorded in the roadmap for after 1.0.0. No
 argument changes.
 
+### Box's M test
+
+**`performBoxMTest()` applies Box's correction factor with three groups or
+more, and its statistic grows.** Box (1949) refers `M (1 - c1)` to a
+chi-square distribution, with
+`c1 = (sum 1 / nu_i - 1 / nu) (2 p^2 + 3 p - 1) / (6 (p + 1) (g - 1))` for
+`g` groups of `nu_i + 1` observations of `p` variables. The package wrote
+the factor with `g - 1` in the numerator as well, where it cancelled the
+denominator's, so it used `(g - 1) c1`: Box's with two groups, too large
+with more, which made the statistic too small and the test conservative.
+`performBoxMTest(iris[, 1:4], iris$Species)` gave 135.2229 and gives
+140.9430, on 20 degrees of freedom either way, the value of
+`biotools::boxM()`, `heplots::boxM()` and `rstatix::box_m()`;
+`performBoxMTest(mtcars[, c("mpg", "hp", "wt")], mtcars$cyl)` gave 20.3998
+(p = 0.0599) and gives 25.5351 (p = 0.0125). With three or more groups the
+statistic grows by the factor `(1 - c1) / (1 - (g - 1) c1)`, 1.01 to 2.11
+on 23 data sets of 3 to 5 groups, and the p-value falls; with two
+groups every value is `identical()` to 0.15.0's, on 28 data sets.
+`runMultivariateTests()`, whose `"box_m"` is this test, returns the new
+values too, and stops on the refusals below as the test does.
+`inst/validation/box-m-approximations-size.R` measured the effect: under
+Gaussian data the test of 0.15.0 rejected at 5% less often than the release
+gate allows in 29 of the 38 cells of three or five equal groups, down to 0
+with small groups and four variables or more, and Box's chi-square is inside
+the gate in 60 of 67 cells. The full sweep's size of 0.012 was not the
+approximation's: in its design, with `x` uniform and so lighter-tailed than
+normal data, Box's chi-square and his F approximation both reject 0.017 of
+the time at 5000 replications. The help page now gives the sizes: liberal
+when the groups are small for the number of variables (0.062 to 0.106 in four
+cells of groups of 10 with 4 or 6 variables), not robust to heavy tails
+(`t5` coordinates, 0.26 to 0.48) and conservative with light tails. The
+statistic keeps its name, `M`, and `parameter` its `df`.
+
+**`performBoxMTest()` drops a level of `group` with no observation, which
+made the result `NA`.** A factor keeps its levels when rows are taken out, so
+`sub <- subset(iris, Species != "virginica")` has a `virginica` level with no
+row, whose covariance matrix was all `NA`:
+`performBoxMTest(sub[, 1:4], sub$Species)` gave `NA` on 20 degrees of
+freedom, and gives the test of the two species observed, 66.8105 on 10
+(p = 1.8e-10), the value of `droplevels(sub)` and of `biotools::boxM()`. A
+character group, which has no empty level, and a factor without one give
+what they gave, `identical()`.
+
+**`performBoxMTest()` refuses a group with no more observations than
+variables, and data with fewer than two groups.** A group of `n_i <= p`
+observations of `p` variables has a singular covariance matrix, whose
+log-determinant is `-Inf`, and the statistic is not defined, whatever the
+data; rounding made it a finite number. On
+`d <- rbind(subset(iris, Species != "virginica"), iris[101:103, ])`,
+`performBoxMTest(d[, 1:4], d$Species)` gave 133.74 on 20 degrees of freedom
+(p = 7.7e-19), and stops with
+
+```text
+Box's M test needs more observations than variables in each group: with 4
+variables, group 'virginica' (3 observations) has no more. The covariance
+matrix of such a group is singular, so its log-determinant is -Inf and the
+statistic is not defined, whatever the data. Each group needs at least 5
+observations; use more data, fewer variables or fewer groups.
+```
+
+A group of one observation, which gave `NA`, is refused with the same
+message, and a single group with observations, which gave `NaN` on 0 degrees
+of freedom, with "Box's M test compares the covariance matrices of two groups
+or more". Data where every group has more observations than variables give
+what they gave, `identical()`; `n_i = p + 1` is computed.
+
+**`performBoxMTest()` refuses a group whose covariance matrix is singular
+with more observations than variables.** A variable that is constant in a
+group, or a linear combination of the others in it, makes the group's
+covariance matrix singular, and the statistic is not defined: with
+`d <- iris[, 1:4]; d[1:50, 4] <- 0.2`, `performBoxMTest(d, iris$Species)`
+returned `Inf` on 20 degrees of freedom (p = 0), and `iris[, 1:4]` with a
+fifth column, the sum of the first two, returned `NaN` with "NaNs produced"
+warnings.
+Both stop, naming the group and the cause:
+
+```text
+Box's M test needs a nonsingular covariance matrix in each group, and that of
+group 'setosa' is singular: the variable 'Petal.Width' is constant in it. Its
+log-determinant is -Inf and the statistic is not defined, whatever the data.
+Leave out the variable, or the combination of variables, that does not vary
+in the group.
+```
+
+or "a variable is a linear combination of the others in it (its 5 variables
+have rank 4)". A group is checked by the rank of its centred data at the
+tolerance of `qr()`, and a log-determinant that under- or overflows on the
+scale of the data, which gave `NaN`, is refused with its own message. On 198
+data sets with nonsingular groups the values are `identical()` to those
+before; a missing value in `data` or in `group` still gives `NA` (the
+roadmap records it).
+
+### Szroeter's test
+
+**`performSzroeterTest()` takes the null mean and variance of its statistic
+from the design of the fit, and every `Q` and p-value changes.** The test
+standardised `h`, the rank-weighted average of the squared residuals, with
+`(n + 1) / 2` and `(n^2 - 1) / (6 n)` whatever the design. Under normal
+errors `h` is a ratio of quadratic forms in the residuals, and its exact
+mean and variance given the design are now used: with `M` the residual-maker
+of the design in the order of the test (`sqrt(w) x` on a weighted fit),
+`A = diag(1, ..., n)` and `nu = n - k`, `E h = tr(M A) / nu` and
+`Var h = 2 (nu tr(M A M A) - tr(M A)^2) / (nu^2 (nu + 2))`, computed from the
+leverages and `Q1' A Q1` at a cost of `O(n k^2)`. The reference is still the
+standard normal distribution, and `h`, the `estimate`, is unchanged,
+`identical()`. On a weighted fit whose leverage falls along the ordering the
+test rejected too often: in `inst/validation/szroeter-design-null-size.R`,
+on the samples of `harrison-mccabe-size-power.R`, the correctly weighted fit
+of 40 observations rejected a true null hypothesis at 5% 0.0666 of the time
+and rejects 0.0494, and 0.0560 and 0.0550 at 100 and 400 observations become
+0.0470 and 0.0498; unweighted, 0.0444, 0.0484 and 0.0490 become 0.0482,
+0.0498 and 0.0494. Unweighted p-values move by a median 0.006 at 40
+observations, 0.002 at 100 and 0.0006 at 400 on those samples; weighted, by
+a median 0.051 at 40. The help example
+`performSzroeterTest(lm(mpg ~ wt + qsec, mtcars), mtcars, order_by = "wt")`
+gave Q = -0.6494 (p = 0.7420) and gives Q = -0.6626 (p = 0.7462). The other
+alternatives, the registered `"szroeter"` that `runHeteroTests()` runs, its
+`test_factory` entry and every fit the test accepts change in the same way;
+`method`, `parameter`, `alternative` and `data.name` do not.
+
+**`performSzroeterTest()` refuses a fit with one residual degree of freedom,
+for which it returned a value.** With `n - k = 1` the residuals lie on one
+line, so `h` takes the same value whatever the errors and its null variance
+is 0. On 15 observations of `y ~ g`, with `g` a factor of 14 levels, one of
+them observed twice, `h` is 8.5 for any response, and the test returned
+Q = 0.3169 (p = 0.3756) ordered by another variable; it stops with "Szroeter
+test needs at least two residual degrees of freedom: the fit has 15
+observations and 14 estimable coefficients, so h takes the same value
+whatever the errors and there is nothing to test."
+
 ### The Breusch-Pagan entry of `runAdvancedDiagnostics()`
 
 **With `auto_enhance = FALSE`, the Breusch-Pagan entry of
@@ -1036,7 +1166,7 @@ shuffled, `d[sample(120), ]` after `set.seed(3)`:
 | --- | ---: | ---: | ---: | ---: |
 | `performGlejserTest(m, data, "x1")` | -0.322 | 3.626 | -0.429 | 3.583 |
 | `performParkTest(m, data, "x1")` | 0.118 | 3.263 | -0.728 | 3.155 |
-| `performSzroeterTest(m, data, order_by = "x1")` | -0.537 | 3.185 | -0.369 | 3.184 |
+| `performSzroeterTest(m, data, order_by = "x1")` | -0.537 | 3.179 | -0.369 | 3.029 |
 | `performHarrisonMcCabeTest(m, data, order_by = "x1")` | 0.4818 | 0.3184 | 0.4661 | 0.3148 |
 | `performHartleyFmaxTest(m, data, "group")` | 2.185 | 3.080 | 1.867 | 2.773 |
 
@@ -1058,7 +1188,7 @@ and the `lm` with that offset (decided 2026-10-20). With `set.seed(1)`,
 `mtcars$o <- rnorm(32)` and
 `m <- mgcv::gam(mpg ~ wt + qsec, data = mtcars, offset = o)`,
 `runHeteroTests(m, mtcars, tests = "szroeter")` returned Q = 0.800386
-(p = 0.2117), and returns 0.962844 (p = 0.1678), the value of
+(p = 0.2117), and returns 0.992131 (p = 0.1606), the value of
 `gam(mpg ~ wt + qsec + offset(o))` and of `lm(mpg ~ wt + qsec, offset = o)`.
 
 **A fit with `model = FALSE` whose data are gone, given numbered data in
@@ -1074,7 +1204,7 @@ returned a value. On `lm(y ~ x1 + x2, data = gone, model = FALSE)` for the 120
 observations of `contract_data()`, with `gone` removed after the fit and the
 data given as `dplyr::as_tibble(d)[sample(120), ]` after `set.seed(3)`,
 Glejser's test returned -0.322 where the data in the order of the fit give
-3.626, Park's 0.118 for 3.263, Szroeter's -0.537 for 3.185 and Hartley's 2.185
+3.626, Park's 0.118 for 3.263, Szroeter's -0.537 for 3.179 and Hartley's 2.185
 for 3.080, values of other rows; the spatial test, which reads no column of
 `data`, returned its value, 0.0938, and is refused too. The Harrison-McCabe test
 stopped already, with "object 'gone' not found".
@@ -2076,6 +2206,15 @@ verification, and none in any other way.
   replaced them; the guides no longer print the `[INFO]` line of every test
   they run; and the titles of `?performBPTestStreaming` and
   `?performKoenkerTestStreaming` lose a stray backslash before "Pagan".
+- `?performWildBootstrapTest` has a section *Size*: the rates at the 5% level
+  of the Rademacher and Mammen multipliers with Gaussian, `t5` and centred
+  exponential errors at 30, 50, 100 and 200 observations
+  (`inst/validation/wild-multiplier-size.R` and
+  `inst/validation/wild-no-multiplier-size.R`). With skewed errors either
+  multiplier needs about 200 observations to hold the level, where a plain
+  residual bootstrap, without a multiplier, held it from 50 at a cost of about
+  1.4 points of power at 30; it is to be offered as `distribution = "none"`
+  in 1.0.0. No value changes.
 
 ## 0.15.0
 

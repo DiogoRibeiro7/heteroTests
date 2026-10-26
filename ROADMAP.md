@@ -699,10 +699,28 @@ after it.
   36 to 50 CPU-hours for the four cells, and about 7.6 for the two cells of
   the wild bootstrap alone. If the wild bootstrap stays outside the gate at
   150 observations, say so on its help page.
-- [ ] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
+- [x] **`performBoxMTest()`** is conservative, with size 0.012. It uses the
   chi-square approximation. Compare it against Box's F approximation, then
-  either switch or document the conservatism on the help page.
-- [ ] **`performSzroeterTest()` on a weighted fit.** In
+  either switch or document the conservatism on the help page. Done in
+  0.16.0 (decided 2026-10-25: fix the factor, keep the chi-square). The
+  comparison, `inst/validation/box-m-approximations-size.R`, found that the
+  0.012 is not the approximation's: the correction factor was `(g - 1)`
+  times Box's `c1`, so the statistic was too small with three or more
+  groups, and on the sweep's design, `x` uniform and so light-tailed, Box's
+  chi-square and his F both reject 0.017 of the time at 5000 replications,
+  against 0.016 with the factor of 0.15.0. The factor is now Box's: two
+  groups give `identical()` values, and three or more a larger statistic,
+  140.9430 on `iris` by species, the value of `biotools::boxM()`,
+  `heplots::boxM()` and `rstatix::box_m()`, where it was 135.2229 (announced
+  in bold). Under Gaussian data Box's chi-square is inside the release gate
+  in 60 of 67 cells; it is liberal when the groups are small for the number
+  of variables (0.062 to 0.106 at 5% in the four cells of groups of 10 with 4
+  or 6 variables outside the gate), not robust to heavy tails (`t5`
+  coordinates: 0.26 to 0.48) and conservative with light tails, all now on
+  its help page. The F approximation, closer to the level in the
+  small-sample cells, changes the statistic and its parameters, and was not
+  adopted.
+- [x] **`performSzroeterTest()` on a weighted fit.** In
   `inst/validation/harrison-mccabe-size-power.R`, on a correctly weighted fit
   with Gaussian errors, it rejects 0.067 of the time at 40 observations,
   outside the release gate, and 0.056 and 0.055 at 100 and 400; without
@@ -711,8 +729,19 @@ after it.
   design, and in that weighted design the start of the ordering has the larger
   leverages. Either take its null distribution from the weighted design, as
   `performHarrisonMcCabeTest()` does, or document the restriction on the help
-  page.
-- [ ] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
+  page. Done in 0.16.0 (decided 2026-10-25: the exact moments, the normal
+  reference kept). `inst/validation/szroeter-design-null-size.R` compared,
+  on the samples of that study, the moments of `h` given the design with
+  the exact null from the eigenvalues: within 0.0006 of each other in every
+  cell, and both inside the gate in all six Gaussian cells. The test now
+  standardises `h` with `E h = tr(M A) / nu` and
+  `Var h = 2 (nu tr(M A M A) - tr(M A)^2) / (nu^2 (nu + 2))` of the weighted,
+  ordered design, taken as `performHarrisonMcCabeTest()` takes it, at a cost
+  of `O(n k^2)`: weighted 0.0494, 0.0470 and 0.0498 at 40, 100 and 400
+  observations, unweighted 0.0482, 0.0498 and 0.0494. `h` is `identical()`;
+  every `Q` and p-value changes (announced in bold), unweighted by a median
+  0.006 at 40 observations and 0.0006 at 400.
+- [x] **The wild bootstrap without a multiplier.** `performWildBootstrapTest()`
   already resamples the leverage-standardised residuals i.i.d., which imposes
   the null hypothesis, and multiplies them by `v` on top. In
   `inst/validation/wild-multiplier-size.R` it is outside the release gate
@@ -726,7 +755,18 @@ after it.
   standard errors of about 0.0018. Measure a no-multiplier option to evidence
   grade in the design of that study. The option, and still more a default,
   changes values the function returns, so it is the author's decision. The
-  help page's claim about heavy-tailed errors is corrected in #125.
+  help page's claim about heavy-tailed errors is corrected in #125. Measured
+  in 0.16.0 by `inst/validation/wild-no-multiplier-size.R`, on the samples
+  of that study at 5000 replications and at 200 observations as well: with
+  exponential errors Rademacher's multiplier rejects 0.0820, 0.0734, 0.0608
+  and 0.0526 of the time at 30, 50, 100 and 200 observations, Mammen's
+  0.0782, 0.0698, 0.0586 and 0.0534, and no multiplier 0.0648, 0.0562,
+  0.0482 and 0.0466, inside the gate from 50 observations where the
+  multipliers are from 200; with Gaussian and `t5` errors all three are
+  inside it. No multiplier costs 1.4 points of power at 30 observations and
+  none at 100. Decided on 2026-10-25: document it now, with no change of
+  value in 0.16.0 (the help page's *Size* section has the table), and offer
+  it as `distribution = "none"` in 1.0.0, listed there.
 - [ ] **Provenance of a study run in chunks.** Commit the script before a
   chunked run is launched, and record its md5 in the settings of each part,
   so that `MERGE` refuses parts written by another version of the script.
@@ -756,6 +796,14 @@ after it.
   classical test is still `performBPTestRobust(studentize = FALSE)`. With
   `auto_enhance = FALSE` the entry changes, from 3.135 (p = 0.2086) to 3.086
   (p = 0.2138) on `lm(mpg ~ wt + qsec, data = mtcars)` (announced in bold).
+- [ ] **`performBoxMTest()` with a missing value in `group` or `data`**
+  returns `NA`: a row whose group is `NA` becomes a row of `NA`s in every
+  group (`data[group == gr, ]`), and a missing value in `data` makes its
+  group's covariance matrix `NA`. Found by the review of #158 (2026-10-26),
+  where the test now refuses the groups on which it is not defined. Either
+  refuse such data with a message that names the rows, or leave the rows
+  out with a warning, as the group tests do ("Removed N observations due
+  to missing values"). Either changes what such calls return.
 - [ ] **`checkModel(<glm>, data, enhanced = TRUE)`** stops with "missing value
   where TRUE/FALSE needed", Gaussian and binomial alike: the enhanced check
   reads the R-squared of `summary()`, which a `glm` does not have. Since 0.15.0
@@ -1644,6 +1692,15 @@ after it.
   what the runner returns, an API change, so it waits for 1.0.0 and is not
   part of 0.16.0. It settles the item on the fallback of `runHeteroTests()`
   under 0.16.0. Not implemented.
+- [ ] **`distribution = "none"` in `performWildBootstrapTest()`** (decided by
+  the author on 2026-10-25). A third value of `distribution`, the plain
+  residual bootstrap of the leverage-standardised, centred residuals,
+  without a multiplier (`v = 1`), with `"rademacher"` kept as the default.
+  In `inst/validation/wild-no-multiplier-size.R` it held the level with
+  skewed errors from 50 observations, where both multipliers need about
+  200, at a cost of 1.4 points of power at 30 observations. It adds a value
+  to an argument and changes no existing call; its `method` string should
+  say that no multiplier is used. Not implemented.
 - [ ] Reference index of the documentation site (`tools/reference-index.R`)
   grouped by the frozen API: tests by family
   (auxiliary regression, group-wise, rank-based, time series, panel and
@@ -1898,7 +1955,7 @@ which is also what a reader of the article asks of it. Within that group:
 
 | Question | Proposal | Needed by |
 | --- | --- | --- |
-| Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns | 0.16.0 |
+| Ties in the ordering of `performSzroeterTest()` | Average the ranks within ties and adjust the null variance for them. Today ties keep the order of the rows the model was fitted to, which holds the level but makes the statistic depend on that order when `order_by` is discrete, and for the registered test on a model whose design rows repeat, as with factors, binary or other discrete regressors. It changes the values the function returns. Since 0.16.0 the null mean and variance come from the design, and they hold for any weights: with averaged ranks `a_i` in place of `i`, `h = sum a_i e_(i)^2 / sum e_(i)^2` has `E h = tr(M A) / nu` and `Var h = 2 (nu tr(M A M A) - tr(M A)^2) / (nu^2 (nu + 2))` with `A = diag(a_i)`, so the averaged ranks carry into the moments with no separate adjustment; `rszroeter_moments()`, which takes `1, ..., n` today, would take the `a_i` | 0.16.0 |
 | Supported R floor | Test the floor in CI, or raise it to oldrel-1 | 0.16.0 |
 | The name of the companion package for the dashboard and the benchmark suite | None recorded. Once it has one, `launchDiagnosticDashboard()`, `run_benchmark_suite()` and `generate_benchmark_report()` warn here for a minor release, naming it, and the code moves | 0.16.0 |
 | A consistent test of the variance function after stage 1 | Do not ship the Dette, Neumeyer and Van Keilegom test as defined: its prototype rejects a true non-constant variance function 0.019 to 0.036 of the time. Choose between a new stage 1 for a modified procedure (a better estimate of the variance function for the bootstrap data, or a studentized statistic) and one for Wang and Zhou (2007), and compare the published article with the manuscript first. If a test ships, a function of its own rather than `performVarianceFormTest(against = "any")` | Before any stage 2 |

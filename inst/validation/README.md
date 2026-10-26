@@ -67,6 +67,8 @@ test that remains.
 | `variance-form-dnvk-bootstrap-check.csv` | Its output, one row per form, truth, sample size and source of the bootstrap data, with the mean fitted slope and the mean statistics. |
 | `wild-multiplier-size.R` | `performWildBootstrapTest()` with Rademacher and with Mammen multipliers on the same samples: size under Gaussian, `t5` and skewed errors at 30, 50 and 100 observations, and power. `Rscript inst/validation/wild-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `MC_CORES`, `UNITS`, `PART`, `MERGE` and `CSV` overridable. |
 | `wild-multiplier-size.csv` | Its output, one row per multiplier, block, error distribution and sample size, with the counts of samples only that multiplier rejected. |
+| `wild-no-multiplier-size.R` | The resampling of `performWildBootstrapTest()` reproduced with Rademacher's and Mammen's multipliers and without one (`v = 1`, a plain residual bootstrap), on the samples and seeds of `wild-multiplier-size.R` and at 200 observations as well: size under Gaussian, `t5` and skewed errors, and power. The first `CHECK_REPS` replications of each cell are checked against `performWildBootstrapTest()`. `Rscript inst/validation/wild-no-multiplier-size.R`, with `N_MC`, `N_MC_POWER`, `N_BOOT`, `CHUNK_SIZE`, `CHECK_REPS`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. |
+| `wild-no-multiplier-size.csv` | Its output, one row per cell and variant, against the release gate and the 99% interval around 0.049. |
 | `fixed-effects-size.R` | White's, Koenker's and the Breusch-Pagan tests on `lm(y ~ x + subject)` with G subjects of T observations: their size on a grid of G and T, and on unbalanced groups, two regressors and a regressor correlated with the subject effects, each checked against the package. `Rscript inst/validation/fixed-effects-size.R`, with `N_MC`, `N_MC_LARGE`, `CHECK_REPS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. |
 | `fixed-effects-size.csv` | Its output with `N_MC = 2000` and `CHECK_REPS = 5`, one row per block, design and test, with the rates at 1, 5 and 10%, the mean and variance of the statistic, and the check against the package. |
 | `fixed-effects-size-10000.csv` | The same with `N_MC = 10000` and `CHECK_REPS = 3`, on the same seeds. |
@@ -75,6 +77,10 @@ test that remains.
 | `fixed-effects-dummies.csv` | Its output, one row per design. |
 | `fixed-effects-variants-size.R` | The other routes to the three statistics on two of those designs: the robust and streaming forms, the deprecated names, the registered names, and the White bootstrap, the wild bootstrap and `bootstrapTestStatistic()`, with the warnings each call gives. `N_MC_BOOT_LARGE=1000 Rscript inst/validation/fixed-effects-variants-size.R`, with `N_MC`, `N_MC_BOOT_LARGE`, `CHUNK_SIZE`, `N_BOOT`, `MC_CORES`, `UNITS`, `PART`, `MERGE`, `LIST` and `CSV` overridable. |
 | `fixed-effects-variants-size.csv` | Its output, one row per design and route, with the rates at 1, 5 and 10%, the warnings per call and the refusals. |
+| `box-m-approximations-size.R` | `performBoxMTest()` beside Box's chi-square and F approximations written out, on the same samples: size under Gaussian data with 2, 3 and 5 groups, balanced and not, under `t5` coordinates, and in the design of the full sweep, with the three checked against `biotools::boxM()`, `heplots::boxM()`, `DFA.CANCOR::HOMOGENEITY()` and `stats::bartlett.test()` where they are installed. `Rscript inst/validation/box-m-approximations-size.R`, with `N_MC`, `CHUNK_SIZE`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. It was run on 0.15.0, whose `performBoxMTest()` is the column `package_chisq`; run on 0.16.0 or later, that column is Box's chi-square, and its check of the factor of 0.15.0 fails. |
+| `box-m-approximations-size.csv` | Its output, one row per cell, approximation and level, with Box's constants of the cell. |
+| `szroeter-design-null-size.R` | `performSzroeterTest()` beside two nulls taken from the design, on the samples of `harrison-mccabe-size-power.R`: the moments of `h` given the weighted, ordered design with the normal reference, and the exact null from the eigenvalues by Imhof's method; size with Gaussian and `t5` errors and after a weighted fit at 40, 100 and 400 observations, and the null distribution given one design of each size. `Rscript inst/validation/szroeter-design-null-size.R`, with `N_MC`, `N_NULL`, `CHUNK_SIZE`, `PARTS`, `UNITS`, `MC_CORES`, `MIN_FREE_GB`, `CSV` and `RDS` overridable. It was run on 0.15.0, whose test is the column `current`; since 0.16.0 the test is `design_moments`, and run on it the column `current` gives those values. |
+| `szroeter-design-null-size.csv` | Its output, one row per block, error distribution, sample size, weights, method and level. |
 | `make-table.R` | Renders the CSV as the Markdown tables below. |
 
 Reference equivalence is asserted separately, and exactly, in
@@ -321,10 +327,16 @@ package's own implementations. Where it does not, prefer the measurement.
 
 Two remarks on the tests the summary names under the Gaussian null.
 
-- `performBoxMTest()` is conservative there. Box's M tests equality of
-  covariance matrices rather than of scalar variances, so it is answering a
-  broader question, and it is known to be sensitive to non-normality in the
-  opposite direction. It is left as it is.
+- `performBoxMTest()` is conservative there, and the reason is the design,
+  not the approximation the test uses. Its data are `(y, x)` grouped by
+  `cut(x, 3)`, with `x` uniform: lighter-tailed than normal data, and Box's
+  M is sensitive to the tails in both directions. In
+  `box-m-approximations-size.R`, in this design at 5000 replications, Box's
+  chi-square approximation and his F approximation both reject 0.017 of the
+  time. The row above was measured with the correction factor of 0.15.0,
+  `(g - 1)` times Box's, which gives 0.016 in the same design; the factor was
+  corrected in 0.16.0, and the row was not run again. See the section on
+  Box's M below.
 - `performGQTest()` is inside the band but at the high end, and the reason is
   the design rather than the implementation: `lmtest::gqtest()` gives 0.070 on
   the same samples, and with a single regressor both give 0.025. The package
@@ -420,7 +432,10 @@ what the same tests do without weights, so this table cannot tell them apart.
 For Szroeter a larger study does: at 5000 replications, on the weighted design
 of `harrison-mccabe-size-power.R`, it rejects 0.067 of the time at 40
 observations, outside the release gate, and 0.056 and 0.055 at 100 and 400.
-See the section on the Harrison-McCabe test.
+See the section on the Harrison-McCabe test. Since 0.16.0 its null moments
+come from the weighted design, and it rejects 0.049, 0.047 and 0.050 on
+those samples; its row in this table was measured before, and was not run
+again.
 
 The test marked `refused` fits quantile regressions without the weights, and
 stops with an error on a weighted fit instead of testing a different model;
@@ -1477,8 +1492,12 @@ the start of the ordering, where `x1` is small, carry the largest weights and
 have the largest leverages, so their residuals are the smallest and the
 variance appears to rise along the ordering. The Harrison-McCabe and
 Goldfeld-Quandt tests, whose null distributions use the weighted design, are
-at 0.048 to 0.053 in the same cells. The finding is an open item in
-`ROADMAP.md`.
+at 0.048 to 0.053 in the same cells. Since 0.16.0 Szroeter's test takes the
+null mean and variance of its statistic from the design too; on these
+samples it rejects 0.049, 0.047 and 0.050 of the time on the weighted fit,
+and 0.048, 0.050 and 0.049 unweighted (`szroeter-design-null-size.R`, in its
+section below). The rows of `performSzroeterTest()` in the tables above were
+measured with the null of 0.15.0, and were not run again.
 
 ### A consistent test of the variance function: a prototype
 
@@ -1977,6 +1996,28 @@ Every one of the 96,000 tests returned a p-value. Five things follow.
 This study changes no value: the default of `distribution` is `"rademacher"`
 before and after it.
 
+**Without a multiplier.** `wild-no-multiplier-size.R` repeats this study,
+reproducing the function's resampling, with a third variant, `v = 1`: a
+plain residual bootstrap of the same leverage-standardised, centred
+residuals, which already imposes the null hypothesis, drawn as the
+residuals of the Rademacher variant so that the two differ only by the
+multiplier. Its Rademacher and Mammen rates are those of the tables above,
+exactly, and it adds 200 observations. With exponential errors Rademacher's
+multiplier rejects 0.0820, 0.0734, 0.0608 and 0.0526 of the time at 30, 50,
+100 and 200 observations, Mammen's 0.0782, 0.0698, 0.0586 and 0.0534, and the
+plain residual bootstrap 0.0648, 0.0562, 0.0482 and 0.0466: the multipliers
+reach the gate at 200 observations, the residual bootstrap at 50. Dropping
+the multiplier lowers the rate by 1.7 points at 30 and 50 observations
+(paired z = -9.2 and -9.4), 1.3 at 100 and 0.6 at 200. With Gaussian and
+`t5` errors all three are inside the gate in every cell, the residual
+bootstrap at 0.042 to 0.047. Against `sigma^2 = exp(0.4 x1)` it rejects
+0.180, 0.354 and 0.744 of the time at 30, 50 and 100 observations, against
+0.194, 0.361 and 0.745 for Rademacher's: 1.4 points less at 30 (paired
+s.e. 0.0045), none at 100. The author decided on 2026-10-25 to document this
+on the help page now and to offer the residual bootstrap as
+`distribution = "none"` in 1.0.0, keeping Rademacher's as the default; no
+value changes in 0.16.0.
+
 ### Fixed effects for small groups
 
 `fixed-effects-size.R` measures White's, Koenker's and the Breusch-Pagan tests
@@ -2167,6 +2208,93 @@ the slopes, where it refused 2 and 1 of the samples of 30 x 3 and 30 x 4.
   small, and too large with a slope per level. A model with the factor both
   as a main effect and in a slope, such as `lm(y ~ x * subject)`, was not
   measured here.
+
+### Box's M: the chi-square and the F approximation
+
+The full sweep put `performBoxMTest()` at 0.012, and the roadmap asked
+whether Box's F approximation would do better than the chi-square one the
+test uses. `box-m-approximations-size.R` measures three p-values on every
+sample: the package's of 0.15.0, Box's chi-square approximation,
+`M (1 - c1)` on `(g - 1) p (p + 1) / 2` degrees of freedom, and Box's F
+approximation, both written out from Box (1949). With `nu_i = n_i - 1` and
+`nu` their sum, `c1 = (sum 1 / nu_i - 1 / nu) (2 p^2 + 3 p - 1) /
+(6 (p + 1) (g - 1))`. Box's chi-square agrees with `biotools::boxM()` and
+`heplots::boxM()` to 0 relative difference, and his F with
+`DFA.CANCOR::HOMOGENEITY()` to below `1e-13`, on ten data sets. The
+statistic does not change under a common linear map of the data, so the
+Gaussian groups are drawn from N(0, I): 2, 3 and 5 groups of 10, 20, 50 and
+100, with 1, 2, 4, 6 and 10 variables (57 cells), five unbalanced designs
+with 2 and 4 variables (10 cells), `t5` coordinates scaled to unit variance
+in three groups of 20, 50 and 100 (6 cells), and the design of the full
+sweep. Each cell has 5000 replications, judged against the release gate,
+`[0.0421, 0.0579]`.
+
+- **The package's correction factor was `(g - 1) c1`.** It wrote
+  `(g - 1) / (g - 1)` into the factor, which cancelled Box's division by
+  `g - 1`. With two groups the two agree; with three or five the statistic
+  was too small, and the test of 0.15.0 was below the gate in 29 of the 38
+  balanced Gaussian cells of three or five groups, down to 0.0000 with small
+  groups and four variables or more. On `iris[, 1:4]` by species it gave
+  135.2229 where `biotools`, `heplots` and `rstatix::box_m()` give 140.9430.
+  Fixed in 0.16.0; the test is now Box's chi-square.
+- **Box's chi-square holds the level under Gaussian data in 60 of 67 cells,
+  and his F in 62.** Both are liberal when the groups are small for the
+  number of variables: the seven cells outside the gate for the chi-square
+  all have groups of 10 with 4 or 6 variables or groups of 20 with 10
+  variables, and are at 0.062 to 0.106, where the F is at 0.056 to 0.070,
+  inside the gate in two of them. Elsewhere the two differ by at most
+  0.0062, and by at most 0.0034 when every group has 50 observations or
+  more.
+- **Neither is robust to heavy tails.** With `t5` coordinates both reject
+  0.26 to 0.48 of the time, more with larger groups (the package of 0.15.0:
+  0.18 to 0.46).
+- **The sweep's 0.012 is the design.** In it the null is true, but `x` is
+  uniform within each third: lighter-tailed than normal data. Box's
+  chi-square and his F both reject 0.0174 of the time there, and the factor
+  of 0.15.0 gave 0.0164; in the Gaussian cell of three groups of 50 with two
+  variables the factor accounts for 0.047 against 0.042.
+
+The author decided on 2026-10-25 to correct the factor and keep the
+chi-square approximation, whose statistic and degrees of freedom the test
+returns, and to give the sizes on the help page. The F approximation would
+have changed the statistic, its parameters and every p-value.
+
+### Szroeter's test with a null from the design
+
+Until 0.15.0 `performSzroeterTest()` standardised `h` with `(n + 1) / 2` and
+`(n^2 - 1) / (6 n)`, whatever the design, and on the weighted fit of the
+Harrison-McCabe study it rejected 0.067 of the time at 40 observations.
+`szroeter-design-null-size.R` tests the samples of that study, drawn from its
+seeds, with two nulls taken from the design: the exact mean and variance of
+`h` under normal errors given the weighted, ordered design, with the normal
+reference (`design_moments`), and the exact distribution of `h` from the
+eigenvalues of `M A M` by Imhof's method (`design_exact`), as
+`performHarrisonMcCabeTest()` computes its own. The column `current`
+reproduces that study's rates for the test of 0.15.0 exactly.
+
+- **Both hold the level under Gaussian errors, with and without weights.**
+  At 40, 100 and 400 observations `design_moments` rejects 0.0482, 0.0498
+  and 0.0494 of the time unweighted and 0.0494, 0.0470 and 0.0498 weighted;
+  `design_exact` is within 0.0006 of it in every cell. The null of 0.15.0
+  gave 0.0444, 0.0484 and 0.0490, and 0.0666, 0.0560 and 0.0550 weighted:
+  on a weighted fit the leverage is largest at the start of the ordering,
+  and `E h` exceeds `(n + 1) / 2` by about 0.44 at every size, so the excess
+  shrank only like `n^(-1/2)`.
+- **The moments are those of `h`.** On 100,000 samples of one design of each
+  size, weighted and not, the simulated mean of `h` is within 1.4 Monte Carlo
+  standard errors of `E h`, and its variance within 1% of `Var h` (ratios
+  0.991 to 1.005), where the fixed mean is 1.1 to 58 standard errors away.
+- **Under `t5` errors no version holds the level** (0.10 to 0.15): the null
+  assumes normal errors.
+
+The author decided on 2026-10-25 to take the moments: within Monte Carlo
+error they do as well as the exact null in every cell, at a cost of
+`O(n k^2)` where the eigenvalues cost `O(n^3)`. Since 0.16.0 the test is
+`design_moments`. The package reproduces that column on all 45,000 samples of
+the size cells: `h` identical, p-values to `6e-15`, and its moments those of
+the eigenvalues to `3e-15` (relative). The rows of `performSzroeterTest()` in
+the full sweep, the weighted fits and the Harrison-McCabe study were measured
+with the null of 0.15.0, and were not run again.
 
 ## History
 
