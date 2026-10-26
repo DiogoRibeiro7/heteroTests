@@ -78,7 +78,9 @@ any order; until 0.16.0 \code{\link{performPesaranTest}()}, \code{\link{performB
 the fit. \code{tests/testthat/test-data-alignment-guard.R} checks these refusals.
 
 Since 0.16.0 \code{\link{performWhiteTest}()}, \code{\link{performBPTest}()}, \code{\link{performKoenkerTest}()},
-\code{\link{performRankPermutationTest}()}, \code{\link{performHighDimensionalTest}()}, the studentized
+their streaming forms, \code{\link{performWhiteTestStreaming}()}, \code{\link{performBPTestStreaming}()} and
+\code{\link{performKoenkerTestStreaming}()}, which read the design of the fit chunk by chunk where each chunk built
+its own from the rows of \code{data}, \code{\link{performRankPermutationTest}()}, \code{\link{performHighDimensionalTest}()}, the studentized
 Breusch-Pagan statistic (\code{\link{performStudentizedBPTest}()}, \code{\link{performBPTestRobust}()} with
 \code{studentize = TRUE}, the registered \code{"student_bp"}), \code{\link{performRESETTest}()},
 \code{\link{performGQTest}()}, \code{\link{performQuantileRegressionTest}()}, \code{\link{performGlejserTest}()},

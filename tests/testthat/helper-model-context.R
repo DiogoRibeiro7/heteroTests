@@ -294,6 +294,12 @@ context_cell_defects <- function(fit, offset, terms, form) {
   if (identical(terms, "cut") && !form %in% c("null", "model_frame", context_refused_forms)) {
     defects <- c(defects, "B16")
   }
+  # Increment 7. B6: the streaming tests built the design of each chunk from
+  # the formula, on its rows of `data`, so a term computed from the rows it is
+  # given took other values in each chunk than in the fit.
+  if (terms %in% c("median", "cut")) {
+    defects <- c(defects, "B6")
+  }
   unique(defects)
 }
 
@@ -395,7 +401,7 @@ context_cells <- function() {
   }, reference = NULL, terms = "median", defect = "B16")
   missing_cell("median_full", function() {
     list(m = stats::lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = d_med)
-  }, reference = "missing/median_precomputed", defect = c("B5", "B16"), terms = "median")
+  }, reference = "missing/median_precomputed", defect = c("B5", "B16", "B6"), terms = "median")
   missing_cell("median_null", function() {
     list(m = stats::lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = NULL)
   }, reference = "missing/median_precomputed", defect = c("B5", "L1"), terms = "median")
@@ -959,6 +965,54 @@ context_increment5 <- c(
   "runPanelTests"
 )
 
+# Increment 7: the three streaming tests, which read the stored design chunk
+# by chunk. Their recipes of helper-test-recipes.R read chunks of 10,000
+# observations, one chunk on the cells of the matrix, and join
+# `context_migrated`; those of context_streaming_recipes() read chunks of 7
+# observations, 18 chunks on 120, and are run by a test of their own
+# (test-model-context.R). Up to 0.16.0 each chunk built its own design from
+# the formula, on its rows of `data` (B6).
+context_streaming <- c(
+  "performWhiteTestStreaming", "performBPTestStreaming", "performKoenkerTestStreaming"
+)
+context_migrated <- c(context_migrated, context_streaming)
+context_streaming_recipes <- function() {
+  list(
+    `performWhiteTestStreaming(chunk_size = 7)` = function(m, d) {
+      performWhiteTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+    },
+    `performBPTestStreaming(chunk_size = 7)` = function(m, d) {
+      performBPTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+    },
+    `performKoenkerTestStreaming(chunk_size = 7)` = function(m, d) {
+      performKoenkerTestStreaming(m, d, chunk_size = 7, progress = FALSE)
+    }
+  )
+}
+context_streaming_chunked <- names(context_streaming_recipes())
+
+# The terms whose squares, or whose products with each other, are collinear
+# with the terms of White's auxiliary regression: the square of a dummy is the
+# dummy, that of the first column of an orthogonal poly() basis a combination
+# of the intercept and the basis, and that of x1 is I(x1^2). White's
+# streaming test stops on them ("Auxiliary regression became rank deficient"),
+# as before 0.16.0, where performWhiteTest() drops the collinear columns (N3,
+# a pull request of its own, decision 22).
+context_white_streaming_collinear <- c("poly", "square", "median", "cut", "factor", "log_factor")
+
+# The cell as the streaming tests see it. They read no column of `data`
+# beyond the model frame, so the generic rules of the cell apply; White's
+# test stops on the collinear terms of its auxiliary regression.
+context_cell_for_streaming <- function(fn, cell) {
+  white <- startsWith(fn, "performWhiteTestStreaming")
+  if (white && identical(cell$expect, "value") &&
+        cell$terms %in% context_white_streaming_collinear) {
+    cell$expect <- "Auxiliary regression became rank deficient"
+    cell$reference <- NULL
+  }
+  cell
+}
+
 # The columns the panel tests read besides the model, `id` and `time`, which
 # no model of the matrix uses, so that without `data` they are refused (M1).
 # runPanelTests() and the scatter diagnostic need `data`.
@@ -1169,6 +1223,10 @@ context_runnable <- function(fns = context_migrated) {
 #   units, which the fifth step refused; and a fit with na.exclude is read as
 #   before.
 context_cell_for <- function(fn, cell) {
+  # The streaming tests (increment 7), in chunks of 10,000 or of 7.
+  if (fn %in% c(context_streaming, context_streaming_chunked)) {
+    return(context_cell_for_streaming(fn, cell))
+  }
   if (fn %in% context_increment5) {
     return(context_cell_for_panel(fn, cell))
   }

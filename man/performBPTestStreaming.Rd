@@ -9,8 +9,7 @@ performBPTestStreaming(model, data = NULL, chunk_size = 10000, progress = intera
 \item{model}{A fitted \link[stats:lm]{stats::lm} object describing the mean structure whose
 residual variance is to be assessed.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} containing the variables referenced in
-\code{model}. The data must include all observations used to fit the model. When \code{NULL}, the default, the model frame of \code{model} is used. It holds the terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so a model that transforms a variable needs \code{data}, as does a model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset} argument is a column of the data, which the model frame holds as \code{(weights)} or \code{(offset)}.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default, read as \code{\link{performWhiteTestStreaming}()} reads it: the response, design, weights and offset come from the fit itself, so a model that transforms its variables, has an \code{offset()} term, or takes its \code{weights} or \code{offset} from a column of the data needs no \code{data} (since 0.16.0), and data that are given are matched to the observations of the fit.}
 
 \item{chunk_size}{Positive integer giving the number of observations processed per
 streaming chunk. Smaller values reduce peak memory usage at the expense of
@@ -36,14 +35,19 @@ auxiliary regression of squared residuals on the original regressors. The
 chunks are aggregated to recover the exact Breusch-Pagan statistic while keeping
 memory usage bounded. When \pkg{Matrix} is installed, sparse cross-products are
 used automatically for large chunks.
+
+Since 0.16.0 the chunks are rows of the design of the fit, as in
+\code{\link{performWhiteTestStreaming}()}, whose details say what changed.
 }
 \section{Supported models}{
 It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
 or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+fit with a zero weight, a coefficient that is not finite for another reason, \code{data} that
+lack rows or variables of the fit, and, since 0.16.0, a multivariate \code{lm}, a fit changed after it
+was fitted and a fit with \code{model = FALSE} whose data are gone, unless \code{data} gives its
+response and fitted values. Which model each test accepts, and why, is set out in
 \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
