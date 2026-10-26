@@ -1100,18 +1100,22 @@ names (`identity_plm_cd()`), to `1e-10` relative on the statistic and the
 p-value, on the cell or on the cell it reproduces; the allow-list gains N12
 among the errors that become values, scoped to Pesaran's test and
 `runPanelTests()`, and a change of N12 not verified against plm is
-unexpected. The corpus is that of increment 5, with plm's value recorded on
-each unbalanced cell: 22,542 calls, of which 22,473 identical, 69 allowed
-changes and 0 unexpected. The 69 are errors that become values, Pesaran's
-test, `runPanelTests()` and `runPanelTests(tests = "pesaran")` on the 23
-unbalanced cells of the matrix (the fits that dropped rows of some units,
-given their data in every accepted form, the `cut()` term on the unweighted
-and the weighted fit, the missing groups and the panel of unit 1 at 5 of its
-10 periods), each verified against plm: 51 on the cell, 18 through the cell
-they reproduce (the tibbles and the renumbered rows, whose rows do not carry
-the names of the residuals). Every other call is `identical()` to `main`,
-those of a balanced panel among them, and the 340 `poly()` calls on the
-stored design too; the warnings are those of `main`.
+unexpected. The corpus is that of increment 6, with plm's value recorded on
+each unbalanced cell; against `main` with #159 (e05a568): 30,344 calls, of
+which 30,272 identical, 72 allowed changes and 0 unexpected. The 72 are
+errors that become values, Pesaran's test, `runPanelTests()` and
+`runPanelTests(tests = "pesaran")` on the 24 unbalanced cells of the matrix
+(the fits that dropped rows of some units, given their data in every
+accepted form, the `cut()` term on the unweighted and the weighted fit, the
+missing groups, `z` missing at a row the fit dropped, and the panel of unit 1
+at 5 of its 10 periods), each verified against plm: 54 on the cell, 18
+through the cell they reproduce (the tibbles and the renumbered rows, whose
+rows do not carry the names of the residuals). Every other call is
+`identical()` to `main`, those of a balanced panel among them, and the 536
+`poly()` calls on the stored design too; the warnings are those of `main`.
+Against `main` before #159 (0fb5138), on the corpus of increment 5: 22,542
+calls, 22,473 identical, 69 allowed, the same changes on 23 cells, and 0
+unexpected.
 
 ## Test matrix and oracles
 
