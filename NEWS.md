@@ -241,8 +241,9 @@ with more, which made the statistic too small and the test conservative.
 (p = 0.0599) and gives 25.5351 (p = 0.0125). With three or more groups the
 statistic grows by the factor `(1 - c1) / (1 - (g - 1) c1)`, 1.01 to 2.11
 on 23 data sets of 3 to 5 groups, and the p-value falls; with two
-groups every value is `identical()` to 0.15.0's, on 28 data sets. So
-does `runMultivariateTests()`, whose `"box_m"` is this test.
+groups every value is `identical()` to 0.15.0's, on 28 data sets.
+`runMultivariateTests()`, whose `"box_m"` is this test, returns the new
+values too, and stops on the refusals below as the test does.
 `inst/validation/box-m-approximations-size.R` measured the effect: under
 Gaussian data the test of 0.15.0 rejected at 5% less often than the release
 gate allows in 29 of the 38 cells of three or five equal groups, down to 0
@@ -2179,6 +2180,15 @@ verification, and none in any other way.
   replaced them; the guides no longer print the `[INFO]` line of every test
   they run; and the titles of `?performBPTestStreaming` and
   `?performKoenkerTestStreaming` lose a stray backslash before "Pagan".
+- `?performWildBootstrapTest` has a section *Size*: the rates at the 5% level
+  of the Rademacher and Mammen multipliers with Gaussian, `t5` and centred
+  exponential errors at 30, 50, 100 and 200 observations
+  (`inst/validation/wild-multiplier-size.R` and
+  `inst/validation/wild-no-multiplier-size.R`). With skewed errors either
+  multiplier needs about 200 observations to hold the level, where a plain
+  residual bootstrap, without a multiplier, held it from 50 at a cost of about
+  1.4 points of power at 30; it is to be offered as `distribution = "none"`
+  in 1.0.0. No value changes.
 
 ## 0.15.0
 

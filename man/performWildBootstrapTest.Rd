@@ -105,10 +105,12 @@ rejects 4.9\% of the time, and the release gate's interval is 0.042 to 0.058.
 
 With skewed errors, \code{rexp(n) - 1}, either multiplier needs about 200
 observations to hold the level: both are outside the gate at 30, 50 and 100
-and inside it at 200. The excess comes from the multiplier. The Rademacher multiplier
-makes the bootstrap errors symmetric, so the reference distribution loses
-the skewness of the residuals, on which the squared residuals of the refit
-depend; the Mammen multiplier keeps their third moment but doubles their fourth. A plain
+and inside it at 200. The excess comes from the multiplier: without it the
+rate falls, by 1.7 points at 30 and 50 observations. Plausibly, the
+Rademacher multiplier makes the bootstrap errors symmetric, so the
+reference distribution loses the skewness of the residuals, on which the
+squared residuals of the refit depend, and the Mammen multiplier keeps
+their third moment but doubles their fourth. A plain
 residual bootstrap, the same resampling without a multiplier (\eqn{v_i = 1}),
 which already imposes the null hypothesis, rejected 0.0648, 0.0562, 0.0482
 and 0.0466 of the time with the same errors at 30, 50, 100 and 200
