@@ -22,8 +22,7 @@ performBPTestStreaming(model, data = NULL, chunk_size = 10000, progress = intera
     residual variance is to be assessed.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) containing the variables referenced in
-    `model`. The data must include all observations used to fit the model. When `NULL`, the default, the model frame of `model` is used. It holds the terms of the model rather than its variables (`log(x)` rather than `x`), so a model that transforms a variable needs `data`, as does a model with an `offset()` term, and so may a fit whose `weights` or `offset` argument is a column of the data, which the model frame holds as `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default, read as [`performWhiteTestStreaming()`](performWhiteTestStreaming.md) reads it: the response, design, weights and offset come from the fit itself, so a model that transforms its variables, has an `offset()` term, or takes its `weights` or `offset` from a column of the data needs no `data` (since 0.16.0), and data that are given are matched to the observations of the fit.
 
 `chunk_size`
 :   Positive integer giving the number of observations processed per
@@ -48,14 +47,19 @@ chunks are aggregated to recover the exact Breusch-Pagan statistic while keeping
 memory usage bounded. When Matrix is installed, sparse cross-products are
 used automatically for large chunks.
 
+Since 0.16.0 the chunks are rows of the design of the fit, as in
+[`performWhiteTestStreaming()`](performWhiteTestStreaming.md), whose details say what changed.
+
 ## Supported models
 
 It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
 or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
+fit with a zero weight, a coefficient that is not finite for another reason, `data` that
+lack rows or variables of the fit, and, since 0.16.0, a multivariate `lm`, a fit changed after it
+was fitted and a fit with `model = FALSE` whose data are gone, unless `data` gives its
+response and fitted values. Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 
 ## See also

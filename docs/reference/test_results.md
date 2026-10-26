@@ -110,7 +110,9 @@ any order; until 0.16.0 [`performPesaranTest()`](performPesaranTest.md), [`perfo
 the fit. `tests/testthat/test-data-alignment-guard.R` checks these refusals.
 
 Since 0.16.0 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md), [`performKoenkerTest()`](performKoenkerTest.md),
-[`performRankPermutationTest()`](performRankPermutationTest.md), [`performHighDimensionalTest()`](performHighDimensionalTest.md), the studentized
+their streaming forms, [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performBPTestStreaming()`](performBPTestStreaming.md) and
+[`performKoenkerTestStreaming()`](performKoenkerTestStreaming.md), which read the design of the fit chunk by chunk where each chunk built
+its own from the rows of `data`, [`performRankPermutationTest()`](performRankPermutationTest.md), [`performHighDimensionalTest()`](performHighDimensionalTest.md), the studentized
 Breusch-Pagan statistic ([`performStudentizedBPTest()`](performStudentizedBPTest.md), [`performBPTestRobust()`](performBPTestRobust.md) with
 `studentize = TRUE`, the registered `"student_bp"`), [`performRESETTest()`](performRESETTest.md),
 [`performGQTest()`](performGQTest.md), [`performQuantileRegressionTest()`](performQuantileRegressionTest.md), [`performGlejserTest()`](performGlejserTest.md),
