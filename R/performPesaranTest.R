@@ -72,8 +72,9 @@
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
-#' panels. *CESifo Working Paper Series No. 1229*. Section 9, "CD tests in the
-#' case of unbalanced panels".
+#' panels. *CESifo Working Paper Series No. 1229* (also *Cambridge Working
+#' Papers in Economics* 0435). Section 9, "CD tests in the case of unbalanced
+#' panels", equation 31.
 #'
 #' Pesaran, M. H. (2015). Testing weak cross-sectional dependence in large
 #' panels. *Econometric Reviews, 34*(6-10), 1089–1117.

@@ -112,10 +112,11 @@ observation of the fit; the group tests leave such observations out, with the wa
 to missing values in ...", as before 0.16.0. The panel tests read their \code{id} and \code{time}, and the scatter
 diagnostic its \code{vars}, from the confirmed rows of \code{data}; without \code{data} the panel tests read them from
 the model frame, when it holds them under their own names, and the scatter diagnostic needs \code{data}. Pesaran's
-test refuses a pair of \code{id} and \code{time} that holds two observations of the fit, a unit or a period
-missing at an observation of the fit, and an unbalanced panel, whose units are not all observed at the same periods
-("needs a balanced panel", until a later step computes its statistic); a fit with \code{na.action = na.exclude} is
-read by the three as before 0.16.0, by position, until a later step. The registered \code{"szroeter"} orders by the fitted values, which it computes
+test refuses a pair of \code{id} and \code{time} that holds two observations of the fit and a unit or a period
+missing at an observation of the fit, and computes the statistic of an unbalanced panel, whose units are not all
+observed at the same periods, from the periods each pair of units shares, as \code{plm::pcdtest()} does; a fit with
+\code{na.action = na.exclude} is read by the three as before 0.16.0, by position, until a later step, and Pesaran's
+test refuses there an unbalanced panel of the rows of \code{data} ("needs a balanced panel"). The registered \code{"szroeter"} orders by the fitted values, which it computes
 from the fit, and the spatial test reads no column of \code{data}: its \code{listw} lists the observations of the
 fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (\code{1e-7} for an
 \code{lm}, \code{1e-11} for a \code{glm}). These tests

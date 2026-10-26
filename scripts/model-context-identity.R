@@ -69,6 +69,16 @@
 # computed the same reference, and the branch's Q and p-value are those of the
 # reference (identity_szroeter_verdict()).
 #
+# N12, Pesaran's test on an unbalanced panel: the fifth step refused such a
+# panel (decision 28), and since the pull request of N12 the test computes its
+# statistic from the periods each pair of units shares, as plm::pcdtest()
+# does. Each run also records plm::pcdtest() on the Pearson residuals of every
+# unbalanced cell whose data carry the names of the residuals
+# (identity_plm_cd()); a call of Pesaran's test or of runPanelTests() that
+# main refused on such a cell and the branch computes is allowed only when it
+# gives plm's statistic and p-value to 1e-10 relative, on the cell or on the
+# cell it reproduces, which gives plm's in turn.
+#
 # The data.name of the runner, outside the context: since 0.16.0 a test that
 # runHeteroTests() runs and that reported "model" reports the formula of the
 # model. Each run records the formula of every cell; a runner's data.name may
@@ -463,10 +473,16 @@ identity_decision31 <- c(
 # a second formula, which Cook-Weisberg's test refused with `data` as a
 # variable `data` lacks, and evaluates as R does: an error that becomes the
 # value of the same formula written with the number (identity_base_fn()).
+# The pull request of N12: Pesaran's test computes the statistic of an
+# unbalanced panel from the periods each pair of units shares, as
+# plm::pcdtest() does, where the fifth step refused it, directly and through
+# runPanelTests() (the scope of N12 below). Each of those errors that become
+# values must give plm's value, directly or through the cell it reproduces
+# (identity_plm_cd(), identity_compare()).
 identity_allowed <- list(
   error_to_value = c(
     "B12", "L1", "L2", "B14", "B15", "N7", "B7", "N1", "frame", "null", "B3", "B4", "B16", "N17",
-    "decision31", "constant"
+    "decision31", "constant", "N12"
   ),
   value_change = c("B5", "N1", "N4", "N17", "gam_offset"),
   value_to_error = c("N6", "gam", "R4", "frame", "M8", "R2", "N12", "B9", "R3", "decision31")
@@ -1605,6 +1621,46 @@ identity_rank_reference <- function(fn, cell) {
   }
 }
 
+# The external reference of Pesaran's test on an unbalanced panel (N12),
+# directly and through runPanelTests(): plm::pcdtest() on the cell
+# (identity_plm_cd()). It comes first among the references of the call, so
+# that a value is verified against plm wherever plm can be run on the cell.
+identity_plm_reference <- function(fn, cell) {
+  if (fn %in% identity_pesaran && "N12" %in% cell$defect) {
+    paste0("plm/", cell$id)
+  } else {
+    character()
+  }
+}
+
+# Pesaran's CD of plm::pcdtest(test = "cd") on the Pearson residuals of a
+# fit, a pseries indexed by the units and periods of its observations, which
+# plm takes as the residuals of a pooled model (its help page: a pseries is
+# tested as the pooled regression of the variable on a constant). The units
+# and periods are read from the rows of `data` that carry the names of the
+# residuals, when `data` is a data frame with such rows, whose response is
+# that of the fit; on another cell the reference is skipped, and the call is
+# verified through the cell it reproduces.
+identity_plm_cd <- function(m, d) {
+  testthat::skip_if_not_installed("plm")
+  r <- stats::residuals(m, type = "pearson")
+  if (!is.data.frame(d) || inherits(d, c("tbl_df", "data.table")) || is.null(names(r)) ||
+        !all(names(r) %in% rownames(d))) {
+    testthat::skip("the rows of `data` do not carry the names of the residuals")
+  }
+  rows <- d[names(r), , drop = FALSE]
+  response <- stats::fitted(m) + stats::residuals(m, type = "response")
+  if (!isTRUE(all.equal(unname(response), rows$y, tolerance = 1e-10))) {
+    testthat::skip(paste("the rows of `data` that carry the names of the residuals are not",
+                         "those of the fit"))
+  }
+  pd <- plm::pdata.frame(data.frame(id = rows$id, time = rows$time, e = unname(r)),
+                         index = c("id", "time"))
+  reference <- suppressWarnings(plm::pcdtest(pd$e, test = "cd"))
+  list(statistic = c(z = unname(reference$statistic)), parameter = NULL,
+       p.value = reference$p.value)
+}
+
 # RESET of a fit with an offset written out: anova() of the fit, with its
 # offset and weights, against the fit augmented with the squares and cubes of
 # its fitted values, X b + o, with the same offset and weights.
@@ -1654,7 +1710,8 @@ identity_run <- function(where, out, root = ".") {
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
            defect = cell$defect, expect = cell$expect,
            reference = identity_chain_reference(fn, cell),
-           externals = c(identity_external_ids(fn, cell), identity_rank_reference(fn, cell))),
+           externals = c(identity_plm_reference(fn, cell), identity_external_ids(fn, cell),
+                         identity_rank_reference(fn, cell))),
       outcome,
       list(szroeter = identity_szroeter_by_hand(identity_sz$captured[[id]]))
     )
@@ -1741,6 +1798,26 @@ identity_run <- function(where, out, root = ".") {
     names(recipes), c(identity_increment2, identity_increment3, identity_increment5)
   )
   reference_cell <- function(id) list(id = id, form = "data_frame", defect = character())
+  # N12: plm::pcdtest() on each unbalanced cell (identity_plm_cd()), the
+  # reference of Pesaran's test, of runPanelTests() with Pesaran's test alone,
+  # and of runPanelTests() with both tests, whose random-effects test is the
+  # one on the same cell.
+  for (cell in cells) {
+    if (!"N12" %in% cell$defect) {
+      next
+    }
+    built <- suppressWarnings(suppressMessages(cell$build()))
+    plm_id <- reference_cell(paste0("plm/", cell$id))
+    add("reference", "performPesaranTest", plm_id,
+        identity_outcome(function() identity_plm_cd(built$m, built$data)))
+    add("reference", identity_panel_runner_pesaran, plm_id, identity_outcome(function() {
+      list(pesaran = identity_plm_cd(built$m, built$data))
+    }))
+    add("reference", "runPanelTests", plm_id, identity_outcome(function() {
+      list(bp_random = performBPRandomEffectsTest(built$m, built$data, "id"),
+           pesaran = identity_plm_cd(built$m, built$data))
+    }))
+  }
   for (fit in c("ols", "wls")) {
     for (terms in names(context_precomputed()$formulas)) {
       built <- suppressWarnings(suppressMessages(context_precomputed_fit(fit, terms)))
@@ -2144,10 +2221,11 @@ identity_verify <- function(record, main, branch, seen = character()) {
     } else {
       1e-10
     }
-    # The nested F test written out, and Harrison-McCabe's test written out
-    # with the rank of the fit, have the statistic, the degrees of freedom or
-    # the sizes of the parts, and the p-value only.
-    fields <- if (startsWith(external, "nested/") || startsWith(external, "byhand/")) {
+    # The nested F test written out, Harrison-McCabe's test written out with
+    # the rank of the fit and plm's Pesaran CD (N12) have the statistic, the
+    # degrees of freedom or the sizes of the parts, and the p-value only.
+    fields <- if (startsWith(external, "nested/") || startsWith(external, "byhand/") ||
+                    startsWith(external, "plm/")) {
       c("statistic", "parameter", "p.value")
     }
     if (!is.null(reference) &&
@@ -2260,6 +2338,13 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     if (to_value && is.na(verified)) {
       allowed <- "unexpected"
       verdict$detail <- paste("not verified against a reference:", verdict$detail)
+    }
+    # N12: a value of Pesaran's test on an unbalanced panel that main refused
+    # must be plm's, on the cell or on the cell it reproduces.
+    if (to_value && !is.na(verified) && identical(verdict$change, "error_to_value") &&
+          "N12" %in% identity_defects(before) && !grepl("plm", verified, fixed = TRUE)) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("not verified against plm:", verdict$detail)
     }
     data_name <- if (id %in% names(data_names$verdicts)) {
       data_names$verdicts[[id]]

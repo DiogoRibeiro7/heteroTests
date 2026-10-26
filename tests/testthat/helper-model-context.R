@@ -548,10 +548,11 @@ context_cells <- function() {
   # An unbalanced panel (N12): unit 1 observed at 5 of the 10 periods, fitted
   # to those rows, whose residuals Pesaran's test recycled over the periods
   # the unit lacks and returned a wrong value; and the fit that drops those
-  # rows from the full data, which it refused for their number of rows. Since
-  # increment 5 it refuses both, until the statistic of an unbalanced panel
-  # is computed (decided 2026-10-24); the other tests give the value of the
-  # fit to the rows it keeps.
+  # rows from the full data, which it refused for their number of rows.
+  # Increment 5 refused both (decided 2026-10-24); since the pull request of
+  # N12 Pesaran's test gives the statistic computed from the periods each pair
+  # of units shares, -0.373, as plm::pcdtest() does, and like the other tests
+  # the value of the fit to the rows it keeps.
   half_unit <- d[-(1:5), ]
   panel_cell("half_unit", function() {
     list(m = stats::lm(y ~ x1 + x2, data = half_unit), data = half_unit)
@@ -793,7 +794,8 @@ context_cells <- function() {
   add(context_cell("class/edited", "class", edited_fit, expect = edited, defect = "M8"))
   class_forms("edited", edited_fit, expect = edited, defect = "M8")
   # N12: the panels Pesaran's test finds unbalanced, which it stopped on or
-  # computed with recycled residuals, and refuses since increment 5.
+  # computed with recycled residuals, refused in increment 5, and computes
+  # from the periods each pair of units shares since the pull request of N12.
   cells <- lapply(cells, function(cell) {
     if (context_unbalanced(cell)) cell$defect <- unique(c(cell$defect, "N12"))
     cell
@@ -979,12 +981,14 @@ context_frame_variables <- list(
 )
 
 # The cells whose panel is unbalanced, a fit that dropped rows of some units
-# and kept others, or a fit to such rows: Pesaran's test arranges its
+# and kept others, or a fit to such rows: Pesaran's test arranged its
 # residuals in a matrix of periods by units, and before increment 5 stopped
 # there ("number of items to replace is not a multiple of replacement
-# length"), or recycled the residuals of a unit (N12). It refuses such a panel
-# since then ("needs a balanced panel"), until the statistic of an unbalanced
-# panel is computed (decided 2026-10-24).
+# length"), or recycled the residuals of a unit (N12). Increment 5 refused
+# such a panel ("needs a balanced panel", decided 2026-10-24); since the pull
+# request of N12 the test computes its statistic from the periods each pair of
+# units shares, as plm::pcdtest() does, and the identity harness checks each
+# of these cells against plm (scripts/model-context-identity.R).
 context_unbalanced <- function(cell) {
   missing_rows <- identical(cell$block, "missing") &&
     !cell$id %in% c("missing/null", "missing/median_null", "missing/na_exclude")
@@ -1085,11 +1089,10 @@ context_cell_for_panel <- function(fn, cell) {
   if (!identical(cell$expect, "value")) {
     return(cell)
   }
+  # An unbalanced panel (N12), which the fifth step refused, is tested by
+  # Pesaran's test as by the random-effects test, against the same reference.
   if (pesaran && cell$id %in% context_repeated_pairs) {
     cell$expect <- "needs one observation of the fit for each pair of `id` and `time`"
-    cell$reference <- NULL
-  } else if (pesaran && context_unbalanced(cell)) {
-    cell$expect <- "needs a balanced panel, every unit observed at the same periods"
     cell$reference <- NULL
   } else if (cell$id %in% names(context_dropped_references)) {
     cell$reference <- context_dropped_references[[cell$id]]
@@ -1161,9 +1164,10 @@ context_runnable <- function(fns = context_migrated) {
 #   scatter diagnostic beside the model (context_cell_for_panel()): without
 #   `data` the panel tests are refused (M1) and the others need a data frame;
 #   the model frame lacks `id` and `time`; Pesaran's test refuses a repeated
-#   pair of `id` and `time` (R2) and an unbalanced panel, as that of a fit
-#   that dropped rows of some units (N12); and a fit with na.exclude is read
-#   as before.
+#   pair of `id` and `time` (R2), and since the pull request of N12 gives a
+#   value on an unbalanced panel, as that of a fit that dropped rows of some
+#   units, which the fifth step refused; and a fit with na.exclude is read as
+#   before.
 context_cell_for <- function(fn, cell) {
   if (fn %in% context_increment5) {
     return(context_cell_for_panel(fn, cell))
