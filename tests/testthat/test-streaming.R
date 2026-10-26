@@ -74,7 +74,9 @@ test_that("the streaming tests give the value of the exact tests in chunks of an
       exact <- pair[[2]](m, d)
       for (chunk in c(7, 25, 119, 120, 10000)) {
         for (data in list(d, NULL)) {
-          streamed <- pair[[1]](m, data, chunk_size = chunk, progress = FALSE)
+          # White's streaming test warns of the collinearity of the
+          # rank-deficient fit.
+          streamed <- suppressWarnings(pair[[1]](m, data, chunk_size = chunk, progress = FALSE))
           info <- paste(nm, exact$method, chunk, is.null(data))
           expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-8,
                        info = info)

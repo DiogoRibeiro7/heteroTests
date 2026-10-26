@@ -25,7 +25,10 @@
 # docs/design/model-context.md sets out the contract, the migration of the
 # tests in increments, and the decisions behind it. Since 0.16.0 (increment 1)
 # performWhiteTest(), performBPTest() and performBreuschPaganTest(),
-# performKoenkerTest(), performRankPermutationTest() and
+# performKoenkerTest() (and, increment 7, their streaming forms,
+# performWhiteTestStreaming(), performBPTestStreaming() and
+# performKoenkerTestStreaming(), which read the stored design chunk by chunk,
+# rstreaming_design() in R/performance.R), performRankPermutationTest() and
 # performHighDimensionalTest() are built on it, (increment 2) the
 # studentized Breusch-Pagan statistic (.studentized_bp_test()),
 # performRESETTest(), performGQTest() and performQuantileRegressionTest(), and

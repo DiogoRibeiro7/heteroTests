@@ -1191,6 +1191,12 @@ after it.
     step of the model context that builds the streaming tests on the stored
     design (step 7), or the one that settles whether the tests take a
     penalised `gam` (step 11), settles it. Changes a value, or refuses one.
+    Step 7 keeps the design of the variables of the formula, built from the
+    model frame, so that the values are those of before, and leaves the
+    question to step 11, unless the author settles it in step 7: on the
+    stored design the Breusch-Pagan and Koenker streaming tests would give
+    the values of the exact tests, and White's would refuse the collinear
+    squares of the basis of the smooths (N3).
   - [x] The review of the follow-up of N2 found that the refusal of a
     saturated auxiliary regression missed an exact fit with fewer terms than
     observations. On a paired design, `lm(y ~ treat + subject)` with two
@@ -1611,8 +1617,13 @@ after it.
     second formula (`var_formula`, `against`) is evaluated on the rows the
     alignment confirmed (B9), and its variables come from `data` or the model
     frame, never from the workspace (R3, decision 9). Done in 0.16.0.
-  - [ ] 7. The three streaming tests, chunk by chunk from the stored design.
-    Closes B6, and N17 for these.
+  - [x] 7. The three streaming tests, chunk by chunk from the stored design.
+    Closes B6, and B5, B14, L1, L2, N7, N17 and R4 for these; B12 and B15
+    gave values already. An edited fit (M8) and a fit with `model = FALSE`
+    whose data are gone given a shuffled tibble, from which they computed a
+    value, are refused, as by the tests built on the context. A `gam` with
+    smooth terms is tested as before, on the design of the variables of its
+    formula (the item of the review of N2 above). Done in 0.16.0.
   - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
     the stored design: the observed statistic and the replicates of
     `performWhiteTestBootstrap()` move together, and
@@ -1629,9 +1640,9 @@ after it.
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
     to its design, and the null distributions assume least squares. The five
-    tests of step 1, the six of step 3 and the five of step 4 accept it as
-    before; the four of step 2 refuse it until this step settles it for every
-    test together.
+    tests of step 1, the six of step 3, the five of step 4 and the three
+    streaming tests of step 7 accept it as before; the four of step 2 refuse it
+    until this step settles it for every test together.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
