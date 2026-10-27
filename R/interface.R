@@ -1104,6 +1104,27 @@ rnon_aliased_columns <- function(X, model) {
   X[, keep, drop = FALSE]
 }
 
+#' The columns of a design that the refit of a resampling replicate estimated
+#'
+#' [rnon_aliased_columns()] for a replicate refitted by [stats::lm.fit()] or
+#' [stats::lm.wfit()] on the stored design of the fit, from the coefficients
+#' and the rank of that refit, as [raliased_coefficients()] reads them from a
+#' fitted model.
+#'
+#' @param X The design the replicate was refitted on, with its column names.
+#' @param coefficients The coefficients of the refit, named by the columns.
+#' @param rank The rank of the refit.
+#' @return `X` without the columns the refit aliased.
+#' @keywords internal
+#' @noRd
+rreplicate_estimated_columns <- function(X, coefficients, rank) {
+  aliased <- is.na(coefficients) & !is.nan(coefficients)
+  if (!any(aliased) || sum(!aliased) != rank || is.null(names(coefficients))) {
+    return(X)
+  }
+  X[, !colnames(X) %in% names(coefficients)[aliased], drop = FALSE]
+}
+
 #' Refuse a rank-deficient fit with the aliased coefficients named
 #'
 #' No test needs every coefficient, so no test refuses a rank-deficient fit

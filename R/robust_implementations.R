@@ -103,8 +103,15 @@ NULL
 performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "reduced"),
                                    bootstrap = FALSE, B = 999, ci_level = 0.95,
                                    parallel = FALSE) {
-  rrefuse_non_gaussian_glm(model, "performWhiteTestRobust")
-  data <- rdata_or_model_frame(model, data)
+  fn <- "performWhiteTestRobust"
+  test_label <- "White (robust)"
+  rrefuse_non_gaussian_glm(model, fn)
+  # The response, design, weights, offset and residuals come from the fit;
+  # `data`, when given, is matched to its observations and checked
+  # (R/model_context.R). Before increment 8 of the model context the test
+  # prepared `data`, or the model frame, itself, and a model that transforms
+  # a variable, or has an offset() term, needed `data`.
+  ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
   method <- match.arg(method)
 
   if (!is.logical(bootstrap) || length(bootstrap) != 1L || is.na(bootstrap)) {
@@ -125,28 +132,22 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
     stop("`parallel` must be a single logical value.", call. = FALSE)
   }
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "White (robust)",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # A zero weight is refused here, as before.
+  rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit
+  # and under the names of its observations, or the model frame: what the
+  # checks below read, and what the base statistic and the bootstrap are
+  # given.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("white", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   cross_products <- identical(method, "standard")
-  base_result <- performWhiteTest(
-    model,
-    rdata_with_fit_rows(working_data, names(prepared$residuals)),
-    cross_products = cross_products
-  )
+  base_result <- performWhiteTest(model, working_data, cross_products = cross_products)
 
   df <- .extract_df(base_result, model)
   ci_info <- list(
@@ -275,8 +276,15 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
                                 bootstrap = FALSE, B = 999, ci_level = 0.95,
                                 parallel = FALSE, studentized) {
-  rrefuse_non_gaussian_glm(model, "performBPTestRobust")
-  data <- rdata_or_model_frame(model, data)
+  fn <- "performBPTestRobust"
+  test_label <- "Breusch-Pagan (robust)"
+  rrefuse_non_gaussian_glm(model, fn)
+  # The response, design, weights, offset and residuals come from the fit;
+  # `data`, when given, is matched to its observations and checked
+  # (R/model_context.R). Before increment 8 of the model context the test
+  # prepared `data`, or the model frame, itself, and a model that transforms
+  # a variable, or has an offset() term, needed `data`.
+  ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
   if (!missing(studentized)) {
     if (!missing(studentize)) {
       stop("Supply `studentize` only; `studentized` is its deprecated name.", call. = FALSE)
@@ -313,24 +321,22 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
     stop("`parallel` must be a single logical value.", call. = FALSE)
   }
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "Breusch-Pagan (robust)",
-    min_obs_model = 15L,
-    min_obs_data = 15L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # A zero weight is refused here, as before.
+  rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit
+  # and under the names of its observations, or the model frame: what the
+  # checks below read, and what the base statistic and the bootstrap are
+  # given.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("breusch_pagan", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   base_fun <- if (studentize) .studentized_bp_test else performBPTest
-  base_result <- base_fun(model, rdata_with_fit_rows(working_data, names(prepared$residuals)))
+  base_result <- base_fun(model, working_data)
 
   df <- .extract_df(base_result, model)
   ci_info <- list(

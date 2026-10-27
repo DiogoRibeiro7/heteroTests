@@ -461,9 +461,12 @@ rwhite_regressors_fit_exactly <- function(X, e_squared) {
 
 # White's statistic from the residuals the test reads and the design of the
 # auxiliary regression, with its intercept. performWhiteTest() gives it the
-# design of the fit (the model context); rwhite_test_rebuilt_design(), behind
-# the White bootstrap until increment 8 of the model context, the design
-# rebuilt from `data` as before 0.16.0.
+# design of the fit (the model context), and performWhiteTestBootstrap() the
+# same design for its observed statistic and for each replicate, refitted on
+# it. Until increment 8 of the model context the White bootstrap gave it the
+# design rebuilt from `data` as before 0.16.0 (rwhite_test_rebuilt_design(),
+# gone), for its observed statistic and for its replicates, refitted from the
+# formula.
 rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions, test_label,
                              data_name) {
   # Extract model components
@@ -641,110 +644,6 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
                        "df =", df, "p =", round(p_value, 4)))
 
   return(result)
-}
-
-# White's test as it was computed before the model context: `data`, or the
-# model frame, prepared by rdata_or_model_frame(), rhandleMissingValues() and
-# a match by row name, and the design rebuilt from it with
-# model.matrix(model, data = working_data). performWhiteTestBootstrap() uses
-# it for its observed statistic and for its replicates, which it refits from
-# the formula, so that both come from the same kind of design and its results
-# are those of 0.15.0. Increment 8 of the model context, which builds the
-# replicates on the stored design, removes this function (docs/design/
-# model-context.md, "Migration plan").
-rwhite_test_rebuilt_design <- function(model, data = NULL, cross_products = TRUE,
-                                       max_interactions = 10) {
-  rrefuse_non_gaussian_glm(model, "performWhiteTest")
-  data <- rdata_or_model_frame(model, data)
-  test_label <- "White test"
-  rvalidateModelInputs(model, test_name = "White", min_obs = 20L, allow_aliased = TRUE)
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  rvalidateDataInputs(data, required_vars = required_vars, min_obs = 20L)
-
-  handle_validation_result <- function(result) {
-    if (length(result$warnings) > 0) {
-      for (msg in unique(result$warnings)) {
-        warning(msg, call. = FALSE)
-      }
-    }
-    if (!isTRUE(result$passed)) {
-      stop(paste(unique(result$messages), collapse = "\n"), call. = FALSE)
-    }
-    invisible(result)
-  }
-
-  align_to_model <- function(clean_data, residuals) {
-    resid_names <- names(residuals)
-    data_rows <- rownames(clean_data)
-
-    if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
-      match_idx <- match(resid_names, data_rows)
-      if (anyNA(match_idx)) {
-        missing_rows <- resid_names[is.na(match_idx)]
-        stop(
-          sprintf(
-            "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
-            test_label,
-            paste(utils::head(missing_rows, 3L), collapse = ", ")
-          ),
-          call. = FALSE
-        )
-      }
-      # `data` and `cleaned` are those of the enclosing call: the rows before
-      # and after rhandleMissingValues().
-      rcheck_rows_after_cleaning(
-        data, cleaned, match_idx, resid_names,
-        fn = rtest_name(sys.parent()), test_label = test_label
-      )
-      aligned_data <- clean_data[match_idx, , drop = FALSE]
-      list(data = aligned_data, residuals = residuals)
-    } else {
-      if (nrow(clean_data) != length(residuals)) {
-        stop(
-          sprintf(
-            "%s requires `data` with %d observations to match the fitted model, got %d.",
-            test_label,
-            length(residuals),
-            nrow(clean_data)
-          ),
-          call. = FALSE
-        )
-      }
-      list(data = clean_data, residuals = residuals)
-    }
-  }
-
-  cleaned <- rhandleMissingValues(data, variables = required_vars)
-  aligned <- align_to_model(cleaned$data, rpearson_residuals(model))
-  working_data <- aligned$data
-  residuals <- aligned$residuals
-
-  requirements <- rvalidateTestRequirements("white", model = model, data = working_data)
-  handle_validation_result(requirements)
-
-  if (!is.logical(cross_products) || length(cross_products) != 1) {
-    .std_error("invalid_logical", arg = "cross_products")
-  }
-
-  # A warning above 50 MB; up to 0.15.0 the observed statistic and the
-  # replicates of the White bootstrap switched to the streaming test above
-  # 100 MB, as performWhiteTest() did.
-  tryCatch(
-    check_memory_usage(working_data, threshold_mb = 50),
-    error = function(e) NULL
-  )
-  if (nrow(working_data) > 10000) {
-    message("Large dataset (", nrow(working_data), " observations). ",
-            "This may take some time to compute.")
-  }
-
-  ht_log("INFO", "Running White test")
-
-  X_full <- rnon_aliased_columns(stats::model.matrix(model, data = working_data), model)
-  rwhite_statistic(residuals, X_full, cross_products, max_interactions, test_label,
-                   data_name = deparse(substitute(model)))
 }
 
 performWhiteTestEnhanced <- function(model, data, cross_products = TRUE, 

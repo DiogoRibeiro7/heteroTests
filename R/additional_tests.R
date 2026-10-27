@@ -486,28 +486,30 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' @export
 performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FALSE,
                                       n_cores = NULL, reestimate_weights = NULL) {
-  rrefuse_non_gaussian_glm(model, "performWhiteTestBootstrap")
+  fn <- "performWhiteTestBootstrap"
+  test_label <- "Bootstrap White"
+  rrefuse_non_gaussian_glm(model, fn)
   # The variance function of a fitWLS() fit, estimated again in each
   # replicate, or NULL, which holds the weights fixed as before 0.15.0.
-  variance_record <- rwls_reestimation(model, reestimate_weights, "performWhiteTestBootstrap")
-  data <- rdata_or_model_frame(model, data)
-  test_label <- "Bootstrap White"
-
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = test_label,
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-
-  # Under the row names of the fit, so that performWhiteTest() below matches
-  # the rows to the same observations.
-  working_data <- rdata_with_fit_rows(prepared$data, names(prepared$residuals))
+  variance_record <- rwls_reestimation(model, reestimate_weights, fn)
+  # The response, design, weights, offset and residuals come from the fit;
+  # `data`, when given, is matched to its observations and checked
+  # (R/model_context.R). Since increment 8 of the model context the observed
+  # statistic and the replicates are both computed on the stored design;
+  # before, both were computed on a design rebuilt from the rows of `data`
+  # (rwhite_test_rebuilt_design(), gone).
+  ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
+  # Each replicate refits the design by least squares, which is not the fit of
+  # a penalised smooth term (decision 23 of the design of the model context).
+  rrefuse_smooth_gam(ctx, fn)
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # The Pearson residuals; a zero weight is refused here, as before.
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("bootstrap_tests", model = model, data = working_data)
   rprocessValidationResult(requirements)
@@ -527,11 +529,24 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 
   ht_log("INFO", "Running Bootstrap White test")
 
-  # The observed statistic and the replicates come from the same kind of
-  # design, rebuilt from the rows of the fit as before 0.16.0, until increment
-  # 8 of the model context builds the replicates on the stored design
-  # (rwhite_test_rebuilt_design()).
-  original_result <- rwhite_test_rebuilt_design(model, working_data)
+  # The observed statistic: White's test on the stored design, with the checks
+  # performWhiteTest() makes, without its warning on a factor with more levels
+  # than observations per level, which concerns the asymptotic p-value the
+  # bootstrap does not report.
+  rvalidateModelInputs(model, test_name = "White", min_obs = 20L, allow_aliased = TRUE)
+  rprocessValidationResult(
+    rvalidateTestRequirements("white", model = model, data = working_data)
+  )
+  tryCatch(
+    check_memory_usage(working_data, threshold_mb = 50),
+    error = function(e) NULL
+  )
+  if (nrow(working_data) > 10000) {
+    message("Large dataset (", nrow(working_data), " observations). ",
+            "This may take some time to compute.")
+  }
+  original_result <- rwhite_statistic(residuals, rcontext_design(ctx), TRUE, 10, "White test",
+                                      data_name = "model")
   original_stat <- unname(original_result$statistic[1])
 
   # A weighted fit is ordinary least squares on sqrt(w) y and sqrt(w) X, whose
@@ -542,76 +557,75 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   # constant column, so its residuals need not average zero, while those of an
   # unweighted fit with an intercept do. Without an intercept neither path
   # centres, so equal weights resample exactly as no weights. The refit
-  # carries the weights, so performWhiteTest() computes the statistic of each
-  # replicate as it computed the observed one, from the Pearson residuals.
-  #
-  # Weighted or not, the refit carries an offset the model was given as an
-  # argument, lm(..., offset = o), which the formula does not hold; one written
-  # in the formula, offset(o), is evaluated again from the data. working_data
-  # holds the fitted rows in the order of the fit, so the offset, the weights
-  # and the fitted values are taken as they are.
-  prior_weights <- rleast_squares_weights(model)
-  offset_argument <- roffset_argument(model)
+  # carries the weights, so the statistic of each replicate is computed as the
+  # observed one is, from the Pearson residuals.
+  prior_weights <- ctx$weights
   if (!is.null(prior_weights)) {
-    pool <- rpearson_residuals(model)
+    pool <- residuals
     if (attr(stats::terms(model), "intercept") == 1L) {
       pool <- pool - mean(pool)
     }
   }
 
-  # The regenerated response is on the scale of the fitted values, which is
-  # that of the response the model uses. A plain response is overwritten in
-  # its column. A transformed one, such as log(y) in log(y) ~ x, is not a
-  # column of the data: written into a column named "log(y)", it was ignored
-  # by the refit, which computed log(y) from y again, so every replicate was
-  # the data of the fit, its statistic the observed one, and the p-value 1.
-  # It now goes into a column of its own, which the formula of the refit reads
-  # in place of the transformed response.
-  boot_formula <- stats::formula(model)
-  response_name <- as.character(boot_formula)[2]
-  if (!is.name(boot_formula[[2L]])) {
-    response_name <- ".ht_bootstrap_response"
-    while (response_name %in% names(working_data)) {
-      response_name <- paste0(".", response_name)
-    }
-    boot_formula[[2L]] <- as.name(response_name)
-  }
-
+  # Each replicate is the fitted values plus the regenerated errors, on the
+  # scale of the response the model uses (log(y) for log(y) ~ x), refitted by
+  # least squares on the stored design, every column of it, with the weights
+  # and the total offset of the fit, the `offset` argument and the offset()
+  # terms: what lm() computes from the formula when the design it rebuilds is
+  # the stored one, without evaluating the formula again. Before, each
+  # replicate was refitted from the formula on the rows of `data`, so a term
+  # computed from the rows it is given, such as cut(x, quantile(x)), took other
+  # values than in the fit, and a model that transforms a variable, or takes
+  # its weights or its offset from a column, could not be refitted without
+  # `data`. The statistic of a replicate is White's on the stored design,
+  # without the columns its refit aliased. The draws are those of before, in
+  # the same order, so a seeded call returns what it returned wherever the
+  # stored design is the design rebuilt from `data`.
+  design <- ctx$design
+  model_offset <- ctx$offset
+  fitted_vals <- ctx$fitted
+  raw_residuals <- if (is.null(prior_weights)) stats::residuals(model)
+  # Local copies travel with bootstrap_stat() to the workers of a socket
+  # cluster, which load the installed package.
+  statistic_of <- rwhite_statistic
+  replicate_residuals <- rwls_replicate_residuals
+  estimated_columns <- rreplicate_estimated_columns
   bootstrap_stat <- function() {
-    fitted_vals <- stats::fitted(model)
     if (is.null(prior_weights)) {
-      resid <- stats::residuals(model)
-      boot_resid <- sample(resid, replace = TRUE)
+      boot_resid <- sample(raw_residuals, replace = TRUE)
     } else {
       boot_resid <- sample(pool, replace = TRUE) / sqrt(prior_weights)
     }
     boot_y <- fitted_vals + boot_resid
 
-    boot_data <- working_data
-    boot_data[[response_name]] <- boot_y
-
     if (!is.null(variance_record)) {
-      # fitWLS() run again on the replicate: the model is refitted as it was
-      # before fitWLS() weighted it, its variance function is fitted again and
-      # it is refitted with the weights that gives. A replicate whose variance
-      # function cannot be fitted fails, and the p-value counts the replicates
-      # that remain.
-      initial_weights <- variance_record$initial_weights
-      initial <- if (is.null(initial_weights) && is.null(offset_argument)) {
-        safe_lm(boot_formula, data = boot_data)
-      } else {
-        rrefit_lm(boot_formula, boot_data, initial_weights, offset_argument)
-      }
-      boot_model <- rwls_refit_replicate(initial, variance_record, variance_record$regressors)
-      if (is.null(boot_model)) {
+      # fitWLS() run again on the replicate: the design is refitted as the
+      # model was before fitWLS() weighted it, its variance function is fitted
+      # again and it is refitted with the weights that gives. A replicate whose
+      # variance function cannot be fitted fails, and the p-value counts the
+      # replicates that remain.
+      refit <- replicate_residuals(design, boot_y, model_offset, variance_record,
+                                   with_fit = TRUE)
+      if (is.null(refit)) {
         return(NA_real_)
       }
-    } else if (is.null(prior_weights) && is.null(offset_argument)) {
-      boot_model <- safe_lm(boot_formula, data = boot_data)
+      boot_pearson <- refit$pearson
+      boot_fit <- refit$fit
     } else {
-      boot_model <- rrefit_lm(boot_formula, boot_data, prior_weights, offset_argument)
+      boot_fit <- if (is.null(prior_weights)) {
+        stats::lm.fit(design, boot_y, offset = model_offset)
+      } else {
+        stats::lm.wfit(design, boot_y, prior_weights, offset = model_offset)
+      }
+      boot_pearson <- if (is.null(prior_weights)) {
+        boot_fit$residuals
+      } else {
+        boot_fit$residuals * sqrt(prior_weights)
+      }
     }
-    unname(rwhite_test_rebuilt_design(boot_model, boot_data)$statistic[1])
+    boot_design <- estimated_columns(design, boot_fit$coefficients, boot_fit$rank)
+    unname(statistic_of(boot_pearson, boot_design, TRUE, 10, "White test",
+                        data_name = "boot_model")$statistic[1])
   }
 
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {

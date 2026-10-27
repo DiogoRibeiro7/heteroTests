@@ -253,6 +253,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   }
 
   resample <- match.arg(resample)
+  fn <- "bootstrapTestStatistic"
 
   rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
@@ -278,29 +279,48 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     n_cores <- as.integer(n_cores)
   }
 
-  # Both strategies refit each replicate with safe_lm(), which builds an lm and
-  # drops a glm's family and link: on a Poisson fit of counts the coefficients
-  # move from (0.457, 0.406) on the log link to (-0.931, 2.281) on the identity
-  # scale, so the replicates describe a different model from the one supplied.
-  # Neither strategy is usable for a glm, so both refuse rather than return
-  # replicates of something the caller did not ask about.
+  # Both strategies refit each replicate by least squares. A glm with the
+  # Gaussian family and the identity link is a least-squares fit, the fit of
+  # lm(..., weights = w) with its prior weights, so its replicates are those of
+  # that lm (N8 of the design of the model context, since increment 8; before,
+  # every glm was refused). Any other glm is refused: on a Poisson fit of
+  # counts the coefficients move from (0.457, 0.406) on the log link to
+  # (-0.931, 2.281) on the identity scale, so the replicates would describe a
+  # different model from the one supplied. So is a survey::svyglm() fit, whose
+  # weights are not precision weights, and, as before, an mgcv::gam() fit: a
+  # smooth term is usually penalised, and a penalised fit is not the
+  # least-squares fit of its design, which each replicate fits again
+  # (decision 23 of the design); a gam without one is the fit of glm().
   if (inherits(model, "glm")) {
-    stop(
-      "`bootstrapTestStatistic()` supports Gaussian `lm` models only. Each ",
-      "replicate is refitted with least squares, which would discard the ",
-      "family and link of a `glm` and bootstrap a different model.",
-      call. = FALSE
-    )
+    fam <- tryCatch(stats::family(model), error = function(e) NULL)
+    least_squares <- !inherits(model, c("svyglm", "gam")) && !is.null(fam) &&
+      identical(fam$family, "gaussian") && identical(fam$link, "identity")
+    if (!least_squares) {
+      stop(
+        "`bootstrapTestStatistic()` supports Gaussian `lm` models only: an `lm`, or a ",
+        "`glm` with the gaussian family and the identity link, which is a least-squares ",
+        "fit. Each replicate is refitted with least squares, which would discard the ",
+        "family and link of another `glm` and bootstrap a different model",
+        if (inherits(model, "gam")) {
+          paste0(
+            ", and is not the fit of an mgcv::gam() fit with a smooth term, usually ",
+            "penalised; refit a gam without smooth terms with glm()"
+          )
+        },
+        ".",
+        call. = FALSE
+      )
+    }
   }
 
   # A weighted fit is refitted with its weights, so each replicate is the model
-  # that was supplied. NULL for an unweighted fit, which takes the path it
-  # always took.
-  prior_weights <- rprior_weights(model)
+  # that was supplied: the weights of an lm, or the prior weights of a Gaussian
+  # glm. NULL for an unweighted fit, which takes the path it always took.
+  prior_weights <- rleast_squares_weights(model)
 
   # The variance function of a fitWLS() fit, estimated again in each
   # replicate, or NULL, which holds the weights fixed as before 0.15.0.
-  variance_record <- rwls_reestimation(model, reestimate_weights, "bootstrapTestStatistic")
+  variance_record <- rwls_reestimation(model, reestimate_weights, fn)
 
   # `data` is reduced to the rows the model was fitted to, matched by row
   # name: rows it does not hold, such as those the fit dropped for missing
@@ -315,8 +335,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # Automatic row names, those of a tibble, a data.table or a data frame whose
   # names were reset, number the rows 1 to n whatever they hold. When such data
   # has as many rows as the fit, they are taken in the order of the fit, as
-  # the complete cases of the data would be; the check of the residuals below
-  # decides whether they are its rows.
+  # the complete cases of the data would be; the match of the model context
+  # below decides whether they are its rows.
   fit_rows <- names(model$residuals)
   automatic <- .row_names_info(data) < 0L && nrow(data) == length(model$residuals)
   if (is.null(fit_rows) || automatic) {
@@ -389,8 +409,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # null hypothesis: its residuals are the Pearson residuals, and hatvalues()
   # of a weighted fit are its leverages. Each draw is returned to the scale of
   # the observation it is added to by dividing by sqrt(w), and the refit
-  # carries the weights. Weighted or not, the refit carries an offset the
-  # model was given as an argument, which the formula does not hold.
+  # carries the weights. Weighted or not, the refit carries the offset of the
+  # fit, the `offset` argument and the offset() terms.
   response_col <- all.vars(formula)[1L]
   fitted_vals <- stats::fitted(model)
   null_residuals <- NULL
@@ -399,11 +419,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     # the residuals live on the same scale as the column being overwritten.
     #
     # For a transformed response such as log(y) ~ x, fitted() is on the log
-    # scale while the data column holds y, so writing one into the other and
-    # refitting would take the logarithm a second time. For a glm, fitted() is
-    # on the response scale, the residuals are deviance residuals, and the
-    # refit below uses safe_lm(), which would silently drop the family and
-    # link. Both cases previously ran and returned a plausible p-value from
+    # scale while the data column holds y, so the replicate, whose `data` the
+    # test given as `test_function` matches to it, would hold a response the
+    # fit never had. Before 0.15.0 the case ran, writing the fitted values on
+    # the log scale into the column of y, and returned a plausible p-value from
     # meaningless replicates.
     if (!is.name(formula[[2L]])) {
       stop(
@@ -427,14 +446,14 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       )
     }
   }
-  # The fitted values, the weights of a weighted fit and an offset given as an
-  # argument have one value per fitted row. They are put in the row order of
-  # `data`, matched by row name, so that each row is regenerated or drawn with
-  # its own. Data in the order of the fit takes them as they are, so the same
-  # seed gives the same result as before. Until the unweighted fit followed
-  # this rule it took the fitted values by position: data holding the same
-  # rows in another order added each row's draw to another row's fitted value,
-  # and a refit dropped an offset given as an argument.
+  # The fitted values, the weights of a weighted fit and the offset have one
+  # value per fitted row. They are put in the row order of `data`, matched by
+  # row name, so that each row is regenerated or drawn with its own. Data in
+  # the order of the fit takes them as they are, so the same seed gives the
+  # same result as before. Until the unweighted fit followed this rule it took
+  # the fitted values by position: data holding the same rows in another order
+  # added each row's draw to another row's fitted value, and a refit dropped an
+  # offset given as an argument.
   #
   # `data` now holds the fitted rows once each, since the row names of a data
   # frame are unique, so row_index is a permutation. Data taken by position
@@ -446,14 +465,24 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       call. = FALSE
     )
   }
-  # Row names say which row is which only when `data` has names of its own,
-  # and a variable the formula finds outside `data`, such as offset(o) with o
-  # in the environment of the formula, keeps the order of the fit whatever the
-  # order of `data`. Both are caught by refitting the model to the rows of
-  # `data` and comparing its residuals with those of the fit. Pairs resampling
-  # draws rows of `data`, so every variable has to follow them: the rows taken
-  # in a fixed other order must give the residuals of the fit in that order.
-  if (!rdata_reproduces_fit(model, data, row_index)) {
+  # The model context of the fit (R/model_context.R): its model frame, stored
+  # design, response, weights and total offset, which the replicates are
+  # built from, and `data`, matched to its observations by the guard of the
+  # tests, which refuses rows that are not those of the fit. Each replicate is
+  # refitted on the stored design, so a term computed from the rows it is
+  # given, such as cut(x, quantile(x)), keeps the values of the fit, and a
+  # model that transforms a variable, or takes its weights or its offset from a
+  # column, is refitted without evaluating its formula again. Before increment
+  # 8 of the model context each replicate was refitted from the formula on
+  # the rows of `data`, and a fit whose model frame could not be rebuilt from
+  # them so, as one with such a term or `data` that is its model frame, was
+  # refused, since its replicates would have come from another design.
+  ctx <- rmodel_context(model, data, fn = fn, test_label = "Resampling")
+  rvalidate_model_context(ctx)
+  # The replicates are least-squares refits of the stored design: a fit that
+  # is not the least-squares fit of its design, as MASS::rlm() is not, would
+  # have replicates of another model, and is refused, as before.
+  if (!identical(ctx$rows[row_index], seq_len(n)) || !rleast_squares_reproduces(ctx)) {
     stop(
       "`data` does not reproduce the fit: refitted to the rows of `data`, the ",
       "model does not give the residuals it was fitted with. Data without row ",
@@ -465,22 +494,34 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       call. = FALSE
     )
   }
-  if (identical(resample, "pairs")) {
-    # Even positions, then odd ones: fixed, so it draws no random number.
-    shuffled <- c(seq(2L, n, by = 2L), seq(1L, n, by = 2L))
-    if (!rdata_reproduces_fit(model, data[shuffled, , drop = FALSE], row_index[shuffled])) {
-      stop(
-        "Pairs resampling draws rows of `data`, but the model uses a variable ",
-        "that does not come from `data` and would not follow them, such as an ",
-        "offset in the environment of the formula. Add the variable to `data`, ",
-        "or give an offset as an argument.",
-        call. = FALSE
-      )
-    }
-  }
   prior_weights <- prior_weights[row_index]
   fitted_vals <- fitted_vals[row_index]
-  offset_argument <- roffset_argument(model)[row_index]
+  # The total offset, which the refit subtracts, and the offset given as an
+  # argument, which the call of the replicate records, as the model frame
+  # holds it, "(offset)".
+  model_offset <- ctx$offset[row_index]
+  offset_argument <- if ("(offset)" %in% names(ctx$frame)) {
+    as.vector(ctx$frame[["(offset)"]])[row_index]
+  }
+  # The model frame and the design of the fit in the row order of `data`.
+  boot_frame_all <- rframe_rows(ctx$frame, row_index)
+  boot_design_all <- rdesign_rows(ctx$design, row_index)
+  # The call each replicate records: that of lm() refitting the formula on
+  # the data of the replicate, with the weights and the offset argument it was
+  # given, as before increment 8.
+  replicate_call <- function(weights, offset) {
+    call <- as.call(list(
+      if (is.null(weights) && is.null(offset)) quote(lm) else quote(stats::lm),
+      formula = quote(formula), data = quote(data)
+    ))
+    if (!is.null(weights)) {
+      call$weights <- weights
+    }
+    if (!is.null(offset)) {
+      call$offset <- offset
+    }
+    call
+  }
   # On a fitWLS() fit whose weights are estimated again, each replicate is
   # refitted as fitWLS() fitted the model: first as the model fitWLS() was
   # given, without weights or with the weights it had; then its variance
@@ -494,13 +535,19 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 
   coefs <- stats::coef(model)
   estimated_coefficients <- names(coefs)[!is.na(coefs)]
-  # A local copy travels with compute_bootstrap() to the workers of a socket
+  # Local copies travel with compute_bootstrap() to the workers of a socket
   # cluster, which load the installed package.
   aliases_estimated <- rrefit_aliases_estimated
+  replicate_lm <- rreplicate_lm
+  frame_rows <- rframe_rows
+  pairs_design <- rpairs_design
+  model_terms <- stats::terms(model)
+  model_contrasts <- model$contrasts
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
-    boot_offset <- offset_argument
+    boot_offset <- model_offset
+    call_offset <- offset_argument
     if (!is.null(variance_record)) {
       boot_weights <- refit_weights
       boot_regressors <- refit_regressors
@@ -511,22 +558,30 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       if (!is.null(prior_weights)) {
         boot_errors <- boot_errors / sqrt(prior_weights)
       }
-      boot_data[[response_col]] <- fitted_vals + boot_errors
+      boot_y <- fitted_vals + boot_errors
+      boot_data[[response_col]] <- boot_y
+      boot_frame <- boot_frame_all
+      boot_design <- boot_design_all
     } else {
       sampled_idx <- sample.int(n, replace = TRUE)
       boot_data <- data[sampled_idx, , drop = FALSE]
       boot_weights <- boot_weights[sampled_idx]
-      boot_offset <- offset_argument[sampled_idx]
+      boot_offset <- model_offset[sampled_idx]
+      call_offset <- offset_argument[sampled_idx]
       if (!is.null(variance_record)) {
         boot_regressors <- boot_regressors[sampled_idx, , drop = FALSE]
       }
+      boot_frame <- frame_rows(boot_frame_all, sampled_idx)
+      # The rows drawn of the stored design, without the dummies of the levels
+      # of a factor that no row drawn holds, as a refit from the formula
+      # drops them.
+      boot_design <- pairs_design(boot_frame, boot_design_all[sampled_idx, , drop = FALSE],
+                                  model_terms, model_contrasts)
+      boot_y <- boot_frame[[1L]]
     }
     boot_model <- tryCatch(
-      if (is.null(boot_weights) && is.null(boot_offset)) {
-        safe_lm(formula, data = boot_data)
-      } else {
-        rrefit_lm(formula, boot_data, boot_weights, boot_offset)
-      },
+      replicate_lm(boot_frame, boot_design, boot_y, boot_weights, boot_offset,
+                   model_terms, replicate_call(boot_weights, call_offset)),
       error = function(e) NULL
     )
     # A replicate whose variance function cannot be fitted again, where
@@ -647,77 +702,142 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   )
 }
 
-#' Whether the rows of `data` reproduce a fit
+#' Whether the least-squares refit of the stored design reproduces the fit
 #'
-#' Refits the model, by least squares on the design rebuilt from `data`, with
-#' the weights and an offset given as an argument taken from the fit in the
-#' order `row_index` gives, and compares the residuals with those of the fit
-#' in that order. The residuals do not depend on how the design is
-#' parametrised, so a term computed from all the data, such as
-#' `I(x - mean(x))`, does not count as a difference when `data` holds only
-#' some of its rows; values that do not belong to the rows they are matched
-#' to, or that differ from those of the fit, do.
+#' Each replicate of [bootstrapTestStatistic()] is refitted by least squares
+#' on the stored design of the fit, with its weights and its total offset.
+#' That is a replicate of the model supplied only when the model is itself the
+#' least-squares fit of that design: an `lm`, a Gaussian `glm` with the
+#' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit without smooth terms.
+#' A `MASS::rlm()` fit is an M-estimate, whose residuals the refit does not
+#' give. Before increment 8 of the model context the refit was made from the
+#' formula on the rows of `data` (`rdata_reproduces_fit()`), which also
+#' checked those rows; the model context matches them now.
 #'
-#' @param model A fitted `lm`.
-#' @param data Data frame holding the fitted rows.
-#' @param row_index For each row of `data`, the row of the fit it holds.
-#' A model frame or design that cannot be rebuilt from `data` does not
-#' reproduce the fit. Before 0.16.0 it counted as reproducing it, on the
-#' grounds that the refits would then fail on their own; they do not when the
-#' failure is that of the levels of the fit, as with `cut(x, quantile(x))`,
-#' whose refits compute levels of their own. The observed statistic of such a
-#' fit failed first then; since the model context gives it from the stored
-#' design, the replicates would have come from another design.
-#'
-#' @return `TRUE` when the residuals agree to a relative `1e-8`; `FALSE`
-#'   otherwise, and when the model frame or the design cannot be rebuilt from
-#'   `data`.
+#' @param ctx The model context of the fit.
+#' @return `TRUE` when the residuals of the refit agree with those of the fit
+#'   to a relative `1e-8` of the spread of the response, `FALSE` otherwise.
 #' @keywords internal
 #' @noRd
-rdata_reproduces_fit <- function(model, data, row_index) {
-  model_terms <- stats::terms(model)
-  rebuilt <- tryCatch(
-    stats::model.frame(model_terms, data = data, na.action = stats::na.pass,
-                       xlev = model$xlevels),
-    error = function(e) NULL
-  )
-  if (is.null(rebuilt)) {
-    return(FALSE)
-  }
-  if (nrow(rebuilt) != length(row_index)) {
-    return(FALSE)
-  }
-  y <- stats::model.response(rebuilt, "numeric")
-  X <- tryCatch(
-    stats::model.matrix(model_terms, rebuilt, contrasts.arg = model$contrasts),
-    error = function(e) NULL
-  )
-  if (is.null(y) || is.null(X)) {
-    return(FALSE)
-  }
-  offset <- stats::model.offset(rebuilt)
-  argument <- roffset_argument(model)
-  if (!is.null(argument)) {
-    offset <- (if (is.null(offset)) 0 else offset) + argument[row_index]
-  }
-  weights <- rprior_weights(model)
-  if (anyNA(y) || anyNA(X) || anyNA(offset)) {
-    return(FALSE)
-  }
+rleast_squares_reproduces <- function(ctx) {
+  y <- unname(ctx$response)
   refit <- tryCatch(
-    if (is.null(weights)) {
-      stats::lm.fit(X, y, offset = offset)
+    if (is.null(ctx$weights)) {
+      stats::lm.fit(ctx$design, y, offset = ctx$offset)
     } else {
-      stats::lm.wfit(X, y, weights[row_index], offset = offset)
+      stats::lm.wfit(ctx$design, y, ctx$weights, offset = ctx$offset)
     },
     error = function(e) NULL
   )
-  if (is.null(refit)) {
+  if (is.null(refit) || anyNA(y)) {
     return(FALSE)
   }
-  expected <- unname(model$residuals[row_index])
+  expected <- unname(rcontext_unpad(ctx, ctx$residuals))
   scale <- max(abs(y - mean(y)), .Machine$double.eps)
-  max(abs(unname(refit$residuals) - expected)) <= 1e-8 * scale
+  isTRUE(max(abs(unname(refit$residuals) - expected)) <= 1e-8 * scale)
+}
+
+#' Rows of a model frame, with its terms
+#'
+#' `[.data.frame` keeps the columns of a model frame, matrices among them, and
+#' makes the row names of repeated rows unique, as it does for the rows of
+#' `data` drawn with them, but drops the `terms` attribute, which is put back.
+#'
+#' @param frame A model frame.
+#' @param rows The rows to keep, in their order.
+#' @return The model frame of those rows.
+#' @keywords internal
+#' @noRd
+rframe_rows <- function(frame, rows) {
+  model_terms <- attr(frame, "terms")
+  frame <- frame[rows, , drop = FALSE]
+  attr(frame, "terms") <- model_terms
+  frame
+}
+
+#' Rows of a design matrix, with its attributes
+#'
+#' @param design A design matrix, from `model.matrix()`.
+#' @param rows The rows to keep, in their order.
+#' @return The rows of `design`, with its `assign` and `contrasts`
+#'   attributes, which `[` drops and [stats::lm.fit()] reads.
+#' @keywords internal
+#' @noRd
+rdesign_rows <- function(design, rows) {
+  out <- design[rows, , drop = FALSE]
+  attr(out, "assign") <- attr(design, "assign")
+  attr(out, "contrasts") <- attr(design, "contrasts")
+  out
+}
+
+#' The design of a replicate of pairs resampling
+#'
+#' The rows drawn of the stored design. A factor of the model frame that has
+#' a level no row drawn holds loses that level, as `lm()` drops the levels no
+#' row of its data holds: the design is then built again from the rows drawn
+#' of the model frame, whose columns are those of the fit, so that the dummy
+#' of that level is left out rather than kept as a column of zeros, which the
+#' refit would alias. The dummy of a cell of an interaction that no row drawn
+#' holds is kept, as `lm()` keeps it.
+#'
+#' @param frame The rows drawn of the model frame of the fit.
+#' @param design The rows drawn of the stored design.
+#' @param model_terms,contrasts The terms and contrasts of the fit.
+#' @return The design of the replicate.
+#' @keywords internal
+#' @noRd
+rpairs_design <- function(frame, design, model_terms, contrasts) {
+  unused <- vapply(frame, function(column) {
+    is.factor(column) && length(unique(column[!is.na(column)])) < nlevels(column)
+  }, logical(1))
+  if (!any(unused)) {
+    return(design)
+  }
+  for (k in which(unused)) {
+    frame[[k]] <- droplevels(frame[[k]])
+  }
+  stats::model.matrix(model_terms, frame, contrasts.arg = contrasts)
+}
+
+#' A least-squares fit of a resampling replicate on the stored design
+#'
+#' The `lm` that `lm()` returns for the replicate when the design it builds
+#' from the formula is `design`: [stats::lm.fit()], or [stats::lm.wfit()] with
+#' the weights, on `design` and the response of the replicate, with the
+#' offset, and the parts `lm()` adds, the model frame of the replicate among
+#' them, so that a test reads the replicate as it reads a fit. Nothing is
+#' evaluated again: the design and the model frame are those of the fit, in
+#' the rows of the replicate, its response the regenerated one. A Gaussian
+#' `glm` gives an `lm` with its prior weights.
+#'
+#' @param frame The model frame of the replicate: the rows of that of the fit,
+#'   with the response of the replicate in its first column.
+#' @param design The design of the replicate.
+#' @param response The response of the replicate, on the scale of the model.
+#' @param weights,offset The weights and the total offset of its rows, or
+#'   `NULL`.
+#' @param model_terms The terms of the fit.
+#' @param call The call to record.
+#' @return The fit, of class `lm`.
+#' @keywords internal
+#' @noRd
+rreplicate_lm <- function(frame, design, response, weights, offset, model_terms, call) {
+  response <- as.vector(response, "double")
+  names(response) <- rownames(frame)
+  frame[[1L]] <- response
+  fit <- if (is.null(weights)) {
+    stats::lm.fit(design, response, offset = offset)
+  } else {
+    stats::lm.wfit(design, response, weights, offset = offset)
+  }
+  class(fit) <- "lm"
+  fit$offset <- offset
+  fit$contrasts <- attr(design, "contrasts")
+  fit$xlevels <- stats::.getXlevels(model_terms, frame)
+  fit$call <- call
+  fit$terms <- model_terms
+  fit$model <- frame
+  fit
 }
 
 #' Estimate test power from observed effect size
