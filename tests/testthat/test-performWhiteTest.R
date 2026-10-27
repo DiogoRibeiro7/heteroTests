@@ -341,32 +341,33 @@ test_that("the White streaming test gives the degrees of freedom of the exact te
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   designs <- white_df_designs()
-  # It stops when terms of its auxiliary regression are collinear, as the
-  # squares of dummies are, and so on every design whose auxiliary columns span
-  # the constant, which are collinear with its intercept. Where it gives a
-  # value, its degrees of freedom are those of performWhiteTest(). Its checks
-  # of the model warn about the collinearity of the dummies on the way.
+  # Since 0.17.0 it drops the terms of its auxiliary regression that are
+  # collinear, as the squares of dummies are, and one more where they span
+  # the constant, by the rank performWhiteTest() takes: on every design it
+  # gives the degrees of freedom and the value of performWhiteTest(). Up to
+  # 0.16.0 it stopped on them, and gave a value on the six designs with
+  # continuous regressors only. Its checks of the model warn about the
+  # collinearity of the dummies on the way.
   values <- 0L
   for (name in names(designs)) {
     des <- designs[[name]]
     for (cross_products in c(TRUE, FALSE)) {
       info <- paste(name, if (cross_products) "with" else "without", "cross products")
-      streaming <- suppressWarnings(tryCatch(
+      streaming <- suppressWarnings(
         performWhiteTestStreaming(des$m, des$d, chunk_size = 50,
-                                  cross_products = cross_products, progress = FALSE),
-        error = function(e) NULL
-      ))
-      if (is.null(streaming)) next
+                                  cross_products = cross_products, progress = FALSE)
+      )
       values <- values + 1L
       exact <- performWhiteTest(des$m, des$d, cross_products = cross_products)
       expect_identical(unname(streaming$parameter[["df"]]), unname(exact$parameter[["df"]]),
                        info = info)
+      expect_identical(unname(streaming$parameter[["df"]]),
+                       white_df_by_hand(des$m, cross_products)$df, info = info)
       expect_equal(unname(streaming$statistic), unname(exact$statistic), tolerance = 1e-10,
                    info = info)
     }
   }
-  # The designs with continuous regressors only.
-  expect_identical(values, 6L)
+  expect_identical(values, 2L * length(designs))
 })
 
 test_that("the log names the auxiliary terms White's test drops and its degrees of freedom", {
@@ -529,22 +530,24 @@ test_that("White's test refuses an auxiliary regression that fits the squared re
   expect_identical(conditionMessage(err),
                    conditionMessage(tryCatch(quiet(performWhiteTest(m, d)), error = function(e) e)))
   # One subject observed a third time: no exact fit. performWhiteTest() drops
-  # the collinear squares and gives a value on 30 degrees of freedom; the
-  # streaming test, which keeps them, stops on collinear terms, as in 0.15.0.
+  # the collinear squares and gives a value on 30 degrees of freedom, and so
+  # does the streaming test since 0.17.0; up to 0.16.0 it kept them and
+  # stopped on collinear terms, and the runner, when it streamed, fell back on
+  # the test without products.
   d61 <- rbind(d, transform(d[1, ], y = y + 1))
   m61 <- lm(y ~ treat + subject, data = d61)
-  expect_identical(unname(quiet(performWhiteTest(m61, d61))$parameter[["df"]]), 30L)
-  err <- tryCatch(quiet(performWhiteTestStreaming(m61, d61, progress = FALSE)),
-                  error = function(e) e)
-  expect_match(conditionMessage(err), "rank deficient", fixed = TRUE)
-  expect_no_match(conditionMessage(err), saturated, fixed = TRUE)
-  # The runner, when it streams, falls back on the test without products and
-  # gives the value of performWhiteTest(), as in 0.15.0.
+  exact61 <- quiet(performWhiteTest(m61, d61))
+  expect_identical(unname(exact61$parameter[["df"]]), 30L)
+  for (chunk in c(7, 10000)) {
+    streamed61 <- quiet(performWhiteTestStreaming(m61, d61, chunk_size = chunk, progress = FALSE))
+    expect_identical(unname(streamed61$parameter[["df"]]), 30L)
+    expect_equal(unname(streamed61$statistic), unname(exact61$statistic), tolerance = 1e-10)
+  }
   suite <- quiet(runHeteroTests(m61, d61, tests = "white", chunk_threshold_mb = 0,
                                 use_cache = FALSE, progress = FALSE))
-  expect_identical(attr(suite$white, "extras")$status, "fallback")
-  expect_equal(unname(suite$white$statistic),
-               unname(quiet(performWhiteTest(m61, d61))$statistic), tolerance = 1e-10)
+  expect_null(attr(suite$white, "extras")$status)
+  expect_true(attr(suite$white, "extras")$streaming)
+  expect_equal(unname(suite$white$statistic), unname(exact61$statistic), tolerance = 1e-10)
   set.seed(1)
   expect_error(quiet(performWhiteTestBootstrap(m, d, B = 9)), forced, fixed = TRUE)
   # The regressors alone fit the squared residuals exactly, so the Breusch-Pagan
@@ -734,12 +737,15 @@ test_that("The streaming White test counts and fits its terms as performWhiteTes
   streamed <- message_of(performWhiteTestStreaming(m10, d10, progress = FALSE))
   expect_match(streamed, "use more observations per level.", fixed = TRUE)
   expect_no_match(streamed, "cross_products = FALSE", fixed = TRUE)
-  # Squared residuals of about 1e-10, which the test takes for constant: it
-  # stops as before, rather than on an error of its own.
+  # Squared residuals of about 1e-10, which the test took for constant up to
+  # 0.16.0, comparing their total sum of squares with .Machine$double.eps
+  # whatever their scale: it gives the value of performWhiteTest().
   set.seed(1)
   small <- data.frame(x1 = rnorm(200), x2 = rnorm(200))
   small$y <- 1e-5 * (1 + small$x1 - small$x2 + rnorm(200, sd = exp(0.5 * small$x1)))
-  expect_error(quiet(performWhiteTestStreaming(lm(y ~ x1 + x2, data = small), small,
-                                               progress = FALSE)),
-               "requires variation in squared residuals", fixed = TRUE)
+  m_small <- lm(y ~ x1 + x2, data = small)
+  streamed <- quiet(performWhiteTestStreaming(m_small, small, progress = FALSE))
+  exact <- quiet(performWhiteTest(m_small, small))
+  expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-10)
+  expect_identical(unname(streamed$parameter), unname(exact$parameter))
 })

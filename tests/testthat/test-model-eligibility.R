@@ -772,9 +772,9 @@ test_that("the three tests give a Gaussian glm the value of the lm", {
       b <- eligibility_run(three_glm_tests[[fn]], s$cases[[case]]$glm, s$d)
       info <- paste(fn, "on the", case, "Gaussian glm")
       # The weighted lm is refused by the variance-form test, whose weights
-      # must come from fitWLS(), and the factor by the White streaming test,
-      # whose auxiliary regression holds the squares of its dummies; the glm
-      # is refused with the same message.
+      # must come from fitWLS(); the glm is refused with the same message.
+      # Since 0.17.0 the White streaming test drops the squares of the
+      # dummies of the factor, on which it stopped before.
       if (inherits(a, "refused")) {
         expect_identical(b, a, info = info)
         refused <- refused + 1L
@@ -784,8 +784,8 @@ test_that("the three tests give a Gaussian glm the value of the lm", {
       compared <- compared + 1L
     }
   }
-  expect_identical(compared, 34L)
-  expect_identical(refused, 14L)
+  expect_identical(compared, 36L)
+  expect_identical(refused, 12L)
 })
 
 test_that("the three tests refuse a glm that is not a least-squares fit", {
@@ -899,9 +899,15 @@ test_that("a Gaussian glm gives the value of the lm that decides the rank as it 
     expect_false(isTRUE(all.equal(unname(calls[[name]](fit_lm)$statistic), unname(b$statistic),
                                   tolerance = 1e-6)), info = name)
   }
-  # Its checks warn about the collinear column (VIF > 10).
-  expect_error(suppressWarnings(performWhiteTestStreaming(fit_glm, d, progress = FALSE)),
-               "rank deficient")
+  # White's streaming test decides the rank of its auxiliary regression as
+  # performWhiteTest() does, at the tolerance of qr() on the centred terms,
+  # and drops the terms of the column within that margin, as performWhiteTest()
+  # drops them; up to 0.16.0 it stopped on them ("rank deficient"). Its checks
+  # warn about the collinear column (VIF > 10).
+  streamed <- suppressWarnings(performWhiteTestStreaming(fit_glm, d, progress = FALSE))
+  exact <- suppressWarnings(performWhiteTest(fit_glm, d))
+  expect_identical(unname(streamed$parameter), unname(exact$parameter))
+  expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-8)
 })
 
 # fitWLS() keeps the call of the model it refits, for summary() and update().
