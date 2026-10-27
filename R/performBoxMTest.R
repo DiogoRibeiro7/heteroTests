@@ -182,6 +182,24 @@ performBoxMTest <- function(data, group) {
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
+# The rank of a group's centred data. A variable that takes one value in the
+# group counts as a zero column, decided by its range: centred by colMeans() it
+# is exactly zero only where the mean is exact, and on a platform whose long
+# double is double, as macOS on arm64, the mean of 50 copies of 0.2 is not 0.2,
+# so the column was a tiny constant that qr() took for an independent column.
+# The other columns are centred and scaled to unit norm, so that qr()'s
+# tolerance, relative to the norm of each column, judges collinearity and not
+# the scale of the variables.
+rboxm_rank <- function(x) {
+  varies <- apply(x, 2L, function(v) diff(range(v)) > 0)
+  if (!any(varies)) {
+    return(0L)
+  }
+  kept <- x[, varies, drop = FALSE]
+  centred <- sweep(kept, 2L, colMeans(kept))
+  qr(sweep(centred, 2L, sqrt(colSums(centred^2)), "/"))$rank
+}
+
 rboxm_refuse_singular <- function(groups, xs, logdet_groups, logdet_pooled) {
   if (any(vapply(xs, anyNA, logical(1)))) {
     return(invisible(NULL))
@@ -193,7 +211,7 @@ rboxm_refuse_singular <- function(groups, xs, logdet_groups, logdet_pooled) {
   }
   for (i in seq_along(groups)) {
     x <- xs[[i]]
-    rank <- qr(sweep(x, 2L, colMeans(x)))$rank
+    rank <- rboxm_rank(x)
     if (rank >= p && is.finite(logdet_groups[[i]])) {
       next
     }

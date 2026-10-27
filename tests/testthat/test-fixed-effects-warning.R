@@ -205,8 +205,8 @@ test_that("a name that needs backticks is matched by position", {
   expect_identical(out$warnings[[1L]]$factors, "`my subject`")
   expect_match(conditionMessage(out$warnings[[1L]]), "The term `my subject` has 30 levels",
                fixed = TRUE)
-  skip_if_not_installed("tibble")
-  tb <- tibble::as_tibble(d)
+  skip_if_not_installed("dplyr")
+  tb <- dplyr::as_tibble(d)
   out <- fe_capture(performKoenkerTest(lm(y ~ x + `my subject`, data = tb), tb))
   expect_identical(out$warnings[[1L]]$factors, "`my subject`")
 })
