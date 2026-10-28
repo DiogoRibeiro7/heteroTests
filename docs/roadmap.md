@@ -1731,6 +1731,14 @@ announced in bold in `NEWS.md`.
     Hash them part by part, or stream the serialization into the hash, so that
     the temporary allocation stays small (found by the review of #144). No
     value changes.
+- [ ] **Replicates lost without a warning.** A replicate of
+    `bootstrapTestStatistic()` whose refit fails, or, under pairs resampling,
+    whose design cannot be built on the rows it drew (`rpairs_design()`, since
+    the review of step 8 of the model context), is left out silently: only
+    `effective_samples` shows it, as for a failed refit before. The replicates
+    of a `fitWLS()` fit whose variance function cannot be fitted are left out
+    with a warning that gives their number. Consider warning whenever
+    replicates are lost (found by the review of #167). No value changes.
 - [ ] Split `R/validation.R` (1,441 lines) into cache, result-type,
     assumption-checking and requirement-dispatch units, and factor out the
     repeated boilerplate: scalar validators, model and data preparation, and

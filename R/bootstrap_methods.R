@@ -289,8 +289,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 
   # A multivariate lm is refused with the message of the model context (M7),
   # as by the tests built on it, before the checks of the model, which
-  # stopped on it with a coercion error.
-  if (inherits(model, "mlm") || is.matrix(model$residuals)) {
+  # stopped on it with a coercion error. Anything else that is not a list,
+  # such as a character string, is left to those checks, which name its class.
+  if (inherits(model, "mlm") || (is.list(model) && is.matrix(model$residuals))) {
     rstop_model_context(sprintf("%s() needs a model with one response; `model` has %d.", fn,
                                 NCOL(model$residuals)))
   }

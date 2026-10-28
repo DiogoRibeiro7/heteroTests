@@ -1493,11 +1493,13 @@ B15, N7 and B5 among the errors that become values of the bootstraps
 (`identity_bootstrap_allowed`), B5 for pairs resampling on a term computed
 from the rows (poly(), ns(), the median, cut()), N17 for the White bootstrap
 and the runner, N8 for the bootstraps on a Gaussian `glm` (a value verified
-against the same call on the weighted `lm` of its cell, to `1e-8`; on a `gam`
-or a `glm`, a message, each refusal of the context that now comes first on
-the cells where it applies, a zero weight on the cells of a zero weight, the
-guard on the cells of the guard and the refit of the nearly collinear `glm`
-on the cells of Harrison-McCabe's rank), "gam" for the White bootstrap and
+against the same call on the weighted `lm` of its cell, to `1e-8`; the
+message of N8 on the cells of a `gam` only, so that a refusal of a valid
+Gaussian `glm` is unexpected; and on a `gam` or a `glm` each refusal of the
+context that now comes first on the cells where it applies, a zero weight on
+the cells of a zero weight, the guard on the cells of the guard and the refit
+of the nearly collinear `glm` on the cells of Harrison-McCabe's rank), "gam"
+for the White bootstrap and
 the runner, and M8 and "frame" for the five. Four rules are added. On a cell
 where White's count changed (N2), a message or a new refusal of one of these
 calls is judged by the other rules, and a value where `main` stopped is
@@ -1550,7 +1552,7 @@ bootstraps of a `fitWLS()` fit of a `gam` with smooth terms in four forms of
 data (M8, 8), of the `model = FALSE` fit given a shuffled tibble ("frame", 1)
 and of the runner on a `gam` with smooth terms ("gam", 1). Of the 304
 messages, 189 are those of `bootstrapTestStatistic()` and the robust
-bootstraps on a `glm` or a `gam` (N8: 98 the refusal of the model, 55 the
+bootstraps on a `glm` or a `gam` (N8: 98 the refusal of the `gam`, 55 the
 guard, 20 a zero weight, 16 the refit of the nearly collinear `glm`), 71 M7
 (25 of them of `bootstrapTestStatistic()`, which stopped with "'length = 4'
 in coercion to 'logical(1)'"), 12 the frame message, 4 the refusal of a `gam`
@@ -1570,10 +1572,11 @@ calls: 33 of the White bootstrap and the runner, whose replicates no longer
 run the checks of the model and give their warnings on the residuals of a
 replicate ("Residual outliers detected at rows ..."), 12 that stopped and give
 a value with the warning of the same call on the data frame of the fit, and
-12 on the factor with a contrasts attribute, whose refits from the formula
-warned on each replicate that left a level out ("contrasts dropped from factor
-fs due to missing levels"), where the branch leaves the contrasts matrix out
-of that replicate without a warning.
+12 on the factor with a contrasts attribute, on which `main` warned
+"contrasts dropped from factor fs" once for each model frame its refits from
+the formula rebuilt, and under pairs resampling also "... due to missing
+levels" on a replicate that left a level out (11 of the 12 calls leave none
+out), where the branch rebuilds no model frame and gives no warning.
 
 ## Test matrix and oracles
 

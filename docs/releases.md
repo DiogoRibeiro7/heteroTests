@@ -262,7 +262,9 @@ tests built on the model context stopped with an internal error. Every test
 built on the context now refuses it, as it refuses a fit whose design does
 not reproduce its residuals (M8 of the design of the model context); a value
 on the stored design is not defined, as the terms of the fit give no design
-of its 11 coefficients. With
+of its 11 coefficients. As refitting gives the same fit again, the message
+points to testing the `gam` itself, or to giving `fitWLS()` a fit with a
+parametric term such as `splines::ns()` in place of each smooth. With
 `g <- fitWLS(mgcv::gam(y ~ s(x) + z, data = sim), sim)`:
 
 | Call | 0.16.0 | Now |
@@ -288,9 +290,13 @@ step; `data = NULL` given to `bootstrapTestStatistic()`, which needs `data`; a
 fit with `na.action = na.exclude`; and every message the test suite pins. The
 White bootstrap no longer runs the checks of the model on each replicate, and
 no longer gives their warnings on the residuals of a replicate, such as
-"Residual outliers detected", nor, on a replicate that leaves out a level of a
-factor with a contrasts matrix, the warning of its refit, "contrasts dropped
-from factor". A corpus of 37,194 calls (`scripts/model-context-identity.R`),
+"Residual outliers detected". On a factor with a contrasts matrix as its
+attribute, the bootstraps no longer give the warning "contrasts dropped from
+factor", which the refits from the formula gave once for each model frame
+they rebuilt (20 times in a White bootstrap of 19 replicates, once in
+`bootstrapTestStatistic()` under null-imposed resampling), and, under pairs
+resampling, on each replicate that left a level out ("... due to missing
+levels"). A corpus of 37,194 calls (`scripts/model-context-identity.R`),
 every test and the bootstraps above on 378 combinations of fits, offsets,
 terms, codings of a factor, forms of `data`, dropped rows and row names, with
 the Mammen multipliers, four statistics bootstrapped, pairs resampling, the

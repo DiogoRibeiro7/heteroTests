@@ -2685,7 +2685,8 @@ test_that("the resampling tests refuse a fitWLS() fit of a gam with smooth terms
   # of the basis of the smooths. The White and wild bootstraps returned a value
   # on that design, and Koenker's test and bootstrapTestStatistic() stopped on
   # "(subscript) logical subscript too long". The context refuses such a fit,
-  # as it refuses a fit whose design does not reproduce its residuals.
+  # as it refuses a fit whose design does not reproduce its residuals, and
+  # points to the gam, as refitting gives the same fit again.
   skip_if_not_installed("mgcv")
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -2698,9 +2699,22 @@ test_that("the resampling tests refuse a fitWLS() fit of a gam with smooth terms
     function() performKoenkerTest(g, d),
     function() performWhiteTest(g, d)
   )) {
-    expect_error(call(), "does not reproduce its residuals from its design and coefficients",
-                 class = "heteroTests_model_context_error")
+    expect_error(call(), paste0(
+      "does not reproduce its residuals from its design and coefficients: its terms rebuild a ",
+      "design of 3 columns for its 11 coefficients, as those of fitWLS() of an mgcv::gam() fit ",
+      "with smooth terms do, which refitting gives again. Test the gam itself, or give fitWLS() ",
+      "a fit with a parametric term such as splines::ns() in place of each smooth."
+    ), fixed = TRUE, class = "heteroTests_model_context_error")
   }
+  # Another fit whose coefficients do not match its design keeps the hint of
+  # every refusal of M8.
+  m <- lm(y ~ x1 + x2, data = d)
+  m$coefficients <- c(m$coefficients, extra = 1)
+  expect_error(
+    performKoenkerTest(m, d),
+    "its terms rebuild a design of 3 columns for its 4 coefficients. Refit the model.",
+    fixed = TRUE, class = "heteroTests_model_context_error"
+  )
 })
 
 test_that("bootstrapTestStatistic() refuses a multivariate lm as every test does (M7)", {
@@ -2712,4 +2726,14 @@ test_that("bootstrapTestStatistic() refuses a multivariate lm as every test does
     "needs a model with one response; `model` has 2", fixed = TRUE,
     class = "heteroTests_model_context_error"
   )
+  # Anything that is not a fit is left to the checks of the model, which name
+  # its class, as before (the check of M7 read `model$residuals` first).
+  for (bad in list("model", 1)) {
+    expect_error(
+      bootstrapTestStatistic(performKoenkerTest, bad, d, B = 9, progress = FALSE),
+      sprintf(paste0("Provide an object fitted with stats::lm() or stats::glm() before running ",
+                     "Bootstrap helper (received class: %s)"), class(bad)[1L]),
+      fixed = TRUE
+    )
+  }
 })

@@ -698,15 +698,37 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
   # fit: the terms of fitWLS() of an mgcv::gam() fit with smooth terms rebuild
   # the variables of the formula, for the coefficients of the basis of its
   # smooths (since increment 8 of the model context, where the tests stopped
-  # with "(subscript) logical subscript too long").
+  # with "(subscript) logical subscript too long"). Refitting such a fit
+  # gives it again, so its message points to the gam, or to parametric terms.
   if (length(coefs) != ncol(ctx$design)) {
+    smooth <- function(expr) {
+      if (!is.call(expr)) {
+        return(FALSE)
+      }
+      head <- expr[[1L]]
+      if (is.call(head) && identical(head[[1L]], as.name("::"))) {
+        head <- head[[3L]]
+      }
+      if (is.name(head) && as.character(head) %in% c("s", "te", "ti", "t2")) {
+        return(TRUE)
+      }
+      any(vapply(as.list(expr)[-1L], smooth, logical(1)))
+    }
+    hint <- if (identical(ctx$kind, "fitwls") && smooth(ctx$model$call)) {
+      paste0(
+        ", as those of fitWLS() of an mgcv::gam() fit with smooth terms do, which refitting ",
+        "gives again. Test the gam itself, or give fitWLS() a fit with a parametric term ",
+        "such as splines::ns() in place of each smooth."
+      )
+    } else {
+      ". Refit the model."
+    }
     rstop_model_context(sprintf(
       paste0(
         "The fitted model does not reproduce its residuals from its design and coefficients: ",
-        "its terms rebuild a design of %d columns for its %d coefficients, as those of ",
-        "fitWLS() of an mgcv::gam() fit with smooth terms do. Refit the model."
+        "its terms rebuild a design of %d columns for its %d coefficients%s"
       ),
-      ncol(ctx$design), length(coefs)
+      ncol(ctx$design), length(coefs), hint
     ))
   }
   keep <- !is.na(coefs)

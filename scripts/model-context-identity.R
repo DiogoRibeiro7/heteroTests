@@ -1885,7 +1885,8 @@ identity_affected <- unique(c(identity_affected, identity_increment8))
 # squares would drop a family and a link; it bootstraps a Gaussian glm with
 # the identity link as the lm it is, with its prior weights, and refuses an
 # mgcv::gam() fit, a glm by class, as before, with a message that says why
-# (identity_defects() tags the cells of a glm and of a gam). The value of a
+# (identity_defects() tags the cells of a glm "N8_glm" and those of a gam
+# "N8"). The value of a
 # glm is verified against the same call on the weighted lm of its cell
 # ("lm", identity_glm_lm()), to `identity_glm_tolerance`.
 identity_n8_scope <- identity_bootstraps
@@ -1904,7 +1905,7 @@ identity_glm_tolerance <- 1e-8
 # refits its design by least squares), where its refit from the formula
 # stopped on s().
 identity_bootstrap_allowed$error_to_value <- unique(c(
-  identity_bootstrap_allowed$error_to_value, "N7", "B5", "B14", "N8"
+  identity_bootstrap_allowed$error_to_value, "N7", "B5", "B14", "N8_glm"
 ))
 identity_bootstrap_allowed$value_change <- "B5"
 for (defect in c("frame", "M8")) {
@@ -1916,7 +1917,8 @@ identity_defect_scope$N17 <- c(identity_defect_scope$N17, identity_white_bootstr
 identity_defect_scope$gam <- c(identity_defect_scope$gam, identity_white_bootstrap,
                                identity_resampling_runner)
 identity_message_scope$gam <- c(identity_message_scope$gam, identity_white_bootstrap)
-# The refusal of N8 on every cell of a glm or a gam, and the refusals of the
+# The refusal of N8 on the cells of a gam ("N8"), the value of a Gaussian glm
+# on those of a glm ("N8_glm", which has no message), and the refusals of the
 # context that now come first, each on the cells where it applies
 # (identity_defects()): a zero weight, rows of `data` the guard cannot match,
 # and the nearly collinear glm of Harrison-McCabe's rank, whose refit on the
@@ -1925,7 +1927,7 @@ identity_messages$N8 <- "supports Gaussian `lm` models only"
 identity_messages$N8_weight <- "zero or non-finite weights"
 identity_messages$N8_guard <- "cannot match the rows of `data`"
 identity_messages$N8_rank <- "does not reproduce the fit"
-for (defect in c("N8", "N8_weight", "N8_guard", "N8_rank")) {
+for (defect in c("N8", "N8_glm", "N8_weight", "N8_guard", "N8_rank")) {
   identity_defect_scope[[defect]] <- identity_n8_scope
   identity_message_scope[[defect]] <- identity_n8_scope
 }
@@ -2752,7 +2754,11 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   # A fitWLS() fit is an lm, whatever it refits: not N8.
   if (record$fn %in% identity_n8_scope && !record$fn %in% identity_fitwls_recipes &&
         !is.null(record$cell) && grepl(n8_cells, record$cell)) {
-    defects <- c(defects, "N8")
+    # The refusal of a gam, with the message of N8, on the cells of a gam
+    # only; on those of a glm, the value of a Gaussian glm main refused, and
+    # no message of N8, so that a refusal of a valid glm is unexpected.
+    gam <- grepl("^class/gam|^panel/unit_gam_", record$cell)
+    defects <- c(defects, if (gam) "N8" else "N8_glm")
     if (startsWith(record$cell, "class/zero_weight_glm")) {
       defects <- c(defects, "N8_weight")
     }
