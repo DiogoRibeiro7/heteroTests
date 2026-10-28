@@ -24,17 +24,21 @@ chi-squared statistic, degrees of freedom, p-value, and metadata describing the
 chunked computation.
 }
 \description{
-Computes the classical Breusch-Pagan statistic using chunked cross-products so
-that large datasets can be evaluated without materialising the full auxiliary
-regression in memory. The streamed result is algebraically identical to
+Computes the classical Breusch-Pagan statistic chunk by chunk so that large
+datasets can be evaluated without materialising the full auxiliary regression in
+memory. The streamed result is algebraically identical to
 \code{\link{performBPTest}}.
 }
 \details{
-Each chunk contributes to the cross-product matrices \eqn{X'X} and \eqn{X'y} for the
-auxiliary regression of squared residuals on the original regressors. The
-chunks are aggregated to recover the exact Breusch-Pagan statistic while keeping
-memory usage bounded. When \pkg{Matrix} is installed, sparse cross-products are
-used automatically for large chunks.
+Each chunk of the regressors, centred at their means, is reduced by a QR
+decomposition stacked on the triangular factor of the chunks before it, as in
+\code{\link{performWhiteTestStreaming}()}, since 0.17.0. Up to 0.16.0 the
+cross-products of the regressors were accumulated: those of a regressor 1,000
+standard deviations from zero looked collinear with the intercept, and the test
+stopped ("Breusch-Pagan auxiliary regression became rank deficient"); and squared
+residuals of about \eqn{10^{-10}} were taken for constant ("requires variation in
+squared residuals"). It gives the value of \code{\link{performBPTest}()} on both.
+Sparse cross-products from \pkg{Matrix} are no longer used.
 
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 \code{\link{performWhiteTestStreaming}()}, whose details say what changed.

@@ -52,18 +52,45 @@ A \code{htest} object containing the chi-squared statistic, p-value,
 and metadata about the chunked computation.
 }
 \description{
-Computes White's statistic via chunked cross-products rather than fitting the
-full auxiliary regression in memory. This streaming approach allows the test
-to scale to datasets that would otherwise exhaust available RAM.
+Computes White's statistic chunk by chunk rather than fitting the full
+auxiliary regression in memory. This streaming approach allows the test to
+scale to datasets that would otherwise exhaust available RAM.
 }
 \details{
-The streaming implementation iteratively builds the cross-product matrices
-required for the auxiliary regression without materialising the full design
-matrix. Each chunk contributes to \eqn{X'X}, \eqn{X'y}, and summary statistics
-for the response. The final \eqn{n R^2} statistic is then computed exactly as
-in the standard White test, ensuring numerical equivalence while dramatically
-reducing peak memory usage. When \code{Matrix} is installed, sparse cross-products
-are leveraged automatically for large chunks.
+The streaming implementation builds the auxiliary design, the regressors,
+their squares and their cross-products, chunk by chunk, without
+materialising it whole. Each chunk is reduced by a QR decomposition stacked
+on the triangular factor of the chunks before it, which holds the
+cross-products of every row without forming them. The rank of the auxiliary
+regression and its \eqn{n R^2} statistic are computed from that factor as
+in \code{\link[=performWhiteTest]{performWhiteTest()}}, ensuring numerical equivalence while reducing peak
+memory usage: the regressors are centred at their means, the rank is that of
+the auxiliary design at the default tolerance of \code{\link[=qr]{qr()}}, and a term that is a
+combination of the intercept and the terms before it is dropped (see
+\emph{Degrees of freedom} in \code{\link[=performWhiteTest]{performWhiteTest()}}).
+
+Since 0.17.0 the test drops such terms: the square of a dummy variable,
+which is the dummy, that of the first column of an orthogonal \code{poly()}
+basis, or that of \code{x} beside \code{I(x^2)}, as \code{\link[=performWhiteTest]{performWhiteTest()}} drops them,
+and gives its degrees of freedom: 17.83 on 8 on \code{lm(y ~ x1 + group)} with a
+factor of four levels. Up to 0.16.0 it accumulated the cross-products of the
+uncentred auxiliary design, decided their rank by \code{\link[=qr]{qr()}} of them, which
+squares the condition of the design, and stopped on such terms ("Auxiliary
+regression became rank deficient"), so on any model with a factor, and on
+terms that only looked collinear in those cross-products: the squares of a
+regressor 100 standard deviations from zero, or the terms of
+\code{lm(y ~ x1 * x2)} with \code{x1} between 0.5 and 2. It took the squared
+residuals for constant when their total sum of squares about their mean was
+at most \code{.Machine$double.eps}, whatever their scale, and so refused
+residuals of about \eqn{10^{-5}}: on
+120 observations of such residuals it now gives 12.787 on 5 degrees of
+freedom, the value of \code{\link[=performWhiteTest]{performWhiteTest()}}. It refuses squared residuals
+whose total sum of squares is at most \code{.Machine$double.eps} of their sum of
+squares, which agree to about eight digits. And in more than one chunk, on
+a regressor \code{a} beside a regressor \code{a_sq}, it put the square of \code{a}, which
+it names \code{a_sq} too, in place of that of \code{a_sq} in every chunk after the
+first: 27.76 in chunks of 7 where \code{\link[=performWhiteTest]{performWhiteTest()}} gives 27.64. It no
+longer uses the sparse cross-products of \code{Matrix} for large chunks.
 
 Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
 itself as \code{\link[=performWhiteTest]{performWhiteTest()}} reads it, so the value does not depend on the
@@ -90,10 +117,10 @@ that of the least-squares fit now. It refuses a \code{glm} of another family or 
 \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, \code{data} that lack rows or variables of the fit, and, since 0.16.0, a multivariate \code{lm}, a
 fit changed after it was fitted and a fit with \code{model = FALSE} whose data are gone, unless \code{data}
-gives its response and fitted values (see \code{\link{test_results}}). It stops when terms of its auxiliary
-regression are collinear, as the squares of dummy variables are, which
-\code{\link{performWhiteTest}()} drops, and, since 0.16.0, with the refusal of
-\code{\link{performWhiteTest}()} (see its section \emph{Too few observations}) when its
+gives its response and fitted values (see \code{\link{test_results}}). Since 0.17.0 it drops the
+terms of its auxiliary regression that are collinear, as the squares of dummy variables are, as
+\code{\link{performWhiteTest}()} drops them, where it stopped. Since 0.16.0 it stops with the
+refusal of \code{\link{performWhiteTest}()} (see its section \emph{Too few observations}) when its
 independent terms are at least as many as the observations, where it stopped as on collinear terms,
 or fit the squared residuals exactly, collinear or not, as on a paired design. Which model each
 test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.

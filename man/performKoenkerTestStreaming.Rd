@@ -29,14 +29,19 @@ recording the streaming configuration.
 \description{
 Evaluates Koenker's studentized variant of the Breusch-Pagan test (the
 \eqn{n R^2} statistic from regressing the squared residuals on the regressors)
-using streamed cross-products so that large datasets can be processed without
-allocating the full auxiliary regression matrix.
+chunk by chunk so that large datasets can be processed without allocating the
+full auxiliary regression matrix.
 }
 \details{
-Chunks of the data contribute to the cross-product matrices for the regression
-of squared residuals on the model regressors. Aggregating these matrices yields
-the exact Koenker statistic while bounding memory usage. Sparse cross-products
-from \pkg{Matrix} are used automatically when available for large chunks.
+Each chunk of the regressors, centred at their means, is reduced by a QR
+decomposition stacked on the triangular factor of the chunks before it, as in
+\code{\link{performWhiteTestStreaming}()}, since 0.17.0. Up to 0.16.0 the
+cross-products of the regressors were accumulated: those of a regressor 1,000
+standard deviations from zero looked collinear with the intercept, and the test
+stopped ("Koenker auxiliary regression became rank deficient"); and squared
+residuals of about \eqn{10^{-10}} were taken for constant ("requires variation in
+squared residuals"). It gives the value of \code{\link{performKoenkerTest}()} on
+both. Sparse cross-products from \pkg{Matrix} are no longer used.
 
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 \code{\link{performWhiteTestStreaming}()}, whose details say what changed.

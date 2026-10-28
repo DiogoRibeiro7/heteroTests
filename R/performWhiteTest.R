@@ -62,8 +62,8 @@
 #'
 #' The test is computed in memory whatever the size of the data. Up to 0.15.0
 #' it switched to [performWhiteTestStreaming()] on data above 100 MB, which
-#' stops on any model with a factor or a `poly()` term; call that function to
-#' stream.
+#' until 0.17.0 stopped on any model with a factor or a `poly()` term; call
+#' that function to stream.
 #'
 #' @section Degrees of freedom:
 #' Let \eqn{Z} hold the regressors, their squares and their cross-products.
@@ -124,8 +124,8 @@
 #' `"white"` of [runHeteroTests()]. The p-value of
 #' [performWhiteTestBootstrap()] depends on the statistic alone and does not
 #' change on a design that spans the constant. [performWhiteTestStreaming()]
-#' stops on such a design, whose auxiliary columns are collinear with its
-#' intercept, and where it gives a value it gives these degrees of freedom,
+#' gives these degrees of freedom, also on such a design, whose auxiliary
+#' columns are collinear with its intercept, on which it stopped until 0.17.0,
 #' but on an `mgcv::gam()` fit with smooth terms, whose smooth terms it does
 #' not test. On an auxiliary design whose columns are nearly collinear, as the
 #' squares and products of the basis of a smooth term can be, the columns
@@ -218,10 +218,10 @@
 #' [cachedTest()] or [runHeteroTests()] answers from its cache, and
 #' [runHeteroTests()] and [runDiagnostics()] give it once for each test that
 #' gives it. \link[=performWhiteTestRobust]{performWhiteTestRobust()} and the
-#' registered `"white"` give it too, and so does [performWhiteTestStreaming()]
-#' where it computes: it refuses a factor that is a main effect, whose dummies
-#' and their squares are collinear, and computes White's statistic on a slope
-#' for each level. [performWhiteTestBootstrap()], whose
+#' registered `"white"` give it too, and so does [performWhiteTestStreaming()],
+#' which since 0.17.0 computes on a factor that is a main effect, whose dummies
+#' and their squares are collinear, where it stopped, as well as on a slope for
+#' each level. [performWhiteTestBootstrap()], whose
 #' p-value is a bootstrap's, held its level on these designs and does not
 #' give it.
 #'
