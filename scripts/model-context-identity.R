@@ -34,7 +34,9 @@
 #     `identity_resampling_runner`); each record holds the state of the
 #     generator after the call, which must be main's for a call identical to
 #     main. Run both versions with R_LIBS set to the private library of main,
-#     so that the workers of a socket cluster load the same package;
+#     so that the workers of a socket cluster load the same package; and,
+#     from its review, the cells of the coding of a factor
+#     (`identity_coding_cells()`), with every recipe and that runner;
 #   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
 #     every recipe;
 #   - the examples of the help pages of the functions built on the context.
@@ -1035,15 +1037,15 @@ identity_n2_mode <- function(fn, n2, change) {
     }
     return("refusal")
   }
-  # Increment 8: a message or a new refusal of a route on a cell where White's
-  # count changed is judged by the other rules, as on any cell; a value where
-  # main stopped before White's test (L1 and L2 on a poly() cell, in the
-  # preparation of `data` of the robust White test) has no value of main to
-  # check, and is verified by the chain.
-  if (change %in% c("message_change", "value_to_error")) {
+  # Increment 8: a message or a new refusal of one of its routes on a cell
+  # where White's count changed is judged by the other rules, as on any cell;
+  # a value where main stopped before White's test (L1 and L2 on a poly()
+  # cell, in the preparation of `data` of the robust White test) has no value
+  # of main to check, and is verified by the chain.
+  if (fn %in% identity_increment8 && change %in% c("message_change", "value_to_error")) {
     return(NULL)
   }
-  if (identical(change, "error_to_value")) {
+  if (fn %in% identity_increment8 && identical(change, "error_to_value")) {
     return("chain")
   }
   if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
@@ -1823,15 +1825,12 @@ identity_resampling_recipes <- list(
     performBPTestRobust(m, d, studentize = FALSE, bootstrap = TRUE, B = 19)
   },
   `performWhiteTestBootstrap(fitWLS)` = function(m, d) {
-    identity_skip_smooth_gam(m)
     performWhiteTestBootstrap(fitWLS(m, d), d, B = 19)
   },
   `performWildBootstrapTest(fitWLS)` = function(m, d) {
-    identity_skip_smooth_gam(m)
     performWildBootstrapTest(fitWLS(m, d), d, B = 19, progress = FALSE)
   },
   `bootstrapTestStatistic(performKoenkerTest, fitWLS)` = function(m, d) {
-    identity_skip_smooth_gam(m)
     bootstrapTestStatistic(performKoenkerTest, fitWLS(m, d), d, B = 19, progress = FALSE)
   }
 )
@@ -1846,7 +1845,8 @@ identity_resampling_runner_cell <- function(cell) {
   if (is.null(id) || is.null(cell$block)) {
     return(FALSE)
   }
-  (cell$block %in% c("fit", "terms") && cell$form %in% c("data_frame", "null")) ||
+  identical(cell$block, "coding") ||
+    (cell$block %in% c("fit", "terms") && cell$form %in% c("data_frame", "null")) ||
     (identical(cell$block, "class") && !grepl("_(null|shuffled|tibble_shuffled|model_frame)$", id)) ||
     id %in% c("missing/median_full", "missing/complete_renumbered", "subset/data_frame",
               "class/gam_shuffled", "ident/character_names_tibble", "missing/complete_fit",
@@ -1916,13 +1916,19 @@ identity_defect_scope$N17 <- c(identity_defect_scope$N17, identity_white_bootstr
 identity_defect_scope$gam <- c(identity_defect_scope$gam, identity_white_bootstrap,
                                identity_resampling_runner)
 identity_message_scope$gam <- c(identity_message_scope$gam, identity_white_bootstrap)
-identity_defect_scope$N8 <- identity_n8_scope
-identity_message_scope$N8 <- identity_n8_scope
-identity_messages$N8 <- c(
-  "supports Gaussian `lm` models only", "zero or non-finite weights",
-  "cannot match the rows of `data`", "does not reproduce the fit"
-)
-identity_runner_allowed <- unique(c(identity_runner_allowed, "N17"))
+# The refusal of N8 on every cell of a glm or a gam, and the refusals of the
+# context that now come first, each on the cells where it applies
+# (identity_defects()): a zero weight, rows of `data` the guard cannot match,
+# and the nearly collinear glm of Harrison-McCabe's rank, whose refit on the
+# stored design by least squares does not reproduce its residuals.
+identity_messages$N8 <- "supports Gaussian `lm` models only"
+identity_messages$N8_weight <- "zero or non-finite weights"
+identity_messages$N8_guard <- "cannot match the rows of `data`"
+identity_messages$N8_rank <- "does not reproduce the fit"
+for (defect in c("N8", "N8_weight", "N8_guard", "N8_rank")) {
+  identity_defect_scope[[defect]] <- identity_n8_scope
+  identity_message_scope[[defect]] <- identity_n8_scope
+}
 # The weighted lm of a cell of a glm: the same model, data and weights; for
 # the well-conditioned glm of the cells of Harrison-McCabe's rank, the lm of
 # the same model on the same rows.
@@ -1950,16 +1956,63 @@ identity_reordered_replicates <- function(record) {
 # of an mgcv::gam() fit with smooth terms returns an lm whose terms do not
 # rebuild its design (one column per variable of the formula, for the
 # coefficients of the basis of the smooths), a defect of fitWLS() outside the
-# context (ROADMAP.md): those cells are skipped.
+# context (ROADMAP.md): the White and wild bootstraps returned a value of it,
+# on the design of the variables, and the tests built on the context stopped
+# on it with an internal error; since the review of increment 8 the context
+# refuses it (M8, identity_defects()).
 identity_fitwls_recipes <- c(
   "performWhiteTestBootstrap(fitWLS)", "performWildBootstrapTest(fitWLS)",
   "bootstrapTestStatistic(performKoenkerTest, fitWLS)"
 )
-identity_skip_smooth_gam <- function(m) {
-  if (inherits(m, "gam") && length(m$smooth) > 0L) {
-    testthat::skip("fitWLS() of a gam with smooth terms does not rebuild its design")
+# The terms of a cell, read from its id: the terms block, the median of a fit
+# that dropped rows, the model of a missing group (increment 7; restored in
+# the review of increment 8, after the pull request of N3 had removed it).
+identity_cell_terms <- function(cell) {
+  if (is.null(cell) || length(cell) != 1L) {
+    return(NA_character_)
   }
-  invisible(NULL)
+  if (startsWith(cell, "terms/")) {
+    return(strsplit(cell, "/", fixed = TRUE)[[1L]][4L])
+  }
+  if (startsWith(cell, "missing/median")) {
+    return("median")
+  }
+  if (startsWith(cell, "group/na_factor")) {
+    return("factor")
+  }
+  "none"
+}
+# From the review of increment 8: the cells of the coding of a factor, run
+# through every recipe, which pairs resampling draws from with levels left
+# out (two rows of each of two levels): a factor, the same values as a
+# character column, the factor coded by `contrasts = list(f = "contr.sum")`
+# and the factor carrying the matrix contr.sum(4) as its contrasts attribute.
+# Each replicate of pairs resampling that left a level out lost the contrasts
+# of the design (`[` drops them), and so its fit (M8), or kept a column of
+# zeros for the absent value of the character column (aliased), or stopped the
+# whole call on the matrix, which has a row for each of four levels.
+identity_coding_cells <- function() {
+  coding_cell <- function(id, build) {
+    list(id = id, block = "coding", build = build, fit = "ols", offset = "none",
+         terms = "factor", form = "data_frame", needs = character(), reference = NULL,
+         expect = "value", defect = character())
+  }
+  d <- context_data()
+  set.seed(42)
+  d$f <- factor(sample(c(rep("a", 58), rep("b", 58), "c", "c", "d", "d")))
+  d$ch <- as.character(d$f)
+  d$fs <- d$f
+  stats::contrasts(d$fs) <- stats::contr.sum(4)
+  list(
+    coding_cell("coding/factor", function() list(m = stats::lm(y ~ x1 + x2 + f, data = d), data = d)),
+    coding_cell("coding/character", function() {
+      list(m = stats::lm(y ~ x1 + x2 + ch, data = d), data = d)
+    }),
+    coding_cell("coding/contr_sum", function() {
+      list(m = stats::lm(y ~ x1 + x2 + f, data = d, contrasts = list(f = "contr.sum")), data = d)
+    }),
+    coding_cell("coding/attribute", function() list(m = stats::lm(y ~ x1 + x2 + fs, data = d), data = d))
+  )
 }
 # The terms block cells shuffled under their own row names, whose
 # order-dependent bootstraps are verified against the fit with the columns of
@@ -2475,6 +2528,12 @@ identity_run <- function(where, out, root = ".") {
     add("reference", "white_by_hand", cell,
         identity_outcome(function() identity_white_by_hand(built$m)))
   }
+  # The cells of the coding of a factor (the review of increment 8), through
+  # every recipe and the runner with the resampling tests.
+  for (cell in identity_coding_cells()) {
+    built <- suppressWarnings(suppressMessages(cell$build()))
+    run_cell(cell, built, names(recipes), "recipe", "runner")
+  }
   # The examples of the help pages, each expression whose value is a test, or
   # that calls the function of its page: the scatter diagnostic returns its
   # correlations, and runPanelTests() a list of tests (increment 5).
@@ -2686,12 +2745,29 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   if (record$fn %in% identity_n8_scope && !is.null(record$cell) &&
         grepl(n8_cells, record$cell)) {
     defects <- c(defects, "N8")
+    if (startsWith(record$cell, "class/zero_weight_glm")) {
+      defects <- c(defects, "N8_weight")
+    }
+    if (identical(record$expect, "guard")) {
+      defects <- c(defects, "N8_guard")
+    }
+    if (record$cell %in% c("rank/glm", "rank/glm_weighted")) {
+      defects <- c(defects, "N8_rank")
+    }
   }
   # Increment 8: the bootstraps of a fitWLS() fit without `data` (B12) or
   # given the model frame (L2), which the White bootstrap rebuilt the design
   # of a weighted fit from.
   if (record$fn %in% identity_fitwls_recipes && record$form %in% c("null", "model_frame")) {
     defects <- c(defects, if (identical(record$form, "null")) "B12" else "L2")
+  }
+  # The review of increment 8: fitWLS() of a gam with smooth terms, whose
+  # terms do not rebuild the design of its coefficients, is refused (M8) where
+  # the White and wild bootstraps returned a value and Koenker's test stopped
+  # on an internal error.
+  if (record$fn %in% identity_fitwls_recipes && !is.null(record$cell) &&
+        startsWith(record$cell, "class/gam_smooth")) {
+    defects <- c(defects, "M8")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))
