@@ -2405,6 +2405,42 @@ test_that("the functions outside the context read a fit with na.exclude as its t
   )
 })
 
+test_that("augment() and the remediation advice refuse data they cannot bind by row", {
+  # From the re-review of increment 9. augment() of the results of the runner
+  # recycled the fitted values, residuals and standardised residuals over data
+  # whose number of rows is a multiple of theirs, on any fit, binding them to
+  # rows of other observations (480 rows for rbind(d, d)); and
+  # recommendRemediationStrategies(), which correlates the residuals with the
+  # columns of `data` row by row, read the padded residuals of a fit with
+  # na.exclude against its full data by position, and stopped on the same fit
+  # with na.omit with "incompatible dimensions". Both refuse data of another
+  # number of rows, naming the two counts; matching such rows is left to
+  # increment 10 (N5).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  results <- runHeteroTests(lm(y ~ x1 + x2, data = d), d, use_cache = FALSE, progress = FALSE)
+  expect_error(generics::augment(results, data = rbind(d, d)),
+               "120 of them, and `data` has 240 rows", fixed = TRUE)
+  expect_identical(nrow(generics::augment(results, data = d)), length(results) * nrow(d))
+  pair <- context_excluded_pair()
+  tr <- suppressWarnings(
+    runHeteroTests(pair$omitted, pair$d, use_cache = FALSE, progress = FALSE)
+  )
+  for (m in list(pair$excluded, pair$omitted)) {
+    expect_error(
+      recommendRemediationStrategies(tr, m, pair$d),
+      paste("reads one row of `data` for each observation of the fit, 117 of them,",
+            "and `data` has 120 rows"),
+      fixed = TRUE
+    )
+  }
+  expect_identical(
+    recommendRemediationStrategies(tr, pair$excluded, stats::model.frame(pair$excluded)),
+    recommendRemediationStrategies(tr, pair$omitted, stats::model.frame(pair$omitted))
+  )
+})
+
 test_that("fitWLS() pads its outputs per row on a fit with na.exclude (B13)", {
   # Increment 9. The refit of fitWLS() keeps the na.action of the model, so
   # residuals(), fitted() and weights() of a fit with na.exclude are padded

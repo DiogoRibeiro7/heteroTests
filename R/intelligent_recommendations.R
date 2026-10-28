@@ -442,6 +442,26 @@ identifyVariancePatterns <- function(model, data) {
   if (is.null(res) || is.null(fitted_vals)) {
     return(list(description = "Residual diagnostics unavailable.", suggestions = character()))
   }
+  # The columns of `data` are correlated with the residuals row by row, so
+  # `data` must hold one row per observation of the fit. Data of another
+  # number of rows, as the full data of a fit that dropped rows, stopped in
+  # cor() with "incompatible dimensions", or, on a fit with na.exclude, whose
+  # residuals were padded, were read by position (from the review of
+  # increment 9 of the model context). Matching the rows of `data` to the
+  # observations of the fit is left to increment 10 (N5).
+  if (is.data.frame(data) && nrow(data) != length(res)) {
+    stop(
+      sprintf(
+        paste(
+          "recommendRemediationStrategies() reads one row of `data` for each observation",
+          "of the fit, %d of them, and `data` has %d rows. Pass the rows the model was",
+          "fitted on, such as model.frame(model), or refit the model on `data`."
+        ),
+        length(res), nrow(data)
+      ),
+      call. = FALSE
+    )
+  }
 
   abs_res <- abs(res)
   corr_fit <- suppressWarnings(stats::cor(abs_res, fitted_vals, use = "complete.obs"))
