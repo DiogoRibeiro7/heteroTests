@@ -2048,6 +2048,102 @@ identity_rng_state <- function() {
   paste(sum(as.numeric(seed) * seq_along(seed)), length(seed), seed[1L], seed[2L])
 }
 
+# --- increment 9: na.exclude --------------------------------------------------------
+
+# B13: a fit with na.action = na.exclude, which drops the rows na.omit drops
+# and pads residuals(), fitted(), weights() and hatvalues() with NA at them
+# (naresid()). The tests refused it ("Model residuals must be finite"), RESET
+# and the bootstraps stopped on it, the runners stopped with the refusal, and
+# the panel tests and the scatter diagnostic read its padded residuals against
+# the rows of `data` by position, giving NA, a value computed with the NA
+# (Pesaran's 0.713 on missing/na_exclude for the 0.189 of its rows), or
+# refusing data in another order and an unbalanced panel of the rows of
+# `data`. Each cell of a fit with na.exclude (the cells with a `twin`,
+# helper-model-context.R: missing/na_exclude and the block exclude/) has a
+# twin, the same fit with na.omit given the same data, and every call on it,
+# by every function built on the context and every route and runner, must give
+# what the same call gives on its twin (identity_twin()): its value, verified
+# against the twin as the reference of the cell (identity_verify(), to 0), or
+# its refusal, the same class and message; an output with one value per row
+# padded as naresid() pads it, which of the calls of the corpus only the
+# fitWLS() recipes return, their weights (identity_padded_twin()); and the
+# state of the generator the twin left. Each run records, for each such cell,
+# the na.action of its fit and its number of observations (`na_action`). The
+# allow-list gains B13, for the calls of the functions built on the context
+# (`identity_affected`), as an error that becomes a value, a value that
+# changes, a message that changes and a new refusal, each allowed only when
+# the call gives what its twin gives; and the calls on those cells that are
+# identical to main must give it too.
+identity_allowed$error_to_value <- c(identity_allowed$error_to_value, "B13")
+identity_allowed$value_change <- c(identity_allowed$value_change, "B13")
+identity_allowed$value_to_error <- c(identity_allowed$value_to_error, "B13")
+identity_bootstrap_allowed$error_to_value <- c(identity_bootstrap_allowed$error_to_value, "B13")
+identity_bootstrap_allowed$value_change <- c(identity_bootstrap_allowed$value_change, "B13")
+identity_runner_allowed <- unique(c(identity_runner_allowed, "B13"))
+identity_defect_scope$B13 <- identity_affected
+identity_message_scope$B13 <- identity_affected
+# A message or a new refusal of B13 is allowed by identity_twin() alone; this
+# entry lets identity_allow() reach it.
+identity_messages$B13 <- character()
+identity_new_refusals$B13 <- character()
+
+# The record of a call on the twin of its cell.
+identity_twin_record <- function(record, records, twin) {
+  records[[paste(record$kind, record$fn, twin, sep = " | ")]]
+}
+
+# The value a call on a fit with na.exclude must give, from the value of the
+# same call on its twin: the same, but for an output with one value per row,
+# padded with NA at the rows the fit dropped. Of the corpus, the fitWLS()
+# recipes, the coefficients and then the weights of the fit
+# (identity_wls_numbers()), padded from the na.action of the fit of the cell,
+# recorded by the run.
+identity_padded_twin <- function(fn, value, na_action) {
+  if (!startsWith(fn, "fitWLS") || !is.numeric(value) || !is.list(na_action) ||
+        is.null(na_action$n)) {
+    return(value)
+  }
+  n <- na_action$n
+  k <- length(value) - n
+  if (k < 0L) {
+    return(value)
+  }
+  weights <- stats::naresid(na_action$na_action, unname(value[k + seq_len(n)]))
+  c(value[seq_len(k)], weights)
+}
+
+# Does the call on a fit with na.exclude give what the same call gives on its
+# twin? NA when the cell has no twin; otherwise "value", "padded" (fitWLS(),
+# its weights padded), "refusal" (the same class and message), "skip", or
+# FALSE. The state of the generator after the call must be the twin's too.
+identity_twin <- function(record, after, branch_records) {
+  twin <- record$twin
+  if (is.null(twin)) {
+    return(list(verdict = NA_character_, rng = NA))
+  }
+  twin_after <- identity_twin_record(record, branch_records, twin)
+  if (is.null(twin_after)) {
+    return(list(verdict = "FALSE", rng = NA))
+  }
+  a <- after$value
+  b <- twin_after$value
+  rng <- identical(after$rng, twin_after$rng)
+  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  skipped <- function(v) is.list(v) && isTRUE(v$.skip)
+  verdict <- if (skipped(a) && skipped(b)) {
+    "skip"
+  } else if (failed(a) || failed(b)) {
+    if (identical(a, b)) "refusal" else "FALSE"
+  } else if (identical(a, b)) {
+    "value"
+  } else {
+    na_action <- branch_records[[paste("reference", "na_action", record$cell, sep = " | ")]]$value
+    padded <- identity_padded_twin(record$fn, b, na_action)
+    if (!identical(padded, b) && identical(a, padded)) "padded" else "FALSE"
+  }
+  list(verdict = verdict, rng = rng)
+}
+
 # --- canonical results ---------------------------------------------------------
 
 # A result without the environments, functions and calls it carries, which
@@ -2334,6 +2430,14 @@ identity_run <- function(where, out, root = ".") {
   if (!is.na(first)) {
     cells <- utils::head(cells, first)
   }
+  # IDENTITY_CELL_PATTERN=<regular expression> runs the cells whose id matches
+  # it, with the twins of those of a fit with na.exclude, to try a block out.
+  pattern <- Sys.getenv("IDENTITY_CELL_PATTERN", unset = "")
+  if (nzchar(pattern)) {
+    chosen <- grepl(pattern, names(cells))
+    twins <- unlist(lapply(cells[chosen], `[[`, "twin"))
+    cells <- cells[chosen | names(cells) %in% twins]
+  }
   recipes <- c(contract_recipes[setdiff(names(contract_recipes), "performBoxMTest")],
                identity_extra_recipes)
   records <- list()
@@ -2347,7 +2451,7 @@ identity_run <- function(where, out, root = ".") {
     identity_sz$id <- NULL
     records[[id]] <<- c(
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
-           defect = cell$defect, expect = cell$expect,
+           defect = cell$defect, expect = cell$expect, twin = cell$twin,
            reference = identity_chain_reference(fn, cell),
            externals = c(identity_plm_reference(fn, cell), identity_external_ids(fn, cell),
                          identity_rank_reference(fn, cell))),
@@ -2438,6 +2542,14 @@ identity_run <- function(where, out, root = ".") {
     # N2: White's test written out on the cell, the reference of its changes.
     add("reference", "white_by_hand", cell,
         identity_outcome(function() identity_white_by_hand(built$m)))
+    # Increment 9: the na.action of a fit with na.exclude and its number of
+    # observations, from which the output of its twin is padded
+    # (identity_padded_twin()).
+    if (!is.null(cell$twin)) {
+      add("reference", "na_action", cell, identity_outcome(function() {
+        list(na_action = built$m$na.action, n = length(built$m$residuals))
+      }))
+    }
   }
   # Decision 1: the cells of a poly() term on the stored design.
   identity_trace(TRUE)
@@ -3143,6 +3255,26 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     } else {
       identity_allow(before, verdict, after, stored, n2, n2_mode)
     }
+    # Increment 9, B13: a call on a fit with na.exclude must give what the same
+    # call gives on its twin, the same fit with na.omit (identity_twin()). A
+    # message that changes, or a new refusal, is allowed when it is the
+    # refusal of the twin; any call on such a cell, changed or identical to
+    # main, that does not give what its twin gives is unexpected, and so is a
+    # change that leaves the generator elsewhere than the twin left it.
+    twin <- identity_twin(before, after, branch$records)
+    b13 <- "B13" %in% identity_defects(before)
+    if (b13 && verdict$change %in% c("message_change", "value_to_error") &&
+          identical(twin$verdict, "refusal")) {
+      allowed <- "allowed"
+    }
+    if (!is.na(twin$verdict) && identical(twin$verdict, "FALSE")) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("not what the call gives on its twin:", verdict$detail)
+    }
+    if (b13 && identical(allowed, "allowed") && !isTRUE(twin$rng)) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("the generator is not left as the twin left it;", verdict$detail)
+    }
     n2_change <- !is.null(n2_mode) && !identical(allowed, "identical")
     # An allowed change to a value must be verified against a reference; one
     # of N2 is, by identity_n2_check() or identity_n2_fallback(), against
@@ -3158,7 +3290,10 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     } else if (to_value && isTRUE(n2_mode %in% c("check", "fallback"))) {
       "lm(e^2 ~ Z_c)"
     } else if (to_value) {
-      identity_verify(before, main$records, branch$records)
+      verified_by <- identity_verify(before, main$records, branch$records)
+      # B13: an output with one value per row, which the reference, the twin,
+      # gives without the padding (identity_padded_twin()).
+      if (is.na(verified_by) && identical(twin$verdict, "padded")) "twin, padded" else verified_by
     } else {
       NA
     }
@@ -3222,6 +3357,17 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       data_name = data_name,
       warnings_differ = !identical(before$warnings, after$warnings),
       rng_identical = rng_identical,
+      # Increment 9: on a fit with na.exclude, whether the call gives what it
+      # gives on its twin, leaves the generator as the twin left it, and gives
+      # the twin's warnings; NA on the other cells.
+      twin = twin$verdict,
+      twin_rng = twin$rng,
+      twin_warnings = if (is.na(twin$verdict)) {
+        NA
+      } else {
+        identical(after$warnings,
+                  identity_twin_record(before, branch$records, before$twin)$warnings)
+      },
       detail = substr(gsub("\n", " ", verdict$detail), 1L, 160L),
       stringsAsFactors = FALSE
     )
@@ -3365,6 +3511,26 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   }
   cat(sprintf("\nCalls whose warnings differ (not counted above): %d\n",
               sum(calls$warnings_differ)))
+  twinned <- calls[!is.na(calls$twin), , drop = FALSE]
+  if (nrow(twinned) > 0L) {
+    gives <- twinned$twin != "FALSE"
+    cat(sprintf(paste0(
+      "\nB13, na.exclude: %d calls on %d cells of a fit with na.exclude, %d of them identical() ",
+      "to main and %d allowed changes; %d give what the same call gives on the twin, the same ",
+      "fit with na.omit (%d values, %d with the weights of fitWLS() padded, %d refusals, %d ",
+      "skipped), %d do not; %d leave the generator as the twin left it, and %d give the ",
+      "twin's warnings\n"
+    ), nrow(twinned), length(unique(twinned$cell)), sum(twinned$verdict == "identical"),
+    sum(twinned$verdict == "allowed"), sum(gives), sum(twinned$twin == "value"),
+    sum(twinned$twin == "padded"), sum(twinned$twin == "refusal"), sum(twinned$twin == "skip"),
+    sum(!gives), sum(twinned$twin_rng, na.rm = TRUE), sum(twinned$twin_warnings, na.rm = TRUE)))
+    changed_twinned <- twinned[twinned$verdict != "identical", , drop = FALSE]
+    if (nrow(changed_twinned) > 0L) {
+      changed_twinned$calls <- 1L
+      print(stats::aggregate(calls ~ change + twin + verdict, data = changed_twinned, FUN = sum),
+            row.names = FALSE)
+    }
+  }
   identical_calls <- calls$verdict == "identical"
   changed_calls <- calls$verdict == "allowed"
   cat(sprintf(paste0(
