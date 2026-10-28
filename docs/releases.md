@@ -6,6 +6,104 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
+### The streaming tests
+
+**White's streaming test drops the collinear terms of its auxiliary
+regression, as `performWhiteTest()` does (N3 of the design of the model
+context).** `performWhiteTestStreaming()` stopped with "Auxiliary regression
+became rank deficient" whenever terms of its auxiliary regression were
+collinear: the square of a dummy, which is the dummy, so on any model with a
+factor; the square of the first column of an orthogonal `poly()` basis; `x`
+beside `I(x^2)`. It now counts the terms by the rank `performWhiteTest()`
+takes, that of the intercept and the auxiliary design of the centred
+regressors at the tolerance of `qr()`, drops those that are a combination of
+the intercept and the terms before them, and gives the degrees of freedom and
+the value of `performWhiteTest()`. On `lm(y ~ x1 + group)` in the design of
+`contract_data()` (`tests/testthat/helper-test-recipes.R`), with `group` a
+factor of four levels:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performWhiteTestStreaming(m, d)`, in chunks of any size | Error: "Auxiliary regression became rank deficient" | 17.83 on 8 (p = 0.0225), the value of `performWhiteTest()` |
+| `runHeteroTests(m, d, chunk_threshold_mb = 0)` | White's test without cross products, 13.79 on 5 (p = 0.017), tagged as a fallback | White's streaming test, 17.83 on 8 |
+
+The same holds on 30 subjects of two observations and one of three, where
+`performWhiteTest()` gives 59.75 on 30, on a model of `I(x > median(x))` or
+`cut(x, quantile(x))`, on a factor with `contr.sum`, Helmert or polynomial
+contrasts, without an intercept, with weights and in a Gaussian `glm`: in
+chunks of 7, 40 and 10,000, with and without cross products, the degrees of
+freedom are those of `performWhiteTest()` and the statistic agrees with it to
+4e-14 relative. A fit whose auxiliary regression fits the squared residuals
+exactly is refused with the message of `performWhiteTest()`, as since 0.16.0.
+
+**The three streaming tests no longer take terms of a regressor located far
+from zero for collinear ones.** They accumulated the cross-products of the
+auxiliary design, decided their rank by `qr()` of them, which squares the
+condition of the design, and solved the normal equations. White's streaming
+test stopped on the squares of a regressor 100 standard deviations from
+zero, and on the terms of `lm(y ~ x1 * x2)` with `x1` between 0.5 and 2;
+`performBPTestStreaming()` and `performKoenkerTestStreaming()` stopped
+("auxiliary regression became rank deficient") on a regressor 1,000 standard
+deviations from zero beside the intercept, such as a date written as
+`YYYYMMDD`. Each chunk is now reduced by a QR decomposition stacked on the
+triangular factor of the chunks before it, which holds the cross-products of
+every row without forming them, of the auxiliary design of the regressors
+centred at their means, as `performWhiteTest()` builds it. On `lm(y ~ x1 +
+x2)` with `x1` moved 1,000 standard deviations from zero, White's streaming
+test gives 11.14 on 5, the Breusch-Pagan test 12.45 on 2 and Koenker's 9.04
+on 2, the values of the exact tests and of the model at zero, where the three
+stopped. From 100 to 10,000 standard deviations, on linear terms, factors,
+weights and a Gaussian `glm`, the degrees of freedom are those of the exact
+tests and the statistics agree with them to about 2e-10 relative, the
+rounding being the exact tests', which fit the uncentred design; on a product
+or a power of a variable located far from zero inside the model, which
+`performWhiteTest()` itself computes less precisely, to 3e-9 at 1,000
+standard deviations. Where they gave a value, the values change in their
+last bits; where the normal equations lost more digits, as on an `ns()` term
+(White's test, 5.7e-11 relative) or a regressor 1,000 standard deviations from
+zero inside a factor model (Breusch-Pagan and Koenker, up to 5e-9), the new
+value is that of the exact test, to 6e-14. The sparse cross-products of
+`Matrix` are no longer used.
+
+**The streaming tests compare the variation of the squared residuals with
+their scale.** They refused squared residuals whose total sum of squares
+about their mean was at most `.Machine$double.eps`, whatever their scale
+("requires variation in squared residuals"), so residuals of about `1e-5`:
+with `set.seed(11); n <- 120; d <- data.frame(x1 = runif(n, 0.5, 2), x2 =
+rnorm(n)); d$y <- 1e-5 * rnorm(n, sd = d$x1); m <- lm(y ~ x1 + x2, data = d)`,
+the three stopped, where `performWhiteTest()` gives 12.787 on 5 degrees of
+freedom, `performBPTest()` 12.997 on 2 and `performKoenkerTest()` 10.289 on
+2, and the same data times `1e5` streamed to 12.787. They now give those
+values. The total is compared with the sum of squares of the squared
+residuals: they are taken for constant when it is at most
+`.Machine$double.eps` of it, when they agree to about eight digits, at any
+scale.
+
+**The streaming tests refuse squared residuals that agree to about eight
+digits, at every scale and in chunks of any size.** The absolute threshold let
+such residuals through at some scales, where the statistic was computed from
+the rounding: residuals of +1 and -1 orthogonal to the regressors gave, in
+chunks of 40 or more at a scale of 1, White's 0, Koenker's 40 (the number of
+observations) and the Breusch-Pagan test 3.6e-15, and were refused at other
+scales; and squared residuals that differ by a few parts in 1e9, such as those
+of `lm(y ~ x)` with `x <- rep(1:30, each = 4)` and
+`y <- 2 + 0.5 * x + s * 1e4 * (1 + 3e-9 * v)`, `s <- rep(c(1, -1, -1, 1), 30)`,
+`v <- rep(c(1, 0, 1, 0), 30) * x / 10`, gave White's 60 on 2 and Koenker's 60
+on 1, noise, where `performWhiteTest()` and `performKoenkerTest()` give
+23.05. `performWhiteTest()` and `performKoenkerTest()` compute a statistic
+from the rounding of the first case too (18.82 and 18.36).
+
+**White's streaming test, in more than one chunk, on a regressor named like a
+term it generates, gives the value of `performWhiteTest()`.** It matched the
+columns of every chunk after the first to those of the first by name, and on
+a regressor `a` beside a regressor `a_sq` the square of `a`, also named
+`a_sq`, took the place of that of `a_sq`: 27.76 in chunks of 7 and 30.65 in
+chunks of 40, where `performWhiteTest()` and the test in one chunk give
+27.64. Every chunk has the columns of the design of the fit since 0.16.0, and
+they are taken in their order.
+
+No export or argument changes.
+
 ### The model context, step 8: the resampling tests
 
 The eighth of the eleven steps of the model context (*The model context*,
