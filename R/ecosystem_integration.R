@@ -379,7 +379,10 @@
   mold <- tryCatch(workflows::extract_mold(workflow), error = function(e) NULL)
   if (is.null(mold) || !requireNamespace("hardhat", quietly = TRUE)) {
     .ht_stop_engine_data(
-      lacking, "the workflow's preprocessing cannot be read (hardhat::forge()), so `data` cannot be mapped to them."
+      lacking, paste(
+        "the workflow's preprocessing cannot be read (hardhat::forge()), so `data`",
+        "cannot be mapped to them."
+      )
     )
   }
   forged <- tryCatch(

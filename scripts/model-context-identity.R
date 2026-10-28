@@ -2356,10 +2356,22 @@ identity_increment10_verdict <- function(record, after, verdict, main, branch) {
       !(is.list(after_ref$value) && isTRUE(after_ref$value$.error))
     return(list(verdict = if (ok) "allowed" else "unexpected",
                 verified = if (ok) {
-                  if (record$fn %in% identity_rows10) "rows of the fit, main" else "data = NULL, main"
+                  if (record$fn %in% identity_rows10) {
+                    "rows of the fit, main"
+                  } else {
+                    "data = NULL, main"
+                  }
                 } else {
                   NA_character_
                 }))
+  }
+  # A refusal of item 3 that main makes on the rows of the fit in its order,
+  # the reference, is the call's own: the same class and message.
+  if (record$fn %in% identity_rows10) {
+    rows_ref <- main[[paste("reference", record$fn, paste0("rows/", record$cell), sep = " | ")]]
+    if (!is.null(rows_ref) && identical(after$value, rows_ref$value)) {
+      return(list(verdict = "allowed", verified = NA_character_))
+    }
   }
   message <- if (is.list(after$value) && isTRUE(after$value$.error)) after$value$message else ""
   classes <- if (is.list(after$value)) after$value$class else character()

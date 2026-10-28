@@ -2470,7 +2470,9 @@ test_that("augment() and the remediation advice match the rows of data as the te
   expect_identical(bound$y, rows$y)
   expect_error(generics::augment(white, data = dplyr::as_tibble(renumbered)[sample(117), ]),
                "augment() cannot match the rows of `data`", fixed = TRUE)
-  excluded <- suppressWarnings(runHeteroTests(me, d, use_cache = FALSE, progress = FALSE))[["white"]]
+  excluded <- suppressWarnings(
+    runHeteroTests(me, d, use_cache = FALSE, progress = FALSE)
+  )[["white"]]
   padded <- generics::augment(excluded, data = rows)
   expect_identical(generics::augment(excluded, data = rows_shuffled), padded)
   expect_identical(nrow(padded), nrow(d))
@@ -2545,10 +2547,9 @@ test_that("a grouped run of a fitWLS() fit is refused, the others refit each gro
   whole <- run(fw, d)
   expect_identical(run(fw, dplyr::ungroup(context_grouped(d, "one")))$white$statistic,
                    whole$white$statistic)
-  expect_identical(
-    runDiagnostics(fw, context_grouped(d, "one"), use_cache = FALSE, progress = FALSE)$white$statistic,
-    whole$white$statistic
-  )
+  diagnostics <- runDiagnostics(fw, context_grouped(d, "one"), use_cache = FALSE,
+                                progress = FALSE)
+  expect_identical(diagnostics$white$statistic, whole$white$statistic)
 })
 
 test_that("the runners take the data a tidymodels workflow was fitted to (N5)", {
