@@ -694,6 +694,21 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
     return(invisible(ctx))
   }
   coefs <- stats::coef(ctx$model)
+  # A design without one column for each coefficient cannot reproduce the
+  # fit: the terms of fitWLS() of an mgcv::gam() fit with smooth terms rebuild
+  # the variables of the formula, for the coefficients of the basis of its
+  # smooths (since increment 8 of the model context, where the tests stopped
+  # with "(subscript) logical subscript too long").
+  if (length(coefs) != ncol(ctx$design)) {
+    rstop_model_context(sprintf(
+      paste0(
+        "The fitted model does not reproduce its residuals from its design and coefficients: ",
+        "its terms rebuild a design of %d columns for its %d coefficients, as those of ",
+        "fitWLS() of an mgcv::gam() fit with smooth terms do. Refit the model."
+      ),
+      ncol(ctx$design), length(coefs)
+    ))
+  }
   keep <- !is.na(coefs)
   X <- ctx$design[, keep, drop = FALSE]
   b <- unname(coefs[keep])

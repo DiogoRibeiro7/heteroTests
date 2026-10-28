@@ -281,6 +281,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   resample <- match.arg(resample)
   fn <- "bootstrapTestStatistic"
 
+  # A multivariate lm is refused with the message of the model context (M7),
+  # as by the tests built on it, before the checks of the model, which
+  # stopped on it with a coercion error.
+  if (inherits(model, "mlm") || is.matrix(model$residuals)) {
+    rstop_model_context(sprintf("%s() needs a model with one response; `model` has %d.", fn,
+                                NCOL(model$residuals)))
+  }
   rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
@@ -572,8 +579,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   frame_rows <- rframe_rows
   pairs_design <- rpairs_design
   pairs_data <- rpairs_data
+  design_rows <- rdesign_rows
   model_terms <- stats::terms(model)
   model_contrasts <- model$contrasts
+  model_xlevels <- model$xlevels
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
@@ -604,11 +613,19 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       }
       # The rows drawn of the model frame and of the stored design, under the
       # row names of the rows drawn of `data`, without the levels of a factor
-      # that no row drawn holds and their dummies, as a refit from the
-      # formula drops them.
-      drawn <- pairs_design(frame_rows(boot_frame_all, sampled_idx),
-                            boot_design_all[sampled_idx, , drop = FALSE],
-                            model_terms, model_contrasts, rownames(boot_data))
+      # or a character column that no row drawn holds and their dummies, as a
+      # refit from the formula drops them. The design keeps its attributes,
+      # its contrasts among them, which the replicate records. A draw whose
+      # design cannot be built fails as a replicate whose refit fails does.
+      drawn <- tryCatch(
+        pairs_design(frame_rows(boot_frame_all, sampled_idx),
+                     design_rows(boot_design_all, sampled_idx),
+                     model_terms, model_contrasts, rownames(boot_data), model_xlevels),
+        error = function(e) NULL
+      )
+      if (is.null(drawn)) {
+        return(NA_real_)
+      }
       boot_frame <- drawn$frame
       boot_design <- drawn$design
       boot_y <- boot_frame[[1L]]
@@ -822,31 +839,47 @@ rdesign_rows <- function(design, rows) {
 #' names of the rows drawn of `data`, as a refit from the formula on those
 #' rows names them. A factor of the model frame that has a level no row drawn
 #' holds loses that level, as `lm()` drops the levels no row of its data
-#' holds: the design is then built again from the rows drawn of the model
-#' frame, whose columns are those of the fit, so that the dummy of that level
-#' is left out rather than kept as a column of zeros, which the refit would
-#' alias. The dummy of a cell of an interaction that no row drawn holds is
+#' holds (`model.frame(drop.unused.levels = TRUE)`), and with them a contrasts
+#' matrix the factor carries; a character column, whose levels `model.matrix()`
+#' takes from the values the rows hold, loses its absent values likewise. The
+#' design is then built again from the rows drawn of the model frame, whose
+#' columns are those of the fit, so that the dummy of that level is left out
+#' rather than kept as a column of zeros, which the refit would alias; a
+#' contrasts matrix of the fit for such a variable, which has a row for each of
+#' its levels, gives way to the default contrasts, as in `lm()`, and a
+#' contrasts function, such as `"contr.sum"`, is applied to the levels that
+#' remain. The dummy of a cell of an interaction that no row drawn holds is
 #' kept, as `lm()` keeps it.
 #'
 #' @param frame The rows drawn of the model frame of the fit.
-#' @param design The rows drawn of the stored design.
-#' @param model_terms,contrasts The terms and contrasts of the fit.
+#' @param design The rows drawn of the stored design, with its attributes.
+#' @param model_terms,contrasts,xlevels The terms, contrasts and levels of the
+#'   fit.
 #' @param ids The row names of the rows drawn of `data`.
 #' @return A list with the model frame, `frame`, and the design, `design`, of
 #'   the replicate.
 #' @keywords internal
 #' @noRd
-rpairs_design <- function(frame, design, model_terms, contrasts, ids) {
+rpairs_design <- function(frame, design, model_terms, contrasts, ids, xlevels) {
   rownames(frame) <- ids
   rownames(design) <- ids
-  unused <- vapply(frame, function(column) {
-    is.factor(column) && length(unique(column[!is.na(column)])) < nlevels(column)
-  }, logical(1))
-  if (any(unused)) {
-    for (k in which(unused)) {
-      frame[[k]] <- droplevels(frame[[k]])
+  dropped <- character()
+  for (k in seq_along(frame)) {
+    column <- frame[[k]]
+    held <- length(unique(column[!is.na(column)]))
+    name <- names(frame)[k]
+    if (is.factor(column) && held < nlevels(column)) {
+      frame[[k]] <- column[, drop = TRUE]
+      dropped <- c(dropped, name)
+    } else if (is.character(column) && held < length(xlevels[[name]])) {
+      dropped <- c(dropped, name)
     }
-    design <- stats::model.matrix(model_terms, frame, contrasts.arg = contrasts)
+  }
+  if (length(dropped) > 0L) {
+    matrices <- vapply(contrasts, is.matrix, logical(1))
+    contrasts <- contrasts[!(names(contrasts) %in% dropped & matrices)]
+    design <- stats::model.matrix(model_terms, frame,
+                                  contrasts.arg = if (length(contrasts) > 0L) contrasts)
   }
   list(frame = frame, design = design)
 }
