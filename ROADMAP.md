@@ -1684,14 +1684,15 @@ dependencies planned for it, and the defects recorded before and during it
 that the model context does not settle. Each fix that changes a value is
 announced in bold in `NEWS.md`.
 
-- [ ] **The reverse-dependency job of `R-CMD-check.yml` has never passed.**
+- [x] **The reverse-dependency job of `R-CMD-check.yml` has never passed.**
   On every weekly run since at least 2026-10-05, and on the manual runs on
-  the 0.16.0 release branch, it stops in `setup-r-dependencies` with "Could
+  the 0.16.0 release branch, it stopped in `setup-r-dependencies` with "Could
   not solve package dependencies" (`pkgdepends`), before
-  `revdepcheck::revdep_check()` runs. The package is not on CRAN, so it has
-  no reverse dependencies to check. Either fix the job's dependency solve, or
-  drop it until 1.0.0's CRAN submission, when reverse dependencies can
-  exist. It is not part of the release gate (`release.yml`).
+  `revdepcheck::revdep_check()` ran. It is not part of the release gate
+  (`release.yml`). Done: the job asked for `any::revdepcheck`, and
+  revdepcheck is not on CRAN; it is installed from GitHub,
+  `r-lib/revdepcheck`. The package has had no reverse dependencies on CRAN
+  so far, so the job checks none, but it runs.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

@@ -185,7 +185,7 @@ jobs:
           use-public-rspm: "true"
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::revdepcheck
+          extra-packages: r-lib/revdepcheck
           needs: check
       - name: Install package under test
         run: R CMD INSTALL .
