@@ -1707,26 +1707,28 @@ the formula rebuilt, and under pairs resampling also "... due to missing
 levels" on a replicate that left a level out (11 of the 12 calls leave none
 out), where the branch rebuilds no model frame and gives no warning.
 
-Increment 9 adds to the corpus the 28 cells of a fit with `na.exclude` of the
-matrix (`missing/na_exclude` and the block `exclude/`) and the 14 twins they do
-not share with the other blocks, run through every recipe, route and runner;
+Increment 9 adds to the corpus the 30 cells of a fit with `na.exclude` of the
+matrix (`missing/na_exclude` and the block `exclude/`, two `gam` fits among
+them from its review) and the 16 twins they do not share with the other
+blocks, run through every recipe, route and runner;
 each run records the `na.action` of each such fit and its number of
 observations (`na_action`). The reference of every call on such a cell is the
 same call on its twin, the same fit with `na.omit` given the same data
 (`identity_twin()`): the same value, `identical()`, verified as the reference
 of the cell (`identity_verify()`), the weights of the `fitWLS()` recipes padded
 as `naresid()` pads them (`identity_padded_twin()`), or the same refusal,
-class and message; and the same state of the generator. The allow-list gains
+class and message; the same state of the generator; and the same warnings,
+which the first version of the harness counted and did not enforce (from the
+review of increment 9). The allow-list gains
 B13 for the calls of the functions built on the context
 (`identity_affected`), as an error that becomes a value, a value that
 changes, a message and a new refusal, each allowed only when the call gives
 what its twin gives, and a call on such a cell that does not, changed or
-identical to main, is unexpected. Two repairs of the harness come with it:
-`identity_cell_terms()`, which #164 removed and the rule of pairs resampling
-still calls, so that a comparison stopped with "could not find function", is
-restored as it was in 0.16.0; and `identity_defects()`, asked for the defects
-of a message with a record without a form, as first happens for the bootstraps
-of a `fitWLS()` fit on a fit with `na.exclude`, no longer stops on it.
+identical to main, is unexpected. Each side runs from a private installation
+of its own code, and the workers of the socket cluster of a parallel example
+load it through `R_LIBS`: the first run of this increment set `R_LIBS` to
+main's library for both sides, so that the workers of the branch ran main's
+code (from the review of increment 9).
 
 Increment 9, against `main` with increment 8 (974bd53): 40,816 calls on 402
 cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
@@ -1808,7 +1810,9 @@ the span of the regressors, and a positive response `ypos`.
   the response missing; `x1` missing, the variable and the ordering of the
   recipes; data with row names of their own, in fit order and shuffled;
   weights and an offset from the data, with and without `data`; a weighted
-  Gaussian `glm`; a `fitWLS()` fit; a `log()` model, with and without `data`;
+  Gaussian `glm`; a `fitWLS()` fit; an `mgcv::gam()` fit, without and with a
+  smooth term (from the review of increment 9); a `log()` model, with and
+  without `data`;
   a subset; a group missing at an observation of the fit and at a row it
   dropped, given the data, shuffled and renumbered, and a model of the group;
   `id` and `time` missing at rows the fit dropped only; `z` missing at a row
@@ -1830,8 +1834,8 @@ the span of the regressors, and a positive response `ypos`.
   the block of panels, and the fits to the complete rows of a fit that dropped
   rows with an indicator computed beforehand and of a model of the group; and
   (increment 6) the cells of the stale and kept `model = FALSE` frames and of
-  a missing `z`; and (increment 9) the 28 cells of a fit with `na.exclude`
-  and the 14 twins they do not share with the other blocks: 402 cells, run through each of the forty functions, the
+  a missing `z`; and (increment 9) the 30 cells of a fit with `na.exclude`
+  and the 16 twins they do not share with the other blocks: 406 cells, run through each of the forty functions, the
   three streaming tests of increment 7 among them, in one chunk of 10,000
   observations, and the White and wild bootstraps and the robust White and
   Breusch-Pagan tests of increment 8, with `B = 19` for the resampling tests
