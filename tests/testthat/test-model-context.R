@@ -2632,3 +2632,84 @@ test_that("the resampling tests refuse an edited fit and a frame they cannot reb
                "cannot use the model frame of `model`",
                class = "heteroTests_model_context_error")
 })
+
+test_that("pairs resampling codes a factor a replicate leaves a level out of as a refit does", {
+  # Two rows each of two levels: some replicates draw none of them. Each such
+  # replicate is the refit of the model to the rows it drew, as before
+  # increment 8, which drops the levels it did not draw and the contrasts
+  # matrix of a factor that loses levels. Increment 8 took the rows of the
+  # stored design with `[`, which drops its contrasts: a fit with
+  # `contrasts = list(f = "contr.sum")` lost its replicates (8 of 40 left), a
+  # character regressor kept a column of zeros for a value no row held (32 of
+  # 40), and a factor whose contrasts attribute has a row for each of its four
+  # levels stopped the whole call ("wrong number of contrast matrix rows").
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  set.seed(42)
+  d$f <- factor(sample(c(rep("a", 58), rep("b", 58), "c", "c", "d", "d")))
+  d$ch <- as.character(d$f)
+  d$fs <- d$f
+  stats::contrasts(d$fs) <- stats::contr.sum(4)
+  fits <- list(
+    factor = list(y ~ x1 + x2 + f, NULL),
+    character = list(y ~ x1 + x2 + ch, NULL),
+    contr_sum = list(y ~ x1 + x2 + f, list(f = "contr.sum")),
+    attribute = list(y ~ x1 + x2 + fs, NULL)
+  )
+  n <- nrow(d)
+  B <- 20L
+  set.seed(21)
+  draws <- lapply(seq_len(B), function(b) sample.int(n, replace = TRUE))
+  expect_true(any(vapply(draws, function(i) nlevels(droplevels(d$f[i])) < 4L, logical(1))))
+  for (name in names(fits)) {
+    formula <- fits[[name]][[1L]]
+    contrasts <- fits[[name]][[2L]]
+    m <- lm(formula, data = d, contrasts = contrasts)
+    set.seed(21)
+    out <- bootstrapTestStatistic(performKoenkerTest, m, d, B = B, resample = "pairs",
+                                  progress = FALSE)
+    expected <- vapply(draws, function(i) {
+      db <- d[i, , drop = FALSE]
+      refit <- suppressWarnings(lm(formula, data = db, contrasts = contrasts))
+      unname(performKoenkerTest(refit, db)$statistic)
+    }, numeric(1))
+    expect_identical(out$effective_samples, B, info = name)
+    expect_equal(out$replicates, expected, tolerance = 1e-8, info = name)
+  }
+})
+
+test_that("the resampling tests refuse a fitWLS() fit of a gam with smooth terms (M8)", {
+  # fitWLS() of an mgcv::gam() fit with smooth terms returns an lm whose terms
+  # rebuild one column for each variable of the formula, for the coefficients
+  # of the basis of the smooths. The White and wild bootstraps returned a value
+  # on that design, and Koenker's test and bootstrapTestStatistic() stopped on
+  # "(subscript) logical subscript too long". The context refuses such a fit,
+  # as it refuses a fit whose design does not reproduce its residuals.
+  skip_if_not_installed("mgcv")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  g <- suppressWarnings(fitWLS(mgcv::gam(y ~ s(x1) + x2, data = d), d))
+  for (call in list(
+    function() performWhiteTestBootstrap(g, d, B = 9),
+    function() performWildBootstrapTest(g, d, B = 9, progress = FALSE),
+    function() bootstrapTestStatistic(performKoenkerTest, g, d, B = 9, progress = FALSE),
+    function() performKoenkerTest(g, d),
+    function() performWhiteTest(g, d)
+  )) {
+    expect_error(call(), "does not reproduce its residuals from its design and coefficients",
+                 class = "heteroTests_model_context_error")
+  }
+})
+
+test_that("bootstrapTestStatistic() refuses a multivariate lm as every test does (M7)", {
+  # It stopped on "'length = 4' in coercion to 'logical(1)'".
+  d <- context_data()
+  mlm <- lm(cbind(y, ypos) ~ x1 + x2, data = d)
+  expect_error(
+    bootstrapTestStatistic(performKoenkerTest, mlm, d, B = 9, progress = FALSE),
+    "needs a model with one response; `model` has 2", fixed = TRUE,
+    class = "heteroTests_model_context_error"
+  )
+})

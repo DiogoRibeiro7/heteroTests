@@ -145,10 +145,10 @@ before. Where it was not:
 | Call | 0.16.0 | Now |
 | --- | --- | --- |
 | `performWhiteTestBootstrap(lm(y ~ x + z, data = sim, weights = w), B = 199)`, without `data` | Error: "object 'w' not found" | 6.210 (p = 0.275), the value with `data` |
-| `performWhiteTestBootstrap(lm(y ~ x + z + offset(o), data = sim), B = 199)` | Error: "The following variables are missing from input data: o" | 14.685 (p = 0.015), the value with `data` |
+| `performWhiteTestBootstrap(lm(y ~ x + z + offset(o), data = sim), B = 199)` | Error: "The following variables are missing from input data: o" | 14.684 (p = 0.015), the value with `data` |
 | `performWhiteTestBootstrap(lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, B = 199)` | Error: "factor cut(x, quantile(x)) has new levels ..." | 12.206 (p = 0.135), the value of the factor computed beforehand |
 | `I(x > median(x))` on a fit that dropped rows 3, 7 and 11 (`z` missing), given its data | 7.822 (p = 0.115), on the median of the rows the fit kept | 7.407 (p = 0.140), the value of the column computed beforehand on all the rows |
-| `mgcv::gam(y ~ x + z, data = sim)` given `sim[sample(n), ]` (`set.seed(3)`) | 14.685 (p = 0.020): the draws were added to the fitted values of other rows, the rows of `data` taken by position | 14.685 (p = 0.015), the value of the data in the order of the fit |
+| `mgcv::gam(y ~ x + z, data = sim)` given `sim[sample(n), ]` (`set.seed(3)`) | 14.684 (p = 0.020): the draws were added to the fitted values of other rows, the rows of `data` taken by position | 14.684 (p = 0.015), the value of the data in the order of the fit |
 
 A fit to a subset given by index, which stopped with "White test could not
 align the design matrix with model residuals", and the tibble of a fit that
@@ -184,9 +184,15 @@ replicates of Koenker's statistic was (10.34, 28.75) and is (10.40, 28.74);
 on the test matrix each such replicate is that of the same fit with the
 columns of the term computed beforehand. A
 level of a factor that no row drawn holds is left out of the replicate, as
-before. The statistic given as `test_function` is given the rows drawn of
-`data` with the columns of the model frame `data` does not hold under their
-own names, such as `I(x > median(x))` or `(weights)`.
+before, and so is a value of a character regressor; the contrasts of the fit,
+given by `contrasts =` or as an attribute of the factor, are kept, and a
+contrasts matrix with a row for each level gives way to the default contrasts
+in a replicate that leaves its factor a level short, as in a refit of the
+formula: with a factor of four levels, two of them on two rows each, every
+replicate of each of these fits is that of 0.16.0. The statistic given as
+`test_function` is given the rows drawn of `data` with the columns of the
+model frame `data` does not hold under their own names, such as
+`I(x > median(x))` or `(weights)`.
 
 **`bootstrapTestStatistic()` bootstraps a Gaussian `glm` with the identity
 link (N8 of the design of the model context).** It refused every `glm`, as its
@@ -224,7 +230,7 @@ that gave a value gives it, `identical()`.
 refuse a fit whose coefficients, residuals or weights were changed after it
 was fitted, as every test built on the context does: on `lm(y ~ x + z, data =
 sim)` with 0.5 added to the coefficient of `x`, the White bootstrap returned
-14.685 (p = 0.015) and the wild bootstrap 14.468 (p = 0.005), the values of the
+14.684 (p = 0.015) and the wild bootstrap 14.468 (p = 0.005), the values of the
 fit before the edit. The White bootstrap refuses a fit with `model = FALSE`
 whose data are gone, given a tibble in another order, on which it returned the
 value of other rows. The White bootstrap refuses an `mgcv::gam()` fit with
@@ -240,8 +246,28 @@ variable as a column of `data`, where it now follows the rows drawn, in any
 order and under pairs resampling, which refused it ("does not come from
 `data`").
 
-**Messages.** A multivariate `lm`: "needs a model with one response", where
-they stopped with "'length = 4' in coercion to 'logical(1)'". A fit with
+**A `fitWLS()` fit of an `mgcv::gam()` fit with smooth terms is refused.**
+`fitWLS()` refits such a fit as an `lm` whose terms do not rebuild its
+design: they give a column for each variable of the formula, 3 for
+`y ~ s(x) + z`, for the 11 coefficients of the basis of the smooth. The White
+and wild bootstraps, which rebuilt a design from the terms, returned values
+computed on the variables of the formula rather than on the fit, and the
+tests built on the model context stopped with an internal error. Every test
+built on the context now refuses it, as it refuses a fit whose design does
+not reproduce its residuals (M8 of the design of the model context); a value
+on the stored design is not defined, as the terms of the fit give no design
+of its 11 coefficients. With
+`g <- fitWLS(mgcv::gam(y ~ s(x) + z, data = sim), sim)`:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performWhiteTestBootstrap(g, sim, B = 199)` | 3.279 (p = 0.715) | Error: "The fitted model does not reproduce its residuals from its design and coefficients: its terms rebuild a design of 3 columns for its 11 coefficients, ..." |
+| `performWildBootstrapTest(g, sim, B = 199)` | 2.152 (p = 0.380) | the same error |
+| `performKoenkerTest(g, sim)`, `performWhiteTest(g, sim)`, `performWhiteTestRobust(g, sim, bootstrap = TRUE, B = 199)` and `bootstrapTestStatistic(performKoenkerTest, g, sim, B = 199)` | Error: "(subscript) logical subscript too long" | the same error |
+
+**Messages.** A multivariate `lm`, given to any of them or to
+`bootstrapTestStatistic()`: "needs a model with one response", where they
+stopped with "'length = 4' in coercion to 'logical(1)'". A fit with
 `model = FALSE` whose data are gone, without `data`: the message of the model
 context, "cannot use the model frame of `model`", where they stopped with
 "Expected a data.frame". `bootstrapTestStatistic()` on a Gaussian `glm` with a

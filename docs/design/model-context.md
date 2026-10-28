@@ -243,8 +243,10 @@ The functions of `R/model_context.R`:
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
 name or by number, and `rcheck_rows_at()` compares them with the model frame.
-`rcheck_data_rows()` keeps its signature and runs the two for the tests that
-are not migrated yet; its behaviour is unchanged.
+`rcheck_data_rows()` keeps its signature and runs the two, its behaviour
+unchanged; since increment 8, when the wild bootstrap, the last test that
+called it, moved onto the context, no test calls it, and increment 10 removes
+it.
 
 ### The alignment step
 
@@ -924,9 +926,13 @@ For the functions built on the context in increment 8:
   replicate as an `lm` from the stored design and the model frame of the fit
   in the rows of the replicate (`rreplicate_lm()`), what `lm()` returns from
   the formula when the design it rebuilds is the stored one; pairs resampling
-  draws the rows of the stored design and drops the dummies of the levels of
-  a factor that no row drawn holds, as a refit from the formula drops them
-  (`rpairs_design()`). The match of `data` that refused a fit whose model frame
+  draws the rows of the stored design, with its contrasts (`rdesign_rows()`),
+  and builds the design again from the terms of the fit on the rows drawn
+  when a factor or a character regressor has a level or a value no row drawn
+  holds, without them and without the contrasts matrix of such a factor, as a
+  refit from the formula does (`rpairs_design()`, since the review of
+  increment 8); a replicate that cannot be built is left out, and no draw
+  stops the call. The match of `data` that refused a fit whose model frame
   could not be rebuilt from `data` (`rdata_reproduces_fit()`) goes, for the
   alignment of the context and the check that the least-squares refit of the
   stored design gives the residuals of the fit (`rleast_squares_reproduces()`),
@@ -987,8 +993,17 @@ For the functions built on the context in increment 8:
   (p = 0.05) on `class/edited`, the values of the fit before the edit, and a fit
   with `model = FALSE` whose data are gone, given a shuffled tibble ("frame"),
   on which the White bootstrap returned 8.887 (p = 0.10), the value of other
-  rows.
-- **Messages.** M7 for a multivariate `lm`, where they stopped with "'length =
+  rows. From the review of increment 8, M8 also refuses a fit whose terms
+  rebuild a design of another number of columns than its coefficients, as
+  those of `fitWLS()` of a `gam` with smooth terms (a column per variable of
+  the formula for the coefficients of the basis), where the White and wild
+  bootstraps returned 3.279 (p = 0.715) and 2.152 (p = 0.380) on
+  `fitWLS(mgcv::gam(y ~ s(x) + z))` (`B = 199`, the data of NEWS.md) and the
+  tests built on the context stopped with "(subscript) logical subscript
+  too long". A value on the stored design is not defined there: the terms of
+  the fit give no design of its coefficients.
+- **Messages.** M7 for a multivariate `lm`, `bootstrapTestStatistic()`
+  included since the review of increment 8, where they stopped with "'length =
   4' in coercion to 'logical(1)'"; the frame message for a `model = FALSE` fit
   whose data are gone, without `data`, where they stopped with "Expected a
   data.frame"; the White bootstrap on a `gam` with smooth terms, which it
@@ -1048,7 +1063,7 @@ migrations that keep every value, then the riskier resampling and
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
 | 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned, 0.17.0 |
-| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()` and the copies of the old preparation go | B11, N5 | Planned, 0.17.0 |
+| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go | B11, N5 | Planned, 0.17.0 |
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned, 0.17.0 |
 
 Outside the context, as separate pull requests: White's degrees of freedom

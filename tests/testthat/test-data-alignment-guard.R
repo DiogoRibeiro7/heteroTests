@@ -10,7 +10,8 @@
 # with row names of its own, in any order, and the very tibble or data.table
 # the model was fitted on, give what they gave.
 
-# The tests that read `data`, all through rdata_or_model_frame().
+# The tests that read `data`, all through the alignment of the model context
+# (rmodel_context()) since its eighth step.
 guarded_tests <- c(
   "performWhiteTest", "performWhiteTestStreaming", "performWhiteTestRobust",
   "performBPTest", "performBPTestStreaming", "performBreuschPaganTest",
