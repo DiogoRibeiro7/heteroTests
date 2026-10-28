@@ -39,6 +39,14 @@
 #     (`identity_coding_cells()`), with every recipe and that runner;
 #   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
 #     every recipe;
+#   - (increment 10) recommendRemediationStrategies(),
+#     generateHeteroRecommendations() and generics::augment() on every cell
+#     (`identity_rows10_recipes`), each with the same call on the rows of the
+#     fit in its order as its reference (identity_fit_rows()); the grouped runs
+#     of an lm, a weighted lm, a fitWLS() fit and a formula
+#     (identity_grouped_cells(), B11); and the runners on tidymodels
+#     workflows and parsnip fits with and without `data`
+#     (identity_tidy_cells(), N5);
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -2100,6 +2108,11 @@ identity_twin_record <- function(record, records, twin) {
 # (identity_wls_numbers()), padded from the na.action of the fit of the cell,
 # recorded by the run.
 identity_padded_twin <- function(fn, value, na_action) {
+  # Increment 10: augment() of the twin, padded (identity_augment_padded()).
+  if (identical(fn, "augment") && is.list(value) && !isTRUE(value$.error) &&
+        !is.null(value$rows) && is.list(na_action) && !is.null(na_action$na_action)) {
+    return(identity_augment_padded(value, na_action$na_action))
+  }
   if (!startsWith(fn, "fitWLS") || !is.numeric(value) || !is.list(na_action) ||
         is.null(na_action$n)) {
     return(value)
@@ -2133,6 +2146,13 @@ identity_twin <- function(record, after, branch_records) {
   skipped <- function(v) is.list(v) && isTRUE(v$.skip)
   verdict <- if (skipped(a) && skipped(b)) {
     "skip"
+  } else if (identical(record$fn, "augment") && !failed(a) && failed(b) &&
+               grepl(identity_augment_open, b$message, fixed = TRUE)) {
+    # Increment 10: augment() given the full data of a fit with na.exclude
+    # binds its padded columns to the rows of `data`, as on main, where the
+    # twin refuses those data; what it binds for the rows the fit dropped is
+    # open (ROADMAP.md, 0.17.0), and the call keeps main's answer.
+    "open"
   } else if (failed(a) || failed(b)) {
     if (identical(a, b)) "refusal" else "FALSE"
   } else if (identical(a, b)) {
@@ -2144,6 +2164,239 @@ identity_twin <- function(record, after, branch_records) {
   }
   list(verdict = verdict, rng = rng)
 }
+
+# --- increment 10: the runners and the functions that read `data` by row -----------
+
+# Item 3 of increment 10: recommendRemediationStrategies(),
+# generateHeteroRecommendations() and generics::augment() of the results of
+# the runner read the i-th row of `data` with the i-th observation of the fit,
+# and since the review of increment 9 refused data of another number of rows.
+# They match `data` to the observations as the tests do: named data in any
+# order, numbered data in the order of the fit and the full data of a fit
+# that dropped rows give the value of the rows of the fit in its order, and
+# what the alignment refuses is refused. augment() matches data with one row
+# per observation; what it binds for the rows the fit dropped, which the full
+# data hold, is open (ROADMAP.md), and those data keep main's answer. The
+# three are run on every cell, with a fixed list of test results for the
+# recommendations, and augment() on a result built by hand around the model
+# of the cell, its columns unnamed (identity_augment()).
+identity_recommend_results <- list(white = structure(
+  list(statistic = c(`X-squared` = 12), parameter = c(df = 5), p.value = 0.035,
+       method = "White's test for heteroscedasticity", data.name = "model"),
+  class = "htest"
+))
+identity_augment <- function(m, d) {
+  x <- structure(list(statistic = c(X = 1), p.value = 0.5, method = "fixed"),
+                 class = c("hetero_test", "htest"))
+  attr(x, "model") <- m
+  attr(x, "diagnostic") <- "fixed"
+  res <- generics::augment(x, data = d)
+  list(columns = lapply(res, function(v) unname(v)), rows = rownames(res))
+}
+identity_rows10_recipes <- list(
+  recommendRemediationStrategies = function(m, d) {
+    recommendRemediationStrategies(identity_recommend_results, m, d)
+  },
+  generateHeteroRecommendations = function(m, d) generateHeteroRecommendations(m, d),
+  augment = identity_augment
+)
+identity_extra_recipes <- c(identity_extra_recipes, identity_rows10_recipes)
+identity_rows10 <- names(identity_rows10_recipes)
+
+# The reference of item 3 (decided for increment 10): the same call given the
+# rows of `data` that hold the observations of the fit, in its order, as main
+# computes it, written out here: the rows named as the observations (the
+# names of the residuals, or the row names of the model frame of a gam), or,
+# for data with one row per observation that lack those names, `data` as it
+# is. NULL when `data` is not a data frame or is already those rows.
+identity_fit_rows <- function(m, d) {
+  if (!is.data.frame(d)) {
+    return(NULL)
+  }
+  d <- as.data.frame(d)
+  n <- NROW(m$residuals)
+  ids <- names(m$residuals)
+  if (length(ids) != n) {
+    ids <- tryCatch(rownames(stats::model.frame(m)), error = function(e) NULL)
+  }
+  rows <- if (anyDuplicated(rownames(d)) == 0L) match(ids, rownames(d))
+  if (length(rows) == n && !anyNA(rows)) {
+    if (identical(rows, seq_len(nrow(d)))) {
+      return(NULL)
+    }
+    return(d[rows, , drop = FALSE])
+  }
+  NULL
+}
+
+# B11, decision 10: a grouped run of a fitWLS() fit refitted each group with
+# the call of the model it refitted, without the estimated weights, and is
+# refused. The cells of the block grouped/, the grouped matrix of
+# helper-model-context.R (context_grouped_fits, context_groupings): an lm, a
+# weighted lm, the fitWLS() fit of the lm and the model as a formula on a
+# tibble grouped by one column (`group`, four groups of 30) and by two
+# (`group` and `half`, eight of 15), through runHeteroTests() and
+# runDiagnostics(), which ungroups the data and runs no grouped analysis.
+identity_grouped_runner <- "runHeteroTests(<grouped>)"
+identity_grouped_diagnostics <- "runDiagnostics(<grouped>)"
+identity_grouped_cells <- function() {
+  cells <- list()
+  for (fit in names(context_grouped_fits)) {
+    for (grouping in names(context_groupings)) {
+      local({
+        fit <- fit
+        grouping <- grouping
+        cells[[length(cells) + 1L]] <<- list(
+          id = paste("grouped", fit, grouping, sep = "/"), block = "grouped",
+          form = "grouped", expect = "value",
+          defect = if (identical(fit, "fitwls")) "B11" else character(),
+          build = function() {
+            testthat::skip_if_not_installed("dplyr")
+            d <- context_grouped_data()
+            list(m = context_grouped_fits[[fit]](d), data = context_grouped(d, grouping))
+          }
+        )
+      })
+    }
+  }
+  cells
+}
+identity_grouped_summary <- function(suite) {
+  if (!inherits(suite, "hetero_grouped_suite")) {
+    return(identity_runner_summary(suite))
+  }
+  list(keys = as.data.frame(attr(suite, "group_keys")),
+       groups = lapply(unclass(suite), identity_runner_summary))
+}
+
+# N5: the runners refused the data a tidymodels workflow was fitted to, whose
+# engine names the response `..y`, and the data of a parsnip fit made with
+# fit_xy(); they map them to the variables of the engine and test its model
+# frame, as with `data = NULL`, which is the reference of each such call. The
+# block tidy/, the tidy matrix of helper-model-context.R
+# (context_tidy_models()): workflows with a formula, with transformed
+# predictors and a factor, with a recipe that transforms a predictor, with a
+# recipe that transforms the outcome (open: refused, with a message), fitted
+# to data with missing values, and with variables; parsnip fits of fit()
+# (whose data were accepted) and of fit_xy(), with the outcome as a data
+# frame and as a vector (refused, with a message). Each is given no data, its
+# data, the data as a tibble, the data shuffled under their own row names
+# (refused for a workflow: the engine's fit numbers its rows) and the data
+# without the outcome (refused) (context_tidy_forms).
+identity_tidy_runner <- "runHeteroTests(<tidymodels>)"
+identity_tidy_diagnostics <- "runDiagnostics(<tidymodels>)"
+identity_tidy_cells <- function() {
+  installed <- all(vapply(c("workflows", "parsnip", "recipes", "hardhat", "dplyr"),
+                          requireNamespace, logical(1), quietly = TRUE))
+  models <- if (installed) context_tidy_models() else list()
+  cells <- list()
+  for (name in names(models)) {
+    for (form in context_tidy_forms) {
+      local({
+        name <- name
+        form <- form
+        model <- models[[name]]
+        cells[[length(cells) + 1L]] <<- list(
+          id = paste("tidy", name, form, sep = "/"), block = "tidy", form = form,
+          defect = "N5", expect = context_tidy_expect(name, form),
+          reference = if (!identical(form, "null")) paste("tidy", name, "null", sep = "/"),
+          build = function() {
+            list(m = model$fit(model$data), data = context_tidy_data(model, form))
+          }
+        )
+      })
+    }
+  }
+  cells
+}
+
+# The messages of increment 10: the refusal of a grouped run of a fitWLS()
+# fit (B11) and the refusals of data the runners cannot map to the variables
+# of the engine of a workflow or a parsnip fit (N5).
+identity_b11_message <- "cannot run a grouped analysis of a fitWLS() fit"
+identity_n5_messages <- c(
+  "A tidymodels workflow is tested on the fit of its engine",
+  "A parsnip fit made with fit_xy() is tested on the fit of its engine"
+)
+identity_ties_message <- "rows of the fit tie on every column of the model frame that is compared"
+identity_increment10 <- c(identity_rows10, identity_grouped_runner, identity_grouped_diagnostics,
+                          identity_tidy_runner, identity_tidy_diagnostics)
+
+# The verdict of a call of increment 10, or NULL for the other calls, which
+# the other rules judge. A change to a value must be the reference of the
+# call: for item 3 main's value of the same call on the rows of the fit in
+# its order (identity_fit_rows(), "rows"), for N5 the same call without
+# `data` ("null"), unchanged from main; B11 gives none. A refusal, new or in
+# place of another, must be one the alignment of the context makes on the
+# cell (item 3: the guard where the cell expects it, its refusal of tied rows
+# in the order of the fit, or the refusal the cell expects of the context),
+# B11's on the cells of a fitWLS() fit, or N5's.
+identity_increment10_verdict <- function(record, after, verdict, main, branch) {
+  if (!record$fn %in% identity_increment10) {
+    return(NULL)
+  }
+  change <- verdict$change
+  if (identical(change, "identical")) {
+    return(list(verdict = "identical", verified = NA_character_))
+  }
+  if (change %in% c("error_to_value", "value_change")) {
+    if (record$fn %in% identity_grouped_runner || record$fn %in% identity_grouped_diagnostics) {
+      return(list(verdict = "unexpected", verified = NA_character_))
+    }
+    reference_id <- if (record$fn %in% identity_rows10) {
+      paste("reference", record$fn, paste0("rows/", record$cell), sep = " | ")
+    } else {
+      paste(record$kind, record$fn, record$reference, sep = " | ")
+    }
+    before_ref <- main[[reference_id]]
+    after_ref <- branch[[reference_id]]
+    ok <- !is.null(before_ref) && !is.null(after_ref) &&
+      identical(before_ref$value, after_ref$value) &&
+      identical(after$value, after_ref$value) &&
+      !(is.list(after_ref$value) && isTRUE(after_ref$value$.error))
+    return(list(verdict = if (ok) "allowed" else "unexpected",
+                verified = if (ok) {
+                  if (record$fn %in% identity_rows10) "rows of the fit, main" else "data = NULL, main"
+                } else {
+                  NA_character_
+                }))
+  }
+  message <- if (is.list(after$value) && isTRUE(after$value$.error)) after$value$message else ""
+  classes <- if (is.list(after$value)) after$value$class else character()
+  ok <- if (record$fn %in% c(identity_grouped_runner, identity_grouped_diagnostics)) {
+    "B11" %in% record$defect && identical(record$fn, identity_grouped_runner) &&
+      grepl(identity_b11_message, message, fixed = TRUE)
+  } else if (record$fn %in% c(identity_tidy_runner, identity_tidy_diagnostics)) {
+    any(vapply(identity_n5_messages, grepl, logical(1), x = message, fixed = TRUE))
+  } else {
+    expect <- record$expect %||% "value"
+    refusal <- any(c("heteroTests_data_rows_error", "heteroTests_model_context_error") %in% classes)
+    refusal && (identical(expect, "guard") ||
+                  grepl(identity_ties_message, message, fixed = TRUE) ||
+                  !expect %in% c("value", "guard") && grepl(expect, message, fixed = TRUE))
+  }
+  list(verdict = if (isTRUE(ok)) "allowed" else "unexpected", verified = NA_character_)
+}
+
+# augment() on a fit with na.exclude: the result of its twin, the same fit
+# with na.omit, padded with a row of NA at each row the fit dropped, as
+# naresid() pads, the rows named as it names them and `.diagnostic` on every
+# row (increment 9).
+identity_augment_padded <- function(value, omitted) {
+  n <- length(value$rows)
+  keep <- rep.int(NA_integer_, n + length(omitted))
+  keep[-omitted] <- seq_len(n)
+  columns <- lapply(value$columns, function(v) v[keep])
+  label <- unique(value$columns$.diagnostic)
+  if (length(label) == 1L) {
+    columns$.diagnostic <- rep(label, n + length(omitted))
+  }
+  rows <- character(n + length(omitted))
+  rows[-omitted] <- value$rows
+  rows[omitted] <- names(omitted)
+  list(columns = columns, rows = make.unique(rows))
+}
+identity_augment_open <- "augment() binds one row of `data` to each fitted value of the model"
 
 # --- canonical results ---------------------------------------------------------
 
@@ -2537,9 +2790,26 @@ identity_run <- function(where, out, root = ".") {
       }))
     }
   }
+  # Increment 10, item 3: the reference of the three functions that read
+  # `data` row by row, the same call on the rows of the fit in its order
+  # (identity_fit_rows()), when `data` is not those rows already.
+  add_fit_rows <- function(cell, built) {
+    rows <- tryCatch(identity_fit_rows(built$m, built$data), error = function(e) NULL)
+    if (is.null(rows)) {
+      return(invisible(NULL))
+    }
+    rows_cell <- list(id = paste0("rows/", cell$id), form = "data_frame", defect = character())
+    for (fn in identity_rows10) {
+      add("reference", fn, rows_cell, identity_outcome(function() {
+        set.seed(7)
+        recipes[[fn]](built$m, rows)
+      }))
+    }
+  }
   for (cell in cells) {
     built <- suppressWarnings(suppressMessages(cell$build()))
     run_cell(cell, built, names(recipes), "recipe", "runner")
+    add_fit_rows(cell, built)
     # N2: White's test written out on the cell, the reference of its changes.
     add("reference", "white_by_hand", cell,
         identity_outcome(function() identity_white_by_hand(built$m)))
@@ -2656,6 +2926,38 @@ identity_run <- function(where, out, root = ".") {
     built <- suppressWarnings(suppressMessages(cell$build()))
     run_cell(cell, built, names(recipes), "recipe", "runner")
   }
+  # Increment 10. B11: the grouped runs, through runHeteroTests() and
+  # runDiagnostics() (identity_grouped_cells()). N5: the runners on the
+  # workflows and parsnip fits of the block tidy/, given each form of data,
+  # whose reference is the same call without `data` (identity_tidy_cells()).
+  grouped_outcome <- function(cell, f) {
+    identity_outcome(function() {
+      built <- suppressWarnings(suppressMessages(cell$build()))
+      set.seed(7)
+      f(built)
+    })
+  }
+  for (cell in identity_grouped_cells()) {
+    add("recipe", identity_grouped_runner, cell, grouped_outcome(cell, function(built) {
+      identity_grouped_summary(runHeteroTests(built$m, built$data, use_cache = FALSE,
+                                              progress = FALSE))
+    }))
+    add("recipe", identity_grouped_diagnostics, cell, grouped_outcome(cell, function(built) {
+      out <- runDiagnostics(built$m, built$data, use_cache = FALSE, progress = FALSE)
+      list(tests = identity_runner_summary(out[c("white", "koenker")]), reset = out$reset)
+    }))
+  }
+  for (cell in identity_tidy_cells()) {
+    add("recipe", identity_tidy_runner, cell, grouped_outcome(cell, function(built) {
+      identity_runner_summary(runHeteroTests(built$m, built$data, use_cache = FALSE,
+                                             progress = FALSE))
+    }))
+    add("recipe", identity_tidy_diagnostics, cell, grouped_outcome(cell, function(built) {
+      out <- runDiagnostics(built$m, built$data, use_cache = FALSE, progress = FALSE)
+      list(tests = identity_runner_summary(out[c("white", "koenker")]), reset = out$reset,
+           vif = out$vif)
+    }))
+  }
   # The examples of the help pages, each expression whose value is a test, or
   # that calls the function of its page: the scatter diagnostic returns its
   # correlations, and runPanelTests() a list of tests (increment 5).
@@ -2675,7 +2977,7 @@ identity_run <- function(where, out, root = ".") {
                   "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
                   "performDavidianCarrollTest", "performVarianceFormTest", "fitWLS",
                   "runTimeSeriesTests", "performWhiteTestBootstrap", "performWildBootstrapTest",
-                  "rbootstrap_test_statistic", "performWhiteTestRobust")) {
+                  "rbootstrap_test_statistic", "performWhiteTestRobust", "runDiagnostics")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -3251,7 +3553,12 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     if (n3_allowed) {
       n2_mode <- NULL
     }
-    allowed <- if (isTRUE(szroeter) || n3_allowed) {
+    # Increment 10: the calls of item 3, B11 and N5 are judged by their own
+    # rule (identity_increment10_verdict()) alone.
+    inc10 <- identity_increment10_verdict(before, after, verdict, main$records, branch$records)
+    allowed <- if (!is.null(inc10)) {
+      inc10$verdict
+    } else if (isTRUE(szroeter) || n3_allowed) {
       "allowed"
     } else {
       identity_allow(before, verdict, after, stored, n2, n2_mode)
@@ -3272,7 +3579,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       allowed <- "unexpected"
       verdict$detail <- paste("not what the call gives on its twin:", verdict$detail)
     }
-    if (b13 && identical(allowed, "allowed") && !isTRUE(twin$rng)) {
+    if ((b13 || !is.null(inc10) && !is.na(twin$verdict)) && identical(allowed, "allowed") &&
+          !isTRUE(twin$rng)) {
       allowed <- "unexpected"
       verdict$detail <- paste("the generator is not left as the twin left it;", verdict$detail)
     }
@@ -3297,7 +3605,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     # against h and the moments written out from its design.
     to_value <- identical(allowed, "allowed") &&
       verdict$change %in% c("error_to_value", "value_change")
-    verified <- if (to_value && isTRUE(szroeter)) {
+    verified <- if (to_value && !is.null(inc10)) {
+      inc10$verified
+    } else if (to_value && isTRUE(szroeter)) {
       "Q from h and the design's moments"
     } else if (to_value && n3_allowed) {
       if (identical(n3$verdict, "last bits")) "main, last bits" else "exact test"
@@ -3538,6 +3848,27 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       changed_twinned$calls <- 1L
       print(stats::aggregate(calls ~ change + twin + verdict, data = changed_twinned, FUN = sum),
             row.names = FALSE)
+    }
+  }
+  # Increment 10: the calls of item 3 (the three functions that read `data`
+  # row by row), B11 (the grouped runs) and N5 (the runners on workflows and
+  # parsnip fits), and augment() on the full data of a fit with na.exclude,
+  # which keeps main's answer where its twin refuses (open).
+  inc10_calls <- calls[calls$fn %in% identity_increment10, , drop = FALSE]
+  if (nrow(inc10_calls) > 0L) {
+    cat(sprintf(paste0(
+      "\nIncrement 10: %d calls of item 3, B11 and N5, %d identical() to main, %d allowed ",
+      "changes, %d unexpected; %d calls of augment() on the full data of a fit with ",
+      "na.exclude keep main's answer where the twin refuses (open)\n"
+    ), nrow(inc10_calls), sum(inc10_calls$verdict == "identical"),
+    sum(inc10_calls$verdict == "allowed"), sum(inc10_calls$verdict == "unexpected"),
+    sum(inc10_calls$twin %in% "open")))
+    changed10 <- inc10_calls[inc10_calls$verdict != "identical", , drop = FALSE]
+    if (nrow(changed10) > 0L) {
+      changed10$calls <- 1L
+      changed10$verified_by[is.na(changed10$verified_by)] <- "-"
+      print(stats::aggregate(calls ~ fn + change + verified_by + verdict, data = changed10,
+                             FUN = sum), row.names = FALSE)
     }
   }
   identical_calls <- calls$verdict == "identical"

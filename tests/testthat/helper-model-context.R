@@ -1019,6 +1019,126 @@ context_rounded_cells <- c(
   "class/rank_deficient", "class/gam", "class/gam_offset_term", "class/gam_offset"
 )
 
+# Increment 10, B11 (decision 10): a grouped run, a grouped tibble given to
+# runHeteroTests(), refits the model within each group by evaluating its call
+# on the rows of the group. The call of a fitWLS() fit is that of the model it
+# refitted, without the weights it estimated, so each group was tested as the
+# unweighted fit; such a run is refused. The fits of the grouped matrix: an
+# lm, a weighted lm, whose weights are a column the refit of each group reads,
+# the fitWLS() fit of the lm, and the model as a formula; the groupings: one
+# column, `group` (four groups of 30), and two, `group` and `half` (eight of
+# 15).
+context_grouped_data <- function() {
+  d <- context_data()
+  d$half <- rep(1:2, each = nrow(d) / 2)
+  d
+}
+context_grouped_fits <- list(
+  lm = function(d) stats::lm(y ~ x1 + x2, data = d),
+  wls = function(d) stats::lm(y ~ x1 + x2, data = d, weights = w),
+  fitwls = function(d) fitWLS(stats::lm(y ~ x1 + x2, data = d), d),
+  formula = function(d) y ~ x1 + x2
+)
+context_groupings <- list(one = "group", two = c("group", "half"))
+context_grouped <- function(d, grouping) {
+  dplyr::group_by(dplyr::as_tibble(d), dplyr::across(dplyr::all_of(context_groupings[[grouping]])))
+}
+
+# Increment 10, N5: the runners refused the data a tidymodels workflow was
+# fitted to, whose engine names its response `..y` and its predictors as the
+# workflow's preprocessing made them, and the data of a parsnip fit made with
+# fit_xy(). They map them to the variables of the engine, by the workflow's
+# preprocessing, and test its model frame once the rows are confirmed, as
+# with `data = NULL`. The models of the matrix: workflows with a formula, with
+# transformed predictors and a factor, with a recipe that transforms a
+# predictor, with a recipe that transforms the outcome (open: refused, with a
+# message that says why), fitted to data with missing values, and with
+# variables; and parsnip fits of fit() (whose data the runners took already)
+# and of fit_xy(), with the outcome as a data frame and as a vector (refused:
+# the fit does not record its column). `outcome` names the outcome of the
+# data. The forms of data: none, the data of the fit, as a tibble, shuffled
+# under their own row names (refused: the engine's fit numbers its rows), and
+# without the outcome (refused).
+context_tidy_models <- function() {
+  d <- context_data()
+  d_na <- d
+  d_na$x2[c(3, 7, 11)] <- NA
+  spec <- function() parsnip::linear_reg()
+  wf <- function(pre, data) workflows::fit(workflows::add_model(pre, spec()), data = data)
+  list(
+    wf_formula = list(data = d, outcome = "y", fit = function(data) {
+      wf(workflows::add_formula(workflows::workflow(), y ~ x1 + x2), data)
+    }),
+    wf_terms = list(data = d, outcome = "y", fit = function(data) {
+      wf(workflows::add_formula(workflows::workflow(), y ~ log(x1) + group), data)
+    }),
+    wf_recipe = list(data = d, outcome = "y", fit = function(data) {
+      rec <- recipes::step_log(recipes::recipe(y ~ x1 + x2, data = data), x1)
+      wf(workflows::add_recipe(workflows::workflow(), rec), data)
+    }),
+    wf_recipe_outcome = list(data = d, outcome = "ypos", fit = function(data) {
+      rec <- recipes::step_log(recipes::recipe(ypos ~ x1 + x2, data = data), ypos)
+      wf(workflows::add_recipe(workflows::workflow(), rec), data)
+    }),
+    wf_missing = list(data = d_na, outcome = "y", fit = function(data) {
+      wf(workflows::add_formula(workflows::workflow(), y ~ x1 + x2), data)
+    }),
+    wf_variables = list(data = d, outcome = "y", fit = function(data) {
+      wf(workflows::add_variables(workflows::workflow(), outcomes = y, predictors = c(x1, x2)),
+         data)
+    }),
+    parsnip_formula = list(data = d, outcome = "y", fit = function(data) {
+      parsnip::fit(spec(), y ~ x1 + x2, data = data)
+    }),
+    parsnip_xy = list(data = d, outcome = "y", fit = function(data) {
+      parsnip::fit_xy(spec(), x = data[, c("x1", "x2")], y = data[, "y", drop = FALSE])
+    }),
+    parsnip_xy_vector = list(data = d, outcome = "y", fit = function(data) {
+      parsnip::fit_xy(spec(), x = data[, c("x1", "x2")], y = data$y)
+    })
+  )
+}
+context_tidy_forms <- c("null", "data_frame", "tibble", "shuffled", "lacking")
+context_tidy_data <- function(model, form) {
+  set.seed(3)
+  switch(form,
+    null = NULL,
+    data_frame = model$data,
+    tibble = dplyr::as_tibble(model$data),
+    shuffled = model$data[sample(nrow(model$data)), ],
+    lacking = model$data[, setdiff(names(model$data), model$outcome)],
+    stop("unknown form: ", form)
+  )
+}
+# What each model of the tidy matrix gives on a form of data with `data`: the
+# value of the call without `data`, or a refusal: "guard" (the class of the
+# guard), or a regular expression of the message.
+context_tidy_expect <- function(name, form) {
+  if (identical(form, "null")) {
+    return("value")
+  }
+  if (identical(name, "parsnip_xy_vector")) {
+    return("the fit does not record the column of its outcome")
+  }
+  if (identical(name, "wf_recipe_outcome") && !identical(form, "lacking")) {
+    return("the workflow's preprocessing transforms its outcome `ypos`")
+  }
+  if (identical(form, "lacking")) {
+    return(if (identical(name, "parsnip_formula")) {
+      "missing from input data"
+    } else if (startsWith(name, "parsnip")) {
+      "`data` lacks the outcome `y` of the fit too"
+    } else {
+      "the workflow's preprocessing cannot map `data` to them"
+    })
+  }
+  if (identical(form, "shuffled") && !identical(name, "parsnip_formula") &&
+        !identical(name, "parsnip_xy")) {
+    return("guard")
+  }
+  "value"
+}
+
 # The cells run on CRAN: no package beyond the hard dependencies, and a few of
 # each block.
 context_cran_cells <- c(

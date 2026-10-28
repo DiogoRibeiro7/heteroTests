@@ -269,12 +269,13 @@ test_that("each form of data is aligned as the design says", {
   expect_error(rmodel_context(m_na, reversed, fn = "f"), class = "heteroTests_data_rows_error")
   expect_error(rmodel_context(m_na, reversed, fn = "f"), "`data` has no row names of its own",
                fixed = TRUE)
-  # The guard of the tests that are not migrated yet keeps its rule: it does
-  # not take numbered rows in order, and leaves them to the test.
-  expect_null(rcheck_data_rows(m_na, renumbered))
+  # The rows the alignment picks by the row numbers of the fit, in its order;
+  # until increment 10 the guard of the tests not built on the context
+  # (rcheck_data_rows(), removed) picked them so too, and left numbered rows
+  # in order to the test.
   fit_ids <- names(m_na$residuals)
   expect_length(fit_ids, 117L)
-  expect_identical(rcheck_data_rows(m_na, d_na), match(fit_ids, rownames(d_na)))
+  expect_identical(rmodel_context(m_na, d_na, fn = "f")$rows, match(fit_ids, rownames(d_na)))
   # Data that lack a row of the fit keep their message.
   expect_error(
     rmodel_context(m, d[1:100, ], fn = "f", test_label = "Koenker"),
@@ -2405,40 +2406,204 @@ test_that("the functions outside the context read a fit with na.exclude as its t
   )
 })
 
-test_that("augment() and the remediation advice refuse data they cannot bind by row", {
-  # From the re-review of increment 9. augment() of the results of the runner
-  # recycled the fitted values, residuals and standardised residuals over data
-  # whose number of rows is a multiple of theirs, on any fit, binding them to
-  # rows of other observations (480 rows for rbind(d, d)); and
-  # recommendRemediationStrategies(), which correlates the residuals with the
-  # columns of `data` row by row, read the padded residuals of a fit with
-  # na.exclude against its full data by position, and stopped on the same fit
-  # with na.omit with "incompatible dimensions". Both refuse data of another
-  # number of rows, naming the two counts; matching such rows is left to
-  # increment 10 (N5).
+test_that("augment() and the remediation advice match the rows of data as the tests do", {
+  # Increment 10, from the re-review of increment 9 and with N5.
+  # recommendRemediationStrategies() correlates the residuals with the columns
+  # of `data` row by row, generateHeteroRecommendations() profiles `data` and
+  # hands it to the tests and to the advice, and augment() of the results of
+  # the runner binds the columns of the fit to its rows. They read the i-th
+  # row of `data` with the i-th observation: named data in another order than
+  # the fit gave the advice of other rows, without an error, and augment()
+  # bound the fitted values to other rows; since the re-review of increment 9
+  # data of another number of rows, as the full data of a fit that dropped
+  # rows, were refused, naming the two counts. They match the rows as the
+  # tests do: named data in any order, numbered data in the order of the fit
+  # and, for the advice, the full data of a fit that dropped rows give the
+  # value of the rows of the fit in its order, on a fit with na.exclude as on
+  # its twin with na.omit; what the alignment refuses is refused.
+  skip_if_not_installed("dplyr")
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
-  d <- context_data()
-  results <- runHeteroTests(lm(y ~ x1 + x2, data = d), d, use_cache = FALSE, progress = FALSE)
-  expect_error(generics::augment(results, data = rbind(d, d)),
-               "120 of them, and `data` has 240 rows", fixed = TRUE)
-  expect_identical(nrow(generics::augment(results, data = d)), length(results) * nrow(d))
   pair <- context_excluded_pair()
-  tr <- suppressWarnings(
-    runHeteroTests(pair$omitted, pair$d, use_cache = FALSE, progress = FALSE)
-  )
-  for (m in list(pair$excluded, pair$omitted)) {
+  d <- pair$d
+  mo <- pair$omitted
+  me <- pair$excluded
+  rows <- d[names(mo$residuals), ]
+  renumbered <- rows
+  rownames(renumbered) <- NULL
+  set.seed(3)
+  shuffled <- d[sample(nrow(d)), ]
+  rows_shuffled <- rows[sample(nrow(rows)), ]
+  tr <- suppressWarnings(runHeteroTests(mo, d, use_cache = FALSE, progress = FALSE))
+  advice <- recommendRemediationStrategies(tr, mo, rows)
+  report <- suppressWarnings(generateHeteroRecommendations(mo, rows, include_report = FALSE))
+  for (m in list(omit = mo, exclude = me)) {
+    for (form in c("full", "shuffled", "rows_shuffled", "renumbered", "tibble")) {
+      data <- switch(form,
+        full = d, shuffled = shuffled, rows_shuffled = rows_shuffled, renumbered = renumbered,
+        tibble = dplyr::as_tibble(d)
+      )
+      info <- paste(class(m$na.action), form)
+      expect_identical(recommendRemediationStrategies(tr, m, data), advice, info = info)
+      expect_identical(
+        suppressWarnings(generateHeteroRecommendations(m, data, include_report = FALSE)), report,
+        info = info
+      )
+    }
+    # Numbered data in another order than the fit are refused by the guard
+    # (decision 3), as by the tests.
+    expect_error(recommendRemediationStrategies(tr, m, dplyr::as_tibble(d)[sample(nrow(d)), ]),
+                 class = "heteroTests_data_rows_error")
     expect_error(
-      recommendRemediationStrategies(tr, m, pair$d),
-      paste("reads one row of `data` for each observation of the fit, 117 of them,",
-            "and `data` has 120 rows"),
-      fixed = TRUE
+      suppressWarnings(generateHeteroRecommendations(m, dplyr::as_tibble(d)[sample(nrow(d)), ])),
+      "generateHeteroRecommendations() cannot match the rows of `data`", fixed = TRUE
     )
   }
+  # augment(): data with one row per observation, named in any order or
+  # numbered in the order of the fit, bind the rows of the fit in its order;
+  # on a fit with na.exclude those rows padded with a row of NA at each row the
+  # fit dropped. Numbered data in another order are refused.
+  white <- tr[["white"]]
+  bound <- generics::augment(white, data = rows)
+  expect_identical(generics::augment(white, data = rows_shuffled), bound)
+  expect_identical(unname(bound$.fitted), unname(fitted(mo)))
+  expect_identical(bound$y, rows$y)
+  expect_error(generics::augment(white, data = dplyr::as_tibble(renumbered)[sample(117), ]),
+               "augment() cannot match the rows of `data`", fixed = TRUE)
+  excluded <- suppressWarnings(runHeteroTests(me, d, use_cache = FALSE, progress = FALSE))[["white"]]
+  padded <- generics::augment(excluded, data = rows)
+  expect_identical(generics::augment(excluded, data = rows_shuffled), padded)
+  expect_identical(nrow(padded), nrow(d))
+  expect_identical(padded$y[-c(3, 7, 11)], rows$y)
+  # What augment() binds for the rows of `data` the fit dropped is open
+  # (ROADMAP.md): the full data are refused on a fit with na.omit, and bound
+  # row by row on a fit with na.exclude, as before.
+  expect_error(generics::augment(white, data = d),
+               "117 of them, and `data` has 120 rows", fixed = TRUE)
+  expect_identical(unname(generics::augment(excluded, data = d)$.fitted), unname(fitted(me)))
+  # Data whose number of rows is a multiple of the number of fitted values had
+  # them recycled over their rows (the re-review of increment 9), and are
+  # refused.
+  full <- context_data()
+  results <- runHeteroTests(lm(y ~ x1 + x2, data = full), full, use_cache = FALSE,
+                            progress = FALSE)
+  expect_error(generics::augment(results, data = rbind(full, full)),
+               "120 of them, and `data` has 240 rows", fixed = TRUE)
+  expect_identical(nrow(generics::augment(results, data = full)), length(results) * nrow(full))
+})
+
+test_that("a grouped run of a fitWLS() fit is refused, the others refit each group (B11)", {
+  # Increment 10, decision 10. A grouped run refits the model within each
+  # group by evaluating its call on the rows of the group. The call of a
+  # fitWLS() fit is that of the model it refitted, without the weights it
+  # estimated, so each group was tested as the unweighted fit of its rows (on
+  # this matrix White's test gave 1.84 to 7.68 on the four groups of `group`,
+  # the values of lm() on each); such a run is refused, with the class of the
+  # refusals of the context, before any group is refitted. An lm, a weighted
+  # lm, whose weights are a column of the data, and a formula refit each group,
+  # as before; runDiagnostics(), which runs no grouped analysis, and the
+  # ungrouped data test the fitWLS() fit as a whole.
+  skip_if_not_installed("dplyr")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_grouped_data()
+  run <- function(m, data) {
+    runHeteroTests(m, data, tests = c("white", "koenker"), use_cache = FALSE, progress = FALSE)
+  }
+  for (grouping in names(context_groupings)) {
+    grouped <- context_grouped(d, grouping)
+    group_rows <- dplyr::group_rows(grouped)
+    for (fit in names(context_grouped_fits)) {
+      m <- context_grouped_fits[[fit]](d)
+      info <- paste(fit, grouping)
+      if (identical(fit, "fitwls")) {
+        refusal <- expect_error(run(m, grouped), class = "heteroTests_model_context_error",
+                                info = info)
+        expect_match(conditionMessage(refusal),
+                     "cannot run a grouped analysis of a fitWLS() fit", fixed = TRUE, info = info)
+        next
+      }
+      res <- run(m, grouped)
+      expect_s3_class(res, "hetero_grouped_suite")
+      expect_length(res, length(group_rows))
+      for (g in seq_along(group_rows)) {
+        part <- as.data.frame(d[group_rows[[g]], ])
+        ref <- if (identical(fit, "wls")) {
+          lm(y ~ x1 + x2, data = part, weights = w)
+        } else {
+          lm(y ~ x1 + x2, data = part)
+        }
+        expect_equal(unname(res[[g]]$white$statistic), unname(performWhiteTest(ref)$statistic),
+                     tolerance = 1e-10, info = paste(info, g))
+        expect_equal(unname(res[[g]]$koenker$statistic),
+                     unname(performKoenkerTest(ref)$statistic), tolerance = 1e-10,
+                     info = paste(info, g))
+      }
+    }
+  }
+  fw <- context_grouped_fits$fitwls(d)
+  whole <- run(fw, d)
+  expect_identical(run(fw, dplyr::ungroup(context_grouped(d, "one")))$white$statistic,
+                   whole$white$statistic)
   expect_identical(
-    recommendRemediationStrategies(tr, pair$excluded, stats::model.frame(pair$excluded)),
-    recommendRemediationStrategies(tr, pair$omitted, stats::model.frame(pair$omitted))
+    runDiagnostics(fw, context_grouped(d, "one"), use_cache = FALSE, progress = FALSE)$white$statistic,
+    whole$white$statistic
   )
+})
+
+test_that("the runners take the data a tidymodels workflow was fitted to (N5)", {
+  # Increment 10. A workflow is tested on the fit of its engine, which names
+  # its response `..y` and its predictors as the workflow's preprocessing made
+  # them, and the runners refused the data the workflow was fitted to ("`data`
+  # lacks ..y. Pass `data = NULL`"), as every test refused the data of a
+  # parsnip fit made with fit_xy(). They map them to the variables of the
+  # engine by the workflow's preprocessing (hardhat::forge()), or the outcome
+  # of fit_xy() to `..y`, confirm the rows by the alignment of the context, and
+  # test the model frame of the engine's fit: the value without `data`. Data
+  # in another order than the fit are refused with the class of the guard,
+  # and data that cannot be mapped with a message that says why: a recipe that
+  # transforms the outcome (open), an outcome given to fit_xy() as a vector,
+  # and data without the outcome.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  numbers <- function(suite) {
+    lapply(suite, function(r) list(r$method, r$statistic, r$parameter, r$p.value))
+  }
+  models <- context_tidy_models()
+  for (name in names(models)) {
+    model <- models[[name]]
+    fit <- model$fit(model$data)
+    reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+    reference_diagnostics <- runDiagnostics(fit, use_cache = FALSE, progress = FALSE)
+    for (form in setdiff(context_tidy_forms, "null")) {
+      data <- context_tidy_data(model, form)
+      expect <- context_tidy_expect(name, form)
+      info <- paste(name, form)
+      got <- tryCatch(runHeteroTests(fit, data, use_cache = FALSE, progress = FALSE),
+                      error = function(e) e)
+      if (identical(expect, "value")) {
+        expect_identical(numbers(got), numbers(reference), info = info)
+        if (!identical(name, "parsnip_formula")) {
+          expect_identical(got, reference, info = info)
+          expect_identical(runDiagnostics(fit, data, use_cache = FALSE, progress = FALSE),
+                           reference_diagnostics, info = info)
+        }
+      } else if (identical(expect, "guard")) {
+        expect_s3_class(got, "heteroTests_data_rows_error")
+        expect_match(conditionMessage(got),
+                     "A tidymodels workflow is tested on the fit of its engine", fixed = TRUE,
+                     info = info)
+        expect_match(conditionMessage(got), "Pass the data the workflow was fitted to",
+                     fixed = TRUE, info = info)
+      } else {
+        expect_s3_class(got, "error")
+        expect_match(conditionMessage(got), expect, fixed = TRUE, info = info)
+      }
+    }
+  }
 })
 
 test_that("fitWLS() pads its outputs per row on a fit with na.exclude (B13)", {

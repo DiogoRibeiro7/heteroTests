@@ -36,7 +36,19 @@ generateHeteroRecommendations(model, data = NULL, test_results = NULL,
   alpha = 0.05, include_report = TRUE)
 }
 \arguments{
-  \item{data}{A \code{data.frame} containing the modelling variables.}
+  \item{data}{A \code{data.frame} containing the modelling variables. For
+    \code{recommendRemediationStrategies()} and
+    \code{generateHeteroRecommendations()}, its rows are matched to the
+    observations of the fit as the tests match them, and those rows, in the
+    order of the fit, are read: rows with row names of their own by name, in
+    any order; rows that only number themselves (a tibble, a data.table, a data
+    frame whose row names were reset) by the row numbers of the fit, or in the
+    order of the fit when they hold one row per observation; the rows the fit
+    dropped may be there or not. Data whose rows cannot be shown to hold the
+    observations of the fit are refused (see \code{\link{test_results}}). Before
+    0.17.0 the i-th row was read with the i-th observation: named data in
+    another order than the fit gave the advice of other rows, and the full
+    data of a fit that dropped rows were refused.}
   \item{response}{Optional response variable name used for labelling.}
   \item{profile}{Dataset profile produced by
     \code{analyseDatasetCharacteristics()}.}

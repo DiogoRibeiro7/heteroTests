@@ -37,33 +37,28 @@ test_that("Szroeter test works", {
   expect_s3_class(res, "htest")
 })
 
-test_that("prepare_model_data_for_test aligns residuals and data", {
+# Until increment 10 of the model context these two assertions were made on
+# prepare_model_data_for_test(), the preparation of `data` the tests used
+# before the context, which no test called since increment 8; they are made
+# on the tests, which match `data` through the context.
+test_that("the additional tests take the rows of the fit from its data", {
   df <- mtcars
   model <- lm(mpg ~ wt + cyl, data = df)
-  result <- heteroTests:::prepare_model_data_for_test(
-    model,
-    df,
-    required_vars = c("mpg", "wt", "cyl"),
-    test_label = "alignment",
-    min_obs_model = 5L,
-    min_obs_data = 5L
+  set.seed(4)
+  shuffled <- df[sample(nrow(df)), ]
+  expect_identical(
+    performSzroeterTest(model, shuffled, "wt")$statistic,
+    performSzroeterTest(model, df, "wt")$statistic
   )
-  expect_equal(nrow(result$data), nrow(df))
-  expect_equal(length(result$residuals), nrow(df))
 })
 
-test_that("prepare_model_data_for_test detects missing model rows", {
+test_that("the additional tests detect missing model rows", {
   df <- mtcars
   model <- lm(mpg ~ wt + cyl, data = df)
   trimmed <- df[-1, ]
   expect_error(
-    heteroTests:::prepare_model_data_for_test(
-      model,
-      trimmed,
-      required_vars = c("mpg", "wt", "cyl"),
-      test_label = "alignment"
-    ),
-    "requires `data` to contain the rows used to fit the model",
+    performSzroeterTest(model, trimmed, "wt"),
+    "requires `data` to contain the rows used to fit the model. Missing rows: Mazda RX4",
     fixed = TRUE
   )
 })
