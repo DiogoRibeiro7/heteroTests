@@ -175,7 +175,12 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
     # A frame that model = FALSE rebuilt from data that changed after the fit,
     # with or without `data` (#130).
     rcheck_model_frame(model, frame, caller)
-    design <- stats::model.matrix(model)
+    # model.matrix() of an mgcv::gam() fit with na.exclude pads the design with
+    # NA rows at the rows the fit dropped (model.matrix.gam()); read as the
+    # same fit with na.omit it is the design of the twin, one row per
+    # observation (B13, from the review of increment 9). The design of an lm
+    # or a glm is not padded either way.
+    design <- stats::model.matrix(rmodel_as_na_omit(model))
   }
   offset <- stats::model.offset(frame)
   ctx <- structure(
@@ -820,10 +825,12 @@ rmodel_unpad <- function(model, x) {
 #' The fit of `na.exclude` and that of `na.omit` drop the same rows and are
 #' the same fit; their `na.action` holds the same rows, of class `"exclude"`
 #' or `"omit"`, and only the first makes `residuals()`, `weights()` and
-#' `fitted()` pad. A reference implementation that reads them, as
-#' `lmtest::bptest()` reads `weights()` ([rvalidate_against_reference()]),
-#' stops on the padding ("incompatible dimensions"); it is given the fit with
-#' the class of `na.omit`, so that it computes what it computes on the same fit
+#' `fitted()` pad, and `model.matrix()` of an `mgcv::gam()` fit. A reference
+#' implementation that reads them, as `lmtest::bptest()` reads `weights()`
+#' ([rvalidate_against_reference()]), stops on the padding ("incompatible
+#' dimensions"), and the context, which reads the design of a `gam` whole,
+#' took its padded rows for parts of different lengths: each is given the fit
+#' with the class of `na.omit`, so that it reads what it reads on the same fit
 #' with `na.omit` (increment 9 of the model context, B13).
 #'
 #' @param model A fitted model.

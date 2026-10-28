@@ -704,6 +704,18 @@ context_cells <- function() {
   }, function(m) d_na, fit = "glm")
   exclude_pair("fitwls", function(na_action) fitWLS(na_fit(d_na)(na_action)),
                function(m) d_na, fit = "fitwls")
+  # A Gaussian mgcv::gam() fit, without and with a smooth term: its design,
+  # model.matrix.gam(), is padded with NA rows at the rows the fit dropped,
+  # which the context took for parts of different lengths, refusing every
+  # such fit (from the review of increment 9). The tests of increment 2 and
+  # the White bootstrap refuse the smooth term, as for its twin (decision 23),
+  # and the wild bootstrap every gam.
+  exclude_pair("gam", function(na_action) {
+    mgcv::gam(y ~ x1 + x2, data = d_na, na.action = na_action)
+  }, function(m) d_na, needs = "mgcv")
+  exclude_pair("gam_smooth", function(na_action) {
+    mgcv::gam(y ~ s(x1) + x2, data = d_na, na.action = na_action)
+  }, function(m) d_na, needs = "mgcv")
   # A log model, whose model frame holds the terms, with and without `data`.
   log_fit <- function(na_action) {
     stats::lm(log(ypos) ~ log(x1) + x2, data = d_na, na.action = na_action)
@@ -1375,7 +1387,7 @@ context_cell_for <- function(fn, cell) {
   # give: it stops on every gam, as before increment 8 (outside the model
   # context; ROADMAP.md).
   if (identical(fn, "performWildBootstrapTest") && identical(cell$expect, "value") &&
-        grepl("^class/gam|^panel/unit_gam", cell$id)) {
+        grepl("^class/gam|^panel/unit_gam|^exclude/gam", cell$id)) {
     cell$expect <- "lm object does not have a proper 'qr' component"
     cell$reference <- NULL
     return(cell)
@@ -1384,7 +1396,7 @@ context_cell_for <- function(fn, cell) {
   # the robust Breusch-Pagan test studentizes by default, as the tests of
   # increment 2 do.
   refits_design <- c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")
-  if (fn %in% refits_design && startsWith(cell$id, "class/gam_smooth") &&
+  if (fn %in% refits_design && grepl("^class/gam_smooth|^exclude/gam_smooth", cell$id) &&
         !identical(cell$expect, "guard")) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
