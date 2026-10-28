@@ -52,7 +52,14 @@ from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increment 7 is
 in 0.16.0 too: the three streaming tests, `performWhiteTestStreaming()`,
 `performBPTestStreaming()` and `performKoenkerTestStreaming()`, built on it,
 reading the stored design chunk by chunk (`rstreaming_design()`, in
-`R/performance.R`). Increments 8 to 11 are planned; see
+`R/performance.R`). Increment 8, the first of 0.17.0, is in the development
+version: the resampling tests, `performWhiteTestBootstrap()`, whose observed
+statistic and replicates moved together, and `performWildBootstrapTest()`,
+`bootstrapTestStatistic()` and the robust White and Breusch-Pagan tests,
+`performWhiteTestRobust()` and `performBPTestRobust()`, built on it, each
+replicate refitted by least squares on the stored design
+(`rreplicate_lm()`, in `R/bootstrap_methods.R`), and a Gaussian `glm`
+bootstrapped as the `lm` it is (N8). Increments 9 to 11 are planned; see
 [Migration plan](#migration-plan).
 
 ## The problem
@@ -151,7 +158,12 @@ guard as its alignment step and removes the rebuilding behind it.
   of increment 6 test it as before 0.16.0, and so do the three streaming tests
   of increment 7, on the design of the variables of its formula, which its
   model frame holds, not on its stored design, the basis of its smooths
-  (below), and
+  (below), and, of increment 8, the wild bootstrap and the robust White test;
+  the White bootstrap, whose replicates refit the design as the tests of
+  increment 2 do, refuses it (its refit from the formula stopped on the
+  smooth term before), and so does the robust Breusch-Pagan test, which
+  studentizes by default, while `bootstrapTestStatistic()` refuses every `gam`,
+  as before; and
   increment 11 settles it for every test (decision 23). The residuals of a
   `gam` carry no names; its
   observations are those of the row names of its model frame

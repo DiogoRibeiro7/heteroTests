@@ -46,9 +46,13 @@
 # performNCVTest(), performSpreadLevelTest(), performDavidianCarrollTest() and
 # performVarianceFormTest(), with fitWLS() (rcontext_second_formula(),
 # rcontext_formula_rows()), which match `data` as every test built on the
-# context does (decision 31); the other tests still
-# prepare the model and data with rdata_or_model_frame() and
-# prepare_model_data_for_test().
+# context does (decision 31), and (increment 8) the resampling tests,
+# performWhiteTestBootstrap() and performWildBootstrapTest(),
+# bootstrapTestStatistic() and the robust tests performWhiteTestRobust() and
+# performBPTestRobust(), which refit their replicates on the stored design
+# (rreplicate_lm(), R/bootstrap_methods.R). No test prepares the model and
+# data with rdata_or_model_frame() and prepare_model_data_for_test() any
+# more; increment 10 removes them.
 
 #' Build the model context of a test
 #'

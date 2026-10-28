@@ -47,7 +47,7 @@ design (see \emph{Supported models}). The model frame is accepted as \code{data}
 to rounding error, when the two decide the rank of the design alike (see \emph{Supported models});
 \code{\link{performWhiteTestStreaming}()}, \code{\link{performHarrisonMcCabeTest}()} and
 \code{\link{performVarianceFormTest}()} refused every \code{glm} until 0.16.0, and \code{\link{bootstrapTestStatistic}()}
-refuses every \code{glm}. With positive prior weights it gives the result of
+until 0.17.0, which bootstraps it as the \code{lm} it is. With positive prior weights it gives the result of
 \code{lm(..., weights = w)}: \code{\link{performGQTest}()}, \code{\link{performRESETTest}()},
 \code{\link{performWhiteTestBootstrap}()}, \code{\link{performWildBootstrapTest}()} and
 \code{\link{performHarrisonMcCabeTest}()}, which read the weights of an
@@ -197,7 +197,9 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   \code{lm(..., tol = 1e-11)}, not those of the default \code{lm}. \code{\link{performWhiteTestStreaming}()},
   \code{\link{performHarrisonMcCabeTest}()} and \code{\link{performVarianceFormTest}()} refused every \code{glm} until
   0.16.0, and \code{\link{fitWLS}()} refits it as that \code{lm} since then. \code{\link{bootstrapTestStatistic}()}
-  refuses every \code{glm}, as it refits each replicate by least squares, which would drop a family and a link.
+  refused every \code{glm} until 0.17.0, as it refits each replicate by least squares, which would drop a family and
+  a link; it bootstraps a Gaussian \code{glm} with the identity link as that \code{lm}, with its prior weights, and
+  refuses any other \code{glm}, and an \code{mgcv::gam()} fit, as before.
   The checks of the model read its R-squared,
   which \code{summary()} of a \code{glm} does not report, as that of the \code{lm}: \code{summary.lm()} applied to the
   \code{glm}, whose fitted values, residuals, weights and offset are those of the \code{lm}, so that a near-perfect fit
