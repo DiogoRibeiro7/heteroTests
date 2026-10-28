@@ -37,7 +37,9 @@ analyzeMLResiduals <- function(model, data = NULL) {
   lm_res <- resid(lm_model)
   gam_res <- resid(gam_model)
   rmse <- function(x) sqrt(mean(x^2))
-  lm_rmse <- rmse(lm_res)
+  # The residuals of the observations of the fit: a fit with na.exclude pads
+  # `lm_residuals` with NA at the rows it dropped, which made the RMSE NA (B13).
+  lm_rmse <- rmse(rmodel_unpad(lm_model, lm_res))
   gam_rmse <- rmse(gam_res)
   list(
     gam_model = gam_model,

@@ -457,11 +457,59 @@ augment.hetero_test <- function(x, data = NULL, ...) {
     stop("Unable to recover the data used to fit the model. Supply it explicitly via `data=`.", call. = FALSE)
   }
   df <- as.data.frame(data)
-  df$.fitted <- tryCatch(stats::fitted(model), error = function(e) rep(NA_real_, nrow(df)))
+  fitted_values <- tryCatch(stats::fitted(model), error = function(e) NULL)
+  # One row per value of fitted(): one per observation of the fit, or, for a
+  # fit with na.action = na.exclude, whose fitted values, residuals and
+  # standardised residuals are padded with NA at the rows it dropped, one per
+  # row of the data it was fitted to. Given the rows of the observations only,
+  # as its model frame without `data`, such a fit pads them with NA rows
+  # there, so that the result is the result of the same fit with na.omit
+  # padded as naresid() pads it (B13, increment 9 of the model context);
+  # before, the columns did not fit the rows ("replacement has 120 rows, data
+  # has 117"). Data of another number of rows are refused, where they stopped
+  # in the same way.
+  if (!is.null(fitted_values)) {
+    df <- raugment_rows(df, model, length(fitted_values))
+  }
+  df$.fitted <- fitted_values %||% rep(NA_real_, nrow(df))
   df$.resid <- tryCatch(stats::residuals(model), error = function(e) rep(NA_real_, nrow(df)))
   df$.std.resid <- tryCatch(stats::rstandard(model), error = function(e) rep(NA_real_, nrow(df)))
   df$.diagnostic <- attr(x, "diagnostic") %||% NA_character_
   df
+}
+
+# The rows of `data` that augment.hetero_test() binds the per-observation
+# columns of the fit to, `n` of them: `data` itself when it has `n` rows; for
+# a fit with na.exclude given one row per observation, those rows with a row
+# of NA at each row the fit dropped, named as naresid() names it; otherwise a
+# refusal that says what augment() needs.
+raugment_rows <- function(df, model, n) {
+  if (nrow(df) == n) {
+    return(df)
+  }
+  omitted <- model$na.action
+  if (inherits(omitted, "exclude") && nrow(df) + length(omitted) == n) {
+    keep <- rep.int(NA_integer_, n)
+    keep[-omitted] <- seq_len(nrow(df))
+    names_kept <- rownames(df)
+    df <- df[keep, , drop = FALSE]
+    row_names <- character(n)
+    row_names[-omitted] <- names_kept
+    row_names[omitted] <- names(omitted)
+    rownames(df) <- make.unique(row_names)
+    return(df)
+  }
+  stop(
+    sprintf(
+      paste(
+        "augment() binds one row of `data` to each fitted value of the model, %d of them,",
+        "and `data` has %d rows. Pass the data the model was fitted to, or `data = NULL`",
+        "for its model frame."
+      ),
+      n, nrow(df)
+    ),
+    call. = FALSE
+  )
 }
 
 # collections ------------------------------------------------------------

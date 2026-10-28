@@ -432,8 +432,12 @@ interpretHeteroTestResults <- function(test_results, alpha = 0.05) {
 #'   tactics.
 #' @keywords internal
 identifyVariancePatterns <- function(model, data) {
-  res <- tryCatch(rpearson_residuals(model), error = function(e) NULL)
-  fitted_vals <- tryCatch(stats::fitted(model), error = function(e) NULL)
+  # One value per observation of the fit, without the padding of na.exclude,
+  # as the rows of `data` the checks let through, the model frame or the rows
+  # of the fit (B13, increment 9 of the model context): padded, the
+  # correlations below stopped with "incompatible dimensions".
+  res <- tryCatch(rmodel_unpad(model, rpearson_residuals(model)), error = function(e) NULL)
+  fitted_vals <- tryCatch(rmodel_unpad(model, stats::fitted(model)), error = function(e) NULL)
 
   if (is.null(res) || is.null(fitted_vals)) {
     return(list(description = "Residual diagnostics unavailable.", suggestions = character()))
@@ -468,7 +472,7 @@ identifyVariancePatterns <- function(model, data) {
     }
   }
 
-  leverage <- tryCatch(stats::hatvalues(model), error = function(e) NULL)
+  leverage <- tryCatch(rmodel_unpad(model, stats::hatvalues(model)), error = function(e) NULL)
   if (!is.null(leverage)) {
     high_leverage <- sum(leverage > (2 * mean(leverage, na.rm = TRUE)), na.rm = TRUE)
     if (high_leverage > 0) {

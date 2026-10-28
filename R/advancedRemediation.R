@@ -40,7 +40,10 @@ autoCompareRemediations <- function(model, data = NULL) {
   metrics <- data.frame(
     Method = names(models),
     AIC = sapply(models, function(m) if (!is.null(m)) AIC(m) else NA_real_),
-    RMSE = sapply(models, function(m) if (!is.null(m)) rmse(resid(m)) else NA_real_),
+    # Without the padding of na.exclude, whose NA made the RMSE NA (B13).
+    RMSE = sapply(models, function(m) {
+      if (!is.null(m)) rmse(rmodel_unpad(m, resid(m))) else NA_real_
+    }),
     stringsAsFactors = FALSE
   )
 
