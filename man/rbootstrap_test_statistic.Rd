@@ -98,7 +98,11 @@ Nothing is evaluated again from the formula or from \code{data}: a term computed
 from the rows it is given, such as \code{cut(x, quantile(x))}, the knots of
 \code{splines::ns()} or \code{I(x > median(x))}, keeps in every replicate the values
 the fit computed, and a variable the formula found outside \code{data}, such as
-\code{offset(o)} with \code{o} in its environment, follows the rows drawn.
+\code{offset(o)} with \code{o} in its environment, follows the rows drawn. Under pairs
+resampling, a level of a factor or a value of a character regressor that no
+row drawn holds is left out of the replicate, as a refit of the formula
+leaves it out, and the contrasts of the fit are kept, but for a contrasts
+matrix of such a factor, which gives way to the default contrasts.
 \code{test_function} is given the replicate as an \code{lm}, whose model frame is that
 of the fit in the rows of the replicate with the response of the
 replicate, and the rows of \code{data}, regenerated or drawn. Up to 0.16.0 each
@@ -257,7 +261,9 @@ another family or link, an \code{mgcv::gam()} fit and a \code{survey::svyglm()} 
 as each replicate is refitted by least squares, a fit with a zero weight,
 a fit that is not the least-squares fit of its design, such as a
 \code{MASS::rlm()} fit, a fit whose coefficients, residuals or weights were
-changed after it was fitted (since 0.17.0), and \code{data} whose rows cannot be
+changed after it was fitted (since 0.17.0), a \code{fitWLS()} fit of an
+\code{mgcv::gam()} fit with smooth terms, whose terms do not rebuild the design of
+its coefficients (since 0.17.0), and \code{data} whose rows cannot be
 shown to hold the observations of the fit. Which model each test accepts,
 and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
 }

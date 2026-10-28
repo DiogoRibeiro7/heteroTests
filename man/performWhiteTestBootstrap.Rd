@@ -184,7 +184,10 @@ fit is not the least-squares fit of its design, which each replicate fits
 again (before, the refit from the formula stopped on the smooth term); a
 \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is. It also
 refuses a fit whose coefficients, residuals or weights were changed after it
-was fitted, from which it computed the value of the fit before the edit.
+was fitted, from which it computed the value of the fit before the edit, and
+a \code{fitWLS()} fit of a \code{gam} with smooth terms, whose terms do not rebuild the
+design of its coefficients, on which it computed a value on the variables of
+the formula.
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
 \emph{Supported models}.
 }

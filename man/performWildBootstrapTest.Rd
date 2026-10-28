@@ -177,7 +177,10 @@ aliased columns. It refuses a \code{glm} of another family or link, a \code{surv
 fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit. Since 0.17.0 it refuses a fit whose
 coefficients, residuals or weights were changed after it was fitted, from
-which it computed the value of the fit before the edit. Which model each
+which it computed the value of the fit before the edit, and a \code{fitWLS()} fit
+of an \code{mgcv::gam()} fit with smooth terms, whose terms do not rebuild the
+design of its coefficients, on which it computed a value on the variables of
+the formula. Which model each
 test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
 models}.
 }

@@ -210,7 +210,11 @@ Nothing is evaluated again from the formula or from `data`: a term computed
 from the rows it is given, such as `cut(x, quantile(x))`, the knots of
 `splines::ns()` or `I(x > median(x))`, keeps in every replicate the values
 the fit computed, and a variable the formula found outside `data`, such as
-`offset(o)` with `o` in its environment, follows the rows drawn.
+`offset(o)` with `o` in its environment, follows the rows drawn. Under pairs
+resampling, a level of a factor or a value of a character regressor that no
+row drawn holds is left out of the replicate, as a refit of the formula
+leaves it out, and the contrasts of the fit are kept, but for a contrasts
+matrix of such a factor, which gives way to the default contrasts.
 `test_function` is given the replicate as an `lm`, whose model frame is that
 of the fit in the rows of the replicate with the response of the
 replicate, and the rows of `data`, regenerated or drawn. Up to 0.16.0 each
@@ -286,7 +290,9 @@ another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
 as each replicate is refitted by least squares, a fit with a zero weight,
 a fit that is not the least-squares fit of its design, such as a
 `MASS::rlm()` fit, a fit whose coefficients, residuals or weights were
-changed after it was fitted (since 0.17.0), and `data` whose rows cannot be
+changed after it was fitted (since 0.17.0), a `fitWLS()` fit of an
+`mgcv::gam()` fit with smooth terms, whose terms do not rebuild the design of
+its coefficients (since 0.17.0), and `data` whose rows cannot be
 shown to hold the observations of the fit. Which model each test accepts,
 and why, is set out in [`test_results`](test_results.md), under *Supported models*.
 

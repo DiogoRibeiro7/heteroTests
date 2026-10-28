@@ -162,7 +162,9 @@ are refused, as by the other tests. They need no `data` for a model that transfo
 `offset()` term, or takes its weights or offset from a column of the data, and accept its model frame as
 `data`. They also refuse a multivariate `lm` ("needs a model with one response"), a fit whose coefficients,
 residuals or weights were changed after it was fitted ("does not reproduce its residuals from its design and
-coefficients", "The weights of the model are not those its coefficients were fitted with"), and a fit with
+coefficients", "The weights of the model are not those its coefficients were fitted with"), a fit whose terms do
+not rebuild the design of its coefficients, as a `fitWLS()` fit of an `mgcv::gam()` fit with smooth terms
+(the first of these messages, since 0.17.0), and a fit with
 `model = FALSE` whose model frame can no longer be rebuilt, unless `data` gives its response and fitted
 values, on which it is then tested. RESET,
 Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an

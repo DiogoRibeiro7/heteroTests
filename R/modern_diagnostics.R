@@ -216,7 +216,10 @@
 #' weight, a coefficient that is not finite for another reason, and `data` that
 #' lack rows or variables of the fit. Since 0.17.0 it refuses a fit whose
 #' coefficients, residuals or weights were changed after it was fitted, from
-#' which it computed the value of the fit before the edit. Which model each
+#' which it computed the value of the fit before the edit, and a `fitWLS()` fit
+#' of an `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the
+#' design of its coefficients, on which it computed a value on the variables of
+#' the formula. Which model each
 #' test accepts, and why, is set out in [test_results], under *Supported
 #' models*.
 #'

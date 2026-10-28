@@ -187,7 +187,10 @@ fit is not the least-squares fit of its design, which each replicate fits
 again (before, the refit from the formula stopped on the smooth term); a
 `gam` without smooth terms is tested as the Gaussian `glm` it is. It also
 refuses a fit whose coefficients, residuals or weights were changed after it
-was fitted, from which it computed the value of the fit before the edit.
+was fitted, from which it computed the value of the fit before the edit, and
+a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not rebuild the
+design of its coefficients, on which it computed a value on the variables of
+the formula.
 Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
 *Supported models*.
 
