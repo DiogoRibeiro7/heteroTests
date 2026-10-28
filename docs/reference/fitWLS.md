@@ -48,11 +48,15 @@ fitWLS(
 ## Value
 
 A new `lm` object fitted with weights. The estimated variances are
-attached as the `"variance_model"` attribute, and the fitted variance
-function (its form, regressors and coefficients) as the
+attached as the `"variance_model"` attribute, one per row, as `weights()`
+of the result gives the weights: on a fit with `na.action = na.exclude`,
+`NA` at the rows the fit dropped (since 0.17.0; before, one per
+observation of the fit). The fitted variance function (its form,
+regressors and coefficients) is attached as the
 `"variance_function"` attribute, which is what
 [`performVarianceFormTest()`](performVarianceFormTest.md) reads, and what the bootstrap tests read to
-estimate the weights again in each replicate. When `model` was fitted
+estimate the weights again in each replicate; its regressors have one row
+per observation of the fit. When `model` was fitted
 with weights, the attribute also holds them, as `initial_weights`.
 
 ## Details

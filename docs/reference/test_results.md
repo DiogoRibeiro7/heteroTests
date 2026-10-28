@@ -148,16 +148,20 @@ diagnostic its `vars`, from the confirmed rows of `data`; without `data` the pan
 the model frame, when it holds them under their own names, and the scatter diagnostic needs `data`. Pesaran's
 test refuses a pair of `id` and `time` that holds two observations of the fit and a unit or a period
 missing at an observation of the fit, and computes the statistic of an unbalanced panel, whose units are not all
-observed at the same periods, from the periods each pair of units shares, as `plm::pcdtest()` does; a fit with
-`na.action = na.exclude` is read by the three as before 0.16.0, by position, until a later step, and Pesaran's
-test refuses there an unbalanced panel of the rows of `data` ("needs a balanced panel"). The registered `"szroeter"` orders by the fitted values, which it computes
+observed at the same periods, from the periods each pair of units shares, as `plm::pcdtest()` does. The registered `"szroeter"` orders by the fitted values, which it computes
 from the fit, and the spatial test reads no column of `data`: its `listw` lists the observations of the
 fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (`1e-7` for an
 `lm`, `1e-11` for a `glm`). These tests
 match numbered rows by the row numbers of the fit, or, when `data` holds one row per observation and its numbers
 are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
 before the match, so data that hold the rows a fit with `na.omit` dropped, or only the rows it kept, numbered
-again, are accepted. Named data in any order, numbered data in the order of the fit: numbered data in another order
+again, are accepted. Since 0.17.0 a fit with `na.action = na.exclude` is tested as the same fit with
+`na.omit`, which drops the same rows, with the same values, refusals and warnings: before, the tests refused it
+("Model residuals must be finite"), RESET stopped on it ("NA/NaN/Inf in 'x'"), and the panel tests and the scatter
+diagnostic read its residuals, padded with `NA` at the rows it dropped, against the rows of `data` by
+position, which gave a statistic that was `NA`, or computed with the `NA`. An output with one value per row,
+as the estimated variances `fitWLS()` attaches to its fit, is padded with `NA` at the rows the fit dropped,
+as `residuals()` and `weights()` of such a fit are. Named data in any order, numbered data in the order of the fit: numbered data in another order
 are refused, as by the other tests. They need no `data` for a model that transforms its variables, has an
 `offset()` term, or takes its weights or offset from a column of the data, and accept its model frame as
 `data`. They also refuse a multivariate `lm` ("needs a model with one response"), a fit whose coefficients,
