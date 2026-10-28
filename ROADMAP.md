@@ -1419,12 +1419,37 @@ squared residuals that do not vary.
   recorded, not fixed**, as they change what a test computes rather than which
   models it accepts. Those below are settled by the steps above or with them;
   the others are under 0.16.0 and 0.18.0:
-  - [ ] `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
+  - [x] `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
     deficient" when terms of its auxiliary regression are collinear, as the
     squares of dummy variables are, on any model with a factor, where
     `performWhiteTest()` drops them. Drop the collinear terms from the
     accumulated cross-products, as the exact test does. Changes a value (an
-    error becomes one). The exact White, Breusch-Pagan and Koenker tests, and
+    error becomes one). Done in the pull request of N3: the three streaming
+    tests reduce each chunk of the auxiliary design of the regressors centred
+    at their means by a QR decomposition stacked on the factor of the chunks
+    before it, rather than accumulating its cross-products, and decide its
+    rank as `performWhiteTest()` does, `qr()` of the intercept and the
+    centred auxiliary design at its tolerance, in the order of the columns,
+    on that factor, which has the norms and inner products of those columns.
+    White's streaming test drops the collinear terms and gives the degrees of
+    freedom and the value of `performWhiteTest()`: 17.83 on 8 on
+    `lm(y ~ x1 + group)`, where it stopped. The pivoted Cholesky
+    decomposition of the centred cross-products (#151), used on the accepted
+    path as well, counted one term too many (31 for 30) on 30 subjects of two
+    observations and one of three, from the rounding of the centring of
+    cross-products whose columns are far from their means, and 54 for 60 on
+    the basis of a smooth `gam`, where the factor gives `performWhiteTest()`'s
+    60 and its value. The cross-products of a regressor 100 standard
+    deviations from zero no longer look collinear (White's test), nor those
+    of one 1,000 standard deviations from zero beside the intercept (the
+    Breusch-Pagan and Koenker tests); the values of the three that change,
+    change in their last bits, or to the value of the exact test where the
+    normal equations lost more digits. Found with it: in more than one chunk,
+    on a regressor `a` beside `a_sq`, whose square White's test names `a_sq`
+    too, the columns of each chunk were matched by name and White's streaming
+    test gave 27.76 (chunks of 7) where `performWhiteTest()` gives 27.64;
+    every chunk has the columns of the stored design, taken in their order.
+    The exact White, Breusch-Pagan and Koenker tests, and
     `runHeteroTests()` with its default `chunk_threshold_mb = 100`, switched
     to the streaming ones above 100 MB, so that such a model got a fallback
     under the name `white` on large data. Done in 0.16.0, decided by the
@@ -1447,8 +1472,12 @@ squared residuals that do not vary.
     2 (the review of step 7 agreed): on the stored design the Breusch-Pagan
     and Koenker streaming tests would give the values of the exact tests,
     and White's would refuse the collinear squares of the basis of the
-    smooths (N3).
-  - [ ] The three streaming tests refuse squared residuals that do not vary,
+    smooths (N3). Since the pull request of N3 White's would give the value
+    of `performWhiteTest()` there too: on `gam(y ~ s(x1) + x2)` in the design
+    of `contract_data()`, 46.05 on 60 degrees of freedom on the basis, as
+    `performWhiteTest()` gives, where on the variables of the formula, which
+    it keeps, it gives 10.61 on 5, as before (to the last bits).
+  - [x] The three streaming tests refuse squared residuals that do not vary,
     "requires variation in squared residuals", by an absolute threshold:
     `chunked_regression_r2()` compares their total sum of squares with
     `.Machine$double.eps`, whatever their scale. Residuals of about `1e-5`
@@ -1461,7 +1490,17 @@ squared residuals that do not vary.
     `performKoenkerTest()` 10.289; the same data times `1e5` stream to
     12.787. Found in step 7 of the model context, which leaves it as it was.
     Compare the total with the scale of the squared residuals. Errors become
-    values.
+    values. Done with N3: the exact tests decide constancy without a scale,
+    `performKoenkerTest()` refusing squared residuals that are all equal and
+    the R-squared of `lm()` not depending on the scale of the response; the
+    streaming tests take the squared residuals for constant when their total
+    sum of squares about their mean is at most `.Machine$double.eps` of their
+    sum of squares, when they agree to about eight digits, and give 12.787,
+    12.997 and 10.289 on those data. Squared residuals equal but for rounding
+    (residuals of +1 and -1 orthogonal to the regressors) are refused at any
+    scale and in chunks of any size, where in chunks of 40 or more they gave
+    a value from the rounding at a scale of 1 (Koenker's 40, the number of
+    observations) and refused it at others.
   - `runHeteroTests(<workflow>, data)` refuses the data the workflow was
     fitted to, because the engine's fit names its response `..y`; without
     `data` it uses the model frame of that fit (0.16.0), and the refusal says

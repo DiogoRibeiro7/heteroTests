@@ -806,6 +806,14 @@ For the functions built on the context in increment 7:
   (`rcentred_cross_fit()`). White's streaming test on collinear terms of its
   auxiliary regression, the squares of dummies or of an orthogonal `poly()`
   basis, still stops, which is N3, a pull request of its own (decision 22).
+  That pull request (0.17.0) replaces the cross-products, on both paths, by a
+  QR decomposition of each chunk of the auxiliary design of the centred
+  regressors stacked on the factor of the chunks before it, and the rank by
+  that of `qr()` of the factor, the rule of `performWhiteTest()`: White's
+  streaming test drops the collinear terms, and `rcentred_cross_fit()` goes:
+  used on the accepted path, with the centred regressors, it would count 31
+  degrees of freedom for 30 on 30 subjects of two observations and one of
+  three, and 54 for 60 on the basis of a smooth `gam`.
 - **Values that change** (B6, B5). A term computed from the rows it is given,
   in chunks smaller than the data: on the term cell of the matrix,
   `y ~ I(x1 > median(x1)) + x2`, the Breusch-Pagan test gave 11.375 in chunks
@@ -861,6 +869,11 @@ For the functions built on the context in increment 7:
   the exact tests' values for the Breusch-Pagan and Koenker tests and make
   White's streaming test refuse the collinear terms of the basis (N3), and
   refusing the fit, as the tests of increment 2 do, would be new refusals.
+  Since the pull request of N3 White's streaming test would give the value of
+  the exact test on the basis too, dropping its collinear terms: 46.05 on 60
+  on `gam(y ~ s(x1) + x2)` in the design of `contract_data()`, as
+  `performWhiteTest()`, where it keeps 10.61 on 5 on the variables of the
+  formula, as before, to the last bits. Increment 11 decides between the two.
 - **Unchanged**: every other value on valid calls; the zero-weight refusals
   and the refusals of the guard; a fit with `na.action = na.exclude`, refused
   as before ("Model residuals must be finite"), until increment 9; and the
@@ -868,7 +881,9 @@ For the functions built on the context in increment 7:
   variation in squared residuals", decided against the absolute threshold
   `.Machine$double.eps` on their total sum of squares, which refuses residuals
   of about `1e-5` that the exact tests take (outside the context, an open
-  item of ROADMAP.md).
+  item of ROADMAP.md; with N3, in 0.17.0, the threshold is relative to the sum
+  of squares of the squared residuals, and those residuals give the values of
+  the exact tests).
 
 ## Migration plan
 
@@ -893,7 +908,7 @@ migrations that keep every value, then the riskier resampling and
 
 Outside the context, as separate pull requests: White's degrees of freedom
 when the auxiliary columns span the constant (N2, done) and White streaming on
-collinear auxiliary terms (N3) (decision 22), and N11 to N15.
+collinear auxiliary terms (N3, done in 0.17.0) (decision 22), and N11 to N15.
 
 ### How each increment shows `identical()`
 
@@ -1332,9 +1347,10 @@ the span of the regressors, and a positive response `ypos`.
   `var_formula = ~ z`, the variance form test with `var_formula = ~ z` and
   `against = ~ z`, `fitWLS()` with and without `var_formula = ~ z`), and, in a
   test of their own, through the streaming tests in chunks of 7
-  (`context_streaming_recipes()`), where White's streaming test refuses the
+  (`context_streaming_recipes()`), where White's streaming test refused the
   collinear squares of a dummy, of `poly()` and of `x1` beside `I(x1^2)`
-  (`context_cell_for_streaming()`).
+  until the pull request of N3, and gives on those cells, since, the value of
+  the reference of the cell, as on the others (`context_cell_for_streaming()`).
   Where a test departs from a cell by design, its own expectation applies
   (`context_cell_for()`): the quantile regression test refuses a weighted fit;
   a test that reads a variable the model frame does not hold (`context_reads`:
@@ -1396,7 +1412,7 @@ the span of the regressors, and a positive response `ypos`.
 | the tests computed from the model alone (increment 6) | numbered data in another order, rows in front of those of the fit and repeated row names refused by the guard, named data in any order and the complete rows of a fit that dropped rows, numbered again, `identical()` to the data frame of the fit (decision 31); a stale `model = FALSE` frame refused by the nine, RESET, `fitWLS()`, the registered names and `runTimeSeriesTests()`, with and without `data`, and the values of before once the frame is restored; a fit whose data are gone tested on its data, in fit order and shuffled under their row names, `identical()` to the fit with its frame |
 | a second formula (increment 6) | `var_formula = ~ z` and `against = ~ z` on named data shuffled `identical()` to the data frame; numbered data in another order, rows in front and the tibble of a fit to repeated rows refused by the guard; the complete rows numbered again `identical()` to the fit to the complete rows; a variable of the workspace refused (M1, the message of `data`), and given as a column of `data` the value it gave from the workspace; a variable of the model read from the model frame and the functions of the formula from its environment |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
-| the streaming tests | in chunks of 7, 40 and 10,000, a term computed from its rows (`I(x1 > median(x1))`, `cut(x1, quantile(x1))`, and the median of a fit that dropped rows) against the same column computed beforehand, to `1e-10`, and against the exact test, to `1e-8`; in chunks of 7, 25, 119, 120 and 10,000, the exact test on unweighted, weighted, Gaussian `glm`, offset, `log()` and rank-deficient fits, to `1e-8` (`test-streaming.R`); on a `gam` with smooth terms, the Breusch-Pagan and Koenker statistics written out on the variables of its formula, to `1e-8`; the refusals of the context final in the runner that streams them |
+| the streaming tests | in chunks of 7, 40 and 10,000, a term computed from its rows (`I(x1 > median(x1))`, `cut(x1, quantile(x1))`, and the median of a fit that dropped rows) against the same column computed beforehand, to `1e-10`, and against the exact test, to `1e-8`; in chunks of 7, 25, 119, 120 and 10,000, the exact test on unweighted, weighted, Gaussian `glm`, offset, `log()` and rank-deficient fits, to `1e-8` (`test-streaming.R`); on a `gam` with smooth terms, the Breusch-Pagan and Koenker statistics written out on the variables of its formula, to `1e-8`; the refusals of the context final in the runner that streams them; since the pull request of N3, White's streaming test on every cell of collinear terms (a factor, `poly()`, `I(x1^2)`, the median, `cut()`) against `performWhiteTest()`, to `1e-8`, with its degrees of freedom, and the three on regressors 100 to 10,000 standard deviations from zero and on squared residuals of any scale against the exact tests |
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
@@ -1440,7 +1456,7 @@ that fixes each.
 | L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1), in increment 7 for the streaming tests |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2 | White's degrees of freedom when the auxiliary columns span the constant | Fixed in 0.16.0 by a separate pull request (decision 22): the rank of the auxiliary design with its intercept, minus one, as `lmtest::bptest()` with the same terms; the harness allows the changes on the cells where main's count was wrong (the `poly()` fits, and the `gam` with a smooth term, whose auxiliary regression lost a column to its intercept and whose statistic changes by 0.28%) and verifies each against White's test written out (`identity_white_by_hand()`). Its follow-up (decisions 25 and 26) decides the rank on the auxiliary design of the centred regressors, refuses an auxiliary regression that fits the squared residuals exactly, saturated or not, and fits it with `lm.fit()`; the harness runs cells of its own for them, checks every number of a changed result, and requires the refusal on the exact fits |
-| N3 | White streaming on collinear terms | A separate pull request (decision 22) |
+| N3 | White streaming on collinear terms | Fixed in 0.17.0 by a separate pull request (decision 22): the three streaming tests reduce each chunk of the auxiliary design of the centred regressors by a QR decomposition stacked on the factor of the chunks before it, and decide its rank as `performWhiteTest()` does, by `qr()` of that factor at its tolerance, in the order of the columns; White's streaming test drops the collinear terms and gives the degrees of freedom and the value of `performWhiteTest()` (17.83 on 8 on `lm(y ~ x1 + group)`, where it stopped), and the cross-products of a regressor located far from zero no longer look collinear. With it, the threshold on squared residuals that do not vary is relative to their scale, and the columns of the chunks are taken in their order, not matched by name. The harness verifies each change against the exact test of the call (`identity_n3_verdict()`) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET, in increment 6 for the other tests computed from the model alone and `fitWLS()` |
