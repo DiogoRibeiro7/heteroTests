@@ -35,12 +35,24 @@ functions.}
 }
 \value{
 A new \code{lm} object fitted with weights. The estimated variances are
-attached as the \code{"variance_model"} attribute, and the fitted variance
-function (its form, regressors and coefficients) as the
+attached as the \code{"variance_model"} attribute, one per row, as \code{weights()}
+of the result gives the weights: on a fit with \code{na.action = na.exclude},
+\code{NA} at the rows the fit dropped (since 0.17.0; before, one per
+observation of the fit). The fitted variance function (its form,
+regressors and coefficients) is attached as the
 \code{"variance_function"} attribute, which is what
 \code{\link[=performVarianceFormTest]{performVarianceFormTest()}} reads, and what the bootstrap tests read to
-estimate the weights again in each replicate. When \code{model} was fitted
-with weights, the attribute also holds them, as \code{initial_weights}.
+estimate the weights again in each replicate. Its \code{regressors}, the
+variance regressors on the scale of the form, and \code{index}, the fitted
+log-variance \eqn{\hat\gamma_0 + z_i^\top \hat\gamma}, have one row, or
+value, per observation of the fit, also on a fit with
+\code{na.action = na.exclude}, whose rows they are not padded to. The estimated
+variances are proportional to the exponential of \code{index}, unless the
+variance function could not be used and the fit fell back to equal
+weights, which the record says with \code{usable = FALSE} and its \code{reason};
+\code{index} is then the fitted log-variance that was refused, or \code{NA}.
+When \code{model} was fitted with weights, the attribute also holds them, as
+\code{initial_weights}, one per observation of the fit too.
 }
 \description{
 Refit a model by feasible generalised least squares, weighting each

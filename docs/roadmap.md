@@ -928,7 +928,9 @@ suites, approved on 2026-10-21, are added.
     is `identical()` to before. A fit with `na.action = na.exclude` that
     dropped rows is read by position until step 9, and an unbalanced panel of
     the rows of `data` stays refused there, with a message that points to
-    `na.omit`; one that dropped no row is tested as any other.
+    `na.omit`; one that dropped no row is tested as any other. Since step 9
+    (0.17.0) such a fit is tested as the same fit with `na.omit`, its panel
+    balanced or not, and the refusal is gone.
 - [x] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
     the warning of `warnDiagnosticAssumptions()` for a sample of fewer than 100
     observations, but two other strings still recommend the wild bootstrap for
@@ -1316,7 +1318,7 @@ suites, approved on 2026-10-21, are added.
         request of N12 computes it from the periods each pair of units shares. A
         fit with
         `na.action = na.exclude` is read as before, by position, until step 9.
-        Done in 0.16.0.
+        Done in 0.16.0. Step 9 reads it as the same fit with `na.omit`.
     - [x] 6. The tests computed from the model alone, Cook-Weisberg with
         `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
         and the check of `data` RESET keeps until then (`rcheck_data_argument()`).
@@ -1424,7 +1426,29 @@ squared residuals that do not vary.
         does; a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not
         rebuild its design, is refused (M8); and `bootstrapTestStatistic()`
         refuses a multivariate `lm` with M7.
-    - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
+    - [x] 9. `na.exclude`, the last step (decision 16). Closes B13. Done in the
+        development version: a fit with `na.action = na.exclude` drops the rows
+        `na.omit` drops, and pads `residuals()`, `fitted()`, `weights()` and
+        `hatvalues()` with `NA` at them. The checks of the model read one
+        residual per observation of the fit, and every test built on the context
+        reads the vectors of the fit without the padding, so such a fit gives what
+        the same fit with `na.omit` gives on the same data: the same statistic,
+        p-value, refusal and warnings, and for the resampling tests the same
+        draws. The tests and the runners refused it ("Model residuals must be
+        finite"), RESET stopped on it ("NA/NaN/Inf in 'x'"), and the panel tests
+        and the scatter diagnostic read its padded residuals against the rows of
+        `data` by position, which gave `NA`, or a value computed with the `NA`,
+        and refused data in another order and an unbalanced panel of the rows of
+        `data`; that reading goes. An output with one value per row is padded as
+        `naresid()` pads it: the estimated variances `fitWLS()` attaches to its
+        fit. `rvalidate_against_reference()` gives lmtest and car the same fit
+        read as `na.omit`, on whose padded weights lmtest stopped. From the review
+        of the step: an `mgcv::gam()` fit with `na.exclude`, whose design
+        `model.matrix.gam()` pads with `NA` rows, which the tests refused for
+        parts of different lengths, is read through the design of its twin; and
+        the functions outside the context that the checks now let such a fit
+        reach read it without the padding too (below). The twin rule is decision
+        32 of the design, decided by the author on 2026-10-28.
     - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
         refused (decision 10), workflows with `data`;
         `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
@@ -1433,7 +1457,13 @@ squared residuals that do not vary.
         `tests/testthat/test-data-alignment-guard.R` that call
         `prepare_model_data_for_test()` (the tibble renumbered by the rows it
         dropped) and `rcheck_data_rows()` (no column that can be compared)
-        exercise these dead internals, and go with them. Closes B11, N5.
+        exercise these dead internals, and go with them. Closes B11, N5. With
+        the workflows with `data` (N5): `recommendRemediationStrategies()` and
+        `generateHeteroRecommendations()`, and `generics::augment()` of the
+        results of the runner, should match the rows of `data` to the
+        observations of the fit, as the tests do, where since step 9 they refuse
+        data of another number of rows than the observations (or, for
+        `augment()`, than the fitted values) with a message that names both.
     - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
         it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
         by class, is an input the tests justify: its residuals are not orthogonal
@@ -1576,6 +1606,68 @@ squared residuals that do not vary.
         refused ("`data` does not reproduce the fit"), as such an `lm` was before.
         Refitting at the tolerance of the fit would give them values. A refusal
         becomes a value.
+- [ ] **Found by step 9 of the model context and its review**: functions
+    that are not built on the context and read the padded vectors of a fit with
+    `na.action = na.exclude` once the checks of the model let it through, or
+    keep one value per observation where the rule of step 9 pads them
+    (decision 32 of the design).
+    - [x] `analyzeMLResiduals()` returned `rmse_reduction = NA` on such a fit,
+        and `autoCompareRemediations()` an `NA` RMSE for the OLS and WLS fits
+        (1.32 and 1.33 on the same fit with `na.omit`): each took the root mean
+        square of `resid()`, padded with `NA`. Done in step 9: the residuals of
+        the observations of the fit, as the tests read them.
+    - [x] `generateHeteroRecommendations()` stopped with "incompatible
+        dimensions" (`identifyVariancePatterns()` correlated the padded absolute
+        residuals with the columns of the model frame), and
+        `plotBubbleVariance()`, and so `plotDiagnosticSuite()`, its deprecated
+        name and `generateDiagnosticReport()`, with "replacement has 120 rows,
+        data has 117"; `plotResidualsFitted()` with and without `enhanced`,
+        `plotSpreadLevel()`, `plotResidualDensity()`, `plotResidualQQ()`,
+        `plotBeforeAfter()` and `plotResidualsFittedEnhanced()` drew the `NA`,
+        with a warning of ggplot2, "Removed 3 rows containing non-finite values",
+        that the same fit with `na.omit` does not give. Done in step 9: they read
+        the residuals and fitted values of the observations, and draw what they
+        draw on the same fit with `na.omit`.
+    - [x] `generics::augment()` of the results of the runner stopped with
+        "replacement has 120 rows, data has 117" without `data` or given the rows
+        of the fit. Done in step 9: it pads those rows with a row of `NA` at each
+        row the fit dropped, the result of the same fit with `na.omit` padded;
+        given the data of the fit, it binds the padded columns to its rows, as
+        before; and data of another number of rows are refused with a message
+        that says what it binds, for a fit with `na.omit` too, where they stopped
+        with the same error, or, when their number of rows was a multiple of the
+        number of fitted values, had them recycled over the rows, bound to other
+        observations (a new refusal on any fit, announced in bold). Open: the
+        same fit with `na.omit` given the full data of the fit is refused (its
+        columns have one value per observation), where the fit with `na.exclude`
+        binds them; binding them by the row names of the observations would give
+        that fit the rows of the other, a value where it is refused.
+    - [x] `recommendRemediationStrategies()` correlated the residuals with the
+        columns of `data` row by row: given the full data of a fit that dropped
+        rows, it stopped with "incompatible dimensions" on a fit with `na.omit`,
+        and read the padded residuals of a fit with `na.exclude` by position.
+        Done in step 9: it refuses data of another number of rows than the
+        observations of the fit, naming both counts. Matching the rows of `data`
+        to the observations, as the tests do, is left to step 10 (above).
+    - [x] On an `mgcv::gam()` fit with `na.exclude`, whose `model.matrix()`
+        pads the design with `NA` rows, `performVIFDiagnostic()` gave `NA`, and
+        `cooks.distance()` of the `gam` recycled the padded residuals against the
+        leverages, with a warning, so `performInfluenceDiagnostics()` and
+        `runDiagnostics()$influence` gave other distances. Done in step 9: they
+        read the fit as the same fit with `na.omit`, the distances padded as
+        `naresid()` pads them (on a weighted `lm`, whose `cooks.distance()` left
+        the names of the padded positions `NA`, they are named as the dropped
+        rows, as on an unweighted one).
+    - `performInfluenceDiagnostics()`, and so `runDiagnostics()$influence`,
+        returns the Cook's distances padded with `NA`, one per row, as step 9 pads
+        an output; but `influential` holds their positions among the rows, where
+        the same fit with `na.omit` gives their positions among the observations
+        (the names are the same). Decide which the positions count. A value
+        changes, or none.
+    - The record of the variance function that `fitWLS()` attaches to its fit
+        stays unpadded on a fit with `na.exclude`, one row per observation of the
+        fit (decision 33, decided by the author on 2026-10-28); only the
+        estimated variances, `"variance_model"`, are padded.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for 0.16.0 so
     that 0.14.0 changes no value. Each fix that changes a value is announced in
     bold in `NEWS.md`. Those below are settled by steps 8 and 10; the others are

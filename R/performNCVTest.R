@@ -126,7 +126,8 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
 
   ht_log("INFO", "Running NCV score test")
 
-  e <- rpearson_residuals(model)
+  # The Pearson residuals, without the padding of na.exclude (B13).
+  e <- if (is.null(ctx)) rpearson_residuals(model) else rcontext_pearson(ctx)
   n <- length(e)
 
   # Cook and Weisberg scale by the ML variance estimate, i.e. RSS / n rather
@@ -141,7 +142,7 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
   u <- e^2 / sigma2_ml
 
   if (is.null(var_formula)) {
-    Z <- cbind(fitted.values = stats::fitted(model))
+    Z <- cbind(fitted.values = if (is.null(ctx)) stats::fitted(model) else rcontext_fitted(ctx))
     var_label <- "fitted values"
   } else {
     if (!inherits(var_formula, "formula") || length(var_formula) != 2L) {

@@ -93,7 +93,8 @@ performMcLeodLiTest <- function(model, data = NULL, lags = 10) {
 
   ht_log("INFO", "Running McLeod-Li test")
 
-  res2 <- rpearson_residuals(model)^2
+  # The Pearson residuals, without the padding of na.exclude (B13).
+  res2 <- rcontext_pearson(ctx)^2
   if (stats::var(res2) <= .Machine$double.eps) {
     .std_error(
       "rassumption_violation",

@@ -12,7 +12,8 @@
 #'
 #' Data that are given must still be the data the model was fitted to. Until
 #' 0.16.0 this function also checked that they held the variables of the model
-#' and the row names of the fit ([rcheck_data_matches_model()]); since the sixth
+#' and the row names of the fit (`rcheck_data_matches_model()`, which the
+#' panel tests kept for a fit with `na.exclude` until increment 9); since the sixth
 #' step of the model context these tests match `data` to the observations of
 #' the fit through its alignment, as every test built on it does (decision 31),
 #' and this function refuses, with its message of before, a `data` that is
@@ -656,21 +657,6 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
       ),
       "Pass the data the model was fitted on."
     ),
-    order = c(
-      paste0(
-        "it reads `data` by position, the i-th row with the i-th observation, ",
-        "and the rows of `data`, matched by name, are not in the order of the fit."
-      ),
-      "Pass the rows of the fit in the order of the fit."
-    ),
-    unnamed = c(
-      paste0(
-        "it reads `data` by position, the i-th row with the i-th observation, ",
-        "and the row names of `data` are not those of the fit, so they cannot ",
-        "show that its rows are in the order of the fit."
-      ),
-      "Pass a data frame with the row names of the fit, in the order of the fit."
-    ),
     renumbered = c(
       paste0(
         "its rows with missing values were dropped, and `data`, which has no ",
@@ -726,46 +712,6 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
   ))
 }
 
-#' Refuse `data` that a test reads by position when it is not in fit order
-#'
-#' `performPesaranTest()`, `performBPRandomEffectsTest()` and
-#' `performScatterDiagnostic()` read `data` by position, the i-th row with the
-#' i-th residual, where the other tests match its rows by name. Data with its
-#' own row names in another order than the fit, which the others match
-#' correctly, were read against other residuals and gave wrong values. From
-#' 0.15.0 they were refused, and so were data whose row names are not those of
-#' the fit, which cannot show their order. Since 0.16.0 the three read the
-#' rows the model context confirmed ([rcontext_columns_at_fit()]), and call
-#' this check only for a fit with `na.action = na.exclude`, whose padded
-#' residuals they read by position, as before, until the step of the model
-#' context that moves `na.exclude`.
-#'
-#' @param residuals The residuals the test reads, named by observation.
-#' @param data The data the test reads, after [rcheck_data_rows()].
-#' @param fn Character scalar naming the calling test.
-#' @param test_label Character scalar naming the test in the message on the
-#'   number of rows, which is that of [rstop_data_rows()].
-#' @return `NULL`, invisibly; called for the error.
-#' @keywords internal
-#' @noRd
-rcheck_data_in_fit_order <- function(residuals, data, fn, test_label) {
-  if (nrow(data) != length(residuals)) {
-    rstop_data_rows(residuals, data, test_label)
-  }
-  ids <- names(residuals)
-  if (is.null(ids)) {
-    return(invisible(NULL))
-  }
-  rows <- match(ids, rownames(data))
-  if (anyNA(rows)) {
-    rstop_data_rows_unmatched(fn, "unnamed")
-  }
-  if (!identical(rows, seq_along(ids))) {
-    rstop_data_rows_unmatched(fn, "order")
-  }
-  invisible(NULL)
-}
-
 # The name of the test the user called, for messages: starting at frame
 # `frame`, the first enclosing function that is an exported perform*()
 # function, then, while its caller is another one (a deprecated name such as
@@ -808,41 +754,6 @@ rtest_name <- function(frame, default = NULL) {
     k <- parents[k]
   }
   if (is.null(name)) default else name
-}
-
-# Does `data` hold the variables of `model` and the rows its fit used? A model
-# that is not an lm, or has no residuals, is left to the model checks that
-# follow. The model frame itself, whose columns are the terms rather than the
-# variables (`log(y)` rather than `y`), is accepted as it is. Since the sixth
-# step of the model context the tests computed from the model alone no longer
-# call it (decision 31); the panel tests and the scatter diagnostic do, for a
-# fit with na.exclude that they read by position (rcontext_columns_at_fit()),
-# until the step that moves na.exclude.
-rcheck_data_matches_model <- function(model, data, test_label) {
-  if (!inherits(model, "lm")) {
-    return(invisible(NULL))
-  }
-  residuals <- tryCatch(stats::residuals(model), error = function(e) NULL)
-  if (is.null(residuals)) {
-    return(invisible(NULL))
-  }
-  frame_columns <- tryCatch(names(stats::model.frame(model)), error = function(e) NULL)
-  holds_frame <- !is.null(frame_columns) && all(frame_columns %in% names(data))
-  if (!holds_frame) {
-    required <- tryCatch(unique(all.vars(stats::terms(model))), error = function(e) NULL)
-    rvalidateDataInputs(data, required_vars = required, min_obs = 0L)
-  }
-  resid_names <- names(residuals)
-  rows_known <- length(resid_names) > 0L && !is.null(rownames(data))
-  mismatch <- if (rows_known) {
-    !all(resid_names %in% rownames(data))
-  } else {
-    nrow(data) != length(residuals)
-  }
-  if (mismatch) {
-    rstop_data_rows(residuals, data, test_label)
-  }
-  invisible(NULL)
 }
 
 # The error for `data` whose rows are not those of the fit, in the words of

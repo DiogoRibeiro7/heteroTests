@@ -29,10 +29,11 @@ from the periods each pair of units shares (Details), and gives the value of
 \code{plm::pcdtest(test = "cd")} on the residuals of the fit, except where a correlation is
 undefined (Details): before, the test stopped on it, or, when the number of periods of a unit
 divided that of the panel, returned a wrong value computed on its residuals recycled over the
-periods it lacks. A fit with \code{na.action = na.exclude} that dropped rows is read as before, by
-position, until a later step: the panel of the rows of \code{data} must then be balanced, and an
-unbalanced one is refused, with a message that points to \code{na.omit}. A fit with
-\code{na.exclude} that dropped no row is tested as any other.
+periods it lacks. A fit with \code{na.action = na.exclude} is tested since 0.17.0 as the same fit
+with \code{na.omit}, on the observations it kept, its panel balanced or not: before, it was read
+by position, its residuals padded with \code{NA} at the rows it dropped, against the rows of
+\code{data}, which had to be in the order of the fit, and an unbalanced panel of those rows was
+refused.
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
 \emph{Supported models}.
 }

@@ -62,6 +62,21 @@ context_same <- function(object, expected, info, tolerance = NULL) {
   expect_identical(unname(object$parameter), unname(expected$parameter), info = info)
 }
 
+# A call on a fit with na.exclude against the same call on its twin, the same
+# fit with na.omit (increment 9, B13): the same refusal, of the same class and
+# with the same message, or the same value, every part of it.
+context_same_as_twin <- function(object, twin, info) {
+  if (inherits(twin, "condition")) {
+    expect_s3_class(object, "error")
+    expect_identical(class(object), class(twin), info = info)
+    expect_identical(conditionMessage(object), conditionMessage(twin), info = info)
+    return(invisible(NULL))
+  }
+  expect_false(inherits(object, "condition"),
+               info = paste(info, if (inherits(object, "condition")) conditionMessage(object)))
+  expect_identical(object, twin, info = info)
+}
+
 context_installed <- function(cell) {
   all(vapply(cell$needs, requireNamespace, logical(1), quietly = TRUE))
 }
@@ -84,6 +99,13 @@ context_check_matrix <- function(ids, fns = context_runnable(), recipes = contex
       if (!context_installed(cell)) next
       out <- result_of(id)
       info <- paste(fn, id)
+      # A fit with na.exclude gives what its twin, the same fit with na.omit,
+      # gives (increment 9, B13): the same refusal, or the same value, an
+      # output with one value per row padded as naresid() pads it.
+      if (!is.null(cell$twin)) {
+        context_same_as_twin(out, context_twin_value(fn, result_of(cell$twin), cell), info)
+        next
+      }
       if (identical(cell$expect, "value")) {
         context_expect_value(out, info)
         if (!is.null(cell$reference) && context_installed(cells[[cell$reference]])) {
@@ -1940,9 +1962,9 @@ test_that("Pesaran's test refuses a pair of id and time that repeats (R2)", {
     fixed = TRUE
   )
   expect_error(performPesaranTest(m_twice, twice, "id", "period"), "and 1 more", fixed = TRUE)
-  # A fit with na.exclude is read by position until its step of the model
-  # context, and the pair is refused there too; from the review of increment
-  # 5, where the test returned 0.253 on it, with the repeated pair.
+  # A fit with na.exclude, as its twin with na.omit (increment 9): the pair is
+  # refused there too; from the review of increment 5, where the test
+  # returned 0.253 on it, with the repeated pair.
   excluded <- panel
   excluded$x2[50] <- NA
   m_excluded <- lm(y ~ x1 + x2, data = excluded, na.action = na.exclude)
@@ -1960,8 +1982,10 @@ test_that("the refusals of Pesaran's test take linear time", {
   # From the review of increment 5: the refusal of repeated pairs counted each
   # with a scan of every observation, and took 18 to 53 s on 120,000
   # observations with 40,000 repeated pairs; one pass takes well under a
-  # second, and so does the check of balance, which scanned the observations
-  # once for each unit. The bounds are generous, to hold on a slow machine.
+  # second. (The check of balance of the positional reading of a fit with
+  # na.exclude, which scanned the observations once for each unit and then
+  # took one pass too, went with that reading in increment 9.) The bounds are
+  # generous, to hold on a slow machine.
   skip_on_cran()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -1979,12 +2003,6 @@ test_that("the refusals of Pesaran's test take linear time", {
   expect_lt(system.time(
     expect_error(rstop_repeated_panel_cells(big$id, big$time, "id", "time", "f"),
                  "and 39997 more", fixed = TRUE)
-  )[["elapsed"]], 1)
-  balanced <- data.frame(id = rep(1:4000, each = 30), time = rep(1:30, 4000))[-1, ]
-  expect_lt(system.time(
-    expect_error(rstop_unbalanced_panel(balanced$id, balanced$time, "id", "f"),
-                 "1 of its 4000 units is observed at fewer of its 30 periods, id = 1 at 29 of them",
-                 fixed = TRUE)
   )[["elapsed"]], 1)
 })
 
@@ -2072,42 +2090,383 @@ test_that("the panel tests and the scatter diagnostic keep the refusals of the c
   }
 })
 
-test_that("a fit with na.exclude is read by the panel tests as before", {
-  # Its residuals are padded with NA at the rows it dropped, and the panel
-  # tests and the scatter diagnostic read them against the rows of `data` by
-  # position, as before 0.16.0, until the step of the model context that
-  # moves na.exclude: the statistics are NA, or computed with the NA, and data
-  # in another order are refused.
+# A call on a fit with na.exclude and on its twin, the same fit with na.omit:
+# the value or the condition, the warnings and the state of the generator.
+context_twin_run <- function(f) {
+  set.seed(7)
+  warnings <- character()
+  value <- withCallingHandlers(
+    tryCatch(f(), error = function(e) e),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    },
+    message = function(m) invokeRestart("muffleMessage")
+  )
+  list(value = value, warnings = warnings, rng = .Random.seed)
+}
+
+# A result without the model a runner attaches to it and to each test, whose
+# na.action tells the two fits apart.
+context_without_model <- function(x) {
+  attr(x, "model") <- NULL
+  if (is.list(x) && !inherits(x, "htest")) {
+    for (k in seq_along(x)) {
+      if (!is.null(x[[k]])) attr(x[[k]], "model") <- NULL
+    }
+  }
+  x
+}
+
+# The fit of the matrix with na.exclude, x2 missing at rows 3, 7 and 11, and
+# its twin with na.omit (missing/na_exclude and missing/full).
+context_excluded_pair <- function(data = NULL) {
+  d <- if (is.null(data)) {
+    d <- context_data()
+    d$x2[c(3, 7, 11)] <- NA
+    d
+  } else {
+    data
+  }
+  list(
+    d = d,
+    excluded = lm(y ~ x1 + x2, data = d, na.action = na.exclude),
+    omitted = lm(y ~ x1 + x2, data = d)
+  )
+}
+
+test_that("a fit with na.exclude gives what the same fit with na.omit gives (B13)", {
+  # Increment 9. A fit with na.action = na.exclude drops the rows na.omit drops
+  # and pads residuals(), fitted(), weights() and hatvalues() with NA at them
+  # (naresid()). The checks of the model read those residuals and refused it
+  # ("Model residuals must be finite"), and so every test refused it, but
+  # those below; RESET stopped on its fitted values ("NA/NaN/Inf in 'x'"). The
+  # checks and the tests read one value per observation of the fit, as for
+  # na.omit: every function built on the context gives the value of the same
+  # fit with na.omit, with the same warnings, "Removed 3 observations due to
+  # missing values in x2" among them, and, for the resampling tests, the same
+  # draws of the generator. The spread-level and Davidian-Carroll tests, which
+  # left out the NA themselves, gave it already.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  recipes <- context_recipes()
+  for (fn in c(context_runnable(), "performBreuschPaganTest")) {
+    a <- context_twin_run(function() recipes[[fn]](pair$excluded, pair$d))
+    b <- context_twin_run(function() recipes[[fn]](pair$omitted, pair$d))
+    expect_false(inherits(b$value, "condition"), info = fn)
+    context_same_as_twin(a$value, b$value, fn)
+    expect_identical(a$warnings, b$warnings, info = fn)
+    expect_identical(a$rng, b$rng, info = fn)
+  }
+  expect_error(performRESETTest(pair$excluded, pair$d), NA)
+  expect_error(performKoenkerTest(pair$excluded), NA)
+  expect_identical(performKoenkerTest(pair$excluded), performKoenkerTest(pair$omitted))
+  # The checks of the model see the residuals of the fit: one per observation,
+  # at the positions na.omit gives them.
+  expect_error(rvalidateModelInputs(pair$excluded, "f"), NA)
+  expect_length(rmodel_unpad(pair$excluded, residuals(pair$excluded)), 117L)
+  expect_identical(rmodel_unpad(pair$excluded, residuals(pair$excluded)),
+                   residuals(pair$omitted))
+})
+
+test_that("the resampling tests draw the replicates of the same fit with na.omit (B13)", {
+  # Increment 9. The White and wild bootstraps, bootstrapTestStatistic() and
+  # the robust bootstraps refused a fit with na.exclude; the White bootstrap
+  # would have drawn its NA residuals, and bootstrapTestStatistic() its padded
+  # fitted values. They draw what they draw on the same fit with na.omit, and
+  # leave the generator where it leaves it.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  calls <- list(
+    white = function(m) performWhiteTestBootstrap(m, pair$d, B = 19),
+    wild = function(m) performWildBootstrapTest(m, pair$d, B = 19, progress = FALSE),
+    null = function(m) bootstrapTestStatistic(performKoenkerTest, m, pair$d, B = 19,
+                                              progress = FALSE),
+    pairs = function(m) bootstrapTestStatistic(performKoenkerTest, m, pair$d, B = 19,
+                                               progress = FALSE, resample = "pairs"),
+    robust = function(m) performBPTestRobust(m, pair$d, bootstrap = TRUE, B = 19),
+    fitwls = function(m) performWhiteTestBootstrap(fitWLS(m, pair$d), pair$d, B = 19)
+  )
+  for (k in names(calls)) {
+    a <- context_twin_run(function() calls[[k]](pair$excluded))
+    b <- context_twin_run(function() calls[[k]](pair$omitted))
+    expect_false(inherits(a$value, "condition"), info = k)
+    a$value$call <- b$value$call <- NULL
+    expect_identical(a$value, b$value, info = k)
+    expect_identical(a$rng, b$rng, info = k)
+  }
+})
+
+test_that("the runners give on a fit with na.exclude what they give with na.omit (B13)", {
+  # Increment 9. runHeteroTests() stopped on the refusal of White's test
+  # ("Diagnostic execution failed for White: Model residuals must be finite"),
+  # and so did runDiagnostics(), runTimeSeriesTests(), runAdvancedDiagnostics()
+  # and the helpers that run a test; runPanelTests() gave the statistics of the
+  # positional reading (below). They give the results of the same fit with
+  # na.omit, but for the attached model, whose na.action tells the two apart,
+  # and the Cook's distances of runDiagnostics(), one per row, which
+  # cooks.distance() pads.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  calls <- list(
+    runHeteroTests = function(m) runHeteroTests(m, pair$d, use_cache = FALSE, progress = FALSE),
+    without_data = function(m) runHeteroTests(m, use_cache = FALSE, progress = FALSE),
+    registered = function(m) {
+      runHeteroTests(m, pair$d, tests = c("cook_weisberg", "spread_level", "szroeter"),
+                     use_cache = FALSE, progress = FALSE)
+    },
+    streaming = function(m) {
+      runHeteroTests(m, pair$d, tests = c("white", "breusch_pagan", "koenker"),
+                     use_cache = FALSE, chunk_threshold_mb = 0, chunk_size = 7, progress = FALSE)
+    },
+    runTimeSeriesTests = function(m) runTimeSeriesTests(m, lags = 2),
+    runPanelTests = function(m) runPanelTests(m, pair$d, "id", "time"),
+    runAdvancedDiagnostics = function(m) runAdvancedDiagnostics(m, pair$d, bootstrap_B = 19)
+  )
+  for (k in names(calls)) {
+    a <- context_twin_run(function() calls[[k]](pair$excluded))
+    b <- context_twin_run(function() calls[[k]](pair$omitted))
+    expect_false(inherits(a$value, "condition"),
+                 info = paste(k, if (inherits(a$value, "condition")) conditionMessage(a$value)))
+    expect_identical(context_without_model(a$value), context_without_model(b$value), info = k)
+    expect_identical(a$warnings, b$warnings, info = k)
+  }
+  expect_match(context_twin_run(function() calls$runHeteroTests(pair$excluded))$warnings,
+               "Removed 3 observations due to missing values in x2", fixed = TRUE, all = FALSE)
+  a <- runDiagnostics(pair$excluded, pair$d, use_cache = FALSE, progress = FALSE)
+  b <- runDiagnostics(pair$omitted, pair$d, use_cache = FALSE, progress = FALSE)
+  expect_identical(a$influence$cooks_distance,
+                   naresid(pair$excluded$na.action, b$influence$cooks_distance))
+  a$influence <- b$influence <- NULL
+  expect_identical(context_without_model(a), context_without_model(b))
+})
+
+test_that("the panel tests read a fit with na.exclude at the rows it kept (B13)", {
+  # Increment 9. The panel tests and the scatter diagnostic read the padded
+  # residuals of a fit with na.exclude against the rows of `data` by position,
+  # as before 0.16.0 (decision 29): the random-effects statistic and the
+  # correlations were NA, Pesaran's statistic was computed with the NA of the
+  # rows the fit dropped, data in another order were refused, and so was an
+  # unbalanced panel of the rows of `data`. They read the residuals of the
+  # observations of the fit and the `id`, `time` and `vars` of the rows that
+  # hold them, as for the same fit with na.omit: Pesaran's CD of the rows of
+  # the fit, that of plm::pcdtest() (N12).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  d <- pair$d
+  m <- pair$excluded
+  pesaran <- performPesaranTest(m, d, "id", "time")
+  expect_identical(pesaran, performPesaranTest(pair$omitted, d, "id", "time"))
+  expect_equal(unname(pesaran$statistic), 0.18909, tolerance = 1e-4)
+  re <- suppressWarnings(performBPRandomEffectsTest(m, d, "id"))
+  expect_false(is.na(re$statistic))
+  expect_identical(re, suppressWarnings(performBPRandomEffectsTest(pair$omitted, d, "id")))
+  expect_equal(unname(re$statistic), 2.0162, tolerance = 1e-4)
+  scatter <- performScatterDiagnostic(m, d, c("x1", "x2"))
+  expect_false(anyNA(scatter))
+  expect_identical(scatter, performScatterDiagnostic(pair$omitted, d, c("x1", "x2")))
+  # Data in another order, refused, give the value of the data in fit order.
+  set.seed(3)
+  shuffled <- d[sample(nrow(d)), ]
+  expect_identical(suppressWarnings(performBPRandomEffectsTest(m, shuffled, "id")), re)
+  expect_identical(performPesaranTest(m, shuffled, "id", "time"), pesaran)
+  expect_identical(performScatterDiagnostic(m, shuffled, c("x1", "x2")), scatter)
+  # An unbalanced panel of the rows of `data`, refused ("reads a fit with
+  # na.action = na.exclude by position"), is computed from the periods each
+  # pair of units shares, as for na.omit.
+  half <- context_data()[-(1:5), ]
+  half$x2[20] <- NA
+  m_half <- lm(y ~ x1 + x2, data = half, na.action = na.exclude)
+  expect_identical(performPesaranTest(m_half, half, "id", "time"),
+                   performPesaranTest(update(m_half, na.action = na.omit), half, "id", "time"))
+  skip_if_not_installed("plm")
+  r <- residuals(pair$omitted)
+  rows <- d[names(r), ]
+  pd <- plm::pdata.frame(data.frame(id = rows$id, time = rows$time, e = unname(r)),
+                         index = c("id", "time"))
+  reference <- suppressWarnings(plm::pcdtest(pd$e, test = "cd"))
+  expect_equal(unname(pesaran$statistic), unname(reference$statistic), tolerance = 1e-10)
+  expect_equal(pesaran$p.value, reference$p.value, tolerance = 1e-10)
+})
+
+test_that("a gam with na.exclude is read as the same gam with na.omit (B13)", {
+  # From the review of increment 9. model.matrix() of an mgcv::gam() fit
+  # with na.exclude pads its design with NA rows at the rows the fit dropped,
+  # 120 rows for 117 residuals, and the context refused every such fit
+  # ("Internal error: the parts of the model context differ in length."),
+  # where the same gam with na.omit gives White 10.847, Koenker 8.363 and
+  # Pesaran 0.189. The design is read without the padded rows.
+  skip_if_not_installed("mgcv")
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   d <- context_data()
   d$x2[c(3, 7, 11)] <- NA
-  m <- lm(y ~ x1 + x2, data = d, na.action = na.exclude)
-  expect_true(is.na(performBPRandomEffectsTest(m, d, "id")$statistic))
-  expect_true(all(is.na(performScatterDiagnostic(m, d, c("x1", "x2")))))
-  expect_equal(unname(performPesaranTest(m, d, "id", "time")$statistic), 0.713259,
-               tolerance = 1e-6)
-  set.seed(3)
-  expect_error(performBPRandomEffectsTest(m, d[sample(nrow(d)), ], "id"),
-               "are not in the order of the fit", class = "heteroTests_data_rows_error")
-  # Pesaran's test reads such a fit on its matrix of periods by units, and
-  # refuses an unbalanced panel of the rows of `data` there, as since the
-  # fifth step of the model context (N12), with a message that points to
-  # na.omit, with which the statistic of an unbalanced panel is computed.
-  half <- context_data()[-(1:5), ]
-  half$x2[20] <- NA
-  m_half <- lm(y ~ x1 + x2, data = half, na.action = na.exclude)
-  expect_error(
-    performPesaranTest(m_half, half, "id", "time"),
-    paste("performPesaranTest() reads a fit with na.action = na.exclude by position, on a",
-          "matrix of periods by units, and needs a balanced panel, every unit observed at the",
-          "same periods; the panel of the rows of `data` is unbalanced: 1 of its 12 units is",
-          "observed at fewer of its 10 periods, id = 1 at 5 of them. Refit the model with",
-          "na.action = na.omit"),
-    fixed = TRUE, class = "heteroTests_model_context_error"
+  excluded <- mgcv::gam(y ~ x1 + x2, data = d, na.action = na.exclude)
+  omitted <- mgcv::gam(y ~ x1 + x2, data = d)
+  expect_equal(nrow(stats::model.matrix(excluded)), 120L)
+  ctx <- rmodel_context(excluded, d, fn = "f")
+  expect_identical(ctx$design, rmodel_context(omitted, d, fn = "f")$design)
+  white_of <- function(m) performWhiteTest(m, d)
+  white <- white_of(excluded)
+  expect_identical(white, white_of(omitted))
+  expect_equal(unname(white$statistic), 10.847, tolerance = 1e-4)
+  expect_identical(performKoenkerTest(excluded, d), performKoenkerTest(omitted, d))
+  expect_identical(performPesaranTest(excluded, d, "id", "time"),
+                   performPesaranTest(omitted, d, "id", "time"))
+  expect_identical(performScatterDiagnostic(excluded, d, c("x1", "x2")),
+                   performScatterDiagnostic(omitted, d, c("x1", "x2")))
+  expect_identical(
+    context_without_model(runHeteroTests(excluded, d, use_cache = FALSE, progress = FALSE)),
+    context_without_model(runHeteroTests(omitted, d, use_cache = FALSE, progress = FALSE))
   )
-  expect_s3_class(performPesaranTest(update(m_half, na.action = na.omit), half, "id", "time"),
-                  "htest")
+  # performVIFDiagnostic() reads the design too, and gave NA; the Cook's
+  # distances of mgcv recycled the padded residuals against the leverages,
+  # with a warning, and are those of the twin, padded.
+  expect_identical(performVIFDiagnostic(excluded), performVIFDiagnostic(omitted))
+  expect_no_warning(influence <- performInfluenceDiagnostics(excluded))
+  expect_identical(influence$cooks_distance,
+                   naresid(excluded$na.action, performInfluenceDiagnostics(omitted)$cooks_distance))
+  # With a smooth term, the tests of increment 2 refuse it as its twin.
+  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d, na.action = na.exclude)
+  expect_identical(performKoenkerTest(smooth, d),
+                   performKoenkerTest(update(smooth, na.action = na.omit), d))
+  expect_error(performRESETTest(smooth, d), "cannot test an mgcv::gam() fit with smooth terms",
+               fixed = TRUE)
+})
+
+test_that("the functions outside the context read a fit with na.exclude as its twin (B13)", {
+  # From the review of increment 9. Past the checks of the model, which
+  # refused a fit with na.exclude, functions that are not built on the
+  # context read its padded residuals and fitted values: the recommendations
+  # stopped with "incompatible dimensions", the bubble plot, and so the plot
+  # suite and the report, with "replacement has 120 rows, data has 117", the
+  # other plots drew the NA with a warning of ggplot2 ("Removed 3 rows
+  # containing non-finite values"), and the RMSE of autoCompareRemediations()
+  # and analyzeMLResiduals() was NA. They give what they give on the same fit
+  # with na.omit; augment(), whose rows are per observation, gives the rows of
+  # the same fit with na.omit padded with NA rows at the rows the fit dropped.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  me <- pair$excluded
+  mo <- pair$omitted
+  same <- function(f, info) {
+    a <- suppressWarnings(f(me))
+    b <- suppressWarnings(f(mo))
+    expect_identical(a, b, info = info)
+  }
+  same(function(m) generateHeteroRecommendations(m)$profile, "recommendations")
+  same(function(m) identifyVariancePatterns(m, stats::model.frame(m)), "patterns")
+  same(function(m) autoCompareRemediations(m, pair$d)$metrics$RMSE, "RMSE")
+  expect_false(anyNA(autoCompareRemediations(me, pair$d)$metrics$RMSE[1:2]))
+  same(function(m) analyzeMLResiduals(m, pair$d)$rmse_reduction, "rmse_reduction")
+  plots <- list(
+    residuals_fitted = function(m) plotResidualsFitted(m),
+    enhanced = function(m) plotResidualsFitted(m, enhanced = TRUE),
+    spread_level = function(m) plotSpreadLevel(m),
+    density = function(m) plotResidualDensity(m),
+    qq = function(m) plotResidualQQ(m),
+    bubble = function(m) plotBubbleVariance(m),
+    before_after = function(m) plotBeforeAfter(m, fitWLS(m))
+  )
+  for (k in names(plots)) {
+    a <- plots[[k]](me)
+    b <- plots[[k]](mo)
+    expect_identical(a$data, b$data, info = k)
+    expect_no_warning(ggplot2::ggplot_build(a))
+  }
+  expect_identical(lapply(plotDiagnosticSuite(me), `[[`, "data"),
+                   lapply(plotDiagnosticSuite(mo), `[[`, "data"))
+  # augment(): the rows of the twin, padded with a row of NA at each row the
+  # fit dropped, named as naresid() names them; given the data of the fit,
+  # its rows, with the padded columns.
+  a <- generics::augment(runHeteroTests(me, use_cache = FALSE, progress = FALSE)[["white"]])
+  b <- generics::augment(runHeteroTests(mo, use_cache = FALSE, progress = FALSE)[["white"]])
+  expect_identical(nrow(a), nrow(pair$d))
+  expect_identical(names(a), names(b))
+  expect_identical(lapply(a[-c(3, 7, 11), ], unname), lapply(b, unname))
+  expect_true(all(is.na(a[c(3, 7, 11), setdiff(names(a), ".diagnostic")])))
+  expect_identical(rownames(a), as.character(seq_len(nrow(pair$d))))
+  white <- runHeteroTests(me, pair$d, use_cache = FALSE, progress = FALSE)[["white"]]
+  full <- generics::augment(white, data = pair$d)
+  expect_identical(unname(full$.fitted), unname(fitted(me)))
+  expect_error(
+    generics::augment(runHeteroTests(mo, pair$d, use_cache = FALSE, progress = FALSE)[["white"]],
+                      data = pair$d),
+    "augment() binds one row of `data` to each fitted value of the model, 117 of them", fixed = TRUE
+  )
+})
+
+test_that("augment() and the remediation advice refuse data they cannot bind by row", {
+  # From the re-review of increment 9. augment() of the results of the runner
+  # recycled the fitted values, residuals and standardised residuals over data
+  # whose number of rows is a multiple of theirs, on any fit, binding them to
+  # rows of other observations (480 rows for rbind(d, d)); and
+  # recommendRemediationStrategies(), which correlates the residuals with the
+  # columns of `data` row by row, read the padded residuals of a fit with
+  # na.exclude against its full data by position, and stopped on the same fit
+  # with na.omit with "incompatible dimensions". Both refuse data of another
+  # number of rows, naming the two counts; matching such rows is left to
+  # increment 10 (N5).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  results <- runHeteroTests(lm(y ~ x1 + x2, data = d), d, use_cache = FALSE, progress = FALSE)
+  expect_error(generics::augment(results, data = rbind(d, d)),
+               "120 of them, and `data` has 240 rows", fixed = TRUE)
+  expect_identical(nrow(generics::augment(results, data = d)), length(results) * nrow(d))
+  pair <- context_excluded_pair()
+  tr <- suppressWarnings(
+    runHeteroTests(pair$omitted, pair$d, use_cache = FALSE, progress = FALSE)
+  )
+  for (m in list(pair$excluded, pair$omitted)) {
+    expect_error(
+      recommendRemediationStrategies(tr, m, pair$d),
+      paste("reads one row of `data` for each observation of the fit, 117 of them,",
+            "and `data` has 120 rows"),
+      fixed = TRUE
+    )
+  }
+  expect_identical(
+    recommendRemediationStrategies(tr, pair$excluded, stats::model.frame(pair$excluded)),
+    recommendRemediationStrategies(tr, pair$omitted, stats::model.frame(pair$omitted))
+  )
+})
+
+test_that("fitWLS() pads its outputs per row on a fit with na.exclude (B13)", {
+  # Increment 9. The refit of fitWLS() keeps the na.action of the model, so
+  # residuals(), fitted() and weights() of a fit with na.exclude are padded
+  # with NA at the rows it dropped, as for any lm; its estimated variances,
+  # the attribute "variance_model", had one value per observation of the fit,
+  # and are padded the same way. The record of the variance function, which
+  # the bootstraps read by observation, keeps one row per observation, that of
+  # the same fit with na.omit.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  for (formula in list(NULL, ~ z)) {
+    a <- fitWLS(pair$excluded, pair$d, var_formula = formula)
+    b <- fitWLS(pair$omitted, pair$d, var_formula = formula)
+    omitted <- pair$excluded$na.action
+    expect_length(attr(a, "variance_model"), nrow(pair$d))
+    expect_identical(attr(a, "variance_model"), naresid(omitted, attr(b, "variance_model")))
+    expect_true(all(is.na(attr(a, "variance_model")[c(3, 7, 11)])))
+    expect_identical(weights(a), naresid(omitted, weights(b)))
+    expect_identical(residuals(a), naresid(omitted, residuals(b)))
+    expect_identical(coef(a), coef(b))
+    expect_identical(attr(a, "variance_function"), attr(b, "variance_function"))
+  }
+  # Without na.exclude nothing is padded.
+  b <- fitWLS(pair$omitted, pair$d)
+  expect_identical(attr(b, "variance_model"), 1 / b$weights)
 })
 
 test_that("a second formula is read at the rows of the fit, not by position (B9)", {

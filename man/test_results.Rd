@@ -116,16 +116,20 @@ diagnostic its \code{vars}, from the confirmed rows of \code{data}; without \cod
 the model frame, when it holds them under their own names, and the scatter diagnostic needs \code{data}. Pesaran's
 test refuses a pair of \code{id} and \code{time} that holds two observations of the fit and a unit or a period
 missing at an observation of the fit, and computes the statistic of an unbalanced panel, whose units are not all
-observed at the same periods, from the periods each pair of units shares, as \code{plm::pcdtest()} does; a fit with
-\code{na.action = na.exclude} is read by the three as before 0.16.0, by position, until a later step, and Pesaran's
-test refuses there an unbalanced panel of the rows of \code{data} ("needs a balanced panel"). The registered \code{"szroeter"} orders by the fitted values, which it computes
+observed at the same periods, from the periods each pair of units shares, as \code{plm::pcdtest()} does. The registered \code{"szroeter"} orders by the fitted values, which it computes
 from the fit, and the spatial test reads no column of \code{data}: its \code{listw} lists the observations of the
 fit in its order. Harrison-McCabe takes the rank of the fit, decided at the fit's tolerance (\code{1e-7} for an
 \code{lm}, \code{1e-11} for a \code{glm}). These tests
 match numbered rows by the row numbers of the fit, or, when \code{data} holds one row per observation and its numbers
 are not those of the fit, in the order of the fit, once those rows reproduce the model frame; they drop nothing
 before the match, so data that hold the rows a fit with \code{na.omit} dropped, or only the rows it kept, numbered
-again, are accepted. Named data in any order, numbered data in the order of the fit: numbered data in another order
+again, are accepted. Since 0.17.0 a fit with \code{na.action = na.exclude} is tested as the same fit with
+\code{na.omit}, which drops the same rows, with the same values, refusals and warnings: before, the tests refused it
+("Model residuals must be finite"), RESET stopped on it ("NA/NaN/Inf in 'x'"), and the panel tests and the scatter
+diagnostic read its residuals, padded with \code{NA} at the rows it dropped, against the rows of \code{data} by
+position, which gave a statistic that was \code{NA}, or computed with the \code{NA}. An output with one value per row,
+as the estimated variances \code{fitWLS()} attaches to its fit, is padded with \code{NA} at the rows the fit dropped,
+as \code{residuals()} and \code{weights()} of such a fit are. Named data in any order, numbered data in the order of the fit: numbered data in another order
 are refused, as by the other tests. They need no \code{data} for a model that transforms its variables, has an
 \code{offset()} term, or takes its weights or offset from a column of the data, and accept its model frame as
 \code{data}. They also refuse a multivariate \code{lm} ("needs a model with one response"), a fit whose coefficients,

@@ -20,7 +20,10 @@
 #' performVIFDiagnostic(m)
 performVIFDiagnostic <- function(model) {
   checkModel(model)
-  mm <- model.matrix(model)
+  # One row per observation: model.matrix() of an mgcv::gam() fit with
+  # na.action = na.exclude pads the design with NA rows, which made every VIF
+  # NA (B13, from the review of increment 9 of the model context).
+  mm <- model.matrix(rmodel_as_na_omit(model))
   assign <- attr(mm, "assign")
   X <- mm[, assign != 0, drop = FALSE]
   predictors <- colnames(X)

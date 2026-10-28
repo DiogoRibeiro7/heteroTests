@@ -1,3 +1,12 @@
+# The residuals and fitted values a plot draws, one per observation of the
+# fit: a fit with na.action = na.exclude pads them with NA at the rows it
+# dropped, which ggplot2 removed with a warning ("Removed 3 rows containing
+# non-finite values") and plotBubbleVariance() could not put in the model
+# frame ("replacement has 120 rows, data has 117"). Each plot draws what it
+# draws for the same fit with na.omit (B13, increment 9 of the model context).
+rplot_residuals <- function(model) rmodel_unpad(model, rpearson_residuals(model))
+rplot_fitted <- function(model) rmodel_unpad(model, stats::fitted(model))
+
 #' Plot residuals vs fitted values
 #'
 #' Generates a simple scatter plot of residuals against fitted values from a
@@ -27,7 +36,7 @@ plotResidualsFitted <- function(model, enhanced = FALSE) {
   if (isTRUE(enhanced)) {
     return(.plot_residuals_fitted_enhanced(model))
   }
-  df <- data.frame(fitted = fitted(model), resid = rpearson_residuals(model))
+  df <- data.frame(fitted = rplot_fitted(model), resid = rplot_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
     ggplot2::geom_point() +
     ggplot2::geom_smooth(method = "loess", se = FALSE, color = "blue") +
@@ -54,8 +63,8 @@ plotResidualsFitted <- function(model, enhanced = FALSE) {
 plotSpreadLevel <- function(model) {
   checkModel(model)
   df <- data.frame(
-    fitted = fitted(model),
-    res_sqrt = sqrt(abs(rpearson_residuals(model)))
+    fitted = rplot_fitted(model),
+    res_sqrt = sqrt(abs(rplot_residuals(model)))
   )
   ggplot2::ggplot(df, ggplot2::aes(fitted, res_sqrt)) +
     ggplot2::geom_point() +
@@ -128,8 +137,8 @@ plotDiagnosticSuite <- function(model, enhanced = FALSE) {
 plotBeforeAfter <- function(original, remedied) {
   checkModel(original)
   checkModel(remedied)
-  resid_original <- rpearson_residuals(original)
-  resid_remedied <- rpearson_residuals(remedied)
+  resid_original <- rplot_residuals(original)
+  resid_remedied <- rplot_residuals(remedied)
   # The prior weights of an lm or of a Gaussian glm, whose residuals are
   # weighted too; before 0.16.0 a weighted Gaussian glm was not labelled.
   panel_label <- function(model, label) {
@@ -144,7 +153,7 @@ plotBeforeAfter <- function(original, remedied) {
     c(length(resid_original), length(resid_remedied))
   )
   df <- data.frame(
-    fitted = c(fitted(original), fitted(remedied)),
+    fitted = c(rplot_fitted(original), rplot_fitted(remedied)),
     resid = c(resid_original, resid_remedied),
     model = model,
     panel = factor(labels[model], levels = unname(labels))
@@ -177,7 +186,7 @@ plotBeforeAfter <- function(original, remedied) {
 #' plotResidualDensity(m)
 plotResidualDensity <- function(model) {
   checkModel(model)
-  df <- data.frame(resid = rpearson_residuals(model))
+  df <- data.frame(resid = rplot_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(resid)) +
     ggplot2::geom_density(fill = "lightblue", alpha = 0.5) +
     ggplot2::labs(
@@ -200,7 +209,7 @@ plotResidualDensity <- function(model) {
 #' plotResidualQQ(m)
 plotResidualQQ <- function(model) {
   checkModel(model)
-  df <- data.frame(resid = rpearson_residuals(model))
+  df <- data.frame(resid = rplot_residuals(model))
   ggplot2::ggplot(df, ggplot2::aes(sample = resid)) +
     ggplot2::stat_qq() +
     ggplot2::stat_qq_line() +
@@ -227,7 +236,7 @@ plotResidualQQ <- function(model) {
 plotBubbleVariance <- function(model, variable = NULL) {
   checkModel(model)
   df <- data.frame(model.frame(model))
-  df$resid <- rpearson_residuals(model)
+  df$resid <- rplot_residuals(model)
   df$abs_resid <- abs(df$resid)
   if (is.null(variable)) {
     variable <- attr(terms(model), "term.labels")[1]
@@ -265,11 +274,13 @@ plotResidualsFittedEnhanced <- function(model) {
 # red, point size by the absolute residual, and the LOESS standard-error band.
 .plot_residuals_fitted_enhanced <- function(model) {
   df <- data.frame(
-    fitted = fitted(model),
-    resid = rpearson_residuals(model),
-    abs_resid = abs(rpearson_residuals(model))
+    fitted = rplot_fitted(model),
+    resid = rplot_residuals(model),
+    abs_resid = abs(rplot_residuals(model))
   )
-  cd <- cooks.distance(model)
+  # On the fit read as na.omit: that of an mgcv::gam() with na.exclude
+  # recycled its padded residuals (performInfluenceDiagnostics()).
+  cd <- cooks.distance(rmodel_as_na_omit(model))
   df$influential <- cd > 4 / length(cd)
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
     ggplot2::geom_point(ggplot2::aes(color = influential, size = abs_resid), alpha = 0.7) +

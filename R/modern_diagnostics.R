@@ -311,7 +311,8 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # each bootstrap sample a common error variance, and apply the wild multiplier
   # only as a symmetric sign/scale perturbation. See Davidson & Flachaire (2008)
   # and Godfrey (2006) on null-imposed bootstraps for heteroscedasticity tests.
-  leverage <- stats::hatvalues(model)
+  # Without the padding of na.exclude (B13).
+  leverage <- rcontext_unpad(ctx, stats::hatvalues(model))
   null_residuals <- residuals / sqrt(pmax(1 - leverage, .Machine$double.eps))
   null_residuals <- null_residuals - mean(null_residuals)
 

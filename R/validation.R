@@ -410,7 +410,12 @@ validate_model_inputs_internal <- function(model, data, test_name, min_obs,
   }
   result <- validation_add_detail(result, "coefficients", coefs)
 
-  resid <- tryCatch(stats::residuals(model), error = function(e) NULL)
+  # One residual per observation of the fit: a fit with na.action =
+  # na.exclude pads residuals() with an NA for each row it dropped, which was
+  # refused here as a residual that is not finite until increment 9 of the
+  # model context (B13). Its checks are now those of the same fit with
+  # na.omit, which drops the same rows.
+  resid <- tryCatch(rmodel_unpad(model, stats::residuals(model)), error = function(e) NULL)
   if (is.null(resid) || length(resid) == 0L) {
     message <- sprintf("Model residuals are not available for %s.", test_name)
     result <- validation_add_error(result, message)
@@ -604,7 +609,11 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
 #' Ensures that a supplied regression model satisfies the basic assumptions
 #' required by the heteroscedasticity testing infrastructure. The checks
 #' include class validation, successful fitting, availability of finite
-#' residuals, and minimum sample size requirements.
+#' residuals, and minimum sample size requirements. The residuals are those of
+#' the observations of the fit: on a fit with `na.action = na.exclude`, without
+#' the `NA` that `residuals()` pads them with at the rows the fit dropped, as
+#' for the same fit with `na.omit` (since 0.17.0; before, such a fit was
+#' refused as one whose residuals are not finite).
 #'
 #' @param model A fitted model object produced by [stats::lm()] or
 #'   [stats::glm()].
@@ -1223,7 +1232,8 @@ rvalidateSampleSize <- function(test_name, model = NULL, data = NULL, groups = N
     observed_from <- "data"
   }
   if ((is.na(observed_n) || observed_n <= 0) && !is.null(model)) {
-    resid <- tryCatch(stats::residuals(model), error = function(e) NULL)
+    # One residual per observation, without the padding of na.exclude.
+    resid <- tryCatch(rmodel_unpad(model, stats::residuals(model)), error = function(e) NULL)
     if (!is.null(resid)) {
       observed_n <- length(resid)
       observed_from <- "model"

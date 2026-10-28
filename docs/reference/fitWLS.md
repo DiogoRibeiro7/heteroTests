@@ -48,12 +48,24 @@ fitWLS(
 ## Value
 
 A new `lm` object fitted with weights. The estimated variances are
-attached as the `"variance_model"` attribute, and the fitted variance
-function (its form, regressors and coefficients) as the
+attached as the `"variance_model"` attribute, one per row, as `weights()`
+of the result gives the weights: on a fit with `na.action = na.exclude`,
+`NA` at the rows the fit dropped (since 0.17.0; before, one per
+observation of the fit). The fitted variance function (its form,
+regressors and coefficients) is attached as the
 `"variance_function"` attribute, which is what
 [`performVarianceFormTest()`](performVarianceFormTest.md) reads, and what the bootstrap tests read to
-estimate the weights again in each replicate. When `model` was fitted
-with weights, the attribute also holds them, as `initial_weights`.
+estimate the weights again in each replicate. Its `regressors`, the
+variance regressors on the scale of the form, and `index`, the fitted
+log-variance \(\hat\gamma_0 + z_i^\top \hat\gamma\), have one row, or
+value, per observation of the fit, also on a fit with
+`na.action = na.exclude`, whose rows they are not padded to. The estimated
+variances are proportional to the exponential of `index`, unless the
+variance function could not be used and the fit fell back to equal
+weights, which the record says with `usable = FALSE` and its `reason`;
+`index` is then the fitted log-variance that was refused, or `NA`.
+When `model` was fitted with weights, the attribute also holds them, as
+`initial_weights`, one per observation of the fit too.
 
 ## Details
 

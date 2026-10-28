@@ -84,15 +84,12 @@ performDavidianCarrollTest <- function(model, data = NULL, degree = 2) {
     stop("`degree` must be a positive integer.")
   }
 
-  res <- rpearson_residuals(model)
-  fit <- fitted(model)
-  # Under na.action = na.exclude both vectors are padded back to the original
-  # row count with NA placeholders, which made var(fit) NA and turned the
-  # guard below into "missing value where TRUE/FALSE needed". Test the rows
-  # the model actually fitted.
-  complete <- !is.na(res) & !is.na(fit)
-  res <- res[complete]
-  fit <- fit[complete]
+  # The Pearson residuals and the fitted values of the rows the model fitted,
+  # without the padding of na.exclude (B13): padded, var(fit) was NA and the
+  # check below stopped with "missing value where TRUE/FALSE needed", until
+  # the test left out the NA itself.
+  res <- rcontext_pearson(ctx)
+  fit <- rcontext_fitted(ctx)
   if (stats::var(fit) <= .Machine$double.eps) {
     stop("Davidian-Carroll test requires variability in fitted values.", call. = FALSE)
   }

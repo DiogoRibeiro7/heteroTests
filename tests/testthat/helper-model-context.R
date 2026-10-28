@@ -9,7 +9,8 @@
 # data frame of the fit, shuffled with its own row names, a tibble, a shuffled
 # tibble, a shuffled data.table, dplyr::arrange(), the model frame), the rows
 # the fit dropped (na.omit with the full data, the complete rows named or
-# renumbered, the tibble; na.exclude), the identifiers (rows in front, rows
+# renumbered, the tibble; na.exclude, against its twin with na.omit, in the
+# block exclude/), the identifiers (rows in front, rows
 # at the end, a fit to repeated rows, repeated row names, character row names
 # as a tibble, a repeated (id, time)) and the panels of increment 5 (a fit
 # that drops every row of a unit, by an lm, a weighted lm, a weighted Gaussian
@@ -245,11 +246,11 @@ context_form <- function(form, m, d) {
 context_cell <- function(id, block, build, fit = "ols", offset = "none", terms = "none",
                          form = "data_frame", needs = character(), reference = NULL,
                          expect = "value", defect = character(), base = NULL,
-                         base_expect = NULL) {
+                         base_expect = NULL, twin = NULL) {
   list(
     id = id, block = block, build = build, fit = fit, offset = offset, terms = terms,
     form = form, needs = needs, reference = reference, expect = expect, defect = defect,
-    base = base, base_expect = base_expect
+    base = base, base_expect = base_expect, twin = twin
   )
 }
 
@@ -405,10 +406,14 @@ context_cells <- function() {
   missing_cell("median_null", function() {
     list(m = stats::lm(y ~ I(x1 > median(x1)) + x2, data = d_med), data = NULL)
   }, reference = "missing/median_precomputed", defect = c("B5", "L1"), terms = "median")
-  # na.exclude is increment 9: until then the tests refuse its padded residuals.
-  missing_cell("na_exclude", function() {
+  # A fit with na.exclude (increment 9, B13), whose twin is the same fit with
+  # na.omit given the same data (the block `exclude/` below). The tests
+  # refused it ("Model residuals must be finite"), RESET stopped on it, and the
+  # panel tests and the scatter diagnostic read its padded residuals against
+  # the rows of `data` by position.
+  add(context_cell("missing/na_exclude", "missing", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d_na, na.action = stats::na.exclude), data = d_na)
-  }, reference = NULL, expect = "Model residuals must be finite")
+  }, form = "na_exclude", reference = "missing/full", defect = "B13", twin = "missing/full"))
 
   # A group that is missing at observations of the fit (increment 4). The
   # group tests leave those observations out, with the warning "Removed N
@@ -612,6 +617,143 @@ context_cells <- function() {
   add(context_cell("subset/null", "subset", function() {
     list(m = stats::lm(y ~ x1 + x2, data = d, subset = 21:120), data = NULL)
   }, form = "null", reference = "subset/rows", defect = "B15"))
+
+  # A fit with na.action = na.exclude (increment 9, B13). It drops the rows
+  # na.omit drops, and pads residuals(), fitted(), weights() and hatvalues()
+  # with NA at them (naresid()): the tests refused it ("Model residuals must be
+  # finite"), RESET stopped on it ("NA/NaN/Inf in 'x'"), and the panel tests
+  # and the scatter diagnostic read its padded residuals against the rows of
+  # `data` by position. Each cell has a twin, the same fit with na.omit given
+  # the same data, and a test gives on it what it gives on its twin, its value
+  # or its refusal, and an output with one value per row padded as naresid()
+  # pads it (test-model-context.R). Besides missing/na_exclude, a regressor
+  # missing, in the other forms of its data, the values are missing in the
+  # response, in x1, the variable and the ordering of the recipes, in the group,
+  # in the id and the time of the panel tests at rows the fit dropped, and in
+  # z, the variable of a second formula; with weights and an offset, a Gaussian
+  # glm, a fitWLS() fit, a log model, a subset, data with row names of their
+  # own, and a balanced and an unbalanced panel. `fit_with(na_action)` fits the
+  # model, `data_of(m)` gives the data the test is given; `twin` names an
+  # existing cell, or the twin is the cell `exclude/<id>_omit`.
+  exclude_pair <- function(id, fit_with, data_of, twin = NULL, form = "data_frame",
+                           needs = character(), fit = "ols", offset = "none", terms = "none",
+                           expect = "value") {
+    twin_id <- if (is.null(twin)) paste0("exclude/", id, "_omit") else twin
+    if (is.null(twin)) {
+      add(context_cell(twin_id, "exclude", function() {
+        m <- fit_with(stats::na.omit)
+        list(m = m, data = data_of(m))
+      }, fit = fit, offset = offset, terms = terms, form = form, needs = needs,
+      expect = expect))
+    }
+    add(context_cell(paste0("exclude/", id), "exclude", function() {
+      m <- fit_with(stats::na.exclude)
+      list(m = m, data = data_of(m))
+    }, fit = fit, offset = offset, terms = terms, form = form, needs = needs,
+    reference = twin_id, defect = "B13", twin = twin_id))
+  }
+  na_fit <- function(data) {
+    force(data)
+    function(na_action) stats::lm(y ~ x1 + x2, data = data, na.action = na_action)
+  }
+  # A regressor missing, x2 at rows 3, 7 and 11, in the other forms of data:
+  # the twins are the cells of the block of missing rows.
+  exclude_pair("shuffled", na_fit(d_na), function(m) {
+    set.seed(3)
+    d_na[sample(nrow(d_na)), ]
+  }, twin = "missing/full_shuffled", form = "shuffled")
+  exclude_pair("complete_named", na_fit(d_na), function(m) complete,
+               twin = "missing/complete_named", form = "complete_named")
+  exclude_pair("complete_renumbered", na_fit(d_na), function(m) renumbered,
+               twin = "missing/complete_renumbered", form = "complete_renumbered")
+  exclude_pair("tibble", na_fit(d_na), function(m) dplyr::as_tibble(d_na),
+               twin = "missing/tibble", form = "tibble", needs = "dplyr")
+  exclude_pair("tibble_shuffled", na_fit(d_na), function(m) {
+    set.seed(3)
+    dplyr::as_tibble(d_na)[sample(nrow(d_na)), ]
+  }, form = "tibble_shuffled", needs = "dplyr", expect = "guard")
+  exclude_pair("null", na_fit(d_na), function(m) NULL, twin = "missing/null", form = "null")
+  exclude_pair("model_frame", na_fit(d_na), function(m) stats::model.frame(m),
+               form = "model_frame")
+  # The response missing, and x1, a regressor and the variable or ordering of
+  # the recipes of Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe.
+  d_y <- d
+  d_y$y[c(3, 7, 11)] <- NA
+  exclude_pair("response", na_fit(d_y), function(m) d_y)
+  d_x1 <- d
+  d_x1$x1[c(3, 7, 11)] <- NA
+  exclude_pair("x1", na_fit(d_x1), function(m) d_x1)
+  # Data with row names of their own, in the order of the fit and shuffled.
+  named_na <- d_na
+  rownames(named_na) <- paste0("obs", seq_len(nrow(d_na)))
+  exclude_pair("named", na_fit(named_na), function(m) named_na)
+  exclude_pair("named_shuffled", na_fit(named_na), function(m) {
+    set.seed(3)
+    named_na[sample(nrow(named_na)), ]
+  }, form = "shuffled")
+  # Weights and an offset, from columns of the data, with and without `data`.
+  wls_offset_fit <- function(na_action) {
+    stats::lm(y ~ x1 + x2, data = d_na, weights = w, offset = o, na.action = na_action)
+  }
+  exclude_pair("wls_offset", wls_offset_fit, function(m) d_na, fit = "wls", offset = "argument")
+  exclude_pair("wls_offset_null", wls_offset_fit, function(m) NULL, form = "null", fit = "wls",
+               offset = "argument")
+  # A weighted Gaussian glm, and a fitWLS() fit of the lm.
+  exclude_pair("glm", function(na_action) {
+    stats::glm(y ~ x1 + x2, data = d_na, weights = w, na.action = na_action)
+  }, function(m) d_na, fit = "glm")
+  exclude_pair("fitwls", function(na_action) fitWLS(na_fit(d_na)(na_action)),
+               function(m) d_na, fit = "fitwls")
+  # A Gaussian mgcv::gam() fit, without and with a smooth term: its design,
+  # model.matrix.gam(), is padded with NA rows at the rows the fit dropped,
+  # which the context took for parts of different lengths, refusing every
+  # such fit (from the review of increment 9). The tests of increment 2 and
+  # the White bootstrap refuse the smooth term, as for its twin (decision 23),
+  # and the wild bootstrap every gam.
+  exclude_pair("gam", function(na_action) {
+    mgcv::gam(y ~ x1 + x2, data = d_na, na.action = na_action)
+  }, function(m) d_na, needs = "mgcv")
+  exclude_pair("gam_smooth", function(na_action) {
+    mgcv::gam(y ~ s(x1) + x2, data = d_na, na.action = na_action)
+  }, function(m) d_na, needs = "mgcv")
+  # A log model, whose model frame holds the terms, with and without `data`.
+  log_fit <- function(na_action) {
+    stats::lm(log(ypos) ~ log(x1) + x2, data = d_na, na.action = na_action)
+  }
+  exclude_pair("log", log_fit, function(m) d_na, terms = "log")
+  exclude_pair("log_null", log_fit, function(m) NULL, form = "null", terms = "log")
+  # A subset given by index, whose rows the fit drops before na.exclude does:
+  # the padding is of the rows of the subset.
+  d_sub <- d
+  d_sub$x2[c(30, 45)] <- NA
+  exclude_pair("subset", function(na_action) {
+    stats::lm(y ~ x1 + x2, data = d_sub, subset = 21:120, na.action = na_action)
+  }, function(m) d_sub)
+  # A group missing at an observation of the fit and at a row it dropped, as
+  # the cells of the block of missing groups, whose fits are the twins; and a
+  # model of the group, whose fit drops the rows of the missing group.
+  exclude_pair("group", na_fit(d_gn), function(m) d_gn, twin = "group/na_dropped")
+  exclude_pair("group_shuffled", na_fit(d_gn), function(m) d_gn[group_perm, ],
+               twin = "group/na_dropped_shuffled", form = "shuffled")
+  exclude_pair("group_renumbered", na_fit(d_gn), function(m) gn_complete,
+               twin = "group/na_dropped_renumbered", form = "complete_renumbered")
+  exclude_pair("group_factor", function(na_action) {
+    stats::lm(y ~ x1 + group, data = d_g, na.action = na_action)
+  }, function(m) d_g, twin = "group/na_factor", terms = "factor")
+  # The id and the time of the panel tests missing at rows the fit dropped
+  # only, which the tests do not read.
+  d_it <- d_na
+  d_it$id[3] <- NA
+  d_it$time[7] <- NA
+  exclude_pair("id_time", na_fit(d_it), function(m) d_it)
+  # z, the variable of a second formula, missing at a row the fit dropped.
+  exclude_pair("z", na_fit(d_zn), function(m) d_zn, twin = "variance/z_missing_dropped")
+  # A balanced panel, the fit dropping every row of a unit, in fit order and
+  # shuffled, and an unbalanced one, unit 1 at 5 of its 10 periods (N12).
+  exclude_pair("unit", na_fit(d_unit), function(m) d_unit, twin = "panel/unit_lm_full")
+  exclude_pair("unit_shuffled", na_fit(d_unit), function(m) d_unit[unit_perm, ],
+               twin = "panel/unit_lm_shuffled", form = "shuffled")
+  exclude_pair("half_unit", na_fit(d_half), function(m) d_half, twin = "panel/half_unit_full")
 
   # Classes of model. Those whose answer differs between the tests are run with
   # the data frame of the fit and in the other forms of data (class_forms()):
@@ -1141,14 +1283,6 @@ context_cell_for_panel <- function(fn, cell) {
     cell$reference <- NULL
     return(cell)
   }
-  # A fit with na.exclude is read as before until its step of the model
-  # context, with its padded residuals: the statistic of a panel test or the
-  # correlations of the scatter diagnostic are NA, or computed with the NA.
-  if (identical(cell$id, "missing/na_exclude")) {
-    cell$expect <- "value"
-    cell$reference <- NULL
-    return(cell)
-  }
   if (!identical(cell$expect, "value")) {
     return(cell)
   }
@@ -1221,17 +1355,23 @@ context_runnable <- function(fns = context_migrated) {
 #   before.
 # - RESET and the tests computed from the model alone read nothing from
 #   `data`, which they match as the others do (decision 31), and keep their
-#   own refusals (context_cell_for_model_alone()): RESET stops on the padded
-#   fitted values of na.exclude (increment 9) and accepts a zero weight.
+#   own refusals (context_cell_for_model_alone()): RESET accepts a zero
+#   weight.
 # - The functions of increment 5 read `id`, `time` or the variables of the
 #   scatter diagnostic beside the model (context_cell_for_panel()): without
 #   `data` the panel tests are refused (M1) and the others need a data frame;
 #   the model frame lacks `id` and `time`; Pesaran's test refuses a repeated
 #   pair of `id` and `time` (R2), and since the pull request of N12 gives a
 #   value on an unbalanced panel, as that of a fit that dropped rows of some
-#   units, which the fifth step refused; and a fit with na.exclude is read as
-#   before.
+#   units, which the fifth step refused.
+# - A fit with na.exclude gives what its twin gives (increment 9, B13).
 context_cell_for <- function(fn, cell) {
+  # A fit with na.exclude (increment 9, B13) gives what its twin, the same fit
+  # with na.omit, gives, value or refusal (context_check_matrix()): its
+  # reference is the twin, whatever the test.
+  if (!is.null(cell$twin)) {
+    return(cell)
+  }
   # The streaming tests (increment 7), in chunks of 10,000 or of 7.
   if (fn %in% c(context_streaming, context_streaming_chunked)) {
     return(context_cell_for_streaming(fn, cell))
@@ -1247,7 +1387,7 @@ context_cell_for <- function(fn, cell) {
   # give: it stops on every gam, as before increment 8 (outside the model
   # context; ROADMAP.md).
   if (identical(fn, "performWildBootstrapTest") && identical(cell$expect, "value") &&
-        grepl("^class/gam|^panel/unit_gam", cell$id)) {
+        grepl("^class/gam|^panel/unit_gam|^exclude/gam", cell$id)) {
     cell$expect <- "lm object does not have a proper 'qr' component"
     cell$reference <- NULL
     return(cell)
@@ -1256,7 +1396,7 @@ context_cell_for <- function(fn, cell) {
   # the robust Breusch-Pagan test studentizes by default, as the tests of
   # increment 2 do.
   refits_design <- c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")
-  if (fn %in% refits_design && startsWith(cell$id, "class/gam_smooth") &&
+  if (fn %in% refits_design && grepl("^class/gam_smooth|^exclude/gam_smooth", cell$id) &&
         !identical(cell$expect, "guard")) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
@@ -1330,10 +1470,9 @@ context_cell_for_formula <- function(fn, cell) {
   variance_form <- startsWith(fn, "performVarianceFormTest")
   edited <- grepl("does not reproduce its residuals", cell$expect, fixed = TRUE)
   zero_weight <- identical(cell$expect, "zero or non-finite weights")
-  # fitWLS() refits a rank-deficient fit with its aliased coefficient, and a
-  # fit with na.exclude from its residuals without the padding: values of
-  # their own.
-  if (wls && cell$id %in% c("class/rank_deficient", "missing/na_exclude")) {
+  # fitWLS() refits a rank-deficient fit with its aliased coefficient: a value
+  # of its own.
+  if (wls && identical(cell$id, "class/rank_deficient")) {
     cell$expect <- "value"
     cell$reference <- NULL
     return(cell)
@@ -1401,20 +1540,13 @@ context_cell_for_formula <- function(fn, cell) {
 # names of the fit, and gave the value of the fit on the data the guard
 # refuses. Each keeps the refusals of its own, once `data` is matched: RESET
 # accepts a zero weight, which the others refuse with the Pearson residuals,
-# and refuses a gam with smooth terms (decision 23) and the padded fitted
-# values of na.exclude, which the spread-level and Davidian-Carroll tests
-# take, and the others refuse with the checks of the model; the variance form
-# test refuses weights that did not come from fitWLS().
+# and refuses a gam with smooth terms (decision 23); the variance form test
+# refuses weights that did not come from fitWLS(). Until increment 9 RESET
+# stopped on the padded fitted values of a fit with na.exclude, which the
+# spread-level and Davidian-Carroll tests took, and the others refused with
+# the checks of the model; such a fit now gives what its twin gives.
 context_cell_for_model_alone <- function(fn, cell) {
   if (identical(cell$expect, "guard")) {
-    return(cell)
-  }
-  if (identical(cell$id, "missing/na_exclude")) {
-    if (identical(fn, "performRESETTest")) {
-      cell$expect <- "NA/NaN/Inf in 'x'"
-    } else if (fn %in% c("performSpreadLevelTest", "performDavidianCarrollTest")) {
-      cell$expect <- "value"
-    }
     return(cell)
   }
   zero_weight <- startsWith(cell$id, "class/zero_weight")
@@ -1429,6 +1561,22 @@ context_cell_for_model_alone <- function(fn, cell) {
     cell$reference <- NULL
   }
   cell
+}
+
+# What a call gives on a fit with na.exclude, from what it gives on its twin,
+# the same fit with na.omit (increment 9, B13): the same value, but for an
+# output with one value per row, padded with NA at the rows the fit dropped, as
+# naresid() pads residuals() and weights(). Of the calls of the matrix, the
+# fitWLS() recipes return one, the vector of the coefficients and the weights
+# of the fit (context_recipes()); the tests return none.
+context_twin_value <- function(fn, twin_value, cell) {
+  if (!startsWith(fn, "fitWLS") || !is.numeric(twin_value)) {
+    return(twin_value)
+  }
+  m <- suppressWarnings(suppressMessages(cell$build()))$m
+  n <- length(m$residuals)
+  k <- length(twin_value) - n
+  c(twin_value[seq_len(k)], unname(stats::naresid(m$na.action, twin_value[k + seq_len(n)])))
 }
 
 # A cell run through one test: the result, or the error as a condition.
