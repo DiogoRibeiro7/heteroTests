@@ -715,11 +715,51 @@ test_that("a term computed from its rows keeps the values of the fit in every ch
                      unname(suppressWarnings(exact[[fn]](m, data))$statistic),
                      tolerance = 1e-8, info = info)
       }
-      # White's streaming test stops on the collinear squares of the dummies
-      # (N3, a pull request of its own), where it stopped on the new levels.
-      expect_error(suppressWarnings(performWhiteTestStreaming(m, data, chunk_size = chunk,
-                                                              progress = FALSE)),
-                   "Auxiliary regression became rank deficient", fixed = TRUE)
+      # White's streaming test drops the collinear squares of the dummies,
+      # as performWhiteTest() does, since the pull request of N3 (0.17.0);
+      # in 0.16.0 it stopped on them, "Auxiliary regression became rank
+      # deficient", and before, where cut() computed other breaks, on the
+      # new levels.
+      white <- function(model, data) {
+        suppressWarnings(performWhiteTestStreaming(model, data, chunk_size = chunk,
+                                                   progress = FALSE))
+      }
+      out <- white(m, data)
+      info <- paste("performWhiteTestStreaming", case, chunk)
+      context_same(out, white(reference$m, reference$data), info, tolerance = 1e-10)
+      context_same(out, suppressWarnings(performWhiteTest(m, data)), info, tolerance = 1e-8)
+    }
+  }
+})
+
+test_that("White's streaming test drops the collinear terms of the cells of the matrix (N3)", {
+  # The cells whose terms make White's auxiliary terms collinear, a factor, a
+  # factor with log() terms, poly(), I(x1^2) beside x1, I(x1 > median(x1)) and
+  # cut(), on an unweighted and a weighted fit, and the model of the group of
+  # increment 4 and the median of a fit that dropped rows, on every form of
+  # data each accepts: in chunks of 7 and of 10,000 it gives the value of
+  # performWhiteTest() and its degrees of freedom, where up to 0.16.0 it
+  # stopped on those terms. That it gives the value of the reference of each
+  # cell is in the matrix (context_cell_for_streaming()).
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  cells <- context_cells()
+  ids <- names(cells)[vapply(cells, function(cell) {
+    identical(cell$expect, "value") && isTRUE(cell$terms %in% context_white_streaming_collinear) &&
+      context_installed(cell)
+  }, logical(1))]
+  expect_true(all(c("terms/ols/none/factor/data_frame", "terms/wls/none/factor/null",
+                    "terms/ols/none/log_factor/shuffled", "terms/ols/term/factor/model_frame",
+                    "group/na_factor", "missing/median_full") %in% ids))
+  for (id in ids) {
+    built <- suppressWarnings(suppressMessages(cells[[id]]$build()))
+    exact <- suppressWarnings(suppressMessages(performWhiteTest(built$m, built$data)))
+    for (chunk in c(7, 10000)) {
+      info <- paste(id, chunk)
+      out <- suppressWarnings(suppressMessages(
+        performWhiteTestStreaming(built$m, built$data, chunk_size = chunk, progress = FALSE)
+      ))
+      context_same(out, exact, info, tolerance = 1e-8)
     }
   }
 })
@@ -808,16 +848,17 @@ test_that("the runner keeps the refusals of the streaming tests final", {
     context_same(streamed[[nm]], expected[[nm]], nm)
   }
   # On a term computed from its rows, the runner's streaming tests give the
-  # values of the fit in every chunk (B6), and White's falls back on White's
-  # test without cross products, as before.
+  # values of the fit in every chunk (B6). White's streams too since the pull
+  # request of N3 (0.17.0), dropping the collinear square of the indicator;
+  # in 0.16.0 it stopped on it, and the runner fell back on White's test
+  # without cross products.
   m <- context_model(d, "ols", "none", "median")
   chunked <- run(m, d)
-  for (nm in c("breusch_pagan", "koenker")) {
+  for (nm in c("white", "breusch_pagan", "koenker")) {
     expect_true(attr(chunked[[nm]], "extras")$streaming, info = nm)
     expect_null(attr(chunked[[nm]], "extras")$status)
     context_same(chunked[[nm]], run(m, d, chunk_size = 10000)[[nm]], nm, tolerance = 1e-10)
   }
-  expect_identical(attr(chunked$white, "extras")$status, "fallback")
 })
 
 test_that("a gam with smooth terms is streamed as before, on the variables of its formula", {
@@ -1220,24 +1261,15 @@ test_that("a term is the column it computes, taken from the fit", {
         # runPanelTests() need `data`.
         readers <- c(names(context_reads), context_increment5)
         forms <- if (fn %in% readers) "data_frame" else c("data_frame", "null")
-        # White's streaming test stops on the collinear squares of these terms,
-        # and of their columns computed beforehand (N3).
-        collinear <- identical(fn, "performWhiteTestStreaming") &&
-          terms %in% context_white_streaming_collinear
+        # White's streaming test drops the collinear squares of these terms,
+        # and of their columns computed beforehand, since the pull request of
+        # N3 (0.17.0); in 0.16.0 it stopped on both.
         for (form in forms) {
           out <- context_run(fn, list(build = function() {
             m <- context_model(d, fit, "none", terms)
             list(m = m, data = context_form(form, m, d))
           }))
-          if (collinear) {
-            for (refused in list(out, expected)) {
-              expect_s3_class(refused, "error")
-              expect_match(conditionMessage(refused), "Auxiliary regression became rank deficient",
-                           fixed = TRUE, info = paste(fn, fit, terms, form))
-            }
-          } else {
-            context_same(out, expected, paste(fn, fit, terms, form), tolerance = tolerance)
-          }
+          context_same(out, expected, paste(fn, fit, terms, form), tolerance = tolerance)
         }
       }
     }
