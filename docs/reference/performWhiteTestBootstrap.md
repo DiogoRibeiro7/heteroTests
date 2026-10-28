@@ -28,15 +28,18 @@ performWhiteTestBootstrap(
     to be diagnosed.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or object coercible to one) containing the
-    variables referenced by `model`. It must include the observations used to
-    fit `model` and will be checked for missing values.
-    When `NULL`, the default, the model frame of `model` is used. It holds the
-    terms of the model rather than its variables (`log(x)` rather than `x`), so
-    a model that transforms a variable needs `data`, as does a
-    model with an `offset()` term, and so may a fit whose `weights` or `offset`
-    argument is a column of the data, which the model frame holds as
-    `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default.
+    The response, design, weights and offset are read from the fit itself, so
+    a model that transforms its variables, has an `offset()` term, or takes
+    its `weights` or `offset` from a column of the data needs no `data`, and
+    the model frame of `model` is accepted as `data` (since 0.17.0; before,
+    such models needed `data`). Data that are given are matched to the
+    observations of the fit: rows with row names of their own by name, in any
+    order; rows that only number themselves (a tibble, a data.table, a data
+    frame whose row names were reset) by the row numbers of the fit, or in the
+    order of the fit when they hold one row per observation. The rows the fit
+    dropped may be there or not. Data whose rows cannot be shown to hold the
+    observations of the fit are refused; see [test\_results](test_results.md).
 
 `B`
 :   Integer scalar giving the number of bootstrap replications.
@@ -122,11 +125,10 @@ replicate is refitted with the weights, so [`performWhiteTest()`](performWhiteTe
 its statistic from the Pearson residuals as it does for the fit supplied.
 With equal weights the result is that of the unweighted fit.
 
-Weighted or not, each replicate is refitted with an offset the model was
-given as an argument, `lm(..., offset = o)`; an offset written in the
-formula, `offset(o)`, is evaluated again from the data of the replicate. A
-transformed response, such as `log(y)` in `log(y) ~ x`, is regenerated on
-the scale the model uses, and the refit reads it in place of `log(y)`.
+Weighted or not, each replicate is refitted on the stored design of the
+fit with its total offset, the `offset` argument and the `offset()` terms
+(see *The design of the replicates*). A transformed response, such as
+`log(y)` in `log(y) ~ x`, is regenerated on the scale the model uses.
 
 Weights given to the fit are known, and they are held fixed in every
 replicate. On a fit returned by [`fitWLS()`](fitWLS.md) they were estimated from the same
@@ -151,6 +153,27 @@ estimated them again, just below the release gate's interval, 0.042 to
 in [`performWildBootstrapTest()`](performWildBootstrapTest.md) has the larger error of Koenker's
 statistic.
 
+## The design of the replicates
+
+Since 0.17.0 the observed statistic and every replicate are computed on the
+design stored with the fit, the design `performWhiteTest()` reads: each
+replicate, the fitted values plus the errors drawn, is refitted by least
+squares on that design, with the weights and the total offset of the fit,
+and its statistic is White's on the same design, without the columns its
+refit aliased. Nothing is evaluated again from `data` or the formula. Up to
+0.16.0 both were computed on a design rebuilt from the rows of `data`, each
+replicate refitted from the formula: `cut(x, quantile(x))` computed other
+breaks on the rows of the fit and stopped the test ("factor ... has new
+levels"); a term computed from all the rows of the data, such as
+`I(x > median(x))`, took other values on a fit that dropped rows; a fit
+whose weights or offset are a column of the data, or with an `offset()` term
+or a transformed variable, stopped without `data`; and an `mgcv::gam()` fit,
+whose residuals carry no names, given its data in another order, had each
+draw added to the fitted value of another row. The random numbers are
+drawn as before, in the same order, so a call made after `set.seed()`
+returns what it returned wherever the stored design is the design rebuilt
+from `data`.
+
 ## Supported models
 
 It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
@@ -158,8 +181,15 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+lack rows or variables of the fit. Since 0.17.0 it refuses an `mgcv::gam()`
+fit with smooth terms: a smooth term is usually penalised, and a penalised
+fit is not the least-squares fit of its design, which each replicate fits
+again (before, the refit from the formula stopped on the smooth term); a
+`gam` without smooth terms is tested as the Gaussian `glm` it is. It also
+refuses a fit whose coefficients, residuals or weights were changed after it
+was fitted, from which it computed the value of the fit before the edit.
+Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
 
 ## References
 

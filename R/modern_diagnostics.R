@@ -156,15 +156,20 @@
 #' [performVarianceFormTest()] allows for the estimation too.
 #'
 #' @inheritParams performBPTest
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.17.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results]. The test reads
+#'   nothing else from `data`: its replicates are refitted on the stored
+#'   design.
 #' @param B Integer number of bootstrap replications. Defaults to `999`, which
 #'   is the default of every resampling test in the package since 0.15.0; it
 #'   was `499` before. The p-value is `(1 + #) / (B_eff + 1)`, so a test at
@@ -209,8 +214,11 @@
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit. Since 0.17.0 it refuses a fit whose
+#' coefficients, residuals or weights were changed after it was fitted, from
+#' which it computed the value of the fit before the edit. Which model each
+#' test accepts, and why, is set out in [test_results], under *Supported
+#' models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -225,8 +233,13 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
                                      distribution = c("rademacher", "mammen"),
                                      progress = interactive(),
                                      reestimate_weights = NULL) {
-  rrefuse_non_gaussian_glm(model, "performWildBootstrapTest")
-  data <- rdata_or_model_frame(model, data)
+  fn <- "performWildBootstrapTest"
+  test_label <- "Wild bootstrap"
+  rrefuse_non_gaussian_glm(model, fn)
+  # The response, design, weights, offset and residuals come from the fit;
+  # `data`, when given, is matched to its observations and checked
+  # (R/model_context.R). The test reads nothing else from `data`.
+  ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
   distribution <- match.arg(distribution)
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
     stop("`B` must be a positive integer.", call. = FALSE)
@@ -237,46 +250,35 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   }
   # The variance function of a fitWLS() fit, estimated again in each
   # replicate, or NULL, which holds the weights fixed as before 0.15.0.
-  variance_record <- rwls_reestimation(model, reestimate_weights, "performWildBootstrapTest")
+  variance_record <- rwls_reestimation(model, reestimate_weights, fn)
 
-  model_terms <- stats::terms(model)
-  required_vars <- unique(all.vars(model_terms))
-  prepared <- prepare_model_data_for_test(
-    model,
-    data,
-    required_vars = required_vars,
-    test_label = "Wild bootstrap",
-    min_obs_model = 20L,
-    min_obs_data = 20L,
-    allow_aliased = TRUE
-  )
-  working_data <- prepared$data
-  residuals <- prepared$residuals
+  rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
+  rvalidate_model_context(ctx)
+  rwarn_incomplete_rows(data, model)
+  # The Pearson residuals; a zero weight is refused here, as before.
+  residuals <- rcontext_pearson(ctx)
+  # The rows of `data` that hold the observations, in the order of the fit,
+  # or the model frame: what the checks below read.
+  working_data <- rcontext_rows(ctx, data)
 
   requirements <- rvalidateTestRequirements("wild_bootstrap", model = model, data = working_data)
   rprocessValidationResult(requirements)
 
   ht_log("INFO", sprintf("Running wild bootstrap (%s) heteroscedasticity test", distribution))
 
-  model_frame <- stats::model.frame(model)
-  if (nrow(model_frame) != length(residuals)) {
-    stop("Model frame does not align with residual vector for wild bootstrap.", call. = FALSE)
-  }
-  fitted_vals <- stats::fitted(model)
-  if (length(fitted_vals) != length(residuals)) {
-    stop("Fitted values must align with residuals for wild bootstrap.", call. = FALSE)
-  }
-
-  # The design stored with the fit. model.matrix(model, data = model_frame)
-  # would evaluate the call of the fit again in its model frame, which holds
-  # the terms, log(wt), and not the variables they are computed from, wt, and
-  # holds weights and an offset given as arguments as "(weights)" and
-  # "(offset)", under which the call cannot find them.
-  prior_weights <- rleast_squares_weights(model)
+  # The model frame, fitted values, weights, design and offset of the fit,
+  # from the model context, one value per observation. Before increment 8 of
+  # the model context they were read from the fit too, and the checks above
+  # read `data`, or without it the model frame, which holds the terms, log(wt),
+  # and not the variables they are computed from, wt: a model that transforms
+  # a variable or has an offset() term needed `data`.
+  model_frame <- ctx$frame
+  fitted_vals <- ctx$fitted
+  prior_weights <- ctx$weights
   # Without the columns a rank-deficient fit aliased, so that the auxiliary
   # regression and its degrees of freedom are those of the estimable part of
   # the design.
-  design_matrix <- rnon_aliased_columns(stats::model.matrix(model), model)
+  design_matrix <- rcontext_design(ctx)
   model_offset <- stats::model.offset(model_frame)
   predictors <- if (ncol(design_matrix) > 1L && colnames(design_matrix)[1] == "(Intercept)") {
     design_matrix[, -1, drop = FALSE]

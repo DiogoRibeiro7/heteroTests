@@ -206,12 +206,20 @@ test_that("an lm, a weighted lm and a Gaussian glm return the values of 0.14.0",
     }
     expect_identical(quiet(full()), quiet(full(reestimate_weights = FALSE)), label = nm)
   }
-  # A glm is refused by bootstrapTestStatistic() whatever the argument.
-  expect_error(
-    bootstrapTestStatistic(performKoenkerTest, models$weighted_glm, d, B = 9,
-                           progress = FALSE),
-    "supports Gaussian `lm` models only"
-  )
+  # bootstrapTestStatistic() refused every glm. Since the eighth step of the
+  # model context (N8) it bootstraps a Gaussian glm with the identity link as
+  # the lm it is, with its prior weights, whatever the argument.
+  for (reestimate in list(NULL, FALSE)) {
+    boot <- function(model) {
+      set.seed(5)
+      bootstrapTestStatistic(performKoenkerTest, model, d, B = 9, progress = FALSE,
+                             reestimate_weights = reestimate)
+    }
+    glm_boot <- boot(models$weighted_glm)
+    lm_boot <- boot(models$weighted_lm)
+    expect_equal(glm_boot$replicates, lm_boot$replicates, tolerance = 1e-8)
+    expect_identical(glm_boot$p_value, lm_boot$p_value)
+  }
 })
 
 # --- what a replicate is ----------------------------------------------------------

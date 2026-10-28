@@ -976,6 +976,19 @@ context_streaming <- c(
   "performWhiteTestStreaming", "performBPTestStreaming", "performKoenkerTestStreaming"
 )
 context_migrated <- c(context_migrated, context_streaming)
+# Increment 8: the resampling tests, the White bootstrap, whose observed
+# statistic and replicates are computed on the stored design, and the wild
+# bootstrap, whose replicates already were, with `B = 19`; and the robust White
+# and Breusch-Pagan tests, which prepared `data` themselves until then. Their
+# replicates are drawn in the order of the fit, so their value on every form of
+# data they accept is that of the data frame of the fit. bootstrapTestStatistic()
+# draws them in the order of `data`, and has tests of its own
+# (test-model-context.R).
+context_resampling <- c(
+  "performWhiteTestBootstrap", "performWildBootstrapTest", "performWhiteTestRobust",
+  "performBPTestRobust"
+)
+context_migrated <- c(context_migrated, context_resampling)
 context_streaming_recipes <- function() {
   list(
     `performWhiteTestStreaming(chunk_size = 7)` = function(m, d) {
@@ -1229,7 +1242,21 @@ context_cell_for <- function(fn, cell) {
   if (fn %in% context_second_formula) {
     return(context_cell_for_formula(fn, cell))
   }
-  if (fn %in% context_increment2 && startsWith(cell$id, "class/gam_smooth") &&
+  # The wild bootstrap reads the leverages of the fit with hatvalues(), which
+  # an mgcv::gam() fit, whose qr component is not that of an lm, does not
+  # give: it stops on every gam, as before increment 8 (outside the model
+  # context; ROADMAP.md).
+  if (identical(fn, "performWildBootstrapTest") && identical(cell$expect, "value") &&
+        grepl("^class/gam|^panel/unit_gam", cell$id)) {
+    cell$expect <- "lm object does not have a proper 'qr' component"
+    cell$reference <- NULL
+    return(cell)
+  }
+  # The White bootstrap (increment 8) refits the design in each replicate, and
+  # the robust Breusch-Pagan test studentizes by default, as the tests of
+  # increment 2 do.
+  refits_design <- c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")
+  if (fn %in% refits_design && startsWith(cell$id, "class/gam_smooth") &&
         !identical(cell$expect, "guard")) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)

@@ -690,11 +690,14 @@ rwls_refit_replicate <- function(initial, record, Z) {
 #' @param response The regenerated response, on the scale the model uses.
 #' @param offset The offset of the fit, or `NULL`.
 #' @param record The variance function [fitWLS()] recorded.
+#' @param with_fit Whether to return the weighted refit too, for a statistic
+#'   that leaves out the columns it aliased ([performWhiteTestBootstrap()]).
 #' @return The Pearson residuals of the weighted refit, or `NULL` when the
-#'   variance function cannot be estimated.
+#'   variance function cannot be estimated; with `with_fit = TRUE`, a list of
+#'   the Pearson residuals, `pearson`, and the refit, `fit`.
 #' @keywords internal
 #' @noRd
-rwls_replicate_residuals <- function(design, response, offset, record) {
+rwls_replicate_residuals <- function(design, response, offset, record, with_fit = FALSE) {
   initial <- if (is.null(record$initial_weights)) {
     stats::lm.fit(design, response, offset = offset)
   } else {
@@ -708,7 +711,8 @@ rwls_replicate_residuals <- function(design, response, offset, record) {
     return(NULL)
   }
   refit <- stats::lm.wfit(design, response, variance$weights, offset = offset)
-  refit$residuals * sqrt(variance$weights)
+  pearson <- refit$residuals * sqrt(variance$weights)
+  if (isTRUE(with_fit)) list(pearson = pearson, fit = refit) else pearson
 }
 
 #' Evaluate without the warning of a residual floored before its logarithm

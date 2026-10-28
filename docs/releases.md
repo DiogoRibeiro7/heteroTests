@@ -104,6 +104,171 @@ they are taken in their order.
 
 No export or argument changes.
 
+### The model context, step 8: the resampling tests
+
+The eighth of the eleven steps of the model context (*The model context*,
+under 0.16.0; the design is on the site) builds the resampling tests on it:
+`performWhiteTestBootstrap()`, `performWildBootstrapTest()`,
+`bootstrapTestStatistic()` and its deprecated name
+`rbootstrap_test_statistic()`, and the robust tests `performWhiteTestRobust()`
+and `performBPTestRobust()`, with and without `bootstrap = TRUE`, and so the
+registered `"white_bootstrap"` and `"wild_bootstrap"` and
+`runAdvancedDiagnostics()`. They read the response, the design, the residuals,
+the weights and the offset from the fit, match the rows of `data` to its
+observations as every test built on the context does, and refit each
+replicate by least squares on the stored design, where the White bootstrap
+and `bootstrapTestStatistic()` refitted it from the formula on the rows of
+`data`. The random numbers are drawn as before, in the same order, so a call
+made after `set.seed()` returns what it returned wherever the stored design
+is the design rebuilt from `data`, and leaves the generator where it left it.
+No export or argument changes.
+
+The examples below use the data of the example of
+`?performWhiteTestBootstrap`, with a weight, an offset and a second regressor,
+and draw 199 replicates after `set.seed(1)`:
+
+```r
+set.seed(42)
+n <- 120
+sim <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
+sim$y <- 1 + 2 * sim$x + rnorm(n, sd = 0.3 + 0.6 * sim$x)
+sim$w <- 1 / sim$x
+sim$o <- 0.5 * sim$z
+```
+
+**The White bootstrap computes its observed statistic and its replicates on
+the stored design.** Both were computed on a design rebuilt from the rows of
+`data`, through the formula and the call of the fit, and `rwhite_test_rebuilt_design()`,
+the internal function that did it, is gone. Each replicate, the fitted values
+plus the residuals drawn, is refitted by least squares on the design stored
+with the fit, with its weights and its total offset, and its statistic is
+White's on that design, the one `performWhiteTest()` reads. Where the design
+rebuilt from `data` was the stored one, every value is `identical()` to
+before. Where it was not:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performWhiteTestBootstrap(lm(y ~ x + z, data = sim, weights = w), B = 199)`, without `data` | Error: "object 'w' not found" | 6.210 (p = 0.275), the value with `data` |
+| `performWhiteTestBootstrap(lm(y ~ x + z + offset(o), data = sim), B = 199)` | Error: "The following variables are missing from input data: o" | 14.685 (p = 0.015), the value with `data` |
+| `performWhiteTestBootstrap(lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, B = 199)` | Error: "factor cut(x, quantile(x)) has new levels ..." | 12.206 (p = 0.135), the value of the factor computed beforehand |
+| `I(x > median(x))` on a fit that dropped rows 3, 7 and 11 (`z` missing), given its data | 7.822 (p = 0.115), on the median of the rows the fit kept | 7.407 (p = 0.140), the value of the column computed beforehand on all the rows |
+| `mgcv::gam(y ~ x + z, data = sim)` given `sim[sample(n), ]` (`set.seed(3)`) | 14.685 (p = 0.020): the draws were added to the fitted values of other rows, the rows of `data` taken by position | 14.685 (p = 0.015), the value of the data in the order of the fit |
+
+A fit to a subset given by index, which stopped with "White test could not
+align the design matrix with model residuals", and the tibble of a fit that
+dropped rows, which stopped with "Missing rows", give the values of the rows
+of the fit. A model that transforms a variable, without `data` or given its
+model frame, gives the value it gives with `data`.
+
+**`bootstrapTestStatistic()` refits each replicate on the stored design, and
+no longer refuses a fit whose model frame cannot be rebuilt from `data`.**
+Each replicate was refitted from the formula on the rows of `data`, regenerated
+or drawn, so a fit whose model frame could not be rebuilt from them so was
+refused ("`data` does not reproduce the fit"): a term computed from the rows
+it is given, `cut(x, quantile(x))`, or `I(x > median(x))` on a fit that dropped
+rows; and the model frame given as `data` for a model that transforms a
+variable or has an `offset()` term. Each replicate is now an `lm` built from
+the stored design and the model frame of the fit in the rows of the
+replicate, which the statistic given as `test_function` reads as it reads a
+fit. `performWhiteTestRobust(bootstrap = TRUE)` and
+`performBPTestRobust(bootstrap = TRUE)`, which call it, follow.
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `bootstrapTestStatistic(performKoenkerTest, lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, B = 199)` | Error: "`data` does not reproduce the fit" | 11.080 (p = 0.020), the value of the factor computed beforehand |
+| The same with `I(x > median(x))`, rows 3, 7 and 11 dropped | Error: "`data` does not reproduce the fit" | 7.346 (p = 0.035), the value of the column computed beforehand |
+| `bootstrapTestStatistic(performKoenkerTest, m, model.frame(m), B = 199)`, `m <- lm(y ~ x + z + offset(o), data = sim)` | Error: "`data` does not reproduce the fit" | 14.468 (p = 0.005), the value with `sim` |
+| `performWhiteTestRobust(lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, bootstrap = TRUE, B = 199)` | Error: "`data` does not reproduce the fit" | bootstrap p = 0.135 |
+
+Pairs resampling draws the rows of the stored design, so a term computed from
+the rows it is given keeps the values of the fit in every replicate, where the
+refit of the formula computed it again on the rows drawn: on
+`lm(y ~ splines::ns(x, 3) + z, data = sim)` the percentile interval of the
+replicates of Koenker's statistic was (10.34, 28.75) and is (10.40, 28.74);
+on the test matrix each such replicate is that of the same fit with the
+columns of the term computed beforehand. A
+level of a factor that no row drawn holds is left out of the replicate, as
+before. The statistic given as `test_function` is given the rows drawn of
+`data` with the columns of the model frame `data` does not hold under their
+own names, such as `I(x > median(x))` or `(weights)`.
+
+**`bootstrapTestStatistic()` bootstraps a Gaussian `glm` with the identity
+link (N8 of the design of the model context).** It refused every `glm`, as its
+refits by least squares would drop a family and a link; a Gaussian `glm`
+with the identity link is the least-squares fit of `lm(..., weights = w)` with
+its prior weights, and its replicates are those of that `lm`:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `bootstrapTestStatistic(performKoenkerTest, glm(y ~ x + z, data = sim, weights = w), sim, B = 199)` | Error: "`bootstrapTestStatistic()` supports Gaussian `lm` models only" | 5.245 (p = 0.065), the value of `lm(y ~ x + z, data = sim, weights = w)` |
+| `performWhiteTestRobust(<that glm>, sim, bootstrap = TRUE, B = 199)` | the same error | bootstrap p = 0.270, the value of the `lm` |
+
+A `glm` of another family or link, a `survey::svyglm()` fit and an
+`mgcv::gam()` fit are refused, as before, with a message that says why. So is
+a Gaussian `glm` whose rank, decided at its tolerance of `1e-11`, is not that of
+`lm()` at `1e-7`, as on a column within `1e-9` of a combination of the others:
+the replicates are refitted at the tolerance of `lm()`, and such a fit is
+refused as an `lm` fitted with a smaller `tol` is, "`data` does not reproduce
+the fit".
+
+**The resampling tests and the robust tests take a model without `data`,
+and the model frame as `data`.** The wild bootstrap and the robust tests
+prepared `data`, or the model frame, themselves, and a model that transforms
+a variable or has an `offset()` term stopped without `data`: on
+`lm(log(y) ~ log(x) + z, data = sim)`, `performWildBootstrapTest(m, B = 199)`
+and `performWhiteTestRobust(m)` stopped with "The following variables are
+missing from input data: y, x", and give 2.003 (p = 0.375) and 3.469
+(p = 0.628), the values with `data`. The complete rows of an `na.omit` fit
+numbered again, and the tibble in fit order of a fit to named data, which they
+refused ("Missing rows"), give the values of the rows of the fit. The wild
+bootstrap refitted its replicates on the stored design already: every call
+that gave a value gives it, `identical()`.
+
+**New refusals.** The White and wild bootstraps, and the robust tests,
+refuse a fit whose coefficients, residuals or weights were changed after it
+was fitted, as every test built on the context does: on `lm(y ~ x + z, data =
+sim)` with 0.5 added to the coefficient of `x`, the White bootstrap returned
+14.685 (p = 0.015) and the wild bootstrap 14.468 (p = 0.005), the values of the
+fit before the edit. The White bootstrap refuses a fit with `model = FALSE`
+whose data are gone, given a tibble in another order, on which it returned the
+value of other rows. The White bootstrap refuses an `mgcv::gam()` fit with
+smooth terms, as each replicate refits its design by least squares, which is
+not the fit of a penalised smooth (decision 23 of the design); its refit of
+the formula stopped on the smooth term ("could not find function \"s\""), and
+`runHeteroTests(tests = "white_bootstrap")` put White's test under its name,
+where it stops with the refusal. `bootstrapTestStatistic()` refuses data that
+lack a variable of the formula, as the tests refuse them: with `offset(o)`
+and `o` a vector of the workspace, a statistic of the caller's own that reads
+nothing from `data` was bootstrapped on data in the order of the fit; give the
+variable as a column of `data`, where it now follows the rows drawn, in any
+order and under pairs resampling, which refused it ("does not come from
+`data`").
+
+**Messages.** A multivariate `lm`: "needs a model with one response", where
+they stopped with "'length = 4' in coercion to 'logical(1)'". A fit with
+`model = FALSE` whose data are gone, without `data`: the message of the model
+context, "cannot use the model frame of `model`", where they stopped with
+"Expected a data.frame". `bootstrapTestStatistic()` on a Gaussian `glm` with a
+zero weight, or with data the tests refuse: the refusal of the weight or of
+the rows, where it refused the `glm`.
+
+Unchanged: every other value of a valid call; a transformed response under
+null-imposed resampling, refused by `bootstrapTestStatistic()` ("Null-imposed
+resampling needs a plain response variable"); a `MASS::rlm()` fit, refused by
+`bootstrapTestStatistic()` ("`data` does not reproduce the fit"), until a later
+step; `data = NULL` given to `bootstrapTestStatistic()`, which needs `data`; a
+fit with `na.action = na.exclude`; and every message the test suite pins. The
+White bootstrap no longer runs the checks of the model on each replicate, and
+no longer gives their warnings on the residuals of a replicate, such as
+"Residual outliers detected". A corpus of 36,798 calls
+(`scripts/model-context-identity.R`), every test and the bootstraps above on
+374 combinations of fits, offsets, terms, forms of `data`, dropped rows and
+row names, with the Mammen multipliers, four statistics bootstrapped, pairs
+resampling, the bootstraps of a `fitWLS()` fit of each model and the runner
+with the resampling tests, returns what it returned in 0.16.0, `identical()`,
+and leaves the generator as it left it, but for the 1,182 calls of the changes
+above, each change to a value verified against a reference.
+
 ## 0.16.0
 
 0.16.0 moves the tests onto a model context and corrects the statistics found

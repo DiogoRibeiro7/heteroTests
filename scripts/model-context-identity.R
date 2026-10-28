@@ -26,6 +26,15 @@
 #     of 10,000 of their recipes, and the runner with the streaming tests
 #     asked for, `chunk_threshold_mb = 0`, in chunks of 10,000 and of 7
 #     (`identity_streaming_chunked`, `identity_streaming_runners`);
+#   - (increment 8) the resampling routes, seeded: the Mammen multipliers,
+#     bootstrapTestStatistic() of four statistics and with pairs resampling,
+#     the robust Breusch-Pagan bootstrap without studentizing, the bootstraps
+#     of a fitWLS() fit of each model, and the runner with the resampling
+#     tests on some cells (`identity_resampling_recipes`,
+#     `identity_resampling_runner`); each record holds the state of the
+#     generator after the call, which must be main's for a call identical to
+#     main. Run both versions with R_LIBS set to the private library of main,
+#     so that the workers of a socket cluster load the same package;
 #   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
 #     every recipe;
 #   - the examples of the help pages of the functions built on the context.
@@ -303,9 +312,9 @@ identity_workspace_z <- function(m) 2 + sin(seq_len(NROW(m$residuals)))
 # The functions whose values may change: those built on the context, the
 # deprecated name and the wrappers and routes that compute their statistic
 # through them, and the runner, whose default battery is White's and
-# Koenker's tests. performWhiteTestBootstrap() is not among them: it keeps the
-# computation of 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), so
-# any change of it is unexpected.
+# Koenker's tests. performWhiteTestBootstrap(), which kept the computation of
+# 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), joins them there
+# (identity_increment8, below).
 identity_affected <- c(
   "performWhiteTest", "performBPTest", "performBreuschPaganTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest", "performWhiteTestRobust",
@@ -322,7 +331,8 @@ identity_affected <- c(
   names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
   identity_registry_runner3, identity_registry_runner6
 )
-# The bootstrap recipes, whose replicates refit the formula until increment 8.
+# The bootstrap recipes, whose replicates refitted the formula until
+# increment 8, and refit the stored design since (more of them below).
 identity_bootstraps <- c(
   "bootstrapTestStatistic(performKoenkerTest)", "performWhiteTestRobust(bootstrap = TRUE)",
   "performBPTestRobust(bootstrap = TRUE)"
@@ -1024,6 +1034,17 @@ identity_n2_mode <- function(fn, n2, change) {
       return("fallback")
     }
     return("refusal")
+  }
+  # Increment 8: a message or a new refusal of a route on a cell where White's
+  # count changed is judged by the other rules, as on any cell; a value where
+  # main stopped before White's test (L1 and L2 on a poly() cell, in the
+  # preparation of `data` of the robust White test) has no value of main to
+  # check, and is verified by the chain.
+  if (change %in% c("message_change", "value_to_error")) {
+    return(NULL)
+  }
+  if (identical(change, "error_to_value")) {
+    return("chain")
   }
   if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
     return("chain")
@@ -1762,6 +1783,209 @@ identity_n3_verdict <- function(before, after, verdict, branch) {
        branch_exact = branch_exact, main_exact = main_exact)
 }
 
+# --- increment 8: the resampling tests ----------------------------------------------
+
+# The resampling tests and bootstrapTestStatistic() refit their replicates on
+# the stored design: performWhiteTestBootstrap(), whose observed statistic and
+# replicates were computed on a design rebuilt from `data`
+# (rwhite_test_rebuilt_design(), gone), performWildBootstrapTest(), whose
+# replicates already were but whose checks read `data` or the model frame,
+# bootstrapTestStatistic(), whose replicates refitted the formula on the rows
+# of `data`, and the robust White and Breusch-Pagan tests, which prepared
+# `data` themselves and call it. Their recipes of helper-test-recipes.R
+# (`B = 19`) and those of increment 1 and 2 run unchanged; these add the
+# Mammen multipliers, bootstrapTestStatistic() with other statistics and with
+# pairs resampling, the robust Breusch-Pagan bootstrap without studentizing,
+# and the three bootstraps of a fitWLS() fit of the model of each cell, whose
+# weights each replicate estimates again. Every call draws the random numbers
+# it drew on main, in the same order (the contract of the caches, #144 and
+# #146): each run records the state of the generator after each call
+# (identity_outcome()), and a call identical to main must leave it as main
+# left it.
+identity_resampling_recipes <- list(
+  `performWildBootstrapTest(distribution = "mammen")` = function(m, d) {
+    performWildBootstrapTest(m, d, B = 19, distribution = "mammen", progress = FALSE)
+  },
+  `bootstrapTestStatistic(performWhiteTest)` = function(m, d) {
+    bootstrapTestStatistic(performWhiteTest, m, d, B = 19, progress = FALSE)
+  },
+  `bootstrapTestStatistic(performBPTest)` = function(m, d) {
+    bootstrapTestStatistic(performBPTest, m, d, B = 19, progress = FALSE)
+  },
+  `bootstrapTestStatistic(performGlejserTest)` = function(m, d) {
+    bootstrapTestStatistic(performGlejserTest, m, d, B = 19, progress = FALSE, variable = "x1")
+  },
+  `bootstrapTestStatistic(performKoenkerTest, resample = "pairs")` = function(m, d) {
+    bootstrapTestStatistic(performKoenkerTest, m, d, B = 19, progress = FALSE,
+                           resample = "pairs")
+  },
+  `performBPTestRobust(studentize = FALSE, bootstrap = TRUE)` = function(m, d) {
+    performBPTestRobust(m, d, studentize = FALSE, bootstrap = TRUE, B = 19)
+  },
+  `performWhiteTestBootstrap(fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
+    performWhiteTestBootstrap(fitWLS(m, d), d, B = 19)
+  },
+  `performWildBootstrapTest(fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
+    performWildBootstrapTest(fitWLS(m, d), d, B = 19, progress = FALSE)
+  },
+  `bootstrapTestStatistic(performKoenkerTest, fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
+    bootstrapTestStatistic(performKoenkerTest, fitWLS(m, d), d, B = 19, progress = FALSE)
+  }
+)
+identity_extra_recipes <- c(identity_extra_recipes, identity_resampling_recipes)
+# The runner with the three resampling tests the package registers, at their
+# default of 999 replicates; on the cells of `identity_resampling_runner_cells`
+# only, as main's White bootstrap takes seconds per call.
+identity_resampling_runner <- "runHeteroTests(tests = c(\"wild_bootstrap\", \"white_bootstrap\", \"rank_permutation\"))"
+identity_resampling_runner_tests <- c("wild_bootstrap", "white_bootstrap", "rank_permutation")
+identity_resampling_runner_cell <- function(cell) {
+  id <- cell$id
+  if (is.null(id) || is.null(cell$block)) {
+    return(FALSE)
+  }
+  (cell$block %in% c("fit", "terms") && cell$form %in% c("data_frame", "null")) ||
+    (identical(cell$block, "class") && !grepl("_(null|shuffled|tibble_shuffled|model_frame)$", id)) ||
+    id %in% c("missing/median_full", "missing/complete_renumbered", "subset/data_frame",
+              "class/gam_shuffled", "ident/character_names_tibble", "missing/complete_fit",
+              "missing/median_precomputed", "subset/rows")
+}
+# The calls of bootstrapTestStatistic(), directly and through the robust
+# tests, which refit each replicate on the stored design since increment 8,
+# and the White bootstrap, whose replicates and observed statistic moved
+# together; the calls whose replicates draw rows of `data` in the order of
+# `data` (`identity_order_dependent`), whose value on data shuffled under
+# their own row names is not that of the data in the order of the fit.
+identity_bootstraps <- c(
+  identity_bootstraps, "bootstrapTestStatistic(performWhiteTest)",
+  "bootstrapTestStatistic(performBPTest)", "bootstrapTestStatistic(performGlejserTest)",
+  "bootstrapTestStatistic(performKoenkerTest, resample = \"pairs\")",
+  "performBPTestRobust(studentize = FALSE, bootstrap = TRUE)",
+  "bootstrapTestStatistic(performKoenkerTest, fitWLS)"
+)
+identity_order_dependent <- c(
+  "bootstrapTestStatistic(performKoenkerTest)", "bootstrapTestStatistic(performWhiteTest)",
+  "bootstrapTestStatistic(performBPTest)", "bootstrapTestStatistic(performGlejserTest)",
+  "bootstrapTestStatistic(performKoenkerTest, resample = \"pairs\")",
+  "bootstrapTestStatistic(performKoenkerTest, fitWLS)"
+)
+identity_pairs <- "bootstrapTestStatistic(performKoenkerTest, resample = \"pairs\")"
+identity_white_bootstrap <- c("performWhiteTestBootstrap", "performWhiteTestBootstrap(fitWLS)")
+identity_wild <- c("performWildBootstrapTest", "performWildBootstrapTest(distribution = \"mammen\")",
+                   "performWildBootstrapTest(fitWLS)")
+identity_increment8 <- c(
+  identity_white_bootstrap, identity_wild, "performWhiteTestRobust", "performBPTestRobust",
+  "performBPTestRobust(studentize = FALSE)",
+  identity_bootstraps, identity_resampling_runner
+)
+identity_affected <- unique(c(identity_affected, identity_increment8))
+# N8: bootstrapTestStatistic() refused every glm, as its refits by least
+# squares would drop a family and a link; it bootstraps a Gaussian glm with
+# the identity link as the lm it is, with its prior weights, and refuses an
+# mgcv::gam() fit, a glm by class, as before, with a message that says why
+# (identity_defects() tags the cells of a glm and of a gam). The value of a
+# glm is verified against the same call on the weighted lm of its cell
+# ("lm", identity_glm_lm()), to `identity_glm_tolerance`.
+identity_n8_scope <- identity_bootstraps
+identity_glm_tolerance <- 1e-8
+# The defects increment 8 closes for these calls, and those of the cells
+# that concern every test built on the context, which apply to them as to the
+# others: errors that become values on the cells of B12, L1, L2, B14, B15, N7
+# (cut(x1, quantile(x1)), whose replicates the bootstraps refused, refitted
+# from the formula, "`data` does not reproduce the fit"), B5 (a term computed
+# from all the rows, on a fit that dropped rows) and "frame"; values that
+# change, B5 and N17 (the White bootstrap on a gam given its data in another
+# order, whose replicates added the draws to the rows of `data` by position);
+# new refusals, M8 and "frame" (a model = FALSE fit whose data are gone, given
+# a shuffled tibble); and messages, M7, "frame", and the refusal of a gam with
+# smooth terms by the White bootstrap ("gam", decision 23: each replicate
+# refits its design by least squares), where its refit from the formula
+# stopped on s().
+identity_bootstrap_allowed$error_to_value <- unique(c(
+  identity_bootstrap_allowed$error_to_value, "N7", "B5", "B14", "N8"
+))
+identity_bootstrap_allowed$value_change <- "B5"
+for (defect in c("frame", "M8")) {
+  identity_defect_scope[[defect]] <- c(identity_defect_scope[[defect]], identity_increment8)
+  identity_message_scope[[defect]] <- c(identity_message_scope[[defect]], identity_increment8)
+}
+identity_defect_scope$N17 <- c(identity_defect_scope$N17, identity_white_bootstrap,
+                               identity_resampling_runner)
+identity_defect_scope$gam <- c(identity_defect_scope$gam, identity_white_bootstrap,
+                               identity_resampling_runner)
+identity_message_scope$gam <- c(identity_message_scope$gam, identity_white_bootstrap)
+identity_defect_scope$N8 <- identity_n8_scope
+identity_message_scope$N8 <- identity_n8_scope
+identity_messages$N8 <- c(
+  "supports Gaussian `lm` models only", "zero or non-finite weights",
+  "cannot match the rows of `data`", "does not reproduce the fit"
+)
+identity_runner_allowed <- unique(c(identity_runner_allowed, "N17"))
+# The weighted lm of a cell of a glm: the same model, data and weights; for
+# the well-conditioned glm of the cells of Harrison-McCabe's rank, the lm of
+# the same model on the same rows.
+identity_glm_lm <- function(cell) {
+  if (identical(cell, "rank/glm_conditioned")) {
+    return("fit/ols/none/none/data_frame")
+  }
+  if (is.null(cell) || !grepl("^fit/glm/|^panel/unit_glm_", cell)) {
+    return(NA_character_)
+  }
+  sub("^panel/unit_glm_", "panel/unit_wls_", sub("^fit/glm/", "fit/wls/", cell))
+}
+# Decision 1 for the replicates that follow the order of `data`: on data
+# shuffled under their own row names, the refits of the formula computed the
+# poly() basis again on the rows in the order of `data`, by its QR
+# decomposition, which differs from that of the fit in the last bits, so main
+# has no stored-design value of them; the branch must equal main to
+# `identity_last_bits`, as Goldfeld-Quandt's segments.
+identity_reordered_replicates <- function(record) {
+  record$fn %in% identity_order_dependent && identical(record$form, "shuffled")
+}
+# The bootstraps of a fitWLS() fit of the model of each cell. Without `data`,
+# or with the model frame, the White bootstrap rebuilt the design of the
+# fitWLS() fit from the model frame, as for a weighted fit (B12, L2). fitWLS()
+# of an mgcv::gam() fit with smooth terms returns an lm whose terms do not
+# rebuild its design (one column per variable of the formula, for the
+# coefficients of the basis of the smooths), a defect of fitWLS() outside the
+# context (ROADMAP.md): those cells are skipped.
+identity_fitwls_recipes <- c(
+  "performWhiteTestBootstrap(fitWLS)", "performWildBootstrapTest(fitWLS)",
+  "bootstrapTestStatistic(performKoenkerTest, fitWLS)"
+)
+identity_skip_smooth_gam <- function(m) {
+  if (inherits(m, "gam") && length(m$smooth) > 0L) {
+    testthat::skip("fitWLS() of a gam with smooth terms does not rebuild its design")
+  }
+  invisible(NULL)
+}
+# The terms block cells shuffled under their own row names, whose
+# order-dependent bootstraps are verified against the fit with the columns of
+# the terms computed beforehand, given the same rows in the same order
+# ("precomputed_shuffled", run by identity_run()).
+identity_shuffled_precomputed <- function(fn, cell) {
+  if (!fn %in% identity_order_dependent || !identical(cell$block, "terms") ||
+        !identical(cell$form, "shuffled") ||
+        !cell$terms %in% names(context_precomputed()$formulas)) {
+    return(character())
+  }
+  paste("precomputed_shuffled", cell$fit, cell$terms, sep = "/")
+}
+# The state of the generator after a call, as a number that differs when the
+# state does: the generator, the seed and the position of the stream.
+identity_rng_state <- function() {
+  if (!exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    return(NA_character_)
+  }
+  seed <- get(".Random.seed", envir = globalenv())
+  if (requireNamespace("digest", quietly = TRUE)) {
+    return(digest::digest(seed, algo = "xxhash64"))
+  }
+  paste(sum(as.numeric(seed) * seq_along(seed)), length(seed), seed[1L], seed[2L])
+}
+
 # --- canonical results ---------------------------------------------------------
 
 # A result without the environments, functions and calls it carries, which
@@ -1808,10 +2032,13 @@ identity_outcome <- function(f) {
     },
     message = function(m) invokeRestart("muffleMessage")
   )
+  # Increment 8: the state of the generator the call left, which a call
+  # identical to main must leave as main left it.
+  rng <- identity_rng_state()
   if (!(is.list(value) && (isTRUE(value$.error) || isTRUE(value$.skip)))) {
     value <- identity_strip(value)
   }
-  list(value = value, warnings = sort(unique(warnings)))
+  list(value = value, warnings = sort(unique(warnings)), rng = rng)
 }
 
 # The fields of a runner's results that say what was run and what it gave.
@@ -1844,6 +2071,21 @@ identity_trace <- function(on) {
       } else {
         suppressMessages(untrace(fn, where = where))
       }
+    }
+  }
+  # Increment 8: on main the White bootstrap computed its observed statistic
+  # and its replicates with rwhite_test_rebuilt_design(), which rebuilt the
+  # design with model.matrix(model, data); traced so, the refit of each
+  # replicate, which computes poly() by its QR decomposition on the rows of
+  # the fit, as the fit did, gets its own design first, and main has a value
+  # on the stored design. The branch has no such function.
+  ns <- asNamespace("heteroTests")
+  if (exists("rwhite_test_rebuilt_design", envir = ns, inherits = FALSE)) {
+    if (on) {
+      suppressMessages(trace("rwhite_test_rebuilt_design", tracer = tracer, where = ns,
+                             print = FALSE))
+    } else {
+      suppressMessages(untrace("rwhite_test_rebuilt_design", where = ns))
     }
   }
 }
@@ -1918,10 +2160,21 @@ identity_chain_reference <- function(fn, cell) {
 
 # The references outside the matrix that the call must reproduce.
 identity_external_ids <- function(fn, cell) {
-  if (is.null(cell$block) || !identical(cell$form, "data_frame")) {
-    return(character())
-  }
+  # Increment 8: a bootstrap on a glm against the same call on the weighted lm
+  # of its cell (N8), and an order-dependent bootstrap on shuffled terms
+  # against the fit with their columns computed beforehand, given the same
+  # rows in the same order.
   ids <- character()
+  if (fn %in% identity_n8_scope && !is.na(identity_glm_lm(cell$id))) {
+    ids <- c(ids, paste0("lm/", identity_glm_lm(cell$id)))
+  }
+  if (is.null(cell$block)) {
+    return(ids)
+  }
+  ids <- c(ids, identity_shuffled_precomputed(fn, cell))
+  if (!identical(cell$form, "data_frame")) {
+    return(ids)
+  }
   if (identical(cell$block, "terms") && cell$terms %in% names(context_precomputed()$formulas)) {
     ids <- c(ids, paste("precomputed", cell$fit, cell$terms, sep = "/"))
   }
@@ -2105,6 +2358,17 @@ identity_run <- function(where, out, root = ".") {
         progress = FALSE
       ))
     }))
+    # Increment 8: the runner with the resampling tests, on some cells and on
+    # the references of their changes.
+    if (identity_resampling_runner_cell(cell) || startsWith(cell$id, "precomputed/")) {
+      add(runner_kind, identity_resampling_runner, cell, identity_outcome(function() {
+        set.seed(7)
+        identity_runner_summary(runHeteroTests(
+          built$m, built$data, tests = identity_resampling_runner_tests, use_cache = FALSE,
+          progress = FALSE
+        ))
+      }))
+    }
   }
   for (cell in cells) {
     built <- suppressWarnings(suppressMessages(cell$build()))
@@ -2158,11 +2422,23 @@ identity_run <- function(where, out, root = ".") {
            pesaran = identity_plm_cd(built$m, built$data))
     }))
   }
+  # Increment 8: the bootstraps and the White bootstrap, whose cut() terms
+  # stopped, and the bootstraps whose replicates follow the order of `data`,
+  # on the same fits given their rows shuffled as the cells shuffle them.
+  verified_fns <- union(verified_fns, intersect(names(recipes), identity_increment8))
   for (fit in c("ols", "wls")) {
     for (terms in names(context_precomputed()$formulas)) {
       built <- suppressWarnings(suppressMessages(context_precomputed_fit(fit, terms)))
       run_cell(reference_cell(paste("precomputed", fit, terms, sep = "/")), built, verified_fns,
                "reference", "reference_runner")
+      shuffled_data <- context_form("shuffled", built$m, built$data)
+      shuffled_cell <- reference_cell(paste("precomputed_shuffled", fit, terms, sep = "/"))
+      for (fn in intersect(names(recipes), identity_order_dependent)) {
+        add("reference", fn, shuffled_cell, identity_outcome(function() {
+          set.seed(7)
+          recipes[[fn]](built$m, shuffled_data)
+        }))
+      }
     }
   }
   d <- context_data()
@@ -2217,7 +2493,8 @@ identity_run <- function(where, out, root = ".") {
                   "performHarveyTest", "performArchLMTest", "performMcLeodLiTest",
                   "performCookWeisbergTest", "performNCVTest", "performSpreadLevelTest",
                   "performDavidianCarrollTest", "performVarianceFormTest", "fitWLS",
-                  "runTimeSeriesTests")) {
+                  "runTimeSeriesTests", "performWhiteTestBootstrap", "performWildBootstrapTest",
+                  "rbootstrap_test_statistic", "performWhiteTestRobust")) {
     example_file <- file.path(scratch, paste0(topic, "-examples.R"))
     tools::Rd2ex(file.path(root, "man", paste0(topic, ".Rd")), example_file)
     expressions <- parse(example_file)
@@ -2319,6 +2596,13 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
   if (is.null(stored) || failed(stored$value) || failed(after$value)) {
     return(NULL)
   }
+  # Increment 8: in the runner with the resampling tests, a test that ran on
+  # the branch where main ran a fallback drew random numbers that main did not,
+  # so the tests after it draw others: the rules of the runner decide.
+  if (identical(record$fn, identity_resampling_runner) &&
+        !identity_same_tests(list(kind = "runner", value = stored$value), after)) {
+    return(NULL)
+  }
   same <- if (identical(record$kind, "runner")) {
     # The tests of the battery that main ran on the stored design, not the
     # fallback it put under their names when one stopped.
@@ -2387,6 +2671,28 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   if (record$fn %in% identity_decision31 && !identical(record$form, "null")) {
     defects <- c(defects, "decision31")
   }
+  # Increment 8, B5 for pairs resampling: each replicate refitted the formula
+  # on the rows it drew, so that a term computed from the rows it is given,
+  # poly(), ns(), I(x1 > median(x1)) or cut(x1, quantile(x1)), took other
+  # values than in the fit; it holds the design of the fit.
+  if (record$fn %in% identity_pairs &&
+        identity_cell_terms(record$cell) %in% c("poly", "ns", "median", "cut")) {
+    defects <- c(defects, "B5")
+  }
+  # Increment 8, N8: bootstrapTestStatistic() and the robust bootstraps on a
+  # glm, which it refused, and on a gam, which it refuses with another message.
+  n8_cells <- paste0("^fit/glm/|^panel/unit_glm_|^panel/unit_gam_|^class/gam|",
+                     "^class/zero_weight_glm|^rank/glm")
+  if (record$fn %in% identity_n8_scope && !is.null(record$cell) &&
+        grepl(n8_cells, record$cell)) {
+    defects <- c(defects, "N8")
+  }
+  # Increment 8: the bootstraps of a fitWLS() fit without `data` (B12) or
+  # given the model frame (L2), which the White bootstrap rebuilt the design
+  # of a weighted fit from.
+  if (record$fn %in% identity_fitwls_recipes && record$form %in% c("null", "model_frame")) {
+    defects <- c(defects, if (identical(record$form, "null")) "B12" else "L2")
+  }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))
   defects[keep]
@@ -2428,8 +2734,13 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
   # design, identical(), whether or not it is main's on its rebuilt one; for a
   # test that refitted the segments from the formula, or built the design of
   # each chunk from it (increment 7), main's value but for rounding.
-  if ("decision1" %in% defects && record$fn %in% identity_affected) {
+  # Pairs resampling (increment 8) computed the terms again on the rows it drew
+  # and has no stored-design value on main: B5 decides it.
+  if ("decision1" %in% defects && record$fn %in% identity_affected &&
+        !record$fn %in% identity_pairs) {
     decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects) {
+      identity_last_bits_verdict(verdict)
+    } else if (identity_reordered_replicates(record)) {
       identity_last_bits_verdict(verdict)
     } else if (record$fn %in% identity_rebuilt_per_chunk) {
       if (identity_same_tests(record, after)) identity_last_bits_verdict(verdict)
@@ -2520,6 +2831,15 @@ identity_key <- function(value, fields = NULL) {
     }
     v
   }
+  # Increment 8: the result of bootstrapTestStatistic(), every number but its
+  # call, those of the test it computed on the fit included.
+  if (!is.null(value$original_statistic) && !is.null(value$replicates) && is.null(fields)) {
+    part <- value[setdiff(names(value), "call")]
+    if (is.list(part$original)) {
+      part$original <- core(part$original)
+    }
+    return(list(numbers = identity_numbers(part), labels = names(part)))
+  }
   if (!is.null(value$statistic)) {
     part <- core(value)
     return(list(numbers = identity_numbers(part), labels = names(part)))
@@ -2563,6 +2883,24 @@ identity_verify <- function(record, main, branch, seen = character()) {
   }
   reference_kind <- if (identical(record$kind, "runner")) "reference_runner" else "reference"
   for (external in record$externals) {
+    # Increment 8, N8: the same call on the weighted lm of the cell of a glm,
+    # to `identity_glm_tolerance`, itself unchanged from main or verified.
+    if (startsWith(external, "lm/")) {
+      lm_cell <- sub("^lm/", "", external)
+      lm_id <- paste(record$kind, record$fn, lm_cell, sep = " | ")
+      after_lm <- branch[[lm_id]]
+      if (!lm_cell %in% seen && !is.null(after_lm) &&
+            identity_same_key(key, identity_key(after_lm$value), identity_glm_tolerance)) {
+        if (identical(main[[lm_id]]$value, after_lm$value)) {
+          return("lm")
+        }
+        deeper <- identity_verify(main[[lm_id]], main, branch, c(seen, record$cell))
+        if (!is.na(deeper)) {
+          return(paste("lm", deeper, sep = ", "))
+        }
+      }
+      next
+    }
     reference <- branch[[paste(reference_kind, record$fn, external, sep = " | ")]]
     # Harrison-McCabe written out from the fit's own decomposition agrees with
     # the test, which decomposes the design again in the order of `order_by`,
@@ -2606,6 +2944,16 @@ identity_verify <- function(record, main, branch, seen = character()) {
     }
   }
   reference <- record$reference
+  # Increment 8: the bootstraps of a fitWLS() fit, which takes the fits the
+  # tests refuse, such as a zero weight, reproduce the call on the cell of the
+  # class in the data frame of the fit (`base` of class_forms()).
+  if (is.null(reference) && record$fn %in% identity_fitwls_recipes &&
+        startsWith(record$cell, "class/")) {
+    reference <- sub("_(null|shuffled|tibble_shuffled|model_frame)$", "", record$cell)
+    if (identical(reference, record$cell)) {
+      reference <- NULL
+    }
+  }
   if (is.null(reference) || reference %in% seen) {
     return(NA_character_)
   }
@@ -2657,9 +3005,11 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     decision1 <- "decision1" %in% before$defect && before$fn %in% identity_affected
     by_segments <- decision1 && (before$fn %in% identity_segment_refits &&
       "N1" %in% identity_defects(before) ||
-      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after))
+      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after) ||
+      identity_reordered_replicates(before))
     # The streaming tests have no stored-design value on main (above).
-    decided <- if (decision1 && !by_segments && !before$fn %in% identity_rebuilt_per_chunk) {
+    decided <- if (decision1 && !by_segments && !before$fn %in% identity_rebuilt_per_chunk &&
+                   !before$fn %in% identity_pairs) {
       identity_stored_verdict(before, verdict, after, stored)
     }
     rounded <- if (by_segments) identity_last_bits_verdict(verdict)
@@ -2725,6 +3075,14 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       allowed <- "allowed"
       verdict$change <- "data_name"
     }
+    # Increment 8: a call identical to main must leave the generator as main
+    # left it, having drawn the same random numbers.
+    rng_identical <- identical(before$rng, after$rng)
+    if (identical(allowed, "identical") && !rng_identical) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("the state of the generator after the call differs;",
+                              verdict$detail)
+    }
     data.frame(
       id = id, kind = before$kind, fn = before$fn, cell = before$cell,
       # The defects of the cell that concern the call (identity_defects()),
@@ -2753,6 +3111,7 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # model; "none" when none did; NA for a call that is not a runner's.
       data_name = data_name,
       warnings_differ = !identical(before$warnings, after$warnings),
+      rng_identical = rng_identical,
       detail = substr(gsub("\n", " ", verdict$detail), 1L, 160L),
       stringsAsFactors = FALSE
     )
@@ -2896,6 +3255,16 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   }
   cat(sprintf("\nCalls whose warnings differ (not counted above): %d\n",
               sum(calls$warnings_differ)))
+  identical_calls <- calls$verdict == "identical"
+  changed_calls <- calls$verdict == "allowed"
+  cat(sprintf(paste0(
+    "\nState of the generator after the call: %d of the %d calls identical() to main ",
+    "leave it as main left it (a difference is unexpected); %d of the %d allowed changes do ",
+    "too, of which %d of the %d changes to a value\n"
+  ), sum(calls$rng_identical & identical_calls), sum(identical_calls),
+  sum(calls$rng_identical & changed_calls), sum(changed_calls),
+  sum(calls$rng_identical & changed_calls & calls$change == "value_change"),
+  sum(changed_calls & calls$change == "value_change")))
   unexpected <- calls[calls$verdict == "unexpected", , drop = FALSE]
   if (nrow(unexpected) > 0L) {
     cat("\nUnexpected:\n")

@@ -52,7 +52,14 @@ from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increment 7 is
 in 0.16.0 too: the three streaming tests, `performWhiteTestStreaming()`,
 `performBPTestStreaming()` and `performKoenkerTestStreaming()`, built on it,
 reading the stored design chunk by chunk (`rstreaming_design()`, in
-`R/performance.R`). Increments 8 to 11 are planned; see
+`R/performance.R`). Increment 8, the first of 0.17.0, is in the development
+version: the resampling tests, `performWhiteTestBootstrap()`, whose observed
+statistic and replicates moved together, and `performWildBootstrapTest()`,
+`bootstrapTestStatistic()` and the robust White and Breusch-Pagan tests,
+`performWhiteTestRobust()` and `performBPTestRobust()`, built on it, each
+replicate refitted by least squares on the stored design
+(`rreplicate_lm()`, in `R/bootstrap_methods.R`), and a Gaussian `glm`
+bootstrapped as the `lm` it is (N8). Increments 9 to 11 are planned; see
 [Migration plan](#migration-plan).
 
 ## The problem
@@ -151,7 +158,12 @@ guard as its alignment step and removes the rebuilding behind it.
   of increment 6 test it as before 0.16.0, and so do the three streaming tests
   of increment 7, on the design of the variables of its formula, which its
   model frame holds, not on its stored design, the basis of its smooths
-  (below), and
+  (below), and, of increment 8, the wild bootstrap and the robust White test;
+  the White bootstrap, whose replicates refit the design as the tests of
+  increment 2 do, refuses it (its refit from the formula stopped on the
+  smooth term before), and so does the robust Breusch-Pagan test, which
+  studentizes by default, while `bootstrapTestStatistic()` refuses every `gam`,
+  as before; and
   increment 11 settles it for every test (decision 23). The residuals of a
   `gam` carry no names; its
   observations are those of the row names of its model frame
@@ -885,6 +897,139 @@ For the functions built on the context in increment 7:
   of squares of the squared residuals, and those residuals give the values of
   the exact tests).
 
+For the functions built on the context in increment 8:
+
+- **What the change reaches.** `performWhiteTestBootstrap()` and the
+  registered `"white_bootstrap"`, `performWildBootstrapTest()` and the
+  registered `"wild_bootstrap"`, `bootstrapTestStatistic()` and its deprecated
+  name `rbootstrap_test_statistic()`, `performWhiteTestRobust()` and
+  `performBPTestRobust()`, with and without their bootstrap, and so
+  `runAdvancedDiagnostics()` and `runHeteroTests()` with the resampling tests.
+  The five build the context and read the Pearson residuals, the fitted
+  values, the weights, the total offset and the design from the fit; `data`
+  is matched to the observations of the fit and read for nothing else, as by
+  the tests computed from the model alone (decision 31). The White bootstrap
+  computes its observed statistic on the stored design, with the checks
+  `performWhiteTest()` makes, and refits each replicate, the fitted values
+  plus the residuals drawn, by least squares on the stored design, every
+  column of it, with the weights and the total offset of the fit
+  (`stats::lm.fit()`, `stats::lm.wfit()`, and `rwls_replicate_residuals()` for
+  the weights of a `fitWLS()` fit estimated again); its statistic is White's on
+  that design, without the columns the refit aliased
+  (`rreplicate_estimated_columns()`). `rwhite_test_rebuilt_design()`, which
+  rebuilt the design from `data` for both, is gone. The wild bootstrap refitted
+  its replicates on the stored design already; what changes for it is its
+  preparation of `data`. `bootstrapTestStatistic()` keeps the rows of `data`
+  in their order and the call of `test_function` on them, and builds each
+  replicate as an `lm` from the stored design and the model frame of the fit
+  in the rows of the replicate (`rreplicate_lm()`), what `lm()` returns from
+  the formula when the design it rebuilds is the stored one; pairs resampling
+  draws the rows of the stored design and drops the dummies of the levels of
+  a factor that no row drawn holds, as a refit from the formula drops them
+  (`rpairs_design()`). The match of `data` that refused a fit whose model frame
+  could not be rebuilt from `data` (`rdata_reproduces_fit()`) goes, for the
+  alignment of the context and the check that the least-squares refit of the
+  stored design gives the residuals of the fit (`rleast_squares_reproduces()`),
+  which keeps refusing a `MASS::rlm()` fit with the message of before. The
+  robust tests drop their own preparation of `data` (`prepare_model_data_for_test()`
+  and `rdata_or_model_frame()`, which no test calls any more, and increment 10
+  removes) and hand the rows the alignment confirmed to the base statistic
+  and to the bootstrap.
+- **The random numbers.** Every call draws the random numbers it drew before,
+  in the same order, the contract of the caches (#144, #146): each replicate
+  draws its residuals, its multipliers or its rows from the session's
+  generator as before, and the replicates of `bootstrapTestStatistic()` follow
+  the order of `data`, as before, where those of the other four follow the
+  order of the fit. So a seeded call returns what it returned wherever the
+  stored design is the design rebuilt from `data`, and leaves the generator
+  where it left it (the identity harness records its state after every call).
+- **Values that change.** A term computed from all the rows on a fit that
+  dropped rows (B5): on `missing/median_full`, `I(x1 > median(x1))` with three
+  rows dropped, the White bootstrap gave 11.039 (p = 0.10, `B = 19`, seed 7),
+  computed on the median of the rows it kept, and gives 10.336 (p = 0.10), the
+  value of the fit with the column computed beforehand. A `gam` given its data
+  in another order under their own row names (N17): the White bootstrap took
+  the rows of `data` by position for its replicates, adding each draw to the
+  fitted value of another row; on `class/gam_shuffled` p = 0.05 becomes 0.20,
+  the value of the data in the order of the fit (statistic 11.145 both), and
+  on `class/gam_offset_shuffled` 0.05 becomes 0.15. And pairs resampling, whose
+  replicates computed a `poly()`, `ns()`, `I(x1 > median(x1))` or `cut()` term
+  again on the rows they drew, keeps the columns of the fit (B5).
+- **Errors that become values.** On the cells of B12, L1 and L2, a fit whose
+  weights or offset are a column of the data, or with an `offset()` term or a
+  transformed variable, without `data` or given its model frame: the White
+  bootstrap stopped ("object 'w' not found", "The following variables are
+  missing from input data: ypos, x1"), and gives the value with `data` (5.697,
+  p = 0.35, on `fit/wls/none/none/null`), and so do the wild bootstrap and the
+  robust tests, which stopped on the missing variables. `cut(x1, quantile(x1))`
+  (N7): the White bootstrap stopped ("factor ... has new levels"), and
+  `bootstrapTestStatistic()` and the robust bootstraps refused it ("`data` does
+  not reproduce the fit"); they give the value of the fit with the factor
+  computed beforehand (White 11.895, p = 0.20; Koenker's bootstrap 10.052,
+  p = 0.15). On `missing/median_full` (B5) the bootstraps refused the fit too.
+  The complete rows of an `na.omit` fit renumbered, its tibble and the tibble
+  in fit order of a fit to character-named data (B14), and a fit to a subset
+  (B15), on which the White bootstrap stopped, "could not align the design
+  matrix with model residuals". A Gaussian `glm` (N8), refused by
+  `bootstrapTestStatistic()` and the robust bootstraps ("supports Gaussian `lm`
+  models only"): bootstrapped as the weighted `lm` it is, 1.754 (p = 0.40) on
+  `fit/glm/none/none/data_frame` as on `fit/wls/none/none/data_frame`. A fit
+  with `model = FALSE` whose data are gone, given them ("frame"), on which the
+  wild bootstrap stopped ("object 'gone' not found"). A variable of the
+  formula outside `data`, such as `offset(o)` with `o` in its environment,
+  which `bootstrapTestStatistic()` refused under pairs resampling and on data
+  in another order ("does not come from `data`", "does not reproduce the
+  fit"): its replicates are those of the same model with the offset as a
+  column (`test-resampling-refits.R`).
+- **New refusals**, announced in bold (decision 14): a fit whose coefficients,
+  residuals or weights were changed after it was fitted (M8), on which the
+  White bootstrap returned 11.145 (p = 0.20) and the wild bootstrap 9.044
+  (p = 0.05) on `class/edited`, the values of the fit before the edit, and a fit
+  with `model = FALSE` whose data are gone, given a shuffled tibble ("frame"),
+  on which the White bootstrap returned 8.887 (p = 0.10), the value of other
+  rows.
+- **Messages.** M7 for a multivariate `lm`, where they stopped with "'length =
+  4' in coercion to 'logical(1)'"; the frame message for a `model = FALSE` fit
+  whose data are gone, without `data`, where they stopped with "Expected a
+  data.frame"; the White bootstrap on a `gam` with smooth terms, which it
+  refuses with the message of the tests of increment 2, "cannot test an
+  mgcv::gam() fit with smooth terms" (decision 23: each replicate refits the
+  design by least squares), where its refit from the formula stopped on
+  `s()`, "could not find function \"s\""; `bootstrapTestStatistic()` on a `gam`,
+  which it refuses as before, with a message that says why, and on a Gaussian
+  `glm` with a zero weight or with data the guard refuses, which it refused
+  as a `glm` and refuses with the message of the weight or of the guard; and
+  `bootstrapTestStatistic()` on a Gaussian `glm` whose rank at its tolerance,
+  `1e-11`, is not that of `lm()` at `1e-7` (the nearly collinear `glm` of the
+  cells of Harrison-McCabe's rank): the replicates are refitted at the
+  tolerance of `lm()`, as the refits of the formula were, so such a fit is
+  refused as an `lm` fitted with a smaller `tol` is, "`data` does not
+  reproduce the fit". Refitting the replicates at the tolerance of the fit
+  would give both values, a change of value for the `lm`, left to a later step
+  (ROADMAP.md).
+- **A new refusal outside the corpus.** `bootstrapTestStatistic()` matches
+  `data` through the guard, which refuses data that lack a variable of the
+  formula: a statistic of the caller's own that reads nothing from `data`, on a
+  model with `offset(o)` and `o` a vector of the workspace, was bootstrapped on
+  data in the order of the fit and is refused (the package's tests refused
+  such data in their own call already). Given `o` as a column, it follows the
+  rows drawn, in any order and under pairs resampling, which refused it.
+- **Unchanged**: every other value on valid calls, among them every call of
+  the wild bootstrap that gave a value, which read the stored design already;
+  the wild bootstrap on an `mgcv::gam()` fit, on which it stops, as before,
+  reading the leverages with `hatvalues()` (ROADMAP.md);
+  the zero-weight refusals and the refusals of the guard; a transformed
+  response under null-imposed resampling, refused by `bootstrapTestStatistic()`
+  as before ("Null-imposed resampling needs a plain response variable"); a
+  `MASS::rlm()` fit, refused by `bootstrapTestStatistic()` as before, until
+  increment 11 (decision 4); a fit with `na.action = na.exclude`, refused as
+  before, until increment 9; `data = NULL` given to `bootstrapTestStatistic()`,
+  which needs `data`, as before; and every message the test suite pins.
+- **Warnings.** The White bootstrap no longer runs the checks of the model and
+  of `data` on each replicate, which gave their warnings, the outliers of the
+  residuals of a replicate among them; the observed statistic gives those of
+  the fit, as before.
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -901,7 +1046,7 @@ migrations that keep every value, then the riskier resampling and
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29) | **Done, 0.16.0** |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)`: `rcontext_second_formula()`, `rcontext_formula_rows()`; `rvariance_frame()` goes. The tests that read nothing from `data`, RESET included, match it through the guard, as every test does (decision 31): the check of 0.15.0 goes, but for its check of the type of `data` | B9, R3, N6; M7, M8 and "frame" for these; decision 31 | **Done, 0.16.0** |
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
-| 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design: `performWhiteTestBootstrap()`, whose observed statistic and replicates move together, and `rwhite_test_rebuilt_design()`, which keeps them on the rebuilt design until then, goes; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and `performWhiteTestRobust(bootstrap = TRUE)`, which refuse a fit whose frame cannot be rebuilt from `data` until then | B12 for replicates, N8 | Planned, 0.17.0 |
+| 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
 | 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned, 0.17.0 |
 | 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()` and the copies of the old preparation go | B11, N5 | Planned, 0.17.0 |
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned, 0.17.0 |
@@ -1314,6 +1459,82 @@ put a fallback under the name of a test that stopped), and 2,175 differ from
 at most `5.1e-13` relative on any number. The 536 `poly()` calls on the stored
 design are `identical()` to `main`, and no call's warnings differ.
 
+Increment 8 adds the routes of the resampling tests to the corpus, all seeded
+(`set.seed(7)` before each call, `B = 19`; `identity_resampling_recipes`): the
+wild bootstrap with the Mammen multipliers besides the Rademacher ones of its
+recipe; `bootstrapTestStatistic()` of White's, the Breusch-Pagan and Glejser's
+statistics besides Koenker's, and of Koenker's with pairs resampling; the
+robust Breusch-Pagan bootstrap without studentizing; the White and wild
+bootstraps and `bootstrapTestStatistic()` of a `fitWLS()` fit of the model of
+each cell, whose weights each replicate estimates again (but on a `gam` with
+smooth terms, of which `fitWLS()` returns an `lm` whose terms do not rebuild
+its design, a defect recorded in ROADMAP.md); the runner with the three
+resampling tests the package registers, at their 999 replicates, on 89 cells
+of every block and on the references of their changes; and the examples of
+four more help pages. Each run records the state of the generator after
+every call (`identity_rng_state()`), and a call `identical()` to `main` must
+leave it as `main` left it. The workers of the socket cluster of a parallel
+example load the package from `R_LIBS`, which both runs set to the private
+library of `main`. The allow-list gains, for these calls: B12, L1, L2, B14,
+B15, N7 and B5 among the errors that become values of the bootstraps
+(`identity_bootstrap_allowed`), B5 for pairs resampling on a term computed
+from the rows (poly(), ns(), the median, cut()), N17 for the White bootstrap
+and the runner, N8 for the bootstraps on a Gaussian `glm` (a value verified
+against the same call on the weighted `lm` of its cell, to `1e-8`; on a `gam`,
+on a `glm` with a zero weight or data the guard refuses, and on the nearly
+collinear `glm` of the cells of Harrison-McCabe's rank, a message), "gam" for
+the White bootstrap and the runner, and M8 and "frame" for the five. Four
+rules are added. On a cell where White's count changed (N2), a message or a
+new refusal of a route of White's test is judged by the other rules, and a
+value where `main` stopped is verified by the chain. The bootstraps whose
+replicates follow the order of `data`, on a `poly()` cell shuffled under its
+own row names, have no stored-design value on `main`, whose refits computed
+the basis again on the rows in the order of `data`: the branch must equal
+`main` to `1e-12` relative (`identity_reordered_replicates()`). In the runner
+with the resampling tests, a test that ran where `main` ran a fallback drew
+random numbers `main` did not, and the rules of the runner decide the tests
+after it. And the bootstraps of a `fitWLS()` fit on the class block, which
+`fitWLS()` refits where the tests refuse the fit, reproduce the call on the
+cell of the class in the data frame of the fit.
+
+Increment 8, against `main` at the 0.16.0 release (7493afd): 36,798 calls on 361
+cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
+N2 and the examples of forty help pages, of which 35,616 identical, 1,182
+allowed changes (810 errors that become values, 82 values that change, 276
+messages, 14 new refusals) and 0 unexpected, every one of them a call of the
+resampling tests, the robust tests or the runner with the resampling tests:
+of the 6,452 such calls, 5,270 are `identical()` to `main`. The 892 changes to a
+value are each verified against a reference: 596 against the call on the cell
+they reproduce, 76 through it and the fit with the columns of the terms
+computed beforehand, 30 against that fit directly and 28 against it given the
+rows in the same order (`precomputed_shuffled`), 138 against the weighted
+`lm` of a `glm` (N8), 13 against `main` on the stored design and 11 through
+two cells or a cell and the stored design. The 810 errors that become values
+are 257 of L2, 138 of N8, 120 of N7, 118 of B12, 75 of L1, 66 of B14, 26 of B5,
+6 of B15 and 4 of "frame"; the 82 values that change are 21 of B5 (18 of pairs
+resampling), 4 of N17 (the White bootstrap on the three `gam` cells shuffled
+and the runner), 17 of the `poly()` cells, equal to `main` on the stored design
+or to its last bits, 6 of N2 and 34 of the runner with the resampling tests,
+which put White's test under the names of the White and wild bootstraps where
+they stopped (B12, L1, B14, B15, N7, "frame"); the 14 new refusals are those of the
+edited fit (M8, 12), of the `model = FALSE` fit given a shuffled tibble
+("frame", 1) and of the runner on a `gam` with smooth terms ("gam", 1). Of the
+276 messages, 189 are those of `bootstrapTestStatistic()` on a `glm` or a `gam`
+(N8), 46 M7, 12 the frame message, 4 the refusal of a `gam` with smooth
+terms by the White bootstrap and 25 the refusals of the bootstraps themselves,
+the transformed response under null-imposed resampling among them, reached
+where the calls stopped before them (L1, L2, B12). Every call `identical()` to `main`, 35,616 of
+35,616, leaves the generator as `main` left it; so do 454 of the 1,182 allowed
+changes, 48 of the 82 changes to a value. The 588 `poly()` calls that `main`
+computes on the stored design are `identical()` to it; of the 184 that are
+judged to the last bits, the 12 order-dependent bootstraps on the shuffled
+`poly()` cells among them, 95 give a value, 83 `identical()` to `main` and 12
+within 8.4e-14 relative. The warnings are those of `main` but for 38 calls:
+26 of the White bootstrap and the runner, whose replicates no longer run the
+checks of the model and give their warnings on the residuals of a replicate
+("Residual outliers detected at rows ..."), and 12 that stopped and give a
+value with the warning of the same call on the data frame of the fit.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -1363,9 +1584,12 @@ the span of the regressors, and a positive response `ypos`.
   the block of panels, and the fits to the complete rows of a fit that dropped
   rows with an indicator computed beforehand and of a model of the group; and
   (increment 6) the cells of the stale and kept `model = FALSE` frames and of
-  a missing `z`: 361 cells, run through each of the thirty-six functions, the
+  a missing `z`: 361 cells, run through each of the forty functions, the
   three streaming tests of increment 7 among them, in one chunk of 10,000
-  observations, with `B = 19` for the resampling test, through the five calls
+  observations, and the White and wild bootstraps and the robust White and
+  Breusch-Pagan tests of increment 8, with `B = 19` for the resampling tests
+  (`context_resampling`; a `gam` with smooth terms refused by the White
+  bootstrap and the robust Breusch-Pagan test), through the five calls
   of a second formula (`context_second_formula`: Cook-Weisberg with
   `var_formula = ~ z`, the variance form test with `var_formula = ~ z` and
   `against = ~ z`, `fitWLS()` with and without `var_formula = ~ z`), and, in a
@@ -1436,7 +1660,8 @@ the span of the regressors, and a positive response `ypos`.
 | a second formula (increment 6) | `var_formula = ~ z` and `against = ~ z` on named data shuffled `identical()` to the data frame; numbered data in another order, rows in front and the tibble of a fit to repeated rows refused by the guard; the complete rows numbered again `identical()` to the fit to the complete rows; a variable of the workspace refused (M1, the message of `data`), and given as a column of `data` the value it gave from the workspace; a variable of the model read from the model frame and the functions of the formula from its environment |
 | term equivalence | `log()`, `I()`, `ns()`, `cut()` against the same columns computed beforehand, `1e-10`; `poly()`, `1e-8`; Fligner-Killeen, `1e-4` (N15) |
 | the streaming tests | in chunks of 7, 40 and 10,000, a term computed from its rows (`I(x1 > median(x1))`, `cut(x1, quantile(x1))`, and the median of a fit that dropped rows) against the same column computed beforehand, to `1e-10`, and against the exact test, to `1e-8`; in chunks of 7, 25, 119, 120 and 10,000, the exact test on unweighted, weighted, Gaussian `glm`, offset, `log()` and rank-deficient fits, to `1e-8` (`test-streaming.R`); on a `gam` with smooth terms, the Breusch-Pagan and Koenker statistics written out on the variables of its formula, to `1e-8`; the refusals of the context final in the runner that streams them; since the pull request of N3, White's streaming test on every cell of collinear terms (a factor, `poly()`, `I(x1^2)`, the median, `cut()`) against `performWhiteTest()`, to `1e-8`, with its degrees of freedom, and the three on regressors 100 to 10,000 standard deviations from zero and on squared residuals of any scale against the exact tests |
-| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()` |
+| weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()`, but for the White and wild bootstraps, which estimate the weights of a `fitWLS()` fit again in each replicate |
+| the resampling tests (increment 8) | each replicate of the White bootstrap the formula refitted to the fitted values plus the residuals drawn, and White's test of that refit, `identical()`, with the generator left as the draws leave it; without `data` and with the model frame, on weights, an offset argument, an `offset()` term, `I(x1 > median(x1))` and `ns()`, the four resampling routes and `bootstrapTestStatistic()` `identical()` to the call with `data` (B12); on `cut(x1, quantile(x1))` and on the median of a fit that dropped rows, the White bootstrap, `bootstrapTestStatistic()` with null and pairs resampling and the robust White bootstrap against the fit with the column computed beforehand, to `1e-10`; `bootstrapTestStatistic()` of Koenker's, White's and the Breusch-Pagan statistics and the robust White bootstrap on a Gaussian `glm` against the weighted `lm`, to `1e-8`, with the same p-value (N8); the White bootstrap on a `gam` given its rows shuffled `identical()` to the rows in order (N17); an edited fit and a frame that cannot be rebuilt refused |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
@@ -1458,38 +1683,38 @@ that fixes each.
 | --- | --- | --- |
 | B1, B2 | Numbered data in another order, or with rows in front | Refused since 0.15.0; stays refused (decision 3) |
 | B3, B4 | The panel tests and the scatter diagnostic read `data` by position | Refused since 0.15.0; fixed in increment 5: they match the rows by name, by number or in fit order |
-| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests; the others follow their increments |
+| B5 | A term computed from all the rows, re-evaluated on the rows of the fit | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests, in increment 8 for the replicates of the resampling tests and of `bootstrapTestStatistic()`, pairs resampling included, which computed the terms again on the rows it drew; the others follow their increments |
 | B6 | Streaming evaluates terms per chunk | Fixed in increment 7: the chunks are rows of the stored design |
 | B7 | Offsets left out of a refit | Refused by #134; fixed in increment 2 |
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
 | B9 | A second formula matched by position | Fixed in increment 6: `var_formula` and `against` are evaluated on the rows the alignment confirmed (`rcontext_formula_rows()`); `rvariance_frame()` is gone |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
-| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four; the group tests of increment 4 and the streaming tests of increment 7 gave values already; replicates in increment 8 |
+| B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four, in increment 8 for the replicates and the White bootstrap; the group tests of increment 4 and the streaming tests of increment 7 gave values already |
 | B13 | `na.exclude` | Increment 9 |
-| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests |
-| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3, the five of increment 4 and the streaming tests of increment 7 gave values already |
+| B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the resampling tests and the robust tests |
+| B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3, the five of increment 4 and the streaming tests of increment 7 gave values already; in increment 8 for the White bootstrap, which rebuilt a design of the rows of `data` from the call of the subset fit |
 | B16 | The panel tests on a fit that dropped rows | Fixed in increment 5 for the random-effects test and the scatter diagnostic; Pesaran's test reaches the panel of the fit, which is unbalanced unless every row of a unit was dropped, and refused it (N12, decision 28) until the pull request of N12, since which it gives the value of the fit to the complete rows |
 | R1 | Data whose values are not the fit's | Refused since 0.15.0 |
 | R5 | The quantile test with an offset | Refused by #134; fixed in increment 2 |
 | R2 | Repeated `(id, time)` | Refused by Pesaran's test since increment 5 (decision 13); the random-effects test reads no period |
 | R3 | `var_formula` variables from the workspace | Refused since increment 6 (decision 9), with or without `data`, and the variables of `against` too |
-| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests |
+| R4 | A multivariate `lm` | M7 in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the resampling and robust tests |
 | R6 | `MASS::rlm()` | Increment 11 (decision 4) |
 | R7 | Messages that name variables a test does not need, or rows `data` holds | Fixed in increment 1 for the five, in increment 4 for the group tests |
-| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1), in increment 7 for the streaming tests |
+| L1, L2 | Transformations and `offset()` terms without `data`; the model frame of a weighted or transformed fit as `data` | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the group tests (a variable the model frame does not hold gives M1), in increment 7 for the streaming tests, in increment 8 for the resampling and robust tests and the replicates of `bootstrapTestStatistic()` |
 | N1 | Goldfeld-Quandt refits the segments from the formula (6-10% off with `ns()`); the quantile test refits its quantile regressions from it | Fixed in increment 2 (decision 20) |
 | N2 | White's degrees of freedom when the auxiliary columns span the constant | Fixed in 0.16.0 by a separate pull request (decision 22): the rank of the auxiliary design with its intercept, minus one, as `lmtest::bptest()` with the same terms; the harness allows the changes on the cells where main's count was wrong (the `poly()` fits, and the `gam` with a smooth term, whose auxiliary regression lost a column to its intercept and whose statistic changes by 0.28%) and verifies each against White's test written out (`identity_white_by_hand()`). Its follow-up (decisions 25 and 26) decides the rank on the auxiliary design of the centred regressors, refuses an auxiliary regression that fits the squared residuals exactly, saturated or not, and fits it with `lm.fit()`; the harness runs cells of its own for them, checks every number of a changed result, and requires the refusal on the exact fits |
 | N3 | White streaming on collinear terms | Fixed in 0.17.0 by a separate pull request (decision 22): the three streaming tests reduce each chunk of the auxiliary design of the centred regressors by a QR decomposition stacked on the factor of the chunks before it, and decide its rank as `performWhiteTest()` does, by `qr()` of that factor at its tolerance, in the order of the columns; White's streaming test drops the collinear terms and gives the degrees of freedom and the value of `performWhiteTest()` (17.83 on 8 on `lm(y ~ x1 + group)`, where it stopped), and the cross-products of a regressor located far from zero no longer look collinear. With it, the threshold on squared residuals that do not vary is relative to their scale, and the columns of the chunks are taken in their order, not matched by name. The harness verifies each change against the exact test of the call (`identity_n3_verdict()`) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
 | N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET, in increment 6 for the other tests computed from the model alone and `fitWLS()` |
-| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests, in chunks of any size (B6) |
-| N8 | `bootstrapTestStatistic()` refuses every `glm` | Increment 8 |
+| N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests, in chunks of any size (B6), in increment 8 for the White bootstrap and for the replicates of `bootstrapTestStatistic()`, which refused the fit ("`data` does not reproduce the fit") |
+| N8 | `bootstrapTestStatistic()` refuses every `glm` | Fixed in increment 8: a Gaussian `glm` with the identity link is bootstrapped as the `lm` it is, with its prior weights; another `glm`, a `survey::svyglm()` fit and an `mgcv::gam()` fit are refused, as before |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
 | N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refused an unbalanced panel. Fixed by the pull request of N12, which removes the refusal: the statistic of an unbalanced panel is computed from the periods each pair of units shares, as `plm::pcdtest(test = "cd")` computes it (Pesaran 2004, Section 9, equation 31), `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, `rho_ij` the correlation of the residuals of units `i` and `j` over the `T_ij` periods both are observed at, each centred at its mean over them, over the `P` pairs with `T_ij >= 2` (`N (N - 1) / 2` when every pair has); a pair with `T_ij < 2` is left out with a warning, as plm leaves it out, and a panel without such a pair is refused; a correlation that is not defined, a unit constant over the periods of a pair, adds nothing and the pair stays in `P`, with a warning, as on a balanced panel, where plm returns `NA`; -0.373 on that panel, and plm's value to `1e-10` on 252 panels of 5 to 30 units and 4 to 12 periods, 228 of them unbalanced (late entry, early exit, gaps, 1 to 20 rows missing at random, a unit observed once), by an `lm`, a weighted `lm` and a Gaussian `glm`, weighted or not, directly, on the full data of a fit with `na.omit` and through `runPanelTests()`: 5,040 comparisons, the largest difference 3.6e-15 on the statistic, and on the cells of the matrix (below). A balanced panel keeps the matrix of periods by units, every value `identical()`. The refusal stays on the positional reading of a fit with `na.exclude` until increment 9 (decision 29) |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
-| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests; open for the White bootstrap's replicates until 8 |
+| N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the White bootstrap, whose replicates added each draw to the fitted value of the row of `data` at the same position |
 
 ## Decisions
 

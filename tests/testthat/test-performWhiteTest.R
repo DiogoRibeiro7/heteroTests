@@ -329,7 +329,6 @@ test_that("every route to White's test takes the degrees of freedom of the exact
     suite <- runHeteroTests(m, d, tests = "white", use_cache = FALSE, progress = FALSE)
     expect_identical(df_of(suite$white), full$df, info = name)
     expect_equal(suite$white$p.value, full$p.value, tolerance = 1e-10, info = name)
-    expect_identical(df_of(heteroTests:::rwhite_test_rebuilt_design(m, d)), full$df, info = name)
     # The bootstrap's p-value depends on its observed statistic, White's, alone.
     set.seed(1)
     boot <- performWhiteTestBootstrap(m, d, B = 9)
@@ -464,7 +463,6 @@ test_that("White's test refuses an auxiliary regression with as many terms as ob
   expect_error(performWhiteTest(m, small), "has 22 independent terms with its intercept for 22",
                fixed = TRUE)
   expect_error(performWhiteTestRobust(m, small), refusal, fixed = TRUE)
-  expect_error(heteroTests:::rwhite_test_rebuilt_design(m, small), refusal, fixed = TRUE)
   expect_error(get("white", envir = heteroTests:::.diagnostic_registry)(m, small), refusal,
                fixed = TRUE)
   expect_error(suppressWarnings(performWhiteTestStreaming(m, small, progress = FALSE)), refusal,
