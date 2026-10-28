@@ -304,6 +304,106 @@ above, each change to a value verified against a reference; on a factor coded
 by `contrasts =`, whose replicates were refitted without its contrasts, the
 values of before but for rounding, within 7e-13 relative.
 
+### The model context, step 9: `na.exclude`
+
+The ninth of the eleven steps of the model context reads a fit with
+`na.action = na.exclude` as the same fit with `na.omit`. Such a fit drops the
+rows `na.omit` drops, and `residuals()`, `fitted()`, `weights()` and
+`hatvalues()` hold an `NA` at each of them. The checks of the model read
+those residuals and refused the fit, as one whose residuals are not finite,
+and so did every test that runs them and the runners; RESET stopped on its
+fitted values; and the panel tests and the scatter diagnostic, which have no
+such check, read its padded residuals against the rows of `data` by position.
+The checks and every test built on the context now read one value per
+observation of the fit, so a fit with `na.exclude` gives what the same fit
+with `na.omit` gives on the same data: the same statistic, p-value, refusal
+and warnings, and for the resampling tests the same draws of the generator.
+An output with one value per row is padded with `NA` at the rows the fit
+dropped, as `residuals()` of such a fit is. No export or argument changes.
+
+The examples below use these data, `z` missing in rows 3, 7 and 11, with
+`m <- lm(y ~ x + z, data = sim, na.action = na.exclude)`; the bootstraps draw
+199 replicates after `set.seed(1)`:
+
+```r
+set.seed(42)
+n <- 120
+sim <- data.frame(id = rep(1:12, each = 10), time = rep(1:10, 12),
+                  x = runif(n, 1, 5), z = rnorm(n))
+sim$y <- 1 + 2 * sim$x + rnorm(n, sd = 0.3 + 0.6 * sim$x)
+sim$z[c(3, 7, 11)] <- NA
+```
+
+**The tests and the runners take a fit with `na.exclude`.** Each gives the
+value of the same fit with `na.omit`, with its warnings, "Removed 3
+observations due to missing values in z" where a test given `sim` gives it:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performKoenkerTest(m, sim)` | Error: "Model residuals must be finite before running Koenker." | 13.93 (p = 0.00095) |
+| `performWhiteTest(m, sim)` | Error: "Model residuals must be finite before running White." | 14.20 (p = 0.014) |
+| `performGQTest(m, sim, order_by = "x")` | Error: "Model residuals must be finite before running Goldfeld-Quandt." | 5.270 (p = 1.2e-07) |
+| `performArchLMTest(m)` | Error: "Model residuals must be finite before running ARCH LM." | 0.141 (p = 0.707) |
+| `performRESETTest(m)` | Error: "NA/NaN/Inf in 'x'" | 1.392 (p = 0.253) |
+| `runHeteroTests(m, sim)` | Error: "Diagnostic execution failed for White: Model residuals must be finite before running White." | White 14.20, Koenker 13.93 |
+| `performWhiteTestBootstrap(m, sim, B = 199)` | Error: "Model residuals must be finite before running Bootstrap White." | 14.20 (p = 0.040) |
+| `bootstrapTestStatistic(performKoenkerTest, m, sim, B = 199)` | Error: "Model residuals must be finite before running Bootstrap helper." | 13.93 (p = 0.005) |
+
+So do the other tests built on the context, their registered names and
+`test_factory` entries, `runDiagnostics()`, `runTimeSeriesTests()` and
+`runAdvancedDiagnostics()`, and, through the checks of the model they share,
+`rvalidate_against_reference()`, `rcalculateEffectSize()` and
+`restimate_test_power()`; `rvalidate_against_reference()` hands
+`lmtest::bptest()` and `car::ncvTest()` the fit read as `na.omit`, as lmtest
+stops on the padded weights of a weighted fit ("incompatible dimensions"). A
+call the same fit with `na.omit` refuses is refused with its message, where it
+was refused as one whose residuals are not finite: data the tests cannot
+match, a variable missing from `data` or from the model frame, and the other
+refusals of each test. RESET returned `F = NA` where the dropped rows were the
+last ones of the data, and gives the value of the same fit with `na.omit`.
+
+**The panel tests and the scatter diagnostic read a fit with `na.exclude` at
+the rows it kept.** They read its residuals, padded with `NA`, against the rows
+of `data` by position, as before 0.16.0: the random-effects statistic and the
+correlations were `NA`, Pesaran's statistic was computed with the `NA` of the
+rows the fit dropped, data in another order were refused, and so was an
+unbalanced panel of the rows of `data`. They read the residuals of the fit and
+the `id`, `time` and `vars` of the rows that hold its observations, as for the
+same fit with `na.omit`:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performPesaranTest(m, sim, "id", "time")` | -0.315 (p = 0.753), computed with the `NA` | -0.702 (p = 0.482), that of `plm::pcdtest()` on the rows of the fit |
+| `performBPRandomEffectsTest(m, sim, "id")` | `NA` | 1.973 (p = 0.160) |
+| `performScatterDiagnostic(m, sim, c("x", "z"))` | `NA`, `NA` | 0.377, 0.073 |
+| `performBPRandomEffectsTest(m, sim[sample(n), ], "id")`, after `set.seed(3)` | Error: "... it reads `data` by position, the i-th row with the i-th observation, and the rows of `data`, matched by name, are not in the order of the fit." | 1.973 (p = 0.160) |
+| `performPesaranTest(<m on sim[-(1:5), ]>, sim[-(1:5), ], "id", "time")` | Error: "performPesaranTest() reads a fit with na.action = na.exclude by position ... the panel of the rows of `data` is unbalanced ..." | -0.597 (p = 0.551) |
+
+`runPanelTests()` follows. A unit or a period missing only at rows the fit
+dropped is not read, as for the same fit with `na.omit`: Pesaran's test
+refused a pair of `id` and `time` of a dropped row, or a period missing there,
+as at an observation of the fit.
+
+**`fitWLS()` pads its estimated variances.** Its fit keeps the `na.action` of
+the model, so `residuals()`, `fitted()` and `weights()` of a fit with
+`na.exclude` are padded, as before; the estimated variances it attaches as the
+attribute `"variance_model"` had one value per observation of the fit, 117 on
+`fitWLS(m)`, and have one per row, 120, `NA` at rows 3, 7 and 11. The record
+of the variance function (`"variance_function"`), which the bootstraps read
+by observation, keeps one row per observation.
+
+Unchanged: every call on a fit without `na.exclude`; the spread-level and
+Davidian-Carroll tests on such a fit, which left out the `NA` themselves and
+gave the value of the same fit with `na.omit` (3.959, p = 0.00013, for the
+spread-level test on `m`); and `fitWLS()`'s coefficients and weights. A corpus
+of 40,816 calls (`scripts/model-context-identity.R`) returns what it returned
+in the previous step, `identical()`, and leaves the generator as it left it,
+but for 2,404 calls on 28 fits with `na.exclude`, of the response, a regressor,
+the group, the units and periods of a panel, the variable of a second formula,
+in every form of `data`, weighted, with an offset, a Gaussian `glm` and a
+balanced and an unbalanced panel, each of which gives what it gives on the
+same fit with `na.omit`, with its warnings and its draws.
+
 ## 0.16.0
 
 0.16.0 moves the tests onto a model context and corrects the statistics found

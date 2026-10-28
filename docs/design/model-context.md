@@ -1131,12 +1131,18 @@ For a fit with `na.action = na.exclude`, in increment 9:
   computed with the `NA` of the rows the fit dropped: on `missing/na_exclude`
   (`x2` missing in rows 3, 7 and 11) 0.713 becomes 0.189, plm's on the rows of
   the fit, the random-effects test `NA` 2.016 and the scatter diagnostic `NA`
-  0.343 and -0.163, the values of the twin; and `fitWLS()`'s
+  0.343 and -0.163, the values of the twin; RESET, which returned `F = NA`
+  where the rows the fit dropped were the last ones of the data (its augmented
+  design took the first rows of the padded fitted values, and its residual sum
+  of squares was `NA`), and stopped elsewhere; and `fitWLS()`'s
   `"variance_model"`, padded.
 - **Messages.** The refusals of the twin, where the checks of the model
   refused the fit first: of `data` by the guard, M1 without `data`, a
-  variable of the workspace (R3), the weights of the variance form test, the
-  refusal of the reference implementation route on `data` it cannot match.
+  variable of the workspace (R3) or one `data` lacks, the weights of the
+  variance form test, a transformed response under null-imposed resampling,
+  and the checks of `test_factory` and of the registered names, which refuse
+  the full data of a fit that dropped rows ("Model reports 117 residuals but
+  the supplied data has 120 rows") as they refuse the twin's.
 - **Unchanged**: every call on a fit without `na.exclude`, `identical()`;
   the spread-level and Davidian-Carroll tests on such a fit, which left out the
   `NA` themselves and gave the value of the twin; and `fitWLS()`'s
@@ -1674,6 +1680,67 @@ a value with the warning of the same call on the data frame of the fit, and
 the formula rebuilt, and under pairs resampling also "... due to missing
 levels" on a replicate that left a level out (11 of the 12 calls leave none
 out), where the branch rebuilds no model frame and gives no warning.
+
+Increment 9 adds to the corpus the 28 cells of a fit with `na.exclude` of the
+matrix (`missing/na_exclude` and the block `exclude/`) and the 14 twins they do
+not share with the other blocks, run through every recipe, route and runner;
+each run records the `na.action` of each such fit and its number of
+observations (`na_action`). The reference of every call on such a cell is the
+same call on its twin, the same fit with `na.omit` given the same data
+(`identity_twin()`): the same value, `identical()`, verified as the reference
+of the cell (`identity_verify()`), the weights of the `fitWLS()` recipes padded
+as `naresid()` pads them (`identity_padded_twin()`), or the same refusal,
+class and message; and the same state of the generator. The allow-list gains
+B13 for the calls of the functions built on the context
+(`identity_affected`), as an error that becomes a value, a value that
+changes, a message and a new refusal, each allowed only when the call gives
+what its twin gives, and a call on such a cell that does not, changed or
+identical to main, is unexpected. Two repairs of the harness come with it:
+`identity_cell_terms()`, which #164 removed and the rule of pairs resampling
+still calls, so that a comparison stopped with "could not find function", is
+restored as it was in 0.16.0; and `identity_defects()`, asked for the defects
+of a message with a record without a form, as first happens for the bootstraps
+of a `fitWLS()` fit on a fit with `na.exclude`, no longer stops on it.
+
+Increment 9, against `main` with increment 8 (974bd53): 40,816 calls on 402
+cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
+N2 and the examples of forty help pages, of which 38,412 identical, 2,404
+allowed changes (2,054 errors that become values, 89 values that change, 261
+messages, 0 new refusals) and 0 unexpected, every one of them a call on the 28
+cells of a fit with `na.exclude`. Of the 2,744 calls on those cells, 340 are
+`identical()` to `main`, and all 2,744 give what the same call gives on the
+twin: 2,224 values, 102 the weights of a `fitWLS()` fit padded, 415 refusals
+and 3 skipped; all 2,744 leave the generator as the twin left it and give the
+twin's warnings. The 2,143 changes to a value are each verified against the
+twin, the reference of the cell: 1,926 directly and 217 through the test a
+route computes. Of the 2,054 errors that become values, 1,977 were the refusal
+of the checks of the model ("Model residuals must be finite before running
+..."), directly or through a runner ("Diagnostic execution failed for White:
+..."), 25 RESET's "NA/NaN/Inf in 'x'", and 52 the refusals of the positional
+reading of the panel tests and the scatter diagnostic: data in another order
+than the fit or an unbalanced panel of the rows of `data` (24), the complete
+rows of the fit, which lack rows of `data`, the full data of a subset, and a
+unit missing at a row the fit dropped (28). The 89 values that change are 87
+of the panel tests, the scatter diagnostic and `runPanelTests()` with its
+options, whose statistics were `NA` or computed with the `NA` of the dropped
+rows (Pesaran's 0.713 for 0.189 on `missing/na_exclude`), and 2 of RESET,
+which returned `F = NA` on the fits that dropped the last ten rows, where its
+augmented design kept the first rows of the padded fitted values. The 261
+messages are the refusals of the twin where the checks of the model refused
+the fit first: of `data` by the guard, M1, R3, the variables `data` lacks, the
+weights of the variance form test, a transformed response under null-imposed
+resampling, and the checks of `test_factory` and the registered names, which
+refuse the full data of a fit that dropped rows ("Model reports 117 residuals
+but the supplied data has 120 rows") as for the twin. Every call identical to
+`main`, 38,412 of 38,412, leaves the generator as `main` left it; so do 1,945
+of the 2,404 allowed changes, all 89 changes to a value among them, the other
+459 being resampling calls that now draw where `main` refused before drawing.
+The 642 `poly()` calls that `main` computes on the stored design are
+`identical()` to it, and the 125 of the 184 judged to the last bits that give a
+value are `identical()` to `main`. The warnings are those of `main` but for
+1,002 calls, all on the cells of a fit with `na.exclude`, each the twin's: the
+warning "Removed 3 observations due to missing values in x2" and the others of
+calls that stopped before them.
 
 ## Test matrix and oracles
 
