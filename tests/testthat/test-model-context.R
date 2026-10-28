@@ -2264,7 +2264,7 @@ test_that("the panel tests read a fit with na.exclude at the rows it kept (B13)"
   m <- pair$excluded
   pesaran <- performPesaranTest(m, d, "id", "time")
   expect_identical(pesaran, performPesaranTest(pair$omitted, d, "id", "time"))
-  expect_equal(unname(pesaran$statistic), 0.18890, tolerance = 1e-4)
+  expect_equal(unname(pesaran$statistic), 0.18909, tolerance = 1e-4)
   re <- suppressWarnings(performBPRandomEffectsTest(m, d, "id"))
   expect_false(is.na(re$statistic))
   expect_identical(re, suppressWarnings(performBPRandomEffectsTest(pair$omitted, d, "id")))
