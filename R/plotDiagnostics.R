@@ -278,7 +278,9 @@ plotResidualsFittedEnhanced <- function(model) {
     resid = rplot_residuals(model),
     abs_resid = abs(rplot_residuals(model))
   )
-  cd <- rmodel_unpad(model, cooks.distance(model))
+  # On the fit read as na.omit: that of an mgcv::gam() with na.exclude
+  # recycled its padded residuals (performInfluenceDiagnostics()).
+  cd <- cooks.distance(rmodel_as_na_omit(model))
   df$influential <- cd > 4 / length(cd)
   ggplot2::ggplot(df, ggplot2::aes(fitted, resid)) +
     ggplot2::geom_point(ggplot2::aes(color = influential, size = abs_resid), alpha = 0.7) +
