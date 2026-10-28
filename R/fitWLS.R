@@ -112,10 +112,13 @@
 #'   [performVarianceFormTest()] reads, and what the bootstrap tests read to
 #'   estimate the weights again in each replicate. Its `regressors`, the
 #'   variance regressors on the scale of the form, and `index`, the fitted
-#'   log-variance \eqn{\hat\gamma_0 + z_i^\top \hat\gamma} (the estimated
-#'   variances are proportional to its exponential), have one row, or value,
-#'   per observation of the fit, also on a fit with `na.action = na.exclude`,
-#'   whose rows they are not padded to (decided by the author on 2026-10-28).
+#'   log-variance \eqn{\hat\gamma_0 + z_i^\top \hat\gamma}, have one row, or
+#'   value, per observation of the fit, also on a fit with
+#'   `na.action = na.exclude`, whose rows they are not padded to. The estimated
+#'   variances are proportional to the exponential of `index`, unless the
+#'   variance function could not be used and the fit fell back to equal
+#'   weights, which the record says with `usable = FALSE` and its `reason`;
+#'   `index` is then the fitted log-variance that was refused, or `NA`.
 #'   When `model` was fitted with weights, the attribute also holds them, as
 #'   `initial_weights`, one per observation of the fit too.
 #' @references
