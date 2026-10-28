@@ -1811,6 +1811,19 @@ announced in bold in `NEWS.md`.
     Refuses calls that return a value. Since 0.16.0 both warn on that design,
     whose 30 levels of two observations are fixed effects for small groups
     (the item on them, under 0.16.0); the refusal is still to do.
+  - The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
+    are the number of columns of the design but its intercept, not the rank
+    of their auxiliary regression less its intercept, as White's are since N2:
+    on a model without an intercept whose columns span the constant, such as
+    `lm(y ~ 0 + group + x1)` with a factor of four levels, the auxiliary
+    regression adds an intercept that the dummies already span, and the
+    tests count 5 where the rank says 4. In the design of `contract_data()`
+    the Breusch-Pagan test gives 8.653 on 5 and Koenker's 10.52 on 5, where
+    `lm(y ~ x1 + group)`, the same column space, gives the same statistics on
+    4; the streaming forms refuse that model ("auxiliary regression became
+    rank deficient"), as before the pull request of N3. Found by that pull
+    request. Take the rank, as White's test does; changes a p-value, and
+    makes the streaming refusals values.
   - White's auxiliary design is built from the regressors centred one by
     one, so its rank does not depend on where a regressor that enters the
     model linearly is located, but a product or a power of a variable
