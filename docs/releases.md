@@ -417,7 +417,9 @@ and fitted values without the padding too. With
 | `plotResidualsFitted(m)`, `plotSpreadLevel(m)`, `plotResidualDensity(m)`, `plotResidualQQ(m)`, `plotBeforeAfter(m, fitWLS(m))` | the plot, with the warning "Removed 3 rows containing non-finite outside the scale range" | the plot of the same fit with `na.omit`, without it |
 | `dim(generics::augment(runHeteroTests(m)$white))` | Error: "Diagnostic execution failed for White: ..." | 120 rows, 7 columns: the 117 rows of the same fit with `na.omit`, with a row of `NA` at rows 3, 7 and 11 |
 
-`performVIFDiagnostic()` on such a `gam` read the padded design too. Given the
+`performVIFDiagnostic()` on such a `gam` read the padded design too, and
+`fitWLS(g)` refitted it, stopping with "incompatible dimensions"; it returns
+the fit of the same `gam` with `na.omit`, its weights padded. Given the
 data of the fit, `augment()` binds its padded columns to the rows of the data,
 120 rows; given data of another number of rows, on a fit with `na.exclude` or
 `na.omit`, it says what it binds ("augment() binds one row of `data` to each
@@ -431,12 +433,13 @@ unweighted one.
 Unchanged: every call on a fit without `na.exclude`; the spread-level and
 Davidian-Carroll tests on such a fit, which left out the `NA` themselves and
 gave the value of the same fit with `na.omit` (3.959, p = 0.00013, for the
-spread-level test on `m`); and `fitWLS()`'s coefficients and weights. A corpus
-of 40,816 calls (`scripts/model-context-identity.R`) returns what it returned
-in the previous step, `identical()`, and leaves the generator as it left it,
-but for 2,404 calls on 28 fits with `na.exclude`, of the response, a regressor,
-the group, the units and periods of a panel, the variable of a second formula,
-in every form of `data`, weighted, with an offset, a Gaussian `glm` and a
+spread-level test on `m`); and `fitWLS()`'s coefficients and weights of an
+`lm`. A corpus of 41,604 calls (`scripts/model-context-identity.R`) returns
+what it returned in the previous step, `identical()`, and leaves the generator
+as it left it, but for 2,590 calls on 30 fits with `na.exclude`, of the
+response, a regressor, the group, the units and periods of a panel, the
+variable of a second formula, in every form of `data`, weighted, with an
+offset, a Gaussian `glm`, a `gam` with and without a smooth term, and a
 balanced and an unbalanced panel, each of which gives what it gives on the
 same fit with `na.omit`, with its warnings and its draws.
 

@@ -1151,7 +1151,10 @@ For a fit with `na.action = na.exclude`, in increment 9:
   tests and the scatter diagnostic given data in another order than the fit,
   which they refused ("... are not in the order of the fit"), and Pesaran's
   test on an unbalanced panel of the rows of `data`, which it refused with the
-  message of N12 on that reading.
+  message of N12 on that reading; and, from the review, an `mgcv::gam()` fit
+  with `na.exclude`, refused by the tests that run no checks of the model
+  ("Internal error: the parts of the model context differ in length."), and
+  `fitWLS()` of it, which stopped with "incompatible dimensions".
 - **Values that change** (B13): the random-effects test and the scatter
   diagnostic, whose statistic and correlations were `NA`, and Pesaran's test,
   computed with the `NA` of the rows the fit dropped: on `missing/na_exclude`
@@ -1730,45 +1733,56 @@ load it through `R_LIBS`: the first run of this increment set `R_LIBS` to
 main's library for both sides, so that the workers of the branch ran main's
 code (from the review of increment 9).
 
-Increment 9, against `main` with increment 8 (974bd53): 40,816 calls on 402
-cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
-N2 and the examples of forty help pages, of which 38,412 identical, 2,404
-allowed changes (2,054 errors that become values, 89 values that change, 261
-messages, 0 new refusals) and 0 unexpected, every one of them a call on the 28
-cells of a fit with `na.exclude`. Of the 2,744 calls on those cells, 340 are
-`identical()` to `main`, and all 2,744 give what the same call gives on the
-twin: 2,224 values, 102 the weights of a `fitWLS()` fit padded, 415 refusals
-and 3 skipped; all 2,744 leave the generator as the twin left it and give the
-twin's warnings. The 2,143 changes to a value are each verified against the
-twin, the reference of the cell: 1,926 directly and 217 through the test a
-route computes. Of the 2,054 errors that become values, 1,977 were the refusal
-of the checks of the model ("Model residuals must be finite before running
-..."), directly or through a runner ("Diagnostic execution failed for White:
-..."), 25 RESET's "NA/NaN/Inf in 'x'", and 52 the refusals of the positional
-reading of the panel tests and the scatter diagnostic: data in another order
-than the fit or an unbalanced panel of the rows of `data` (24), the complete
-rows of the fit, which lack rows of `data`, the full data of a subset, and a
-unit missing at a row the fit dropped (28). The 89 values that change are 87
-of the panel tests, the scatter diagnostic and `runPanelTests()` with its
-options, whose statistics were `NA` or computed with the `NA` of the dropped
-rows (Pesaran's 0.713 for 0.189 on `missing/na_exclude`), and 2 of RESET,
-which returned `F = NA` on the fits that dropped the last ten rows, where its
-augmented design kept the first rows of the padded fitted values. The 261
-messages are the refusals of the twin where the checks of the model refused
-the fit first: of `data` by the guard, M1, R3, the variables `data` lacks, the
-weights of the variance form test, a transformed response under null-imposed
-resampling, and the checks of `test_factory` and the registered names, which
-refuse the full data of a fit that dropped rows ("Model reports 117 residuals
-but the supplied data has 120 rows") as for the twin. Every call identical to
-`main`, 38,412 of 38,412, leaves the generator as `main` left it; so do 1,945
-of the 2,404 allowed changes, all 89 changes to a value among them, the other
-459 being resampling calls that now draw where `main` refused before drawing.
-The 642 `poly()` calls that `main` computes on the stored design are
-`identical()` to it, and the 125 of the 184 judged to the last bits that give a
-value are `identical()` to `main`. The warnings are those of `main` but for
-1,002 calls, all on the cells of a fit with `na.exclude`, each the twin's: the
-warning "Removed 3 observations due to missing values in x2" and the others of
-calls that stopped before them.
+Increment 9, with the fixes of its review, against `main` with the follow-up
+of increment 8 (e20efcc), each side installed privately and its workers
+loading it through `R_LIBS`: 41,604 calls on 406 cells, the 5 cells of
+Harrison-McCabe's rank, the 8 cells of the follow-up of N2 and the examples
+of forty help pages, of which 39,014 identical, 2,590 allowed changes (2,202
+errors that become values, 89 values that change, 299 messages, 0 new
+refusals) and 0 unexpected, every one of them a call on the 30 cells of a fit
+with `na.exclude`. Of the 2,940 calls on those cells, 350 are `identical()` to
+`main`, and all 2,940 give what the same call gives on the twin: 2,364 values,
+110 the weights of a `fitWLS()` fit padded, 463 refusals and 3 skipped; all
+2,940 leave the generator as the twin left it, and all 2,940 give the twin's
+warnings, which the harness now enforces. The 2,291 changes to a value are
+each verified against the twin: 2,052 as the reference of the cell, 231
+through the test a route computes, and 8 against the weights of the twin
+padded (`fitWLS()` of a `gam`). Of the 2,202 errors that become values, 2,095
+were the refusal of the checks of the model ("Model residuals must be finite
+before running ..."), directly or through a runner ("Diagnostic execution
+failed for White: ..."); 25 RESET's "NA/NaN/Inf in 'x'"; 52 the refusals of
+the positional reading of the panel tests and the scatter diagnostic, data in
+another order than the fit or an unbalanced panel of the rows of `data` (24),
+and the complete rows of the fit, which lack rows of `data`, the full data of
+a subset and a unit missing at a row the fit dropped (28); 19 the refusal of a
+`gam` whose design `model.matrix.gam()` padded, by the tests that run no
+checks of the model ("Internal error: the parts of the model context differ
+in length."); and 11 `fitWLS()` of such a `gam` and the bootstraps of it,
+which stopped with "incompatible dimensions" on that design. The 89 values
+that change are 87 of the panel tests, the scatter diagnostic and
+`runPanelTests()` with its options, whose statistics were `NA` or computed
+with the `NA` of the dropped rows (Pesaran's 0.713 for 0.189 on
+`missing/na_exclude`), and 2 of RESET, which returned `F = NA` on the fits
+that dropped the last ten rows, where its augmented design kept the first rows
+of the padded fitted values. The 299 messages are the refusals of the twin
+where the checks of the model refused the fit first: of `data` by the guard,
+M1, R3, the variables `data` lacks, the weights of the variance form test, a
+transformed response under null-imposed resampling, a `gam` with smooth terms
+(decision 23), and the checks of `test_factory` and the registered names,
+which refuse the full data of a fit that dropped rows ("Model reports 117
+residuals but the supplied data has 120 rows") as for the twin. Every call
+identical to `main`, 39,014 of 39,014, leaves the generator as `main` left
+it; so do 2,119 of the 2,590 allowed changes, all 89 changes to a value among
+them, the other 471 being resampling calls that now draw where `main` refused
+before drawing. The 642 `poly()` calls that `main` computes on the stored
+design are `identical()` to it, and the 125 of the 184 judged to the last bits
+that give a value are `identical()` to `main`. The warnings are those of
+`main` but for 1,087 calls, all on the cells of a fit with `na.exclude`, each
+the twin's: the warning "Removed 3 observations due to missing values in x2"
+and the others of calls that stopped before them. The first run of this
+increment, against 974bd53 before the review, gave 40,816 calls, 38,412
+identical, 2,404 allowed and 0 unexpected; it set `R_LIBS` to main's library
+for both sides, and its counts are replaced by these.
 
 ## Test matrix and oracles
 
