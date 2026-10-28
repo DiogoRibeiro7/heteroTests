@@ -377,7 +377,7 @@ same fit with `na.omit`:
 | `performBPRandomEffectsTest(m, sim, "id")` | `NA` | 1.973 (p = 0.160) |
 | `performScatterDiagnostic(m, sim, c("x", "z"))` | `NA`, `NA` | 0.377, 0.073 |
 | `performBPRandomEffectsTest(m, sim[sample(n), ], "id")`, after `set.seed(3)` | Error: "... it reads `data` by position, the i-th row with the i-th observation, and the rows of `data`, matched by name, are not in the order of the fit." | 1.973 (p = 0.160) |
-| `performPesaranTest(<m on sim[-(1:5), ]>, sim[-(1:5), ], "id", "time")` | Error: "performPesaranTest() reads a fit with na.action = na.exclude by position ... the panel of the rows of `data` is unbalanced ..." | -0.597 (p = 0.551) |
+| `performPesaranTest(<m on sim[-(1:5), ]>, sim[-(1:5), ], "id", "time")` | Error: "`performPesaranTest()` reads a fit with `na.action = na.exclude` by position ... the panel of the rows of `data` is unbalanced ..." | -0.597 (p = 0.551) |
 
 `runPanelTests()` follows. A unit or a period missing only at rows the fit
 dropped is not read, as for the same fit with `na.omit`: Pesaran's test
