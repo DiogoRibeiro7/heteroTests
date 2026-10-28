@@ -4,9 +4,9 @@
 
 <small>Source: [`R/performance.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/performance.R) · Help: `?performWhiteTestStreaming`</small>
 
-Computes White's statistic via chunked cross-products rather than fitting the
-full auxiliary regression in memory. This streaming approach allows the test
-to scale to datasets that would otherwise exhaust available RAM.
+Computes White's statistic chunk by chunk rather than fitting the full
+auxiliary regression in memory. This streaming approach allows the test to
+scale to datasets that would otherwise exhaust available RAM.
 
 ## Usage
 
@@ -69,13 +69,40 @@ and metadata about the chunked computation.
 
 ## Details
 
-The streaming implementation iteratively builds the cross-product matrices
-required for the auxiliary regression without materialising the full design
-matrix. Each chunk contributes to \(X'X\), \(X'y\), and summary statistics
-for the response. The final \(n R^2\) statistic is then computed exactly as
-in the standard White test, ensuring numerical equivalence while dramatically
-reducing peak memory usage. When `Matrix` is installed, sparse cross-products
-are leveraged automatically for large chunks.
+The streaming implementation builds the auxiliary design, the regressors,
+their squares and their cross-products, chunk by chunk, without
+materialising it whole. Each chunk is reduced by a QR decomposition stacked
+on the triangular factor of the chunks before it, which holds the
+cross-products of every row without forming them. The rank of the auxiliary
+regression and its \(n R^2\) statistic are computed from that factor as
+in [`performWhiteTest()`](performWhiteTest.md), ensuring numerical equivalence while reducing peak
+memory usage: the regressors are centred at their means, the rank is that of
+the auxiliary design at the default tolerance of [`qr()`](https://rdrr.io/r/base/qr.html), and a term that is a
+combination of the intercept and the terms before it is dropped (see
+*Degrees of freedom* in [`performWhiteTest()`](performWhiteTest.md)).
+
+Since 0.17.0 the test drops such terms: the square of a dummy variable,
+which is the dummy, that of the first column of an orthogonal `poly()`
+basis, or that of `x` beside `I(x^2)`, as [`performWhiteTest()`](performWhiteTest.md) drops them,
+and gives its degrees of freedom: 17.83 on 8 on `lm(y ~ x1 + group)` with a
+factor of four levels. Up to 0.16.0 it accumulated the cross-products of the
+uncentred auxiliary design, decided their rank by [`qr()`](https://rdrr.io/r/base/qr.html) of them, which
+squares the condition of the design, and stopped on such terms ("Auxiliary
+regression became rank deficient"), so on any model with a factor, and on
+terms that only looked collinear in those cross-products: the squares of a
+regressor 100 standard deviations from zero, or the terms of
+`lm(y ~ x1 * x2)` with `x1` between 0.5 and 2. It took the squared
+residuals for constant when their total sum of squares about their mean was
+at most `.Machine$double.eps`, whatever their scale, and so refused
+residuals of about \(10^{-5}\): on
+120 observations of such residuals it now gives 12.787 on 5 degrees of
+freedom, the value of [`performWhiteTest()`](performWhiteTest.md). It refuses squared residuals
+whose total sum of squares is at most `.Machine$double.eps` of their sum of
+squares, which agree to about eight digits. And in more than one chunk, on
+a regressor `a` beside a regressor `a_sq`, it put the square of `a`, which
+it names `a_sq` too, in place of that of `a_sq` in every chunk after the
+first: 27.76 in chunks of 7 where [`performWhiteTest()`](performWhiteTest.md) gives 27.64. It no
+longer uses the sparse cross-products of `Matrix` for large chunks.
 
 Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
 itself as [`performWhiteTest()`](performWhiteTest.md) reads it, so the value does not depend on the
@@ -103,10 +130,10 @@ that of the least-squares fit now. It refuses a `glm` of another family or link,
 `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
 reason, `data` that lack rows or variables of the fit, and, since 0.16.0, a multivariate `lm`, a
 fit changed after it was fitted and a fit with `model = FALSE` whose data are gone, unless `data`
-gives its response and fitted values (see [`test_results`](test_results.md)). It stops when terms of its auxiliary
-regression are collinear, as the squares of dummy variables are, which
-[`performWhiteTest()`](performWhiteTest.md) drops, and, since 0.16.0, with the refusal of
-[`performWhiteTest()`](performWhiteTest.md) (see its section *Too few observations*) when its
+gives its response and fitted values (see [`test_results`](test_results.md)). Since 0.17.0 it drops the
+terms of its auxiliary regression that are collinear, as the squares of dummy variables are, as
+[`performWhiteTest()`](performWhiteTest.md) drops them, where it stopped. Since 0.16.0 it stops with the
+refusal of [`performWhiteTest()`](performWhiteTest.md) (see its section *Too few observations*) when its
 independent terms are at least as many as the observations, where it stopped as on collinear terms,
 or fit the squared residuals exactly, collinear or not, as on a paired design. Which model each
 test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported models*.

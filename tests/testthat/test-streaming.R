@@ -194,16 +194,20 @@ test_that("a model with a factor gets White's test above 100 MB, not a fallback"
   m <- lm(y ~ x1 + group, data = d)
   white <- performWhiteTest(m, d)
   small <- runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)
-  # The squares of the dummies are collinear with them: the streaming test
-  # stops, and with it asked for the runner falls back under the name "white".
-  expect_error(
-    performWhiteTestStreaming(m, d, progress = FALSE),
-    "rank deficient"
-  )
+  # The squares of the dummies are collinear with them: since 0.17.0 the
+  # streaming test drops them, as performWhiteTest() does, and with it asked
+  # for the runner runs it under the name "white". Up to 0.16.0 it stopped
+  # ("Auxiliary regression became rank deficient", N3), and the runner fell
+  # back on White's test without cross products.
+  streamed <- performWhiteTestStreaming(m, d, progress = FALSE)
+  expect_equal(unname(streamed$statistic), unname(white$statistic), tolerance = 1e-8)
+  expect_identical(unname(streamed$parameter), unname(white$parameter))
   asked <- suppressWarnings(
     runHeteroTests(m, d, use_cache = FALSE, chunk_threshold_mb = 0, progress = FALSE)
   )
-  expect_identical(attr(asked$white, "extras")$status, "fallback")
+  expect_null(attr(asked$white, "extras")$status)
+  expect_true(attr(asked$white, "extras")$streaming)
+  expect_identical(unname(asked$white$statistic), unname(streamed$statistic))
 
   local_data_size(150)
   large <- runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)
@@ -213,13 +217,181 @@ test_that("a model with a factor gets White's test above 100 MB, not a fallback"
   expect_identical(unname(large$white$statistic), unname(white$statistic))
   expect_identical(unname(large$white$parameter), unname(white$parameter))
   expect_identical(performWhiteTest(m, d), white)
-  # With the streaming tests asked for, White's fallback without cross
-  # products is the exact test on data of any size; up to 0.15.0 it switched
-  # to the streaming test above 100 MB, stopped too, and the runner returned
-  # the classical Breusch-Pagan test under the name "white".
+  # With the streaming tests asked for, the runner streams White's test on
+  # data of any size. Up to 0.15.0 it switched to the streaming test above
+  # 100 MB, which stopped, and returned the classical Breusch-Pagan test under
+  # the name "white"; in 0.16.0 it fell back on the exact test without cross
+  # products.
   asked_large <- runHeteroTests(m, d, use_cache = FALSE, chunk_threshold_mb = 100, progress = FALSE)
   expect_identical(asked_large, asked)
-  expect_identical(asked_large$white$method, performWhiteTest(m, d, cross_products = FALSE)$method)
+  expect_identical(asked_large$white$method, streamed$method)
+})
+
+test_that("White's streaming test drops collinear terms, as performWhiteTest() does (N3)", {
+  # Up to 0.16.0 it stopped with "Auxiliary regression became rank deficient"
+  # whenever terms of its auxiliary regression were collinear: on any model
+  # with a factor, whose dummies square to themselves, a poly() term, or x
+  # beside I(x^2). It now counts them by the rank performWhiteTest() takes, on
+  # the auxiliary design of the centred regressors, and drops them.
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  d$w <- 1 / d$x1^2
+  fits <- list(
+    factor = lm(y ~ x1 + group, data = d),
+    factor_x2 = lm(y ~ x1 + x2 + group, data = d),
+    interaction = lm(y ~ x1 * group, data = d),
+    sum_contrasts = lm(y ~ x1 + group, data = d, contrasts = list(group = "contr.sum")),
+    no_intercept = lm(y ~ 0 + group + x1, data = d),
+    poly = lm(y ~ poly(x1, 2) + x2, data = d),
+    square = lm(y ~ x1 + I(x1^2) + x2, data = d),
+    weighted = lm(y ~ x1 + group, data = d, weights = w),
+    glm = glm(y ~ x1 + group, data = d, weights = w)
+  )
+  for (nm in names(fits)) {
+    m <- fits[[nm]]
+    for (cross_products in c(TRUE, FALSE)) {
+      exact <- performWhiteTest(m, d, cross_products = cross_products)
+      for (chunk in c(7, 40, 10000)) {
+        info <- paste(nm, cross_products, chunk)
+        # The checks of the model warn of the collinearity of x1 and x1^2.
+        streamed <- suppressWarnings(
+          performWhiteTestStreaming(m, d, chunk_size = chunk, cross_products = cross_products,
+                                    progress = FALSE)
+        )
+        expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-10,
+                     info = info)
+        expect_identical(unname(streamed$parameter), unname(exact$parameter), info = info)
+        expect_equal(streamed$p.value, exact$p.value, tolerance = 1e-10, info = info)
+      }
+    }
+  }
+  # The model with a factor: 17.830 on 8 degrees of freedom, where it stopped.
+  streamed <- performWhiteTestStreaming(fits$factor, d, chunk_size = 7, progress = FALSE)
+  expect_equal(unname(streamed$statistic), 17.830176, tolerance = 1e-6)
+  expect_identical(unname(streamed$parameter), 8L)
+})
+
+test_that("the streaming tests do not depend on where the regressors are located", {
+  # The regressors are centred at their means before the auxiliary design is
+  # built, as performWhiteTest() centres them, and the chunks are reduced by a
+  # QR decomposition, not cross-products. Up to 0.16.0 the cross-products of
+  # a regressor 10,000 standard deviations from zero looked collinear: White's
+  # test stopped on the squares of x1 + 1e4 sd, and the Breusch-Pagan and
+  # Koenker tests on x1 itself beside the intercept.
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  pairs <- list(
+    list(performWhiteTestStreaming, performWhiteTest),
+    list(performBPTestStreaming, performBPTest),
+    list(performKoenkerTestStreaming, performKoenkerTest)
+  )
+  at_zero <- lapply(pairs, function(pair) pair[[2]](lm(y ~ x1 + group, data = d), d))
+  for (k in c(1e2, 1e3, 1e4)) {
+    moved <- d
+    moved$x1 <- d$x1 + k * stats::sd(d$x1)
+    moved$x2 <- d$x2 + k * stats::sd(d$x2)
+    for (f in list(y ~ x1 + group, y ~ x1 + x2)) {
+      m <- lm(f, data = moved)
+      for (i in seq_along(pairs)) {
+        exact <- pairs[[i]][[2]](m, moved)
+        for (chunk in c(7, 10000)) {
+          info <- paste(k, deparse(f), exact$method, chunk)
+          streamed <- pairs[[i]][[1]](m, moved, chunk_size = chunk, progress = FALSE)
+          expect_identical(unname(streamed$parameter), unname(exact$parameter), info = info)
+          expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-8,
+                       info = info)
+        }
+      }
+    }
+    # The value of the same model located at zero.
+    m <- lm(y ~ x1 + group, data = moved)
+    for (i in seq_along(pairs)) {
+      streamed <- pairs[[i]][[1]](m, moved, chunk_size = 7, progress = FALSE)
+      expect_equal(unname(streamed$statistic), unname(at_zero[[i]]$statistic), tolerance = 1e-8,
+                   info = paste(k, i))
+      expect_identical(unname(streamed$parameter), unname(at_zero[[i]]$parameter), info = paste(k, i))
+    }
+  }
+})
+
+test_that("the streaming tests take squared residuals of any scale", {
+  # Up to 0.16.0 they refused squared residuals whose total sum of squares
+  # about their mean was at most .Machine$double.eps, whatever their scale:
+  # residuals of about 1e-5 were refused, "requires variation in squared
+  # residuals", where the exact tests give 12.787, 12.997 and 10.289 and the
+  # same data times 1e5 streamed to 12.787. The total is now compared with
+  # the scale of the squared residuals.
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  set.seed(11)
+  n <- 120
+  d <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n))
+  d$y <- 1e-5 * rnorm(n, sd = d$x1)
+  m <- lm(y ~ x1 + x2, data = d)
+  pairs <- list(
+    list(performWhiteTestStreaming, performWhiteTest, 12.787139),
+    list(performBPTestStreaming, performBPTest, 12.996911),
+    list(performKoenkerTestStreaming, performKoenkerTest, 10.289153)
+  )
+  for (pair in pairs) {
+    exact <- pair[[2]](m, d)
+    expect_equal(unname(exact$statistic), pair[[3]], tolerance = 1e-6)
+    # Residuals of 1e-7 and less have a variance of at most 1e-14, near the
+    # absolute threshold of every test on the variance of the residuals,
+    # .Machine$double.eps ("Residual variance is too small").
+    for (scale in c(1e-2, 1, 1e5, 1e8)) {
+      scaled <- d
+      scaled$y <- d$y * scale
+      for (chunk in c(7, 10000)) {
+        info <- paste(exact$method, scale, chunk)
+        streamed <- pair[[1]](lm(y ~ x1 + x2, data = scaled), scaled, chunk_size = chunk,
+                              progress = FALSE)
+        expect_equal(unname(streamed$statistic), unname(exact$statistic), tolerance = 1e-8,
+                     info = info)
+        expect_identical(unname(streamed$parameter), unname(exact$parameter), info = info)
+      }
+    }
+  }
+})
+
+test_that("the streaming tests refuse squared residuals that do not vary", {
+  # Residuals of +1 and -1, orthogonal to the regressors: the squared
+  # residuals are 1 but for rounding, at any scale. The exact tests compute
+  # from that rounding (Koenker's 18.36, White's 18.82 at scale 1); the
+  # streaming tests refuse them, at every scale and in chunks of any size.
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  base <- data.frame(x = rep(1:10, each = 4), s = rep(c(1, -1, -1, 1), 10))
+  tests <- c(White = "performWhiteTestStreaming", `Breusch-Pagan` = "performBPTestStreaming",
+             Koenker = "performKoenkerTestStreaming")
+  for (scale in c(1e-5, 1, 1e5)) {
+    d <- base
+    d$y <- base$s * scale
+    m <- lm(y ~ x, data = d)
+    e2 <- unname(residuals(m))^2
+    expect_lt(max(abs(e2 / mean(e2) - 1)), 1e-12)
+    for (label in names(tests)) {
+      for (chunk in c(7, 10000)) {
+        expect_error(
+          suppressWarnings(get(tests[[label]])(m, d, chunk_size = chunk, progress = FALSE)),
+          paste(label, "test requires variation in squared residuals"), fixed = TRUE,
+          info = paste(label, scale, chunk)
+        )
+      }
+    }
+  }
+  # Squared residuals exactly constant, through the regression itself.
+  design <- cbind(`(Intercept)` = 1, x = rep(1:10, each = 4))
+  residuals <- rep(c(2, -2, -2, 2), 10)
+  for (chunk in c(7, 40)) {
+    out <- heteroTests:::chunked_regression_r2(design, residuals, chunk,
+                                               heteroTests:::bp_predictor_builder,
+                                               heteroTests:::bp_response_builder)
+    expect_true(out$zero_variation)
+    expect_identical(out$r_squared, NA_real_)
+  }
 })
 
 test_that("bootstrap helper returns the requested number of replicates", {

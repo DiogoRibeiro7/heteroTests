@@ -83,6 +83,18 @@
 # gives plm's statistic and p-value to 1e-10 relative, on the cell or on the
 # cell it reproduces, which gives plm's in turn.
 #
+# N3, outside the context, with the scale of the squared residuals: since
+# 0.17.0 the three streaming tests decide the rank of their auxiliary
+# regression as performWhiteTest() does, so that White's streaming test drops
+# collinear terms where it stopped, and compare the variation of the squared
+# residuals with their scale. A change of a value of a streaming test, of the
+# runner that streams them or of their help pages is allowed when every
+# number is main's to `identity_last_bits`, or when it gives the value of the
+# exact test of the same call, nearer to it than main's; an error of those
+# kinds that becomes a value, when it gives the value of the exact test
+# (identity_n3_verdict()). Each run also records the exact test of the
+# examples of the streaming tests.
+#
 # The data.name of the runner, outside the context: since 0.16.0 a test that
 # runHeteroTests() runs and that reported "model" reports the formula of the
 # model. Each run records the formula of every cell; a runner's data.name may
@@ -1508,9 +1520,9 @@ identity_streaming_base <- function(fn) sub("\\(chunk_size = [0-9]+\\)$", "", fn
 # its rows of `data`: values that change in chunks smaller than the data, and
 # errors that become values where cut() computed other breaks in a chunk
 # ("factor has new levels", N7, also in one chunk of the rows of a fit that
-# dropped the row at the minimum of x1). White's streaming test stops there
-# on the collinear squares of the dummies (N3, a pull request of its own),
-# where it stopped on the new levels. The defects of the cells that concern
+# dropped the row at the minimum of x1). White's streaming test stopped there
+# on the collinear squares of the dummies until the pull request of N3, where
+# it had stopped on the new levels. The defects of the cells that concern
 # every test built on the context (B5, B12, B14, B15, L1, L2, N7, R4) apply to
 # these calls too, and N17, "frame" and M8 are scoped to them as to the tests
 # of increments 3 to 6.
@@ -1521,36 +1533,11 @@ identity_defect_scope$B6 <- identity_increment7
 for (defect in c("frame", "N17", "M8")) {
   identity_defect_scope[[defect]] <- c(identity_defect_scope[[defect]], identity_increment7)
 }
-identity_white_streaming <- c(
-  "performWhiteTestStreaming", grep("^performWhiteTestStreaming\\(", names(identity_streaming_chunked),
-                                    value = TRUE)
-)
-# N3, outside the context: White's streaming test stops on collinear terms of
-# its auxiliary regression, the squares of dummies or of a poly() basis. On a
-# cell where it stopped before reaching that regression, on a variable that
-# `data` or the model frame lacked (L1, L2) or on the new levels of cut() (N7,
-# B6), it now reaches it, and on a cell of such terms stops there
-# (identity_defects()): the terms of `context_white_streaming_collinear` of
-# helper-model-context.R, which the comparison does not source, read from the
-# id of the cell (identity_cell_terms()).
-identity_white_streaming_collinear <- c("poly", "square", "median", "cut", "factor", "log_factor")
-identity_cell_terms <- function(cell) {
-  if (is.null(cell) || length(cell) != 1L) {
-    return(NA_character_)
-  }
-  if (startsWith(cell, "terms/")) {
-    return(strsplit(cell, "/", fixed = TRUE)[[1L]][4L])
-  }
-  if (startsWith(cell, "missing/median")) {
-    return("median")
-  }
-  if (startsWith(cell, "group/na_factor")) {
-    return("factor")
-  }
-  "none"
-}
-identity_messages$N3 <- "Auxiliary regression became rank deficient"
-identity_message_scope$N3 <- identity_white_streaming
+# Increment 7 allowed White's streaming test, on a cell of collinear terms
+# where it stopped before reaching its auxiliary regression (L1, L2, N7, B6),
+# to stop on those terms instead ("Auxiliary regression became rank
+# deficient"). Since the pull request of N3 it no longer stops on them, and
+# that rule is gone (below).
 for (defect in c("frame", "M8")) {
   identity_message_scope[[defect]] <- c(identity_message_scope[[defect]], identity_increment7)
 }
@@ -1578,6 +1565,201 @@ identity_same_tests <- function(before, after) {
   all(vapply(names(a), function(k) {
     identical(a[[k]]$diagnostic, b[[k]]$diagnostic) && identical(a[[k]]$status, b[[k]]$status)
   }, logical(1)))
+}
+
+# --- N3 and the scale of the squared residuals: the streaming tests ------------
+
+# The pull request of N3, outside the context (decision 22), with the threshold
+# of the streaming tests on squared residuals that do not vary (ROADMAP.md,
+# 0.17.0). The three streaming tests reduce each chunk of their auxiliary
+# design by a QR decomposition stacked on the factor of the chunks before it,
+# instead of accumulating its cross-products, build that design from the
+# regressors centred at their means, and decide its rank as performWhiteTest()
+# does, at the tolerance of qr() in the order of its columns
+# (chunked_regression_r2(), R/performance.R). So White's streaming test drops
+# the collinear terms of its auxiliary regression, the squares of dummies or of
+# a poly() basis, where it stopped ("Auxiliary regression became rank
+# deficient"); the cross-products of a regressor located far from zero no
+# longer look collinear, in the three tests ("... auxiliary regression became
+# rank deficient"); and the squared residuals are constant when their total
+# sum of squares is at most .Machine$double.eps of their sum of squares, not of
+# 1 ("requires variation in squared residuals"). For the calls of the three
+# tests, in chunks of any size, of the runner that streams them and of their
+# help pages (`identity_n3_calls`):
+#   - an error of those kinds that becomes a value must give the value of the
+#     exact test of the same call, performWhiteTest(), performBPTest() or
+#     performKoenkerTest() (`identity_n3_exact`): the statistic and the
+#     p-value to `identity_n3_tolerance`, relative, the tolerance of the
+#     streaming tests against the exact tests in the matrix, and the degrees
+#     of freedom identical();
+#   - a value that changes must be main's to `identity_last_bits` on every
+#     number, the precision to which main's normal equations computed it on a
+#     well-conditioned design, every other field identical(); or, where those
+#     equations, whose condition is the square of that of the auxiliary
+#     design, lost more digits, give the value of the exact test as above and
+#     be nearer to it than main's;
+#   - a runner, each of its entries so: the streaming test where main fell
+#     back on another test because the streaming test stopped, or the
+#     streaming test of main but for the last bits, or nearer to the exact
+#     test, as above.
+# Any other change of these calls is judged by the rules above. The exact test
+# of a help-page example is the same call to the exact test, without
+# `chunk_size` and `progress`, which each run records ("reference").
+identity_n3_calls <- c(identity_streaming, names(identity_streaming_runners))
+identity_n3_tolerance <- 1e-8
+identity_n3_exact <- c(
+  performWhiteTestStreaming = "performWhiteTest", performBPTestStreaming = "performBPTest",
+  performKoenkerTestStreaming = "performKoenkerTest"
+)
+identity_n3_runner_exact <- c(
+  white = "performWhiteTest", breusch_pagan = "performBPTest", koenker = "performKoenkerTest"
+)
+identity_n3_errors <- c(
+  "Auxiliary regression became rank deficient", "auxiliary regression became rank deficient",
+  "requires variation in squared residuals"
+)
+
+# The record of the exact test of a call of a streaming test, in `records`.
+identity_n3_reference <- function(record, test, records) {
+  id <- if (identical(record$kind, "example")) {
+    paste("reference", test, paste("example", record$fn, record$cell), sep = " | ")
+  } else {
+    paste("recipe", test, record$cell, sep = " | ")
+  }
+  records[[id]]$value
+}
+
+# The statistic of `v` relative to that of the exact test `ref`.
+identity_n3_distance <- function(v, ref) {
+  identity_relative(as.double(unname(v$statistic)), as.double(unname(ref$statistic)))
+}
+
+# Whether a result `v` gives the value of the exact test `ref`: the statistic
+# and the p-value to identity_n3_tolerance, the degrees of freedom identical().
+identity_n3_agrees <- function(v, ref) {
+  if (!is.list(v) || !is.list(ref) || isTRUE(ref$.error) || isTRUE(ref$.skip) ||
+        is.null(v$statistic) || is.null(ref$statistic)) {
+    return(FALSE)
+  }
+  close <- function(x, y) {
+    isTRUE(identity_relative(as.double(unname(x)), as.double(unname(y))) <= identity_n3_tolerance)
+  }
+  close(v$statistic, ref$statistic) && close(v$p.value, ref$p.value) &&
+    identical(as.double(unname(v$parameter)), as.double(unname(ref$parameter)))
+}
+
+# The verdict on a value of a streaming test that changed, `a` main's and `b`
+# the branch's, against the exact test `ref`: "last bits", "exact test", or NA
+# when the change is not N3's.
+identity_n3_value <- function(a, b, ref) {
+  if (!is.list(a) || !is.list(b) || !identical(names(a), names(b)) ||
+        !identical(attributes(a), attributes(b))) {
+    return(NA_character_)
+  }
+  rest <- function(v) Filter(Negate(is.numeric), unclass(v))
+  if (!identical(rest(a), rest(b))) {
+    return(NA_character_)
+  }
+  if (isTRUE(identity_relative(identity_numbers(a), identity_numbers(b)) <= identity_last_bits)) {
+    return("last bits")
+  }
+  # The other numbers of a streaming result move with the statistic or not at
+  # all (from the review of the pull request): the chunks do not depend on the
+  # fit, and the R-squared is proportional to the statistic, n R^2 for White's
+  # and Koenker's tests, ESS / (2 sigma^4) on the same total for the
+  # Breusch-Pagan test, whose residuals are those of main.
+  fixed <- intersect(c("chunks_processed", "chunk_size"), names(a))
+  if (!identical(unclass(a)[fixed], unclass(b)[fixed])) {
+    return(NA_character_)
+  }
+  if (is.numeric(a$r_squared) && is.numeric(b$r_squared) && isTRUE(a$r_squared != 0) &&
+        is.numeric(a$statistic) && is.numeric(b$statistic) && isTRUE(a$statistic != 0)) {
+    ratio_r <- b$r_squared / a$r_squared
+    ratio_s <- unname(b$statistic / a$statistic)
+    if (!isTRUE(abs(ratio_r - ratio_s) <= 1e-9 * max(1, abs(ratio_s)))) {
+      return(NA_character_)
+    }
+  }
+  if (identity_n3_agrees(b, ref) &&
+        isTRUE(identity_n3_distance(b, ref) <= identity_n3_distance(a, ref))) {
+    return("exact test")
+  }
+  NA_character_
+}
+
+# The verdict on an error of main that became a value.
+identity_n3_error <- function(a, b, ref) {
+  of_n3 <- is.list(a) && isTRUE(a$.error) &&
+    any(vapply(identity_n3_errors, grepl, logical(1), x = a$message, fixed = TRUE))
+  if (of_n3 && identity_n3_agrees(b, ref)) "exact test" else NA_character_
+}
+
+# NULL when the rule does not apply (not a call of `identity_n3_calls`, or not
+# a change to a value); otherwise a list with the verdict, "last bits", "exact
+# test" or NA, and the statistic of each version relative to the exact test,
+# the largest over the entries of a runner.
+identity_n3_verdict <- function(before, after, verdict, branch) {
+  if (!before$fn %in% identity_n3_calls ||
+        !verdict$change %in% c("error_to_value", "value_change")) {
+    return(NULL)
+  }
+  a <- before$value
+  b <- after$value
+  if (!before$kind %in% identity_runner_kinds) {
+    ref <- identity_n3_reference(before, identity_n3_exact[[identity_streaming_base(before$fn)]],
+                                 branch)
+    outcome <- if (identical(verdict$change, "error_to_value")) {
+      identity_n3_error(a, b, ref)
+    } else {
+      identity_n3_value(a, b, ref)
+    }
+    return(list(
+      verdict = outcome,
+      branch_exact = if (is.list(ref) && !is.null(ref$statistic)) identity_n3_distance(b, ref) else NA,
+      main_exact = if (is.list(ref) && !is.null(ref$statistic) && !is.null(a$statistic)) {
+        identity_n3_distance(a, ref)
+      } else {
+        NA
+      }
+    ))
+  }
+  # A runner, entry by entry.
+  failed <- list(verdict = NA_character_, branch_exact = NA_real_, main_exact = NA_real_)
+  if (!identity_tests_of(a) || !identity_tests_of(b) || !identical(names(a), names(b))) {
+    return(failed)
+  }
+  outcomes <- character()
+  branch_exact <- 0
+  main_exact <- 0
+  for (k in names(b)) {
+    if (identical(a[[k]], b[[k]])) {
+      next
+    }
+    if (!k %in% names(identity_n3_runner_exact)) {
+      return(failed)
+    }
+    ref <- identity_n3_reference(before, identity_n3_runner_exact[[k]], branch)
+    streams <- is.null(b[[k]]$status) && identical(b[[k]]$diagnostic, k)
+    if (!streams) {
+      return(failed)
+    }
+    outcome <- if (identical(a[[k]]$status, "fallback")) {
+      # The streaming test stopped on main, and the runner fell back.
+      if (identity_n3_agrees(b[[k]], ref)) "exact test" else NA_character_
+    } else {
+      identity_n3_value(a[[k]], b[[k]], ref)
+    }
+    if (is.na(outcome)) {
+      return(failed)
+    }
+    outcomes <- c(outcomes, outcome)
+    branch_exact <- max(branch_exact, identity_n3_distance(b[[k]], ref))
+    if (is.null(a[[k]]$status)) {
+      main_exact <- max(main_exact, identity_n3_distance(a[[k]], ref))
+    }
+  }
+  list(verdict = if ("exact test" %in% outcomes) "exact test" else "last bits",
+       branch_exact = branch_exact, main_exact = main_exact)
 }
 
 # --- canonical results ---------------------------------------------------------
@@ -2053,6 +2235,17 @@ identity_run <- function(where, out, root = ".") {
             isTRUE(outcome$value$.error)) {
         add("example", topic, list(id = paste("expression", k), defect = character()), outcome)
       }
+      # N3: the exact test of an example of a streaming test, the same call
+      # without `chunk_size` and `progress` (identity_n3_reference()).
+      if (calls_topic && topic %in% names(identity_n3_exact)) {
+        exact_call <- expressions[[k]]
+        exact_call[[1L]] <- as.name(identity_n3_exact[[topic]])
+        exact_call$chunk_size <- NULL
+        exact_call$progress <- NULL
+        add("reference", identity_n3_exact[[topic]],
+            list(id = paste("example", topic, paste("expression", k)), defect = character()),
+            identity_outcome(function() eval(exact_call, env)))
+      }
     }
   }
   identity_sz$captured <- list()
@@ -2155,12 +2348,6 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
 # the calls of the tests they concern only (`scope`).
 identity_defects <- function(record, scope = identity_defect_scope) {
   defects <- record$defect
-  # Increment 7: White's streaming test reaches its auxiliary regression where
-  # it stopped before it, and on the cells of collinear terms stops there (N3).
-  if (record$fn %in% identity_white_streaming && any(c("L1", "L2", "N7", "B6") %in% defects) &&
-        identity_cell_terms(record$cell) %in% identity_white_streaming_collinear) {
-    defects <- c(defects, "N3")
-  }
   if (record$fn %in% identity_null_routes && identical(record$form, "null")) {
     defects <- c(defects, "null")
   }
@@ -2483,7 +2670,15 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     # allowed, verified by its reference; any other is judged by the rules
     # above, as before.
     szroeter <- identity_szroeter_verdict(before, after, verdict)
-    allowed <- if (isTRUE(szroeter)) {
+    # N3: a change of a streaming test that its rule verifies is allowed,
+    # whatever the rules of decision 1 and of N2 say; one it does not verify is
+    # judged by the other rules.
+    n3 <- identity_n3_verdict(before, after, verdict, branch$records)
+    n3_allowed <- !is.null(n3) && !is.na(n3$verdict)
+    if (n3_allowed) {
+      n2_mode <- NULL
+    }
+    allowed <- if (isTRUE(szroeter) || n3_allowed) {
       "allowed"
     } else {
       identity_allow(before, verdict, after, stored, n2, n2_mode)
@@ -2498,6 +2693,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       verdict$change %in% c("error_to_value", "value_change")
     verified <- if (to_value && isTRUE(szroeter)) {
       "Q from h and the design's moments"
+    } else if (to_value && n3_allowed) {
+      if (identical(n3$verdict, "last bits")) "main, last bits" else "exact test"
     } else if (to_value && isTRUE(n2_mode %in% c("check", "fallback"))) {
       "lm(e^2 ~ Z_c)"
     } else if (to_value) {
@@ -2531,11 +2728,16 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     data.frame(
       id = id, kind = before$kind, fn = before$fn, cell = before$cell,
       # The defects of the cell that concern the call (identity_defects()),
-      # and N2 where White's count of the cell was wrong.
-      defect = paste(c(identity_defects(before), if (n2_change) "N2"), collapse = " "),
+      # N2 where White's count of the cell was wrong, and N3 where the rule of
+      # the streaming tests allowed the change.
+      defect = paste(c(identity_defects(before), if (n2_change) "N2", if (n3_allowed) "N3"),
+                     collapse = " "),
       n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
       n2_mode = if (n2_change) n2_mode else NA_character_,
       szroeter = if (is.null(szroeter)) NA else szroeter,
+      n3 = if (is.null(n3)) NA_character_ else n3$verdict,
+      n3_branch_exact = if (is.null(n3)) NA_real_ else n3$branch_exact,
+      n3_main_exact = if (is.null(n3)) NA_real_ else n3$main_exact,
       change = verdict$change,
       verdict = allowed,
       verified_by = if (to_value) verified else NA_character_,
@@ -2611,6 +2813,34 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       "h, Q and the p-value those written out from the ordered, weighted design to %.0e), ",
       "and %d are judged by the other rules\n"
     ), nrow(sz), sum(sz$szroeter), identity_szroeter_tolerance, sum(!sz$szroeter)))
+  }
+  n3 <- calls[calls$fn %in% identity_n3_calls, , drop = FALSE]
+  if (nrow(n3) > 0L) {
+    changed_n3 <- n3[!is.na(n3$n3), , drop = FALSE]
+    cat(sprintf(paste0(
+      "\nN3: %d calls of the streaming tests, of the runner that streams them and of their help ",
+      "pages, %d identical() to main; %d changes to a value, %d allowed by the rule of N3 (main's ",
+      "value to %.0e on every number, \"last bits\", or the exact test's to %.0e and nearer to ",
+      "it than main's, \"exact test\"):\n"
+    ), nrow(n3), sum(n3$change == "identical"), nrow(changed_n3),
+    sum(!is.na(changed_n3$n3) & changed_n3$verdict == "allowed"), identity_last_bits,
+    identity_n3_tolerance))
+    if (nrow(changed_n3) > 0L) {
+      changed_n3$calls <- 1L
+      changed_n3$n3[is.na(changed_n3$n3)] <- "not verified"
+      changed_n3$group <- ifelse(changed_n3$kind == "runner", "runner",
+                                 identity_streaming_base(changed_n3$fn))
+      print(stats::aggregate(calls ~ group + change + n3 + verdict, data = changed_n3, FUN = sum),
+            row.names = FALSE)
+      bits <- changed_n3[changed_n3$n3 == "last bits", , drop = FALSE]
+      exact <- changed_n3[changed_n3$n3 == "exact test", , drop = FALSE]
+      cat(sprintf(paste0(
+        "  last bits: at most %.2g relative on any number; exact test: the branch within %.2g of ",
+        "it, main within %.2g where it had a value\n"
+      ), if (nrow(bits) > 0L) max(bits$everything_relative, na.rm = TRUE) else 0,
+      if (nrow(exact) > 0L) max(exact$n3_branch_exact, na.rm = TRUE) else 0,
+      if (nrow(exact) > 0L) suppressWarnings(max(exact$n3_main_exact, na.rm = TRUE)) else 0))
+    }
   }
   renamed <- calls[!is.na(calls$data_name) & calls$data_name == "formula", , drop = FALSE]
   runners <- calls[!is.na(calls$data_name), , drop = FALSE]

@@ -994,22 +994,18 @@ context_streaming_chunked <- names(context_streaming_recipes())
 # The terms whose squares, or whose products with each other, are collinear
 # with the terms of White's auxiliary regression: the square of a dummy is the
 # dummy, that of the first column of an orthogonal poly() basis a combination
-# of the intercept and the basis, and that of x1 is I(x1^2). White's
-# streaming test stops on them ("Auxiliary regression became rank deficient"),
-# as before 0.16.0, where performWhiteTest() drops the collinear columns (N3,
-# a pull request of its own, decision 22).
+# of the intercept and the basis, and that of x1 is I(x1^2). Up to 0.16.0
+# White's streaming test stopped on them ("Auxiliary regression became rank
+# deficient"), where performWhiteTest() drops the collinear columns; since the
+# pull request of N3 (0.17.0, decision 22) it drops them too, and on these
+# cells gives the value of the reference of the cell, as on the others, and
+# that of performWhiteTest() (test-model-context.R).
 context_white_streaming_collinear <- c("poly", "square", "median", "cut", "factor", "log_factor")
 
 # The cell as the streaming tests see it. They read no column of `data`
-# beyond the model frame, so the generic rules of the cell apply; White's
-# test stops on the collinear terms of its auxiliary regression.
+# beyond the model frame, so the generic rules of the cell apply, White's
+# test on the collinear terms of its auxiliary regression among them (N3).
 context_cell_for_streaming <- function(fn, cell) {
-  white <- startsWith(fn, "performWhiteTestStreaming")
-  if (white && identical(cell$expect, "value") &&
-        cell$terms %in% context_white_streaming_collinear) {
-    cell$expect <- "Auxiliary regression became rank deficient"
-    cell$reference <- NULL
-  }
   cell
 }
 

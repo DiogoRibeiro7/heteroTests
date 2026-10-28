@@ -253,6 +253,9 @@ test_that("the robust, streaming and studentized forms warn once, the bootstraps
     quote(performBPTestRobust(m, d, bootstrap = TRUE, B = 19)),
     quote(performBPTestStreaming(m, d, progress = FALSE)),
     quote(performKoenkerTestStreaming(m, d, progress = FALSE)),
+    # Since 0.17.0 it drops the collinear squares of the dummies and computes;
+    # up to 0.16.0 it refused a model with a factor, and warned on none.
+    quote(performWhiteTestStreaming(m, d, progress = FALSE)),
     quote(performStudentizedBPTest(m, d)),
     quote(performBreuschPaganTest(m, d))
   )
@@ -271,8 +274,6 @@ test_that("the robust, streaming and studentized forms warn once, the bootstraps
     out <- fe_capture(eval(call))
     expect_length(out$warnings, 0L)
   }
-  # The streaming White test refuses a model with a factor, and warns on none.
-  expect_error(fe_capture(performWhiteTestStreaming(m, d, progress = FALSE)), "rank deficient")
 })
 
 test_that("a result answered from either cache gives the warning again", {
