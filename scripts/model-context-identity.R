@@ -2146,11 +2146,14 @@ identity_twin <- function(record, after, branch_records) {
   skipped <- function(v) is.list(v) && isTRUE(v$.skip)
   verdict <- if (skipped(a) && skipped(b)) {
     "skip"
-  } else if (identical(record$fn, "augment") && !failed(a) && failed(b) &&
-               grepl(identity_augment_open, b$message, fixed = TRUE)) {
+  } else if (identical(record$fn, "augment") && failed(b) &&
+               grepl(identity_augment_open, b$message, fixed = TRUE) &&
+               (!failed(a) || grepl(identity_augment_open, a$message, fixed = TRUE))) {
     # Increment 10: augment() given the full data of a fit with na.exclude
     # binds its padded columns to the rows of `data`, as on main, where the
-    # twin refuses those data; what it binds for the rows the fit dropped is
+    # twin refuses those data; given the full data of a fit to a subset, both
+    # refuse them, the fit with na.exclude counting its fitted values padded to
+    # the rows of the subset. What it binds for the rows the fit did not use is
     # open (ROADMAP.md, 0.17.0), and the call keeps main's answer.
     "open"
   } else if (failed(a) || failed(b)) {
@@ -2381,7 +2384,12 @@ identity_increment10_verdict <- function(record, after, verdict, main, branch) {
   } else if (record$fn %in% c(identity_tidy_runner, identity_tidy_diagnostics)) {
     any(vapply(identity_n5_messages, grepl, logical(1), x = message, fixed = TRUE))
   } else {
-    expect <- record$expect %||% "value"
+    # A cell of a fit with na.exclude expects what its twin expects; the call
+    # must give the twin's refusal too (identity_twin()).
+    twin_record <- if (!is.null(record$twin)) {
+      main[[paste(record$kind, record$fn, record$twin, sep = " | ")]]
+    }
+    expect <- (twin_record %||% record)$expect %||% "value"
     refusal <- any(c("heteroTests_data_rows_error", "heteroTests_model_context_error") %in% classes)
     refusal && (identical(expect, "guard") ||
                   grepl(identity_ties_message, message, fixed = TRUE) ||

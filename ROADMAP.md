@@ -1445,7 +1445,7 @@ squared residuals that do not vary.
     the functions outside the context that the checks now let such a fit
     reach read it without the padding too (below). The twin rule is decision
     32 of the design, decided by the author on 2026-10-28.
-  - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
+  - [x] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
     refused (decision 10), workflows with `data`;
     `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
     `rcheck_data_rows()` and `rcheck_rows_after_cleaning()` go, which no test
@@ -1460,6 +1460,26 @@ squared residuals that do not vary.
     observations of the fit, as the tests do, where since step 9 they refuse
     data of another number of rows than the observations (or, for
     `augment()`, than the fitted values) with a message that names both.
+    Done in the development version: `runHeteroTests()` refuses a grouped
+    run of a `fitWLS()` fit, whose refit within each group left out the
+    estimated weights, with the class of the model context, before any group
+    is refitted; a grouped run of a weighted `lm` is unchanged. The runners
+    map the data a workflow was fitted to onto the variables of its engine
+    by the workflow's own preprocessing (`hardhat::forge()`, a suggested
+    package), and the outcome of a parsnip fit of `fit_xy()` onto `..y`,
+    confirm the rows by the alignment of the context, and test the model
+    frame of the engine's fit, the value without `data`; data in another
+    order than the workflow was fitted in, and data that cannot be mapped,
+    are refused with a message that says why. The recommendations and
+    `augment()` match the rows of `data` through the alignment of the
+    context: named data in any order, numbered data in the order of the fit,
+    and, for the recommendations, the full data of a fit that dropped rows,
+    give the value of the rows of the fit in its order; what the alignment
+    refuses is refused. The four internals go; the assertions on them that a
+    public function still makes are made on that function. Left open, as
+    they were (below): what `augment()` binds for the rows of `data` that
+    the fit dropped, and a workflow whose preprocessing transforms the
+    outcome.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
@@ -1553,10 +1573,21 @@ squared residuals that do not vary.
     scale and in chunks of any size, where in chunks of 40 or more they gave
     a value from the rounding at a scale of 1 (Koenker's 40, the number of
     observations) and refused it at others.
-  - `runHeteroTests(<workflow>, data)` refuses the data the workflow was
+  - [x] `runHeteroTests(<workflow>, data)` refuses the data the workflow was
     fitted to, because the engine's fit names its response `..y`; without
     `data` it uses the model frame of that fit (0.16.0), and the refusal says
     to pass `data = NULL`. Map the columns instead. An error becomes a value.
+    Done in step 10 (above): the data are mapped by the workflow's
+    preprocessing, and give the value without `data`.
+  - A workflow whose preprocessing transforms the outcome, as a recipe with
+    `step_log()` of the outcome, maps the outcome of `data` to its
+    transformed values, which are the response `..y` of the engine's fit;
+    step 10 refuses such data, as before, saying that the preprocessing
+    transforms the outcome, and tests the model frame without `data`. Decide
+    whether the transformed outcome of the preprocessing is taken as the
+    response, which gives the value without `data`, or the outcome column of
+    `data` is required to be `..y`, which refuses them. A refusal becomes a
+    value, or none.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -1637,14 +1668,21 @@ squared residuals that do not vary.
     same fit with `na.omit` given the full data of the fit is refused (its
     columns have one value per observation), where the fit with `na.exclude`
     binds them; binding them by the row names of the observations would give
-    that fit the rows of the other, a value where it is refused.
+    that fit the rows of the other, a value where it is refused. Step 10
+    matches data with one row per observation as the tests do and leaves
+    this open: on a fit with `na.omit`, refuse the full data, bind the rows
+    of the fit only, or bind every row with `NA` at the rows the fit dropped,
+    as broom does for `na.exclude`; and the fit with `na.exclude`, given its
+    full data, still binds them row by row, in their order, so the full data
+    shuffled under their own row names get the fitted values of other rows.
   - [x] `recommendRemediationStrategies()` correlated the residuals with the
     columns of `data` row by row: given the full data of a fit that dropped
     rows, it stopped with "incompatible dimensions" on a fit with `na.omit`,
     and read the padded residuals of a fit with `na.exclude` by position.
     Done in step 9: it refuses data of another number of rows than the
     observations of the fit, naming both counts. Matching the rows of `data`
-    to the observations, as the tests do, is left to step 10 (above).
+    to the observations, as the tests do, is left to step 10 (above), done
+    there: the full data give the value of the rows of the fit.
   - [x] On an `mgcv::gam()` fit with `na.exclude`, whose `model.matrix()`
     pads the design with `NA` rows, `performVIFDiagnostic()` gave `NA`, and
     `cooks.distance()` of the `gam` recycled the padded residuals against the
@@ -1691,7 +1729,10 @@ squared residuals that do not vary.
     context replaces this guard, so that named data in any order, and numbered
     data in fit order, give the value on the data of the fit; numbered data in
     another order stay refused (decision 3 of the design). Changes a value for
-    such data. Its cost on a valid call grows
+    such data. Since step 10 of the model context the guard is only its
+    alignment step (`rdata_fit_rows()`, `rcheck_rows_at()`):
+    `prepare_model_data_for_test()`, `rdata_or_model_frame()` and
+    `rcheck_data_rows()` are gone. Its cost on a valid call grows
     with the columns it computes again: at 100,000 rows it takes about 5 ms on
     `lm(y ~ x1 + x2 + g)` and about 43 ms on a weighted fit with `log()` and
     `poly()` terms, against 50 to 70 ms for the Glejser and Bartlett tests and

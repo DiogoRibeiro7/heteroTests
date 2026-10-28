@@ -22,9 +22,9 @@ of `R/interface.R`:
 - `model` is a fitted `lm`, or a `glm` with the Gaussian family and the identity
   link, which gives the result of the `lm`.
 - `data` is the data the model was fitted to. `data = NULL`, the default, stands
-  for the model frame, which `rdata_or_model_frame()` rebuilds. Data that are
-  given are matched to the residuals by row name, and a test refuses data whose
-  rows it cannot confirm to hold the observations of the fit.
+  for the model frame of the fit. Data that are given are matched to the
+  observations of the fit by the alignment of the model context (below), and a
+  test refuses data whose rows it cannot confirm to hold them.
 - Everything else, such as the variable to order by or the grouping factor,
   follows by name.
 
@@ -40,19 +40,19 @@ class of model each test accepts, and why, is the
 
 ## The model context
 
-Since 0.16.0 the tests are moving, in steps, onto an internal model context
+Since 0.16.0 the tests have moved, in steps, onto an internal model context
 (`R/model_context.R`): one validated object per call, built from the stored
 fit, from which a test reads the response, the design, the residuals, the
 weights, the offset and the rank, instead of rebuilding them from `data`. The
 rows of `data` are matched to the observations of the fit by the guard of
 0.15.0 before anything is read from them: named data in any order, numbered
-data in fit order. White's, Breusch-Pagan, Koenker's, the rank permutation and
-the high-dimensional tests are built on it, and so are the studentized
-Breusch-Pagan statistic, RESET, Goldfeld-Quandt and the quantile regression
-test, which carry the offset of the fit in their refits; the others still go
-through `rdata_or_model_frame()`. [Design: the model context](design/model-context.md)
-sets out the contract, the representation, the plan, the test matrix and the
-decisions.
+data in fit order. Every test is built on it; since the tenth step the
+preparation of `data` the tests used before (`rdata_or_model_frame()` and
+`prepare_model_data_for_test()`) is gone, and the functions that read `data`
+row by row outside the tests, the recommendations and `generics::augment()`
+of the results of the runner, match it through the same alignment.
+[Design: the model context](design/model-context.md) sets out the contract,
+the representation, the plan, the test matrix and the decisions.
 
 ## The return contract
 

@@ -38,7 +38,13 @@
 #'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.
 #'   With grouped data the model is refitted within each group by evaluating
 #'   its own call on that group, so every variable it uses, including weights,
-#'   offset and subset, must be a column of `data`.
+#'   offset and subset, must be a column of `data`. A fit returned by
+#'   [fitWLS()] is refused with grouped data since 0.17.0: its call does not
+#'   hold the weights it estimated, so each group was tested as the unweighted
+#'   fit of its rows. The data a tidymodels workflow was fitted to are mapped
+#'   to the variables of its engine by the workflow's preprocessing, and the
+#'   model frame of the engine's fit is tested, as without `data` (since
+#'   0.17.0; they were refused).
 #' @param tests Character vector of test names to run: any of the names
 #'   [listDiagnostics()] returns, which include those added with
 #'   `registerDiagnostic()`. On a fit returned by [fitWLS()] the resampling
