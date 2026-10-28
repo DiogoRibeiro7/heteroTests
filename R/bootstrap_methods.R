@@ -299,15 +299,19 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       stop(
         "`bootstrapTestStatistic()` supports Gaussian `lm` models only: an `lm`, or a ",
         "`glm` with the gaussian family and the identity link, which is a least-squares ",
-        "fit. Each replicate is refitted with least squares, which would discard the ",
-        "family and link of another `glm` and bootstrap a different model",
+        "fit. ",
         if (inherits(model, "gam")) {
           paste0(
-            ", and is not the fit of an mgcv::gam() fit with a smooth term, usually ",
-            "penalised; refit a gam without smooth terms with glm()"
+            "An mgcv::gam() fit is not taken: a smooth term is usually penalised, and the ",
+            "least-squares refit of each replicate is not the fit. Refit a gam without ",
+            "smooth terms with glm()."
+          )
+        } else {
+          paste0(
+            "Each replicate is refitted with least squares, which would discard the ",
+            "family and link of another `glm` and bootstrap a different model."
           )
         },
-        ".",
         call. = FALSE
       )
     }

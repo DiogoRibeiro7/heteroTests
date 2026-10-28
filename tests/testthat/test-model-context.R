@@ -486,10 +486,12 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                    paste(fn, "gam"), tolerance = tolerance)
       out <- context_run(fn, list(build = function() list(m = smooth, data = data)))
-      if (fn %in% context_increment2) {
+      if (fn %in% c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")) {
         # A smooth term is usually penalised, and a penalised fit is not the
         # least-squares fit of its design: the tests of increment 2 refuse it,
-        # until increment 11 settles which tests take it.
+        # until increment 11 settles which tests take it, and so do the robust
+        # Breusch-Pagan test, which studentizes by default, and the White
+        # bootstrap (increment 8), whose replicates refit the design.
         expect_s3_class(out, "heteroTests_model_context_error")
         refusal <- "%s() cannot test an mgcv::gam() fit with smooth terms (s(x1))"
         expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
@@ -1289,6 +1291,9 @@ test_that("weights are the weights of the fit, whatever holds them", {
     tolerance <- if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-8
     context_same(run(context_model(d, "glm")), wls, paste(fn, "glm"), tolerance = tolerance)
     context_same(run(context_model(d, "wvec")), wls, paste(fn, "wvec"))
+    # The White and wild bootstraps estimate the weights of a fitWLS() fit
+    # again in each replicate, which those of lm() are not.
+    if (fn %in% c("performWhiteTestBootstrap", "performWildBootstrapTest")) next
     estimated <- context_model(d, "fitwls")
     context_same(run(estimated), run(lm(y ~ x1 + x2, data = d, weights = weights(estimated))),
                  paste(fn, "fitwls"))
@@ -2397,4 +2402,223 @@ test_that("a variable of var_formula missing at an observation of the fit is nam
     out$statistic,
     performCookWeisbergTest(lm(y ~ x1 + x2, data = complete), complete, var_formula = ~ z)$statistic
   )
+})
+
+# --- increment 8: the resampling tests ----------------------------------------
+
+# The fit of a cell, and the cell's data, by id.
+context_built <- function(id) {
+  context_cells()[[id]]$build()
+}
+
+test_that("each White bootstrap replicate is the stored design refitted to the draws", {
+  # The draws are those of before increment 8, in the same order: the
+  # residuals resampled from the session's generator, one sample() per
+  # replicate. On a plain design, where the stored design is the design
+  # rebuilt from `data`, each replicate is the refit of the formula to the
+  # fitted values plus the draws, which the White bootstrap refitted before,
+  # and its statistic White's test on that refit.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  built <- context_built("fit/ols/none/none/data_frame")
+  m <- built$m
+  d <- built$data
+  set.seed(31)
+  boot <- performWhiteTestBootstrap(m, d, B = 5)
+  after <- .Random.seed
+  set.seed(31)
+  by_hand <- vapply(seq_len(5), function(b) {
+    refit_data <- d
+    refit_data$y <- stats::fitted(m) + sample(stats::residuals(m), replace = TRUE)
+    unname(performWhiteTest(lm(y ~ x1 + x2, data = refit_data), refit_data)$statistic)
+  }, numeric(1))
+  expect_identical(.Random.seed, after)
+  expect_identical(boot$boot_statistics, by_hand)
+  expect_identical(boot$statistic, performWhiteTest(m, d)$statistic)
+  expect_false(exists("rwhite_test_rebuilt_design", envir = asNamespace("heteroTests"),
+                      inherits = FALSE))
+})
+
+test_that("the resampling tests refit their replicates without data (B12)", {
+  # The weights and the offset of these fits are columns of the data. Without
+  # `data` the White bootstrap rebuilt the design from the model frame, which
+  # holds them as "(weights)" and "(offset)", and stopped ("object 'w' not
+  # found"), and the robust tests and the wild bootstrap stopped on a model
+  # with an offset() term or a transformed variable ("The following variables
+  # are missing from input data: o"); bootstrapTestStatistic(), given the model
+  # frame, refused the transformed fit ("`data` does not reproduce the fit").
+  # Each now gives the value it gives with `data`.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  runs <- list(
+    white_bootstrap = function(m, d) performWhiteTestBootstrap(m, d, B = 9),
+    wild = function(m, d) performWildBootstrapTest(m, d, B = 9, progress = FALSE),
+    white_robust = function(m, d) performWhiteTestRobust(m, d, bootstrap = TRUE, B = 9),
+    bp_robust = function(m, d) performBPTestRobust(m, d, bootstrap = TRUE, B = 9)
+  )
+  for (id in c("fit/wls/none/none", "fit/ols/argument/none", "fit/wls/term/none",
+               "terms/ols/none/median", "terms/wls/none/ns")) {
+    with_data <- context_built(paste0(id, "/data_frame"))
+    without <- context_built(paste0(id, "/null"))
+    frame <- context_built(paste0(id, "/model_frame"))
+    for (route in names(runs)) {
+      set.seed(5)
+      expected <- runs[[route]](with_data$m, with_data$data)
+      for (other in list(without, frame)) {
+        set.seed(5)
+        out <- runs[[route]](other$m, other$data)
+        info <- paste(route, id)
+        expect_identical(unname(out$statistic), unname(expected$statistic), info = info)
+        expect_identical(out$p.value, expected$p.value, info = info)
+        expect_identical(out$boot_statistics, expected$boot_statistics, info = info)
+        expect_identical(out$bootstrap$replicates, expected$bootstrap$replicates, info = info)
+        expect_identical(out$robust_details$bootstrap$replicates,
+                         expected$robust_details$bootstrap$replicates, info = info)
+      }
+    }
+    set.seed(5)
+    expected <- bootstrapTestStatistic(performKoenkerTest, with_data$m, with_data$data, B = 9,
+                                       progress = FALSE)
+    set.seed(5)
+    out <- bootstrapTestStatistic(performKoenkerTest, frame$m, frame$data, B = 9,
+                                  progress = FALSE)
+    expect_identical(out$replicates, expected$replicates, info = id)
+    expect_identical(out$p_value, expected$p_value, info = id)
+  }
+})
+
+test_that("a term computed from the rows keeps the values of the fit in every replicate", {
+  # cut(x1, quantile(x1)) computed other breaks on the rows the fit kept: the
+  # White bootstrap stopped ("factor ... has new levels") and
+  # bootstrapTestStatistic() and the robust bootstraps refused the fit
+  # ("`data` does not reproduce the fit"). On a fit that dropped rows,
+  # I(x1 > median(x1)) took the median of the rows it kept: the White bootstrap
+  # gave 11.039 for 10.336, and the bootstraps refused it. Each gives the value
+  # of the same fit with the column computed beforehand.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  runs <- list(
+    white_bootstrap = function(m, d) performWhiteTestBootstrap(m, d, B = 9),
+    koenker = function(m, d) {
+      bootstrapTestStatistic(performKoenkerTest, m, d, B = 9, progress = FALSE)
+    },
+    pairs = function(m, d) {
+      bootstrapTestStatistic(performKoenkerTest, m, d, B = 9, resample = "pairs",
+                             progress = FALSE)
+    },
+    white_robust = function(m, d) performWhiteTestRobust(m, d, bootstrap = TRUE, B = 9)
+  )
+  numbers <- function(x) {
+    unlist(list(x$statistic, x$p.value, x$boot_statistics, x$original_statistic,
+                x$replicates, x$p_value, x$robust_details$bootstrap$replicates))
+  }
+  for (fit in c("ols", "wls")) {
+    built <- context_built(paste("terms", fit, "none", "cut", "data_frame", sep = "/"))
+    reference <- context_precomputed_fit(fit, "cut")
+    for (route in names(runs)) {
+      set.seed(8)
+      out <- runs[[route]](built$m, built$data)
+      set.seed(8)
+      expected <- runs[[route]](reference$m, reference$data)
+      expect_equal(numbers(out), numbers(expected), tolerance = 1e-10, info = paste(route, fit))
+    }
+  }
+  median_full <- context_built("missing/median_full")
+  precomputed <- context_built("missing/median_precomputed")
+  for (route in names(runs)) {
+    set.seed(8)
+    out <- runs[[route]](median_full$m, median_full$data)
+    set.seed(8)
+    expected <- runs[[route]](precomputed$m, precomputed$data)
+    expect_equal(numbers(out), numbers(expected), tolerance = 1e-10, info = route)
+  }
+})
+
+test_that("bootstrapTestStatistic() bootstraps a Gaussian glm as the lm it is (N8)", {
+  # It refused every glm ("supports Gaussian `lm` models only"), as its refits
+  # by least squares would drop a family and a link. A glm with the Gaussian
+  # family and the identity link is the least-squares fit of lm() with its
+  # prior weights, and its replicates are those of that lm.
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  for (offset in context_offsets) {
+    glm_cell <- context_built(paste("fit/glm", offset, "none/data_frame", sep = "/"))
+    lm_cell <- context_built(paste("fit/wls", offset, "none/data_frame", sep = "/"))
+    for (test in list(performKoenkerTest, performWhiteTest, performBPTest)) {
+      set.seed(4)
+      ours <- bootstrapTestStatistic(test, glm_cell$m, glm_cell$data, B = 9, progress = FALSE)
+      set.seed(4)
+      as_lm <- bootstrapTestStatistic(test, lm_cell$m, lm_cell$data, B = 9, progress = FALSE)
+      expect_equal(ours$replicates, as_lm$replicates, tolerance = 1e-8, info = offset)
+      expect_equal(ours$original_statistic, as_lm$original_statistic, tolerance = 1e-8)
+      expect_identical(ours$p_value, as_lm$p_value)
+    }
+    set.seed(4)
+    robust <- performWhiteTestRobust(glm_cell$m, glm_cell$data, bootstrap = TRUE, B = 9)
+    set.seed(4)
+    robust_lm <- performWhiteTestRobust(lm_cell$m, lm_cell$data, bootstrap = TRUE, B = 9)
+    expect_identical(robust$p.value_bootstrap, robust_lm$p.value_bootstrap)
+  }
+  # Another family or link is refused, as before, and so is an mgcv::gam() fit,
+  # a glm by class, whose smooth terms are usually penalised.
+  d <- context_data()
+  set.seed(77)
+  d$count <- stats::rpois(nrow(d), exp(0.2 + 0.3 * d$x1))
+  expect_error(
+    bootstrapTestStatistic(performKoenkerTest, glm(count ~ x1 + x2, data = d, family = poisson),
+                           d, B = 9, progress = FALSE),
+    "supports Gaussian `lm` models only", fixed = TRUE
+  )
+  skip_if_not_installed("mgcv")
+  expect_error(
+    bootstrapTestStatistic(performKoenkerTest, mgcv::gam(y ~ s(x1) + x2, data = d), d, B = 9,
+                           progress = FALSE),
+    "An mgcv::gam() fit is not taken", fixed = TRUE
+  )
+})
+
+test_that("the White bootstrap matches a gam to its data by name (N17)", {
+  # The residuals of a gam carry no names, and the White bootstrap took its
+  # data by position: given its rows shuffled under their own row names it
+  # added each draw to the fitted value of another row (p = 0.05 where the
+  # data in the order of the fit give 0.2). It matches them by the row names
+  # of the model frame.
+  skip_if_not_installed("mgcv")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  for (id in c("class/gam_shuffled", "class/gam_offset_shuffled", "panel/unit_gam_shuffled")) {
+    cell <- context_cells()[[id]]
+    shuffled <- cell$build()
+    in_order <- context_cells()[[cell$reference]]$build()
+    set.seed(6)
+    out <- performWhiteTestBootstrap(shuffled$m, shuffled$data, B = 19)
+    set.seed(6)
+    expected <- performWhiteTestBootstrap(in_order$m, in_order$data, B = 19)
+    expect_identical(out$boot_statistics, expected$boot_statistics, info = id)
+    expect_identical(out$p.value, expected$p.value, info = id)
+  }
+})
+
+test_that("the resampling tests refuse an edited fit and a frame they cannot rebuild", {
+  # New refusals: a fit whose coefficients were changed after the fit (M8), on
+  # which the White bootstrap returned 11.145 and the wild bootstrap 9.044, the
+  # values before the edit, and a fit with model = FALSE whose data are gone,
+  # given a shuffled tibble, on which the White bootstrap returned the value of
+  # other rows ("frame").
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  edited <- context_built("class/edited")
+  for (call in list(
+    function() performWhiteTestBootstrap(edited$m, edited$data, B = 9),
+    function() performWildBootstrapTest(edited$m, edited$data, B = 9, progress = FALSE),
+    function() performWhiteTestRobust(edited$m, edited$data, bootstrap = TRUE, B = 9)
+  )) {
+    expect_error(call(), "does not reproduce its residuals from its design and coefficients",
+                 class = "heteroTests_model_context_error")
+  }
+  skip_if_not_installed("dplyr")
+  gone <- context_built("class/model_false_tibble")
+  expect_error(performWhiteTestBootstrap(gone$m, gone$data, B = 9),
+               "cannot use the model frame of `model`",
+               class = "heteroTests_model_context_error")
 })

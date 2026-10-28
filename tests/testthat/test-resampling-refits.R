@@ -376,7 +376,7 @@ test_that("a term computed from all the data does not make the rows of the fit d
   }
 })
 
-test_that("an offset in the formula that is not a column of the data cannot be resampled", {
+test_that("an offset in the formula that is not a column of the data follows the rows drawn", {
   # offset(shift) with shift in the environment of the formula is evaluated
   # again in every refit, in the order of the fit, whatever rows the replicate
   # holds. Null resampling of the data in the order of the fit is right, and
@@ -396,25 +396,36 @@ test_that("an offset in the formula that is not a column of the data cannot be r
   shift <- d$o
   m <- lm(y ~ x + z + offset(shift), data = d)
 
-  expect_error(
-    bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, resample = "pairs",
-                           progress = FALSE),
-    "does not come from `data`"
-  )
-  expect_error(
-    bootstrapTestStatistic(koenker_of_fit, m, d[order(d$z), ], B = 5,
-                           progress = FALSE),
-    "does not reproduce the fit"
-  )
-  # A variable that reads the same backwards would pass a check that only
-  # reversed the rows.
+  # Until the eighth step of the model context each replicate refitted the
+  # formula on the rows of `data`, which evaluated shift again in the order of
+  # the fit: pairs resampling, and data in another order, were refused ("does
+  # not come from `data`", "does not reproduce the fit"). Each replicate is now
+  # refitted on the rows of the stored model frame and design it draws, which
+  # hold the offset of each row, so the replicates are those of the same model
+  # with the offset as a column of the data, given the same rows in the same
+  # order and drawn from the same seed.
+  column_model <- lm(y ~ x + z + offset(o), data = d)
+  reordered <- d[order(d$z), ]
   mirror <- c(seq_len(nrow(d) / 2), rev(seq_len(nrow(d) / 2)))
+  d_mirror <- d
+  d_mirror$mirror <- mirror
   m_mirror <- lm(y ~ x + z + offset(mirror), data = d)
-  expect_error(
-    bootstrapTestStatistic(koenker_of_fit, m_mirror, d, B = 5, resample = "pairs",
-                           progress = FALSE),
-    "does not come from `data`"
+  cases <- list(
+    pairs = list(m, d, column_model, d, "pairs"),
+    reordered = list(m, reordered, column_model, reordered, "null"),
+    mirror = list(m_mirror, d, lm(y ~ x + z + offset(mirror), data = d_mirror), d_mirror, "pairs")
   )
+  for (nm in names(cases)) {
+    case <- cases[[nm]]
+    set.seed(91)
+    workspace <- bootstrapTestStatistic(koenker_of_fit, case[[1]], case[[2]], B = 5,
+                                        resample = case[[5]], progress = FALSE)
+    set.seed(91)
+    columns <- bootstrapTestStatistic(koenker_of_fit, case[[3]], case[[4]], B = 5,
+                                      resample = case[[5]], progress = FALSE)
+    expect_true(all(is.finite(workspace$replicates)), label = nm)
+    expect_equal(workspace$replicates, columns$replicates, tolerance = 1e-10, label = nm)
+  }
   set.seed(92)
   ours <- bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
   set.seed(92)
