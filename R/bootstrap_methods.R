@@ -71,9 +71,27 @@ NULL
 #' estimated again, and 0.045 with the true weights. See the section on
 #' weighted fits in [performWildBootstrapTest()].
 #'
-#' Weighted or not, each replicate is refitted with an offset the model was
-#' given as an argument, `lm(..., offset = o)`; an offset written in the
-#' formula, `offset(o)`, is evaluated again from the data of the replicate.
+#' Weighted or not, each replicate is refitted by least squares on the design
+#' stored with the fit, in the rows of the replicate, with the weights and the
+#' total offset of those rows, the `offset` argument and the `offset()` terms.
+#' Nothing is evaluated again from the formula or from `data`: a term computed
+#' from the rows it is given, such as `cut(x, quantile(x))`, the knots of
+#' `splines::ns()` or `I(x > median(x))`, keeps in every replicate the values
+#' the fit computed, and a variable the formula found outside `data`, such as
+#' `offset(o)` with `o` in its environment, follows the rows drawn.
+#' `test_function` is given the replicate as an `lm`, whose model frame is that
+#' of the fit in the rows of the replicate with the response of the
+#' replicate, and the rows of `data`, regenerated or drawn. Up to 0.16.0 each
+#' replicate was refitted from the formula on the rows of `data`, and a fit
+#' whose model frame could not be rebuilt from them so was refused ("`data`
+#' does not reproduce the fit"), as with `cut(x, quantile(x))`, a term
+#' computed from all the rows on a fit that dropped some, or a model that
+#' transforms a variable given its model frame as `data`; so was pairs
+#' resampling of a model with a variable outside `data`. The random numbers
+#' are drawn as before, in the same order, so a call made after `set.seed()`
+#' returns what it returned wherever the stored design is the design the
+#' formula rebuilt.
+#'
 #' The rows of `data` are matched to those of the fit by row name, so that
 #' each row is regenerated, or drawn, with its own fitted value, weight and
 #' offset. Rows the model was not fitted to, such as those it dropped for
@@ -81,14 +99,13 @@ NULL
 #' replicates; the rows that stay keep the order of `data`. `data` that lacks
 #' a row the model was fitted to is refused. Data without row names of its
 #' own, such as a tibble or a data.table, that has as many rows as the fit is
-#' taken in the order of the fit. The model is then refitted to the rows of
-#' `data`, and `data` is refused when that refit does not give the residuals
-#' of the fit to a relative `1e-8`: rows in another order taken by position,
-#' values that differ from those the model was fitted to, or a variable the
-#' formula finds outside `data`, which keeps the order of the fit. Pairs
-#' resampling of a model with such a variable, for example `offset(o)` with
-#' `o` in the environment of the formula, is refused too; give such an offset
-#' as an argument instead.
+#' taken in the order of the fit. The rows are then matched to the
+#' observations of the fit as the tests match them (see [test_results]), and
+#' data whose rows cannot be shown to hold them are refused, as are values
+#' that differ from those the model was fitted to. A model that is not the
+#' least-squares fit of its design, such as a `MASS::rlm()` fit, is refused
+#' too ("`data` does not reproduce the fit"): its replicates would be those of
+#' another model.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -122,11 +139,14 @@ NULL
 #' @param test_function A function that accepts `(model, data, ...)` and
 #'   returns an object with a numeric `statistic` element (typically an
 #'   \code{htest} result).
-#' @param model A fitted model of class `lm`, with or without weights. A `glm`
-#'   is rejected: each replicate is refitted with least squares, which would
-#'   discard its family and link.
+#' @param model A fitted model of class `lm`, with or without weights, or,
+#'   since 0.17.0, a `glm` with the Gaussian family and the identity link, the
+#'   least-squares fit of `lm()` with its prior weights, whose replicates are
+#'   those of that `lm`. Another `glm` is rejected: each replicate is refitted
+#'   with least squares, which would discard its family and link. So is an
+#'   `mgcv::gam()` fit, a `glm` by class.
 #' @param data Data frame used when fitting `model`, holding the rows it was
-#'   fitted to under their row names. Other rows are left out. See Details.
+#'   fitted to, or its model frame. Other rows are left out. See Details.
 #' @param B Integer, number of bootstrap replications. Defaults to 999. The
 #'   p-value is `(1 + #) / (B_eff + 1)`, so a test at level `alpha` is exact
 #'   only when `alpha * (B + 1)` is an integer: with 999 it is at the 5% and
@@ -180,12 +200,18 @@ NULL
 #'   }
 #'
 #' @section Supported models:
-#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit and,
-#' since 0.16.0, a rank-deficient `lm`; a replicate whose refit aliases a
-#' coefficient the fit estimated, as a pairs resample of an interaction can, fails.
-#' It refuses every `glm`, as each replicate is refitted by least squares, a fit
-#' with a zero weight, and `data` that do not reproduce the fit. Which model each
-#' test accepts, and why, is set out in [test_results], under *Supported models*.
+#' It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit,
+#' since 0.16.0 a rank-deficient `lm`, and since 0.17.0 a `glm` with the
+#' Gaussian family and the identity link, weighted or not, bootstrapped as the
+#' `lm` it is; a replicate whose refit aliases a coefficient the fit estimated,
+#' as a pairs resample of an interaction can, fails. It refuses a `glm` of
+#' another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
+#' as each replicate is refitted by least squares, a fit with a zero weight,
+#' a fit that is not the least-squares fit of its design, such as a
+#' `MASS::rlm()` fit, a fit whose coefficients, residuals or weights were
+#' changed after it was fitted (since 0.17.0), and `data` whose rows cannot be
+#' shown to hold the observations of the fit. Which model each test accepts,
+#' and why, is set out in [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)

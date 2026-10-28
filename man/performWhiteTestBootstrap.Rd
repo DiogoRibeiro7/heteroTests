@@ -17,15 +17,18 @@ performWhiteTestBootstrap(
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean specification
 to be diagnosed.}
 
-\item{data}{A \link[base:data.frame]{base::data.frame} (or object coercible to one) containing the
-variables referenced by \code{model}. It must include the observations used to
-fit \code{model} and will be checked for missing values.
-When \code{NULL}, the default, the model frame of \code{model} is used. It holds the
-terms of the model rather than its variables (\code{log(x)} rather than \code{x}), so
-a model that transforms a variable needs \code{data}, as does a
-model with an \code{offset()} term, and so may a fit whose \code{weights} or \code{offset}
-argument is a column of the data, which the model frame holds as
-\code{(weights)} or \code{(offset)}.}
+\item{data}{The data frame \code{model} was fitted to, or \code{NULL}, the default.
+The response, design, weights and offset are read from the fit itself, so
+a model that transforms its variables, has an \code{offset()} term, or takes
+its \code{weights} or \code{offset} from a column of the data needs no \code{data}, and
+the model frame of \code{model} is accepted as \code{data} (since 0.17.0; before,
+such models needed \code{data}). Data that are given are matched to the
+observations of the fit: rows with row names of their own by name, in any
+order; rows that only number themselves (a tibble, a data.table, a data
+frame whose row names were reset) by the row numbers of the fit, or in the
+order of the fit when they hold one row per observation. The rows the fit
+dropped may be there or not. Data whose rows cannot be shown to hold the
+observations of the fit are refused; see \link{test_results}.}
 
 \item{B}{Integer scalar giving the number of bootstrap replications.
 Defaults to 999. The p-value is \verb{(1 + #) / (B_eff + 1)}, where \code{B_eff} is
@@ -118,11 +121,10 @@ replicate is refitted with the weights, so \code{\link[=performWhiteTest]{perfor
 its statistic from the Pearson residuals as it does for the fit supplied.
 With equal weights the result is that of the unweighted fit.
 
-Weighted or not, each replicate is refitted with an offset the model was
-given as an argument, \code{lm(..., offset = o)}; an offset written in the
-formula, \code{offset(o)}, is evaluated again from the data of the replicate. A
-transformed response, such as \code{log(y)} in \code{log(y) ~ x}, is regenerated on
-the scale the model uses, and the refit reads it in place of \code{log(y)}.
+Weighted or not, each replicate is refitted on the stored design of the
+fit with its total offset, the \code{offset} argument and the \code{offset()} terms
+(see \emph{The design of the replicates}). A transformed response, such as
+\code{log(y)} in \code{log(y) ~ x}, is regenerated on the scale the model uses.
 
 Weights given to the fit are known, and they are held fixed in every
 replicate. On a fit returned by \code{\link[=fitWLS]{fitWLS()}} they were estimated from the same
@@ -148,14 +150,43 @@ in \code{\link[=performWildBootstrapTest]{performWildBootstrapTest()}} has the l
 statistic.
 }
 
+\section{The design of the replicates}{
+
+Since 0.17.0 the observed statistic and every replicate are computed on the
+design stored with the fit, the design \code{performWhiteTest()} reads: each
+replicate, the fitted values plus the errors drawn, is refitted by least
+squares on that design, with the weights and the total offset of the fit,
+and its statistic is White's on the same design, without the columns its
+refit aliased. Nothing is evaluated again from \code{data} or the formula. Up to
+0.16.0 both were computed on a design rebuilt from the rows of \code{data}, each
+replicate refitted from the formula: \code{cut(x, quantile(x))} computed other
+breaks on the rows of the fit and stopped the test ("factor ... has new
+levels"); a term computed from all the rows of the data, such as
+\code{I(x > median(x))}, took other values on a fit that dropped rows; a fit
+whose weights or offset are a column of the data, or with an \code{offset()} term
+or a transformed variable, stopped without \code{data}; and an \code{mgcv::gam()} fit,
+whose residuals carry no names, given its data in another order, had each
+draw added to the fitted value of another row. The random numbers are
+drawn as before, in the same order, so a call made after \code{set.seed()}
+returns what it returned wherever the stored design is the design rebuilt
+from \code{data}.
+}
+
 \section{Supported models}{
 It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
 or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-\code{\link{test_results}}, under \emph{Supported models}.
+lack rows or variables of the fit. Since 0.17.0 it refuses an \code{mgcv::gam()}
+fit with smooth terms: a smooth term is usually penalised, and a penalised
+fit is not the least-squares fit of its design, which each replicate fits
+again (before, the refit from the formula stopped on the smooth term); a
+\code{gam} without smooth terms is tested as the Gaussian \code{glm} it is. It also
+refuses a fit whose coefficients, residuals or weights were changed after it
+was fitted, from which it computed the value of the fit before the edit.
+Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+\emph{Supported models}.
 }
 \examples{
 # The bootstrap needs at least 50 observations, so mtcars (32) is too small.

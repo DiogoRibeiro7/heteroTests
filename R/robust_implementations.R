@@ -36,15 +36,18 @@ NULL
 #' intervals, effect size reporting, and power analysis.
 #'
 #' @inheritParams performWhiteTest
-#' @param data A [base::data.frame] (or object coercible to one) containing the
-#'   variables referenced by `model`. It must include the observations used to
-#'   fit `model` and will be checked for missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.17.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param method Character string selecting the auxiliary specification.
 #'   "standard" retains squares and cross-products, while "reduced"
 #'   excludes cross-products for high-dimensional designs.
@@ -212,15 +215,18 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' diagnostics.
 #'
 #' @inheritParams performBPTest
-#' @param data A [base::data.frame] (or compatible object) containing the
-#'   variables referenced in `model`. The data must include all observations used
-#'   to fit `model` and should not contain unresolved missing values.
-#'   When `NULL`, the default, the model frame of `model` is used. It holds the
-#'   terms of the model rather than its variables (`log(x)` rather than `x`), so
-#'   a model that transforms a variable needs `data`, as does a
-#'   model with an `offset()` term, and so may a fit whose `weights` or `offset`
-#'   argument is a column of the data, which the model frame holds as
-#'   `(weights)` or `(offset)`.
+#' @param data The data frame `model` was fitted to, or `NULL`, the default.
+#'   The response, design, weights and offset are read from the fit itself, so
+#'   a model that transforms its variables, has an `offset()` term, or takes
+#'   its `weights` or `offset` from a column of the data needs no `data`, and
+#'   the model frame of `model` is accepted as `data` (since 0.17.0; before,
+#'   such models needed `data`). Data that are given are matched to the
+#'   observations of the fit: rows with row names of their own by name, in any
+#'   order; rows that only number themselves (a tibble, a data.table, a data
+#'   frame whose row names were reset) by the row numbers of the fit, or in the
+#'   order of the fit when they hold one row per observation. The rows the fit
+#'   dropped may be there or not. Data whose rows cannot be shown to hold the
+#'   observations of the fit are refused; see [test_results].
 #' @param studentize Logical, use studentized residuals for the auxiliary
 #'   regression (Koenker variant)? Defaults to `TRUE`. The name matches
 #'   `lmtest::bptest()` and [performHarveyTest()].
