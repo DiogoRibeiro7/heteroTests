@@ -376,14 +376,22 @@ test_that("a term computed from all the data does not make the rows of the fit d
   }
 })
 
-test_that("an offset in the formula that is not a column of the data follows the rows drawn", {
-  # offset(shift) with shift in the environment of the formula is evaluated
-  # again in every refit, in the order of the fit, whatever rows the replicate
-  # holds. Null resampling of the data in the order of the fit is right, and
-  # is checked against the same model with the offset as a column. The
-  # package's tests refuse a variable of the formula that is not a column of
-  # the data, so only a test function of the caller's own reaches this; here
-  # it is Koenker's statistic computed from the model alone.
+test_that("an offset in the formula outside the data is read from data, and follows the rows drawn", {
+  # offset(shift), with shift in the environment of the formula. Until the
+  # eighth step of the model context each replicate refitted the formula on the
+  # rows of `data`, which evaluated shift again in the order of the fit: null
+  # resampling of the data in the order of the fit gave the replicates of the
+  # model with the offset as a column, and pairs resampling, and data in
+  # another order, were refused ("does not come from `data`", "does not
+  # reproduce the fit"). The package's tests refuse a variable of the formula
+  # that is not a column of the data, so only a test function of the caller's
+  # own reached this; here it is Koenker's statistic computed from the model
+  # alone. bootstrapTestStatistic() now matches `data` as the tests do: data
+  # that lack shift are refused, and given shift as a column, each replicate
+  # is refitted on the rows of the stored model frame and design it draws,
+  # which hold the offset of each row, so its replicates are those of the same
+  # model with the offset as a column, in every order and under pairs
+  # resampling.
   previous_level <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(previous_level), add = TRUE)
   koenker_of_fit <- function(model, data) {
@@ -395,25 +403,26 @@ test_that("an offset in the formula that is not a column of the data follows the
   d <- obj$data
   shift <- d$o
   m <- lm(y ~ x + z + offset(shift), data = d)
+  expect_error(
+    bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, progress = FALSE),
+    "The following variables are missing from input data: shift.", fixed = TRUE
+  )
 
-  # Until the eighth step of the model context each replicate refitted the
-  # formula on the rows of `data`, which evaluated shift again in the order of
-  # the fit: pairs resampling, and data in another order, were refused ("does
-  # not come from `data`", "does not reproduce the fit"). Each replicate is now
-  # refitted on the rows of the stored model frame and design it draws, which
-  # hold the offset of each row, so the replicates are those of the same model
-  # with the offset as a column of the data, given the same rows in the same
-  # order and drawn from the same seed.
   column_model <- lm(y ~ x + z + offset(o), data = d)
-  reordered <- d[order(d$z), ]
+  with_shift <- d
+  with_shift$shift <- shift
+  reordered <- with_shift[order(with_shift$z), ]
   mirror <- c(seq_len(nrow(d) / 2), rev(seq_len(nrow(d) / 2)))
   d_mirror <- d
   d_mirror$mirror <- mirror
   m_mirror <- lm(y ~ x + z + offset(mirror), data = d)
   cases <- list(
-    pairs = list(m, d, column_model, d, "pairs"),
+    null = list(m, with_shift, column_model, d, "null"),
+    pairs = list(m, with_shift, column_model, d, "pairs"),
     reordered = list(m, reordered, column_model, reordered, "null"),
-    mirror = list(m_mirror, d, lm(y ~ x + z + offset(mirror), data = d_mirror), d_mirror, "pairs")
+    reordered_pairs = list(m, reordered, column_model, reordered, "pairs"),
+    mirror = list(m_mirror, d_mirror, lm(y ~ x + z + offset(mirror), data = d_mirror), d_mirror,
+                  "pairs")
   )
   for (nm in names(cases)) {
     case <- cases[[nm]]
@@ -426,13 +435,6 @@ test_that("an offset in the formula that is not a column of the data follows the
     expect_true(all(is.finite(workspace$replicates)), label = nm)
     expect_equal(workspace$replicates, columns$replicates, tolerance = 1e-10, label = nm)
   }
-  set.seed(92)
-  ours <- bootstrapTestStatistic(koenker_of_fit, m, d, B = 5, progress = FALSE)
-  set.seed(92)
-  column <- bootstrapTestStatistic(koenker_of_fit, lm(y ~ x + z + offset(o), data = d),
-                                   d, B = 5, progress = FALSE)
-  expect_true(all(is.finite(ours$replicates)))
-  expect_equal(ours$replicates, column$replicates, tolerance = 1e-8)
 
   # Given as an argument, the same offset is taken from the fit and follows
   # the rows.

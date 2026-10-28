@@ -571,6 +571,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   replicate_lm <- rreplicate_lm
   frame_rows <- rframe_rows
   pairs_design <- rpairs_design
+  pairs_data <- rpairs_data
   model_terms <- stats::terms(model)
   model_contrasts <- model$contrasts
 
@@ -601,13 +602,22 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
       if (!is.null(variance_record)) {
         boot_regressors <- boot_regressors[sampled_idx, , drop = FALSE]
       }
-      boot_frame <- frame_rows(boot_frame_all, sampled_idx)
-      # The rows drawn of the stored design, without the dummies of the levels
-      # of a factor that no row drawn holds, as a refit from the formula
-      # drops them.
-      boot_design <- pairs_design(boot_frame, boot_design_all[sampled_idx, , drop = FALSE],
-                                  model_terms, model_contrasts)
+      # The rows drawn of the model frame and of the stored design, under the
+      # row names of the rows drawn of `data`, without the levels of a factor
+      # that no row drawn holds and their dummies, as a refit from the
+      # formula drops them.
+      drawn <- pairs_design(frame_rows(boot_frame_all, sampled_idx),
+                            boot_design_all[sampled_idx, , drop = FALSE],
+                            model_terms, model_contrasts, rownames(boot_data))
+      boot_frame <- drawn$frame
+      boot_design <- drawn$design
       boot_y <- boot_frame[[1L]]
+      # The columns of the model frame that `data` does not hold under their
+      # own names, such as I(x > median(x)) or (weights), are given with the
+      # rows drawn: computed again from the rows drawn of `data`, a term that
+      # depends on the rows it is given would not be the column of the
+      # replicate, and the test given the replicate would refuse its rows.
+      boot_data <- pairs_data(boot_data, boot_frame)
     }
     boot_model <- tryCatch(
       replicate_lm(boot_frame, boot_design, boot_y, boot_weights, boot_offset,
@@ -740,7 +750,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' least-squares fit of that design: an `lm`, a Gaussian `glm` with the
 #' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit without smooth terms.
 #' A `MASS::rlm()` fit is an M-estimate, whose residuals the refit does not
-#' give. Before increment 8 of the model context the refit was made from the
+#' give. The refit decides its rank at the tolerance of `lm()`, `1e-7`, as the
+#' refits of the formula did before increment 8, so a fit whose rank was
+#' decided at a smaller tolerance and differs, an `lm` fitted with a smaller
+#' `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
+#' refused, as such an `lm` was before. Refitting the replicates at the
+#' tolerance of the fit would change the values of such an `lm`; it is left to
+#' a later step (ROADMAP.md). Before increment 8 of the model context the refit was made from the
 #' formula on the rows of `data` (`rdata_reproduces_fit()`), which also
 #' checked those rows; the model context matches them now.
 #'
@@ -800,33 +816,68 @@ rdesign_rows <- function(design, rows) {
   out
 }
 
-#' The design of a replicate of pairs resampling
+#' The model frame and the design of a replicate of pairs resampling
 #'
-#' The rows drawn of the stored design. A factor of the model frame that has
-#' a level no row drawn holds loses that level, as `lm()` drops the levels no
-#' row of its data holds: the design is then built again from the rows drawn
-#' of the model frame, whose columns are those of the fit, so that the dummy
-#' of that level is left out rather than kept as a column of zeros, which the
-#' refit would alias. The dummy of a cell of an interaction that no row drawn
-#' holds is kept, as `lm()` keeps it.
+#' The rows drawn of the model frame and of the stored design, under the row
+#' names of the rows drawn of `data`, as a refit from the formula on those
+#' rows names them. A factor of the model frame that has a level no row drawn
+#' holds loses that level, as `lm()` drops the levels no row of its data
+#' holds: the design is then built again from the rows drawn of the model
+#' frame, whose columns are those of the fit, so that the dummy of that level
+#' is left out rather than kept as a column of zeros, which the refit would
+#' alias. The dummy of a cell of an interaction that no row drawn holds is
+#' kept, as `lm()` keeps it.
 #'
 #' @param frame The rows drawn of the model frame of the fit.
 #' @param design The rows drawn of the stored design.
 #' @param model_terms,contrasts The terms and contrasts of the fit.
-#' @return The design of the replicate.
+#' @param ids The row names of the rows drawn of `data`.
+#' @return A list with the model frame, `frame`, and the design, `design`, of
+#'   the replicate.
 #' @keywords internal
 #' @noRd
-rpairs_design <- function(frame, design, model_terms, contrasts) {
+rpairs_design <- function(frame, design, model_terms, contrasts, ids) {
+  rownames(frame) <- ids
+  rownames(design) <- ids
   unused <- vapply(frame, function(column) {
     is.factor(column) && length(unique(column[!is.na(column)])) < nlevels(column)
   }, logical(1))
-  if (!any(unused)) {
-    return(design)
+  if (any(unused)) {
+    for (k in which(unused)) {
+      frame[[k]] <- droplevels(frame[[k]])
+    }
+    design <- stats::model.matrix(model_terms, frame, contrasts.arg = contrasts)
   }
-  for (k in which(unused)) {
-    frame[[k]] <- droplevels(frame[[k]])
+  list(frame = frame, design = design)
+}
+
+#' The data of a replicate of pairs resampling
+#'
+#' The rows drawn of `data`, with the columns of the model frame of the
+#' replicate that `data` does not hold under their own names, such as
+#' `I(x > median(x))`, `log(x)` or `(weights)`, so that a test given the
+#' replicate compares those columns as they are rather than computing them
+#' again from the rows drawn: a term that depends on the rows it is given
+#' would then take other values than in the replicate, which holds those of
+#' the fit.
+#'
+#' @param data The rows drawn of `data`.
+#' @param frame The model frame of the replicate, rows named as those of
+#'   `data`.
+#' @return `data` with those columns, a data frame.
+#' @keywords internal
+#' @noRd
+rpairs_data <- function(data, frame) {
+  extra <- setdiff(names(frame), names(data))
+  if (length(extra) == 0L) {
+    return(data)
   }
-  stats::model.matrix(model_terms, frame, contrasts.arg = contrasts)
+  out <- as.data.frame(data)
+  rownames(out) <- rownames(frame)
+  for (column in extra) {
+    out[[column]] <- frame[[column]]
+  }
+  out
 }
 
 #' A least-squares fit of a resampling replicate on the stored design

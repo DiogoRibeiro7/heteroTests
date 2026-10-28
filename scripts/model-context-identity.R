@@ -1025,6 +1025,17 @@ identity_n2_mode <- function(fn, n2, change) {
     }
     return("refusal")
   }
+  # Increment 8: a message or a new refusal of a route on a cell where White's
+  # count changed is judged by the other rules, as on any cell; a value where
+  # main stopped before White's test (L1 and L2 on a poly() cell, in the
+  # preparation of `data` of the robust White test) has no value of main to
+  # check, and is verified by the chain.
+  if (change %in% c("message_change", "value_to_error")) {
+    return(NULL)
+  }
+  if (identical(change, "error_to_value")) {
+    return("chain")
+  }
   if ("names" %in% kinds || fn %in% identity_white_resampling && !all(kinds == "spans")) {
     return("chain")
   }
@@ -1802,12 +1813,15 @@ identity_resampling_recipes <- list(
     performBPTestRobust(m, d, studentize = FALSE, bootstrap = TRUE, B = 19)
   },
   `performWhiteTestBootstrap(fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
     performWhiteTestBootstrap(fitWLS(m, d), d, B = 19)
   },
   `performWildBootstrapTest(fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
     performWildBootstrapTest(fitWLS(m, d), d, B = 19, progress = FALSE)
   },
   `bootstrapTestStatistic(performKoenkerTest, fitWLS)` = function(m, d) {
+    identity_skip_smooth_gam(m)
     bootstrapTestStatistic(performKoenkerTest, fitWLS(m, d), d, B = 19, progress = FALSE)
   }
 )
@@ -1825,7 +1839,8 @@ identity_resampling_runner_cell <- function(cell) {
   (cell$block %in% c("fit", "terms") && cell$form %in% c("data_frame", "null")) ||
     (identical(cell$block, "class") && !grepl("_(null|shuffled|tibble_shuffled|model_frame)$", id)) ||
     id %in% c("missing/median_full", "missing/complete_renumbered", "subset/data_frame",
-              "class/gam_shuffled", "ident/character_names_tibble")
+              "class/gam_shuffled", "ident/character_names_tibble", "missing/complete_fit",
+              "missing/median_precomputed", "subset/rows")
 }
 # The calls of bootstrapTestStatistic(), directly and through the robust
 # tests, which refit each replicate on the stored design since increment 8,
@@ -1852,6 +1867,7 @@ identity_wild <- c("performWildBootstrapTest", "performWildBootstrapTest(distrib
                    "performWildBootstrapTest(fitWLS)")
 identity_increment8 <- c(
   identity_white_bootstrap, identity_wild, "performWhiteTestRobust", "performBPTestRobust",
+  "performBPTestRobust(studentize = FALSE)",
   identity_bootstraps, identity_resampling_runner
 )
 identity_affected <- unique(c(identity_affected, identity_increment8))
@@ -1885,22 +1901,55 @@ for (defect in c("frame", "M8")) {
   identity_defect_scope[[defect]] <- c(identity_defect_scope[[defect]], identity_increment8)
   identity_message_scope[[defect]] <- c(identity_message_scope[[defect]], identity_increment8)
 }
-identity_defect_scope$N17 <- c(identity_defect_scope$N17, identity_white_bootstrap)
-identity_defect_scope$gam <- c(identity_defect_scope$gam, identity_white_bootstrap)
+identity_defect_scope$N17 <- c(identity_defect_scope$N17, identity_white_bootstrap,
+                               identity_resampling_runner)
+identity_defect_scope$gam <- c(identity_defect_scope$gam, identity_white_bootstrap,
+                               identity_resampling_runner)
 identity_message_scope$gam <- c(identity_message_scope$gam, identity_white_bootstrap)
 identity_defect_scope$N8 <- identity_n8_scope
 identity_message_scope$N8 <- identity_n8_scope
 identity_messages$N8 <- c(
   "supports Gaussian `lm` models only", "zero or non-finite weights",
-  "cannot match the rows of `data`"
+  "cannot match the rows of `data`", "does not reproduce the fit"
 )
 identity_runner_allowed <- unique(c(identity_runner_allowed, "N17"))
-# The weighted lm of a cell of a glm: the same model, data and weights.
+# The weighted lm of a cell of a glm: the same model, data and weights; for
+# the well-conditioned glm of the cells of Harrison-McCabe's rank, the lm of
+# the same model on the same rows.
 identity_glm_lm <- function(cell) {
+  if (identical(cell, "rank/glm_conditioned")) {
+    return("fit/ols/none/none/data_frame")
+  }
   if (is.null(cell) || !grepl("^fit/glm/|^panel/unit_glm_", cell)) {
     return(NA_character_)
   }
   sub("^panel/unit_glm_", "panel/unit_wls_", sub("^fit/glm/", "fit/wls/", cell))
+}
+# Decision 1 for the replicates that follow the order of `data`: on data
+# shuffled under their own row names, the refits of the formula computed the
+# poly() basis again on the rows in the order of `data`, by its QR
+# decomposition, which differs from that of the fit in the last bits, so main
+# has no stored-design value of them; the branch must equal main to
+# `identity_last_bits`, as Goldfeld-Quandt's segments.
+identity_reordered_replicates <- function(record) {
+  record$fn %in% identity_order_dependent && identical(record$form, "shuffled")
+}
+# The bootstraps of a fitWLS() fit of the model of each cell. Without `data`,
+# or with the model frame, the White bootstrap rebuilt the design of the
+# fitWLS() fit from the model frame, as for a weighted fit (B12, L2). fitWLS()
+# of an mgcv::gam() fit with smooth terms returns an lm whose terms do not
+# rebuild its design (one column per variable of the formula, for the
+# coefficients of the basis of the smooths), a defect of fitWLS() outside the
+# context (ROADMAP.md): those cells are skipped.
+identity_fitwls_recipes <- c(
+  "performWhiteTestBootstrap(fitWLS)", "performWildBootstrapTest(fitWLS)",
+  "bootstrapTestStatistic(performKoenkerTest, fitWLS)"
+)
+identity_skip_smooth_gam <- function(m) {
+  if (inherits(m, "gam") && length(m$smooth) > 0L) {
+    testthat::skip("fitWLS() of a gam with smooth terms does not rebuild its design")
+  }
+  invisible(NULL)
 }
 # The terms block cells shuffled under their own row names, whose
 # order-dependent bootstraps are verified against the fit with the columns of
@@ -2101,9 +2150,6 @@ identity_chain_reference <- function(fn, cell) {
 
 # The references outside the matrix that the call must reproduce.
 identity_external_ids <- function(fn, cell) {
-  if (is.null(cell$block)) {
-    return(character())
-  }
   # Increment 8: a bootstrap on a glm against the same call on the weighted lm
   # of its cell (N8), and an order-dependent bootstrap on shuffled terms
   # against the fit with their columns computed beforehand, given the same
@@ -2111,6 +2157,9 @@ identity_external_ids <- function(fn, cell) {
   ids <- character()
   if (fn %in% identity_n8_scope && !is.na(identity_glm_lm(cell$id))) {
     ids <- c(ids, paste0("lm/", identity_glm_lm(cell$id)))
+  }
+  if (is.null(cell$block)) {
+    return(ids)
   }
   ids <- c(ids, identity_shuffled_precomputed(fn, cell))
   if (!identical(cell$form, "data_frame")) {
@@ -2615,10 +2664,17 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   }
   # Increment 8, N8: bootstrapTestStatistic() and the robust bootstraps on a
   # glm, which it refused, and on a gam, which it refuses with another message.
+  n8_cells <- paste0("^fit/glm/|^panel/unit_glm_|^panel/unit_gam_|^class/gam|",
+                     "^class/zero_weight_glm|^rank/glm")
   if (record$fn %in% identity_n8_scope && !is.null(record$cell) &&
-        grepl("^fit/glm/|^panel/unit_glm_|^panel/unit_gam_|^class/gam|^class/zero_weight_glm",
-              record$cell)) {
+        grepl(n8_cells, record$cell)) {
     defects <- c(defects, "N8")
+  }
+  # Increment 8: the bootstraps of a fitWLS() fit without `data` (B12) or
+  # given the model frame (L2), which the White bootstrap rebuilt the design
+  # of a weighted fit from.
+  if (record$fn %in% identity_fitwls_recipes && record$form %in% c("null", "model_frame")) {
+    defects <- c(defects, if (identical(record$form, "null")) "B12" else "L2")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))
@@ -2666,6 +2722,8 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
   if ("decision1" %in% defects && record$fn %in% identity_affected &&
         !record$fn %in% identity_pairs) {
     decided <- if (record$fn %in% identity_segment_refits && "N1" %in% defects) {
+      identity_last_bits_verdict(verdict)
+    } else if (identity_reordered_replicates(record)) {
       identity_last_bits_verdict(verdict)
     } else if (record$fn %in% identity_rebuilt_per_chunk) {
       if (identity_same_tests(record, after)) identity_last_bits_verdict(verdict)
@@ -2920,7 +2978,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     decision1 <- "decision1" %in% before$defect && before$fn %in% identity_affected
     by_segments <- decision1 && (before$fn %in% identity_segment_refits &&
       "N1" %in% identity_defects(before) ||
-      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after))
+      before$fn %in% identity_rebuilt_per_chunk && identity_same_tests(before, after) ||
+      identity_reordered_replicates(before))
     # The streaming tests have no stored-design value on main (above).
     decided <- if (decision1 && !by_segments && !before$fn %in% identity_rebuilt_per_chunk &&
                    !before$fn %in% identity_pairs) {

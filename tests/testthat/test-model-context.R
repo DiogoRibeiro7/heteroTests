@@ -482,6 +482,16 @@ test_that("a Gaussian gam is tested as before, and without smooths it is the lm"
       # `data` they are refused (M1), as the matrix checks; the scatter
       # diagnostic and runPanelTests() need `data`.
       if (is.null(data) && fn %in% context_data_readers()) next
+      # The wild bootstrap stops on every gam, whose leverages hatvalues() does
+      # not give, as before increment 8 (context_cell_for()).
+      if (identical(fn, "performWildBootstrapTest")) {
+        for (m in list(plain, smooth)) {
+          out <- context_run(fn, list(build = function() list(m = m, data = data)))
+          expect_match(conditionMessage(out), "lm object does not have a proper 'qr' component",
+                       fixed = TRUE)
+        }
+        next
+      }
       context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
                    context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                    paste(fn, "gam"), tolerance = tolerance)

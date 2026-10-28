@@ -1242,6 +1242,16 @@ context_cell_for <- function(fn, cell) {
   if (fn %in% context_second_formula) {
     return(context_cell_for_formula(fn, cell))
   }
+  # The wild bootstrap reads the leverages of the fit with hatvalues(), which
+  # an mgcv::gam() fit, whose qr component is not that of an lm, does not
+  # give: it stops on every gam, as before increment 8 (outside the model
+  # context; ROADMAP.md).
+  if (identical(fn, "performWildBootstrapTest") && identical(cell$expect, "value") &&
+        grepl("^class/gam|^panel/unit_gam", cell$id)) {
+    cell$expect <- "lm object does not have a proper 'qr' component"
+    cell$reference <- NULL
+    return(cell)
+  }
   # The White bootstrap (increment 8) refits the design in each replicate, and
   # the robust Breusch-Pagan test studentizes by default, as the tests of
   # increment 2 do.
