@@ -29,15 +29,20 @@ performWildBootstrapTest(
     residual variance is to be assessed.
 
 `data`
-:   A [base::data.frame](https://rdrr.io/r/base/data.frame.html) (or compatible object) containing the
-    variables referenced in `model`. The data must include all observations used
-    to fit `model` and should not contain unresolved missing values.
-    When `NULL`, the default, the model frame of `model` is used. It holds the
-    terms of the model rather than its variables (`log(x)` rather than `x`), so
-    a model that transforms a variable needs `data`, as does a
-    model with an `offset()` term, and so may a fit whose `weights` or `offset`
-    argument is a column of the data, which the model frame holds as
-    `(weights)` or `(offset)`.
+:   The data frame `model` was fitted to, or `NULL`, the default.
+    The response, design, weights and offset are read from the fit itself, so
+    a model that transforms its variables, has an `offset()` term, or takes
+    its `weights` or `offset` from a column of the data needs no `data`, and
+    the model frame of `model` is accepted as `data` (since 0.17.0; before,
+    such models needed `data`). Data that are given are matched to the
+    observations of the fit: rows with row names of their own by name, in any
+    order; rows that only number themselves (a tibble, a data.table, a data
+    frame whose row names were reset) by the row numbers of the fit, or in the
+    order of the fit when they hold one row per observation. The rows the fit
+    dropped may be there or not. Data whose rows cannot be shown to hold the
+    observations of the fit are refused; see [test\_results](test_results.md). The test reads
+    nothing else from `data`: its replicates are refitted on the stored
+    design.
 
 `B`
 :   Integer number of bootstrap replications. Defaults to `999`, which
@@ -187,8 +192,11 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+lack rows or variables of the fit. Since 0.17.0 it refuses a fit whose
+coefficients, residuals or weights were changed after it was fitted, from
+which it computed the value of the fit before the edit. Which model each
+test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
+models*.
 
 ## References
 

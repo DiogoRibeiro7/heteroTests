@@ -2586,6 +2586,13 @@ identity_stored_verdict <- function(record, verdict, after, stored) {
   if (is.null(stored) || failed(stored$value) || failed(after$value)) {
     return(NULL)
   }
+  # Increment 8: in the runner with the resampling tests, a test that ran on
+  # the branch where main ran a fallback drew random numbers that main did not,
+  # so the tests after it draw others: the rules of the runner decide.
+  if (identical(record$fn, identity_resampling_runner) &&
+        !identity_same_tests(list(kind = "runner", value = stored$value), after)) {
+    return(NULL)
+  }
   same <- if (identical(record$kind, "runner")) {
     # The tests of the battery that main ran on the stored design, not the
     # fallback it put under their names when one stopped.
@@ -2927,6 +2934,16 @@ identity_verify <- function(record, main, branch, seen = character()) {
     }
   }
   reference <- record$reference
+  # Increment 8: the bootstraps of a fitWLS() fit, which takes the fits the
+  # tests refuse, such as a zero weight, reproduce the call on the cell of the
+  # class in the data frame of the fit (`base` of class_forms()).
+  if (is.null(reference) && record$fn %in% identity_fitwls_recipes &&
+        startsWith(record$cell, "class/")) {
+    reference <- sub("_(null|shuffled|tibble_shuffled|model_frame)$", "", record$cell)
+    if (identical(reference, record$cell)) {
+      reference <- NULL
+    }
+  }
   if (is.null(reference) || reference %in% seen) {
     return(NA_character_)
   }

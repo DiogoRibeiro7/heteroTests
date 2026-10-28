@@ -1400,13 +1400,25 @@ squared residuals that do not vary.
     by `scripts/model-context-identity.R` and pinned by
     `tests/testthat/test-model-context.R`, as steps 1 to 7 were (the model
     context, under 0.16.0).
-    - [ ] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
+    - [x] 8. The resampling tests and `bootstrapTestStatistic()`, replicates from
         the stored design: the observed statistic and the replicates of
         `performWhiteTestBootstrap()` move together, and
         `rwhite_test_rebuilt_design()` goes; `bootstrapTestStatistic()` and
         `performWhiteTestRobust(bootstrap = TRUE)` no longer need to refuse a fit
         whose frame cannot be rebuilt from `data`. Closes B12 for replicates, N8,
-        and N17 for the replicates of the White bootstrap.
+        and N17 for the replicates of the White bootstrap. Done in the development
+        version: the White and wild bootstraps, `bootstrapTestStatistic()` and the
+        robust White and Breusch-Pagan tests build the context, and each replicate
+        is refitted by least squares on the stored design, drawing the random
+        numbers it drew before, in the same order. Closes too B5, B14, B15, L1,
+        L2 and N7 for these (`cut(x, quantile(x))`, refused or stopped, gives the
+        value of the factor computed beforehand), and pairs resampling holds the
+        design of the fit. A Gaussian `glm` is bootstrapped as the `lm` it is; a
+        `gam` with smooth terms is refused by the White bootstrap, whose refit
+        stopped on it, and by `bootstrapTestStatistic()`, which refuses every
+        `gam`, as before. An edited fit (M8) and a `model = FALSE` fit whose data
+        are gone given a shuffled tibble ("frame"), from which the White and wild
+        bootstraps computed a value, are refused.
     - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
     - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
         refused (decision 10), workflows with `data`;
@@ -1519,14 +1531,39 @@ squared residuals that do not vary.
         its case weights are all 1. Keep accepting it, or refuse it. Deferred on
         2026-10-17 to the work on the model context; accepted as before until
         then.
-- [ ] **Found by the review of the Gaussian `glm` work (#136), recorded, not
+- [x] **Found by the review of the Gaussian `glm` work (#136), recorded, not
     fixed** (the other is under 0.16.0), and settled by step 8, which closes
     N8:
     - `bootstrapTestStatistic()` refuses every `glm`, because it refits each
         replicate by least squares, which would drop a family and a link. A
         Gaussian `glm` with the identity link is a least-squares fit (the
         *Supported models* page), so the same justification lets it accept one
-        and bootstrap the `lm`. A refusal becomes a value.
+        and bootstrap the `lm`. A refusal becomes a value. Done in step 8: its
+        replicates are those of the weighted `lm`, to `1e-8`, with the same
+        p-value; another `glm`, a `survey::svyglm()` fit and an `mgcv::gam()` fit
+        are refused, as before.
+- [ ] **Found by step 8 of the model context, recorded, not fixed**, as each
+    changes what a call returns:
+    - `performWildBootstrapTest()` stops on every `mgcv::gam()` fit, with or
+        without smooth terms ("lm object does not have a proper 'qr' component"):
+        it reads the leverages with `hatvalues()`, which a `gam` does not give.
+        Before and after step 8 alike. Read the leverages of the stored design,
+        or refuse the `gam` with a message of its own. An error becomes a value,
+        or a message.
+    - `fitWLS()` of an `mgcv::gam()` fit with smooth terms returns an `lm` whose
+        terms do not rebuild its design: `model.matrix()` gives a column for each
+        variable of the formula, for the coefficients of the basis of the smooths.
+        The tests built on the model context stop on it with "(subscript) logical
+        subscript too long"; before step 8 the White and wild bootstraps returned
+        values on the design of the variables. Refuse such a fit in `fitWLS()`,
+        or keep its basis. A value or an error becomes a refusal.
+    - `bootstrapTestStatistic()` refits each replicate at the tolerance of
+        `lm()`, `1e-7`, as its refits of the formula did, so a fit whose rank was
+        decided at a smaller tolerance and differs, an `lm` fitted with a smaller
+        `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
+        refused ("`data` does not reproduce the fit"), as such an `lm` was before.
+        Refitting at the tolerance of the fit would give them values. A refusal
+        becomes a value.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for 0.16.0 so
     that 0.14.0 changes no value. Each fix that changes a value is announced in
     bold in `NEWS.md`. Those below are settled by steps 8 and 10; the others are
@@ -1629,7 +1666,9 @@ squared residuals that do not vary.
             `performScatterDiagnostic()` refuse data with row names of their own in
             another order instead of matching it by name. Since the fifth step of
             the model context the panel tests and the scatter diagnostic match it
-            by name.
+            by name, and since the eighth `bootstrapTestStatistic()` matches it as
+            the tests do, its refit of the formula on `data` replaced by the stored
+            design.
         - The `(weights)` column is compared with the `weights` expression of the
             call computed on `data`. If the `fitWLS()` defect above is fixed by
             writing the estimated weights into `(weights)` (decision 11 of the
