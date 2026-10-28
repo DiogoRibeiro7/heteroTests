@@ -76,26 +76,28 @@ rstreaming_design <- function(ctx) {
 # n times its squared mean.
 #
 # The squared residuals do not vary when their total sum of squares about
-# their mean is at most `.Machine$double.eps` of their sum of squares: when
-# they agree with their mean to about eight digits. The total is thus
-# compared with their scale, as the exact tests compute it: performKoenkerTest()
-# refuses squared residuals that are all equal, and the R-squared lm() gives
-# the exact tests does not depend on the scale of the response.
+# their mean is at most `.Machine$double.eps` of their sum of squares about
+# zero: when they agree to about eight digits. The total is compared with
+# their scale, as the exact tests decide constancy: performKoenkerTest()
+# refuses squared residuals that are all equal, a rule no scale enters, and
+# the R-squared lm() gives the exact tests does not depend on the scale of
+# the response. Squared residuals that are equal but for rounding, as those of
+# residuals of +1 and -1, are refused at any scale, where the exact tests
+# compute a statistic from the rounding.
 #
 # Up to 0.16.0 the cross-products of the uncentred auxiliary design were
 # accumulated, the rank decided by qr() of them and the regression fitted by
-# solve(): collinear terms, the squares of dummies or of a poly() basis,
+# solve(). Collinear terms, the squares of dummies or of a poly() basis,
 # stopped White's streaming test ("Auxiliary regression became rank
 # deficient", N3 of the design of the model context) where performWhiteTest()
-# drops them, and the cross-products of a regressor located far from zero
-# looked collinear too, the squares and products of the regressor in White's
-# test and the regressor itself beside the intercept in the Breusch-Pagan and
-# Koenker tests, 10,000 standard deviations from zero. A refused regression
-# was counted from the centred cross-products by a pivoted Cholesky
-# decomposition (#151), which counted one term too many on 30 subjects of two
-# observations and one of three, and lost terms of a regressor located far
-# from zero inside a product. And the squared residuals did not vary when
-# their total sum of squares was at most `.Machine$double.eps` whatever their
+# drops them, and so did terms that looked collinear only in cross-products
+# whose condition is the square of the design's: the squares of a regressor
+# 100 standard deviations from zero in White's test, the regressor itself
+# beside the intercept 1,000 standard deviations from zero in the
+# Breusch-Pagan and Koenker tests. A refused regression was counted from the
+# same cross-products, centred and scaled to correlations, by a pivoted
+# Cholesky decomposition (#151). And the squared residuals did not vary when
+# their total sum of squares was at most `.Machine$double.eps`, whatever their
 # scale, which refused residuals of about 1e-5 that the exact tests take.
 chunked_regression_r2 <- function(design, residuals, chunk_size,
                                   predictor_builder, response_builder,
@@ -144,20 +146,17 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
       colnames(predictors) <- paste0("V", seq_len(ncol(predictors)))
     }
 
+    # Every chunk has the columns of the stored design, so its predictors are
+    # those of the first chunk, in their order. Up to 0.16.0 they were matched
+    # to those of the first chunk by name, a remnant of the designs each chunk
+    # built from the formula, which could lack the dummy of a level: White's
+    # names collide on a regressor `a` beside a regressor `a_sq`, whose square
+    # is named `a_sq` too, and every chunk after the first put the square of
+    # `a` in place of that of `a_sq` (27.76 in chunks of 7 for 27.64).
     design_chunk <- cbind(`(Intercept)` = 1, predictors)
     if (is.null(design_names)) {
       design_names <- colnames(design_chunk)
-    } else {
-      missing_names <- setdiff(design_names, colnames(design_chunk))
-      if (length(missing_names) > 0L) {
-        extras <- matrix(0, nrow = nrow(design_chunk), ncol = length(missing_names))
-        colnames(extras) <- missing_names
-        design_chunk <- cbind(design_chunk, extras)
-      }
-      design_chunk <- design_chunk[, design_names, drop = FALSE]
-    }
-
-    if (ncol(design_chunk) != length(design_names)) {
+    } else if (!identical(colnames(design_chunk), design_names)) {
       stop("Inconsistent design matrix dimensions between chunks.", call. = FALSE)
     }
 
@@ -296,9 +295,9 @@ koenker_response_builder <- function(residuals_chunk) {
 
 #' Memory-efficient White test for large datasets
 #'
-#' Computes White's statistic via chunked cross-products rather than fitting the
-#' full auxiliary regression in memory. This streaming approach allows the test
-#' to scale to datasets that would otherwise exhaust available RAM.
+#' Computes White's statistic chunk by chunk rather than fitting the full
+#' auxiliary regression in memory. This streaming approach allows the test to
+#' scale to datasets that would otherwise exhaust available RAM.
 #'
 #' @inheritParams performWhiteTest
 #' @param data The data frame `model` was fitted to, or `NULL`, the default.
@@ -323,13 +322,40 @@ koenker_response_builder <- function(residuals_chunk) {
 #'   and metadata about the chunked computation.
 #'
 #' @details
-#' The streaming implementation iteratively builds the cross-product matrices
-#' required for the auxiliary regression without materialising the full design
-#' matrix. Each chunk contributes to \eqn{X'X}, \eqn{X'y}, and summary statistics
-#' for the response. The final \eqn{n R^2} statistic is then computed exactly as
-#' in the standard White test, ensuring numerical equivalence while dramatically
-#' reducing peak memory usage. When `Matrix` is installed, sparse cross-products
-#' are leveraged automatically for large chunks.
+#' The streaming implementation builds the auxiliary design, the regressors,
+#' their squares and their cross-products, chunk by chunk, without
+#' materialising it whole. Each chunk is reduced by a QR decomposition stacked
+#' on the triangular factor of the chunks before it, which holds the
+#' cross-products of every row without forming them. The rank of the auxiliary
+#' regression and its \eqn{n R^2} statistic are computed from that factor as
+#' in [performWhiteTest()], ensuring numerical equivalence while reducing peak
+#' memory usage: the regressors are centred at their means, the rank is that of
+#' the auxiliary design at the default tolerance of [qr()], and a term that is a
+#' combination of the intercept and the terms before it is dropped (see
+#' *Degrees of freedom* in [performWhiteTest()]).
+#'
+#' Since 0.17.0 the test drops such terms: the square of a dummy variable,
+#' which is the dummy, that of the first column of an orthogonal `poly()`
+#' basis, or that of `x` beside `I(x^2)`, as [performWhiteTest()] drops them,
+#' and gives its degrees of freedom: 17.83 on 8 on `lm(y ~ x1 + group)` with a
+#' factor of four levels. Up to 0.16.0 it accumulated the cross-products of the
+#' uncentred auxiliary design, decided their rank by [qr()] of them, which
+#' squares the condition of the design, and stopped on such terms ("Auxiliary
+#' regression became rank deficient"), so on any model with a factor, and on
+#' terms that only looked collinear in those cross-products: the squares of a
+#' regressor 100 standard deviations from zero, or the terms of
+#' `lm(y ~ x1 * x2)` with `x1` between 0.5 and 2. It took the squared
+#' residuals for constant when their total sum of squares about their mean was
+#' at most `.Machine$double.eps`, whatever their scale, and so refused
+#' residuals of about \eqn{10^{-5}}: on
+#' 120 observations of such residuals it now gives 12.787 on 5 degrees of
+#' freedom, the value of [performWhiteTest()]. It refuses squared residuals
+#' whose total sum of squares is at most `.Machine$double.eps` of their sum of
+#' squares, which agree to about eight digits. And in more than one chunk, on
+#' a regressor `a` beside a regressor `a_sq`, it put the square of `a`, which
+#' it names `a_sq` too, in place of that of `a_sq` in every chunk after the
+#' first: 27.76 in chunks of 7 where [performWhiteTest()] gives 27.64. It no
+#' longer uses the sparse cross-products of `Matrix` for large chunks.
 #'
 #' Since 0.16.0 the chunks are rows of the design of the fit, read from the fit
 #' itself as [performWhiteTest()] reads it, so the value does not depend on the
@@ -362,14 +388,14 @@ koenker_response_builder <- function(residuals_chunk) {
 #' not finite for another reason, `data` that lack rows or variables of the
 #' fit, and, since 0.16.0, a multivariate `lm`, a fit changed after it was
 #' fitted and a fit with `model = FALSE` whose data are gone, unless `data`
-#' gives its response and fitted values (see [test_results]). It stops when
-#' terms of its auxiliary regression are
-#' collinear, as the squares of dummy variables are, which [performWhiteTest()]
-#' drops, and, since 0.16.0, with the refusal of [performWhiteTest()] (see its
-#' section *Too few observations*) when its independent terms are at least as
-#' many as the observations, where it stopped as on collinear terms, or fit the
-#' squared residuals exactly, collinear or not, as on a paired design. Which
-#' model each test accepts, and why, is set out in [test_results], under
+#' gives its response and fitted values (see [test_results]). Since 0.17.0 it
+#' drops the terms of its auxiliary regression that are collinear, as the
+#' squares of dummy variables are, as [performWhiteTest()] drops them, where it
+#' stopped. Since 0.16.0 it stops with the refusal of [performWhiteTest()] (see
+#' its section *Too few observations*) when its independent terms are at least
+#' as many as the observations, where it stopped as on collinear terms, or fit
+#' the squared residuals exactly, collinear or not, as on a paired design.
+#' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
 #' @examples
@@ -480,8 +506,8 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 
 #' Streaming Breusch-Pagan test for large datasets
 #'
-#' Computes the classical Breusch-Pagan statistic using chunked cross-products
-#' to avoid materialising the full auxiliary regression when working with large
+#' Computes the classical Breusch-Pagan statistic chunk by chunk to avoid
+#' materialising the full auxiliary regression when working with large
 #' data frames. The streamed result is algebraically equivalent to the standard
 #' implementation while substantially reducing peak memory usage.
 #'
@@ -500,7 +526,17 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @return A \code{htest} object mirroring [performBPTest()] with additional
 #'   metadata describing the chunking configuration.
 #'
-#' @details Since 0.16.0 the chunks are rows of the design of the fit, as in
+#' @details Each chunk of the regressors, centred at their means, is reduced
+#'   by a QR decomposition stacked on the triangular factor of the chunks
+#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   0.16.0 the cross-products of the regressors were accumulated: those of a
+#'   regressor 1,000 standard deviations from zero looked collinear with the
+#'   intercept, and the test stopped ("Breusch-Pagan auxiliary regression
+#'   became rank deficient"); and squared residuals of about \eqn{10^{-10}}
+#'   were taken for constant ("requires variation in squared residuals"). It
+#'   gives the value of [performBPTest()] on both.
+#'
+#'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
 #' @export
@@ -587,8 +623,8 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'
 #' Evaluates Koenker's studentized variant of the Breusch-Pagan test (the
 #' \eqn{n R^2} statistic from regressing the squared residuals on the regressors)
-#' using streamed cross-products so that large datasets can be processed without
-#' allocating the full auxiliary regression matrix.
+#' chunk by chunk so that large datasets can be processed without allocating the
+#' full auxiliary regression matrix.
 #'
 #' @inheritParams performKoenkerTest
 #' @param data The data frame `model` was fitted to, or `NULL`, the default,
@@ -604,7 +640,17 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @return A \code{htest} result equivalent to [performKoenkerTest()] with
 #'   additional metadata describing the streaming configuration.
 #'
-#' @details Since 0.16.0 the chunks are rows of the design of the fit, as in
+#' @details Each chunk of the regressors, centred at their means, is reduced
+#'   by a QR decomposition stacked on the triangular factor of the chunks
+#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   0.16.0 the cross-products of the regressors were accumulated: those of a
+#'   regressor 1,000 standard deviations from zero looked collinear with the
+#'   intercept, and the test stopped ("Koenker auxiliary regression became
+#'   rank deficient"); and squared residuals of about \eqn{10^{-10}} were
+#'   taken for constant ("requires variation in squared residuals"). It gives
+#'   the value of [performKoenkerTest()] on both.
+#'
+#'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
 #' @export

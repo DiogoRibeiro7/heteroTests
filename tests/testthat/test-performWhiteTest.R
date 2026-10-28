@@ -682,7 +682,20 @@ test_that("a regressor named like a column White's test generates is tested", {
                      other[c("statistic", "parameter", "p.value")])
     ref <- white_df_by_hand(lm(y ~ a + a_sq, data = d), cross_products)
     expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10)
+    # The streaming test, in chunks of any size. Up to 0.16.0 it matched the
+    # columns of every chunk after the first to those of the first by name,
+    # and the square of `a`, named `a_sq`, took the place of that of `a_sq`:
+    # 27.76 in chunks of 7 and 30.65 in chunks of 40, for 27.64.
+    for (chunk in c(7, 40, 10000)) {
+      streamed <- performWhiteTestStreaming(lm(y ~ a + a_sq, data = d), d, chunk_size = chunk,
+                                            cross_products = cross_products, progress = FALSE)
+      expect_equal(unname(streamed$statistic), unname(ours$statistic), tolerance = 1e-10,
+                   info = paste(cross_products, chunk))
+      expect_identical(unname(streamed$parameter), unname(ours$parameter))
+    }
   }
+  expect_equal(unname(performWhiteTest(lm(y ~ a + a_sq, data = d), d)$statistic), 27.642017,
+               tolerance = 1e-6)
 })
 
 test_that("performWhiteTest aborts for perfect fits", {
