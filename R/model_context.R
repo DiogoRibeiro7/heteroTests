@@ -810,6 +810,28 @@ rmodel_unpad <- function(model, x) {
   x
 }
 
+#' A fit with `na.exclude` read as the same fit with `na.omit`
+#'
+#' The fit of `na.exclude` and that of `na.omit` drop the same rows and are
+#' the same fit; their `na.action` holds the same rows, of class `"exclude"`
+#' or `"omit"`, and only the first makes `residuals()`, `weights()` and
+#' `fitted()` pad. A reference implementation that reads them, as
+#' `lmtest::bptest()` reads `weights()` ([rvalidate_against_reference()]),
+#' stops on the padding ("incompatible dimensions"); it is given the fit with
+#' the class of `na.omit`, so that it computes what it computes on the same fit
+#' with `na.omit` (increment 9 of the model context, B13).
+#'
+#' @param model A fitted model.
+#' @return `model`, its `na.action` of class `"omit"` when it was `"exclude"`.
+#' @keywords internal
+#' @noRd
+rmodel_as_na_omit <- function(model) {
+  if (is.list(model) && inherits(model$na.action, "exclude")) {
+    class(model$na.action) <- "omit"
+  }
+  model
+}
+
 #' The residuals the tests read
 #'
 #' The Pearson residuals of [rpearson_residuals()], without the padding of
