@@ -443,24 +443,17 @@ identifyVariancePatterns <- function(model, data) {
     return(list(description = "Residual diagnostics unavailable.", suggestions = character()))
   }
   # The columns of `data` are correlated with the residuals row by row, so
-  # `data` must hold one row per observation of the fit. Data of another
-  # number of rows, as the full data of a fit that dropped rows, stopped in
-  # cor() with "incompatible dimensions", or, on a fit with na.exclude, whose
-  # residuals were padded, were read by position (from the review of
-  # increment 9 of the model context). Matching the rows of `data` to the
-  # observations of the fit is left to increment 10 (N5).
-  if (is.data.frame(data) && nrow(data) != length(res)) {
-    stop(
-      sprintf(
-        paste(
-          "recommendRemediationStrategies() reads one row of `data` for each observation",
-          "of the fit, %d of them, and `data` has %d rows. Pass the rows the model was",
-          "fitted on, such as model.frame(model), or refit the model on `data`."
-        ),
-        length(res), nrow(data)
-      ),
-      call. = FALSE
-    )
+  # they are read at the rows that hold the observations of the fit, in its
+  # order, which the alignment of the model context finds as it does for the
+  # tests (rcontext_data_rows(), increment 10). Until then the i-th row was
+  # read with the i-th observation: named data in another order than the fit
+  # gave the correlations of other rows, without an error, and data of
+  # another number of rows, as the full data of a fit that dropped rows,
+  # stopped in cor() with "incompatible dimensions", or, on a fit with
+  # na.exclude, whose residuals were padded, were read by position (refused
+  # for their number of rows since the review of increment 9).
+  if (is.data.frame(data)) {
+    data <- rcontext_data_rows(model, data, fn = "recommendRemediationStrategies")
   }
 
   abs_res <- abs(res)
@@ -744,6 +737,14 @@ generateHeteroRecommendations <- function(model, data = NULL, test_results = NUL
       .check_data(data)
     }
   }
+  # The rows of `data` that hold the observations of the fit, in its order,
+  # as the tests match them (rcontext_data_rows(), increment 10 of the model
+  # context): the profile, the tests and the recommendations read those rows.
+  # Until then the full data of a fit that dropped rows were refused by the
+  # checks below ("Model reports 117 residuals but the supplied data has 120
+  # rows"), and named data in another order than the fit were read row by row
+  # against the residuals by the recommendations.
+  data <- rcontext_data_rows(model, data, fn = "generateHeteroRecommendations")
 
   .validate_test_inputs(model, data, test_name = "recommendation_engine", min_obs = 10)
 

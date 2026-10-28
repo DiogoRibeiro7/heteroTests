@@ -224,19 +224,11 @@
     parsnip_fit <- workflows::extract_fit_parsnip(model)
     # The engine's fit names the variables as the workflow's preprocessing
     # made them, its response `..y` among them, so the data the workflow was
-    # fitted to do not hold them and every test would refuse those data.
-    engine_terms <- tryCatch(stats::terms(parsnip_fit$fit), error = function(e) NULL)
-    if (!is.null(data) && !is.null(engine_terms)) {
-      lacking <- setdiff(all.vars(engine_terms), names(data))
-      if (length(lacking) > 0L) {
-        stop(
-          "A tidymodels workflow is tested on the fit of its engine, whose ",
-          "variables are those the workflow's preprocessing made (it names the ",
-          "response `..y`), and `data` lacks ", paste(lacking, collapse = ", "),
-          ". Pass `data = NULL`, which tests the model frame of that fit.",
-          call. = FALSE
-        )
-      }
+    # fitted to do not hold them: they are mapped to them by that
+    # preprocessing, and once their rows are confirmed the model frame of the
+    # engine's fit is tested, as without `data` (N5, .ht_workflow_data()).
+    if (!is.null(data)) {
+      data <- .ht_workflow_data(model, parsnip_fit$fit, data, context)
     }
     # Without `data`, the data of the fit are the model frame of the engine's
     # fit (below), which holds its response and its predictors. Before 0.16.0
@@ -249,6 +241,11 @@
   if (inherits(model, "model_fit")) {
     engine_fit <- model$fit
     if (inherits(engine_fit, c("lm", "glm"))) {
+      # A fit of fit_xy() names its response `..y` too (N5,
+      # .ht_parsnip_data()).
+      if (!is.null(data)) {
+        data <- .ht_parsnip_data(model, engine_fit, data, context)
+      }
       data <- data %||% tryCatch(engine_fit$model, error = function(e) NULL)
       prep <- .ht_prepare_input_data(data, context)
       formula <- .ht_extract_formula(engine_fit)
@@ -313,6 +310,184 @@
   }
 
   stop("Unsupported model type for heteroscedasticity diagnostics; supply an 'lm'/'glm', formula, tidymodels workflow or parsnip model.", call. = FALSE)
+}
+
+# The variables of the engine's fit of a workflow or a parsnip fit that `data`
+# lacks, or NULL when its terms cannot be read.
+.ht_engine_lacks <- function(engine_fit, data) {
+  engine_terms <- tryCatch(stats::terms(engine_fit), error = function(e) NULL)
+  if (is.null(engine_terms)) {
+    return(NULL)
+  }
+  setdiff(all.vars(engine_terms), names(data))
+}
+
+# The refusal of `data` that does not hold the variables of the engine's fit
+# of a workflow and cannot be mapped to them, `why` saying why.
+.ht_stop_engine_data <- function(lacking, why) {
+  stop(
+    "A tidymodels workflow is tested on the fit of its engine, whose variables are ",
+    "those the workflow's preprocessing made (it names the response `..y`), and `data` ",
+    "lacks ", paste(lacking, collapse = ", "), "; ", why, " Pass `data = NULL`, which ",
+    "tests the model frame of that fit.",
+    call. = FALSE
+  )
+}
+
+#' The data of a tidymodels workflow, mapped to the variables of its engine
+#'
+#' A workflow is tested on the fit of its engine, which was fitted to the data
+#' its preprocessing made: the predictors of its mold, under the names it gave
+#' them (`log(x1)`, the dummies of a factor, a column a recipe transformed),
+#' and the response as `..y`. The data the workflow was fitted to hold none of
+#' those, and up to 0.17.0 they were refused ("`data` lacks ..y. Pass
+#' `data = NULL`"; N5 of the design of the model context). They are now mapped
+#' to the variables of the engine by the workflow's own preprocessing,
+#' `hardhat::forge()` with its blueprint and the outcome, and the rows of the
+#' result are confirmed by the alignment of the model context, which compares
+#' them with every column of the model frame of the engine's fit
+#' ([rmodel_context()]); the model frame is then tested, as with
+#' `data = NULL`, so the data the workflow was fitted to give its value.
+#'
+#' The engine's fit numbers its observations in the order of the data the
+#' workflow was fitted to, which its preprocessing kept, so the rows are
+#' matched by those numbers: the data in another order are refused, with the
+#' class of the guard, as are data whose rows do not reproduce the fit. A
+#' preprocessing that transforms the outcome, such as a recipe with
+#' `step_log()` of the outcome, maps it to another column than the outcome of
+#' `data`; whether that column is the response of the fit is not decided, and
+#' such data stay refused, with a message that says so. Data that hold the
+#' variables of the engine already, such as its model frame, and grouped data,
+#' are left as they were.
+#'
+#' @param workflow The fitted workflow.
+#' @param engine_fit The fit of its engine, an `lm` or a `glm`.
+#' @param data The `data` argument of the runner, not `NULL`.
+#' @param context Character scalar naming the runner, as `"runHeteroTests()"`.
+#' @return `data` when it holds the variables of the engine's fit, or `NULL`
+#'   when it was mapped and confirmed, for the model frame of that fit.
+#' @keywords internal
+#' @noRd
+.ht_workflow_data <- function(workflow, engine_fit, data, context) {
+  lacking <- .ht_engine_lacks(engine_fit, data)
+  if (length(lacking) == 0L) {
+    return(data)
+  }
+  if (!is.data.frame(data) || inherits(data, "grouped_df")) {
+    .ht_stop_engine_data(lacking, "only an ungrouped data frame is mapped to them.")
+  }
+  mold <- tryCatch(workflows::extract_mold(workflow), error = function(e) NULL)
+  if (is.null(mold) || !requireNamespace("hardhat", quietly = TRUE)) {
+    .ht_stop_engine_data(
+      lacking, "the workflow's preprocessing cannot be read (hardhat::forge()), so `data` cannot be mapped to them."
+    )
+  }
+  forged <- tryCatch(
+    suppressWarnings(hardhat::forge(data, mold$blueprint, outcomes = TRUE)),
+    error = function(e) e
+  )
+  if (inherits(forged, "error")) {
+    .ht_stop_engine_data(lacking, sprintf(
+      "the workflow's preprocessing cannot map `data` to them (%s).",
+      gsub("\\s+", " ", conditionMessage(forged))
+    ))
+  }
+  outcomes <- forged$outcomes
+  if (NCOL(outcomes) != 1L) {
+    .ht_stop_engine_data(lacking, "the workflow has more than one outcome.")
+  }
+  outcome <- names(outcomes)[1L]
+  if (!isTRUE(rsame_rows(data[[outcome]], seq_len(nrow(data)), outcomes[[1L]]))) {
+    .ht_stop_engine_data(lacking, sprintf(
+      paste(
+        "the workflow's preprocessing transforms its outcome `%s`, so the column `%s` of",
+        "`data` is not the response of the fit."
+      ),
+      outcome, outcome
+    ))
+  }
+  mapped <- as.data.frame(forged$predictors)
+  mapped[["(Intercept)"]] <- NULL
+  mapped[["..y"]] <- outcomes[[1L]]
+  .ht_confirm_engine_rows(engine_fit, mapped, context, paste(
+    "A tidymodels workflow is tested on the fit of its engine, which was fitted to the",
+    "data the workflow's preprocessing made, numbered in their order, and `data`,",
+    "mapped by that preprocessing (hardhat::forge()), does not hold its observations:"
+  ), paste(
+    "Pass the data the workflow was fitted to, in the order it was fitted in, or",
+    "`data = NULL`, which tests the model frame of that fit."
+  ))
+  NULL
+}
+
+#' The data of a parsnip fit made with fit_xy(), mapped to its engine
+#'
+#' [parsnip::fit_xy()] fits the engine to the columns of `x` and to the
+#' outcome as `..y`, which the data the fit was made from do not hold; up to
+#' 0.17.0 every test refused them (N5 of the design of the model context). The
+#' outcome is mapped to `..y` from the column the fit records
+#' (`preproc$y_var`, when `y` was given as a data frame), the rows confirmed
+#' by the alignment of the model context, and the model frame of the engine's
+#' fit is then tested, as with `data = NULL`. An outcome given as a vector is
+#' not recorded, and such data are refused with a message that says so. Data
+#' that lack other variables of the engine are left to the tests, as before.
+#'
+#' @param model_fit The parsnip fit.
+#' @param engine_fit The fit of its engine.
+#' @param data The `data` argument of the runner, not `NULL`.
+#' @param context Character scalar naming the runner.
+#' @return `data`, or `NULL` when it was mapped and confirmed.
+#' @keywords internal
+#' @noRd
+.ht_parsnip_data <- function(model_fit, engine_fit, data, context) {
+  lacking <- .ht_engine_lacks(engine_fit, data)
+  if (!identical(lacking, "..y") || !is.data.frame(data) || inherits(data, "grouped_df")) {
+    return(data)
+  }
+  y_var <- model_fit$preproc$y_var
+  if (length(y_var) != 1L || !is.character(y_var) || !y_var %in% names(data)) {
+    stop(
+      "A parsnip fit made with fit_xy() is tested on the fit of its engine, which names ",
+      "the response `..y`, and `data` lacks it; ",
+      if (length(y_var) == 1L && is.character(y_var)) {
+        sprintf("`data` lacks the outcome `%s` of the fit too.", y_var)
+      } else {
+        "the fit does not record the column of its outcome, which was given as a vector."
+      },
+      " Pass `data = NULL`, which tests the model frame of that fit.",
+      call. = FALSE
+    )
+  }
+  mapped <- as.data.frame(data)
+  mapped[["..y"]] <- data[[y_var]]
+  .ht_confirm_engine_rows(engine_fit, mapped, context, paste(
+    "A parsnip fit made with fit_xy() is tested on the fit of its engine, and `data`,",
+    "its outcome taken as the response `..y`, does not hold its observations:"
+  ), paste(
+    "Pass the data the fit was made from, or `data = NULL`, which tests the model frame",
+    "of that fit."
+  ))
+  NULL
+}
+
+# The rows of data mapped to the variables of the engine's fit, confirmed by
+# the alignment of the model context. A refusal of the guard says first what
+# was matched (`lead`), then what the guard found, with `advice` in place of
+# its own, which speaks of row names the engine's fit does not hold; it keeps
+# its class, final in the runners.
+.ht_confirm_engine_rows <- function(engine_fit, mapped, context, lead, advice) {
+  fn <- sub("\\(\\)$", "", context)
+  tryCatch(
+    rmodel_context(engine_fit, mapped, fn = fn, test_label = context),
+    heteroTests_data_rows_error = function(e) {
+      found <- sub(" (Pass|Refit) .*$", "", conditionMessage(e))
+      stop(structure(
+        class = class(e),
+        list(message = paste(lead, found, advice), call = NULL)
+      ))
+    }
+  )
+  invisible(NULL)
 }
 
 .ht_decorate_result <- function(result, diagnostic_name, model, data, extras = list()) {
@@ -452,12 +627,21 @@ augment.hetero_test <- function(x, data = NULL, ...) {
   if (is.null(model)) {
     stop("Augmenting heteroscedasticity diagnostics requires the fitted model to be available.", call. = FALSE)
   }
+  given <- !is.null(data)
   data <- data %||% tryCatch(model$model, error = function(e) NULL)
   if (is.null(data)) {
     stop("Unable to recover the data used to fit the model. Supply it explicitly via `data=`.", call. = FALSE)
   }
   df <- as.data.frame(data)
   fitted_values <- tryCatch(stats::fitted(model), error = function(e) NULL)
+  # Data with one row per observation of the fit are matched to the
+  # observations as the tests match them (raugment_data(), increment 10 of
+  # the model context), where they were bound row by row: named data in
+  # another order than the fit had the fitted values of other rows bound to
+  # them, without an error.
+  if (given && !is.null(fitted_values)) {
+    df <- raugment_data(df, model)
+  }
   # One row per value of fitted(): one per observation of the fit, or, for a
   # fit with na.action = na.exclude, whose fitted values, residuals and
   # standardised residuals are padded with NA at the rows it dropped, one per
@@ -476,6 +660,22 @@ augment.hetero_test <- function(x, data = NULL, ...) {
   df$.std.resid <- tryCatch(stats::rstandard(model), error = function(e) rep(NA_real_, nrow(df)))
   df$.diagnostic <- attr(x, "diagnostic") %||% NA_character_
   df
+}
+
+# Data given to augment.hetero_test() with one row per observation of the fit,
+# matched to the observations by the alignment of the model context, as the
+# tests match them (rcontext_data_rows()): named data in any order and
+# numbered data in the order of the fit give the rows of the fit in its
+# order, and what the alignment refuses is refused. Data of another number of
+# rows are left to raugment_rows(), as before: what augment() binds for the
+# rows of `data` that the fit dropped, which the full data of such a fit hold,
+# is not decided (ROADMAP.md, 0.17.0), and those data are refused on a fit
+# with na.omit and bound row by row, padded, on a fit with na.exclude.
+raugment_data <- function(df, model) {
+  if (nrow(df) != NROW(model$residuals)) {
+    return(df)
+  }
+  rcontext_data_rows(model, df, fn = "augment")
 }
 
 # The rows of `data` that augment.hetero_test() binds the per-observation

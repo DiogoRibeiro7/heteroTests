@@ -34,52 +34,68 @@ rcheck_data_argument <- function(data, fn) {
   invisible(data)
 }
 
-#' The data a test reads when `data` is omitted
+#' The rows of `data` that the row names pick for the observations of a fit
 #'
-#' `data = NULL` stands for the model frame of `model`, as it does in
-#' runHeteroTests() and HeteroDiagnostic(), so that a test called as
-#' `f(model)` reads what `f(model, stats::model.frame(model))` reads. The model
-#' frame holds the variables of the model under the names of its terms
-#' (`log(x)` rather than `x`), so a test that needs another column, or the
-#' variables of a model that transforms them, still needs `data`. A model whose
-#' frame cannot be rebuilt leaves `data` as `NULL`, and the test refuses it as
-#' it did before 0.15.0.
+#' The first step of the guard of 0.15.0, the alignment step of the model
+#' context ([rcontext_align()]): the rows by row name, and for data that number
+#' their rows (`.row_names_info(data) < 0`), by the original row numbers of the
+#' fit. Repeated row names, which say nothing about which row holds which
+#' observation, are refused. Until increment 10 of the model context
+#' `rcheck_data_rows()` ran this step and the next as one function, for the
+#' tests not yet built on the context; since increment 8 no test called it,
+#' and increment 10 removed it.
 #'
-#' `data` that is given is checked by [rcheck_data_rows()] first, so every
-#' test that starts here refuses data whose rows cannot be confirmed to hold
-#' the observations of the fit.
-#'
-#' @param model The fitted model of the calling test.
-#' @param data The `data` argument of the calling test.
-#' @return `data`, or the model frame of `model` when `data` is `NULL`.
+#' @param frame The model frame of the fit.
+#' @param data A data frame.
+#' @param fn Character scalar naming the calling test in the message, or
+#'   `NULL`.
+#' @return Integer vector, the row of `data` for each observation, or `NULL`
+#'   when a name of the fit is not a row name of `data`.
 #' @keywords internal
 #' @noRd
-rdata_or_model_frame <- function(model, data) {
-  # sys.parent() is the frame of the test that called this function, also
-  # when the promise is forced later, in the error.
-  if (!is.null(data)) {
-    rcheck_data_rows(model, data, fn = rtest_name(sys.parent()))
-    return(data)
+rdata_fit_rows <- function(frame, data, fn = NULL) {
+  numbered <- .row_names_info(data) < 0L
+  # The row names as stored, integer or character: rownames() would turn
+  # integers into strings on every call, and two integer row names are the
+  # same name exactly when they are the same integer.
+  data_rows <- attr(data, "row.names")
+  if (!numbered && anyDuplicated(data_rows) > 0L) {
+    rstop_data_rows_unmatched(fn, "duplicated")
   }
-  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  if (!is.null(frame)) {
-    rcheck_model_frame(model, frame, fn = rtest_name(sys.parent()))
+  ids <- attr(frame, "row.names")
+  rows <- if (identical(ids, data_rows)) {
+    seq_along(ids)
+  } else if (is.integer(ids) && is.integer(data_rows)) {
+    match(ids, data_rows)
+  } else {
+    match(as.character(ids), as.character(data_rows))
   }
-  frame
+  if (anyNA(rows)) {
+    return(NULL)
+  }
+  rows
 }
 
-#' Refuse `data` whose rows cannot be confirmed to hold the fit's observations
+#' Refuse rows of `data` that do not reproduce the model frame
 #'
-#' The tests match the rows of `data` to the residuals by row name. A tibble,
-#' a data.table, or a data frame whose row names were reset (as by
-#' `dplyr::arrange()`) has row names that only number its rows, so for such
-#' data the match is by position, and data in another order than the fit, or
-#' with rows in front of those of the fit, were matched to other observations
-#' and gave wrong values without an error. This guard refuses them, until the
-#' model context planned for 0.16.0 replaces it.
+#' The second step of the guard of 0.15.0, in the alignment step of the model
+#' context ([rcontext_align()]): the rows `rows` of `data`, one per
+#' observation of the fit, are compared with every column of its model frame
+#' ([rdata_rows_checked()]), and refused when a compared column differs, or
+#' when the columns that can be compared leave rows of the fit that they cannot
+#' tell apart.
 #'
-#' It takes the rows of `data` that the row names pick for the observations of
-#' the fit, the rows the tests read, and compares them, row by row, with every
+#' Before 0.15.0 the tests matched the rows of `data` to the residuals by row
+#' name. A tibble, a data.table, or a data frame whose row names were reset
+#' (as by `dplyr::arrange()`) has row names that only number its rows, so for
+#' such data the match was by position, and data in another order than the
+#' fit, or with rows in front of those of the fit, were matched to other
+#' observations and gave wrong values without an error. The guard of 0.15.0
+#' refuses them; since 0.16.0 it is the alignment step of the model context.
+#'
+#' It takes the rows of `data` picked for the observations of the fit
+#' ([rdata_fit_rows()], or the rows in the order of the fit), the rows the
+#' tests read, and compares them, row by row, with every
 #' column of the model frame of the fit. A column that `data` holds under its
 #' own name (`y`, `x1`, `group`, or `log(x1)` when `data` is the model frame)
 #' is compared as it is, value by value. Any other column is computed from
@@ -115,94 +131,14 @@ rdata_or_model_frame <- function(model, data) {
 #' A model fitted with `model = FALSE` has no model frame of its own, and
 #' `model.frame()` rebuilds one from the data the fit refers to; if those data
 #' changed after the fit, the comparison above would compare `data` with
-#' itself. Such a frame is refused first (rcheck_model_frame()).
+#' itself. Such a frame is refused first ([rcheck_model_frame()], called by
+#' [rmodel_context()]).
 #'
-#' Data that lack a row of the fit, or a variable of the model, are left to
-#' the calling test, which refuses them with its own message. Repeated row
-#' names, which say nothing about which row holds which observation, are
-#' refused. The error has class `heteroTests_data_rows_error`, which
-#' [ht_analyse_failure()] treats as final: `runHeteroTests()` does not fall
-#' back on another test for it.
-#'
-#' Since 0.16.0 the guard is two steps, so that the model context
-#' (R/model_context.R), whose alignment step it is, can run the comparison on
-#' rows it found otherwise: [rdata_fit_rows()] picks the rows, and
-#' [rcheck_rows_at()] compares them with the model frame. This function, which
-#' the tests not yet built on the context call, runs the two as before.
-#'
-#' @param model The fitted model of the calling test. A model that is not an
-#'   `lm`, or whose model frame cannot be rebuilt, is left to the checks of the
-#'   test.
-#' @param data The `data` argument of the calling test, not `NULL`.
-#' @param fn Character scalar naming the calling test in the message, or
-#'   `NULL`.
-#' @return The rows of `data` that hold the observations of the fit,
-#'   invisibly, or `NULL` when they were not checked.
-#' @keywords internal
-#' @noRd
-rcheck_data_rows <- function(model, data, fn = NULL) {
-  if (!inherits(model, "lm") || inherits(model, "svyglm") || !is.data.frame(data)) {
-    return(invisible(NULL))
-  }
-  frame <- tryCatch(stats::model.frame(model), error = function(e) NULL)
-  if (!is.data.frame(frame) || nrow(frame) == 0L) {
-    return(invisible(NULL))
-  }
-  rcheck_model_frame(model, frame, fn)
-  rows <- rdata_fit_rows(frame, data, fn)
-  if (is.null(rows)) {
-    return(invisible(NULL))
-  }
-  rows <- rcheck_rows_at(model, frame, data, rows, fn)
-  attr(rows, "compared") <- NULL
-  invisible(rows)
-}
-
-#' The rows of `data` that the row names pick for the observations of a fit
-#'
-#' The first step of [rcheck_data_rows()]: the rows by row name, and for data
-#' that number their rows (`.row_names_info(data) < 0`), by the original row
-#' numbers of the fit. Repeated row names, which say nothing about which row
-#' holds which observation, are refused.
-#'
-#' @param frame The model frame of the fit.
-#' @param data A data frame.
-#' @param fn Character scalar naming the calling test in the message, or
-#'   `NULL`.
-#' @return Integer vector, the row of `data` for each observation, or `NULL`
-#'   when a name of the fit is not a row name of `data`.
-#' @keywords internal
-#' @noRd
-rdata_fit_rows <- function(frame, data, fn = NULL) {
-  numbered <- .row_names_info(data) < 0L
-  # The row names as stored, integer or character: rownames() would turn
-  # integers into strings on every call, and two integer row names are the
-  # same name exactly when they are the same integer.
-  data_rows <- attr(data, "row.names")
-  if (!numbered && anyDuplicated(data_rows) > 0L) {
-    rstop_data_rows_unmatched(fn, "duplicated")
-  }
-  ids <- attr(frame, "row.names")
-  rows <- if (identical(ids, data_rows)) {
-    seq_along(ids)
-  } else if (is.integer(ids) && is.integer(data_rows)) {
-    match(ids, data_rows)
-  } else {
-    match(as.character(ids), as.character(data_rows))
-  }
-  if (anyNA(rows)) {
-    return(NULL)
-  }
-  rows
-}
-
-#' Refuse rows of `data` that do not reproduce the model frame
-#'
-#' The second step of [rcheck_data_rows()]: the rows `rows` of `data`, one per
-#' observation of the fit, are compared with every column of its model frame
-#' ([rdata_rows_checked()]), and refused when a compared column differs, or
-#' when the columns that can be compared leave rows of the fit that they cannot
-#' tell apart.
+#' Data that lack a row of the fit, or a variable of the model, are refused
+#' before this step, by the alignment ([rstop_data_rows()],
+#' [rvalidateDataInputs()]). The error has class
+#' `heteroTests_data_rows_error`, which [ht_analyse_failure()] treats as
+#' final: `runHeteroTests()` does not fall back on another test for it.
 #'
 #' @param model The fitted model.
 #' @param frame Its model frame.
@@ -560,28 +496,11 @@ rsame_rows <- function(values, rows, target, recomputed = FALSE, tolerance = 1e-
   )
 }
 
-# rhandleMissingValues() drops the incomplete rows of `data` before some tests
-# match the rest by row name, and a tibble numbers the rows that are left
-# afresh, so their row names can then point to other rows. The rows the match
-# picked, counted in `data` before the drop, must be the rows the row names of
-# `data` picked before it, which rcheck_data_rows() compared with the fit.
-rcheck_rows_after_cleaning <- function(data, cleaned, match_idx, ids, fn = NULL,
-                                       test_label = NULL) {
-  if (cleaned$removed_count == 0L) {
-    return(invisible(NULL))
-  }
-  kept <- seq_len(nrow(data))[-cleaned$removed_cases]
-  if (!identical(kept[match_idx], match(ids, rownames(data)))) {
-    rstop_data_rows_unmatched(fn, "renumbered", label = test_label)
-  }
-  invisible(NULL)
-}
-
-# The rows prepare_model_data_for_test() aligned to the fit, under the row
-# names of the fit, for a test that calls another test on them: a tibble it
-# subset numbers its rows afresh, and the inner test would then match them by
-# name to other observations. Data whose row names are already those of the
-# fit are returned as they are.
+# The rows of `data` the alignment confirmed, under the names of the
+# observations of the fit, for a test that calls another test on them
+# (rcontext_rows()): a tibble it subset numbers its rows afresh, and the inner
+# test would then match them by name to other observations. Data whose row
+# names are already those of the fit are returned as they are.
 rdata_with_fit_rows <- function(data, ids) {
   if (is.null(ids) || identical(rownames(data), ids)) {
     return(data)
@@ -594,9 +513,9 @@ rdata_with_fit_rows <- function(data, ids) {
 # The error of the checks above: what does not match, and what to pass
 # instead. `data = NULL` is not offered, as many tests need columns, weights or
 # offsets that the model frame does not hold under their own names.
-rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = NULL,
+rstop_data_rows_unmatched <- function(fn, reason, differ = character(),
                                       skipped = character(), compared = character()) {
-  who <- if (!is.null(fn)) sprintf("%s()", fn) else if (!is.null(label)) label else "The test"
+  who <- if (!is.null(fn)) sprintf("%s()", fn) else "The test"
   listed <- function(names) {
     text <- paste(utils::head(names, 3L), collapse = ", ")
     if (length(names) > 3L) {
@@ -656,14 +575,6 @@ rstop_data_rows_unmatched <- function(fn, reason, differ = character(), label = 
         columns, verb
       ),
       "Pass the data the model was fitted on."
-    ),
-    renumbered = c(
-      paste0(
-        "its rows with missing values were dropped, and `data`, which has no ",
-        "row names of its own (a tibble), numbers the rows that are left ",
-        "afresh, so their row names now point to other rows."
-      ),
-      "Pass it as a data frame, `as.data.frame(data)`, whose row numbers survive the drop."
     ),
     unconfirmed = c(
       sprintf(
@@ -756,9 +667,9 @@ rtest_name <- function(frame, default = NULL) {
   if (is.null(name)) default else name
 }
 
-# The error for `data` whose rows are not those of the fit, in the words of
-# prepare_model_data_for_test(): the rows it lacks when the rows are named,
-# otherwise the counts.
+# The error for `data` whose rows are not those of the fit, in the words the
+# tests used before the model context: the rows it lacks when the rows are
+# named, otherwise the counts.
 rstop_data_rows <- function(residuals, data, test_label) {
   resid_names <- names(residuals)
   missing_rows <- if (length(resid_names) > 0L && !is.null(rownames(data))) {

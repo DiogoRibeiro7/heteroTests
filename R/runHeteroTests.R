@@ -116,6 +116,9 @@ runHeteroTests <- function(model, data = NULL,
   prepared <- .ht_prepare_model(model, data = data, context = "runHeteroTests()")
 
   if (prepared$grouped && length(prepared$group_splits) > 0) {
+    # A fitWLS() fit is refused before any group is refitted (B11, decision 10
+    # of the design of the model context).
+    rrefuse_grouped_fitwls(prepared$model)
     if (is.null(prepared$fit_factory)) {
       stop(
         "Grouped diagnostics require a formula-based model specification so each group can be refitted.",
@@ -166,6 +169,36 @@ runHeteroTests <- function(model, data = NULL,
     }
     output
   }
+}
+
+#' Refuse a grouped run of a fitWLS() fit
+#'
+#' A grouped run refits the model within each group by evaluating its own
+#' call on the rows of the group (`.ht_refit_group()`). The call of a
+#' [fitWLS()] fit is that of the model it refitted, without the weights it
+#' estimated, so each group was refitted by ordinary least squares, or with
+#' the prior weights of the model, and tested as such a fit: a test of
+#' another model than the one given, without an error (B11 of the design of
+#' the model context). Estimating the variance function again within each
+#' group is a model of its own, which the caller can fit. Such a run is refused
+#' (decision 10), with the class of the refusals of the model context, which
+#' the runners keep (decision 6).
+#'
+#' @param model The model of the run, after `.ht_prepare_model()`.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+#' @noRd
+rrefuse_grouped_fitwls <- function(model) {
+  if (is.null(attr(model, "variance_function"))) {
+    return(invisible(NULL))
+  }
+  rstop_model_context(paste0(
+    "runHeteroTests() cannot run a grouped analysis of a fitWLS() fit: each group is refitted ",
+    "by evaluating the call of the model on its rows, and that call does not hold the weights ",
+    "fitWLS() estimated, so each group would be tested as another fit, without them. Fit ",
+    "fitWLS() within each group and test each fit, or pass the data ungrouped ",
+    "(dplyr::ungroup()) to test the fit as a whole."
+  ))
 }
 
 #' Record that runHeteroTests() fitted the model of a suite itself
@@ -325,7 +358,7 @@ rsuite_mark_origin <- function(suite, origin) {
           return(failure)
         }
         if (failure_context$issue %in% c("data_rows", "model_context")) {
-          # Keep the class of the refusal of `data` (rcheck_data_rows()) or of
+          # Keep the class of the refusal of `data` (rcheck_rows_at()) or of
           # the model by the model context (R/model_context.R), so that a
           # caller can tell it from a failure of the test.
           stop(structure(
