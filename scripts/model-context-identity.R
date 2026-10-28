@@ -2066,8 +2066,9 @@ identity_rng_state <- function() {
 # against the twin as the reference of the cell (identity_verify(), to 0), or
 # its refusal, the same class and message; an output with one value per row
 # padded as naresid() pads it, which of the calls of the corpus only the
-# fitWLS() recipes return, their weights (identity_padded_twin()); and the
-# state of the generator the twin left. Each run records, for each such cell,
+# fitWLS() recipes return, their weights (identity_padded_twin()); the
+# state of the generator the twin left; and the twin's warnings, which the
+# review of increment 9 found counted and not enforced. Each run records, for each such cell,
 # the na.action of its fit and its number of observations (`na_action`). The
 # allow-list gains B13, for the calls of the functions built on the context
 # (`identity_affected`), as an error that becomes a value, a value that
@@ -3275,6 +3276,19 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       allowed <- "unexpected"
       verdict$detail <- paste("the generator is not left as the twin left it;", verdict$detail)
     }
+    # And its warnings must be the twin's, as identity_outcome() records them
+    # (sorted, each once), changed or identical to main (from the review of
+    # increment 9, where they were counted and not enforced).
+    twin_warnings <- if (is.na(twin$verdict)) {
+      NA
+    } else {
+      identical(after$warnings,
+                identity_twin_record(before, branch$records, before$twin)$warnings)
+    }
+    if (identical(twin_warnings, FALSE)) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("the warnings are not the twin's;", verdict$detail)
+    }
     n2_change <- !is.null(n2_mode) && !identical(allowed, "identical")
     # An allowed change to a value must be verified against a reference; one
     # of N2 is, by identity_n2_check() or identity_n2_fallback(), against
@@ -3362,12 +3376,7 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # the twin's warnings; NA on the other cells.
       twin = twin$verdict,
       twin_rng = twin$rng,
-      twin_warnings = if (is.na(twin$verdict)) {
-        NA
-      } else {
-        identical(after$warnings,
-                  identity_twin_record(before, branch$records, before$twin)$warnings)
-      },
+      twin_warnings = twin_warnings,
       detail = substr(gsub("\n", " ", verdict$detail), 1L, 160L),
       stringsAsFactors = FALSE
     )
