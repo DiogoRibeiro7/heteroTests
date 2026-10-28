@@ -283,7 +283,8 @@ null-imposed resampling, refused by `bootstrapTestStatistic()` ("Null-imposed
 resampling needs a plain response variable"); a `MASS::rlm()` fit, refused by
 `bootstrapTestStatistic()` ("`data` does not reproduce the fit"), until a later
 step; `data = NULL` given to `bootstrapTestStatistic()`, which needs `data`; a
-fit with `na.action = na.exclude`; and every message the test suite pins. The
+fit with `na.action = na.exclude`, until step 9 (below); and every message the
+test suite pins. The
 White bootstrap no longer runs the checks of the model on each replicate, and
 no longer gives their warnings on the residuals of a replicate, such as
 "Residual outliers detected". On a factor with a contrasts matrix as its

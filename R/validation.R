@@ -609,7 +609,11 @@ validate_data_inputs_internal <- function(data, required_vars, min_obs, context)
 #' Ensures that a supplied regression model satisfies the basic assumptions
 #' required by the heteroscedasticity testing infrastructure. The checks
 #' include class validation, successful fitting, availability of finite
-#' residuals, and minimum sample size requirements.
+#' residuals, and minimum sample size requirements. The residuals are those of
+#' the observations of the fit: on a fit with `na.action = na.exclude`, without
+#' the `NA` that `residuals()` pads them with at the rows the fit dropped, as
+#' for the same fit with `na.omit` (since 0.17.0; before, such a fit was
+#' refused as one whose residuals are not finite).
 #'
 #' @param model A fitted model object produced by [stats::lm()] or
 #'   [stats::glm()].

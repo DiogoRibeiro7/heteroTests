@@ -59,8 +59,14 @@ statistic and replicates moved together, and `performWildBootstrapTest()`,
 `performWhiteTestRobust()` and `performBPTestRobust()`, built on it, each
 replicate refitted by least squares on the stored design
 (`rreplicate_lm()`, in `R/bootstrap_methods.R`), and a Gaussian `glm`
-bootstrapped as the `lm` it is (N8). Increments 9 to 11 are planned; see
-[Migration plan](#migration-plan).
+bootstrapped as the `lm` it is (N8). Increment 9, the second of 0.17.0, is in
+the development version too: a fit with `na.action = na.exclude`, which the
+tests refused and the panel tests and the scatter diagnostic read by
+position, is read as the same fit with `na.omit`, the checks of the model and
+every test reading its residuals, fitted values, weights and leverages without
+the padding of `na.exclude` (`rmodel_unpad()`, `rcontext_unpad()`), and an
+output with one value per row padded as `naresid()` pads it (B13).
+Increments 10 and 11 are planned; see [Migration plan](#migration-plan).
 
 ## The problem
 
@@ -180,10 +186,24 @@ guard as its alignment step and removes the rebuilding behind it.
   tests, which left out the observations of the fit whose group is missing,
   still do, with the same warning and on the same rows, the rows the
   alignment confirmed (`rcontext_group_rows()`; decision 8: each test keeps
-  its behaviour). The panel tests and the scatter diagnostic, which have no
-  check of the residuals that refuses the padding of `na.exclude`, read such a
-  fit as before, its padded residuals against the rows of `data` by position,
-  until increment 9 (`rcontext_columns_at_fit()`).
+  its behaviour). A fit with `na.action = na.exclude` drops the rows `na.omit`
+  drops, and its `residuals()`, `fitted()`, `weights()` and `hatvalues()`
+  hold an `NA` at each of them (`naresid()`). Since increment 9 (B13) the
+  checks of the model (`rvalidateModelInputs()`, through `rmodel_unpad()`) and
+  every test read them without the padding, so such a fit gives what the same
+  fit with `na.omit` gives on the same data, its twin: the same statistic,
+  p-value, refusal and warnings, "Removed N observations" among them, and for
+  the resampling tests the same draws of the generator. An output with one
+  value per row is padded as `naresid()` pads it, in the order of the fit: of
+  the functions built on the context, the estimated variances `fitWLS()`
+  attaches to its fit (`"variance_model"`), whose `residuals()`, `fitted()`
+  and `weights()` R pads already; the tests return none. Until increment 9 the
+  checks refused such a fit ("Model residuals must be finite"), and so every
+  test that runs them; RESET stopped on its padded fitted values ("NA/NaN/Inf
+  in 'x'"), the spread-level and Davidian-Carroll tests left out the `NA`
+  themselves, and the panel tests and the scatter diagnostic, which have no
+  such check, read its padded residuals against the rows of `data` by
+  position (decision 29).
 - **No state.** The context is built for one call and dropped when the call
   returns. It is never stored, returned, exported or cached, and holds no
   global or mutable state. It is not the validation cache, whose checks the
@@ -226,15 +246,18 @@ The functions of `R/model_context.R`:
 | `rcontext_pearson(ctx)` | The Pearson residuals the tests read (`rpearson_residuals()`), unpadded; refuses a zero weight as before. |
 | `rcontext_design(ctx)` | The design without its aliased columns. |
 | `rcontext_rows(ctx, data)` | The confirmed rows of `data`, in fit order and under the names of the fit, or the model frame without `data`: what a test hands to its checks of the data and to a test it calls. |
-| `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`. |
+| `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`, of `residuals()`, `fitted()`, `weights()` and `hatvalues()` of the fit, which every test reads so since increment 9 (B13). |
+| `rmodel_unpad(model, x)` | The same, from the fit, for the code that reads it before or without its context: the checks of the model (`rvalidateModelInputs()`, `rvalidateSampleSize()`) and `bootstrapTestStatistic()` (increment 9). |
+| `rcontext_fitted(ctx)` | `fitted()` of the fit without the padding of `na.exclude`, what the tests computed from the model alone and RESET read (increment 9). |
+| `rmodel_as_na_omit(model)` | A fit with `na.exclude` with the class of the `na.action` of `na.omit`, the same rows: what `rvalidate_against_reference()` gives `lmtest::bptest()` and `car::ncvTest()`, which read `weights()` and `residuals()` (increment 9). |
 | `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
 | `rrefuse_smooth_gam(ctx, fn)` | Refuses an `mgcv::gam()` fit with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
 | `rcontext_mean(ctx)` | The fitted values, the linear predictor with the total offset, computed from the coefficients as `predict.lm()` computes it, in fit order: what `fitted()` holds (an `lm` up to rounding, as `y - e`), and so what `predict(type = "response")` returns, but on a `gam` with an `offset` argument, which `predict.gam()` leaves out. The registered `"szroeter"` orders by it (increment 3). |
 | `rstop_missing_variable(ctx, values, variable, argument, test_label)` | Refuses an extra variable that is `NA` at an observation of the fit, with the "Missing rows" message of before, naming the variable (decision 8). |
 | `rcontext_group_rows(ctx, data, group)` | The five group tests (increment 4): the group read as `rcontext_variables()` reads it (M1 without `data`), the Pearson residuals (`rcontext_pearson()`, which refuses a zero weight), and the confirmed rows of `data` in fit order, or the model frame, without the observations whose group or variable of the model is missing, left out by `rhandleMissingValues()` with its warning, as before (decision 8). |
-| `rcontext_columns_at_fit(ctx, data, columns, fn, test_label)` | The panel tests and the scatter diagnostic (increment 5): the columns they read, `id`, `time` or `vars`, as `rcontext_variables()` reads them (M1 without `data`), and the Pearson residuals (`rcontext_pearson()`); for a fit with `na.exclude`, its padded residuals against the rows of `data` by position, checked by `rcheck_data_in_fit_order()`, as before, until increment 9. |
+| `rcontext_columns_at_fit(ctx, data, columns, fn, test_label)` | The panel tests and the scatter diagnostic (increment 5): the columns they read, `id`, `time` or `vars`, as `rcontext_variables()` reads them (M1 without `data`), and the Pearson residuals (`rcontext_pearson()`); for a fit with `na.exclude` the same, since increment 9, where its padded residuals were read against the rows of `data` by position, checked by `rcheck_data_in_fit_order()`, which goes with `rcheck_data_matches_model()`. |
 | `rstop_repeated_panel_cells(id_values, time_values, id, time, fn)` | Pesaran's test (increment 5): refuses a pair of `id` and `time` that holds two observations of the fit, naming up to three pairs, with the class of the context (decision 13). |
-| `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refuses a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). Since the pull request of N12, on the positional reading of a fit with `na.exclude` only, until increment 9; on every other route the statistic of an unbalanced panel is computed (`rpesaran_cd_unbalanced()`, `R/performPesaranTest.R`). |
+| `rstop_unbalanced_panel(id_values, time_values, id, fn)` | Pesaran's test (increment 5): refused a panel whose units are not all observed at the same periods, naming a unit and its count of periods against the panel's, with the class of the context (N12, decision 28). Since the pull request of N12, on the positional reading of a fit with `na.exclude` only; it goes with that reading in increment 9, and on every route the statistic of an unbalanced panel is computed (`rpesaran_cd_unbalanced()`, `R/performPesaranTest.R`). |
 | `rcontext_second_formula(model, data, formulas, fn, test_label, check_type)` | The functions that may evaluate a second formula (increment 6): the type of `data` checked first (`rcheck_data_argument()`, whose message the test suite pins; not by `fitWLS()`), then the context built with `data`, the variables of the formulas passed as `reads` (`.` reads every column). The tests computed from the model alone and RESET call `rcheck_data_argument()` and `rmodel_context(model, data, ...)` themselves (decision 31). |
 | `rcontext_formula_rows(ctx, data, formula, arg)` | The rows a second formula is evaluated on (increment 6): the confirmed rows of `data` in fit order (`rcontext_rows()`), or the model frame without its terms; a variable of the formula that `data`, or without `data` the model frame, does not hold is refused, with the message of `data` or M1 (R3, decision 9). |
 | `rformula_constants(formula, names)` | The names of a second formula that are constants (from the review of increment 6): not columns, and of a value, found from the environment of the formula as `eval()` finds it, that is an atomic vector of length one; `rcontext_formula_rows()` lets them through, and refuses every other name it cannot find in `data` or the model frame. |
@@ -296,8 +319,8 @@ seen by any alignment (N16).
 | M7 | a multivariate `lm` | "performKoenkerTest() needs a model with one response; `model` has 2." |
 | M8 | the fit does not reproduce itself | "The fitted model does not reproduce its residuals from its design and coefficients: it was changed after the fit. Refit the model." / "The weights of the model are not those its coefficients were fitted with: ..." A guard against accidental edits, not a proof that a fit is unedited: an edited coefficient, which leaves the residuals unchanged, is seen only at `1e-7` of the largest term (an edit of 0.5 goes undetected once the response is above about `1e7`). |
 | frame | a model frame that cannot be rebuilt, and `data` absent or not giving the response and the fitted values of the fit | "... cannot use the model frame of `model`: it cannot be rebuilt (...), and `data` does not give the response and the fitted values of the fit. ..."; since increment 7, for `data` that lack rows named as the observations of the fit, as the tibble of a fit to named data does, "..., and the rows of `data` cannot be matched to the observations of the fit: `data` has no rows named Mazda RX4, Mazda RX4 Wag, Datsun 710. ..." |
-| R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route, the positional reading of a fit with `na.exclude` included | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more". On the positional reading of a fit with `na.exclude` the checks run on the rows of `data`, so a refusal can name a row the fit dropped: with `d$time[2] <- 1L` and `d$x2[2] <- NA` this message counts row 2 among the "observations of the fit", and with `d$time[3] <- NA` and `d$x2[3] <- NA` the refusal of a missing period says "Missing rows: 3", a row the fit did not use. Both refusals are right: the matrix would hold those rows, with `NA` residuals |
-| N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28): on every route in increment 5; since the pull request of N12, which computes the statistic of an unbalanced panel, on the positional reading of a fit with `na.exclude` only, until increment 9 | Increment 5: "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." Since the pull request of N12: "performPesaranTest() reads a fit with na.action = na.exclude by position, on a matrix of periods by units, and needs a balanced panel, every unit observed at the same periods; the panel of the rows of `data` is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. Refit the model with na.action = na.omit: the statistic of an unbalanced panel is then computed from the periods each pair of units shares, as plm::pcdtest() computes it." And, on any route, a panel in which no pair of units shares two periods: "performPesaranTest() needs a pair of units observed together at two periods or more, and no pair of the 6 units of the fit shares more than one period. ..." |
+| R2 | in Pesaran's test, a pair of `id` and `time` that holds more than one observation (decision 13), on every route | "performPesaranTest() needs one observation of the fit for each pair of `id` and `time`, and 1 pair holds more than one: id = 1 and time = 5 (2 observations). The residuals are arranged in a matrix of periods by units, with one cell for each pair. Pass a panel with one row per unit and period.", naming up to three pairs, "and N more". Until increment 9, on the positional reading of a fit with `na.exclude`, the checks ran on the rows of `data`, so a refusal could name a row the fit dropped: with `d$time[2] <- 1L` and `d$x2[2] <- NA` this message counted row 2 among the "observations of the fit", and with `d$time[3] <- NA` and `d$x2[3] <- NA` the refusal of a missing period said "Missing rows: 3", a row the fit did not use. Since increment 9 such a fit is read at the rows it kept, as with `na.omit`: those two calls give a value, as their twins do |
+| N12 | in Pesaran's test, an unbalanced panel, whose units are not all observed at the same periods (decision 28): on every route in increment 5; since the pull request of N12, which computes the statistic of an unbalanced panel, on the positional reading of a fit with `na.exclude` only; on no route since increment 9, which removes that reading | Increment 5: "performPesaranTest() needs a balanced panel, every unit observed at the same periods, and the panel of the fit is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. The statistic is computed here on a matrix of periods by units, which an unbalanced panel does not fill; plm::pcdtest() computes it for an unbalanced panel from the periods each pair of units shares." Since the pull request of N12: "performPesaranTest() reads a fit with na.action = na.exclude by position, on a matrix of periods by units, and needs a balanced panel, every unit observed at the same periods; the panel of the rows of `data` is unbalanced: 1 of its 12 units is observed at fewer of its 10 periods, id = 1 at 5 of them. Refit the model with na.action = na.omit: the statistic of an unbalanced panel is then computed from the periods each pair of units shares, as plm::pcdtest() computes it." And, on any route, a panel in which no pair of units shares two periods: "performPesaranTest() needs a pair of units observed together at two periods or more, and no pair of the 6 units of the fit shares more than one period. ..." |
 
 M1, M7, M8, the frame message, R2 and N12 have class
 `heteroTests_model_context_error`. Both panel refusals find the repeated pairs
@@ -367,7 +390,8 @@ For the functions built on the context, in increment 1:
   `performBPTestRobust()` keep their own preparation of the data until
   increment 8: they gain the fixes of the statistic they call, but still need
   `data` for a model with transformed variables. A fit with
-  `na.action = na.exclude` is still refused, as before, until increment 9. A
+  `na.action = na.exclude` is still refused, as before, until increment 9
+  (below), which reads it as the same fit with `na.omit`. A
   Gaussian `mgcv::gam()` fit, a `glm` by class, is tested as before; without
   smooth terms it gives the value of the `lm`. Whether a penalised `gam` with
   smooth terms is an input the tests justify is a question of the contract,
@@ -600,7 +624,7 @@ For the functions built on the context in increment 5:
   frame (M1 otherwise); the scatter diagnostic and `runPanelTests()` need
   `data`, as before (`rcontext_columns_at_fit()`). The positional check of
   0.15.0, `rcheck_data_in_fit_order()`, is left to a fit with `na.exclude`
-  (below).
+  (below), until increment 9 removes it.
 - **Errors that become values** (B3, B4, B16): data with row names of their
   own in another order than the fit, rows after those of the fit, a fit to a
   subset given its data, the complete rows of an `na.omit` fit renumbered and
@@ -666,7 +690,7 @@ For the functions built on the context in increment 5:
   drops every row of a unit keeps a balanced panel and is tested. The refusal
   comes off in the pull request of N12, which computes the statistic so (done:
   the refusal stays on the positional reading of a fit with `na.exclude`
-  only, decision 28). `runPanelTests()`
+  only, decision 28, until increment 9). `runPanelTests()`
   reports the refusal of one of its tests by stopping with it, its class kept:
   it returns no list, and runs no other test in its place.
 - **Unchanged**: every other value on valid calls; the zero-weight refusals,
@@ -683,7 +707,7 @@ For the functions built on the context in increment 5:
   `NA` residuals at the dropped rows, where `plm::pcdtest()` gives 0.189 on
   the rows of the fit and the same fit with `na.omit`, refused in increment
   5, gives 0.189 since the pull request of N12; the value is left to
-  increment 9;
+  increment 9, which gives 0.189 there, the value of the twin with `na.omit`;
   a smooth `gam`, tested as before (decision 23); and every message the test
   suite pins ("`id` must be a column in `data`.", "`id` and `time` must be
   columns in `data`." for data that lack them).
@@ -705,7 +729,7 @@ For the functions built on the context in increment 6:
   `rcheck_data_argument()` keeps only its check of the type of `data`, whose
   message the test suite pins, and `rcheck_data_matches_model()` remains for
   the positional reading of a fit with `na.exclude` by the panel tests, until
-  increment 9. A second formula, the `var_formula` of Cook-Weisberg's test (and
+  increment 9, which removes it. A second formula, the `var_formula` of Cook-Weisberg's test (and
   NCV), of the variance form test and of `fitWLS()`, and the `against` of the
   variance form test, is evaluated on the rows the alignment confirmed, the
   variables of the formula passed as `reads` (`rcontext_second_formula()`), or
@@ -890,7 +914,7 @@ For the functions built on the context in increment 7:
   formula, as before, to the last bits. Increment 11 decides between the two.
 - **Unchanged**: every other value on valid calls; the zero-weight refusals
   and the refusals of the guard; a fit with `na.action = na.exclude`, refused
-  as before ("Model residuals must be finite"), until increment 9; and the
+  as before ("Model residuals must be finite"), until increment 9 (below); and the
   refusal of a regression of squared residuals that do not vary, "requires
   variation in squared residuals", decided against the absolute threshold
   `.Machine$double.eps` on their total sum of squares, which refuses residuals
@@ -1038,12 +1062,85 @@ For the functions built on the context in increment 8:
   as before ("Null-imposed resampling needs a plain response variable"); a
   `MASS::rlm()` fit, refused by `bootstrapTestStatistic()` as before, until
   increment 11 (decision 4); a fit with `na.action = na.exclude`, refused as
-  before, until increment 9; `data = NULL` given to `bootstrapTestStatistic()`,
+  before, until increment 9 (below); `data = NULL` given to `bootstrapTestStatistic()`,
   which needs `data`, as before; and every message the test suite pins.
 - **Warnings.** The White bootstrap no longer runs the checks of the model and
   of `data` on each replicate, which gave their warnings, the outliers of the
   residuals of a replicate among them; the observed statistic gives those of
   the fit, as before.
+
+For a fit with `na.action = na.exclude`, in increment 9:
+
+- **What the change reaches.** Every function built on the context, its
+  registered names, `test_factory` entries and routes, and the runners,
+  `runHeteroTests()`, `runDiagnostics()`, `runTimeSeriesTests()`,
+  `runPanelTests()` and `runAdvancedDiagnostics()`; and, through the checks of
+  the model, which they share, `rvalidate_against_reference()`,
+  `rcalculateEffectSize()` and `restimate_test_power()`. Such a fit drops the
+  rows `na.omit` drops, and `residuals()`, `fitted()`, `weights()` and
+  `hatvalues()` hold an `NA` at each of them (`naresid()`). The checks of the
+  model read one residual per observation of the fit (`rmodel_unpad()`), and
+  the tests read the Pearson residuals, the fitted values and the leverages
+  without the padding (`rcontext_pearson()`, `rcontext_fitted()`,
+  `rcontext_unpad()`): the tests computed from the model alone, RESET, the
+  White bootstrap, which drew its residuals, the wild bootstrap and
+  `bootstrapTestStatistic()`, which read the leverages, the fitted values and
+  the residuals of the fit. The panel tests and the scatter diagnostic read the
+  rows the alignment confirmed, as for any fit (`rcontext_columns_at_fit()`),
+  where they read the padded residuals against the rows of `data` by position
+  (decision 29); `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()`
+  and `rstop_unbalanced_panel()` go, and so do the messages of the guard on
+  data read by position ("it reads `data` by position, the i-th row with the
+  i-th observation ..."). `rvalidate_against_reference()` gives
+  `lmtest::bptest()` and `car::ncvTest()` the same fit with the class of the
+  `na.action` of `na.omit` (`rmodel_as_na_omit()`), as lmtest stopped on the
+  padded weights of a weighted fit ("incompatible dimensions").
+- **The reference: the twin.** A fit with `na.exclude` is the fit of
+  `na.omit` on the same rows; their `na.action` holds the same rows, of class
+  `"exclude"` or `"omit"`. Every call on such a fit gives what the same call
+  gives on the same fit with `na.omit` and the same data, its twin: the same
+  statistic, p-value and every other number, `identical()`, the same refusal,
+  class and message, the same warnings, the warning "Removed 3 observations
+  due to missing values in x2" of decision 7 among them, which the refused
+  calls did not reach, and for the resampling tests the same draws of the
+  generator, which they now make. A group, `id` or `time` missing only at rows
+  the fit dropped is not read, as for the twin.
+- **Outputs per row.** An output with one value per row is the twin's padded
+  as `naresid()` pads it, in the order of the fit. The tests return none; of
+  the functions built on the context, `fitWLS()` returns a fit whose
+  `residuals()`, `fitted()` and `weights()` R pads already, through the
+  `na.action` it keeps, and whose estimated variances, the attribute
+  `"variance_model"`, had one value per observation of the fit: they are
+  padded too. The record of its variance function (`"variance_function"`:
+  the regressors, the fitted log-variance and the initial weights), which the
+  bootstraps read by observation, keeps one row per observation, the twin's
+  (an open choice, ROADMAP.md). Outside the context, `runDiagnostics()$influence`
+  holds the Cook's distances of `performInfluenceDiagnostics()`, which
+  `cooks.distance()` pads, and the positions of the influential ones in that
+  padded vector (ROADMAP.md).
+- **Errors that become values** (B13): every test that runs the checks of the
+  model, refused with "Model residuals must be finite before running ...",
+  and so the runners ("Diagnostic execution failed for White: ..."); RESET,
+  which stopped with "NA/NaN/Inf in 'x'"; the resampling tests; the panel
+  tests and the scatter diagnostic given data in another order than the fit,
+  which they refused ("... are not in the order of the fit"), and Pesaran's
+  test on an unbalanced panel of the rows of `data`, which it refused with the
+  message of N12 on that reading.
+- **Values that change** (B13): the random-effects test and the scatter
+  diagnostic, whose statistic and correlations were `NA`, and Pesaran's test,
+  computed with the `NA` of the rows the fit dropped: on `missing/na_exclude`
+  (`x2` missing in rows 3, 7 and 11) 0.713 becomes 0.189, plm's on the rows of
+  the fit, the random-effects test `NA` 2.016 and the scatter diagnostic `NA`
+  0.343 and -0.163, the values of the twin; and `fitWLS()`'s
+  `"variance_model"`, padded.
+- **Messages.** The refusals of the twin, where the checks of the model
+  refused the fit first: of `data` by the guard, M1 without `data`, a
+  variable of the workspace (R3), the weights of the variance form test, the
+  refusal of the reference implementation route on `data` it cannot match.
+- **Unchanged**: every call on a fit without `na.exclude`, `identical()`;
+  the spread-level and Davidian-Carroll tests on such a fit, which left out the
+  `NA` themselves and gave the value of the twin; and `fitWLS()`'s
+  coefficients, weights and residuals.
 
 ## Migration plan
 
@@ -1058,11 +1155,11 @@ migrations that keep every value, then the riskier resampling and
 | 2 | `.studentized_bp_test()` (`performStudentizedBPTest()`, `performBPTestRobust()`, `student_bp`), `performRESETTest()`, `performGQTest()` on the stored design, `performQuantileRegressionTest()` on `y - offset`; `rrefuse_offset()` goes | B7, N1, N6 (RESET), R5; B5, B12, B14, B15, L1, L2, N7, R4 for these | **Done, 0.16.0** |
 | 3 | `performGlejserTest()`, `performParkTest()`, `performSzroeterTest()` with the registered `"szroeter"`, `performHarrisonMcCabeTest()` (rank at the fit's tolerance), `performHartleyFmaxTest()`, `performSpatialHeteroTest()` | B14, L1, L2, M1 for `variable`, `order_by`, `group`; N4; N17 for these (B15 gave values already) | **Done, 0.16.0** |
 | 4 | The group tests (Levene, Brown-Forsythe, Fligner-Killeen, Bartlett, O'Brien); their copies of the alignment go; the observations with a missing group left out with their warning, as before (`rcontext_group_rows()`) | the character-named fit with its tibble and the complete rows renumbered (B14); R7; L1, L2, M1 for `group`; N17 for these (B12 and B15 gave values already) | **Done, 0.16.0** |
-| 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29) | **Done, 0.16.0** |
+| 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29, done) | **Done, 0.16.0** |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)`: `rcontext_second_formula()`, `rcontext_formula_rows()`; `rvariance_frame()` goes. The tests that read nothing from `data`, RESET included, match it through the guard, as every test does (decision 31): the check of 0.15.0 goes, but for its check of the type of `data` | B9, R3, N6; M7, M8 and "frame" for these; decision 31 | **Done, 0.16.0** |
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
-| 9 | `na.exclude`: unpadded residuals in the checks, padded outputs per observation | B13 | Planned, 0.17.0 |
+| 9 | `na.exclude`: unpadded residuals in the checks (`rmodel_unpad()`) and in every test (`rcontext_pearson()`, `rcontext_fitted()`, `rcontext_unpad()`), padded outputs per observation (`fitWLS()`); the positional reading of the panel tests and the scatter diagnostic goes, with `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()` and `rstop_unbalanced_panel()` | B13; N12 on the positional reading | **Done, development version (0.17.0)** |
 | 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go | B11, N5 | Planned, 0.17.0 |
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned, 0.17.0 |
 
@@ -1610,7 +1707,20 @@ the span of the regressors, and a positive response `ypos`.
   and a repeated `(id, time)`, shuffled. Increment 6: a `model = FALSE` fit
   whose data changed after the fit given its data, one whose data are kept,
   with and without `data`, and a variable of a second formula, `z`, missing at
-  an observation of the fit and at a row the fit dropped.
+  an observation of the fit and at a row the fit dropped. Increment 9: a fit
+  with `na.exclude` (the block `exclude/` and `missing/na_exclude`), each
+  against its twin, the same fit with `na.omit` given the same data: a
+  regressor missing, given the full data, shuffled, the complete rows named
+  and renumbered, a tibble, a shuffled tibble, no `data` and the model frame;
+  the response missing; `x1` missing, the variable and the ordering of the
+  recipes; data with row names of their own, in fit order and shuffled;
+  weights and an offset from the data, with and without `data`; a weighted
+  Gaussian `glm`; a `fitWLS()` fit; a `log()` model, with and without `data`;
+  a subset; a group missing at an observation of the fit and at a row it
+  dropped, given the data, shuffled and renumbered, and a model of the group;
+  `id` and `time` missing at rows the fit dropped only; `z` missing at a row
+  the fit dropped; and a balanced panel, a fit that drops every row of a unit,
+  in fit order and shuffled, and an unbalanced one.
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
@@ -1627,7 +1737,8 @@ the span of the regressors, and a positive response `ypos`.
   the block of panels, and the fits to the complete rows of a fit that dropped
   rows with an indicator computed beforehand and of a model of the group; and
   (increment 6) the cells of the stale and kept `model = FALSE` frames and of
-  a missing `z`: 361 cells, run through each of the forty functions, the
+  a missing `z`; and (increment 9) the 28 cells of a fit with `na.exclude`
+  and the 14 twins they do not share with the other blocks: 402 cells, run through each of the forty functions, the
   three streaming tests of increment 7 among them, in one chunk of 10,000
   observations, and the White and wild bootstraps and the robust White and
   Breusch-Pagan tests of increment 8, with `B = 19` for the resampling tests
@@ -1661,13 +1772,12 @@ the span of the regressors, and a positive response `ypos`.
   unbalanced panel, as that of a fit that dropped some rows of some units,
   against the same reference as the random-effects test, where increment 5
   refused it (N12), the scatter diagnostic refuses a zero
-  weight before the guard, a fit with `na.exclude` is read as before, and the
+  weight before the guard, and the
   fits that dropped rows are compared with their fit to the complete rows;
   the tests computed from the model alone and RESET
   (`context_cell_for_model_alone()`) read nothing from `data`, which they
-  match as every test does (decision 31), and keep their own refusals: the
-  spread-level and Davidian-Carroll tests take a fit with `na.exclude`, RESET
-  a zero weight, and the variance form test refuses weights that did not
+  match as every test does (decision 31), and keep their own refusals: RESET
+  takes a zero weight, and the variance form test refuses weights that did not
   come from `fitWLS()`; and the calls of a second formula
   (`context_cell_for_formula()`) read `z` at the confirmed rows, so that the
   guard refuses what it refuses, `z` is refused without `data` (M1) and with
@@ -1706,6 +1816,7 @@ the span of the regressors, and a positive response `ypos`.
 | weights equivalence | the Gaussian `glm` against the weighted `lm`, `1e-8` (Fligner-Killeen, `1e-4`, N15); workspace weights against a column, and `fitWLS()` against `lm(weights = weights(fit))`, `identical()`, but for the White and wild bootstraps, which estimate the weights of a `fitWLS()` fit again in each replicate |
 | the resampling tests (increment 8) | each replicate of the White bootstrap the formula refitted to the fitted values plus the residuals drawn, and White's test of that refit, `identical()`, with the generator left as the draws leave it; without `data` and with the model frame, on weights, an offset argument, an `offset()` term, `I(x1 > median(x1))` and `ns()`, the four resampling routes and `bootstrapTestStatistic()` `identical()` to the call with `data` (B12); on `cut(x1, quantile(x1))` and on the median of a fit that dropped rows, the White bootstrap, `bootstrapTestStatistic()` with null and pairs resampling and the robust White bootstrap against the fit with the column computed beforehand, to `1e-10`; `bootstrapTestStatistic()` of Koenker's, White's and the Breusch-Pagan statistics and the robust White bootstrap on a Gaussian `glm` against the weighted `lm`, to `1e-8`, with the same p-value (N8); the White bootstrap on a `gam` given its rows shuffled `identical()` to the rows in order (N17); an edited fit and a frame that cannot be rebuilt refused |
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
+| `na.exclude` (increment 9) | every function of the matrix and every call of a second formula on a fit with `na.exclude` against the same call on its twin, the same fit with `na.omit` given the same data (`context_same_as_twin()`): the same refusal, class and message, or the same value, `identical()`, the weights `fitWLS()` returns padded as `naresid()` pads them (`context_twin_value()`); and, in tests of their own, the same warnings and draws of the generator, for the resampling tests and the runners too, Pesaran's CD that of `plm::pcdtest()` on the rows of the fit, and the estimated variances of `fitWLS()` padded |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
 
@@ -1733,7 +1844,7 @@ that fixes each.
 | B9 | A second formula matched by position | Fixed in increment 6: `var_formula` and `against` are evaluated on the rows the alignment confirmed (`rcontext_formula_rows()`); `rvariance_frame()` is gone |
 | B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
 | B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four, in increment 8 for the replicates and the White bootstrap; the group tests of increment 4 and the streaming tests of increment 7 gave values already |
-| B13 | `na.exclude` | Increment 9 |
+| B13 | `na.exclude` | Fixed in increment 9: the checks of the model and every test read the residuals, fitted values, weights and leverages of the fit without the padding, and a fit with `na.exclude` gives what the same fit with `na.omit` gives, an output with one value per row padded as `naresid()` pads it (`fitWLS()`'s `"variance_model"`); the panel tests and the scatter diagnostic no longer read it by position |
 | B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the resampling tests and the robust tests |
 | B15 | `subset =` by index | Fixed in increment 1 for the five, in increment 2 for its four; the six of increment 3, the five of increment 4 and the streaming tests of increment 7 gave values already; in increment 8 for the White bootstrap, which rebuilt a design of the rows of `data` from the call of the subset fit |
 | B16 | The panel tests on a fit that dropped rows | Fixed in increment 5 for the random-effects test and the scatter diagnostic; Pesaran's test reaches the panel of the fit, which is unbalanced unless every row of a unit was dropped, and refused it (N12, decision 28) until the pull request of N12, since which it gives the value of the fit to the complete rows |
@@ -1755,7 +1866,7 @@ that fixes each.
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Fixed in increment 8: a Gaussian `glm` with the identity link is bootstrapped as the `lm` it is, with its prior weights; another `glm`, a `survey::svyglm()` fit and an `mgcv::gam()` fit are refused, as before |
 | N9 | A multivariate `lm`: coercion errors | M7 in increment 1 for the five |
 | N10 | Studentized Breusch-Pagan on `rlm` tests the least-squares refit | Decision 4, increment 11 |
-| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refused an unbalanced panel. Fixed by the pull request of N12, which removes the refusal: the statistic of an unbalanced panel is computed from the periods each pair of units shares, as `plm::pcdtest(test = "cd")` computes it (Pesaran 2004, Section 9, equation 31), `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, `rho_ij` the correlation of the residuals of units `i` and `j` over the `T_ij` periods both are observed at, each centred at its mean over them, over the `P` pairs with `T_ij >= 2` (`N (N - 1) / 2` when every pair has); a pair with `T_ij < 2` is left out with a warning, as plm leaves it out, and a panel without such a pair is refused; a correlation that is not defined, a unit constant over the periods of a pair, adds nothing and the pair stays in `P`, with a warning, as on a balanced panel, where plm returns `NA`; -0.373 on that panel, and plm's value to `1e-10` on 252 panels of 5 to 30 units and 4 to 12 periods, 228 of them unbalanced (late entry, early exit, gaps, 1 to 20 rows missing at random, a unit observed once), by an `lm`, a weighted `lm` and a Gaussian `glm`, weighted or not, directly, on the full data of a fit with `na.omit` and through `runPanelTests()`: 5,040 comparisons, the largest difference 3.6e-15 on the statistic, and on the cells of the matrix (below). A balanced panel keeps the matrix of periods by units, every value `identical()`. The refusal stays on the positional reading of a fit with `na.exclude` until increment 9 (decision 29) |
+| N11 to N15 | Influence diagnostics count aliased coefficients; Pesaran on an unbalanced panel; Szroeter through `test_factory`; Szroeter on a weighted fit; Fligner-Killeen ties | Separate pull requests; N13 unchanged by increment 3; N15 unchanged by increment 4, whose matrix compares Fligner-Killeen's test on another fit of the same model to `1e-4`. N12 refused by increment 5 (decision 28): Pesaran's test filled a matrix of periods by units, and stopped on a unit with fewer periods than the panel, or, when its number of periods divided that of the panel, recycled its residuals and returned a wrong value (0.234 where `plm::pcdtest()` gives -0.373, on `contract_data()` without its first five rows); it refused an unbalanced panel. Fixed by the pull request of N12, which removes the refusal: the statistic of an unbalanced panel is computed from the periods each pair of units shares, as `plm::pcdtest(test = "cd")` computes it (Pesaran 2004, Section 9, equation 31), `CD = sqrt(1 / P) sum_{i<j} sqrt(T_ij) rho_ij`, `rho_ij` the correlation of the residuals of units `i` and `j` over the `T_ij` periods both are observed at, each centred at its mean over them, over the `P` pairs with `T_ij >= 2` (`N (N - 1) / 2` when every pair has); a pair with `T_ij < 2` is left out with a warning, as plm leaves it out, and a panel without such a pair is refused; a correlation that is not defined, a unit constant over the periods of a pair, adds nothing and the pair stays in `P`, with a warning, as on a balanced panel, where plm returns `NA`; -0.373 on that panel, and plm's value to `1e-10` on 252 panels of 5 to 30 units and 4 to 12 periods, 228 of them unbalanced (late entry, early exit, gaps, 1 to 20 rows missing at random, a unit observed once), by an `lm`, a weighted `lm` and a Gaussian `glm`, weighted or not, directly, on the full data of a fit with `na.omit` and through `runPanelTests()`: 5,040 comparisons, the largest difference 3.6e-15 on the statistic, and on the cells of the matrix (below). A balanced panel keeps the matrix of periods by units, every value `identical()`. The refusal stayed on the positional reading of a fit with `na.exclude` until increment 9 (decision 29), which removes that reading and the refusal with it |
 | N16 | Data that reproduce the model frame but carry another extra column | A limit no alignment can lift |
 | N17 | A `gam`'s unnamed residuals matched to `data` by position: named data in another order than the fit gave a wrong value, without an error, in the tests that read a column of `data` (found in increment 3) | Fixed in increment 3 for Glejser, Park, Szroeter, Harrison-McCabe and Hartley, in increment 4 for the five group tests, in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the White bootstrap, whose replicates added each draw to the fitted value of the row of `data` at the same position |
 
@@ -1777,7 +1888,7 @@ that fixes each.
 | 12 | The tests build tibbles with `dplyr::as_tibble()` under `skip_if_not_installed("dplyr")`; dplyr and data.table stay in Suggests. | 2026-10-18 |
 | 13 | Repeated `(id, time)` pairs are refused, in increment 5. | 2026-10-18 |
 | 14 | Refusals of calls that return a value are allowed in 0.16.0, announced in bold. | 2026-10-18 |
-| 16 | `na.exclude` goes in 0.16.0, as the last increment (9). | 2026-10-18 |
+| 16 | `na.exclude` goes in 0.16.0, as the last increment (9). Moved to 0.17.0 with increments 8 to 11 (2026-10-26), where it is the second; done in increment 9. | 2026-10-18 |
 | 17 | The wording of the release notes and the roadmap: named data in any order, numbered data in fit order. | 2026-10-18 |
 | 18 | Numbered data with exactly one row per observation, whose numbers are not the fit's, are taken in fit order once the guard's comparison passes. | 2026-10-18 |
 | 19 | RESET with an offset is the nested F test of the offset model; one evidence cell (5000 replications) is added to `offset-refits-size.R` before release. | 2026-10-18 |
@@ -1789,8 +1900,8 @@ that fixes each.
 | 25 | After the review of N2, White's test decides its rank on the auxiliary design of the centred regressors, so that it does not depend on where they are located, fitting the columns as they are whenever that fit keeps them all; and it refuses an auxiliary regression with as many independent terms as observations, the runner falling back on White's test without cross products. Decided by the author. | 2026-10-21 |
 | 26 | After the review of the follow-up of N2, White's test also refuses an auxiliary regression that fits the squared residuals exactly with fewer terms than observations, as on a paired design: its residual sum of squares at most `sqrt(.Machine$double.eps)` of the total. The refusal advises what the call allows, and the runner takes no fallback when the regressors alone fit the squared residuals exactly, since the Breusch-Pagan and Koenker tests would fit them exactly too. The same refusal in those two tests is left to a pull request of its own. | 2026-10-22 |
 | 27 | The streaming tests run only when asked for, outside the context: `runHeteroTests()` and `runDiagnostics()` default to `chunk_threshold_mb = Inf`, a finite value asks for them, and `performWhiteTest()`, `performBPTest()`, `performKoenkerTest()` and the White bootstrap no longer switch to them above 100 MB. Streaming saves memory mainly in White's test, and the White streaming test stops on any model with a factor. The three streaming tests stay exported, not deprecated, and increment 7 still builds them on the stored design. Decided by the author. | 2026-10-22 |
-| 28 | Pesaran's test refuses an unbalanced panel, whose units are not all observed at the same periods, in increment 5, with the class of the context and on every route, so that it never returns the value of recycled residuals; a fit that drops every row of a unit keeps a balanced panel. The refusal comes off in the pull request of N12, which computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does. Decided by the author: refuse now, fix later. Done in the pull request of N12 (2026-10-26): the refusal is off on every route but the positional reading of a fit with `na.exclude`, left to increment 9 (decision 29); a pair of units that shares fewer than two periods is left out of the statistic with a warning, as `plm::pcdtest()` leaves it out, rather than refused, and a panel in which no pair shares two periods is refused. | 2026-10-24 |
-| 29 | The panel tests and the scatter diagnostic read a fit with `na.exclude` as before, its padded residuals against the rows of `data` by position, until increment 9. Decided by the author. | 2026-10-24 |
+| 28 | Pesaran's test refuses an unbalanced panel, whose units are not all observed at the same periods, in increment 5, with the class of the context and on every route, so that it never returns the value of recycled residuals; a fit that drops every row of a unit keeps a balanced panel. The refusal comes off in the pull request of N12, which computes the statistic on the periods each pair of units shares, as `plm::pcdtest()` does. Decided by the author: refuse now, fix later. Done in the pull request of N12 (2026-10-26): the refusal is off on every route but the positional reading of a fit with `na.exclude`, left to increment 9 (decision 29), which removes it; a pair of units that shares fewer than two periods is left out of the statistic with a warning, as `plm::pcdtest()` leaves it out, rather than refused, and a panel in which no pair shares two periods is refused. | 2026-10-24 |
+| 29 | The panel tests and the scatter diagnostic read a fit with `na.exclude` as before, its padded residuals against the rows of `data` by position, until increment 9. Decided by the author. Done in increment 9: they read it as the same fit with `na.omit`. | 2026-10-24 |
 | 30 | A repeated pair of `id` and `time` is refused by Pesaran's test only, and so by `runPanelTests()` when it runs that test; the random-effects test reads no period. Decided by the author. | 2026-10-24 |
 | 31 | The tests that read nothing from `data`, the nine tests computed from the model alone, RESET and `fitWLS()` without `var_formula`, match `data` through the guard, as every test built on the context does: one rule for every test. Data the guard cannot match are refused, where they returned the value of the fit, and numbered data in the order of the fit that the check of 0.15.0 refused are taken; that check goes, but for the type of `data`. It ends decision 24. Decided by the author, on the open question of the first version of increment 6. | 2026-10-26 |
 

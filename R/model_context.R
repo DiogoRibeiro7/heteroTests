@@ -52,7 +52,12 @@
 # performBPTestRobust(), which refit their replicates on the stored design
 # (rreplicate_lm(), R/bootstrap_methods.R). No test prepares the model and
 # data with rdata_or_model_frame() and prepare_model_data_for_test() any
-# more; increment 10 removes them.
+# more; increment 10 removes them. Since increment 9 a fit with
+# na.action = na.exclude is read as the same fit with na.omit, which drops
+# the same rows: the checks of the model and every test read its residuals,
+# fitted values, weights and leverages without the padding (rmodel_unpad(),
+# rcontext_unpad()), and an output with one value per row is padded as
+# naresid() pads it.
 
 #' Build the model context of a test
 #'

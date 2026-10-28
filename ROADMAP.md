@@ -924,7 +924,9 @@ suites, approved on 2026-10-21, are added.
   is `identical()` to before. A fit with `na.action = na.exclude` that
   dropped rows is read by position until step 9, and an unbalanced panel of
   the rows of `data` stays refused there, with a message that points to
-  `na.omit`; one that dropped no row is tested as any other.
+  `na.omit`; one that dropped no row is tested as any other. Since step 9
+  (0.17.0) such a fit is tested as the same fit with `na.omit`, its panel
+  balanced or not, and the refusal is gone.
 - [x] **The wild bootstrap in the advice for a small sample.** 0.15.0 corrected
   the warning of `warnDiagnosticAssumptions()` for a sample of fewer than 100
   observations, but two other strings still recommend the wild bootstrap for
@@ -1312,7 +1314,7 @@ suites, approved on 2026-10-21, are added.
     request of N12 computes it from the periods each pair of units shares. A
     fit with
     `na.action = na.exclude` is read as before, by position, until step 9.
-    Done in 0.16.0.
+    Done in 0.16.0. Step 9 reads it as the same fit with `na.omit`.
   - [x] 6. The tests computed from the model alone, Cook-Weisberg with
     `var_formula`, `performVarianceFormTest()` and `fitWLS(data, var_formula)`,
     and the check of `data` RESET keeps until then (`rcheck_data_argument()`).
@@ -1420,7 +1422,23 @@ squared residuals that do not vary.
     does; a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not
     rebuild its design, is refused (M8); and `bootstrapTestStatistic()`
     refuses a multivariate `lm` with M7.
-  - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
+  - [x] 9. `na.exclude`, the last step (decision 16). Closes B13. Done in the
+    development version: a fit with `na.action = na.exclude` drops the rows
+    `na.omit` drops, and pads `residuals()`, `fitted()`, `weights()` and
+    `hatvalues()` with `NA` at them. The checks of the model read one
+    residual per observation of the fit, and every test built on the context
+    reads the vectors of the fit without the padding, so such a fit gives what
+    the same fit with `na.omit` gives on the same data: the same statistic,
+    p-value, refusal and warnings, and for the resampling tests the same
+    draws. The tests and the runners refused it ("Model residuals must be
+    finite"), RESET stopped on it ("NA/NaN/Inf in 'x'"), and the panel tests
+    and the scatter diagnostic read its padded residuals against the rows of
+    `data` by position, which gave `NA`, or a value computed with the `NA`,
+    and refused data in another order and an unbalanced panel of the rows of
+    `data`; that reading goes. An output with one value per row is padded as
+    `naresid()` pads it: the estimated variances `fitWLS()` attaches to its
+    fit. `rvalidate_against_reference()` gives lmtest and car the same fit
+    read as `na.omit`, on whose padded weights lmtest stopped.
   - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
     refused (decision 10), workflows with `data`;
     `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
@@ -1572,6 +1590,30 @@ squared residuals that do not vary.
     refused ("`data` does not reproduce the fit"), as such an `lm` was before.
     Refitting at the tolerance of the fit would give them values. A refusal
     becomes a value.
+- [ ] **Found by step 9 of the model context, recorded, not fixed**: functions
+  that are not built on the context and read the padded vectors of a fit with
+  `na.action = na.exclude`, or keep one value per observation where the rule
+  of step 9 pads them.
+  - `analyzeMLResiduals()` returns `rmse_reduction = NA` on such a fit: it
+    takes the root mean square of `resid()` of the `lm`, padded with `NA`,
+    where the same fit with `na.omit` gives a number. Leave out the padding,
+    as the tests do. A value changes (`NA` becomes a number).
+  - `performInfluenceDiagnostics()`, and so `runDiagnostics()$influence`,
+    returns the Cook's distances of `cooks.distance()`, which R pads with
+    `NA`, one per row, as step 9 pads an output; but `influential` holds their
+    positions among the rows, where the same fit with `na.omit` gives their
+    positions among the observations (the names are the same). Decide which
+    the positions count. A value changes, or none.
+  - The plots (`plotResidualsFitted()` and the others) read `fitted()` and
+    the Pearson residuals with the padding, and leave the `NA` to ggplot2.
+    Not checked in step 9.
+  - The record of the variance function that `fitWLS()` attaches to its fit
+    (`attr(fit, "variance_function")`: `regressors`, `index`,
+    `initial_weights`) keeps one row per observation of the fit on a fit with
+    `na.exclude`, where step 9 pads the estimated variances
+    (`"variance_model"`): the bootstraps read the record by observation, and
+    padding it would break them. An open choice for the author: keep it so,
+    or pad it and read it without the padding.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for 0.16.0 so
   that 0.14.0 changes no value. Each fix that changes a value is announced in
   bold in `NEWS.md`. Those below are settled by steps 8 and 10; the others are
