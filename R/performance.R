@@ -534,7 +534,8 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   intercept, and the test stopped ("Breusch-Pagan auxiliary regression
 #'   became rank deficient"); and squared residuals of about \eqn{10^{-10}}
 #'   were taken for constant ("requires variation in squared residuals"). It
-#'   gives the value of [performBPTest()] on both.
+#'   gives the value of [performBPTest()] on both. Sparse cross-products from
+#'   \pkg{Matrix} are no longer used.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
@@ -648,7 +649,8 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   intercept, and the test stopped ("Koenker auxiliary regression became
 #'   rank deficient"); and squared residuals of about \eqn{10^{-10}} were
 #'   taken for constant ("requires variation in squared residuals"). It gives
-#'   the value of [performKoenkerTest()] on both.
+#'   the value of [performKoenkerTest()] on both. Sparse cross-products from
+#'   \pkg{Matrix} are no longer used.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.

@@ -54,7 +54,8 @@ test gives 11.14 on 5, the Breusch-Pagan test 12.45 on 2 and Koenker's 9.04
 on 2, the values of the exact tests and of the model at zero, where the three
 stopped. From 100 to 10,000 standard deviations, on linear terms, factors,
 weights and a Gaussian `glm`, the degrees of freedom are those of the exact
-tests and the statistics agree with them to 1.2e-10 relative; on a product
+tests and the statistics agree with them to about 2e-10 relative, the
+rounding being the exact tests', which fit the uncentred design; on a product
 or a power of a variable located far from zero inside the model, which
 `performWhiteTest()` itself computes less precisely, to 3e-9 at 1,000
 standard deviations. Where they gave a value, the values change in their
@@ -76,13 +77,21 @@ freedom, `performBPTest()` 12.997 on 2 and `performKoenkerTest()` 10.289 on
 values. The total is compared with the sum of squares of the squared
 residuals: they are taken for constant when it is at most
 `.Machine$double.eps` of it, when they agree to about eight digits, at any
-scale. Squared residuals that are equal but for rounding, those of residuals
-of +1 and -1 orthogonal to the regressors, are refused at any scale and in
-chunks of any size, where in chunks of 40 or more the streaming tests gave a
-value from the rounding at a scale of 1 (White's 0, Koenker's 40, the number
-of observations) and refused it at others; `performWhiteTest()` and
-`performKoenkerTest()` compute a statistic from the rounding too (18.82 and
-18.36).
+scale.
+
+**The streaming tests refuse squared residuals that agree to about eight
+digits, at every scale and in chunks of any size.** The absolute threshold let
+such residuals through at some scales, where the statistic was computed from
+the rounding: residuals of +1 and -1 orthogonal to the regressors gave, in
+chunks of 40 or more at a scale of 1, White's 0, Koenker's 40 (the number of
+observations) and the Breusch-Pagan test 3.6e-15, and were refused at other
+scales; and squared residuals that differ by a few parts in 1e9, such as those
+of `lm(y ~ x)` with `x <- rep(1:30, each = 4)` and
+`y <- 2 + 0.5 * x + s * 1e4 * (1 + 3e-9 * v)`, `s <- rep(c(1, -1, -1, 1), 30)`,
+`v <- rep(c(1, 0, 1, 0), 30) * x / 10`, gave White's 60 on 2 and Koenker's 60
+on 1, noise, where `performWhiteTest()` and `performKoenkerTest()` give
+23.05. `performWhiteTest()` and `performKoenkerTest()` compute a statistic
+from the rounding of the first case too (18.82 and 18.36).
 
 **White's streaming test, in more than one chunk, on a regressor named like a
 term it generates, gives the value of `performWhiteTest()`.** It matched the

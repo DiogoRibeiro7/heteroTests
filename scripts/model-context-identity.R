@@ -1663,6 +1663,23 @@ identity_n3_value <- function(a, b, ref) {
   if (isTRUE(identity_relative(identity_numbers(a), identity_numbers(b)) <= identity_last_bits)) {
     return("last bits")
   }
+  # The other numbers of a streaming result move with the statistic or not at
+  # all (from the review of the pull request): the chunks do not depend on the
+  # fit, and the R-squared is proportional to the statistic, n R^2 for White's
+  # and Koenker's tests, ESS / (2 sigma^4) on the same total for the
+  # Breusch-Pagan test, whose residuals are those of main.
+  fixed <- intersect(c("chunks_processed", "chunk_size"), names(a))
+  if (!identical(unclass(a)[fixed], unclass(b)[fixed])) {
+    return(NA_character_)
+  }
+  if (is.numeric(a$r_squared) && is.numeric(b$r_squared) && isTRUE(a$r_squared != 0) &&
+        is.numeric(a$statistic) && is.numeric(b$statistic) && isTRUE(a$statistic != 0)) {
+    ratio_r <- b$r_squared / a$r_squared
+    ratio_s <- unname(b$statistic / a$statistic)
+    if (!isTRUE(abs(ratio_r - ratio_s) <= 1e-9 * max(1, abs(ratio_s)))) {
+      return(NA_character_)
+    }
+  }
   if (identity_n3_agrees(b, ref) &&
         isTRUE(identity_n3_distance(b, ref) <= identity_n3_distance(a, ref))) {
     return("exact test")

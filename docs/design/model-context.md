@@ -1515,7 +1515,7 @@ that fixes each.
 | 19 | RESET with an offset is the nested F test of the offset model; one evidence cell (5000 replications) is added to `offset-refits-size.R` before release. | 2026-10-18 |
 | 20 | Goldfeld-Quandt segments come from the stored design. | 2026-10-18 |
 | 21 | Harrison-McCabe takes its rank at the fit's tolerance, in increment 3. | 2026-10-18 |
-| 22 | N2 and N3 are separate pull requests in 0.16.0, outside the context. | 2026-10-18 |
+| 22 | N2 and N3 are separate pull requests, outside the context: N2 in 0.16.0, N3 in 0.17.0 (the milestones were split on 2026-10-26). | 2026-10-18 |
 | 23 | The tests of increment 2 refuse an `mgcv::gam()` fit with smooth terms, usually penalised, fixed ones included, with a final class, until increment 11 settles which tests take it; the five of increment 1 test it as before. Confirmed by the author on 2026-10-19. | 2026-10-18 |
 | 24 | RESET builds its context without `data` and keeps `rcheck_data_argument()` until increment 6, so that its values on every form of `data` are those of 0.15.0. Confirmed by the author on 2026-10-19. | 2026-10-18 |
 | 25 | After the review of N2, White's test decides its rank on the auxiliary design of the centred regressors, so that it does not depend on where they are located, fitting the columns as they are whenever that fit keeps them all; and it refuses an auxiliary regression with as many independent terms as observations, the runner falling back on White's test without cross products. Decided by the author. | 2026-10-21 |
