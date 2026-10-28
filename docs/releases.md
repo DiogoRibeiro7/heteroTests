@@ -445,7 +445,7 @@ for each observation of the fit: given the full data of a fit that dropped
 rows, it stopped on the same fit with `na.omit` with "incompatible dimensions",
 and read the padded residuals of a fit with `na.exclude` against the rows by
 position, returning a value; both are refused with a message that names the
-two counts ("recommendRemediationStrategies() reads one row of `data` for each
+two counts ("`recommendRemediationStrategies()` reads one row of `data` for each
 observation of the fit, 117 of them, and `data` has 120 rows."). Given the
 model frame, both give the value; `generateHeteroRecommendations()`, which
 calls it, refused such data before, and still does.
