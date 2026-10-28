@@ -113,9 +113,10 @@ The runner runs the exact tests unless `chunk_threshold_mb` asks for the streami
 [`performKoenkerTestStreaming()`](performKoenkerTestStreaming.md). Up to 0.15.0 it switched to them by itself on data above 100 MB, and
 [`performWhiteTest()`](performWhiteTest.md), [`performBPTest()`](performBPTest.md) and [`performKoenkerTest()`](performKoenkerTest.md) did so on their
 own. Streaming saves memory mainly in White's test, whose auxiliary design is several times wider than the model
-matrix; the auxiliary design of the Breusch-Pagan and Koenker tests is the model matrix itself. And the streaming White
-test stops on any model with a factor or a `poly()` term, whose squares are collinear with the other terms of its auxiliary regression, so that above 100 MB such
-a model got a fallback under the name `"white"` where smaller data got White's test.
+matrix; the auxiliary design of the Breusch-Pagan and Koenker tests is the model matrix itself. And until 0.17.0 the
+streaming White test stopped on any model with a factor or a `poly()` term, whose squares are collinear with the other
+terms of its auxiliary regression, so that above 100 MB such a model got a fallback under the name `"white"` where
+smaller data got White's test; since 0.17.0 it drops those terms, as [`performWhiteTest()`](performWhiteTest.md) does.
 
 ## References
 

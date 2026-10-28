@@ -1291,6 +1291,29 @@ values that change) and 0 unexpected; the 8 calls that differ in kind are the
 runner on numbered data in the order of the fit (B14), which stopped there
 and, with decision 31, puts the NCV fallback under the names of the tests.
 
+The pull request of N3, outside the increments (decision 22), changes how
+the three streaming tests fit their auxiliary regression: from the triangular
+factor of the centred design, chunk by chunk, where they solved the normal
+equations of uncentred cross-products. The allow-list gains N3
+(`identity_n3_verdict()`), scoped to the streaming tests, the runner that
+streams them and their help pages: a value that changes must equal `main` to
+`1e-12` relative on every number, or the exact test of the same call to `1e-8`
+on the statistic and the p-value with its degrees of freedom, and be nearer to
+it than `main` was; an error that becomes a value must carry the message of N3
+or of the threshold on squared residuals and equal the exact test. The rule of
+increment 7 that let White's streaming test stop on collinear terms goes. Each
+run also records the exact test of the examples of the streaming help pages.
+Against `main` (7493afd, the release of 0.16.0): 33,339 calls, of which 30,683
+identical, 2,656 allowed changes and 0 unexpected. All 2,656 are calls of the
+streaming tests or of the runner that streams them: 481 equal the exact test of
+the same call, to `1.3e-11` (261 errors that become values, 249 of them
+White's on collinear terms; and 220 values that change, 33 of White's streaming
+test, where `main`'s normal equations lost digits, and 187 of the runner, which
+put a fallback under the name of a test that stopped), and 2,175 differ from
+`main` in their last bits only, by
+at most `5.1e-13` relative on any number. The 536 `poly()` calls on the stored
+design are `identical()` to `main`, and no call's warnings differ.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in

@@ -4,9 +4,9 @@
 
 <small>Source: [`R/performance.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/performance.R) · Help: `?performBPTestStreaming`</small>
 
-Computes the classical Breusch-Pagan statistic using chunked cross-products so
-that large datasets can be evaluated without materialising the full auxiliary
-regression in memory. The streamed result is algebraically identical to
+Computes the classical Breusch-Pagan statistic chunk by chunk so that large
+datasets can be evaluated without materialising the full auxiliary regression in
+memory. The streamed result is algebraically identical to
 [`performBPTest`](performBPTest.md).
 
 ## Usage
@@ -41,11 +41,15 @@ chunked computation.
 
 ## Details
 
-Each chunk contributes to the cross-product matrices \(X'X\) and \(X'y\) for the
-auxiliary regression of squared residuals on the original regressors. The
-chunks are aggregated to recover the exact Breusch-Pagan statistic while keeping
-memory usage bounded. When Matrix is installed, sparse cross-products are
-used automatically for large chunks.
+Each chunk of the regressors, centred at their means, is reduced by a QR
+decomposition stacked on the triangular factor of the chunks before it, as in
+[`performWhiteTestStreaming()`](performWhiteTestStreaming.md), since 0.17.0. Up to 0.16.0 the
+cross-products of the regressors were accumulated: those of a regressor 1,000
+standard deviations from zero looked collinear with the intercept, and the test
+stopped ("Breusch-Pagan auxiliary regression became rank deficient"); and squared
+residuals of about \(10^{-10}\) were taken for constant ("requires variation in
+squared residuals"). It gives the value of [`performBPTest()`](performBPTest.md) on both.
+Sparse cross-products from Matrix are no longer used.
 
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), whose details say what changed.
