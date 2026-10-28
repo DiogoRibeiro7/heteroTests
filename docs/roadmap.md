@@ -1418,12 +1418,22 @@ squared residuals that do not vary.
         stopped on it, and by `bootstrapTestStatistic()`, which refuses every
         `gam`, as before. An edited fit (M8) and a `model = FALSE` fit whose data
         are gone given a shuffled tibble ("frame"), from which the White and wild
-        bootstraps computed a value, are refused.
+        bootstraps computed a value, are refused. Its review: pairs resampling
+        keeps the contrasts of the design and codes a factor or a character
+        regressor a replicate leaves a value out of as a refit of the formula
+        does; a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not
+        rebuild its design, is refused (M8); and `bootstrapTestStatistic()`
+        refuses a multivariate `lm` with M7.
     - [ ] 9. `na.exclude`, the last step (decision 16). Closes B13.
     - [ ] 10. The runners and the clean-up: a grouped run of a `fitWLS()` fit
         refused (decision 10), workflows with `data`;
-        `prepare_model_data_for_test()` and `rdata_or_model_frame()` go. Closes
-        B11, N5.
+        `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
+        `rcheck_data_rows()` and `rcheck_rows_after_cleaning()` go, which no test
+        calls since step 8. The assertions of
+        `tests/testthat/test-data-alignment-guard.R` that call
+        `prepare_model_data_for_test()` (the tibble renumbered by the rows it
+        dropped) and `rcheck_data_rows()` (no column that can be compared)
+        exercise these dead internals, and go with them. Closes B11, N5.
     - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
         it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
         by class, is an input the tests justify: its residuals are not orthogonal
@@ -1553,10 +1563,12 @@ squared residuals that do not vary.
     - `fitWLS()` of an `mgcv::gam()` fit with smooth terms returns an `lm` whose
         terms do not rebuild its design: `model.matrix()` gives a column for each
         variable of the formula, for the coefficients of the basis of the smooths.
-        The tests built on the model context stop on it with "(subscript) logical
-        subscript too long"; before step 8 the White and wild bootstraps returned
-        values on the design of the variables. Refuse such a fit in `fitWLS()`,
-        or keep its basis. A value or an error becomes a refusal.
+        The tests built on the model context stopped on it with "(subscript)
+        logical subscript too long"; before step 8 the White and wild bootstraps
+        returned values on the design of the variables. Since the review of step
+        8 the context refuses it, as a fit whose design does not reproduce its
+        residuals (M8). Still to settle with step 11: refuse such a fit in
+        `fitWLS()` itself, or keep its basis there, so that it can be tested.
     - `bootstrapTestStatistic()` refits each replicate at the tolerance of
         `lm()`, `1e-7`, as its refits of the formula did, so a fit whose rank was
         decided at a smaller tolerance and differs, an `lm` fitted with a smaller
