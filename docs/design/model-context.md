@@ -1481,9 +1481,7 @@ recipe; `bootstrapTestStatistic()` of White's, the Breusch-Pagan and Glejser's
 statistics besides Koenker's, and of Koenker's with pairs resampling; the
 robust Breusch-Pagan bootstrap without studentizing; the White and wild
 bootstraps and `bootstrapTestStatistic()` of a `fitWLS()` fit of the model of
-each cell, whose weights each replicate estimates again (but on a `gam` with
-smooth terms, of which `fitWLS()` returns an `lm` whose terms do not rebuild
-its design, a defect recorded in ROADMAP.md); the runner with the three
+each cell, whose weights each replicate estimates again; the runner with the three
 resampling tests the package registers, at their 999 replicates, on 89 cells
 of every block and on the references of their changes; and the examples of
 four more help pages. Each run records the state of the generator after
@@ -1495,13 +1493,15 @@ B15, N7 and B5 among the errors that become values of the bootstraps
 (`identity_bootstrap_allowed`), B5 for pairs resampling on a term computed
 from the rows (poly(), ns(), the median, cut()), N17 for the White bootstrap
 and the runner, N8 for the bootstraps on a Gaussian `glm` (a value verified
-against the same call on the weighted `lm` of its cell, to `1e-8`; on a `gam`,
-on a `glm` with a zero weight or data the guard refuses, and on the nearly
-collinear `glm` of the cells of Harrison-McCabe's rank, a message), "gam" for
-the White bootstrap and the runner, and M8 and "frame" for the five. Four
-rules are added. On a cell where White's count changed (N2), a message or a
-new refusal of a route of White's test is judged by the other rules, and a
-value where `main` stopped is verified by the chain. The bootstraps whose
+against the same call on the weighted `lm` of its cell, to `1e-8`; on a `gam`
+or a `glm`, a message, each refusal of the context that now comes first on
+the cells where it applies, a zero weight on the cells of a zero weight, the
+guard on the cells of the guard and the refit of the nearly collinear `glm`
+on the cells of Harrison-McCabe's rank), "gam" for the White bootstrap and
+the runner, and M8 and "frame" for the five. Four rules are added. On a cell
+where White's count changed (N2), a message or a new refusal of one of these
+calls is judged by the other rules, and a value where `main` stopped is
+verified by the chain. The bootstraps whose
 replicates follow the order of `data`, on a `poly()` cell shuffled under its
 own row names, have no stored-design value on `main`, whose refits computed
 the basis again on the rows in the order of `data`: the branch must equal
@@ -1510,45 +1510,70 @@ with the resampling tests, a test that ran where `main` ran a fallback drew
 random numbers `main` did not, and the rules of the runner decide the tests
 after it. And the bootstraps of a `fitWLS()` fit on the class block, which
 `fitWLS()` refits where the tests refuse the fit, reproduce the call on the
-cell of the class in the data frame of the fit.
+cell of the class in the data frame of the fit. The review of increment 8
+adds four cells of the coding of a factor of four levels, two of them on two
+rows each (`identity_coding_cells()`): the factor, the same values as a
+character column, the factor coded by `contrasts = list(f = "contr.sum")` and
+the factor with `contr.sum(4)` as its contrasts attribute, through every
+recipe and the runner with the resampling tests; each reproduces the factor,
+to `1e-10`. On the factor coded by `contrasts =`, `main` refitted the
+replicates from the formula without the contrasts of the fit, on another
+basis of the same columns, and the branch must equal `main` to `1e-12`
+relative ("coding"). M8 is allowed for the bootstraps of a `fitWLS()` fit of
+a `gam` with smooth terms, which the corpus no longer skips.
 
-Increment 8, against `main` at the 0.16.0 release (7493afd): 36,798 calls on 361
-cells, the 5 cells of Harrison-McCabe's rank, the 8 cells of the follow-up of
-N2 and the examples of forty help pages, of which 35,616 identical, 1,182
-allowed changes (810 errors that become values, 82 values that change, 276
-messages, 14 new refusals) and 0 unexpected, every one of them a call of the
-resampling tests, the robust tests or the runner with the resampling tests:
-of the 6,452 such calls, 5,270 are `identical()` to `main`. The 892 changes to a
-value are each verified against a reference: 596 against the call on the cell
-they reproduce, 76 through it and the fit with the columns of the terms
-computed beforehand, 30 against that fit directly and 28 against it given the
-rows in the same order (`precomputed_shuffled`), 138 against the weighted
-`lm` of a `glm` (N8), 13 against `main` on the stored design and 11 through
-two cells or a cell and the stored design. The 810 errors that become values
-are 257 of L2, 138 of N8, 120 of N7, 118 of B12, 75 of L1, 66 of B14, 26 of B5,
-6 of B15 and 4 of "frame"; the 82 values that change are 21 of B5 (18 of pairs
+Increment 8 with its review, against `main` at the merge of N3 (961431f), the
+base of increment 8: 37,194 calls on 361 cells, the 5 cells of
+Harrison-McCabe's rank, the 8 cells of the follow-up of N2, the 4 cells of the
+coding of a factor and the examples of forty help pages, of which 35,965
+identical, 1,229 allowed changes (810 errors that become values, 93 values
+that change, 304 messages, 22 new refusals) and 0 unexpected, every one of
+them a call of the resampling tests, the robust tests or the runner with the
+resampling tests: of the 6,524 such calls, 5,295 are `identical()` to `main`.
+The 903 changes to a value are each verified against a reference: 607 against
+the call on the cell they reproduce, 76 through it and the fit with the
+columns of the terms computed beforehand, 30 against that fit directly and 28
+against it given the rows in the same order (`precomputed_shuffled`), 138
+against the weighted `lm` of a `glm` (N8), 13 against `main` on the stored
+design and 11 through two cells or a cell and the stored design. Counted by
+the most specific of their defects, the 810 errors that become values are 258
+of L2, 172 of L1, 137 of N8, 120 of N7, 66 of B14, 26 of B5, 21 of B12, 6 of
+B15 and 4 of "frame"; the 93 values that change are 20 of B5 (18 of pairs
 resampling), 4 of N17 (the White bootstrap on the three `gam` cells shuffled
-and the runner), 17 of the `poly()` cells, equal to `main` on the stored design
-or to its last bits, 6 of N2 and 34 of the runner with the resampling tests,
-which put White's test under the names of the White and wild bootstraps where
-they stopped (B12, L1, B14, B15, N7, "frame"); the 14 new refusals are those of the
-edited fit (M8, 12), of the `model = FALSE` fit given a shuffled tibble
-("frame", 1) and of the runner on a `gam` with smooth terms ("gam", 1). Of the
-276 messages, 189 are those of `bootstrapTestStatistic()` on a `glm` or a `gam`
-(N8), 46 M7, 12 the frame message, 4 the refusal of a `gam` with smooth
-terms by the White bootstrap and 25 the refusals of the bootstraps themselves,
-the transformed response under null-imposed resampling among them, reached
-where the calls stopped before them (L1, L2, B12). Every call `identical()` to `main`, 35,616 of
-35,616, leaves the generator as `main` left it; so do 454 of the 1,182 allowed
-changes, 48 of the 82 changes to a value. The 588 `poly()` calls that `main`
-computes on the stored design are `identical()` to it; of the 184 that are
-judged to the last bits, the 12 order-dependent bootstraps on the shuffled
-`poly()` cells among them, 95 give a value, 83 `identical()` to `main` and 12
-within 8.4e-14 relative. The warnings are those of `main` but for 38 calls:
-26 of the White bootstrap and the runner, whose replicates no longer run the
-checks of the model and give their warnings on the residuals of a replicate
-("Residual outliers detected at rows ..."), and 12 that stopped and give a
-value with the warning of the same call on the data frame of the fit.
+and the runner), 16 of the `poly()` cells, equal to `main` on the stored
+design or to its last bits, 6 of N2, 11 of the factor coded by `contrasts =`
+("coding", within 7.0e-13 relative of `main`) and 36 of the runner with the
+resampling tests, which put White's test under the names of the White and
+wild bootstraps where they stopped (B12, L1, B14, B15, N7, "frame"); the 22
+new refusals are those of the edited fit (M8, 12), of the White and wild
+bootstraps of a `fitWLS()` fit of a `gam` with smooth terms in four forms of
+data (M8, 8), of the `model = FALSE` fit given a shuffled tibble ("frame", 1)
+and of the runner on a `gam` with smooth terms ("gam", 1). Of the 304
+messages, 189 are those of `bootstrapTestStatistic()` and the robust
+bootstraps on a `glm` or a `gam` (N8: 98 the refusal of the model, 55 the
+guard, 20 a zero weight, 16 the refit of the nearly collinear `glm`), 71 M7
+(25 of them of `bootstrapTestStatistic()`, which stopped with "'length = 4'
+in coercion to 'logical(1)'"), 12 the frame message, 4 the refusal of a `gam`
+with smooth terms by the White bootstrap, 4 M8 (3 of `bootstrapTestStatistic()`
+on a `fitWLS()` fit of a `gam` with smooth terms, which stopped with
+"(subscript) logical subscript too long", and the runner on the edited fit)
+and 24 the refusals of the bootstraps themselves, the transformed response
+under null-imposed resampling among them, reached where the calls stopped
+before them (L1, L2, B12). Every call `identical()` to `main`, 35,965 of
+35,965, leaves the generator as `main` left it; so do 493 of the 1,229
+allowed changes, 59 of the 93 changes to a value. The 588 `poly()` calls that
+`main` computes on the stored design are `identical()` to it; of the 184 that
+are judged to the last bits, the 12 order-dependent bootstraps on the shuffled
+`poly()` cells among them, 125 give a value, 113 `identical()` to `main` and
+12 within 8.4e-14 relative. The warnings are those of `main` but for 57
+calls: 33 of the White bootstrap and the runner, whose replicates no longer
+run the checks of the model and give their warnings on the residuals of a
+replicate ("Residual outliers detected at rows ..."), 12 that stopped and give
+a value with the warning of the same call on the data frame of the fit, and
+12 on the factor with a contrasts attribute, whose refits from the formula
+warned on each replicate that left a level out ("contrasts dropped from factor
+fs due to missing levels"), where the branch leaves the contrasts matrix out
+of that replicate without a warning.
 
 ## Test matrix and oracles
 

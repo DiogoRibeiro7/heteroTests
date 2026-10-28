@@ -189,7 +189,9 @@ given by `contrasts =` or as an attribute of the factor, are kept, and a
 contrasts matrix with a row for each level gives way to the default contrasts
 in a replicate that leaves its factor a level short, as in a refit of the
 formula: with a factor of four levels, two of them on two rows each, every
-replicate of each of these fits is that of 0.16.0. The statistic given as
+replicate of each of these fits is that of before this step, `identical()`,
+but for rounding on the factor coded by `contrasts =`, which was refitted
+with the default contrasts. The statistic given as
 `test_function` is given the rows drawn of `data` with the columns of the
 model frame `data` does not hold under their own names, such as
 `I(x > median(x))` or `(weights)`.
@@ -282,14 +284,18 @@ step; `data = NULL` given to `bootstrapTestStatistic()`, which needs `data`; a
 fit with `na.action = na.exclude`; and every message the test suite pins. The
 White bootstrap no longer runs the checks of the model on each replicate, and
 no longer gives their warnings on the residuals of a replicate, such as
-"Residual outliers detected". A corpus of 36,798 calls
-(`scripts/model-context-identity.R`), every test and the bootstraps above on
-374 combinations of fits, offsets, terms, forms of `data`, dropped rows and
-row names, with the Mammen multipliers, four statistics bootstrapped, pairs
-resampling, the bootstraps of a `fitWLS()` fit of each model and the runner
-with the resampling tests, returns what it returned in 0.16.0, `identical()`,
-and leaves the generator as it left it, but for the 1,182 calls of the changes
-above, each change to a value verified against a reference.
+"Residual outliers detected", nor, on a replicate that leaves out a level of a
+factor with a contrasts matrix, the warning of its refit, "contrasts dropped
+from factor". A corpus of 37,194 calls (`scripts/model-context-identity.R`),
+every test and the bootstraps above on 378 combinations of fits, offsets,
+terms, codings of a factor, forms of `data`, dropped rows and row names, with
+the Mammen multipliers, four statistics bootstrapped, pairs resampling, the
+bootstraps of a `fitWLS()` fit of each model and the runner with the
+resampling tests, returns what it returned before this step, `identical()`,
+and leaves the generator as it left it, but for the 1,229 calls of the changes
+above, each change to a value verified against a reference; on a factor coded
+by `contrasts =`, whose replicates were refitted without its contrasts, the
+values of before but for rounding, within 7e-13 relative.
 
 ## 0.16.0
 

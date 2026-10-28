@@ -1991,6 +1991,13 @@ identity_cell_terms <- function(cell) {
 # of the design (`[` drops them), and so its fit (M8), or kept a column of
 # zeros for the absent value of the character column (aliased), or stopped the
 # whole call on the matrix, which has a row for each of four levels.
+# The reference of each is the factor coded by default (identity_verify()):
+# the same columns, on another basis but for the character column. On the
+# factor coded by
+# `contrasts = list(f = "contr.sum")`, main refitted the replicates of the
+# bootstraps from the formula without the contrasts of the fit, on another
+# basis of the same columns, and the branch, which refits the design of the
+# fit, must equal main to its last bits ("coding", identity_allow()).
 identity_coding_cells <- function() {
   coding_cell <- function(id, build) {
     list(id = id, block = "coding", build = build, fit = "ols", offset = "none",
@@ -2742,8 +2749,9 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   # glm, which it refused, and on a gam, which it refuses with another message.
   n8_cells <- paste0("^fit/glm/|^panel/unit_glm_|^panel/unit_gam_|^class/gam|",
                      "^class/zero_weight_glm|^rank/glm")
-  if (record$fn %in% identity_n8_scope && !is.null(record$cell) &&
-        grepl(n8_cells, record$cell)) {
+  # A fitWLS() fit is an lm, whatever it refits: not N8.
+  if (record$fn %in% identity_n8_scope && !record$fn %in% identity_fitwls_recipes &&
+        !is.null(record$cell) && grepl(n8_cells, record$cell)) {
     defects <- c(defects, "N8")
     if (startsWith(record$cell, "class/zero_weight_glm")) {
       defects <- c(defects, "N8_weight")
@@ -2758,7 +2766,7 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   # Increment 8: the bootstraps of a fitWLS() fit without `data` (B12) or
   # given the model frame (L2), which the White bootstrap rebuilt the design
   # of a weighted fit from.
-  if (record$fn %in% identity_fitwls_recipes && record$form %in% c("null", "model_frame")) {
+  if (record$fn %in% identity_fitwls_recipes && isTRUE(record$form %in% c("null", "model_frame"))) {
     defects <- c(defects, if (identical(record$form, "null")) "B12" else "L2")
   }
   # The review of increment 8: fitWLS() of a gam with smooth terms, whose
@@ -2768,6 +2776,11 @@ identity_defects <- function(record, scope = identity_defect_scope) {
   if (record$fn %in% identity_fitwls_recipes && !is.null(record$cell) &&
         startsWith(record$cell, "class/gam_smooth")) {
     defects <- c(defects, "M8")
+  }
+  # The review of increment 8: the factor coded by `contrasts =`, whose
+  # replicates main refitted without the contrasts of the fit.
+  if (record$fn %in% identity_increment8 && identical(record$cell, "coding/contr_sum")) {
+    defects <- c(defects, "coding")
   }
   keep <- vapply(defects, function(d) is.null(scope[[d]]) || record$fn %in% scope[[d]],
                  logical(1))
@@ -2823,6 +2836,15 @@ identity_allow <- function(record, verdict, after, stored = NULL, n2 = NULL, n2_
     } else {
       identity_stored_verdict(record, verdict, after, stored)
     }
+    if (!is.null(decided)) {
+      return(decided)
+    }
+  }
+  # The review of increment 8: on the factor coded by `contrasts =`, main's
+  # replicates are those of another basis of the same columns, equal to the
+  # branch's but for rounding (identity_coding_cells()).
+  if ("coding" %in% defects) {
+    decided <- identity_last_bits_verdict(verdict)
     if (!is.null(decided)) {
       return(decided)
     }
@@ -3030,13 +3052,19 @@ identity_verify <- function(record, main, branch, seen = character()) {
       reference <- NULL
     }
   }
+  # The review of increment 8: a cell of the coding of a factor reproduces the
+  # factor coded by default, to 1e-10 (identity_coding_cells()).
+  if (is.null(reference) && startsWith(record$cell, "coding/") &&
+        !identical(record$cell, "coding/factor")) {
+    reference <- "coding/factor"
+  }
   if (is.null(reference) || reference %in% seen) {
     return(NA_character_)
   }
   reference_id <- paste(record$kind, record$fn, reference, sep = " | ")
   before <- main[[reference_id]]
   after <- branch[[reference_id]]
-  tolerance <- if (record$cell %in% identity_rounded_cells) {
+  tolerance <- if (record$cell %in% identity_rounded_cells || startsWith(record$cell, "coding/")) {
     1e-10
   } else if (record$cell %in% identity_located_cells) {
     identity_located_tolerance
