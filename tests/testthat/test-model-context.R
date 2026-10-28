@@ -2499,10 +2499,11 @@ test_that("a grouped run of a fitWLS() fit is refused, the others refit each gro
   # group by evaluating its call on the rows of the group. The call of a
   # fitWLS() fit is that of the model it refitted, without the weights it
   # estimated, so each group was tested as the unweighted fit of its rows (on
-  # this matrix White's test gave 1.84 to 7.68 on the four groups of `group`,
-  # the values of lm() on each); such a run is refused, with the class of the
-  # refusals of the context, before any group is refitted. An lm, a weighted
-  # lm, whose weights are a column of the data, and a formula refit each group,
+  # this matrix White's test gave 5.27, 7.54, 3.79 and 5.81 on the four groups
+  # of `group`, the values of lm() on each); such a run is refused, with the
+  # class of the refusals of the context, before any group is refitted. An lm,
+  # a weighted lm, whose weights are a column of the data, and a formula refit
+  # each group,
   # as before; runDiagnostics(), which runs no grouped analysis, and the
   # ungrouped data test the fitWLS() fit as a whole.
   skip_if_not_installed("dplyr")
@@ -2535,11 +2536,18 @@ test_that("a grouped run of a fitWLS() fit is refused, the others refit each gro
         } else {
           lm(y ~ x1 + x2, data = part)
         }
-        expect_equal(unname(res[[g]]$white$statistic), unname(performWhiteTest(ref)$statistic),
-                     tolerance = 1e-10, info = paste(info, g))
         expect_equal(unname(res[[g]]$koenker$statistic),
                      unname(performKoenkerTest(ref)$statistic), tolerance = 1e-10,
                      info = paste(info, g))
+        # White's test needs 20 observations, and on the groups of 15 of the
+        # two columns the runner falls back on another test, as before.
+        if (is.null(attr(res[[g]]$white, "extras")$status)) {
+          expect_equal(unname(res[[g]]$white$statistic),
+                       unname(performWhiteTest(ref)$statistic), tolerance = 1e-10,
+                       info = paste(info, g))
+        } else {
+          expect_error(performWhiteTest(ref), "requires at least 20", info = paste(info, g))
+        }
       }
     }
   }
