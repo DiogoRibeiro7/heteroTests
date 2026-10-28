@@ -1538,6 +1538,28 @@ squared residuals that do not vary.
     replicates are those of the weighted `lm`, to `1e-8`, with the same
     p-value; another `glm`, a `survey::svyglm()` fit and an `mgcv::gam()` fit
     are refused, as before.
+- [ ] **Found by step 8 of the model context, recorded, not fixed**, as each
+  changes what a call returns:
+  - `performWildBootstrapTest()` stops on every `mgcv::gam()` fit, with or
+    without smooth terms ("lm object does not have a proper 'qr' component"):
+    it reads the leverages with `hatvalues()`, which a `gam` does not give.
+    Before and after step 8 alike. Read the leverages of the stored design,
+    or refuse the `gam` with a message of its own. An error becomes a value,
+    or a message.
+  - `fitWLS()` of an `mgcv::gam()` fit with smooth terms returns an `lm` whose
+    terms do not rebuild its design: `model.matrix()` gives a column for each
+    variable of the formula, for the coefficients of the basis of the smooths.
+    The tests built on the model context stop on it with "(subscript) logical
+    subscript too long"; before step 8 the White and wild bootstraps returned
+    values on the design of the variables. Refuse such a fit in `fitWLS()`,
+    or keep its basis. A value or an error becomes a refusal.
+  - `bootstrapTestStatistic()` refits each replicate at the tolerance of
+    `lm()`, `1e-7`, as its refits of the formula did, so a fit whose rank was
+    decided at a smaller tolerance and differs, an `lm` fitted with a smaller
+    `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
+    refused ("`data` does not reproduce the fit"), as such an `lm` was before.
+    Refitting at the tolerance of the fit would give them values. A refusal
+    becomes a value.
 - [ ] **Defects found during the 0.12.0 and 0.13.0 work**, left for 0.16.0 so
   that 0.14.0 changes no value. Each fix that changes a value is announced in
   bold in `NEWS.md`. Those below are settled by steps 8 and 10; the others are
