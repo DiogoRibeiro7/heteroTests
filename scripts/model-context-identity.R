@@ -26,6 +26,15 @@
 #     of 10,000 of their recipes, and the runner with the streaming tests
 #     asked for, `chunk_threshold_mb = 0`, in chunks of 10,000 and of 7
 #     (`identity_streaming_chunked`, `identity_streaming_runners`);
+#   - (increment 8) the resampling routes, seeded: the Mammen multipliers,
+#     bootstrapTestStatistic() of four statistics and with pairs resampling,
+#     the robust Breusch-Pagan bootstrap without studentizing, the bootstraps
+#     of a fitWLS() fit of each model, and the runner with the resampling
+#     tests on some cells (`identity_resampling_recipes`,
+#     `identity_resampling_runner`); each record holds the state of the
+#     generator after the call, which must be main's for a call identical to
+#     main. Run both versions with R_LIBS set to the private library of main,
+#     so that the workers of a socket cluster load the same package;
 #   - the cells of Harrison-McCabe's rank (N4, `identity_rank_cells()`), with
 #     every recipe;
 #   - the examples of the help pages of the functions built on the context.
@@ -303,9 +312,9 @@ identity_workspace_z <- function(m) 2 + sin(seq_len(NROW(m$residuals)))
 # The functions whose values may change: those built on the context, the
 # deprecated name and the wrappers and routes that compute their statistic
 # through them, and the runner, whose default battery is White's and
-# Koenker's tests. performWhiteTestBootstrap() is not among them: it keeps the
-# computation of 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), so
-# any change of it is unexpected.
+# Koenker's tests. performWhiteTestBootstrap(), which kept the computation of
+# 0.15.0 until increment 8 (rwhite_test_rebuilt_design()), joins them there
+# (identity_increment8, below).
 identity_affected <- c(
   "performWhiteTest", "performBPTest", "performBreuschPaganTest", "performKoenkerTest",
   "performRankPermutationTest", "performHighDimensionalTest", "performWhiteTestRobust",
@@ -322,7 +331,8 @@ identity_affected <- c(
   names(identity_extra_recipes), "runHeteroTests", identity_registry_runner,
   identity_registry_runner3, identity_registry_runner6
 )
-# The bootstrap recipes, whose replicates refit the formula until increment 8.
+# The bootstrap recipes, whose replicates refitted the formula until
+# increment 8, and refit the stored design since (more of them below).
 identity_bootstraps <- c(
   "bootstrapTestStatistic(performKoenkerTest)", "performWhiteTestRobust(bootstrap = TRUE)",
   "performBPTestRobust(bootstrap = TRUE)"

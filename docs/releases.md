@@ -6,103 +6,170 @@ The changes in each version, from the package's `NEWS.md`.
 
 ## Development version
 
-### The streaming tests
+### The model context, step 8: the resampling tests
 
-**White's streaming test drops the collinear terms of its auxiliary
-regression, as `performWhiteTest()` does (N3 of the design of the model
-context).** `performWhiteTestStreaming()` stopped with "Auxiliary regression
-became rank deficient" whenever terms of its auxiliary regression were
-collinear: the square of a dummy, which is the dummy, so on any model with a
-factor; the square of the first column of an orthogonal `poly()` basis; `x`
-beside `I(x^2)`. It now counts the terms by the rank `performWhiteTest()`
-takes, that of the intercept and the auxiliary design of the centred
-regressors at the tolerance of `qr()`, drops those that are a combination of
-the intercept and the terms before them, and gives the degrees of freedom and
-the value of `performWhiteTest()`. On `lm(y ~ x1 + group)` in the design of
-`contract_data()` (`tests/testthat/helper-test-recipes.R`), with `group` a
-factor of four levels:
+The eighth of the eleven steps of the model context (*The model context*,
+under 0.16.0; the design is on the site) builds the resampling tests on it:
+`performWhiteTestBootstrap()`, `performWildBootstrapTest()`,
+`bootstrapTestStatistic()` and its deprecated name
+`rbootstrap_test_statistic()`, and the robust tests `performWhiteTestRobust()`
+and `performBPTestRobust()`, with and without `bootstrap = TRUE`, and so the
+registered `"white_bootstrap"` and `"wild_bootstrap"` and
+`runAdvancedDiagnostics()`. They read the response, the design, the residuals,
+the weights and the offset from the fit, match the rows of `data` to its
+observations as every test built on the context does, and refit each
+replicate by least squares on the stored design, where the White bootstrap
+and `bootstrapTestStatistic()` refitted it from the formula on the rows of
+`data`. The random numbers are drawn as before, in the same order, so a call
+made after `set.seed()` returns what it returned wherever the stored design
+is the design rebuilt from `data`, and leaves the generator where it left it.
+No export or argument changes.
+
+The examples below use the data of the example of
+`?performWhiteTestBootstrap`, with a weight, an offset and a second regressor,
+and draw 199 replicates after `set.seed(1)`:
+
+```r
+set.seed(42)
+n <- 120
+sim <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
+sim$y <- 1 + 2 * sim$x + rnorm(n, sd = 0.3 + 0.6 * sim$x)
+sim$w <- 1 / sim$x
+sim$o <- 0.5 * sim$z
+```
+
+**The White bootstrap computes its observed statistic and its replicates on
+the stored design.** Both were computed on a design rebuilt from the rows of
+`data`, through the formula and the call of the fit, and `rwhite_test_rebuilt_design()`,
+the internal function that did it, is gone. Each replicate, the fitted values
+plus the residuals drawn, is refitted by least squares on the design stored
+with the fit, with its weights and its total offset, and its statistic is
+White's on that design, the one `performWhiteTest()` reads. Where the design
+rebuilt from `data` was the stored one, every value is `identical()` to
+before. Where it was not:
 
 | Call | 0.16.0 | Now |
 | --- | --- | --- |
-| `performWhiteTestStreaming(m, d)`, in chunks of any size | Error: "Auxiliary regression became rank deficient" | 17.83 on 8 (p = 0.0225), the value of `performWhiteTest()` |
-| `runHeteroTests(m, d, chunk_threshold_mb = 0)` | White's test without cross products, 13.79 on 5 (p = 0.017), tagged as a fallback | White's streaming test, 17.83 on 8 |
+| `performWhiteTestBootstrap(lm(y ~ x + z, data = sim, weights = w), B = 199)`, without `data` | Error: "object 'w' not found" | 6.210 (p = 0.275), the value with `data` |
+| `performWhiteTestBootstrap(lm(y ~ x + z + offset(o), data = sim), B = 199)` | Error: "The following variables are missing from input data: o" | 14.685 (p = 0.015), the value with `data` |
+| `performWhiteTestBootstrap(lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, B = 199)` | Error: "factor cut(x, quantile(x)) has new levels ..." | 12.206 (p = 0.135), the value of the factor computed beforehand |
+| `I(x > median(x))` on a fit that dropped rows 3, 7 and 11 (`z` missing), given its data | 7.822 (p = 0.115), on the median of the rows the fit kept | 7.407 (p = 0.140), the value of the column computed beforehand on all the rows |
+| `mgcv::gam(y ~ x + z, data = sim)` given `sim[sample(n), ]` (`set.seed(3)`) | 14.685 (p = 0.020): the draws were added to the fitted values of other rows, the rows of `data` taken by position | 14.685 (p = 0.015), the value of the data in the order of the fit |
 
-The same holds on 30 subjects of two observations and one of three, where
-`performWhiteTest()` gives 59.75 on 30, on a model of `I(x > median(x))` or
-`cut(x, quantile(x))`, on a factor with `contr.sum`, Helmert or polynomial
-contrasts, without an intercept, with weights and in a Gaussian `glm`: in
-chunks of 7, 40 and 10,000, with and without cross products, the degrees of
-freedom are those of `performWhiteTest()` and the statistic agrees with it to
-4e-14 relative. A fit whose auxiliary regression fits the squared residuals
-exactly is refused with the message of `performWhiteTest()`, as since 0.16.0.
+A fit to a subset given by index, which stopped with "White test could not
+align the design matrix with model residuals", and the tibble of a fit that
+dropped rows, which stopped with "Missing rows", give the values of the rows
+of the fit. A model that transforms a variable, without `data` or given its
+model frame, gives the value it gives with `data`.
 
-**The three streaming tests no longer take terms of a regressor located far
-from zero for collinear ones.** They accumulated the cross-products of the
-auxiliary design, decided their rank by `qr()` of them, which squares the
-condition of the design, and solved the normal equations. White's streaming
-test stopped on the squares of a regressor 100 standard deviations from
-zero, and on the terms of `lm(y ~ x1 * x2)` with `x1` between 0.5 and 2;
-`performBPTestStreaming()` and `performKoenkerTestStreaming()` stopped
-("auxiliary regression became rank deficient") on a regressor 1,000 standard
-deviations from zero beside the intercept, such as a date written as
-`YYYYMMDD`. Each chunk is now reduced by a QR decomposition stacked on the
-triangular factor of the chunks before it, which holds the cross-products of
-every row without forming them, of the auxiliary design of the regressors
-centred at their means, as `performWhiteTest()` builds it. On `lm(y ~ x1 +
-x2)` with `x1` moved 1,000 standard deviations from zero, White's streaming
-test gives 11.14 on 5, the Breusch-Pagan test 12.45 on 2 and Koenker's 9.04
-on 2, the values of the exact tests and of the model at zero, where the three
-stopped. From 100 to 10,000 standard deviations, on linear terms, factors,
-weights and a Gaussian `glm`, the degrees of freedom are those of the exact
-tests and the statistics agree with them to about 2e-10 relative, the
-rounding being the exact tests', which fit the uncentred design; on a product
-or a power of a variable located far from zero inside the model, which
-`performWhiteTest()` itself computes less precisely, to 3e-9 at 1,000
-standard deviations. Where they gave a value, the values change in their
-last bits; where the normal equations lost more digits, as on an `ns()` term
-(White's test, 5.7e-11 relative) or a regressor 1,000 standard deviations from
-zero inside a factor model (Breusch-Pagan and Koenker, up to 5e-9), the new
-value is that of the exact test, to 6e-14. The sparse cross-products of
-`Matrix` are no longer used.
+**`bootstrapTestStatistic()` refits each replicate on the stored design, and
+no longer refuses a fit whose model frame cannot be rebuilt from `data`.**
+Each replicate was refitted from the formula on the rows of `data`, regenerated
+or drawn, so a fit whose model frame could not be rebuilt from them so was
+refused ("`data` does not reproduce the fit"): a term computed from the rows
+it is given, `cut(x, quantile(x))`, or `I(x > median(x))` on a fit that dropped
+rows; and the model frame given as `data` for a model that transforms a
+variable or has an `offset()` term. Each replicate is now an `lm` built from
+the stored design and the model frame of the fit in the rows of the
+replicate, which the statistic given as `test_function` reads as it reads a
+fit. `performWhiteTestRobust(bootstrap = TRUE)` and
+`performBPTestRobust(bootstrap = TRUE)`, which call it, follow.
 
-**The streaming tests compare the variation of the squared residuals with
-their scale.** They refused squared residuals whose total sum of squares
-about their mean was at most `.Machine$double.eps`, whatever their scale
-("requires variation in squared residuals"), so residuals of about `1e-5`:
-with `set.seed(11); n <- 120; d <- data.frame(x1 = runif(n, 0.5, 2), x2 =
-rnorm(n)); d$y <- 1e-5 * rnorm(n, sd = d$x1); m <- lm(y ~ x1 + x2, data = d)`,
-the three stopped, where `performWhiteTest()` gives 12.787 on 5 degrees of
-freedom, `performBPTest()` 12.997 on 2 and `performKoenkerTest()` 10.289 on
-2, and the same data times `1e5` streamed to 12.787. They now give those
-values. The total is compared with the sum of squares of the squared
-residuals: they are taken for constant when it is at most
-`.Machine$double.eps` of it, when they agree to about eight digits, at any
-scale.
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `bootstrapTestStatistic(performKoenkerTest, lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, B = 199)` | Error: "`data` does not reproduce the fit" | 11.080 (p = 0.020), the value of the factor computed beforehand |
+| The same with `I(x > median(x))`, rows 3, 7 and 11 dropped | Error: "`data` does not reproduce the fit" | 7.346 (p = 0.035), the value of the column computed beforehand |
+| `bootstrapTestStatistic(performKoenkerTest, m, model.frame(m), B = 199)`, `m <- lm(y ~ x + z + offset(o), data = sim)` | Error: "`data` does not reproduce the fit" | 14.468 (p = 0.005), the value with `sim` |
+| `performWhiteTestRobust(lm(y ~ cut(x, quantile(x)) + z, data = sim), sim, bootstrap = TRUE, B = 199)` | Error: "`data` does not reproduce the fit" | bootstrap p = 0.135 |
 
-**The streaming tests refuse squared residuals that agree to about eight
-digits, at every scale and in chunks of any size.** The absolute threshold let
-such residuals through at some scales, where the statistic was computed from
-the rounding: residuals of +1 and -1 orthogonal to the regressors gave, in
-chunks of 40 or more at a scale of 1, White's 0, Koenker's 40 (the number of
-observations) and the Breusch-Pagan test 3.6e-15, and were refused at other
-scales; and squared residuals that differ by a few parts in 1e9, such as those
-of `lm(y ~ x)` with `x <- rep(1:30, each = 4)` and
-`y <- 2 + 0.5 * x + s * 1e4 * (1 + 3e-9 * v)`, `s <- rep(c(1, -1, -1, 1), 30)`,
-`v <- rep(c(1, 0, 1, 0), 30) * x / 10`, gave White's 60 on 2 and Koenker's 60
-on 1, noise, where `performWhiteTest()` and `performKoenkerTest()` give
-23.05. `performWhiteTest()` and `performKoenkerTest()` compute a statistic
-from the rounding of the first case too (18.82 and 18.36).
+Pairs resampling draws the rows of the stored design, so a term computed from
+the rows it is given keeps the values of the fit in every replicate, where the
+refit of the formula computed it again on the rows drawn: on
+`lm(y ~ splines::ns(x, 3) + z, data = sim)` the percentile interval of the
+replicates of Koenker's statistic was (10.34, 28.75) and is (10.40, 28.74);
+on the test matrix each such replicate is that of the same fit with the
+columns of the term computed beforehand. A
+level of a factor that no row drawn holds is left out of the replicate, as
+before. The statistic given as `test_function` is given the rows drawn of
+`data` with the columns of the model frame `data` does not hold under their
+own names, such as `I(x > median(x))` or `(weights)`.
 
-**White's streaming test, in more than one chunk, on a regressor named like a
-term it generates, gives the value of `performWhiteTest()`.** It matched the
-columns of every chunk after the first to those of the first by name, and on
-a regressor `a` beside a regressor `a_sq` the square of `a`, also named
-`a_sq`, took the place of that of `a_sq`: 27.76 in chunks of 7 and 30.65 in
-chunks of 40, where `performWhiteTest()` and the test in one chunk give
-27.64. Every chunk has the columns of the design of the fit since 0.16.0, and
-they are taken in their order.
+**`bootstrapTestStatistic()` bootstraps a Gaussian `glm` with the identity
+link (N8 of the design of the model context).** It refused every `glm`, as its
+refits by least squares would drop a family and a link; a Gaussian `glm`
+with the identity link is the least-squares fit of `lm(..., weights = w)` with
+its prior weights, and its replicates are those of that `lm`:
 
-No export or argument changes.
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `bootstrapTestStatistic(performKoenkerTest, glm(y ~ x + z, data = sim, weights = w), sim, B = 199)` | Error: "`bootstrapTestStatistic()` supports Gaussian `lm` models only" | 5.245 (p = 0.065), the value of `lm(y ~ x + z, data = sim, weights = w)` |
+| `performWhiteTestRobust(<that glm>, sim, bootstrap = TRUE, B = 199)` | the same error | bootstrap p = 0.270, the value of the `lm` |
+
+A `glm` of another family or link, a `survey::svyglm()` fit and an
+`mgcv::gam()` fit are refused, as before, with a message that says why. So is
+a Gaussian `glm` whose rank, decided at its tolerance of `1e-11`, is not that of
+`lm()` at `1e-7`, as on a column within `1e-9` of a combination of the others:
+the replicates are refitted at the tolerance of `lm()`, and such a fit is
+refused as an `lm` fitted with a smaller `tol` is, "`data` does not reproduce
+the fit".
+
+**The resampling tests and the robust tests take a model without `data`,
+and the model frame as `data`.** The wild bootstrap and the robust tests
+prepared `data`, or the model frame, themselves, and a model that transforms
+a variable or has an `offset()` term stopped without `data`: on
+`lm(log(y) ~ log(x) + z, data = sim)`, `performWildBootstrapTest(m, B = 199)`
+and `performWhiteTestRobust(m)` stopped with "The following variables are
+missing from input data: y, x", and give 2.003 (p = 0.375) and 3.469
+(p = 0.628), the values with `data`. The complete rows of an `na.omit` fit
+numbered again, and the tibble in fit order of a fit to named data, which they
+refused ("Missing rows"), give the values of the rows of the fit. The wild
+bootstrap refitted its replicates on the stored design already: every call
+that gave a value gives it, `identical()`.
+
+**New refusals.** The White and wild bootstraps, and the robust tests,
+refuse a fit whose coefficients, residuals or weights were changed after it
+was fitted, as every test built on the context does: on `lm(y ~ x + z, data =
+sim)` with 0.5 added to the coefficient of `x`, the White bootstrap returned
+14.685 (p = 0.015) and the wild bootstrap 14.468 (p = 0.005), the values of the
+fit before the edit. The White bootstrap refuses a fit with `model = FALSE`
+whose data are gone, given a tibble in another order, on which it returned the
+value of other rows. The White bootstrap refuses an `mgcv::gam()` fit with
+smooth terms, as each replicate refits its design by least squares, which is
+not the fit of a penalised smooth (decision 23 of the design); its refit of
+the formula stopped on the smooth term ("could not find function \"s\""), and
+`runHeteroTests(tests = "white_bootstrap")` put White's test under its name,
+where it stops with the refusal. `bootstrapTestStatistic()` refuses data that
+lack a variable of the formula, as the tests refuse them: with `offset(o)`
+and `o` a vector of the workspace, a statistic of the caller's own that reads
+nothing from `data` was bootstrapped on data in the order of the fit; give the
+variable as a column of `data`, where it now follows the rows drawn, in any
+order and under pairs resampling, which refused it ("does not come from
+`data`").
+
+**Messages.** A multivariate `lm`: "needs a model with one response", where
+they stopped with "'length = 4' in coercion to 'logical(1)'". A fit with
+`model = FALSE` whose data are gone, without `data`: the message of the model
+context, "cannot use the model frame of `model`", where they stopped with
+"Expected a data.frame". `bootstrapTestStatistic()` on a Gaussian `glm` with a
+zero weight, or with data the tests refuse: the refusal of the weight or of
+the rows, where it refused the `glm`.
+
+Unchanged: every other value of a valid call; a transformed response under
+null-imposed resampling, refused by `bootstrapTestStatistic()` ("Null-imposed
+resampling needs a plain response variable"); a `MASS::rlm()` fit, refused by
+`bootstrapTestStatistic()` ("`data` does not reproduce the fit"), until a later
+step; `data = NULL` given to `bootstrapTestStatistic()`, which needs `data`; a
+fit with `na.action = na.exclude`; and every message the test suite pins. The
+White bootstrap no longer runs the checks of the model on each replicate, and
+no longer gives their warnings on the residuals of a replicate, such as
+"Residual outliers detected". A corpus of 36,798 calls
+(`scripts/model-context-identity.R`), every test and the bootstraps above on
+374 combinations of fits, offsets, terms, forms of `data`, dropped rows and
+row names, with the Mammen multipliers, four statistics bootstrapped, pairs
+resampling, the bootstraps of a `fitWLS()` fit of each model and the runner
+with the resampling tests, returns what it returned in 0.16.0, `identical()`,
+and leaves the generator as it left it, but for the 1,182 calls of the changes
+above, each change to a value verified against a reference.
 
 ## 0.16.0
 
