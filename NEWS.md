@@ -420,24 +420,45 @@ data of the fit, `augment()` binds its padded columns to the rows of the data,
 120 rows; given data of another number of rows, on a fit with `na.exclude` or
 `na.omit`, it says what it binds ("augment() binds one row of `data` to each
 fitted value of the model, 117 of them, and `data` has 120 rows."), where it
-stopped with "replacement has 117 rows, data has 120". The Cook's distances of
+stopped with "replacement has 117 rows, data has 120", or recycled the fitted
+values (below). The Cook's distances of
 `performInfluenceDiagnostics()` are padded as `naresid()` pads them: on a
 weighted `lm` with `na.exclude`, whose `cooks.distance()` left the names of the
 padded positions `NA`, they are named as the rows the fit dropped, as on an
 unweighted one.
 
-Unchanged: every call on a fit without `na.exclude`; the spread-level and
-Davidian-Carroll tests on such a fit, which left out the `NA` themselves and
-gave the value of the same fit with `na.omit` (3.959, p = 0.00013, for the
-spread-level test on `m`); and `fitWLS()`'s coefficients and weights of an
-`lm`. A corpus of 41,604 calls (`scripts/model-context-identity.R`) returns
-what it returned in the previous step, `identical()`, and leaves the generator
-as it left it, but for 2,590 calls on 30 fits with `na.exclude`, of the
-response, a regressor, the group, the units and periods of a panel, the
-variable of a second formula, in every form of `data`, weighted, with an
-offset, a Gaussian `glm`, a `gam` with and without a smooth term, and a
-balanced and an unbalanced panel, each of which gives what it gives on the
-same fit with `na.omit`, with its warnings and its draws.
+**New refusals, on a fit without `na.exclude` too.** `generics::augment()` of
+the results of the runner, given data whose number of rows is a multiple of
+the number of fitted values, recycled the fitted values, the residuals and the
+standardised residuals over those rows, binding them to rows of other
+observations: `generics::augment(runHeteroTests(lm(y ~ x1 + x2, d), d,
+use_cache = FALSE, progress = FALSE), data = rbind(d, d))` returned 480 rows,
+each fitted value twice, and is refused with the message above ("... 120 of
+them, and `data` has 240 rows."). Given the data of the fit, or its model frame
+without `data`, it returns what it returned. And
+`recommendRemediationStrategies(results, model, data)` reads one row of `data`
+for each observation of the fit: given the full data of a fit that dropped
+rows, it stopped on the same fit with `na.omit` with "incompatible dimensions",
+and read the padded residuals of a fit with `na.exclude` against the rows by
+position, returning a value; both are refused with a message that names the
+two counts ("recommendRemediationStrategies() reads one row of `data` for each
+observation of the fit, 117 of them, and `data` has 120 rows."). Given the
+model frame, both give the value; `generateHeteroRecommendations()`, which
+calls it, refused such data before, and still does.
+
+Unchanged, but for these two refusals: every call on a fit without
+`na.exclude`; the spread-level and Davidian-Carroll tests on such a fit, which
+left out the `NA` themselves and gave the value of the same fit with `na.omit`
+(3.959, p = 0.00013, for the spread-level test on `m`); and `fitWLS()`'s
+coefficients and weights of an `lm`. A corpus of 41,604 calls
+(`scripts/model-context-identity.R`) returns what it returned in the previous
+step, `identical()`, and leaves the generator as it left it, but for 2,590
+calls on 30 fits with `na.exclude`, of the response, a regressor, the group,
+the units and periods of a panel, the variable of a second formula, in every
+form of `data`, weighted, with an offset, a Gaussian `glm`, a `gam` with and
+without a smooth term, and a balanced and an unbalanced panel, each of which
+gives what it gives on the same fit with `na.omit`, with its warnings and its
+draws.
 
 ## 0.16.0
 

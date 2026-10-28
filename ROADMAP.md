@@ -1453,7 +1453,13 @@ squared residuals that do not vary.
     `tests/testthat/test-data-alignment-guard.R` that call
     `prepare_model_data_for_test()` (the tibble renumbered by the rows it
     dropped) and `rcheck_data_rows()` (no column that can be compared)
-    exercise these dead internals, and go with them. Closes B11, N5.
+    exercise these dead internals, and go with them. Closes B11, N5. With
+    the workflows with `data` (N5): `recommendRemediationStrategies()` and
+    `generateHeteroRecommendations()`, and `generics::augment()` of the
+    results of the runner, should match the rows of `data` to the
+    observations of the fit, as the tests do, where since step 9 they refuse
+    data of another number of rows than the observations (or, for
+    `augment()`, than the fitted values) with a message that names both.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
@@ -1625,11 +1631,20 @@ squared residuals that do not vary.
     given the data of the fit, it binds the padded columns to its rows, as
     before; and data of another number of rows are refused with a message
     that says what it binds, for a fit with `na.omit` too, where they stopped
-    with the same error. Open: the same fit with `na.omit` given the full data
-    of the fit is refused (its columns have one value per observation), where
-    the fit with `na.exclude` binds them; binding them by the row names of the
-    observations would give that fit the rows of the other, a value where it
-    is refused.
+    with the same error, or, when their number of rows was a multiple of the
+    number of fitted values, had them recycled over the rows, bound to other
+    observations (a new refusal on any fit, announced in bold). Open: the
+    same fit with `na.omit` given the full data of the fit is refused (its
+    columns have one value per observation), where the fit with `na.exclude`
+    binds them; binding them by the row names of the observations would give
+    that fit the rows of the other, a value where it is refused.
+  - [x] `recommendRemediationStrategies()` correlated the residuals with the
+    columns of `data` row by row: given the full data of a fit that dropped
+    rows, it stopped with "incompatible dimensions" on a fit with `na.omit`,
+    and read the padded residuals of a fit with `na.exclude` by position.
+    Done in step 9: it refuses data of another number of rows than the
+    observations of the fit, naming both counts. Matching the rows of `data`
+    to the observations, as the tests do, is left to step 10 (above).
   - [x] On an `mgcv::gam()` fit with `na.exclude`, whose `model.matrix()`
     pads the design with `NA` rows, `performVIFDiagnostic()` gave `NA`, and
     `cooks.distance()` of the `gam` recycled the padded residuals against the

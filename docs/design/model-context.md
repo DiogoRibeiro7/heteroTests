@@ -1140,7 +1140,17 @@ For a fit with `na.action = na.exclude`, in increment 9:
   `naresid()` names them, so that the result is the twin's padded; given the
   data of the fit, its rows, as before; and data of another number of rows
   are refused with a message that says what it binds, where they stopped with
-  "replacement has 120 rows, data has 117", for the twin too. Outside the
+  "replacement has 120 rows, data has 117", for the twin too, or, when their
+  number of rows was a multiple of the number of fitted values, had the fitted
+  values recycled over them and bound to rows of other observations: a new
+  refusal on a fit without `na.exclude` too, announced in bold (the re-review
+  of increment 9). `recommendRemediationStrategies()`, which correlates the
+  residuals with the columns of `data` row by row, refuses data of another
+  number of rows than the observations of the fit, naming both, where it
+  stopped with "incompatible dimensions", or, on a fit with `na.exclude`
+  given the full data, read its padded residuals against the rows by
+  position; matching such data to the rows of the fit is left to increment
+  10 (N5). Outside the
   context, `runDiagnostics()$influence` holds the Cook's distances of
   `performInfluenceDiagnostics()`, which `cooks.distance()` pads, and the
   positions of the influential ones in that padded vector (ROADMAP.md).
@@ -1195,7 +1205,7 @@ migrations that keep every value, then the riskier resampling and
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
 | 9 | `na.exclude`: unpadded residuals in the checks (`rmodel_unpad()`) and in every test (`rcontext_pearson()`, `rcontext_fitted()`, `rcontext_unpad()`), padded outputs per observation (`fitWLS()`); the positional reading of the panel tests and the scatter diagnostic goes, with `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()` and `rstop_unbalanced_panel()` | B13; N12 on the positional reading | **Done, development version (0.17.0)** |
-| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go | B11, N5 | Planned, 0.17.0 |
+| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go; with N5, `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` match the rows of `data` to the observations of the fit, where since increment 9 they refuse data of another number of rows | B11, N5 | Planned, 0.17.0 |
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned, 0.17.0 |
 
 Outside the context, as separate pull requests: White's degrees of freedom
