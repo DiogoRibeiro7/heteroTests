@@ -55,9 +55,14 @@ observation of the fit). The fitted variance function (its form,
 regressors and coefficients) is attached as the
 `"variance_function"` attribute, which is what
 [`performVarianceFormTest()`](performVarianceFormTest.md) reads, and what the bootstrap tests read to
-estimate the weights again in each replicate; its regressors have one row
-per observation of the fit. When `model` was fitted
-with weights, the attribute also holds them, as `initial_weights`.
+estimate the weights again in each replicate. Its `regressors`, the
+variance regressors on the scale of the form, and `index`, the fitted
+log-variance \(\hat\gamma_0 + z_i^\top \hat\gamma\) (the estimated
+variances are proportional to its exponential), have one row, or value,
+per observation of the fit, also on a fit with `na.action = na.exclude`,
+whose rows they are not padded to (decided by the author on 2026-10-28).
+When `model` was fitted with weights, the attribute also holds them, as
+`initial_weights`, one per observation of the fit too.
 
 ## Details
 

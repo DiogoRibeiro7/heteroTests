@@ -394,7 +394,39 @@ the model, so `residuals()`, `fitted()` and `weights()` of a fit with
 attribute `"variance_model"` had one value per observation of the fit, 117 on
 `fitWLS(m)`, and have one per row, 120, `NA` at rows 3, 7 and 11. The record
 of the variance function (`"variance_function"`), which the bootstraps read
-by observation, keeps one row per observation.
+by observation, keeps one row per observation, as decided by the author.
+
+**An `mgcv::gam()` fit with `na.exclude`, and the functions outside the
+tests.** From the review of the step: `model.matrix()` of a `gam` with
+`na.exclude` pads its design with `NA` rows, and the tests refused such a fit
+("Internal error: the parts of the model context differ in length."); it is
+read through the design of the same `gam` with `na.omit`. And the functions
+that run the checks of the model, or read a fit past them, read its residuals
+and fitted values without the padding too. With
+`g <- mgcv::gam(y ~ x + z, data = sim, na.action = na.exclude)`:
+
+| Call | 0.16.0 | Now |
+| --- | --- | --- |
+| `performWhiteTest(g, sim)`, `performKoenkerTest(g, sim)` | Error: "Model residuals must be finite ..." | 14.20 and 13.93, those of the same `gam` with `na.omit` |
+| `performPesaranTest(g, sim, "id", "time")` | Error: "Internal error: the parts of the model context differ in length." | -0.702 (p = 0.482) |
+| `performInfluenceDiagnostics(g)$cooks_distance[4]` | 0.00143, with the warning "longer object length is not a multiple of shorter object length": `cooks.distance()` of the `gam` recycled the padded residuals | 0.00338, the third distance of the same `gam` with `na.omit`; `NA` at row 3 |
+| `generateHeteroRecommendations(m)` | Error: "... Model residuals must be finite ..." | the recommendations of the same fit with `na.omit` |
+| `autoCompareRemediations(m, sim)$metrics$RMSE` | `NA`, `NA`, 2.28 | 2.277, 2.284, 2.280 |
+| `analyzeMLResiduals(m, sim)$rmse_reduction` | `NA` | 0 |
+| `plotBubbleVariance(m)`, and so `plotDiagnosticSuite(m)` and `generateDiagnosticReport(m)` | Error: "replacement has 120 rows, data has 117" | the plot of the same fit with `na.omit` |
+| `plotResidualsFitted(m)`, `plotSpreadLevel(m)`, `plotResidualDensity(m)`, `plotResidualQQ(m)`, `plotBeforeAfter(m, fitWLS(m))` | the plot, with the warning "Removed 3 rows containing non-finite outside the scale range" | the plot of the same fit with `na.omit`, without it |
+| `dim(generics::augment(runHeteroTests(m)$white))` | Error: "Diagnostic execution failed for White: ..." | 120 rows, 7 columns: the 117 rows of the same fit with `na.omit`, with a row of `NA` at rows 3, 7 and 11 |
+
+`performVIFDiagnostic()` on such a `gam` read the padded design too. Given the
+data of the fit, `augment()` binds its padded columns to the rows of the data,
+120 rows; given data of another number of rows, on a fit with `na.exclude` or
+`na.omit`, it says what it binds ("augment() binds one row of `data` to each
+fitted value of the model, 117 of them, and `data` has 120 rows."), where it
+stopped with "replacement has 117 rows, data has 120". The Cook's distances of
+`performInfluenceDiagnostics()` are padded as `naresid()` pads them: on a
+weighted `lm` with `na.exclude`, whose `cooks.distance()` left the names of the
+padded positions `NA`, they are named as the rows the fit dropped, as on an
+unweighted one.
 
 Unchanged: every call on a fit without `na.exclude`; the spread-level and
 Davidian-Carroll tests on such a fit, which left out the `NA` themselves and

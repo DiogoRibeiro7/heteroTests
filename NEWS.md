@@ -405,7 +405,7 @@ and fitted values without the padding too. With
 | --- | --- | --- |
 | `performWhiteTest(g, sim)`, `performKoenkerTest(g, sim)` | Error: "Model residuals must be finite ..." | 14.20 and 13.93, those of the same `gam` with `na.omit` |
 | `performPesaranTest(g, sim, "id", "time")` | Error: "Internal error: the parts of the model context differ in length." | -0.702 (p = 0.482) |
-| `performInfluenceDiagnostics(g)$cooks_distance[4]` | 0.00143, with the warning "longer object length is not a multiple of shorter object length": `cooks.distance()` of mgcv recycled the padded residuals | 0.00338, the third distance of the same `gam` with `na.omit`; `NA` at row 3 |
+| `performInfluenceDiagnostics(g)$cooks_distance[4]` | 0.00143, with the warning "longer object length is not a multiple of shorter object length": `cooks.distance()` of the `gam` recycled the padded residuals | 0.00338, the third distance of the same `gam` with `na.omit`; `NA` at row 3 |
 | `generateHeteroRecommendations(m)` | Error: "... Model residuals must be finite ..." | the recommendations of the same fit with `na.omit` |
 | `autoCompareRemediations(m, sim)$metrics$RMSE` | `NA`, `NA`, 2.28 | 2.277, 2.284, 2.280 |
 | `analyzeMLResiduals(m, sim)$rmse_reduction` | `NA` | 0 |

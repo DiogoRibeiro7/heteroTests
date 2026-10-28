@@ -1632,7 +1632,7 @@ squared residuals that do not vary.
     is refused.
   - [x] On an `mgcv::gam()` fit with `na.exclude`, whose `model.matrix()`
     pads the design with `NA` rows, `performVIFDiagnostic()` gave `NA`, and
-    `cooks.distance()` of mgcv recycled the padded residuals against the
+    `cooks.distance()` of the `gam` recycled the padded residuals against the
     leverages, with a warning, so `performInfluenceDiagnostics()` and
     `runDiagnostics()$influence` gave other distances. Done in step 9: they
     read the fit as the same fit with `na.omit`, the distances padded as
