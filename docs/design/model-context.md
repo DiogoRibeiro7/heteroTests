@@ -1074,9 +1074,28 @@ For a fit with `na.action = na.exclude`, in increment 9:
 - **What the change reaches.** Every function built on the context, its
   registered names, `test_factory` entries and routes, and the runners,
   `runHeteroTests()`, `runDiagnostics()`, `runTimeSeriesTests()`,
-  `runPanelTests()` and `runAdvancedDiagnostics()`; and, through the checks of
+  `runPanelTests()` and `runAdvancedDiagnostics()`; through the checks of
   the model, which they share, `rvalidate_against_reference()`,
-  `rcalculateEffectSize()` and `restimate_test_power()`. Such a fit drops the
+  `rcalculateEffectSize()`, `restimate_test_power()`,
+  `generateHeteroRecommendations()` and `generateDiagnosticReport()`; and,
+  from the review of increment 9, the functions outside the context that read
+  the padded vectors of such a fit once the checks let it through, which read
+  them without the padding (`rmodel_unpad()`), to give what they give on the
+  twin: the recommendations (`identifyVariancePatterns()`, which stopped with
+  "incompatible dimensions"), the plots, `plotResidualsFitted()` with and
+  without `enhanced`, `plotSpreadLevel()`, `plotResidualDensity()`,
+  `plotResidualQQ()`, `plotBubbleVariance()`, `plotBeforeAfter()`,
+  `plotDiagnosticSuite()` and their deprecated names (the bubble plot, and so
+  the suite and the report, stopped with "replacement has 120 rows, data has
+  117"; the others drew the `NA` with a warning of ggplot2), the RMSE of
+  `autoCompareRemediations()` and of `analyzeMLResiduals()`, which was `NA`,
+  `performVIFDiagnostic()` on a `gam`, whose padded design made every VIF
+  `NA`, and `generics::augment()` of the results of the runner, whose rows
+  are per observation (below). An `mgcv::gam()` fit with `na.exclude`, whose
+  design `model.matrix.gam()` pads with `NA` rows, is read through the twin's
+  design (`rmodel_as_na_omit()`), where the context refused it for parts of
+  different lengths ("Internal error: the parts of the model context differ
+  in length."). Such a fit drops the
   rows `na.omit` drops, and `residuals()`, `fitted()`, `weights()` and
   `hatvalues()` hold an `NA` at each of them (`naresid()`). The checks of the
   model read one residual per observation of the fit (`rmodel_unpad()`), and
@@ -1114,10 +1133,17 @@ For a fit with `na.action = na.exclude`, in increment 9:
   padded too. The record of its variance function (`"variance_function"`:
   the regressors, the fitted log-variance and the initial weights), which the
   bootstraps read by observation, keeps one row per observation, the twin's
-  (an open choice, ROADMAP.md). Outside the context, `runDiagnostics()$influence`
-  holds the Cook's distances of `performInfluenceDiagnostics()`, which
-  `cooks.distance()` pads, and the positions of the influential ones in that
-  padded vector (ROADMAP.md).
+  (decision 33). `generics::augment()` of the results of the runner binds
+  the per-observation columns of the fit to the rows of `data`, or of the
+  model frame: given the rows of the observations, as the model frame is, it
+  pads them with a row of `NA` at each row the fit dropped, named as
+  `naresid()` names them, so that the result is the twin's padded; given the
+  data of the fit, its rows, as before; and data of another number of rows
+  are refused with a message that says what it binds, where they stopped with
+  "replacement has 120 rows, data has 117", for the twin too. Outside the
+  context, `runDiagnostics()$influence` holds the Cook's distances of
+  `performInfluenceDiagnostics()`, which `cooks.distance()` pads, and the
+  positions of the influential ones in that padded vector (ROADMAP.md).
 - **Errors that become values** (B13): every test that runs the checks of the
   model, refused with "Model residuals must be finite before running ...",
   and so the runners ("Diagnostic execution failed for White: ..."); RESET,
@@ -1971,6 +1997,8 @@ that fixes each.
 | 29 | The panel tests and the scatter diagnostic read a fit with `na.exclude` as before, its padded residuals against the rows of `data` by position, until increment 9. Decided by the author. Done in increment 9: they read it as the same fit with `na.omit`. | 2026-10-24 |
 | 30 | A repeated pair of `id` and `time` is refused by Pesaran's test only, and so by `runPanelTests()` when it runs that test; the random-effects test reads no period. Decided by the author. | 2026-10-24 |
 | 31 | The tests that read nothing from `data`, the nine tests computed from the model alone, RESET and `fitWLS()` without `var_formula`, match `data` through the guard, as every test built on the context does: one rule for every test. Data the guard cannot match are refused, where they returned the value of the fit, and numbered data in the order of the fit that the check of 0.15.0 refused are taken; that check goes, but for the type of `data`. It ends decision 24. Decided by the author, on the open question of the first version of increment 6. | 2026-10-26 |
+| 32 | A fit with `na.action = na.exclude` gives what its twin gives, the same fit with `na.omit` on the same data: the same values and refusals, the same warnings, the twin's "Removed N observations" among them (decision 7), and the same draws of the generator; an output with one value per row is the twin's padded as `naresid()` pads it. A group, `id` or `time` that is `NA`, or a pair of `id` and `time` that repeats, only at a row the fit dropped is not read, as for the twin, so that Pesaran's test gives a value there. Decided by the author on the review of increment 9. | 2026-10-28 |
+| 33 | The record of the variance function that `fitWLS()` attaches to its fit (`"variance_function"`: `regressors`, `index`, `initial_weights`) stays unpadded on a fit with `na.exclude`, one row per fitted observation, as the bootstraps read it; only the estimated variances, `"variance_model"`, are padded. Decided by the author on the review of increment 9. | 2026-10-28 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

@@ -42,9 +42,14 @@ observation of the fit). The fitted variance function (its form,
 regressors and coefficients) is attached as the
 \code{"variance_function"} attribute, which is what
 \code{\link[=performVarianceFormTest]{performVarianceFormTest()}} reads, and what the bootstrap tests read to
-estimate the weights again in each replicate; its regressors have one row
-per observation of the fit. When \code{model} was fitted
-with weights, the attribute also holds them, as \code{initial_weights}.
+estimate the weights again in each replicate. Its \code{regressors}, the
+variance regressors on the scale of the form, and \code{index}, the fitted
+log-variance \eqn{\hat\gamma_0 + z_i^\top \hat\gamma} (the estimated
+variances are proportional to its exponential), have one row, or value,
+per observation of the fit, also on a fit with \code{na.action = na.exclude},
+whose rows they are not padded to (decided by the author on 2026-10-28).
+When \code{model} was fitted with weights, the attribute also holds them, as
+\code{initial_weights}, one per observation of the fit too.
 }
 \description{
 Refit a model by feasible generalised least squares, weighting each
