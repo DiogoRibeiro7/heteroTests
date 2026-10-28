@@ -76,7 +76,9 @@ performScatterDiagnostic <- function(model, data, vars) {
   # 0.16.0 the i-th row of `data` was read with the i-th residual, and data
   # with row names of their own in another order than the fit, with rows after
   # those of the fit, or of a fit that dropped rows, were refused. A fit with
-  # na.exclude is read as before (rcontext_columns_at_fit()).
+  # na.exclude is read as the same fit with na.omit (B13); until increment 9
+  # of the model context it was read by position, its residuals padded with
+  # NA, and the correlations were NA (rcontext_columns_at_fit()).
   ctx <- rmodel_context(
     model, data, fn = "performScatterDiagnostic", test_label = "Scatter diagnostic",
     reads = if (is.character(vars)) vars else character()

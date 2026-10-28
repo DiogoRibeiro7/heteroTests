@@ -616,7 +616,8 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   design <- ctx$design
   model_offset <- ctx$offset
   fitted_vals <- ctx$fitted
-  raw_residuals <- if (is.null(prior_weights)) stats::residuals(model)
+  # Without the padding of na.exclude (B13), whose NA the replicates drew.
+  raw_residuals <- if (is.null(prior_weights)) rcontext_unpad(ctx, stats::residuals(model))
   # Local copies travel with bootstrap_stat() to the workers of a socket
   # cluster, which load the installed package.
   statistic_of <- rwhite_statistic

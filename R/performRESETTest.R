@@ -64,7 +64,9 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   # with the same offset (decided 2026-10-18). Before 0.16.0 the augmented
   # model left the offset out, so the two were not nested, and a model with
   # an offset was refused.
-  yhat <- fitted(model)
+  # Without the padding of na.exclude (B13), on which the augmented fit
+  # stopped with "NA/NaN/Inf in 'x'" until increment 9 of the model context.
+  yhat <- rcontext_fitted(ctx)
   X1 <- X0
   for (p in power) {
     X1 <- cbind(X1, yhat^p)
@@ -77,7 +79,7 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   w <- ctx$weights
   if (is.null(w)) {
     mod_aug <- lm.fit(X1, y, offset = ctx$offset)
-    rss0 <- sum(residuals(model)^2)
+    rss0 <- sum(rcontext_unpad(ctx, stats::residuals(model))^2)
     rss1 <- sum(mod_aug$residuals^2)
   } else {
     mod_aug <- stats::lm.wfit(X1, y, w, offset = ctx$offset)

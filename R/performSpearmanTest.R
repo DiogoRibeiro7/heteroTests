@@ -60,8 +60,10 @@ performSpearmanTest <- function(model, data = NULL) {
 
   ht_log("INFO", "Running Spearman rank correlation test")
 
-  abs_res <- abs(rpearson_residuals(model))
-  fit <- stats::fitted(model)
+  # The Pearson residuals and the fitted values, without the padding of
+  # na.exclude (B13).
+  abs_res <- abs(rcontext_pearson(ctx))
+  fit <- rcontext_fitted(ctx)
 
   if (length(abs_res) != length(fit)) {
     stop("Fitted values and residuals must have matching lengths.", call. = FALSE)

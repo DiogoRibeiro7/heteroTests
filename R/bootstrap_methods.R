@@ -456,7 +456,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # carries the weights. Weighted or not, the refit carries the offset of the
   # fit, the `offset` argument and the offset() terms.
   response_col <- all.vars(formula)[1L]
-  fitted_vals <- stats::fitted(model)
+  # The fitted values, the leverages and the residuals of the observations of
+  # the fit, without the padding of na.exclude (B13): padded, they had more
+  # values than `data` has rows of the fit, and the fit was refused.
+  fitted_vals <- rmodel_unpad(model, stats::fitted(model))
   null_residuals <- NULL
   if (identical(resample, "null")) {
     # Regenerating the response only makes sense where the fitted values and
@@ -477,8 +480,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
         call. = FALSE
       )
     }
-    leverage <- stats::hatvalues(model)
-    null_residuals <- rpearson_residuals(model) /
+    leverage <- rmodel_unpad(model, stats::hatvalues(model))
+    null_residuals <- rmodel_unpad(model, rpearson_residuals(model)) /
       sqrt(pmax(1 - leverage, .Machine$double.eps))
     null_residuals <- null_residuals - mean(null_residuals)
     if (length(fitted_vals) != n || length(null_residuals) != n) {

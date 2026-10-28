@@ -770,9 +770,12 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
 
 #' A vector of the fit without the padding of `na.exclude`
 #'
-#' `residuals()` and `fitted()` of a fit with `na.action = na.exclude` hold
-#' an `NA` for each row the fit dropped; the context has one value per fitted
-#' observation.
+#' `residuals()`, `fitted()`, `weights()` and `hatvalues()` of a fit with
+#' `na.action = na.exclude` hold an `NA` for each row the fit dropped
+#' ([stats::naresid()]); the context has one value per fitted observation, as
+#' for the same fit with `na.omit`, which drops the same rows. Since increment
+#' 9 of the model context (B13) every test built on it reads them so, and the
+#' checks of the model too ([rvalidateModelInputs()], [rmodel_unpad()]).
 #'
 #' @param ctx The model context.
 #' @param x A vector, padded or not.
@@ -782,6 +785,27 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
 rcontext_unpad <- function(ctx, x) {
   if (inherits(ctx$na_action, "exclude") && length(x) > length(ctx$residuals)) {
     return(x[-ctx$na_action])
+  }
+  x
+}
+
+#' A vector of a fit without the padding of `na.exclude`, from the fit
+#'
+#' [rcontext_unpad()] for the code that reads a fit before, or without,
+#' building its context: the checks of the model ([rvalidateModelInputs()],
+#' [rvalidateSampleSize()]) and [bootstrapTestStatistic()], which reads the
+#' fitted values, the leverages and the residuals of the fit before it
+#' matches `data`.
+#'
+#' @param model A fitted model.
+#' @param x A vector, padded or not.
+#' @return `x` without the padded elements.
+#' @keywords internal
+#' @noRd
+rmodel_unpad <- function(model, x) {
+  omitted <- if (is.list(model)) model$na.action
+  if (inherits(omitted, "exclude") && length(x) > NROW(model$residuals)) {
+    return(x[-omitted])
   }
   x
 }
@@ -799,6 +823,22 @@ rcontext_unpad <- function(ctx, x) {
 #' @noRd
 rcontext_pearson <- function(ctx) {
   rcontext_unpad(ctx, rpearson_residuals(ctx$model))
+}
+
+#' The fitted values the tests read
+#'
+#' `stats::fitted()` of the fit without the padding of `na.exclude`, one value
+#' per observation: on a fit without it, `fitted()` itself, and so what the
+#' tests read before increment 9 of the model context. The tests computed from
+#' the model alone and RESET read it (B13): on a fit with `na.exclude` they
+#' stopped on the padding, or refused it with the checks of the model.
+#'
+#' @param ctx The model context.
+#' @return Numeric vector, one value per observation, named by observation.
+#' @keywords internal
+#' @noRd
+rcontext_fitted <- function(ctx) {
+  rcontext_unpad(ctx, stats::fitted(ctx$model))
 }
 
 #' The fitted mean, computed from the coefficients
@@ -854,9 +894,7 @@ rcontext_mean <- function(ctx) {
 #' @param variable Character scalar, the name of the variable.
 #' @param argument Character scalar, the argument of the test that names it.
 #' @param test_label Character scalar naming the test.
-#' @param ids The names of the observations `values` holds: those of the fit,
-#'   or, for a fit with `na.exclude` that [performPesaranTest()] reads by
-#'   position, the row names of `data`.
+#' @param ids The names of the observations `values` holds, those of the fit.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
 #' @noRd
@@ -973,11 +1011,13 @@ rcontext_group_rows <- function(ctx, data, group) {
 #' and the residuals are the Pearson residuals of the fit
 #' ([rcontext_pearson()]), which refuses a zero weight, as before.
 #'
-#' A fit with `na.action = na.exclude` is read as before until the step of
-#' the model context that moves `na.exclude` (B13): its Pearson residuals,
-#' padded with `NA` at the rows the fit dropped, against the rows of `data`,
-#' or of the model frame, by position, which must then hold the rows of the
-#' fit in its order ([rcheck_data_in_fit_order()]).
+#' A fit with `na.action = na.exclude` is read as the same fit with `na.omit`,
+#' which drops the same rows: its Pearson residuals without the padding, and
+#' the columns at the rows the alignment confirmed (B13, increment 9 of the
+#' model context). Until then the three read its padded residuals against the
+#' rows of `data`, or of the model frame, by position, refused data in another
+#' order, and gave a statistic that was `NA`, or computed with the `NA` of the
+#' rows the fit dropped (decision 29).
 #'
 #' @param ctx The model context.
 #' @param data The `data` argument of the calling test, or `NULL`.
@@ -987,10 +1027,8 @@ rcontext_group_rows <- function(ctx, data, group) {
 #' @param test_label Character scalar naming the test in the messages on rows
 #'   that `data` lacks.
 #' @return A list with `residuals`, the Pearson residuals, `columns`, a named
-#'   list of the columns, each with one value per residual, `ids`, the names
-#'   of the observations they hold (the row names of the rows read, for a fit
-#'   with `na.exclude`), and `padded`, `TRUE` for the residuals of a fit with
-#'   `na.exclude`, read as before.
+#'   list of the columns, each with one value per residual, and `ids`, the
+#'   names of the observations they hold.
 #' @keywords internal
 #' @noRd
 rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
@@ -1000,17 +1038,9 @@ rcontext_columns_at_fit <- function(ctx, data, columns, fn, test_label) {
   }
   roles[!nzchar(roles)] <- columns[!nzchar(roles)]
   # Without `data`, a column the model frame does not hold under its own name
-  # is refused here (M1), for a fit with na.exclude too.
+  # is refused here (M1).
   values <- rcontext_variables(ctx, data, stats::setNames(columns, roles))
-  if (inherits(ctx$na_action, "exclude")) {
-    rows <- if (is.null(data)) ctx$frame else data
-    rcheck_data_matches_model(ctx$model, rows, test_label)
-    residuals <- rpearson_residuals(ctx$model)
-    rcheck_data_in_fit_order(residuals, rows, fn, test_label)
-    values <- stats::setNames(lapply(columns, function(v) rows[[v]]), roles)
-    return(list(residuals = residuals, columns = values, ids = rownames(rows), padded = TRUE))
-  }
-  list(residuals = rcontext_pearson(ctx), columns = values, ids = ctx$obs_id, padded = FALSE)
+  list(residuals = rcontext_pearson(ctx), columns = values, ids = ctx$obs_id)
 }
 
 #' Refuse a panel in which a unit holds two observations of one period
@@ -1071,54 +1101,6 @@ rpanel_cell_key <- function(id_values, time_values) {
   unit <- match(id_values, unique(id_values))
   period <- match(time_values, unique(time_values))
   (unit - 1) * max(c(period, 0L)) + period
-}
-
-#' Refuse an unbalanced panel on the reading of a fit with na.exclude
-#'
-#' [performPesaranTest()] arranges the residuals of a balanced panel in a
-#' matrix of periods by units. Before 0.16.0 a unit observed at fewer periods
-#' than the panel holds stopped the statistic ("number of items to replace is
-#' not a multiple of replacement length"), or, when its number of periods
-#' divides that of the panel, had its residuals recycled over the periods it
-#' lacks, and the test returned a wrong value without an error (N12 of the
-#' design of the model context). The fifth step of the model context refused
-#' such panels on every route (decided by the author on 2026-10-24); since the
-#' pull request of N12 the statistic of an unbalanced panel is computed from
-#' the periods each pair of units shares, as `plm::pcdtest()` computes it, and
-#' the refusal is left to a fit with `na.action = na.exclude`, whose padded
-#' residuals the test reads against the rows of `data` by position until the
-#' step that moves na.exclude (decision 29).
-#'
-#' @param id_values,time_values The units and the periods, one per
-#'   observation, without missing values or repeated pairs.
-#' @param id Character scalar, the name of the column of the units.
-#' @param fn Character scalar naming the calling test.
-#' @return `NULL`, invisibly; called for the error.
-#' @keywords internal
-#' @noRd
-rstop_unbalanced_panel <- function(id_values, time_values, id, fn) {
-  # The periods of each unit, counted in one pass over its distinct pairs.
-  units <- sort(unique(id_values))
-  n_periods <- length(unique(time_values))
-  distinct <- !duplicated(rpanel_cell_key(id_values, time_values))
-  held <- tabulate(match(id_values[distinct], units), nbins = length(units))
-  short <- which(held < n_periods)
-  if (length(short) == 0L) {
-    return(invisible(NULL))
-  }
-  first <- short[1L]
-  rstop_model_context(sprintf(
-    paste0(
-      "%s() reads a fit with na.action = na.exclude by position, on a matrix of periods by ",
-      "units, and needs a balanced panel, every unit observed at the same periods; the ",
-      "panel of the rows of `data` is unbalanced: %d of its %d units %s observed at fewer ",
-      "of its %d periods, %s = %s at %d of them. Refit the model with na.action = na.omit: ",
-      "the statistic of an unbalanced panel is then computed from the periods each pair of ",
-      "units shares, as plm::pcdtest() computes it."
-    ),
-    fn, length(short), length(units), if (length(short) == 1L) "is" else "are", n_periods,
-    id, as.character(units[first]), held[first]
-  ))
 }
 
 #' Warn about the incomplete rows of `data`, dropping nothing

@@ -74,10 +74,10 @@
 #' replace is not a multiple of replacement length"), or, when the number of
 #' periods of a unit divided that of the panel, returned a wrong value
 #' computed on its residuals recycled over the periods it lacks. A fit with
-#' `na.action = na.exclude` that dropped rows is read as before, by position,
-#' until a later step: the panel of the rows of `data` must then be balanced,
-#' and an unbalanced one is refused, with a message that points to `na.omit`.
-#' A fit with `na.exclude` that dropped no row is tested as any other.
+#' `na.action = na.exclude` is tested as the same fit with `na.omit`, on the
+#' observations it kept, its panel balanced or not; before 0.17.0 it was read
+#' by position, its residuals padded with `NA` at the rows it dropped, against
+#' the rows of `data`, and an unbalanced panel of those rows was refused.
 #'
 #' @references
 #' Pesaran, M. H. (2004). General diagnostic tests for cross section dependence in
@@ -147,7 +147,9 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   # fit, which refuse a zero weight. Before 0.16.0 the i-th row of `data` was
   # read with the i-th residual, and data with row names of their own in
   # another order than the fit, with rows after those of the fit, or of a fit
-  # that dropped rows, were refused. A fit with na.exclude is read as before
+  # that dropped rows, were refused. A fit with na.exclude is read as the same
+  # fit with na.omit (B13, increment 9 of the model context); until then it
+  # was read by position, its residuals padded with NA at the rows it dropped
   # (rcontext_columns_at_fit()).
   read <- rcontext_columns_at_fit(
     ctx, data, c(id = id, time = time), "performPesaranTest", test_label
@@ -156,18 +158,11 @@ performPesaranTest <- function(model, data = NULL, id, time) {
   # stopped before, is refused with a message that names it; and a pair of
   # `id` and `time` that holds two observations, which put one of them in the
   # cell of another period, is refused (decision 13 of the design of the
-  # model context), on every route, a fit with na.exclude included.
+  # model context), on every route.
   rstop_missing_variable(ctx, read$columns$id, id, "id", test_label, ids = read$ids)
   rstop_missing_variable(ctx, read$columns$time, time, "time", test_label, ids = read$ids)
   rstop_repeated_panel_cells(read$columns$id, read$columns$time, id, time,
                              "performPesaranTest")
-  # A fit with na.exclude is read by position until the step of the model
-  # context that moves na.exclude (decision 29): its residuals are padded with
-  # NA at the rows it dropped, and the panel of the rows of `data` it reads
-  # must be balanced, as since the fifth step (N12, decision 28).
-  if (read$padded) {
-    rstop_unbalanced_panel(read$columns$id, read$columns$time, id, "performPesaranTest")
-  }
   df <- data.frame(id = read$columns$id, time = read$columns$time, res = read$residuals)
   df <- df[order(df$time, df$id), ]
   ids <- unique(df$id)

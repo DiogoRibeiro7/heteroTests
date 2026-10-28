@@ -132,7 +132,8 @@ performHarveyTest <- function(model, data = NULL,
   ht_log("INFO", "Running Harvey test")
 
   if (auxiliary == "fitted") {
-    yhat <- stats::fitted(model)
+    # Without the padding of na.exclude (B13).
+    yhat <- rcontext_fitted(ctx)
     if (stats::var(yhat) <= .Machine$double.eps) {
       .std_error(
         "rassumption_violation",
@@ -158,7 +159,7 @@ performHarveyTest <- function(model, data = NULL,
     }
   }
 
-  e <- rpearson_residuals(model)
+  e <- rcontext_pearson(ctx)
   if (any(!is.finite(e))) {
     .std_error(
       "rassumption_violation",

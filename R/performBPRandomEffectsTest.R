@@ -105,7 +105,9 @@ performBPRandomEffectsTest <- function(model, data = NULL, id) {
   # which refuse a zero weight. Before 0.16.0 the i-th row of `data` was read
   # with the i-th residual, and data with row names of their own in another
   # order than the fit, with rows after those of the fit, or of a fit that
-  # dropped rows, were refused. A fit with na.exclude is read as before
+  # dropped rows, were refused. A fit with na.exclude is read as the same fit
+  # with na.omit (B13); until increment 9 of the model context it was read by
+  # position, its residuals padded with NA, and the statistic was NA
   # (rcontext_columns_at_fit()). A unit missing at an observation of the fit
   # leaves it out of the sums by unit, as before (decision 8 of the design of
   # the model context: each test keeps its behaviour).

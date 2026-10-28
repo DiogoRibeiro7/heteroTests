@@ -103,11 +103,15 @@
 #'   `"exponential"` (the default) or `"power"`. See the section on variance
 #'   functions.
 #' @return A new `lm` object fitted with weights. The estimated variances are
-#'   attached as the `"variance_model"` attribute, and the fitted variance
-#'   function (its form, regressors and coefficients) as the
+#'   attached as the `"variance_model"` attribute, one per row, as `weights()`
+#'   of the result gives the weights: on a fit with `na.action = na.exclude`,
+#'   `NA` at the rows the fit dropped (since 0.17.0; before, one per
+#'   observation of the fit). The fitted variance function (its form,
+#'   regressors and coefficients) is attached as the
 #'   `"variance_function"` attribute, which is what
 #'   [performVarianceFormTest()] reads, and what the bootstrap tests read to
-#'   estimate the weights again in each replicate. When `model` was fitted
+#'   estimate the weights again in each replicate; its regressors have one row
+#'   per observation of the fit. When `model` was fitted
 #'   with weights, the attribute also holds them, as `initial_weights`.
 #' @references
 #' Harvey, A. C. (1976). Estimating regression models with multiplicative
@@ -229,7 +233,12 @@ rweighted_refit <- function(model, variance, ctx = NULL) {
   # performVarianceFormTest() accept. Before 0.16.0 such a fit kept the class
   # of the glm, without its family.
   class(fit) <- if (inherits(model, "glm")) "lm" else class(model)
-  attr(fit, "variance_model") <- 1 / w
+  # The estimated variances, one per row as weights() and residuals() of the
+  # refit give them: on a fit with na.action = na.exclude, padded with NA at
+  # the rows the fit dropped, as naresid() pads them (B13, increment 9 of the
+  # model context; before, one per observation of the fit). The record below
+  # keeps one value per observation, which the bootstraps read.
+  attr(fit, "variance_model") <- stats::naresid(fit$na.action, 1 / w)
   record <- variance[names(variance) != "weights"]
   # The weights of the model refitted, if it had any. They decided its
   # residuals, so a bootstrap that estimates the variance function again

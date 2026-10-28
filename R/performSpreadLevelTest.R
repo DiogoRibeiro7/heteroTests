@@ -51,9 +51,12 @@ performSpreadLevelTest <- function(model, data = NULL) {
   rrefuse_nonfinite_coefficients(model, "Spread-level test", allow_aliased = TRUE)
   rvalidate_model_context(ctx)
 
-  abs_res <- abs(rpearson_residuals(model))
+  # The Pearson residuals and the fitted values, without the padding of
+  # na.exclude: before increment 9 of the model context (B13) they were
+  # padded with NA at the rows the fit dropped, which lm() below left out.
+  abs_res <- abs(rcontext_pearson(ctx))
   abs_res <- pmax(abs_res, .Machine$double.eps)
-  fit <- abs(fitted(model))
+  fit <- abs(rcontext_fitted(ctx))
   fit <- pmax(fit, .Machine$double.eps)
   reg <- lm(log(abs_res) ~ log(fit))
   slope <- coef(summary(reg))[2, 1]
