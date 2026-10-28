@@ -2296,6 +2296,115 @@ test_that("the panel tests read a fit with na.exclude at the rows it kept (B13)"
   expect_equal(pesaran$p.value, reference$p.value, tolerance = 1e-10)
 })
 
+test_that("a gam with na.exclude is read as the same gam with na.omit (B13)", {
+  # From the review of increment 9. model.matrix() of an mgcv::gam() fit
+  # with na.exclude pads its design with NA rows at the rows the fit dropped,
+  # 120 rows for 117 residuals, and the context refused every such fit
+  # ("Internal error: the parts of the model context differ in length."),
+  # where the same gam with na.omit gives White 10.847, Koenker 8.363 and
+  # Pesaran 0.189. The design is read without the padded rows.
+  skip_if_not_installed("mgcv")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  d$x2[c(3, 7, 11)] <- NA
+  excluded <- mgcv::gam(y ~ x1 + x2, data = d, na.action = na.exclude)
+  omitted <- mgcv::gam(y ~ x1 + x2, data = d)
+  expect_equal(nrow(stats::model.matrix(excluded)), 120L)
+  ctx <- rmodel_context(excluded, d, fn = "f")
+  expect_identical(ctx$design, rmodel_context(omitted, d, fn = "f")$design)
+  white_of <- function(m) performWhiteTest(m, d)
+  white <- white_of(excluded)
+  expect_identical(white, white_of(omitted))
+  expect_equal(unname(white$statistic), 10.847, tolerance = 1e-4)
+  expect_identical(performKoenkerTest(excluded, d), performKoenkerTest(omitted, d))
+  expect_identical(performPesaranTest(excluded, d, "id", "time"),
+                   performPesaranTest(omitted, d, "id", "time"))
+  expect_identical(performScatterDiagnostic(excluded, d, c("x1", "x2")),
+                   performScatterDiagnostic(omitted, d, c("x1", "x2")))
+  expect_identical(
+    context_without_model(runHeteroTests(excluded, d, use_cache = FALSE, progress = FALSE)),
+    context_without_model(runHeteroTests(omitted, d, use_cache = FALSE, progress = FALSE))
+  )
+  # performVIFDiagnostic() reads the design too, and gave NA; the Cook's
+  # distances of mgcv recycled the padded residuals against the leverages,
+  # with a warning, and are those of the twin, padded.
+  expect_identical(performVIFDiagnostic(excluded), performVIFDiagnostic(omitted))
+  expect_no_warning(influence <- performInfluenceDiagnostics(excluded))
+  expect_identical(influence$cooks_distance,
+                   naresid(excluded$na.action, performInfluenceDiagnostics(omitted)$cooks_distance))
+  # With a smooth term, the tests of increment 2 refuse it as its twin.
+  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d, na.action = na.exclude)
+  expect_identical(performKoenkerTest(smooth, d),
+                   performKoenkerTest(update(smooth, na.action = na.omit), d))
+  expect_error(performRESETTest(smooth, d), "cannot test an mgcv::gam() fit with smooth terms",
+               fixed = TRUE)
+})
+
+test_that("the functions outside the context read a fit with na.exclude as its twin (B13)", {
+  # From the review of increment 9. Past the checks of the model, which
+  # refused a fit with na.exclude, functions that are not built on the
+  # context read its padded residuals and fitted values: the recommendations
+  # stopped with "incompatible dimensions", the bubble plot, and so the plot
+  # suite and the report, with "replacement has 120 rows, data has 117", the
+  # other plots drew the NA with a warning of ggplot2 ("Removed 3 rows
+  # containing non-finite values"), and the RMSE of autoCompareRemediations()
+  # and analyzeMLResiduals() was NA. They give what they give on the same fit
+  # with na.omit; augment(), whose rows are per observation, gives the rows of
+  # the same fit with na.omit padded with NA rows at the rows the fit dropped.
+  skip_on_cran()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  pair <- context_excluded_pair()
+  me <- pair$excluded
+  mo <- pair$omitted
+  same <- function(f, info) {
+    a <- suppressWarnings(f(me))
+    b <- suppressWarnings(f(mo))
+    expect_identical(a, b, info = info)
+  }
+  same(function(m) generateHeteroRecommendations(m)$profile, "recommendations")
+  same(function(m) identifyVariancePatterns(m, stats::model.frame(m)), "patterns")
+  same(function(m) autoCompareRemediations(m, pair$d)$metrics$RMSE, "RMSE")
+  expect_false(anyNA(autoCompareRemediations(me, pair$d)$metrics$RMSE[1:2]))
+  same(function(m) analyzeMLResiduals(m, pair$d)$rmse_reduction, "rmse_reduction")
+  plots <- list(
+    residuals_fitted = function(m) plotResidualsFitted(m),
+    enhanced = function(m) plotResidualsFitted(m, enhanced = TRUE),
+    spread_level = function(m) plotSpreadLevel(m),
+    density = function(m) plotResidualDensity(m),
+    qq = function(m) plotResidualQQ(m),
+    bubble = function(m) plotBubbleVariance(m),
+    before_after = function(m) plotBeforeAfter(m, fitWLS(m))
+  )
+  for (k in names(plots)) {
+    a <- plots[[k]](me)
+    b <- plots[[k]](mo)
+    expect_identical(a$data, b$data, info = k)
+    expect_no_warning(ggplot2::ggplot_build(a))
+  }
+  expect_identical(lapply(plotDiagnosticSuite(me), `[[`, "data"),
+                   lapply(plotDiagnosticSuite(mo), `[[`, "data"))
+  # augment(): the rows of the twin, padded with a row of NA at each row the
+  # fit dropped, named as naresid() names them; given the data of the fit,
+  # its rows, with the padded columns.
+  a <- generics::augment(runHeteroTests(me, use_cache = FALSE, progress = FALSE)[["white"]])
+  b <- generics::augment(runHeteroTests(mo, use_cache = FALSE, progress = FALSE)[["white"]])
+  expect_identical(nrow(a), nrow(pair$d))
+  expect_identical(names(a), names(b))
+  expect_identical(lapply(a[-c(3, 7, 11), ], unname), lapply(b, unname))
+  expect_true(all(is.na(a[c(3, 7, 11), setdiff(names(a), ".diagnostic")])))
+  expect_identical(rownames(a), as.character(seq_len(nrow(pair$d))))
+  white <- runHeteroTests(me, pair$d, use_cache = FALSE, progress = FALSE)[["white"]]
+  full <- generics::augment(white, data = pair$d)
+  expect_identical(unname(full$.fitted), unname(fitted(me)))
+  expect_error(
+    generics::augment(runHeteroTests(mo, pair$d, use_cache = FALSE, progress = FALSE)[["white"]],
+                      data = pair$d),
+    "augment() binds one row of `data` to each fitted value of the model, 117 of them", fixed = TRUE
+  )
+})
+
 test_that("fitWLS() pads its outputs per row on a fit with na.exclude (B13)", {
   # Increment 9. The refit of fitWLS() keeps the na.action of the model, so
   # residuals(), fitted() and weights() of a fit with na.exclude are padded
