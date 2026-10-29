@@ -1236,7 +1236,10 @@ context_tidy_augment_expect <- function(name, form) {
 # values bound with those of the model frame in their order, and a recipe that
 # reorders the rows passed them). The prediction of a workflow itself
 # (predict.workflow()) maps the predictors without the outcome, which a
-# recipe that transforms the outcome on new data cannot bake.
+# recipe that transforms the outcome on new data cannot bake. A row whose
+# prediction or outcome cannot be computed, as in data without the outcome,
+# is not its own: FALSE, so that the identity harness records the value
+# augment() gave, and not the error of this check.
 context_tidy_own <- function(object, data, bound, at = seq_len(nrow(bound))) {
   plain <- as.data.frame(data)
   index <- match(rownames(bound), rownames(plain))
@@ -1249,7 +1252,7 @@ context_tidy_own <- function(object, data, bound, at = seq_len(nrow(bound))) {
   close <- function(a, b) length(a) == 1L && length(b) == 1L && isTRUE(all.equal(
     unname(as.numeric(a)), unname(as.numeric(b)), tolerance = 1e-8
   ))
-  all(vapply(at, function(k) {
+  all(vapply(at, function(k) tryCatch({
     row <- data[index[k], , drop = FALSE]
     if (workflow) {
       forged <- hardhat::forge(row, blueprint, outcomes = TRUE)
@@ -1266,7 +1269,7 @@ context_tidy_own <- function(object, data, bound, at = seq_len(nrow(bound))) {
       }
     }
     close(bound$.fitted[k], prediction) && close(bound$.resid[k], outcome - prediction)
-  }, logical(1)))
+  }, error = function(e) FALSE), logical(1)))
 }
 # A few rows of `n`, for the tests: the first three, the middle and the last
 # two.
