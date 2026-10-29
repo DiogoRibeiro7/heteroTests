@@ -510,6 +510,22 @@ rtidymodels_map <- function(object) {
   expr
 }
 
+# Does `expr` read variables of its environment in a way their names do not
+# show, through `get()`, `eval()` and the like? Such an expression keeps the
+# environment it was written in (.ht_prune_environments()).
+.ht_reads_by_name <- function(expr) {
+  dynamic <- c(
+    "get", "get0", "mget", "exists", "eval", "evalq", "parse", "str2lang", "str2expression",
+    "environment", "parent.frame", "sys.frame", "sys.function", "sys.call", "as.environment",
+    "local", "assign", "<<-", "ls", "with", "within", "env_get", "caller_env",
+    "current_env", "eval_tidy", "inject"
+  )
+  names <- unlist(lapply(as.list(expr), function(part) {
+    if (is.language(part)) all.names(part) else character()
+  }), use.names = FALSE)
+  any(names %in% dynamic)
+}
+
 #' The environments of a blueprint, pruned to what its expressions read
 #'
 #' A recipe written inside a function keeps the frame of that function in the
@@ -525,7 +541,10 @@ rtidymodels_map <- function(object) {
 #' the runners on the same workflow are `identical()`, which a new
 #' environment on each call would not be. A function written in the frame,
 #' called by such an expression, is written in pruned in turn; past `depth`
-#' 4, as for a function that calls itself, it keeps its environment.
+#' 4, as for a function that calls itself, it keeps its environment, and so
+#' does an expression that reads variables by a name its text does not show,
+#' through `get()`, `eval()` and the like (`.ht_reads_by_name()`), whose
+#' frame is kept whole, as large as it is.
 #'
 #' @param x A blueprint, or a part of it.
 #' @param columns The names of the columns of the data of the recipe, which
@@ -550,7 +569,7 @@ rtidymodels_map <- function(object) {
     if (is.primitive(x) || is.null(env) || .ht_shared_env(env)) {
       return(x)
     }
-    if (depth > 4L) {
+    if (depth > 4L || .ht_reads_by_name(c(body(x), formals(x)))) {
       return(x)
     }
     found <- .ht_frames(env)
@@ -569,7 +588,7 @@ rtidymodels_map <- function(object) {
   }
   if (inherits(x, "formula")) {
     env <- attr(x, ".Environment")
-    if (is.environment(env) && !.ht_shared_env(env)) {
+    if (is.environment(env) && !.ht_shared_env(env) && !.ht_reads_by_name(x)) {
       found <- .ht_frames(env)
       at <- attributes(x)
       plain <- x

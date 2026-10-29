@@ -2967,6 +2967,22 @@ test_that("the results of a workflow keep what augment() needs, not the workflow
   attr(unpruned, "tidymodels") <- whole
   expect_identical(bound, generics::augment(unpruned, data = d))
   expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), suite)
+  # An expression that reads a variable by a name its text does not show, as
+  # get("k") does, keeps the frame it was written in, and maps the data.
+  by_name <- function(data) {
+    k <- 3
+    rec <- recipes::step_mutate(recipes::recipe(y ~ x + z, data = data), x4 = x * get("k"))
+    workflows::fit(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      data = data
+    )
+  }
+  fit <- by_name(d)
+  suite <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  kept <- attr(suite$white, "tidymodels")$blueprint$recipe$steps[[1L]]$inputs$x4
+  expect_false(identical(attr(kept, ".Environment"), globalenv()))
+  expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), suite)
 })
 
 test_that("the data of a fit_xy() fit with case weights are refused", {
