@@ -126,10 +126,13 @@ own, such as a tibble or a data.table, that has as many rows as the fit is
 taken in the order of the fit. The rows are then matched to the
 observations of the fit as the tests match them (see \link{test_results}), and
 data whose rows cannot be shown to hold them are refused, as are values
-that differ from those the model was fitted to. A model that is not the
-least-squares fit of its design, such as a \code{MASS::rlm()} fit, is refused
-too ("\code{data} does not reproduce the fit"): its replicates would be those of
-another model.
+that differ from those the model was fitted to. A model whose least-squares
+refit of its design does not give its residuals, such as an \code{lm} fitted with
+a smaller \code{tol} that keeps a column \code{lm()} would alias, is refused too
+("\code{data} does not reproduce the fit"): its replicates would be those of
+another model. Since 0.17.0 a \code{MASS::rlm()} fit, an M-estimate, is refused
+first, as by every test (see \emph{Supported models}); it was refused here
+before, with that message.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For \code{log(y) ~ x} the fitted values are on the log scale while
@@ -259,8 +262,9 @@ Gaussian family and the identity link, weighted or not, bootstrapped as the
 as a pairs resample of an interaction can, fails. It refuses a \code{glm} of
 another family or link, an \code{mgcv::gam()} fit and a \code{survey::svyglm()} fit,
 as each replicate is refitted by least squares, a fit with a zero weight,
-a fit that is not the least-squares fit of its design, such as a
-\code{MASS::rlm()} fit, a fit whose coefficients, residuals or weights were
+a \code{MASS::rlm()} fit, an M-estimate, with the message of every test since
+0.17.0 (it was refused before as a fit the least-squares refit does not
+reproduce), a fit whose coefficients, residuals or weights were
 changed after it was fitted (since 0.17.0), a \code{fitWLS()} fit of an
 \code{mgcv::gam()} fit with smooth terms, whose terms do not rebuild the design of
 its coefficients (since 0.17.0), and \code{data} whose rows cannot be

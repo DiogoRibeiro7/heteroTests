@@ -8,7 +8,7 @@
 #' [fitWLS()], [runHeteroTests()] and [runDiagnostics()], with an error of
 #' class `heteroTests_model_context_error`; until then 37 tests took it for an
 #' `lm` and tested its residuals as least-squares ones. To test the variance
-#' of the errors, test the [lm()] fit of the same formula. The result is for
+#' of the errors, test the [stats::lm()] fit of the same formula. The result is for
 #' estimation, and for comparisons such as those of
 #' [autoCompareRemediations()], which reads its AIC and residuals only.
 #'

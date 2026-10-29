@@ -56,7 +56,9 @@ a weighted \code{lm}, and \code{\link{performVarianceFormTest}()}, which refuses
 \code{\link{fitWLS}()}, refuse it with the same message. With a zero prior weight it is refused as the \code{lm} with a
 zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A \code{survey::svyglm()} fit is
 refused by every test ("The model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R}
-gives every test these inputs.
+gives every test these inputs. Since 0.17.0 a \code{MASS::rlm()} fit is refused by every test too ("cannot test a
+MASS::rlm() fit", with class \code{heteroTests_model_context_error}; see \emph{Supported models}), which
+\file{tests/testthat/test-model-context.R} checks.
 
 The tests that read \code{data} also refuse \code{data} whose rows cannot be confirmed to hold the observations of
 the fit ("cannot match the rows of \code{data} to the observations of the model"). They match the rows of \code{data}
@@ -245,10 +247,14 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   them (and does not depend on the order of the terms); with the exponential form, the default, it is.
   \item A \code{fitWLS()} fit is a weighted \code{lm}, with estimated weights: accepted, but the reference
   distributions take the weights as known (\code{\link{performVarianceFormTest}()} accounts for the estimation).
-  \item A \code{MASS::rlm()} fit is an \code{lm} by class, so the tests accept it, as before 0.16.0, and test its
-  M-estimation residuals as if they were least-squares ones; its case weights, all 1 unless given, are read as
-  precision weights, so \code{\link{performQuantileRegressionTest}()} refuses it as a weighted fit. Whether to keep
-  accepting it or refuse it was deferred on 2026-10-17 to the work on the model context.
+  \item A \code{MASS::rlm()} fit, such as \code{\link{fitRobust}()} returns, is an \code{lm} by class and an
+  M-estimate, whose residuals are not least-squares residuals. Since 0.17.0 every test refuses it, with an error of
+  class \code{heteroTests_model_context_error} that names the \code{lm()} fit of the same formula to test instead,
+  and so do \code{\link{fitWLS}()}, the registered names and the runners, which keep the refusal final. Until then 37
+  tests took it for an \code{lm} and tested its M-estimation residuals as if they were least-squares ones, the
+  studentized Breusch-Pagan statistic tested the least-squares refit of its design, and
+  \code{\link{performQuantileRegressionTest}()} and \code{\link{performVarianceFormTest}()} refused it as a weighted
+  fit, its case weights, all 1 unless given, being read as precision weights.
 }
 \code{\link{checkModel}()} checks the class of a model only, \code{lm} or \code{glm}; it does not check whether a test
 accepts it.
