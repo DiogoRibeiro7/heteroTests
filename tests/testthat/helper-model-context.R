@@ -1060,7 +1060,9 @@ context_grouped <- function(d, grouping) {
 # applies to new data; with a step skipped on new data that transformed the
 # outcome, step_log(ypos, skip = TRUE), the idiom recipes recommends; and
 # with case weights and a step_filter() applied to new data (from the second
-# review of increment 10); and parsnip fits of fit() (whose
+# review of increment 10); with a recipe written in a function, one of its
+# steps reading a variable of the function's frame, and a parsnip fit of
+# fit_xy() with case weights (from the third review); and parsnip fits of fit() (whose
 # data the runners took already) and of fit_xy(), with the outcome as a data
 # frame and as a vector (refused: the fit does not record its column).
 # `outcome` names the outcome of the data. The forms of data: none, the data
@@ -1140,6 +1142,14 @@ context_tidy_models <- function() {
       pre <- workflows::add_case_weights(workflows::add_recipe(workflows::workflow(), rec), cw)
       wf(pre, data)
     }),
+    # A recipe written in a function whose frame holds other objects, a step
+    # reading a variable of it (the third review of increment 10).
+    wf_local_variable = list(data = d, outcome = "y", fit = function(data) {
+      k <- 3
+      unused <- seq_len(1e5) + 0.5
+      rec <- recipes::step_mutate(recipes::recipe(y ~ x1 + x2, data = data), x3 = x1 * k)
+      with_recipe(rec, data)
+    }),
     parsnip_formula = list(data = d, outcome = "y", fit = function(data) {
       parsnip::fit(spec(), y ~ x1 + x2, data = data)
     }),
@@ -1148,6 +1158,10 @@ context_tidy_models <- function() {
     }),
     parsnip_xy_vector = list(data = d, outcome = "y", fit = function(data) {
       parsnip::fit_xy(spec(), x = data[, c("x1", "x2")], y = data$y)
+    }),
+    parsnip_xy_weights = list(data = d, outcome = "y", fit = function(data) {
+      parsnip::fit_xy(spec(), x = data[, c("x1", "x2")], y = data[, "y", drop = FALSE],
+                      case_weights = hardhat::importance_weights(data$w))
     })
   )
 }
@@ -1187,6 +1201,11 @@ context_tidy_expect <- function(name, form) {
   # variables of the engine, and those of step_filter() are not.
   if (identical(name, "wf_filter")) {
     return("dropped rows at the fit only")
+  }
+  # fit_xy() takes its case weights as a vector and does not record their
+  # column (the third review of increment 10).
+  if (identical(name, "parsnip_xy_weights")) {
+    return("cannot compare the case weights of a parsnip fit made with fit_xy()")
   }
   # A recipe that sorts the rows of new data sorts them as it sorted the data
   # it was fitted to, whatever their order: the rows are those of the fit.

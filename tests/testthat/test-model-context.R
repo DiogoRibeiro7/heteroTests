@@ -2798,6 +2798,28 @@ test_that("augment() never binds a row of a workflow's data the values of anothe
     frame <- generics::augment(reference$white)
     expect_identical(unname(frame$.fitted), unname(fitted(workflows::extract_fit_engine(fit))))
   }
+  # A step that makes a row from other rows, as cumsum() or row_number() do,
+  # maps `data` shuffled to other values, and is refused too: in the order of
+  # the fit 0.16.0 bound each row its own values there, and the refusal is
+  # conservative (decision 14; from the third review of increment 10).
+  from_other_rows <- list(
+    cumsum = function(rec) recipes::step_mutate(rec, cs = cumsum(x1)),
+    row_number = function(rec) recipes::step_mutate(rec, rn = dplyr::row_number())
+  )
+  for (kind in names(from_other_rows)) {
+    rec <- from_other_rows[[kind]](recipes::recipe(y ~ x1 + x2, data = d))
+    fit <- workflows::fit(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      data = d
+    )
+    reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+    expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), reference,
+                     info = kind)
+    expect_error(generics::augment(reference$white, data = d),
+                 "reorders the rows of `data` it maps, or makes a row from other rows",
+                 fixed = TRUE, info = kind)
+  }
   # A recipe that maps each row on its own is traced, and each row of `data`,
   # shuffled under its own names, has its own values.
   fit <- workflows::fit(
@@ -2844,6 +2866,31 @@ test_that("a step a recipe skips on new data that changed the outcome is named",
     conditionMessage(expect_error(generics::augment(reference$white, data = model$data))),
     "^augment\\(\\) cannot map `data`"
   )
+  # Only the steps without which the rows are not confirmed are named: a
+  # step_filter() skipped on new data that keeps every row is not, and two
+  # skipped steps that each changed a variable are (from the third review of
+  # increment 10, where every skipped step was named).
+  refusal_of <- function(rec) {
+    fit <- workflows::fit(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      data = model$data
+    )
+    conditionMessage(expect_error(
+      runHeteroTests(fit, model$data, use_cache = FALSE, progress = FALSE),
+      class = "heteroTests_data_rows_error"
+    ))
+  }
+  base <- recipes::recipe(ypos ~ x1 + x2, data = model$data)
+  harmless <- refusal_of(recipes::step_log(recipes::step_filter(base, x1 > -Inf), ypos,
+                                           skip = TRUE))
+  expect_match(harmless, "has a step it skips on new data, step_log() with `skip = TRUE`",
+               fixed = TRUE)
+  expect_no_match(harmless, "step_filter()", fixed = TRUE)
+  both <- refusal_of(recipes::step_sqrt(recipes::step_log(base, ypos, skip = TRUE), x1,
+                                        skip = TRUE))
+  expect_match(both, "has steps it skips on new data, step_log() and step_sqrt() with",
+               fixed = TRUE)
 })
 
 test_that("the results of a workflow keep what augment() needs, not the workflow", {
@@ -2886,6 +2933,72 @@ test_that("the results of a workflow keep what augment() needs, not the workflow
   xy <- parsnip::fit_xy(parsnip::linear_reg(), x = d[, c("x", "z")], y = d[, "y", drop = FALSE])
   kept_xy <- attr(runHeteroTests(xy, use_cache = FALSE, progress = FALSE)$white, "tidymodels")
   expect_identical(unclass(kept_xy), list(kind = "model_fit", y_var = "y"))
+  # A recipe written in a function kept the frame of the function in the
+  # expressions of its steps, every object of it: 49,347 KB for a frame that
+  # held a 50 MB data frame (the third review of increment 10). The
+  # expressions keep the global environment, and the variables they read of
+  # the frame written in as values; augment() maps the data as with the
+  # blueprint itself, and two runs give identical() results.
+  in_a_function <- function(data) {
+    big <- seq_len(2e6) + 0.5
+    k <- 3
+    rec <- recipes::step_log(
+      recipes::step_mutate(recipes::recipe(y ~ x + z, data = data), x3 = x * k), x
+    )
+    workflows::fit(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      data = data
+    )
+  }
+  fit <- in_a_function(d)
+  expect_gt(length(serialize(workflows::extract_mold(fit)$blueprint, NULL)), 8e6)
+  suite <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  kept <- attr(suite$white, "tidymodels")
+  expect_lt(length(serialize(kept, NULL)), 16 * 1024)
+  mutate <- kept$blueprint$recipe$steps[[1L]]$inputs$x3
+  expect_identical(attr(mutate, ".Environment"), globalenv())
+  expect_identical(deparse(unclass(mutate)[[2L]]), "x * 3")
+  expect_identical(suite, runHeteroTests(fit, use_cache = FALSE, progress = FALSE))
+  bound <- generics::augment(suite$white, data = d)
+  unpruned <- suite$white
+  whole <- kept
+  whole$blueprint <- workflows::extract_mold(fit)$blueprint
+  attr(unpruned, "tidymodels") <- whole
+  expect_identical(bound, generics::augment(unpruned, data = d))
+  expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), suite)
+})
+
+test_that("the data of a fit_xy() fit with case weights are refused", {
+  # From the third review of increment 10. fit_xy() takes its case weights as
+  # a vector, and the fit records the column of its outcome but not that of
+  # its weights, so the weights of `data` cannot be compared with those of the
+  # fit, as those of a workflow are: other weights were taken (White 14.2138
+  # on the reviewer's data, with the weights reversed). Such data are refused;
+  # without `data` the model frame of the fit, its own weights among them, is
+  # tested.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- context_tidy_models()$parsnip_xy_weights
+  fit <- model$fit(model$data)
+  reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  expect_identical(unname(reference$white$statistic),
+                   unname(runHeteroTests(fit$fit, use_cache = FALSE, progress = FALSE)$white$statistic))
+  other <- model$data
+  other$w <- rev(other$w)
+  for (data in list(model$data, other)) {
+    for (call in list(
+      function() runHeteroTests(fit, data, use_cache = FALSE, progress = FALSE),
+      function() runDiagnostics(fit, data, use_cache = FALSE, progress = FALSE),
+      function() generics::augment(reference$white, data = data)
+    )) {
+      expect_error(call(), "cannot compare the case weights of a parsnip fit made with fit_xy()",
+                   fixed = TRUE, class = "heteroTests_data_rows_error")
+    }
+  }
 })
 
 test_that("case weights are compared on the rows a recipe keeps of new data", {
