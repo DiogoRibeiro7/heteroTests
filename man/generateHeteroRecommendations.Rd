@@ -40,7 +40,10 @@ generateHeteroRecommendations(model, data = NULL, test_results = NULL,
     \code{recommendRemediationStrategies()} and
     \code{generateHeteroRecommendations()}, its rows are matched to the
     observations of the fit as the tests match them, and those rows, in the
-    order of the fit, are read: rows with row names of their own by name, in
+    order of the fit, are read by the tests and the advice, which read the
+    residuals, grouped data keeping their groups (the profile of
+    \code{generateHeteroRecommendations()}, its size and missing values,
+    describes \code{data} as given): rows with row names of their own by name, in
     any order; rows that only number themselves (a tibble, a data.table, a data
     frame whose row names were reset) by the row numbers of the fit, or in the
     order of the fit when they hold one row per observation; the rows the fit

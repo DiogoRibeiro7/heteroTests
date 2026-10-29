@@ -739,25 +739,27 @@ generateHeteroRecommendations <- function(model, data = NULL, test_results = NUL
   }
   # The rows of `data` that hold the observations of the fit, in its order,
   # as the tests match them (rcontext_data_rows(), increment 10 of the model
-  # context): the profile, the tests and the recommendations read those rows.
-  # Until then the full data of a fit that dropped rows were refused by the
-  # checks below ("Model reports 117 residuals but the supplied data has 120
-  # rows"), and named data in another order than the fit were read row by row
-  # against the residuals by the recommendations.
-  data <- rcontext_data_rows(model, data, fn = "generateHeteroRecommendations")
+  # context): the checks, the tests and the advice, which read the residuals,
+  # read those rows; the profile of the data, their size and missing values,
+  # reads `data` as it is given (from the review of increment 10). Until then
+  # the full data of a fit that dropped rows were refused by the checks below
+  # ("Model reports 117 residuals but the supplied data has 120 rows"), and
+  # named data in another order than the fit were read row by row against
+  # the residuals by the advice.
+  rows <- rcontext_data_rows(model, data, fn = "generateHeteroRecommendations")
 
-  .validate_test_inputs(model, data, test_name = "recommendation_engine", min_obs = 10)
+  .validate_test_inputs(model, rows, test_name = "recommendation_engine", min_obs = 10)
 
   response <- tryCatch(as.character(stats::formula(model))[2], error = function(e) NA_character_)
   profile <- analyseDatasetCharacteristics(data, response = response)
   recommendations <- suggestDiagnosticsForProfile(profile)
 
   if (is.null(test_results)) {
-    test_results <- runHeteroTests(model, data)
+    test_results <- runHeteroTests(model, rows)
   }
 
   interpretations <- interpretHeteroTestResults(test_results, alpha = alpha)
-  remediation <- recommendRemediationStrategies(test_results, model, data, profile)
+  remediation <- recommendRemediationStrategies(test_results, model, rows, profile)
   assumption_warnings <- warnDiagnosticAssumptions(profile, interpretations, model, data, test_results)
   decision_tree <- buildDiagnosticDecisionTree(profile, recommendations)
   narrative <- if (isTRUE(include_report)) {

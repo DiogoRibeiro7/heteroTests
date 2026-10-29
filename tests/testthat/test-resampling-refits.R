@@ -269,7 +269,8 @@ test_that("data without row names of its own must be in the order of the fit", {
   rownames(shuffled) <- NULL
 
   # Since 0.15.0 performKoenkerTest() refuses such data itself, before the
-  # bootstrap refits (rcheck_data_rows()), so the message is the test's. A
+  # bootstrap refits, by the guard of 0.15.0, the alignment of the model
+  # context since 0.16.0 (rcheck_rows_at()), so the message is the test's. A
   # test function of the caller's own meets the bootstrap's check, below.
   refused <- "cannot match the rows of `data` to the observations of the model"
   for (strategy in c("null", "pairs")) {

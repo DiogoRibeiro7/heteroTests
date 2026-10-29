@@ -1050,21 +1050,27 @@ context_grouped <- function(d, grouping) {
 # fit_xy(). They map them to the variables of the engine, by the workflow's
 # preprocessing, and test its model frame once the rows are confirmed, as
 # with `data = NULL`. The models of the matrix: workflows with a formula, with
-# transformed predictors and a factor, with a recipe that transforms a
-# predictor, with a recipe that transforms the outcome (open: refused, with a
-# message that says why), fitted to data with missing values, and with
-# variables; and parsnip fits of fit() (whose data the runners took already)
-# and of fit_xy(), with the outcome as a data frame and as a vector (refused:
-# the fit does not record its column). `outcome` names the outcome of the
-# data. The forms of data: none, the data of the fit, as a tibble, shuffled
-# under their own row names (refused: the engine's fit numbers its rows), and
-# without the outcome (refused).
+# transformed predictors and a factor, with a transformed outcome (a recipe
+# with step_log() of it, and a formula of log(y), decision 35), with a recipe
+# that transforms a predictor, fitted to data with missing values, with
+# variables, with case weights, and with a recipe that drops rows, by
+# step_naomit() and step_filter(), each skipped on new data (the default) or
+# not (from the review of increment 10); and parsnip fits of fit() (whose
+# data the runners took already) and of fit_xy(), with the outcome as a data
+# frame and as a vector (refused: the fit does not record its column).
+# `outcome` names the outcome of the data. The forms of data: none, the data
+# of the fit, as a tibble, shuffled under their own row names (refused for a
+# workflow: the engine's fit numbers its rows), and without the outcome
+# (refused).
 context_tidy_models <- function() {
   d <- context_data()
   d_na <- d
   d_na$x2[c(3, 7, 11)] <- NA
+  d_cw <- d
+  d_cw$cw <- hardhat::importance_weights(d$w)
   spec <- function() parsnip::linear_reg()
   wf <- function(pre, data) workflows::fit(workflows::add_model(pre, spec()), data = data)
+  with_recipe <- function(rec, data) wf(workflows::add_recipe(workflows::workflow(), rec), data)
   list(
     wf_formula = list(data = d, outcome = "y", fit = function(data) {
       wf(workflows::add_formula(workflows::workflow(), y ~ x1 + x2), data)
@@ -1073,12 +1079,13 @@ context_tidy_models <- function() {
       wf(workflows::add_formula(workflows::workflow(), y ~ log(x1) + group), data)
     }),
     wf_recipe = list(data = d, outcome = "y", fit = function(data) {
-      rec <- recipes::step_log(recipes::recipe(y ~ x1 + x2, data = data), x1)
-      wf(workflows::add_recipe(workflows::workflow(), rec), data)
+      with_recipe(recipes::step_log(recipes::recipe(y ~ x1 + x2, data = data), x1), data)
     }),
     wf_recipe_outcome = list(data = d, outcome = "ypos", fit = function(data) {
-      rec <- recipes::step_log(recipes::recipe(ypos ~ x1 + x2, data = data), ypos)
-      wf(workflows::add_recipe(workflows::workflow(), rec), data)
+      with_recipe(recipes::step_log(recipes::recipe(ypos ~ x1 + x2, data = data), ypos), data)
+    }),
+    wf_formula_outcome = list(data = d, outcome = "ypos", fit = function(data) {
+      wf(workflows::add_formula(workflows::workflow(), log(ypos) ~ x1 + x2), data)
     }),
     wf_missing = list(data = d_na, outcome = "y", fit = function(data) {
       wf(workflows::add_formula(workflows::workflow(), y ~ x1 + x2), data)
@@ -1086,6 +1093,30 @@ context_tidy_models <- function() {
     wf_variables = list(data = d, outcome = "y", fit = function(data) {
       wf(workflows::add_variables(workflows::workflow(), outcomes = y, predictors = c(x1, x2)),
          data)
+    }),
+    wf_case_weights = list(data = d_cw, outcome = "y", fit = function(data) {
+      pre <- workflows::add_case_weights(
+        workflows::add_formula(workflows::workflow(), y ~ x1 + x2), cw
+      )
+      wf(pre, data)
+    }),
+    wf_naomit = list(data = d_na, outcome = "y", fit = function(data) {
+      rec <- recipes::step_naomit(recipes::recipe(y ~ x1 + x2, data = data),
+                                  recipes::all_predictors())
+      with_recipe(rec, data)
+    }),
+    wf_naomit_applied = list(data = d_na, outcome = "y", fit = function(data) {
+      rec <- recipes::step_naomit(recipes::recipe(y ~ x1 + x2, data = data),
+                                  recipes::all_predictors(), skip = FALSE)
+      with_recipe(rec, data)
+    }),
+    wf_filter = list(data = d, outcome = "y", fit = function(data) {
+      with_recipe(recipes::step_filter(recipes::recipe(y ~ x1 + x2, data = data), x1 > 0.7), data)
+    }),
+    wf_filter_applied = list(data = d, outcome = "y", fit = function(data) {
+      rec <- recipes::step_filter(recipes::recipe(y ~ x1 + x2, data = data), x1 > 0.7,
+                                  skip = FALSE)
+      with_recipe(rec, data)
     }),
     parsnip_formula = list(data = d, outcome = "y", fit = function(data) {
       parsnip::fit(spec(), y ~ x1 + x2, data = data)
@@ -1120,9 +1151,6 @@ context_tidy_expect <- function(name, form) {
   if (identical(name, "parsnip_xy_vector")) {
     return("the fit does not record the column of its outcome")
   }
-  if (identical(name, "wf_recipe_outcome") && !identical(form, "lacking")) {
-    return("the workflow's preprocessing transforms its outcome `ypos`")
-  }
   if (identical(form, "lacking")) {
     return(if (identical(name, "parsnip_formula")) {
       "missing from input data"
@@ -1131,6 +1159,12 @@ context_tidy_expect <- function(name, form) {
     } else {
       "the workflow's preprocessing cannot map `data` to them"
     })
+  }
+  # A step that drops rows at the fit only numbers the rows it kept afresh;
+  # those of step_naomit() are found again, the rows of `data` complete in the
+  # variables of the engine, and those of step_filter() are not.
+  if (identical(name, "wf_filter")) {
+    return("dropped rows at the fit only")
   }
   if (identical(form, "shuffled") && !identical(name, "parsnip_formula") &&
         !identical(name, "parsnip_xy")) {

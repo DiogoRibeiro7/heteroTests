@@ -173,7 +173,9 @@ runHeteroTests <- function(model, data = NULL,
     if (prepared$source %in% c("formula", "survey")) {
       output <- rsuite_mark_origin(output, prepared$source)
     }
-    output
+    # A workflow or a parsnip fit is kept on each result, so that augment() maps
+    # its data as the runner maps them (rsuite_mark_tidymodels()).
+    rsuite_mark_tidymodels(output, model)
   }
 }
 
