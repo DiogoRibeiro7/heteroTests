@@ -1480,10 +1480,22 @@ squared residuals that do not vary.
         and, for the recommendations, the full data of a fit that dropped rows,
         give the value of the rows of the fit in its order; what the alignment
         refuses is refused. The four internals go; the assertions on them that a
-        public function still makes are made on that function. Left open, as
-        they were (below): what `augment()` binds for the rows of `data` that
-        the fit dropped, and a workflow whose preprocessing transforms the
-        outcome.
+        public function still makes are made on that function. The two choices
+        the first version left open were decided by the author on its review
+        (decisions 34 and 35 of the design): `augment()` binds the rows of
+        `data` as broom does, in their order, the rows the fit used on a fit with
+        `na.omit` and every row with `NA` at the dropped ones on a fit with
+        `na.exclude`; and a preprocessing that transforms the outcome maps it to
+        `..y`. From the review: `augment()` maps the data of a workflow or of a
+        `fit_xy()` fit as the runners do; the refusals of data that lack the
+        variables of the model name the function and say what to pass; a recipe
+        step that drops rows at the fit only (`step_naomit()`) is matched when its
+        rows can be confirmed, and refused with a message that names such a step
+        otherwise (`step_filter()`); the case weights of a workflow are compared,
+        as the weights of a fit are for the tests; the report profiles the data as
+        given, and keeps the groups of grouped data; and the refusals of a model
+        the context refuses by kind, and of data that lack the variables of the
+        model, are announced in bold.
     - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
         it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
         by class, is an input the tests justify: its residuals are not orthogonal
@@ -1583,15 +1595,24 @@ squared residuals that do not vary.
         to pass `data = NULL`. Map the columns instead. An error becomes a value.
         Done in step 10 (above): the data are mapped by the workflow's
         preprocessing, and give the value without `data`.
-    - A workflow whose preprocessing transforms the outcome, as a recipe with
-        `step_log()` of the outcome, maps the outcome of `data` to its
+    - [x] A workflow whose preprocessing transforms the outcome, as a recipe
+        with `step_log()` of the outcome, maps the outcome of `data` to its
         transformed values, which are the response `..y` of the engine's fit;
-        step 10 refuses such data, as before, saying that the preprocessing
-        transforms the outcome, and tests the model frame without `data`. Decide
-        whether the transformed outcome of the preprocessing is taken as the
-        response, which gives the value without `data`, or the outcome column of
-        `data` is required to be `..y`, which refuses them. A refusal becomes a
-        value, or none.
+        the first version of step 10 refused such data, saying that the
+        preprocessing transforms the outcome. Decide whether the transformed
+        outcome of the preprocessing is taken as the response, which gives the
+        value without `data`, or the outcome column of `data` is required to be
+        `..y`, which refuses them. Decided by the author on the review of step 10
+        (decision 35): the transformed outcome is taken, for a recipe and for a
+        formula preprocessor `log(y) ~ x + z` alike, and the value is that
+        without `data`.
+    - Found by the review of step 10, recorded, not fixed: `augment()` of the
+        results of a workflow whose preprocessing drops rows of new data, a
+        recipe step applied to them (`step_filter()` or `step_naomit()` with
+        `skip = FALSE`), refuses its data, since the preprocessing does not say
+        which rows of `data` it kept; the runners take those data, whose rows the
+        alignment confirms. Find the rows the preprocessing kept, or keep the
+        refusal. A refusal becomes a value, or none.
     - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
         as an `lm` and test its M-estimation residuals as least-squares ones; the
         studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -1672,13 +1693,14 @@ squared residuals that do not vary.
         same fit with `na.omit` given the full data of the fit is refused (its
         columns have one value per observation), where the fit with `na.exclude`
         binds them; binding them by the row names of the observations would give
-        that fit the rows of the other, a value where it is refused. Step 10
-        matches data with one row per observation as the tests do and leaves
-        this open: on a fit with `na.omit`, refuse the full data, bind the rows
-        of the fit only, or bind every row with `NA` at the rows the fit dropped,
-        as broom does for `na.exclude`; and the fit with `na.exclude`, given its
-        full data, still binds them row by row, in their order, so the full data
-        shuffled under their own row names get the fitted values of other rows.
+        that fit the rows of the other, a value where it is refused. Decided by
+        the author on the review of step 10 (decision 34): the rows of `data` are
+        matched to the fit as the tests match them and bound as broom binds them,
+        in the order of `data`: on a fit with `na.omit` the rows the fit used,
+        117 of the 120 of its full data; on a fit with `na.exclude` every row,
+        with `NA` at the rows it dropped, the twin padded; and the full data
+        shuffled under their own row names, which a fit with `na.exclude` bound
+        by position, get each row its own fitted value.
     - [x] `recommendRemediationStrategies()` correlated the residuals with the
         columns of `data` row by row: given the full data of a fit that dropped
         rows, it stopped with "incompatible dimensions" on a fit with `na.omit`,

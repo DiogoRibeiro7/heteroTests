@@ -29,11 +29,13 @@ runHeteroTests(
     fallback (Details) included: the call stops with the error of the first test asked for, and with grouped data
     each test is returned as failed. A workflow, or a parsnip fit, is tested on the fit of its engine, which names its
     response `..y` and its predictors as the workflow's preprocessing made them: the data the workflow was fitted
-    to are mapped to those variables by that preprocessing (`hardhat::forge()`), or the outcome of a fit of
-    `parsnip::fit_xy()` to `..y`, and once their rows are matched to the observations of the fit its model
-    frame is tested, as without `data`. Up to 0.17.0 they were refused. Data in another order than the workflow
-    was fitted in are refused, and so are data that cannot be mapped, such as those of a preprocessing that
-    transforms the outcome.
+    to are mapped to those variables by that preprocessing (`hardhat::forge()`), the outcome as the
+    preprocessing transforms it among them, or the outcome of a fit of `parsnip::fit_xy()` to `..y`, and
+    once their rows are matched to the observations of the fit, every column of its model frame compared, its model
+    frame is tested, as without `data`. Before 0.17.0 they were refused. Data in another order than the workflow
+    was fitted in are refused, and so are data that cannot be mapped, such as data without a column the
+    preprocessing needs, and grouped data. The results keep the workflow, so that `generics::augment()` maps
+    its data in the same way.
 
 `data`
 :   optional data frame used to fit `model`. If omitted, `model.frame(model)` is used, which
