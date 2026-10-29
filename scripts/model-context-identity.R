@@ -49,7 +49,9 @@
 #     (identity_tidy_cells(), N5), and augment() of their results; and, from
 #     the review of increment 10, the three functions on non-Gaussian glm
 #     fits, data that lack the variables of the model and grouped data
-#     (identity_item3_cells());
+#     (identity_item3_cells()); from its second review, the attributes of the
+#     results of the runners (identity_runner_summary()), and each value of
+#     augment() on the tidy block checked row by row (context_tidy_own());
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -2426,8 +2428,11 @@ identity_item3_cells <- function() {
 # predictors and a factor, with a transformed outcome (a recipe and a formula,
 # decision 35), with a recipe that transforms a predictor, fitted to data with
 # missing values, with variables, with case weights, and with recipes that
-# drop rows (step_naomit(), step_filter(), skipped on new data or not); parsnip
-# fits of fit() (whose data were accepted) and of fit_xy(), with the outcome as
+# drop rows (step_naomit(), step_filter(), skipped on new data or not); and,
+# from the second review of increment 10, recipes that sort the rows
+# (step_arrange(), in both directions), that skip on new data a step that
+# transformed the outcome, and that drop rows of new data with case weights;
+# parsnip fits of fit() (whose data were accepted) and of fit_xy(), with the outcome as
 # a data frame and as a vector (refused, with a message). Each is given no
 # data, its data, the data as a tibble, the data shuffled under their own row
 # names (refused for a workflow: the engine's fit numbers its rows) and the
@@ -2451,6 +2456,7 @@ identity_tidy_cells <- function() {
         cells[[length(cells) + 1L]] <<- list(
           id = paste("tidy", name, form, sep = "/"), block = "tidy", form = form,
           defect = "N5", expect = context_tidy_expect(name, form), tidy_model = name,
+          augment_expect = context_tidy_augment_expect(name, form),
           reference = if (!identical(form, "null")) paste("tidy", name, "null", sep = "/"),
           build = function() {
             list(m = model$fit(model$data), data = context_tidy_data(model, form))
@@ -2461,23 +2467,21 @@ identity_tidy_cells <- function() {
   }
   cells
 }
-# What augment() of the runner's result gives on a cell of the tidy block,
-# from what the runner gives (`expect`, context_tidy_expect()): the same, but
-# for a preprocessing that drops rows of new data, which does
-# not say which rows of `data` it kept, and the data of a parsnip fit of fit()
-# without its outcome, whose refusal names augment().
-identity_tidy_augment_expect <- function(cell, expect) {
-  parts <- strsplit(cell, "/", fixed = TRUE)[[1L]]
-  name <- parts[2L]
-  form <- parts[3L]
-  if (identical(expect, "value") && !identical(form, "null") &&
-        name %in% c("wf_naomit_applied", "wf_filter_applied")) {
-    return("augment() cannot tell which rows of `data` hold the observations")
-  }
-  if (identical(name, "parsnip_formula") && identical(form, "lacking")) {
-    return("augment() matches the rows of `data` to the observations of the fit")
-  }
-  expect
+# What augment() of the runner's result gives on a cell of the tidy block is
+# what the runner gives, but for a preprocessing that does not say which row
+# of `data` each observation comes from, one that drops rows of new data or
+# reorders them, and the data of a parsnip fit of fit() without its outcome,
+# whose refusal names augment() (context_tidy_augment_expect(), recorded as
+# the `expect` of its records). And each value it gives on a form of data
+# must bind each row its own values, the prediction of the object on that row
+# alone and its outcome less that prediction (context_tidy_own(), recorded as
+# `own` with the value; from the second review of increment 10), changed or
+# identical to main.
+identity_tidy_augment_value <- function(built) {
+  result <- runHeteroTests(built$m, use_cache = FALSE, progress = FALSE)[["white"]]
+  bound <- generics::augment(result, data = built$data)
+  c(identity_augment_value(bound),
+    list(own = if (!is.null(built$data)) context_tidy_own(built$m, built$data, bound)))
 }
 
 # The messages of increment 10: the refusal of a grouped run of a fitWLS()
@@ -2513,36 +2517,53 @@ identity_increment10 <- c(identity_rows10, identity_grouped_runner, identity_gro
 #   rows of the model frame without `data`, by name on shuffled data and in
 #   their order on the others); on a cell that expects a refusal, a refusal
 #   only, with the class of the guard and the lead of N5, or the message the
-#   cell expects.
+#   cell expects. From the second review of increment 10: each value of
+#   augment() on a form of data binds each row its own values
+#   (context_tidy_own()), changed or identical to main; and the results of
+#   the runners without `data`, which keep what augment() needs of the
+#   tidymodels object (attr(, "tidymodels")), are main's but for it, and keep
+#   that only (identity_tidymodels_kept()).
 identity_increment10_verdict <- function(record, after, verdict, main, branch) {
   if (!record$fn %in% identity_increment10) {
     return(NULL)
   }
   change <- verdict$change
+  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  if (identical(record$fn, identity_tidy_augment) && !identical(record$form, "null") &&
+        is.list(after$value) && !failed(after$value) && !isTRUE(after$value$own)) {
+    return(list(verdict = "unexpected", verified = NA_character_))
+  }
   if (identical(change, "identical")) {
     return(list(verdict = "identical", verified = NA_character_))
   }
   to_value <- change %in% c("error_to_value", "value_change")
   message <- if (is.list(after$value) && isTRUE(after$value$.error)) after$value$message else ""
   classes <- if (is.list(after$value)) after$value$class else character()
-  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  runner_fns <- c(identity_tidy_runner, identity_tidy_diagnostics)
+  if (record$fn %in% runner_fns && identical(record$form, "null")) {
+    before <- main[[record$id]]
+    ok <- identical(change, "value_change") && !is.null(before) &&
+      identical(identity_without_tidymodels(after$value), before$value) &&
+      identity_tidymodels_kept(after$value, strsplit(record$cell, "/", fixed = TRUE)[[1L]][2L])
+    return(list(verdict = if (ok) "allowed" else "unexpected",
+                verified = if (ok) "main, but attr(, \"tidymodels\")" else NA_character_))
+  }
   if (record$fn %in% c(identity_grouped_runner, identity_grouped_diagnostics)) {
     ok <- !to_value && "B11" %in% record$defect && identical(record$fn, identity_grouped_runner) &&
       grepl(identity_b11_message, message, fixed = TRUE)
     return(list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_))
   }
   if (record$fn %in% identity_tidy_fns) {
-    expect <- if (identical(record$fn, identity_tidy_augment)) {
-      identity_tidy_augment_expect(record$cell, record$expect)
-    } else {
-      record$expect
-    }
+    # The augment() records hold what augment() gives (`augment_expect` of
+    # identity_tidy_cells()).
+    expect <- record$expect
     if (to_value) {
       reference_id <- paste(record$kind, record$fn, record$reference, sep = " | ")
       before_ref <- main[[reference_id]]
       after_ref <- branch[[reference_id]]
       ok <- identical(expect, "value") && !is.null(before_ref) && !is.null(after_ref) &&
-        identical(before_ref$value, after_ref$value) && !failed(after_ref$value) &&
+        identical(before_ref$value, identity_without_tidymodels(after_ref$value)) &&
+        !failed(after_ref$value) &&
         if (identical(record$fn, identity_tidy_augment)) {
           identity_augment_matches(after$value, after_ref$value, fit_only = TRUE,
                                    by_position = !identical(record$form, "shuffled"))
@@ -2647,16 +2668,78 @@ identity_outcome <- function(f) {
   list(value = value, warnings = sort(unique(warnings)), rng = rng)
 }
 
-# The fields of a runner's results that say what was run and what it gave.
+# The fields of a runner's results that say what was run and what it gave;
+# and, from the second review of increment 10, the names of the attributes of
+# each result, and what it keeps of a tidymodels object (rtidymodels_map(),
+# identity_tidymodels_summary()), so that a change to the object returned
+# cannot pass as identical: the runners kept the whole workflow on each
+# result, and these fields left it out.
 identity_runner_summary <- function(suite) {
   lapply(unclass(suite), function(r) {
     extras <- attr(r, "extras")
     list(
       method = r$method, statistic = unname(r$statistic), parameter = unname(r$parameter),
       p.value = r$p.value, diagnostic = attr(r, "diagnostic"),
-      status = extras$status, issue = extras$issue, data.name = r$data.name
+      status = extras$status, issue = extras$issue, data.name = r$data.name,
+      attributes = sort(names(attributes(r))),
+      tidymodels = identity_tidymodels_summary(attr(r, "tidymodels"))
     )
   })
+}
+# What a result keeps of a tidymodels object, without the environments, the
+# trained steps and the timings of its blueprint, which differ between two
+# fits of the same workflow: its class, its fields, the class of its
+# blueprint, the rows its preprocessing kept, its case weights and its
+# outcome; and its size serialized, in KB, rounded up.
+identity_tidymodels_summary <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  list(class = class(x), names = names(x), kind = x$kind, blueprint = class(x$blueprint),
+       fitted_rows = x$fitted_rows, case_weights = x$case_weights, y_var = x$y_var,
+       kb = ceiling(length(serialize(x, NULL)) / 1024))
+}
+# A summary of the runner, or the record of runDiagnostics() (its `tests`),
+# without what it keeps of a tidymodels object, as main returns it.
+identity_without_tidymodels <- function(v) {
+  if (!identity_tests_of(v)) {
+    return(v)
+  }
+  strip <- function(s) {
+    for (k in seq_along(s)) {
+      if (is.list(s[[k]]) && "attributes" %in% names(s[[k]])) {
+        s[[k]]$attributes <- setdiff(s[[k]]$attributes, "tidymodels")
+        s[[k]]["tidymodels"] <- list(NULL)
+      }
+    }
+    s
+  }
+  if (is.list(v$tests) && is.null(v$white)) {
+    v$tests <- strip(v$tests)
+    v
+  } else {
+    strip(v)
+  }
+}
+# Does every test of a summary of the runner, or of the record of
+# runDiagnostics(), keep what augment() needs of the tidymodels object of the
+# cell, and that only: the record of rtidymodels_map(), of the kind of the
+# object, with its fields, the blueprint of a workflow and no fit or mold?
+# Its size is recorded, not judged: the blueprint of a recipe holds the
+# environments its steps were written in, as the workflow does, here the
+# frames of context_tidy_models() with the data of the matrix (about 40 to
+# 60 KB), and a few KB at the top level.
+identity_tidymodels_kept <- function(v, name) {
+  tests <- if (is.list(v$tests) && is.null(v$white)) v$tests else v
+  workflow <- !startsWith(name, "parsnip")
+  fields <- if (workflow) c("kind", "blueprint", "fitted_rows", "case_weights") else c("kind", "y_var")
+  length(tests) > 0L && all(vapply(tests, function(s) {
+    is.list(s) && "tidymodels" %in% s$attributes &&
+      identical(s$tidymodels$class, "heteroTests_tidymodels") &&
+      identical(s$tidymodels$kind, if (workflow) "workflow" else "model_fit") &&
+      identical(s$tidymodels$names, fields) &&
+      (!workflow || "hardhat_blueprint" %in% s$tidymodels$blueprint)
+  }, logical(1)))
 }
 
 # The five functions built on the context, traced, or untraced, so that a
@@ -3157,10 +3240,10 @@ identity_run <- function(where, out, root = ".") {
     add_fit_rows(cell, built)
   }
   for (cell in identity_tidy_cells()) {
-    add("recipe", identity_tidy_augment, cell, grouped_outcome(cell, function(built) {
-      result <- runHeteroTests(built$m, use_cache = FALSE, progress = FALSE)[["white"]]
-      identity_augment_value(generics::augment(result, data = built$data))
-    }))
+    augment_cell <- cell
+    augment_cell$expect <- cell$augment_expect
+    add("recipe", identity_tidy_augment, augment_cell,
+        grouped_outcome(cell, identity_tidy_augment_value))
     add("recipe", identity_tidy_runner, cell, grouped_outcome(cell, function(built) {
       identity_runner_summary(runHeteroTests(built$m, built$data, use_cache = FALSE,
                                              progress = FALSE))
