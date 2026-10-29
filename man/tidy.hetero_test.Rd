@@ -41,10 +41,12 @@ the broom generics from the \pkg{generics} package.
   parsnip fit of \code{fit_xy()}, are mapped to the variables of its engine as
   \code{\link{runHeteroTests}()} maps them, and each mapped row is traced to
   the row of \code{data} it was made from: the data of a preprocessing that
-  drops rows of new data, such as \code{step_filter()} with
+  drops or adds rows of new data, such as \code{step_filter()} with
   \code{skip = FALSE}, or reorders them, such as \code{step_arrange()}, are
   refused, since it does not say which row of \code{data} each observation
-  comes from. Before 0.17.0 the rows were bound
+  comes from, and so are those of a step that makes a row from other rows,
+  such as \code{step_mutate(cs = cumsum(x))}, whose values 0.16.0 bound
+  right in the order of the fit. Before 0.17.0 the rows were bound
   row by row: named data in another order than the fit had the values of
   other observations bound to them, and the full data of a fit with
   \code{na.omit} could not be bound.}

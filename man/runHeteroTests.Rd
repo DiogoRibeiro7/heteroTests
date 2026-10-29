@@ -55,10 +55,12 @@ runHeteroTests(
   was fitted in are refused, and so are data that cannot be mapped, such as data without a column the
   preprocessing needs, grouped data, and the data of a workflow whose recipe skips on new data a step that changed
   the outcome or a predictor at the fit, such as \code{step_log(y, skip = TRUE)}, which the message names. The case
-  weights of a workflow are compared with those of the fit, on the rows its preprocessing keeps. Each result keeps
+  weights of a workflow are compared with those of the fit, on the rows its preprocessing keeps; the data of a
+  parsnip fit of \code{fit_xy()} with case weights, whose column the fit does not record, are refused. Each result keeps
   what \code{generics::augment()} needs to map the data in the same way, the blueprint of the preprocessing, the
   number of rows it kept and the column of the case weights, or the outcome of a parsnip fit, as
-  \code{attr(, "tidymodels")}, about 2 KB; the results are otherwise those of the fit of the engine.}
+  \code{attr(, "tidymodels")}, about 1 KB, the expressions of a recipe keeping no frame of the function they were
+  written in; the results are otherwise those of the fit of the engine.}
   \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used, which
   serves only the tests that find what they need there (see their \code{data} argument). With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
