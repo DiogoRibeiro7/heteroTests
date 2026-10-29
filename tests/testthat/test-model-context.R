@@ -562,8 +562,14 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   # (decision 6): the quantile regression test refused the fit as a weighted
   # fit, which is not final, and the runner put the rank permutation test
   # under its name (0.3407).
+  # The names the package registers, not those another test file may have
+  # registered in the same session, as R CMD check runs them all in one.
   registry <- heteroTests:::.diagnostic_registry
-  for (nm in setdiff(ls(registry), "box_m")) {
+  own <- c("white", "breusch_pagan", "koenker", "student_bp", "quantile_regression",
+           "szroeter", "spatial_hetero", "high_dimensional", "rank_permutation",
+           "white_bootstrap", "wild_bootstrap", "cook_weisberg", "ncv", "spread_level",
+           "variance_form")
+  for (nm in intersect(own, ls(registry))) {
     if (missing_package(nm)) next
     data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
     refused(function() get(nm, envir = registry)(m, data), paste("registry", nm))
@@ -571,7 +577,7 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
     refused(function() runHeteroTests(m, data, tests = nm, use_cache = FALSE, progress = FALSE),
             paste("runHeteroTests", nm))
   }
-  for (nm in test_factory$get_available()) {
+  for (nm in intersect(own, test_factory$get_available())) {
     if (missing_package(nm)) next
     data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
     refused(function() {
