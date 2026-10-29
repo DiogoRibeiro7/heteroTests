@@ -2675,8 +2675,9 @@ identity_outcome <- function(f) {
 # each result, and what it keeps of a tidymodels object (rtidymodels_map(),
 # identity_tidymodels_summary()), so that a change to the object returned
 # cannot pass as identical: the runners kept the whole workflow on each
-# result, and these fields left it out.
-identity_runner_summary <- function(suite) {
+# result, and these fields left it out. `object` is the tidymodels object the
+# runner was given, whose blueprint the record must hold as it is.
+identity_runner_summary <- function(suite, object = NULL) {
   lapply(unclass(suite), function(r) {
     extras <- attr(r, "extras")
     list(
@@ -2684,7 +2685,7 @@ identity_runner_summary <- function(suite) {
       p.value = r$p.value, diagnostic = attr(r, "diagnostic"),
       status = extras$status, issue = extras$issue, data.name = r$data.name,
       attributes = sort(names(attributes(r))),
-      tidymodels = identity_tidymodels_summary(attr(r, "tidymodels"))
+      tidymodels = identity_tidymodels_summary(attr(r, "tidymodels"), object)
     )
   })
 }
@@ -2692,13 +2693,24 @@ identity_runner_summary <- function(suite) {
 # trained steps and the timings of its blueprint, which differ between two
 # fits of the same workflow: its class, its fields, the class of its
 # blueprint, the rows its preprocessing kept, its case weights and its
-# outcome; and its size serialized, in KB, rounded up.
-identity_tidymodels_summary <- function(x) {
+# outcome; whether it holds a fitted model or workflow (context_holds_fit())
+# and whether its blueprint is identical() to that of the workflow it was
+# made from (decision 36, the fourth review of increment 10; NA without the
+# workflow); and its size serialized, in KB, rounded up, recorded and not
+# judged: a recipe written in a function keeps the function's frame, here the
+# frames of context_tidy_models() with the data of the matrix.
+identity_tidymodels_summary <- function(x, object = NULL) {
   if (is.null(x)) {
     return(NULL)
   }
+  same_blueprint <- if (inherits(object, "workflow")) {
+    identical(x$blueprint, workflows::extract_mold(object)$blueprint)
+  } else {
+    NA
+  }
   list(class = class(x), names = names(x), kind = x$kind, blueprint = class(x$blueprint),
        fitted_rows = x$fitted_rows, case_weights = x$case_weights, y_var = x$y_var,
+       holds_fit = context_holds_fit(unclass(x)), same_blueprint = same_blueprint,
        kb = ceiling(length(serialize(x, NULL)) / 1024))
 }
 # A summary of the runner, or the record of runDiagnostics() (its `tests`),
@@ -2726,11 +2738,10 @@ identity_without_tidymodels <- function(v) {
 # Does every test of a summary of the runner, or of the record of
 # runDiagnostics(), keep what augment() needs of the tidymodels object of the
 # cell, and that only: the record of rtidymodels_map(), of the kind of the
-# object, with its fields, the blueprint of a workflow and no fit or mold,
-# and a few KB? Since the third review of increment 10 the blueprint keeps
-# none of the frames its steps were written in (.ht_prune_environments()),
-# here those of context_tidy_models() with the data of the matrix, which made
-# it 42 to 57 KB on the recipes of the tidy block, and it is held to 16 KB.
+# object, with exactly its fields, no fitted model or workflow, and for a
+# workflow its blueprint, identical() to the workflow's (decision 36, the
+# fourth review of increment 10, where the third had held its size to
+# 16 KB by rewriting the expressions of the recipe)?
 identity_tidymodels_kept <- function(v, name) {
   tests <- if (is.list(v$tests) && is.null(v$white)) v$tests else v
   workflow <- !startsWith(name, "parsnip")
@@ -2740,8 +2751,9 @@ identity_tidymodels_kept <- function(v, name) {
       identical(s$tidymodels$class, "heteroTests_tidymodels") &&
       identical(s$tidymodels$kind, if (workflow) "workflow" else "model_fit") &&
       identical(s$tidymodels$names, fields) &&
-      (!workflow || "hardhat_blueprint" %in% s$tidymodels$blueprint) &&
-      isTRUE(s$tidymodels$kb <= 16)
+      identical(s$tidymodels$holds_fit, FALSE) &&
+      (!workflow || "hardhat_blueprint" %in% s$tidymodels$blueprint &&
+         isTRUE(s$tidymodels$same_blueprint))
   }, logical(1)))
 }
 
@@ -3249,12 +3261,12 @@ identity_run <- function(where, out, root = ".") {
         grouped_outcome(cell, identity_tidy_augment_value))
     add("recipe", identity_tidy_runner, cell, grouped_outcome(cell, function(built) {
       identity_runner_summary(runHeteroTests(built$m, built$data, use_cache = FALSE,
-                                             progress = FALSE))
+                                             progress = FALSE), built$m)
     }))
     add("recipe", identity_tidy_diagnostics, cell, grouped_outcome(cell, function(built) {
       out <- runDiagnostics(built$m, built$data, use_cache = FALSE, progress = FALSE)
-      list(tests = identity_runner_summary(out[c("white", "koenker")]), reset = out$reset,
-           vif = out$vif)
+      list(tests = identity_runner_summary(out[c("white", "koenker")], built$m),
+           reset = out$reset, vif = out$vif)
     }))
   }
   # The examples of the help pages, each expression whose value is a test, or
