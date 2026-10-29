@@ -1969,68 +1969,82 @@ fixed list of test results, `generateHeteroRecommendations()` and
 `generics::augment()` of a result built around the model of the cell, its
 columns unnamed (`identity_rows10_recipes`), on every cell; for each cell
 whose `data` is a data frame that is not already the rows of the fit in its
-order, the same three calls on those rows, written out from the names of the
-observations (`identity_fit_rows()`), as main computes them, the reference of
-item 3; the block `grouped/` (the grouped matrix of
+order, the reference of item 3, as main computes it: the same call on those
+rows, written out from the names of the observations (`identity_fit_rows()`,
+a grouped tibble keeping its groups), and for the report, since its review,
+the report composed from main's own functions with the tests and the advice
+on those rows and the profile on `data` as given
+(`identity_generate_composed()`); the block `grouped/` (the grouped matrix of
 `helper-model-context.R`: an `lm`, a weighted `lm`, the `fitWLS()` fit of the
 `lm` and the model as a formula, on a tibble grouped by one column and by
 two) through `runHeteroTests()` and `runDiagnostics()`; the block `tidy/`
-(the tidy matrix: six workflows and three parsnip fits, each without `data`,
-with its data, as a tibble, shuffled and without the outcome) through the
-same two runners; and the example of `runDiagnostics()`. These calls are
-judged by a rule of their own (`identity_increment10_verdict()`): a change to
-a value must be, `identical()`, main's value of the same call on the rows of
-the fit in its order (item 3) or without `data` (N5), itself unchanged on the
-branch; a new refusal, or a message that changes, must be main's on the rows
-of the fit, a refusal of the alignment where the cell calls for it (the guard
-on the cells it refuses, the refusal of tied rows, the refusal the cell
-expects of the context), B11's on the cells of a `fitWLS()` fit, or N5's. A
-call on a fit with `na.exclude` must give what its twin gives, `augment()`
-the rows of its twin padded (`identity_augment_padded()`), but for
-`augment()` on the full data of such a fit, which keeps main's answer where
-the twin refuses those data ("open"). Each side runs from its own private
-installation, its workers loading it through `R_LIBS`.
+(the tidy matrix: twelve workflows and three parsnip fits, each without
+`data`, with its data, as a tibble, shuffled and without the outcome) through
+the two runners and, since the review, `augment()` of the runner's result;
+the block `item3/`, from the review (a binomial, a Poisson and a Gaussian
+`glm` with the log link, data that lack the variables of the model, of a fit
+that dropped rows or not, and grouped data of a fit that dropped rows and of
+one that did not), through the three functions of item 3; and the example of
+`runDiagnostics()`. These calls are judged by a rule of their own
+(`identity_increment10_verdict()`): a change to a value must be main's value
+of the same call on the rows of the fit, for `augment()` each row bound to the
+values main binds to it there, by name, the rows the fit dropped with `NA`
+(`identity_augment_matches()`, decision 34), and for N5 main's value without
+`data`, for `augment()` the columns of the fit main binds to the model frame;
+a new refusal, or a message that changes, must be main's on the rows of the
+fit, a refusal of the alignment where the cell calls for it (the guard on the
+cells it refuses, or that the twin's cell expects, the refusal of tied rows),
+the refusal the cell expects (of the context by kind, of data that lack the
+variables of the model, of the tidy block by `context_tidy_expect()`, since
+the review, where any refusal with the lead of N5 passed), or B11's on the
+cells of a `fitWLS()` fit. A call on a fit with `na.exclude` must give what its
+twin gives, `augment()` the rows of its twin with the rows the fit dropped
+bound with `NA` in the columns of the fit (by name, or, given the rows of the
+observations only, at the positions naresid() pads, `identity_augment_padded_at()`).
+Each side runs from its own private installation, its workers loading it
+through `R_LIBS`.
 
-Increment 10, against `main` at the merge of increment 9 (8f55598), each
-side installed privately and its workers loading it through `R_LIBS`: 42,980
-calls on the 406 cells of the matrix, the 5 cells of Harrison-McCabe's rank,
-the 8 cells of the follow-up of N2, the 4 cells of the coding of a factor, the
-8 grouped cells and the 45 cells of the tidy block, and the examples of
-forty-one help pages, of which 42,371 identical, 609 allowed changes (152
-errors that become values, 78 values that change, 205 new refusals, 174
-messages) and 0 unexpected, every one of them a call of the three functions of
-item 3, of the grouped runs or of the runners on the tidy block. The 41,605
-other calls, every call of a test, a route or a runner of the earlier
-increments among them, are `identical()` to `main` and leave the generator as
-it left it: the clean-up changes no value. The 230 changes to a value are each
-verified: 204 against `main`'s value of the same call on the rows of the fit
-in its order, and 26 against `main`'s value of the same runner without `data`.
-Of the 1,269 calls of item 3, 726 are `identical()` to `main`; the 543 changes
-are, for `recommendRemediationStrategies()`, `generateHeteroRecommendations()`
-and `augment()`, 63, 63 and 0 errors that become values (the full data of a fit
-that dropped rows, and rows after those of the fit), 3, 37 and 38 values that
-change (named data in another order), 101, 1 and 101 new refusals (numbered
-data in another order, repeated row names, tied rows in the order of the fit,
-and the frames of `model = FALSE` fits; the report refused the numbered data
-already, through the guard of the tests it runs), and 13, 117 and 6 messages.
-The grouped block gives 16 calls, 14 `identical()` and the 2 refusals of B11,
-the runner on the `fitWLS()` fit grouped by one column and by two; the tidy
-block 90, 26 `identical()`, 26 errors that become values (each runner on the
-data of five workflows, as a data frame and a tibble, and of the `fit_xy()`
-fit with its outcome as a data frame, in three forms) and 38 messages (the
-refusals of N5: shuffled data, data without the outcome, the transformed
-outcome and the outcome of `fit_xy()` given as a vector). Of the 3,030 calls
-on the 30 cells of a fit with `na.exclude`, 2,984 are `identical()` to `main`
-and 46 changes of item 3, and all give what the same call gives on the twin:
-2,419 values, 117 outputs per row padded, 468 refusals, 3 skipped and 23
-"open"; all leave the generator as the twin left it and give its warnings.
-Every one of the 609 changes leaves the generator as `main` left it. The 642
-`poly()` calls that `main` computes on the stored design are `identical()` to
-it, and the warnings are those of `main` but for one call, `augment()` on the
-shuffled tibble of a Gaussian `glm` with a zero weight, which `main` bound with
-the warning of `rstandard()`, "observations with zero weight not used for
-calculating dispersion", and the branch refuses first. Each side took 1,336 s
-(`main`) and 587 s on a shared machine.
+Increment 10 with its review, against `main` at the merge of increment 9
+(8f55598), each side installed privately and its workers loading it through
+`R_LIBS`: 43,136 calls on the 406 cells of the matrix, the 5 cells of
+Harrison-McCabe's rank, the 8 cells of the follow-up of N2, the 4 cells of the
+coding of a factor, the 8 grouped cells, the 7 cells of the block `item3/`
+and the 75 cells of the tidy block, and the examples of forty-one help pages,
+of which 42,398 identical, 738 allowed changes (225 errors that become values,
+50 values that change, 234 new refusals, 229 messages) and 0 unexpected, every
+one of them a call of the three functions of item 3, of the grouped runs or of
+the runners and `augment()` on the tidy block. The 41,605 other calls, every
+call of a test, a route or a runner of the earlier increments among them, are
+`identical()` to `main` and leave the generator as it left it: the clean-up
+changes no value. The 275 changes to a value are each verified: 219 against
+`main`'s value of the same call on the rows of the fit, and 56 against
+`main`'s value without `data`. Of the changes, for
+`recommendRemediationStrategies()`, `generateHeteroRecommendations()` and
+`augment()`: 64, 64 and 43 errors that become values (the full data of a fit
+that dropped rows, rows after those of the fit, and for `augment()` the full
+data of a fit with `na.omit`); 3, 3 and 42 values that change (named data in
+another order, and the full data of a fit with `na.exclude` shuffled under
+their names, which `augment()` bound by position); 105, 1 and 106 new
+refusals (numbered data in another order, repeated row names, tied rows in
+the order of the fit, the frames of `model = FALSE` fits, data that lack the
+variables of the model and a model the context refuses by kind; the report
+refused most of them already, through the tests it runs); and 14, 122 and 15
+messages. The grouped block gives 16 calls, 14 `identical()` and the 2
+refusals of B11; the tidy block 225, 71 `identical()`, and, through the
+two runners, 25 and 25 errors that become values and 31 and 31 messages, and
+through `augment()` 4 errors that become values, 2 values that change (the
+data of a `fit_xy()` fit shuffled under their names), 20 new refusals (data a
+workflow's preprocessing cannot map or the guard refuses, which `augment()`
+bound by position) and 16 messages. Of the 3,030 calls on the 30 cells of a
+fit with `na.exclude`, 2,978 are `identical()` to `main`, and all give what the
+same call gives on the twin: 2,419 values, 139 outputs per row padded, 469
+refusals and 3 skipped; all leave the generator as the twin left it and give
+its warnings. Every one of the 738 changes leaves the generator as `main` left
+it. The 642 `poly()` calls that `main` computes on the stored design are
+`identical()` to it, and the warnings are those of `main` on every call.
+`main` took 985 s and the branch 1,271 s on a shared machine. The first run of
+the increment, before its review, gave 42,980 calls, 42,371 identical, 609
+allowed and 0 unexpected; its counts are replaced by these.
 
 ## Test matrix and oracles
 
