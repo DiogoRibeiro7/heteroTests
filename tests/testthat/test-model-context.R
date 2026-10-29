@@ -471,7 +471,8 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   # weighted fit, its case weights being all 1), and the studentized
   # Breusch-Pagan statistic refitted its design by least squares, giving 9.04
   # where Koenker's test gave 8.74 on the residuals of the M-estimate (N10).
-  d <- contract_data()$d
+  # context_data() is contract_data() with the variable of the second formulas.
+  d <- context_data()
   m <- MASS::rlm(y ~ x1 + x2, data = d)
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -508,11 +509,9 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   recipes <- recipes[setdiff(names(recipes), c("performBoxMTest", "fitWLS",
                                                "fitWLS(var_formula = ~ z)"))]
   names_itself <- setdiff(names(contract_recipes), c("performBoxMTest", "performBreuschPaganTest"))
-  dz <- d
-  dz$z <- stats::rnorm(nrow(d))
   for (fn in names(recipes)) {
     if (missing_package(fn)) next
-    refused(function() recipes[[fn]](m, dz), fn, if (fn %in% names_itself) fn)
+    refused(function() recipes[[fn]](m, d), fn, if (fn %in% names_itself) fn)
   }
   # performStudentizedBPTest() refuses it before its deprecation warning.
   expect_error(performStudentizedBPTest(m, d), refusal, fixed = TRUE,
@@ -548,7 +547,7 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
     refused(function() context_streaming_recipes()[[fn]](m, d), fn)
   }
   # fitWLS(), which fits its variance function to the residuals of the fit.
-  for (call in list(function() fitWLS(m), function() fitWLS(m, dz, var_formula = ~ z))) {
+  for (call in list(function() fitWLS(m), function() fitWLS(m, d, var_formula = ~ z))) {
     out <- tryCatch(call(), error = function(e) e)
     expect_s3_class(out, "heteroTests_model_context_error")
     expect_match(conditionMessage(out), paste(
@@ -600,6 +599,8 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
                                     use_cache = FALSE, progress = FALSE), "runner, three")
   refused(function() runHeteroTests(m, d, chunk_threshold_mb = 0, use_cache = FALSE,
                                     progress = FALSE), "runner, streaming")
+  refused(function() runHeteroTestsParallel(m, d, tests = c("white", "koenker"), n_cores = 1L),
+          "runHeteroTestsParallel()", "performWhiteTest")
   refused(function() runTimeSeriesTests(m, lags = 2), "runTimeSeriesTests()",
           "performArchLMTest")
   refused(function() runPanelTests(m, d, id = "id", time = "time"), "runPanelTests()")
