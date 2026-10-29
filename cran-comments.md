@@ -1,78 +1,62 @@
-## Resubmission
+## Submission
 
-This is a resubmission. The version is increased from 0.11.1 to 0.11.2. In
-response to the review:
+This is an update of heteroTests from 0.11.2, the version on CRAN, to 0.16.0.
+The versions in between were released on GitHub only.
 
-* Removed the redundant "in R" from the Description field, together with a
-  second instance of the same redundancy ("common R modelling tools").
+The main changes:
 
-* Added references for the methods the package implements to the Description
-  field, in the form `authors (year) <doi:...>`.
+* The tests of a model now read the response, the design, the residuals and
+  the weights from one validated object built from the stored fit. They match
+  the rows of `data` to the observations of the fit, so they no longer depend
+  on the order of `data`.
+* Several statistics are corrected: the degrees of freedom of White's test
+  and the Fligner-Killeen, Box's M, Szroeter, Pesaran and quantile regression
+  tests.
+* Every test takes `(model, data, ...)`. The old call forms still work,
+  warn with the call to use instead, and will be removed in 1.0.0.
+* The resampling tests draw 999 replicates by default, and the default
+  battery of `runHeteroTests()` is White and Koenker.
 
-* The `:::` calls flagged in `rhandleMissingValues.Rd`,
-  `rTEST_REQUIREMENTS.Rd`, `rvalidateDataInputs.Rd`,
-  `rvalidateDistributionalAssumptions.Rd`, `rvalidateGroupingVariable.Rd` and
-  `rvalidateModelInputs.Rd` all refer to unexported objects documented with
-  `\keyword{internal}`. Replacing `:::` with `::` would make those examples
-  fail, so the examples have been removed from these internal help pages
-  instead. The objects remain unexported, and no example in the package now
-  uses `:::`.
-
-* Replaced `\dontrun{}` in all three examples that used it:
-  * `generateHeteroRecommendations()` runs in well under a second, so its
-    example is now unwrapped.
-  * `generateDiagnosticReport()` takes about ten seconds and requires pandoc,
-    so its example is wrapped in `\donttest{}`, guarded by
-    `rmarkdown::pandoc_available()`, and writes its output to `tempdir()`.
-  * `launchDiagnosticDashboard()` returns a Shiny application that starts an
-    interactive server when printed, so its example is guarded by
-    `if (interactive())` rather than wrapped in `\dontrun{}`.
-
-* Not raised in the review, but the same concern: with its `\donttest{}` part
-  included, the `performWhiteTestBootstrap()` example ran for just over five
-  seconds, so its bootstrap replications there are reduced from 999 to 499.
-  It now runs in under two seconds.
+NEWS.md lists every change, release by release.
 
 ## Test environments
 
-- Local: Windows 11, R 4.5.1
-- GitHub Actions: Ubuntu (R-devel, R-release, R-oldrel-1), macOS (R-release)
-  and Windows (R-release)
-- GitHub Actions: a separate Ubuntu 22.04 job on R 4.1 checks the minimum
-  version declared in `Depends:`
-- win-builder (R-devel) is not automated. It sends its results to the
-  maintainer's email address, so it is run by hand before a submission, on
-  the source tarball that the release workflow checked with `--as-cran` and
-  tagged.
+* GitHub Actions, on the commit tagged v0.16.0: Ubuntu (R-devel, R-release,
+  R-oldrel-1), macOS (R-release), Windows (R-release), and Ubuntu 22.04 on
+  R 4.1, the minimum version declared in `Depends:`. R-devel was
+  R Under development (unstable) (2026-10-25 r90763): Status OK, with no
+  notes.
+* GitHub Actions, on the source tarball submitted here:
+  `R CMD check --as-cran` on Ubuntu (R-release) with all Suggested packages
+  installed. The release workflow refuses to tag a version that gives a
+  warning or an error in this check.
+* win-builder, R-release (R 4.6.1, Windows Server 2022): Status OK, with no
+  notes. The check took 565 s, of which the tests took 283 s.
+* win-builder, R-devel: no result. The tarball was uploaded three times on
+  28 and 29 October; each upload waited in the R-devel queue and no e-mail
+  came back, while the R-release queue answered within the hour. R-devel
+  is covered by the GitHub Actions check above.
+* macOS builder (mac.r-project.org): R 4.6.1 Patched, macOS 26.6 on arm64.
+  Status OK, with no notes. The check took 3 min 27 s, of which the tests
+  took 107 s.
 
 ## R CMD check results
 
 0 errors | 0 warnings | 0 notes
 
-From `R CMD check --as-cran --run-donttest` on the 0.11.2 source tarball,
-locally on Windows 11 with R 4.5.1. The run set
-`_R_CHECK_CRAN_INCOMING_REMOTE_=false`, so the remote incoming checks were not
-part of it; the ten DOIs added to the Description were instead checked
-separately and all resolve at doi.org. The incoming check is expected to add
-the usual note for a new submission.
+The GitHub Actions `--as-cran` check gave a NOTE on the HTML manual.
+It came from the runner, which has neither HTML Tidy nor the V8 package, so
+that check was skipped rather than failed.
 
-`R CMD check` is run on every push via GitHub Actions. Locally the package builds
-and installs cleanly and the `testthat` suite passes under edition 3.
+None of these checks noted the installed size, but in case CRAN's do: it is
+5.3 MB. The sub-directories over 1 MB are `R`
+(1.5 MB), `doc` (1.2 MB, the vignettes) and `validation` (1.0 MB). The
+`validation` directory holds the simulation scripts behind the package's
+statistical claims, with their results: the size and power of each test.
+Users can rerun them on their own installation.
 
-A full `R CMD check --as-cran` requires all Suggested packages to be installed;
-where some optional Suggests are unavailable locally, the check is run with
-`_R_CHECK_FORCE_SUGGESTS_=false` and all code paths that use them are guarded by
-`requireNamespace()`.
-
-Known notes we are aware of and addressing:
-
-- Examples, vignettes and tutorials use R's built-in `quakes` dataset, so the
-  package redistributes no third-party data. The two datasets it does ship,
-  `diagnostic_data` and `hetero_data`, are simulated; their generating scripts
-  are under `data-raw/`.
-- The package intentionally ships a large optional surface (visualisation,
-  reporting and ecosystem-integration helpers) behind `Suggests`; each is exercised
-  only when the corresponding package is installed.
+The test suite takes about four minutes on GitHub Actions (238 s on Ubuntu,
+R-release). The examples take 26 s, or 33 s with `--run-donttest`.
 
 ## Downstream dependencies
 
