@@ -553,7 +553,7 @@ the refusals of `data`, and so is a subset of them ("Missing rows: 101, 102,
     numbers the rows it kept afresh. The rows of `data` complete in the
     variables of the engine are taken when they are as many as the rows it kept,
     and confirmed: a recipe with `step_naomit()` of the predictors, fitted to `sim` and given it, gives White 14.20 and Koenker 13.93, as without `data`, where it was refused. Otherwise the data are refused with a message
-    that names such a step: with `step_filter(x > 1.5)`, which keeps 106 rows of `sim0`, "... its preprocessing kept 106 rows of the data it was fitted to, numbered afresh, where it maps the 120 rows of `data` without dropping any: a step it skips on new data, such as step_naomit() or step_filter() with skip = TRUE, dropped rows at the fit only, ...". A step applied to new data
+    that names such a step: with `step_filter(x > 1.5)`, which keeps 106 rows of `sim0`, "... its preprocessing kept 106 rows of the data it was fitted to, numbered afresh, where it maps the 120 rows of `data` without dropping any: a step it skips on new data, such as `step_naomit()` or `step_filter()` with `skip = TRUE`, dropped rows at the fit only, ...". A step applied to new data
     (`skip = FALSE`) maps the rows it keeps.
 - A lazy `dtplyr` table is collected first: `dtplyr::lazy_dt(sim0)` gives White 14.68 and Koenker 14.47, where the first
     version read the names of the lazy object ("`data` lacks ..y, x, z").
@@ -629,8 +629,8 @@ data without matching them:
 
 | Call | Before | Now |
 | --- | --- | --- |
-| `recommendRemediationStrategies(res, m0, sim0[, c("id", "time")])`, data without the variables of the model | "No dominant variance pattern detected.", from `id` and `time` read against the residuals by position | Error: "recommendRemediationStrategies() matches the rows of `data` to the observations of the fit by the variables of the model, and `data` lacks y, x, z. Pass the data the model was fitted to, with the columns to examine beside them, such as cbind(model.frame(model), columns) ..." |
-| `recommendRemediationStrategies(res, glm(I(y > median(y)) ~ x + z, data = sim0, family = binomial()), sim0)`, a model the tests refuse | "No dominant variance pattern detected." | Error: "recommendRemediationStrategies() needs a model fitted by stats::lm(): a glm with the binomial family and the logit link is not a least-squares fit. ..." |
+| `recommendRemediationStrategies(res, m0, sim0[, c("id", "time")])`, data without the variables of the model | "No dominant variance pattern detected.", from `id` and `time` read against the residuals by position | Error: "`recommendRemediationStrategies()` matches the rows of `data` to the observations of the fit by the variables of the model, and `data` lacks y, x, z. Pass the data the model was fitted to, with the columns to examine beside them, such as `cbind(model.frame(model), columns)` ..." |
+| `recommendRemediationStrategies(res, glm(I(y > median(y)) ~ x + z, data = sim0, family = binomial()), sim0)`, a model the tests refuse | "No dominant variance pattern detected." | Error: "`recommendRemediationStrategies()` needs a model fitted by `stats::lm()`: a glm with the binomial family and the logit link is not a least-squares fit. ..." |
 
 The models the tests refuse before matching `data`, a `glm` of another family
 or link than the Gaussian with the identity, a multivariate `lm` and a fit with
