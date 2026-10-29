@@ -2155,10 +2155,10 @@ identity_twin <- function(record, after, branch_records) {
       # the rows its twin binds, each as the twin binds it, and the rows the
       # fit dropped with NA in the columns of the fit, the rows of `data` there
       # or a row of NA where `data` lack them (identity_augment_matches()).
-      return(list(
-        verdict = if (identity_augment_matches(a, b, names(na_action$na_action))) "padded" else "FALSE",
-        rng = rng
-      ))
+      omitted <- na_action$na_action
+      padded <- identity_augment_matches(a, b, names(omitted)) ||
+        identity_augment_padded_at(a, b, omitted)
+      return(list(verdict = if (padded) "padded" else "FALSE", rng = rng))
     }
     padded <- identity_padded_twin(record$fn, b, na_action)
     if (!identical(padded, b) && identical(a, padded)) "padded" else "FALSE"
@@ -2308,6 +2308,26 @@ identity_augment_matches <- function(a, ref, dropped = character(), fit_only = F
     all(is.na(a$columns[[k]][!kept_a]))
   }, logical(1)))
   same && na_dropped
+}
+
+# augment() of a fit with na.exclude given the rows of its observations only,
+# which pads them in the order of the fit with a row of NA at each row it
+# dropped, as naresid() pads (increment 9): its rows but those positions are
+# its twin's, in their order, and hold NA there in the columns of the fit.
+# The names of its rows are not compared: renumbered rows can carry the names
+# of the rows the fit dropped, which make.unique() then renames.
+identity_augment_padded_at <- function(a, b, omitted) {
+  positions <- as.integer(omitted)
+  if (!is.list(a) || is.null(a$rows) || !is.list(b) || is.null(b$rows) ||
+        length(a$rows) != length(b$rows) + length(positions) ||
+        !identical(names(a$columns), names(b$columns)) ||
+        any(positions > length(a$rows))) {
+    return(FALSE)
+  }
+  keep <- setdiff(seq_along(a$rows), positions)
+  identical(lapply(a$columns, function(v) v[keep]), b$columns) &&
+    all(vapply(identity_fit_columns, function(k) all(is.na(a$columns[[k]][positions])),
+               logical(1)))
 }
 
 # B11, decision 10: a grouped run of a fitWLS() fit refitted each group with

@@ -259,7 +259,8 @@ The functions of `R/model_context.R`:
 | `rcontext_pearson(ctx)` | The Pearson residuals the tests read (`rpearson_residuals()`), unpadded; refuses a zero weight as before. |
 | `rcontext_design(ctx)` | The design without its aliased columns. |
 | `rcontext_rows(ctx, data)` | The confirmed rows of `data`, in fit order and under the names of the fit, or the model frame without `data`: what a test hands to its checks of the data and to a test it calls. |
-| `rcontext_data_rows(model, data, fn, test_label)` | The rows of `data` that hold the observations of the fit, in its order and under its names, or `data` itself when it is those rows, for the functions outside the tests that read `data` row by row (increment 10): `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` of the results of the runner. It builds the context, every column of `data` read beyond the model frame, so data in the order of the fit whose rows tie are refused. |
+| `rcontext_data_rows(model, data, fn, test_label)` | The rows of `data` that hold the observations of the fit, in its order and under its names, or `data` itself when it is those rows, for the functions outside the tests that read `data` row by row (increment 10): `recommendRemediationStrategies()` and `generateHeteroRecommendations()`. Of a grouped tibble, its rows with its groups (from the review of increment 10). |
+| `rcontext_data_match(model, data, fn, test_label, beyond)` | The context built with `data`, every column of `data` read beyond the model frame, so data in the order of the fit whose rows tie are refused, for the functions of `rcontext_data_rows()` and `generics::augment()`: its refusals name the function, and data that lack the variables of the model are refused with a message that says what to pass (from the review of increment 10). |
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`, of `residuals()`, `fitted()`, `weights()` and `hatvalues()` of the fit, which every test reads so since increment 9 (B13). |
 | `rmodel_unpad(model, x)` | The same, from the fit, for the code that reads it before or without its context: the checks of the model (`rvalidateModelInputs()`, `rvalidateSampleSize()`) and `bootstrapTestStatistic()` (increment 9). |
 | `rcontext_fitted(ctx)` | `fitted()` of the fit without the padding of `na.exclude`, what the tests computed from the model alone and RESET read (increment 9). |
@@ -2084,10 +2085,13 @@ the span of the regressors, and a positive response `ypos`.
   a tibble grouped by one column and by two (`context_grouped_fits`,
   `context_groupings`); and the runners of N5 on workflows with a formula,
   with transformed predictors and a factor, with a recipe that transforms a
-  predictor or the outcome, fitted to data with missing values, and with
-  variables, and on parsnip fits of `fit()` and of `fit_xy()`, with the
-  outcome as a data frame and as a vector, each given no data, its data, a
-  tibble, its rows shuffled and its data without the outcome
+  predictor, with a transformed outcome (a recipe and a formula preprocessor,
+  decision 35), fitted to data with missing values, with variables, with case
+  weights, and with recipes that drop rows (`step_naomit()`, `step_filter()`,
+  skipped on new data or not), and on parsnip fits of `fit()` and of
+  `fit_xy()`, with the outcome as a data frame and as a vector, each given no
+  data, its data, a tibble, its rows shuffled and its data without the
+  outcome, through the runners and `augment()` of their results
   (`context_tidy_models()`, `context_tidy_forms`, `context_tidy_expect()`).
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
@@ -2187,8 +2191,8 @@ the span of the regressors, and a positive response `ypos`.
 | `na.exclude` (increment 9) | every function of the matrix and every call of a second formula on a fit with `na.exclude` against the same call on its twin, the same fit with `na.omit` given the same data (`context_same_as_twin()`): the same refusal, class and message, or the same value, `identical()`, the weights `fitWLS()` returns padded as `naresid()` pads them (`context_twin_value()`); and, in tests of their own, the same warnings and draws of the generator, for the resampling tests and the runners too, Pesaran's CD that of `plm::pcdtest()` on the rows of the fit, and the estimated variances of `fitWLS()` padded |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | grouped runs (increment 10, B11) | a `fitWLS()` fit refused with the class of the context, on one and two grouping columns; an `lm`, a weighted `lm` and a formula: each group the test of `lm()` fitted to the rows of the group, with its weights, to `1e-10`; the `fitWLS()` fit given the data ungrouped and through `runDiagnostics()`, which ungroups them, `identical()` to the fit tested as a whole |
-| workflows and parsnip fits (increment 10, N5) | given the data the fit was made from, as a data frame or a tibble, `identical()` to the call without `data`, through `runHeteroTests()` and `runDiagnostics()`; a workflow given its rows shuffled refused with the class of the guard; data that cannot be mapped refused with a message that says why |
-| the rows of `data` outside the tests (increment 10) | `recommendRemediationStrategies()` and `generateHeteroRecommendations()` on the full data of a fit that dropped rows, shuffled, renumbered and as a tibble, with `na.omit` and with `na.exclude`, `identical()` to the call on the rows of the fit in its order; `augment()` on the rows of the fit shuffled `identical()` to the rows in order, padded on a fit with `na.exclude`; numbered data in another order refused by the guard |
+| workflows and parsnip fits (increment 10, N5) | given the data the fit was made from, as a data frame or a tibble, `identical()` to the call without `data`, through `runHeteroTests()` and `runDiagnostics()`, a transformed outcome among them (decision 35), and `augment()` of the result binding each row the value of its observation; a workflow given its rows shuffled, a subset of them, or the data of a step that dropped rows at the fit only that cannot be found again, refused with the class of the guard; other case weights refused; data that cannot be mapped refused with a message that says why |
+| the rows of `data` outside the tests (increment 10) | `recommendRemediationStrategies()` on the full data of a fit that dropped rows, shuffled, renumbered and as a tibble, with `na.omit` and with `na.exclude`, `identical()` to the call on the rows of the fit in its order, and `generateHeteroRecommendations()` its tests and advice so, its profile that of `data` as given; `augment()` binding the rows of `data` in their order, each with the fitted value and residual of its observation (`fitted()`, `residuals()`, `predict()` row by row), the rows the fit used on a fit with `na.omit`, every row with `NA` at the rows it dropped on a fit with `na.exclude`, as `broom::augment()` binds them, to `1e-12` (decision 34); numbered data in another order refused by the guard; data that lack the variables of the model and a model the context refuses by kind refused, naming the function; grouped data matched with their groups, and the advice on missing data of a profile with more than 5% of values missing |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
 
 The unit tests of the context check its fields and their lengths on every

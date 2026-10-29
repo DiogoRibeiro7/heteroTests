@@ -796,11 +796,17 @@ augment.hetero_test <- function(x, data = NULL, ...) {
       df <- raugment_rows(df, model, length(fitted_values))
     }
   }
+  # A vector of another length than fitted(), as rstandard() of a fit with a
+  # zero weight, which leaves that observation out, is assigned as it is and
+  # stops, as it did, whatever the order of `data`.
   at <- function(values) {
     if (is.null(values)) {
       return(rep(NA_real_, nrow(df)))
     }
-    if (is.null(bound$positions)) values else unname(values)[bound$positions]
+    if (is.null(bound$positions) || length(values) != length(fitted_values)) {
+      return(values)
+    }
+    unname(values)[bound$positions]
   }
   df$.fitted <- at(fitted_values)
   df$.resid <- at(residual_values)
