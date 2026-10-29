@@ -75,7 +75,8 @@ are mapped to the variables of its engine, a transformed outcome among them
 `generateHeteroRecommendations()` and `generics::augment()` of the results of
 the runner match the rows of `data` to the observations of the fit through
 the alignment of the context (`rcontext_data_rows()`), `augment()` binding them
-as broom does (decision 34); and the preparation of
+as broom does (decision 34), the results keeping the blueprint of a workflow
+as the workflow keeps it (decision 36); and the preparation of
 `data` the tests used before the context, `prepare_model_data_for_test()`,
 `rdata_or_model_frame()`, `rcheck_data_rows()` and
 `rcheck_rows_after_cleaning()`, is gone. Increment 11 is planned; see
@@ -1306,27 +1307,26 @@ For the runners and the functions outside the tests, in increment 10:
     for this attribute, and the identity harness compares the attributes of
     the results of the runners (`identity_runner_summary()`).
 - **N5 and `augment()`, from the third review of increment 10.**
-  - *The frames of a recipe written in a function.* The expressions of the
-    steps of a recipe keep the environment they were written in, and the
-    attribute kept the frame of the function a recipe was written in, every
-    object of it: 49,347 KB for a frame that held a 50 MB data frame, and
-    51,245 KB for the results, where `main` gave 1,894 KB.
-    `.ht_prune_environments()` gives each quosure, formula and function of
-    the blueprint whose environment is such a frame the shared environment
-    after it (the global environment or a namespace), and writes the
-    variables it reads of the frame into its expression as values
-    (`.ht_inline()`: `x * k` with `k <- 3` becomes `x * 3`), the names of the
-    columns of the recipe, which the data mask finds first, the names an
-    anonymous function binds and the right side of `$`, `@`, `::` and `:::`
-    left as they are, `.env$k` written in, and a function of the frame
-    written in pruned in turn (to a depth of 4; one that calls itself keeps
-    its frame). An expression that reads variables by a name its text does
-    not show, through `get()`, `eval()` and the like
-    (`.ht_reads_by_name()`), keeps its frame whole, as large as it is. The result is the same object on every call, so that two
-    results of the runners on the same workflow stay `identical()`, which a
-    new small environment on each call would not be: 1,897 KB for those
-    results, the attribute 1 KB, and `augment()` `identical()` to that with
-    the blueprint itself.
+  - *The frames of a recipe written in a function (decision 36).* The
+    expressions of the steps of a recipe keep the environment they were
+    written in, and the attribute keeps the frame of the function a recipe
+    was written in, every object of it: 49,347 KB for a frame that held a
+    50 MB data frame, and 51,245 KB for the results, where `main` gave
+    1,894 KB and `saveRDS()` of the workflow takes 50,272 KB. The third
+    review pruned those environments and wrote the variables the expressions
+    read into them as values (`.ht_prune_environments()`); the fourth found
+    that this changed what some expressions mean or broke them (a variable a
+    later step makes a column, a variable named as a column a step removed,
+    a function called by its name as a string, `do.call("f", ...)` or
+    `sapply(x, "f")`, a variable holding a symbol or a call, spliced in as
+    code), kept named and attached environments whole (19,691 KB where
+    `main` gave 28 KB), stopped at the namespace clone in which R CMD check
+    runs the tests, and copied large values into every result (114,196 KB
+    for a step reading one value of a local vector of 5,000,000 numbers,
+    39,418 KB as the step keeps it). The author decided to keep the
+    blueprint as the workflow keeps it: no expression is rewritten and no
+    environment changed, the record holds no fit, and NEWS says in bold
+    what a saved result carries.
   - *Steps that make a row from other rows.* `cumsum()`, `row_number()`, a
     mean over `lag()` in `step_mutate()`, `step_lag()`, and `step_arrange()`
     given data already in its order, give other values when `data` is mapped
@@ -2106,10 +2106,10 @@ of the model frame in their order.
 Each side runs from its own private installation, its workers loading it
 through `R_LIBS`.
 
-Increment 10 with its three reviews, against `main` at the merge of increment 9
+Increment 10 with its four reviews, against `main` at the merge of increment 9
 (8f55598), each side installed privately and its workers loading it through
-`R_LIBS`, both run again with the harness and the cells of the third review,
-the harness recording what `main` returns too: 43,226 calls on the 406 cells
+`R_LIBS`, both run again with the code of decision 36 and the harness and the
+cells of the fourth review, the harness recording what `main` returns too: 43,226 calls on the 406 cells
 of the matrix, the 5 cells of Harrison-McCabe's rank, the 8 cells of the
 follow-up of N2, the 4 cells of the coding of a factor, the 8 grouped cells,
 the 7 cells of the block `item3/` and the 105 cells of the tidy block, and the
@@ -2125,9 +2125,9 @@ value are each verified: 219 against `main`'s value of the same call on the
 rows of the fit, 82 against `main`'s value without `data`, and 42, the
 results of the two runners on the 21 tidymodels objects without `data`,
 against `main`'s value but for `attr(, "tidymodels")`, which is the record of
-`rtidymodels_map()` and no more, at most 16 KB (1, 3 and 5 KB on the tidy
-block, where the recipes written in the functions of the helper kept their
-frames, 42 to 57 KB, before the third review). Of the changes, for
+`rtidymodels_map()` and no more: exactly its fields, no fitted model or
+workflow, and the blueprint `identical()` to the workflow's (decision 36),
+whose size is recorded and not judged. Of the changes, for
 `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and
 `augment()`: 64, 64 and 43 errors that become values (the full data of a fit
 that dropped rows, rows after those of the fit, and for `augment()` the full
@@ -2161,13 +2161,16 @@ per row padded, 469 refusals and 3 skipped; all leave the generator as the
 twin left it and give its warnings. Every one of the 856 changes leaves the
 generator as `main` left it. The 642 `poly()` calls that `main` computes on
 the stored design are `identical()` to it, and the warnings are those of
-`main` on every call. `main` took 564 s and the branch 805 s, on a shared
-machine, the branch run again at the head of the third review against the
-records of `main`, the harness unchanged since. The first run of
+`main` on every call. The 196 results of the runners on workflows keep the
+blueprint of the workflow, `identical()`, and none of the 236 results on
+tidymodels objects holds a fit. `main` took 1,533 s and the branch 1,452 s, on
+a shared machine; the verdict on every call is that of the run of the third
+review. The first run of
 the increment, before its review, gave 42,980 calls, 42,371 identical, 609
 allowed and 0 unexpected, the run of its first review 43,136, 42,398 and 738,
-and that of its second 43,196, 42,366 and 830; their counts are replaced by
-these.
+that of its second 43,196, 42,366 and 830, and that of its third, with the
+pruning that decision 36 removed, the same counts as these; their counts are
+replaced by these.
 
 ## Test matrix and oracles
 
@@ -2338,7 +2341,7 @@ the span of the regressors, and a positive response `ypos`.
 | `na.exclude` (increment 9) | every function of the matrix and every call of a second formula on a fit with `na.exclude` against the same call on its twin, the same fit with `na.omit` given the same data (`context_same_as_twin()`): the same refusal, class and message, or the same value, `identical()`, the weights `fitWLS()` returns padded as `naresid()` pads them (`context_twin_value()`); and, in tests of their own, the same warnings and draws of the generator, for the resampling tests and the runners too, Pesaran's CD that of `plm::pcdtest()` on the rows of the fit, and the estimated variances of `fitWLS()` padded |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
 | grouped runs (increment 10, B11) | a `fitWLS()` fit refused with the class of the context, on one and two grouping columns; an `lm`, a weighted `lm` and a formula: each group the test of `lm()` fitted to the rows of the group, with its weights, to `1e-10`; the `fitWLS()` fit given the data ungrouped and through `runDiagnostics()`, which ungroups them, `identical()` to the fit tested as a whole |
-| workflows and parsnip fits (increment 10, N5) | given the data the fit was made from, as a data frame or a tibble, `identical()` to the call without `data`, through `runHeteroTests()` and `runDiagnostics()`, a transformed outcome among them (decision 35), and `augment()` of the result binding each row the value of its observation, checked row by row against the prediction of the engine on that row alone, mapped by the preprocessing (`context_tidy_own()`, from the second review of increment 10); a workflow given its rows shuffled, a subset of them, or the data of a step that dropped rows at the fit only that cannot be found again, refused with the class of the guard; a recipe that sorts the rows (`step_arrange()`, both directions) testing the model frame, its data refused by `augment()`; a step skipped on new data that transformed the outcome named in the refusal; other case weights refused, on the rows a recipe that drops rows of new data keeps too; the results keeping what `augment()` needs of the workflow, a few KB, not the workflow, nor the frame of a function its recipe was written in, two calls `identical()` (from the third review); a step that makes a row from other rows (`cumsum()`, `row_number()`) testing the model frame, its data refused by `augment()`; the data of a `fit_xy()` fit with case weights refused; only the skipped steps that matter named; data that cannot be mapped refused with a message that says why |
+| workflows and parsnip fits (increment 10, N5) | given the data the fit was made from, as a data frame or a tibble, `identical()` to the call without `data`, through `runHeteroTests()` and `runDiagnostics()`, a transformed outcome among them (decision 35), and `augment()` of the result binding each row the value of its observation, checked row by row against the prediction of the engine on that row alone, mapped by the preprocessing (`context_tidy_own()`, from the second review of increment 10); a workflow given its rows shuffled, a subset of them, or the data of a step that dropped rows at the fit only that cannot be found again, refused with the class of the guard; a recipe that sorts the rows (`step_arrange()`, both directions) testing the model frame, its data refused by `augment()`; a step skipped on new data that transformed the outcome named in the refusal; other case weights refused, on the rows a recipe that drops rows of new data keeps too; the results keeping what `augment()` needs of the workflow, its blueprint as the workflow keeps it and no fit (decision 36), a few KB for a recipe written at the top level, two calls `identical()`; the variables a step reads of the function it was written in read as the step reads them (the cases of the fourth review); a step that makes a row from other rows (`cumsum()`, `row_number()`) testing the model frame, its data refused by `augment()`; the data of a `fit_xy()` fit with case weights refused; only the skipped steps that matter named; data that cannot be mapped refused with a message that says why |
 | the rows of `data` outside the tests (increment 10) | `recommendRemediationStrategies()` on the full data of a fit that dropped rows, shuffled, renumbered and as a tibble, with `na.omit` and with `na.exclude`, `identical()` to the call on the rows of the fit in its order, and `generateHeteroRecommendations()` its tests and advice so, its profile that of `data` as given; `augment()` binding the rows of `data` in their order, each with the fitted value and residual of its observation (`fitted()`, `residuals()`, `predict()` row by row), the rows the fit used on a fit with `na.omit`, every row with `NA` at the rows it dropped on a fit with `na.exclude`, as `broom::augment()` binds them, to `1e-12` (decision 34); numbered data in another order refused by the guard; data that lack the variables of the model and a model the context refuses by kind refused, naming the function; grouped data matched with their groups, and the advice on missing data of a profile with more than 5% of values missing |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
 
@@ -2430,6 +2433,7 @@ that fixes each.
 | 33 | The record of the variance function that `fitWLS()` attaches to its fit (`"variance_function"`: `regressors`, `index`, `initial_weights`) stays unpadded on a fit with `na.exclude`, one row per fitted observation, as the bootstraps read it; only the estimated variances, `"variance_model"`, are padded. Decided by the author on the review of increment 9. | 2026-10-28 |
 | 34 | `generics::augment()` of the results of the runner binds as broom does. The rows of `data` are matched to the fit by name or number through the alignment, as the tests match them, and bound in the order of `data`: a fit with `na.omit` given its full data binds only the rows it used (117 of 120); a fit with `na.exclude` given its full data binds every row (120), with `NA` at the rows it dropped, so that it is its twin with `na.omit` padded (decision 32); shuffled full data, named, get each row its own fitted value and residual, for both, which ends the binding by position of a fit with `na.exclude`. Decided by the author on the review of increment 10. | 2026-10-28 |
 | 35 | A transformed outcome is mapped too. When a workflow's preprocessing transforms the outcome (`step_log(y)` in a recipe, or a formula preprocessor `log(y) ~ x + z`), `..y` is mapped to the outcome `hardhat::forge()` produces, as for the predictors; the rows are still confirmed against every column of the engine's model frame, and the value is `identical()` to that with `data = NULL`. Decided by the author on the review of increment 10. | 2026-10-28 |
+| 36 | The `"tidymodels"` attribute of the results of the runners keeps the mold's blueprint exactly as the workflow keeps it, with no rewriting of the user's expressions and no change to their environments; it stays the small record (`kind`, `blueprint`, `fitted_rows`, `case_weights`), not the fitted workflow. A recipe step keeps the environment it was written in, so that a saved result carries whatever that environment holds, as saving the workflow does: 1,523 KB against 1,522 KB on 5,000 rows, and 51,245 KB against 1,894 KB for a recipe written in a function whose frame held a 50 MB data frame, where `saveRDS()` of the workflow takes 50,272 KB; NEWS says so in bold. The pruning of the third review, which rewrote the expressions, goes. Decided by the author on the fourth review of increment 10. | 2026-10-29 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

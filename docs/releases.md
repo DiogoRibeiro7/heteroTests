@@ -637,22 +637,25 @@ From the second and third reviews of the step, with `d0 <- sim0[c("x", "z", "y")
     and `runDiagnostics(wf)`, with or without `data`, return what they returned
     with this attribute on each result, and are no longer `identical()` to the
     results of 0.16.0; two calls on the same workflow give `identical()`
-    results. The expressions of the steps of a recipe keep no environment of
-    the function they were written in: they keep the global environment, or the
-    namespace after it, and the variables they read of the function's frame
-    are written in as values (`step_mutate(x3 = x * k)`, with `k <- 3` in the
-    frame, keeps `x * 3`). Serialized, the results of `runHeteroTests(wf)` with
-    three tests on 5,000 rows take 1,523 KB, where they took 1,522 KB, and those
-    of a workflow whose recipe was written in a function whose frame held a
-    50 MB data frame 1,897 KB, where they took 1,894 KB; the attribute takes
-    1 KB of each. The first version of the step kept the whole workflow, and
-    took 2,794 KB; the second kept the frames, and took 51,245 KB for the
-    second workflow, its attribute 49,347 KB (from the third review). A
-    function written in such a frame and called by a step is written in too,
-    pruned in turn; one that calls itself keeps its frame, and so does a step
-    that reads a variable by a name its text does not show (`get("k")`,
-    `eval()` and the like), whose frame is kept whole, as large as it is: up to
-    the 49,347 KB of the frame above.
+    results. The blueprint is kept as the workflow keeps it, and no fit
+    (decision 36, decided by the author on the fourth review). **A recipe step
+    keeps the environment it was written in, so that a saved result carries
+    whatever that environment holds, as saving the workflow does.**
+    Serialized, the results of `runHeteroTests(wf)` with three tests on 5,000
+    rows take 1,523 KB, where they took 1,522 KB; those of a workflow whose
+    recipe was written in a function whose frame held a 50 MB data frame take
+    51,245 KB, where they took 1,894 KB, the attribute 49,347 KB of them, and
+    `saveRDS()` of that workflow takes 50,272 KB. The first version of the step
+    kept the whole workflow, 2,794 KB on 5,000 rows. The third rewrote the
+    expressions of the steps, writing the variables they read of the frame into
+    them as values: that changed what some of them mean or broke them (a
+    variable a later step makes a column, a variable named as a column a step
+    removed, a function called by its name as a string, a variable holding a
+    symbol or a call, where the runners gave White 14.6845, or 14.8861 for the
+    removed column, and `augment()` each row its own value, as they do), and
+    copied the values into each result: 114,196 KB for a step reading one value
+    of a local vector of 5,000,000 numbers, against 39,418 KB as the step keeps
+    it.
 - **New refusal, of values that were right: `augment()` of a recipe step that
     makes a row from other rows.** The rows a workflow's preprocessing maps are
     traced to the rows of `data` by mapping `data` in two other orders, and a

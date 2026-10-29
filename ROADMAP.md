@@ -1501,14 +1501,18 @@ squared residuals that do not vary.
     workflow (2 KB a result, where the workflow added 1,272 KB to three
     results on 5,000 rows); and the identity harness compares the attributes
     of the results of the runners and checks each value of `augment()` on the
-    tidy block row by row. From its third review: the expressions of the
-    steps of a recipe keep no frame of the function they were written in,
-    the variables they read of it written in as values (the attribute had
-    taken 49,347 KB for a frame that held 50 MB); the data of a `fit_xy()`
+    tidy block row by row. From its third review: the data of a `fit_xy()`
     fit with case weights, whose column the fit does not record, are
     refused; a refusal names only the skipped steps without which the rows
     are not confirmed; and the refusal by `augment()` of a step that makes a
     row from other rows, whose values 0.16.0 bound right, is announced.
+    Decided by the author on its fourth review (decision 36): the blueprint
+    is kept as the workflow keeps it, a recipe step with the environment it
+    was written in, so that a saved result carries what that environment
+    holds, as saving the workflow does (51,245 KB for a recipe written in a
+    function whose frame held 50 MB, where `main` gave 1,894 KB); the third
+    review's rewriting of the expressions, which changed what some of them
+    mean, is gone.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal

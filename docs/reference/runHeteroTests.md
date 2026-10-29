@@ -40,8 +40,9 @@ runHeteroTests(
     parsnip fit of `fit_xy()` with case weights, whose column the fit does not record, are refused. Each result keeps
     what `generics::augment()` needs to map the data in the same way, the blueprint of the preprocessing, the
     number of rows it kept and the column of the case weights, or the outcome of a parsnip fit, as
-    `attr(, "tidymodels")`, about 1 KB, the expressions of a recipe keeping no frame of the function they were
-    written in; the results are otherwise those of the fit of the engine.
+    `attr(, "tidymodels")`, the blueprint as the workflow keeps it: a recipe step keeps the environment it was
+    written in, so that a saved result carries what that environment holds, as saving the workflow does. The results
+    are otherwise those of the fit of the engine.
 
 `data`
 :   optional data frame used to fit `model`. If omitted, `model.frame(model)` is used, which
