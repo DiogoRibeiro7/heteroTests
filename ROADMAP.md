@@ -1572,7 +1572,22 @@ squared residuals that do not vary.
     to its design, and the null distributions assume least squares. The five
     tests of step 1, the six of step 3, the five of step 4 and the three
     streaming tests of step 7 accept it as before; the four of step 2 refuse it
-    until this step settles it for every test together.
+    until this step settles it for every test together. In two parts:
+    - [x] `MASS::rlm()` refused. Closes R6, N10. Done in the development
+      version: the model context refuses such a fit, an M-estimate whose
+      residuals are not least-squares residuals, with the class of its
+      refusals, before `data` is matched (`rrefuse_rlm()`), so every test,
+      its registered name, `test_factory` entry and runner refuses it, the
+      runners keeping the refusal final, and the message names the `lm()` fit
+      of the formula to test instead. 37 tests tested it as an `lm`, and the
+      studentized Breusch-Pagan statistic tested the least-squares refit of
+      its design (9.04 where Koenker's test gave 8.74); `fitWLS()`, which fits
+      its variance function to the residuals of the fit, refuses it too, and
+      the help page of `fitRobust()`, which returns such a fit, says so.
+    - [ ] The penalised `mgcv::gam()` with smooth terms (decision 23): which
+      tests take it. Open: a survey of what each test reads of such a fit, and
+      whether it refits it, is with the author, who decides; until then every
+      test takes or refuses it as before.
 - [ ] **Found by the model-eligibility work (the *Supported models* page),
   recorded, not fixed**, as they change what a test computes rather than which
   models it accepts. Those below are settled by the steps above or with them;
@@ -1698,7 +1713,7 @@ squared residuals that do not vary.
     unchanged identify each row (no two rows alike in them) and match the
     mapped rows in that order, so that each mapped row is the row of `data`
     at its position. A refusal becomes a value, or none.
-  - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
+  - [x] `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
     `performBPTestRobust()` refits its design by least squares and tests the
@@ -1707,7 +1722,8 @@ squared residuals that do not vary.
     `performQuantileRegressionTest()` refuses it as a weighted fit, because
     its case weights are all 1. Keep accepting it, or refuse it. Deferred on
     2026-10-17 to the work on the model context; accepted as before until
-    then.
+    then. Done in step 11 (above): refused by every test, with the class of
+    the model context, the runners keeping the refusal final.
 - [x] **Found by the review of the Gaussian `glm` work (#136), recorded, not
   fixed** (the other is under 0.16.0), and settled by step 8, which closes
   N8:
