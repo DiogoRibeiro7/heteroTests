@@ -2432,6 +2432,8 @@ identity_item3_cells <- function() {
 # from the second review of increment 10, recipes that sort the rows
 # (step_arrange(), in both directions), that skip on new data a step that
 # transformed the outcome, and that drop rows of new data with case weights;
+# from the third review, a recipe written in a function, a step reading a
+# variable of its frame, and a fit of fit_xy() with case weights;
 # parsnip fits of fit() (whose data were accepted) and of fit_xy(), with the outcome as
 # a data frame and as a vector (refused, with a message). Each is given no
 # data, its data, the data as a tibble, the data shuffled under their own row
@@ -2724,11 +2726,11 @@ identity_without_tidymodels <- function(v) {
 # Does every test of a summary of the runner, or of the record of
 # runDiagnostics(), keep what augment() needs of the tidymodels object of the
 # cell, and that only: the record of rtidymodels_map(), of the kind of the
-# object, with its fields, the blueprint of a workflow and no fit or mold?
-# Its size is recorded, not judged: the blueprint of a recipe holds the
-# environments its steps were written in, as the workflow does, here the
-# frames of context_tidy_models() with the data of the matrix (about 40 to
-# 60 KB), and a few KB at the top level.
+# object, with its fields, the blueprint of a workflow and no fit or mold,
+# and a few KB? Since the third review of increment 10 the blueprint keeps
+# none of the frames its steps were written in (.ht_prune_environments()),
+# here those of context_tidy_models() with the data of the matrix, which made
+# it 42 to 57 KB on the recipes of the tidy block, and it is held to 16 KB.
 identity_tidymodels_kept <- function(v, name) {
   tests <- if (is.list(v$tests) && is.null(v$white)) v$tests else v
   workflow <- !startsWith(name, "parsnip")
@@ -2738,7 +2740,8 @@ identity_tidymodels_kept <- function(v, name) {
       identical(s$tidymodels$class, "heteroTests_tidymodels") &&
       identical(s$tidymodels$kind, if (workflow) "workflow" else "model_fit") &&
       identical(s$tidymodels$names, fields) &&
-      (!workflow || "hardhat_blueprint" %in% s$tidymodels$blueprint)
+      (!workflow || "hardhat_blueprint" %in% s$tidymodels$blueprint) &&
+      isTRUE(s$tidymodels$kb <= 16)
   }, logical(1)))
 }
 
