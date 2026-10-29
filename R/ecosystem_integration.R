@@ -354,6 +354,75 @@
   )
 }
 
+#' What augment() and the runners need of a tidymodels object
+#'
+#' The data of a workflow, or of a parsnip fit of fit_xy(), are mapped to the
+#' variables of the fit of its engine by what this record holds: for a
+#' workflow, the blueprint of its preprocessing (`hardhat::forge()` maps new
+#' data by it), the number of rows its preprocessing kept of the data it was
+#' fitted to, and the column of its case weights; for a parsnip fit, the
+#' column of its outcome. The runners build it from the object they are given,
+#' and keep it on each result for augment() (rsuite_mark_tidymodels()); before
+#' the second review of increment 10 they kept the object itself, whose fit
+#' and mold hold the data, so that the results of `runHeteroTests(wf)` with
+#' three tests on 5,000 rows took 2,794 KB serialized, where they took 1,522 KB
+#' without it.
+#'
+#' @param object A workflow or a parsnip fit.
+#' @return A list of class `heteroTests_tidymodels`, or `NULL` for another
+#'   object.
+#' @keywords internal
+#' @noRd
+rtidymodels_map <- function(object) {
+  if (inherits(object, "workflow")) {
+    mold <- tryCatch(workflows::extract_mold(object), error = function(e) NULL)
+    case_weights <- tryCatch(all.vars(object$pre$actions$case_weights$col),
+      error = function(e) character()
+    )
+    return(structure(
+      list(
+        kind = "workflow", blueprint = mold$blueprint,
+        fitted_rows = if (!is.null(mold)) NROW(mold$predictors),
+        case_weights = case_weights
+      ),
+      class = "heteroTests_tidymodels"
+    ))
+  }
+  if (inherits(object, "model_fit")) {
+    return(structure(list(kind = "model_fit", y_var = object$preproc$y_var),
+      class = "heteroTests_tidymodels"
+    ))
+  }
+  NULL
+}
+
+# The steps of the recipe of a workflow that it skips on new data
+# (`skip = TRUE`), by their class, as "step_log".
+.ht_skipped_steps <- function(blueprint) {
+  steps <- if (inherits(blueprint, "recipe_blueprint")) blueprint$recipe$steps
+  skipped <- vapply(steps, function(s) isTRUE(s$skip), logical(1))
+  vapply(steps[skipped], function(s) class(s)[1L], character(1))
+}
+
+# The advice that ends a refusal of the data of a workflow or a parsnip fit:
+# augment() binds the model frame without `data`, and the runners test it.
+.ht_null_advice <- function(context) {
+  if (identical(context, "augment()")) {
+    "Pass `data = NULL`, which binds the model frame of that fit."
+  } else {
+    "Pass `data = NULL`, which tests the model frame of that fit."
+  }
+}
+
+# A refusal of the rows of `data`, with the class of the guard, final in the
+# runners.
+.ht_stop_rows <- function(message) {
+  stop(structure(
+    class = c("heteroTests_data_rows_error", "error", "condition"),
+    list(message = message, call = NULL)
+  ))
+}
+
 #' The data of a tidymodels workflow, mapped to the variables of its engine
 #'
 #' A workflow is tested on the fit of its engine, which was fitted to the data
@@ -368,60 +437,125 @@
 #' formula as it was at the fit (decision 35 of the design); and the case
 #' weights of a workflow with them, under the name the engine's call gives
 #' them, so that the alignment compares them as it compares the weights of a
-#' fit for the tests.
+#' fit for the tests. A recipe gives the weights of the rows it keeps, in the
+#' order it keeps them (`recipes::bake()`), and a formula keeps every row;
+#' weights that cannot be told for each mapped row are refused (from the
+#' second review of increment 10: a recipe that dropped rows of new data left
+#' them uncompared).
 #'
-#' @param workflow The fitted workflow.
+#' With `trace`, the rows are traced to the rows of `data` they were made
+#' from, as augment() needs: when the preprocessing kept every row, `data`
+#' with its rows rotated by one, and with its first two rows swapped, must be
+#' mapped to the mapped rows in that order. A preprocessing that maps each row
+#' on its own, in its order, passes; one that reorders the rows, as
+#' `step_arrange()` does, or makes a row from other rows, does not (from the
+#' second review of increment 10: augment() bound the rows of `data` the
+#' values of other rows).
+#'
+#' @param map The record of the workflow (rtidymodels_map()).
 #' @param engine_fit The fit of its engine, an `lm` or a `glm`.
 #' @param data A data frame, not grouped.
 #' @param lacking The variables of the engine `data` lacks, for the messages.
+#' @param context Character scalar naming the calling function.
+#' @param trace Trace the mapped rows to the rows of `data`?
+#' @param blueprint The blueprint to map by, by default that of the workflow.
 #' @return A list: `data`, the mapped data frame; `source`, the row of `data`
-#'   each of its rows was made from, or `NULL` when the preprocessing dropped
-#'   rows of `data` (a step it applies to new data, such as `step_filter()`
-#'   with `skip = FALSE`); and `fitted_rows`, the number of rows the
-#'   preprocessing kept of the data the workflow was fitted to.
+#'   each of its rows was made from, or `NULL` when that cannot be told;
+#'   `untraced`, why not, `"drops"` (a step it applies to new data dropped
+#'   rows, such as `step_filter()` with `skip = FALSE`) or `"reorders"`; and
+#'   `fitted_rows`, the number of rows the preprocessing kept of the data the
+#'   workflow was fitted to.
 #' @keywords internal
 #' @noRd
-.ht_workflow_mapped <- function(workflow, engine_fit, data, lacking) {
+.ht_workflow_mapped <- function(map, engine_fit, data, lacking, context, trace = FALSE,
+                                blueprint = map$blueprint) {
   if (!requireNamespace("hardhat", quietly = TRUE)) {
     .ht_stop_engine_data(lacking, paste(
       "the package hardhat, whose hardhat::forge() maps `data` to them by the workflow's",
       "preprocessing, is not installed."
     ))
   }
-  mold <- tryCatch(workflows::extract_mold(workflow), error = function(e) NULL)
-  if (is.null(mold)) {
+  if (is.null(blueprint)) {
     .ht_stop_engine_data(
       lacking, "the workflow's preprocessing cannot be read, so `data` cannot be mapped to them."
     )
   }
-  forged <- tryCatch(
-    suppressWarnings(hardhat::forge(data, mold$blueprint, outcomes = TRUE)),
-    error = function(e) e
-  )
-  if (inherits(forged, "error")) {
-    .ht_stop_engine_data(lacking, sprintf(
-      "the workflow's preprocessing cannot map `data` to them (%s).",
-      gsub("\\s+", " ", conditionMessage(forged))
-    ))
-  }
-  outcomes <- forged$outcomes
-  if (NCOL(outcomes) != 1L) {
-    .ht_stop_engine_data(lacking, "the workflow has more than one outcome.")
-  }
-  mapped <- as.data.frame(forged$predictors)
-  mapped[["(Intercept)"]] <- NULL
-  mapped[["..y"]] <- outcomes[[1L]]
-  kept_all <- nrow(mapped) == nrow(data)
-  # The case weights, under the name of the engine's call (`weights`).
   weights_name <- all.vars(engine_fit$call$weights)
-  case_weights <- tryCatch(all.vars(workflow$pre$actions$case_weights$col),
-                           error = function(e) character())
-  if (kept_all && length(weights_name) == 1L && length(case_weights) == 1L &&
-        case_weights %in% names(data) && !weights_name %in% names(mapped)) {
-    mapped[[weights_name]] <- as.double(unclass(data[[case_weights]]))
+  case_weights <- map$case_weights
+  weighted <- length(weights_name) == 1L && length(case_weights) == 1L
+  map_rows <- function(rows) {
+    forged <- tryCatch(
+      suppressWarnings(hardhat::forge(rows, blueprint, outcomes = TRUE)),
+      error = function(e) e
+    )
+    if (inherits(forged, "error")) {
+      .ht_stop_engine_data(lacking, sprintf(
+        "the workflow's preprocessing cannot map `data` to them (%s).",
+        gsub("\\s+", " ", conditionMessage(forged))
+      ))
+    }
+    outcomes <- forged$outcomes
+    if (NCOL(outcomes) != 1L) {
+      .ht_stop_engine_data(lacking, "the workflow has more than one outcome.")
+    }
+    mapped <- as.data.frame(forged$predictors)
+    mapped[["(Intercept)"]] <- NULL
+    mapped[["..y"]] <- outcomes[[1L]]
+    # The case weights, under the name of the engine's call (`weights`).
+    if (weighted && !weights_name %in% names(mapped)) {
+      w <- if (inherits(blueprint, "recipe_blueprint")) {
+        baked <- tryCatch(
+          suppressWarnings(recipes::bake(blueprint$recipe, new_data = rows)),
+          error = function(e) NULL
+        )
+        baked[[case_weights]]
+      } else if (nrow(mapped) == nrow(rows)) {
+        rows[[case_weights]]
+      }
+      if (is.null(w) || length(w) != nrow(mapped)) {
+        .ht_stop_rows(paste(
+          sprintf(
+            paste(
+              "%s cannot compare the case weights of the workflow, `%s`, with the weights of",
+              "the fit of its engine: `data` mapped by the workflow's preprocessing",
+              "(hardhat::forge()) do not give the weight of each row they keep."
+            ),
+            context, case_weights
+          ),
+          .ht_null_advice(context)
+        ))
+      }
+      mapped[[weights_name]] <- as.double(unclass(w))
+    }
+    mapped
   }
-  list(data = mapped, source = if (kept_all) seq_len(nrow(data)),
-       fitted_rows = NROW(mold$predictors))
+  mapped <- map_rows(data)
+  n <- nrow(data)
+  source <- NULL
+  untraced <- NULL
+  if (nrow(mapped) != n) {
+    untraced <- "drops"
+  } else if (!trace || n < 2L) {
+    source <- seq_len(n)
+  } else {
+    same <- function(a, b) {
+      identical(names(a), names(b)) && nrow(a) == nrow(b) &&
+        all(vapply(names(a), function(k) {
+          isTRUE(all.equal(a[[k]], b[[k]], check.attributes = FALSE))
+        }, logical(1)))
+    }
+    orders <- list(c(seq_len(n)[-1L], 1L), c(2L, 1L, seq_len(n)[-(1:2)]))
+    traced <- all(vapply(orders, function(o) {
+      again <- tryCatch(map_rows(data[o, , drop = FALSE]), error = function(e) NULL)
+      !is.null(again) && same(again, mapped[o, , drop = FALSE])
+    }, logical(1)))
+    if (traced) {
+      source <- seq_len(n)
+    } else {
+      untraced <- "reorders"
+    }
+  }
+  list(data = mapped, source = source, untraced = untraced, fitted_rows = map$fitted_rows)
 }
 
 #' The data of a parsnip fit made with fit_xy(), mapped to its engine
@@ -434,13 +568,13 @@
 #' a vector is not recorded, and such data are refused with a message that
 #' says so.
 #'
-#' @param model_fit The parsnip fit.
+#' @param map The record of the parsnip fit (rtidymodels_map()).
 #' @param data A data frame, not grouped.
 #' @return As for `.ht_workflow_mapped()`.
 #' @keywords internal
 #' @noRd
-.ht_parsnip_mapped <- function(model_fit, data) {
-  y_var <- model_fit$preproc$y_var
+.ht_parsnip_mapped <- function(map, data) {
+  y_var <- map$y_var
   if (length(y_var) != 1L || !is.character(y_var) || !y_var %in% names(data)) {
     stop(
       "A parsnip fit made with fit_xy() is tested on the fit of its engine, which names ",
@@ -456,7 +590,7 @@
   }
   mapped <- as.data.frame(data)
   mapped[["..y"]] <- data[[y_var]]
-  list(data = mapped, source = seq_len(nrow(data)), fitted_rows = NULL)
+  list(data = mapped, source = seq_len(nrow(data)), untraced = NULL, fitted_rows = NULL)
 }
 
 #' The data of a workflow or a parsnip fit, mapped and matched to its engine
@@ -470,31 +604,41 @@
 #' `step_filter()` do by default, numbers the rows it kept afresh: the mapped
 #' rows complete in the variables of the engine are taken in their order when
 #' they are as many as the rows it kept, and confirmed in turn; otherwise the
-#' data are refused, with a message that says so. A refusal of the rows says
-#' what was matched (`lead`), what the alignment found and what to pass, and
-#' has the class of the guard, `heteroTests_data_rows_error`, final in the
-#' runners: data in another order than the fit, data that lack rows of it
-#' ("Missing rows") and data whose rows are not those of the fit alike.
+#' data are refused, with a message that says so. A step skipped on new data
+#' that changed the outcome, a predictor or the order of the rows at the fit,
+#' as `step_log(y, skip = TRUE)`, the idiom recipes recommends for the
+#' outcome, leaves `data` mapped without it: when `data` mapped with the
+#' skipped steps applied are confirmed, the refusal says so (from the second
+#' review of increment 10, where it advised to pass the data the workflow was
+#' fitted to, which they were). A refusal of the rows says what was matched
+#' (`lead`), what the alignment found and what to pass, and has the class of
+#' the guard, `heteroTests_data_rows_error`, final in the runners: data in
+#' another order than the fit, data that lack rows of it ("Missing rows") and
+#' data whose rows are not those of the fit alike.
 #'
-#' @param object The workflow or the parsnip fit.
+#' @param map The record of the workflow or the parsnip fit
+#'   (rtidymodels_map()).
 #' @param engine_fit The fit of its engine.
 #' @param data The data, collected; `NULL` is returned for data that hold the
 #'   variables of the engine already, as its model frame does.
 #' @param context Character scalar naming the calling function, as
 #'   `"runHeteroTests()"`.
 #' @param beyond Does the caller read columns of `data` beyond the model frame
-#'   (`augment()`, which binds them)? See [rmodel_context()].
+#'   (`augment()`, which binds them)? See [rmodel_context()]. Such a caller
+#'   needs the row of `data` of each observation, and the mapped rows are
+#'   traced to them.
 #' @return `NULL` when `data` hold the variables of the engine; otherwise a
 #'   list with `ctx`, the context of the engine's fit matched to the mapped
-#'   rows, and `source`, the row of `data` of each mapped row (or `NULL`).
+#'   rows, `source`, the row of `data` of each mapped row (or `NULL`), and
+#'   `untraced`, why `source` is `NULL`.
 #' @keywords internal
 #' @noRd
-.ht_engine_match <- function(object, engine_fit, data, context, beyond = FALSE) {
+.ht_engine_match <- function(map, engine_fit, data, context, beyond = FALSE) {
   lacking <- .ht_engine_lacks(engine_fit, data)
   if (length(lacking) == 0L) {
     return(NULL)
   }
-  workflow <- inherits(object, "workflow")
+  workflow <- identical(map$kind, "workflow")
   if (!workflow && !identical(lacking, "..y")) {
     return(NULL)
   }
@@ -505,9 +649,9 @@
     .ht_stop_engine_data(lacking, "only an ungrouped data frame is mapped to them.")
   }
   mapped <- if (workflow) {
-    .ht_workflow_mapped(object, engine_fit, data, lacking)
+    .ht_workflow_mapped(map, engine_fit, data, lacking, context, trace = beyond)
   } else {
-    .ht_parsnip_mapped(object, data)
+    .ht_parsnip_mapped(map, data)
   }
   lead <- if (workflow) {
     paste(
@@ -546,24 +690,18 @@
     variables <- intersect(all.vars(stats::terms(engine_fit)), names(mapped$data))
     complete <- stats::complete.cases(mapped$data[, variables, drop = FALSE])
     if (sum(complete) != fitted_rows) {
-      stop(structure(
-        class = c("heteroTests_data_rows_error", "error", "condition"),
-        list(
-          message = paste(
-            sprintf(
-              paste(
-                "A tidymodels workflow is tested on the fit of its engine, and its preprocessing",
-                "kept %d rows of the data it was fitted to, numbered afresh, where it maps the %d",
-                "rows of `data` without dropping any: a step it skips on new data, such as",
-                "step_naomit() or step_filter() with skip = TRUE, dropped rows at the fit only,",
-                "so the rows of `data` cannot be matched to the observations of that fit."
-              ),
-              fitted_rows, nrow(mapped$data)
-            ),
-            "Pass `data = NULL`, which tests the model frame of that fit."
+      .ht_stop_rows(paste(
+        sprintf(
+          paste(
+            "A tidymodels workflow is tested on the fit of its engine, and its preprocessing",
+            "kept %d rows of the data it was fitted to, numbered afresh, where it maps the %d",
+            "rows of `data` without dropping any: a step it skips on new data, such as",
+            "step_naomit() or step_filter() with skip = TRUE, dropped rows at the fit only,",
+            "so the rows of `data` cannot be matched to the observations of that fit."
           ),
-          call = NULL
-        )
+          fitted_rows, nrow(mapped$data)
+        ),
+        "Pass `data = NULL`, which tests the model frame of that fit."
       ))
     }
     kept <- mapped$data[complete, , drop = FALSE]
@@ -578,13 +716,44 @@
     if (!refused_rows(ctx)) {
       stop(ctx)
     }
+    # A step the recipe skips on new data: `data` mapped with it applied, as
+    # at the fit, confirmed, say that it is the step that stands between them.
+    skipped <- if (workflow) .ht_skipped_steps(map$blueprint) else character()
+    if (length(skipped) > 0L) {
+      applied <- map$blueprint
+      for (i in seq_along(applied$recipe$steps)) {
+        applied$recipe$steps[[i]]$skip <- FALSE
+      }
+      again <- tryCatch(
+        .ht_workflow_mapped(map, engine_fit, data, lacking, context, blueprint = applied)$data,
+        error = function(e) NULL
+      )
+      if (!is.null(again) && !inherits(attempt(again), "error")) {
+        steps <- paste0(unique(skipped), "()")
+        .ht_stop_rows(paste(
+          sprintf(
+            paste(
+              "%s cannot map `data` to the variables of the fit of the workflow's engine:",
+              "the workflow's preprocessing has a step it skips on new data, %s with",
+              "`skip = TRUE`, which changed the outcome, a predictor or the order of the rows",
+              "of the data it was fitted to, so `data`, mapped by that preprocessing",
+              "(hardhat::forge()), do not hold the values the engine was fitted to."
+            ),
+            context,
+            if (length(steps) > 1L) {
+              paste(paste(steps[-length(steps)], collapse = ", "), "and", steps[length(steps)])
+            } else {
+              steps
+            }
+          ),
+          .ht_null_advice(context)
+        ))
+      }
+    }
     found <- sub(" (Pass|Refit) .*$", "", conditionMessage(ctx))
-    stop(structure(
-      class = c("heteroTests_data_rows_error", "error", "condition"),
-      list(message = paste(lead, found, advice), call = NULL)
-    ))
+    .ht_stop_rows(paste(lead, found, advice))
   }
-  list(ctx = ctx, source = mapped$source)
+  list(ctx = ctx, source = mapped$source, untraced = mapped$untraced)
 }
 
 #' The data of a tidymodels workflow, for the runners
@@ -606,24 +775,26 @@
 #' @noRd
 .ht_workflow_data <- function(workflow, engine_fit, data, context) {
   data <- .ht_collect(data, context)
-  if (is.null(.ht_engine_match(workflow, engine_fit, data, context))) {
+  if (is.null(.ht_engine_match(rtidymodels_map(workflow), engine_fit, data, context))) {
     return(data)
   }
   NULL
 }
 .ht_parsnip_data <- .ht_workflow_data
 
-# The tidymodels object a suite of the runners was computed from, a workflow
-# or a parsnip fit, kept on each of its results, so that augment() can map
-# the data of that object to the variables of its engine as the runners map
-# them (from the review of increment 10).
+# What augment() needs of the tidymodels object a suite of the runners was
+# computed from, a workflow or a parsnip fit (rtidymodels_map()), kept on each
+# of its results as attr(, "tidymodels"), so that augment() can map the data
+# of that object to the variables of its engine as the runners map them (from
+# the review of increment 10).
 rsuite_mark_tidymodels <- function(suite, object) {
-  if (!inherits(object, c("workflow", "model_fit"))) {
+  map <- rtidymodels_map(object)
+  if (is.null(map)) {
     return(suite)
   }
   for (i in seq_along(suite)) {
     if (inherits(suite[[i]], "hetero_test")) {
-      attr(suite[[i]], "tidymodels") <- object
+      attr(suite[[i]], "tidymodels") <- map
     }
   }
   suite
@@ -840,12 +1011,18 @@ augment.hetero_test <- function(x, data = NULL, ...) {
 #'
 #' The data of a workflow, or of a parsnip fit of fit_xy(), are mapped to the
 #' variables of the fit of its engine as the runners map them
-#' (`.ht_engine_match()`), from the object the runner kept on its results.
-#' What the alignment refuses is refused, naming augment().
+#' (`.ht_engine_match()`), by what the runner kept on its results
+#' (rtidymodels_map()), and each mapped row is traced to the row of `data` it
+#' was made from: a preprocessing that drops rows of new data, or reorders
+#' them, does not say which row of `data` each observation comes from, and
+#' its data are refused (from the second review of increment 10: on a recipe
+#' with `step_arrange()` the rows of `data` were bound the values of other
+#' rows). What the alignment refuses is refused, naming augment().
 #'
 #' @param data The `data` argument of augment(), collected.
 #' @param model The model of the result.
-#' @param object The workflow or parsnip fit the runner was given, or `NULL`.
+#' @param map What the runner kept of the workflow or parsnip fit it was
+#'   given (rtidymodels_map()), or `NULL`.
 #' @return A list: `df`, the rows of `data` to bind to, a data frame; and
 #'   `positions`, for each of its rows, the position of its values in
 #'   `fitted()` and `residuals()` of the fit (`NA` for a row the fit dropped),
@@ -853,10 +1030,10 @@ augment.hetero_test <- function(x, data = NULL, ...) {
 #'   fit in its order.
 #' @keywords internal
 #' @noRd
-raugment_bind <- function(data, model, object = NULL) {
+raugment_bind <- function(data, model, map = NULL) {
   df <- as.data.frame(data)
-  engine <- if (inherits(object, c("workflow", "model_fit"))) {
-    .ht_engine_match(object, model, data, "augment()", beyond = TRUE)
+  engine <- if (inherits(map, "heteroTests_tidymodels")) {
+    .ht_engine_match(map, model, data, "augment()", beyond = TRUE)
   }
   if (is.null(engine)) {
     ctx <- rcontext_data_match(model, df, fn = "augment")
@@ -864,12 +1041,22 @@ raugment_bind <- function(data, model, object = NULL) {
     alignment <- ctx$alignment
   } else {
     if (is.null(engine$source)) {
+      why <- if (identical(engine$untraced, "reorders")) {
+        paste(
+          "the workflow's preprocessing reorders the rows of `data` it maps, or makes a row",
+          "from other rows, as step_arrange() does, so the row of `data` each observation",
+          "comes from cannot be told."
+        )
+      } else {
+        paste(
+          "the workflow's preprocessing drops rows of `data` with a step it applies to new",
+          "data, such as step_filter() with skip = FALSE."
+        )
+      }
       stop(
         paste(
           "augment() cannot tell which rows of `data` hold the observations of the fit:",
-          "the workflow's preprocessing drops rows of `data` with a step it applies to new",
-          "data, such as step_filter() with skip = FALSE. Pass `data = NULL`, which binds",
-          "the model frame of the fit."
+          why, "Pass `data = NULL`, which binds the model frame of the fit."
         ),
         call. = FALSE
       )

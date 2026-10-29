@@ -44,7 +44,11 @@
 #'   fit of its rows. The data a tidymodels workflow was fitted to are mapped
 #'   to the variables of its engine by the workflow's preprocessing, and the
 #'   model frame of the engine's fit is tested, as without `data` (since
-#'   0.17.0; they were refused).
+#'   0.17.0; they were refused). A recipe step skipped on new data that
+#'   changed the outcome or a predictor at the fit, such as
+#'   `step_log(y, skip = TRUE)`, is named in the refusal of such data. Each
+#'   result keeps what [generics::augment()] needs to map the data in the same
+#'   way, as `attr(, "tidymodels")`.
 #' @param tests Character vector of test names to run: any of the names
 #'   [listDiagnostics()] returns, which include those added with
 #'   `registerDiagnostic()`. On a fit returned by [fitWLS()] the resampling
@@ -173,8 +177,8 @@ runHeteroTests <- function(model, data = NULL,
     if (prepared$source %in% c("formula", "survey")) {
       output <- rsuite_mark_origin(output, prepared$source)
     }
-    # A workflow or a parsnip fit is kept on each result, so that augment() maps
-    # its data as the runner maps them (rsuite_mark_tidymodels()).
+    # What augment() needs of a workflow or a parsnip fit is kept on each result,
+    # so that it maps their data as the runner maps them (rsuite_mark_tidymodels()).
     rsuite_mark_tidymodels(output, model)
   }
 }

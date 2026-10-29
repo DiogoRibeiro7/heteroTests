@@ -56,7 +56,8 @@ runDiagnostics <- function(model, data = NULL,
     chunk_size = chunk_size,
     progress = progress
   ))
-  # The workflow or parsnip fit on each result, for augment() (rsuite_mark_tidymodels()).
+  # What augment() needs of a workflow or parsnip fit, on each result
+  # (rsuite_mark_tidymodels()).
   hetero <- rsuite_mark_tidymodels(run$value, given)
   vif <- performVIFDiagnostic(model)
   reset <- performRESETTest(model, power = power)

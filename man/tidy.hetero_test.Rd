@@ -39,7 +39,12 @@ the broom generics from the \pkg{generics} package.
   whose rows cannot be shown to hold the observations are refused (see
   \code{\link{test_results}}). The data of a tidymodels workflow, or of a
   parsnip fit of \code{fit_xy()}, are mapped to the variables of its engine as
-  \code{\link{runHeteroTests}()} maps them. Before 0.17.0 the rows were bound
+  \code{\link{runHeteroTests}()} maps them, and each mapped row is traced to
+  the row of \code{data} it was made from: the data of a preprocessing that
+  drops rows of new data, such as \code{step_filter()} with
+  \code{skip = FALSE}, or reorders them, such as \code{step_arrange()}, are
+  refused, since it does not say which row of \code{data} each observation
+  comes from. Before 0.17.0 the rows were bound
   row by row: named data in another order than the fit had the values of
   other observations bound to them, and the full data of a fit with
   \code{na.omit} could not be bound.}
