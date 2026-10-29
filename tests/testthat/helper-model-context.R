@@ -1055,7 +1055,12 @@ context_grouped <- function(d, grouping) {
 # that transforms a predictor, fitted to data with missing values, with
 # variables, with case weights, and with a recipe that drops rows, by
 # step_naomit() and step_filter(), each skipped on new data (the default) or
-# not (from the review of increment 10); and parsnip fits of fit() (whose
+# not (from the review of increment 10); with a recipe that reorders the rows,
+# step_arrange() by a predictor and by another in descending order, which it
+# applies to new data; with a step skipped on new data that transformed the
+# outcome, step_log(ypos, skip = TRUE), the idiom recipes recommends; and
+# with case weights and a step_filter() applied to new data (from the second
+# review of increment 10); and parsnip fits of fit() (whose
 # data the runners took already) and of fit_xy(), with the outcome as a data
 # frame and as a vector (refused: the fit does not record its column).
 # `outcome` names the outcome of the data. The forms of data: none, the data
@@ -1118,6 +1123,23 @@ context_tidy_models <- function() {
                                   skip = FALSE)
       with_recipe(rec, data)
     }),
+    wf_arrange = list(data = d, outcome = "y", fit = function(data) {
+      with_recipe(recipes::step_arrange(recipes::recipe(y ~ x1 + x2, data = data), x1), data)
+    }),
+    wf_arrange_desc = list(data = d, outcome = "y", fit = function(data) {
+      rec <- recipes::step_arrange(recipes::recipe(y ~ x1 + x2, data = data), dplyr::desc(x2))
+      with_recipe(rec, data)
+    }),
+    wf_outcome_skipped = list(data = d, outcome = "ypos", fit = function(data) {
+      rec <- recipes::step_log(recipes::recipe(ypos ~ x1 + x2, data = data), ypos, skip = TRUE)
+      with_recipe(rec, data)
+    }),
+    wf_filter_case_weights = list(data = d_cw, outcome = "y", fit = function(data) {
+      rec <- recipes::step_filter(recipes::recipe(y ~ x1 + x2 + cw, data = data), x1 > 0.7,
+                                  skip = FALSE)
+      pre <- workflows::add_case_weights(workflows::add_recipe(workflows::workflow(), rec), cw)
+      wf(pre, data)
+    }),
     parsnip_formula = list(data = d, outcome = "y", fit = function(data) {
       parsnip::fit(spec(), y ~ x1 + x2, data = data)
     }),
@@ -1166,12 +1188,89 @@ context_tidy_expect <- function(name, form) {
   if (identical(name, "wf_filter")) {
     return("dropped rows at the fit only")
   }
+  # A recipe that sorts the rows of new data sorts them as it sorted the data
+  # it was fitted to, whatever their order: the rows are those of the fit.
+  if (name %in% c("wf_arrange", "wf_arrange_desc")) {
+    return("value")
+  }
   if (identical(form, "shuffled") && !identical(name, "parsnip_formula") &&
         !identical(name, "parsnip_xy")) {
     return("guard")
   }
+  # The outcome a skipped step transformed at the fit (from the second review
+  # of increment 10, where the refusal advised to pass these very data).
+  if (identical(name, "wf_outcome_skipped")) {
+    return("the workflow's preprocessing has a step it skips on new data, step_log()")
+  }
   "value"
 }
+
+# What augment() of the result of the runner without `data` gives on a form
+# of data: what the runner gives, but for a preprocessing that does not say
+# which row of `data` each observation comes from, one that drops rows of new
+# data or reorders them, and for the data of a parsnip fit of fit() without
+# its outcome, whose refusal names augment().
+context_tidy_augment_expect <- function(name, form) {
+  expect <- context_tidy_expect(name, form)
+  if (identical(expect, "value") && !identical(form, "null")) {
+    if (name %in% c("wf_naomit_applied", "wf_filter_applied", "wf_filter_case_weights")) {
+      return("augment() cannot tell which rows of `data` hold the observations")
+    }
+    if (name %in% c("wf_arrange", "wf_arrange_desc")) {
+      return("reorders the rows of `data` it maps")
+    }
+  }
+  if (identical(name, "parsnip_formula") && identical(form, "lacking")) {
+    return("augment() matches the rows of `data` to the observations of the fit")
+  }
+  expect
+}
+
+# Does augment() of a tidymodels object bind each row of `data` its own
+# values? For each row of `bound` at the positions `at`, the row of `data` it
+# is named after, alone: for a workflow, mapped by its preprocessing
+# (hardhat::forge() of that row) and predicted by its engine; for a parsnip
+# fit, predicted by the fit. Its .fitted must be that prediction, and its
+# .resid its outcome, as the preprocessing makes it, less that prediction, to
+# 1e-8 (from the second review of increment 10: the checks compared the
+# values bound with those of the model frame in their order, and a recipe that
+# reorders the rows passed them). The prediction of a workflow itself
+# (predict.workflow()) maps the predictors without the outcome, which a
+# recipe that transforms the outcome on new data cannot bake.
+context_tidy_own <- function(object, data, bound, at = seq_len(nrow(bound))) {
+  plain <- as.data.frame(data)
+  index <- match(rownames(bound), rownames(plain))
+  if (anyNA(index[at])) {
+    return(FALSE)
+  }
+  workflow <- inherits(object, "workflow")
+  engine <- if (workflow) workflows::extract_fit_engine(object) else object$fit
+  blueprint <- if (workflow) workflows::extract_mold(object)$blueprint
+  close <- function(a, b) length(a) == 1L && length(b) == 1L && isTRUE(all.equal(
+    unname(as.numeric(a)), unname(as.numeric(b)), tolerance = 1e-8
+  ))
+  all(vapply(at, function(k) {
+    row <- data[index[k], , drop = FALSE]
+    if (workflow) {
+      forged <- hardhat::forge(row, blueprint, outcomes = TRUE)
+      predictors <- as.data.frame(forged$predictors)
+      predictors[["(Intercept)"]] <- NULL
+      prediction <- stats::predict(engine, newdata = predictors)
+      outcome <- forged$outcomes[[1L]]
+    } else {
+      prediction <- stats::predict(object, new_data = row)$.pred
+      outcome <- if (is.character(object$preproc$y_var) && length(object$preproc$y_var) == 1L) {
+        row[[object$preproc$y_var]]
+      } else {
+        stats::model.response(stats::model.frame(stats::formula(engine), as.data.frame(row)))
+      }
+    }
+    close(bound$.fitted[k], prediction) && close(bound$.resid[k], outcome - prediction)
+  }, logical(1)))
+}
+# A few rows of `n`, for the tests: the first three, the middle and the last
+# two.
+context_tidy_rows <- function(n) unique(pmin(c(1L, 2L, 3L, n %/% 2L, n - 1L, n), n))
 
 # The cells run on CRAN: no package beyond the hard dependencies, and a few of
 # each block.

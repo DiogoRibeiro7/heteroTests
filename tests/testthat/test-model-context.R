@@ -2664,7 +2664,10 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
   # only, are refused with the class of the guard, and data that cannot be
   # mapped with a message that says why. augment() of the results maps the
   # data in the same way, and binds them, each row with the value of its
-  # observation (from the review of increment 10).
+  # observation (from the review of increment 10), checked row by row against
+  # the prediction of the workflow on that row alone (context_tidy_own(), from
+  # the second review, where the values were compared with those of the
+  # model frame in their order).
   for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
     skip_if_not_installed(p)
   }
@@ -2688,6 +2691,7 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
                       error = function(e) e)
       bound <- tryCatch(generics::augment(reference[["white"]], data = data),
                         error = function(e) e)
+      bound_expect <- context_tidy_augment_expect(name, form)
       if (identical(expect, "value")) {
         expect_identical(numbers(got), numbers(reference), info = info)
         if (!identical(name, "parsnip_formula")) {
@@ -2695,18 +2699,18 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
           expect_identical(runDiagnostics(fit, data, use_cache = FALSE, progress = FALSE),
                            reference_diagnostics, info = info)
         }
-        # Each row bound with the value of its observation, the rows the
+        # Each row bound with the values of its own observation, the rows the
         # preprocessing or the engine dropped left out; a preprocessing that
-        # drops rows of new data does not say which rows of `data` it kept,
-        # and augment() refuses them.
-        if (name %in% c("wf_naomit_applied", "wf_filter_applied")) {
-          expect_error(generics::augment(reference[["white"]], data = data),
-                       "augment() cannot tell which rows of `data` hold the observations",
-                       fixed = TRUE, info = info)
-        } else {
-          own <- if (identical(form, "shuffled")) fitted(engine)[rownames(bound)] else fitted(engine)
-          expect_identical(unname(bound$.fitted), unname(own), info = info)
+        # drops rows of new data, or reorders them, does not say which row of
+        # `data` each observation comes from, and augment() refuses them.
+        if (identical(bound_expect, "value")) {
+          expect_false(inherits(bound, "error"), info = info)
           expect_identical(nrow(bound), length(fitted(engine)), info = info)
+          expect_true(context_tidy_own(fit, data, bound, context_tidy_rows(nrow(bound))),
+                      info = info)
+        } else {
+          expect_s3_class(bound, "error")
+          expect_match(conditionMessage(bound), bound_expect, fixed = TRUE, info = info)
         }
       } else if (identical(expect, "guard")) {
         for (e in list(got, bound)) {
@@ -2721,12 +2725,7 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
         expect_s3_class(got, "error")
         expect_match(conditionMessage(got), expect, fixed = TRUE, info = info)
         # The tests of the runner name the variables `data` lacks; augment()
-        # names itself and says what to pass.
-        bound_expect <- if (identical(name, "parsnip_formula")) {
-          "augment() matches the rows of `data` to the observations of the fit"
-        } else {
-          expect
-        }
+        # names itself and says what to pass (context_tidy_augment_expect()).
         expect_s3_class(bound, "error")
         expect_match(conditionMessage(bound), bound_expect, fixed = TRUE, info = info)
       }
@@ -2762,6 +2761,168 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
       runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
     )
   }
+})
+
+test_that("augment() never binds a row of a workflow's data the values of another row", {
+  # From the second review of increment 10. augment() took the rows a
+  # workflow's preprocessing mapped for the rows of `data` in their order
+  # whenever it kept every row; step_arrange(), which it applies to new data,
+  # sorts them, and augment() bound each row of `data` the fitted value and the
+  # residual of another, by up to 8.08 on these data, without an error. The
+  # mapped rows are traced to the rows of `data`, and a preprocessing that
+  # reorders them is refused; the runners, which test the model frame of the
+  # engine once the rows are confirmed, give the value without `data`.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_data()
+  sorted_by <- list(
+    ascending = function(rec) recipes::step_arrange(rec, x1),
+    descending = function(rec) recipes::step_arrange(rec, dplyr::desc(x2))
+  )
+  for (direction in names(sorted_by)) {
+    rec <- sorted_by[[direction]](recipes::recipe(y ~ x1 + x2, data = d))
+    fit <- workflows::fit(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      data = d
+    )
+    reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+    expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), reference,
+                     info = direction)
+    expect_error(generics::augment(reference$white, data = d),
+                 "reorders the rows of `data` it maps", fixed = TRUE, info = direction)
+    # Without `data`, the model frame of the engine, in the order it was fitted in.
+    frame <- generics::augment(reference$white)
+    expect_identical(unname(frame$.fitted), unname(fitted(workflows::extract_fit_engine(fit))))
+  }
+  # A recipe that maps each row on its own is traced, and each row of `data`,
+  # shuffled under its own names, has its own values.
+  fit <- workflows::fit(
+    workflows::add_model(
+      workflows::add_recipe(workflows::workflow(),
+                            recipes::step_log(recipes::recipe(y ~ x1 + x2, data = d), x1)),
+      parsnip::linear_reg()
+    ),
+    data = d
+  )
+  bound <- generics::augment(runHeteroTests(fit, use_cache = FALSE, progress = FALSE)$white,
+                             data = d)
+  expect_true(context_tidy_own(fit, d, bound))
+})
+
+test_that("a step a recipe skips on new data that changed the outcome is named", {
+  # From the second review of increment 10. step_log(y, skip = TRUE), the
+  # idiom recipes recommends for the outcome, transforms the outcome at the
+  # fit only, so the data the workflow was fitted to, mapped by its
+  # preprocessing, hold the outcome untransformed, and were refused with the
+  # advice to pass the data the workflow was fitted to, which they were. The
+  # refusal says that a step skipped on new data stands between them.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- context_tidy_models()$wf_outcome_skipped
+  fit <- model$fit(model$data)
+  reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  for (call in list(
+    function() runHeteroTests(fit, model$data, use_cache = FALSE, progress = FALSE),
+    function() runDiagnostics(fit, model$data, use_cache = FALSE, progress = FALSE),
+    function() generics::augment(reference$white, data = model$data)
+  )) {
+    refusal <- expect_error(call(), class = "heteroTests_data_rows_error")
+    expect_match(conditionMessage(refusal),
+                 "has a step it skips on new data, step_log() with `skip = TRUE`", fixed = TRUE)
+    expect_match(conditionMessage(refusal), "Pass `data = NULL`", fixed = TRUE)
+    expect_no_match(conditionMessage(refusal), "Pass the data the workflow was fitted to",
+                    fixed = TRUE)
+  }
+  expect_match(
+    conditionMessage(expect_error(generics::augment(reference$white, data = model$data))),
+    "^augment\\(\\) cannot map `data`"
+  )
+})
+
+test_that("the results of a workflow keep what augment() needs, not the workflow", {
+  # From the second review of increment 10. The runners kept the workflow, or
+  # the parsnip fit, on each result, for augment(): its fit and its mold hold
+  # the data, so that the results of runHeteroTests(wf) with three tests on
+  # 5,000 rows took 2,794 KB serialized, where they took 1,522 KB. They keep
+  # its blueprint, the number of rows its preprocessing kept, and the column
+  # of its case weights (rtidymodels_map()), or the outcome of a parsnip fit,
+  # the results otherwise those of the fit of the engine.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(1)
+  n <- 2000
+  d <- data.frame(x = stats::runif(n), z = stats::rnorm(n))
+  d$y <- 1 + d$x + stats::rnorm(n, sd = 1 + d$x)
+  fit <- workflows::fit(
+    workflows::add_model(workflows::add_formula(workflows::workflow(), y ~ x + z),
+                         parsnip::linear_reg()),
+    data = d
+  )
+  suite <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  engine <- runHeteroTests(workflows::extract_fit_engine(fit), use_cache = FALSE,
+                           progress = FALSE)
+  kept <- attr(suite$white, "tidymodels")
+  expect_s3_class(kept, "heteroTests_tidymodels")
+  expect_named(kept, c("kind", "blueprint", "fitted_rows", "case_weights"))
+  expect_identical(kept$fitted_rows, as.integer(n))
+  expect_s3_class(kept$blueprint, "hardhat_blueprint")
+  expect_lt(length(serialize(kept, NULL)), 16 * 1024)
+  expect_gt(length(serialize(fit, NULL)), 100 * 1024)
+  # Without it, the results of the fit of the engine.
+  for (k in names(suite)) {
+    attr(suite[[k]], "tidymodels") <- NULL
+  }
+  expect_identical(lapply(suite, unclass), lapply(engine, unclass))
+  xy <- parsnip::fit_xy(parsnip::linear_reg(), x = d[, c("x", "z")], y = d[, "y", drop = FALSE])
+  kept_xy <- attr(runHeteroTests(xy, use_cache = FALSE, progress = FALSE)$white, "tidymodels")
+  expect_identical(unclass(kept_xy), list(kind = "model_fit", y_var = "y"))
+})
+
+test_that("case weights are compared on the rows a recipe keeps of new data", {
+  # From the second review of increment 10. The case weights of a workflow
+  # were mapped only when its preprocessing kept every row of `data`, so that
+  # with a step_filter() it applies to new data other weights were accepted
+  # (White 9.4702 on the reviewer's data, with the weights reversed). A recipe
+  # gives the weights of the rows it keeps, in their order, and they are
+  # compared.
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  model <- context_tidy_models()$wf_filter_case_weights
+  fit <- model$fit(model$data)
+  reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+  expect_identical(runHeteroTests(fit, model$data, use_cache = FALSE, progress = FALSE),
+                   reference)
+  other <- model$data
+  other$cw <- hardhat::importance_weights(rev(model$data$w))
+  expect_error(runHeteroTests(fit, other, use_cache = FALSE, progress = FALSE),
+               "(weights) differs from the model frame", fixed = TRUE)
+  # And a recipe that sorts the rows gives their weights in that order.
+  rec <- recipes::step_arrange(recipes::recipe(y ~ x1 + x2 + cw, data = model$data), x1)
+  sorted <- workflows::fit(
+    workflows::add_case_weights(
+      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                           parsnip::linear_reg()),
+      cw
+    ),
+    data = model$data
+  )
+  expect_identical(runHeteroTests(sorted, model$data, use_cache = FALSE, progress = FALSE),
+                   runHeteroTests(sorted, use_cache = FALSE, progress = FALSE))
+  expect_error(runHeteroTests(sorted, other, use_cache = FALSE, progress = FALSE),
+               "(weights) differs from the model frame", fixed = TRUE)
 })
 
 test_that("fitWLS() pads its outputs per row on a fit with na.exclude (B13)", {
