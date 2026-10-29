@@ -2399,11 +2399,14 @@ test_that("the functions outside the context read a fit with na.exclude as its t
   white <- runHeteroTests(me, pair$d, use_cache = FALSE, progress = FALSE)[["white"]]
   full <- generics::augment(white, data = pair$d)
   expect_identical(unname(full$.fitted), unname(fitted(me)))
-  expect_error(
-    generics::augment(runHeteroTests(mo, pair$d, use_cache = FALSE, progress = FALSE)[["white"]],
-                      data = pair$d),
-    "augment() binds one row of `data` to each fitted value of the model, 117 of them", fixed = TRUE
+  # The twin given the full data binds the rows it used (decision 34, from the
+  # review of increment 10), where it refused them: the rows of the fit with
+  # na.exclude but those it dropped.
+  twin <- generics::augment(
+    runHeteroTests(mo, pair$d, use_cache = FALSE, progress = FALSE)[["white"]], data = pair$d
   )
+  expect_identical(nrow(twin), 117L)
+  expect_identical(lapply(full[-c(3, 7, 11), ], unname), lapply(twin, unname))
 })
 
 test_that("augment() and the remediation advice match the rows of data as the tests do", {

@@ -2042,7 +2042,7 @@ refusals and 3 skipped; all leave the generator as the twin left it and give
 its warnings. Every one of the 738 changes leaves the generator as `main` left
 it. The 642 `poly()` calls that `main` computes on the stored design are
 `identical()` to it, and the warnings are those of `main` on every call.
-`main` took 985 s and the branch 1,271 s on a shared machine. The first run of
+`main` took 985 s and the branch 1,323 s on a shared machine. The first run of
 the increment, before its review, gave 42,980 calls, 42,371 identical, 609
 allowed and 0 unexpected; its counts are replaced by these.
 
