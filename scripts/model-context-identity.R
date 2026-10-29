@@ -52,6 +52,13 @@
 #     (identity_item3_cells()); from its second review, the attributes of the
 #     results of the runners (identity_runner_summary()), and each value of
 #     augment() on the tidy block checked row by row (context_tidy_own());
+#   - (increment 11) a MASS::rlm() fit in every form of data, the data frame of
+#     the fit, none, shuffled, a shuffled tibble and its model frame (the
+#     cells of R6): each call there, through every recipe, route and runner,
+#     may change only to the refusal of the context, with its class
+#     (identity_increment11_verdict()), and every other call must be
+#     identical() to main, with main's warnings and the state of the generator
+#     main left, as main holds increments 1 to 10;
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -2615,6 +2622,37 @@ identity_increment10_verdict <- function(record, after, verdict, main, branch) {
   list(verdict = if (isTRUE(ok)) "allowed" else "unexpected", verified = NA_character_)
 }
 
+# --- increment 11: MASS::rlm() ---------------------------------------------------
+
+# R6 and N10, decision 4 of the design: a MASS::rlm() fit, an M-estimate whose
+# residuals are not least-squares residuals, which every test built on the
+# context tested as an lm, and the studentized Breusch-Pagan statistic as the
+# least-squares refit of its design, is refused by the context
+# (rrefuse_rlm(), R/model_context.R), with its class, before `data` is
+# matched. The cells of such a fit (class/rlm, and since increment 11 the same
+# fit in the other forms of data, class_forms() of helper-model-context.R)
+# carry the defect R6. On them a call may stay identical() to main, or change,
+# from a value or from another refusal, to that refusal only, of the class of
+# the context: every call there, whatever its function, runner and route
+# included, is judged by this rule alone. No other call may change.
+identity_r6_message <- paste(
+  "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares",
+  "residuals"
+)
+identity_increment11_verdict <- function(record, after, verdict) {
+  if (!"R6" %in% record$defect) {
+    return(NULL)
+  }
+  if (identical(verdict$change, "identical")) {
+    return(list(verdict = "identical", verified = NA_character_))
+  }
+  refused <- is.list(after$value) && isTRUE(after$value$.error) &&
+    "heteroTests_model_context_error" %in% after$value$class &&
+    grepl(identity_r6_message, after$value$message, fixed = TRUE)
+  ok <- verdict$change %in% c("value_to_error", "message_change") && refused
+  list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_)
+}
+
 # --- canonical results ---------------------------------------------------------
 
 # A result without the environments, functions and calls it carries, which
@@ -3865,9 +3903,15 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       n2_mode <- NULL
     }
     # Increment 10: the calls of item 3, B11 and N5 are judged by their own
-    # rule (identity_increment10_verdict()) alone.
-    inc10 <- identity_increment10_verdict(before, after, verdict, main$records, branch$records)
-    allowed <- if (!is.null(inc10)) {
+    # rule (identity_increment10_verdict()) alone. Increment 11: the calls on
+    # the cells of a MASS::rlm() fit (R6), by theirs, before any other.
+    inc11 <- identity_increment11_verdict(before, after, verdict)
+    inc10 <- if (is.null(inc11)) {
+      identity_increment10_verdict(before, after, verdict, main$records, branch$records)
+    }
+    allowed <- if (!is.null(inc11)) {
+      inc11$verdict
+    } else if (!is.null(inc10)) {
       inc10$verdict
     } else if (isTRUE(szroeter) || n3_allowed) {
       "allowed"
@@ -3955,6 +3999,19 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       allowed <- "allowed"
       verdict$change <- "data_name"
     }
+    # Increment 11, the last: main holds increments 1 to 10, so outside the
+    # cells of a MASS::rlm() fit (R6) every call must be identical() to main,
+    # the generator as it left it (below) and its warnings, as
+    # identity_outcome() records them, which the earlier runs counted and
+    # found equal; a change that an earlier rule would allow is unexpected.
+    if (is.null(inc11) && !allowed %in% c("identical", "unexpected")) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("a change outside the cells of R6;", verdict$detail)
+    }
+    if (is.null(inc11) && !identical(before$warnings, after$warnings)) {
+      allowed <- "unexpected"
+      verdict$detail <- paste("the warnings are not main's;", verdict$detail)
+    }
     # Increment 8: a call identical to main must leave the generator as main
     # left it, having drawn the same random numbers.
     rng_identical <- identical(before$rng, after$rng)
@@ -3970,6 +4027,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # the streaming tests allowed the change.
       defect = paste(c(identity_defects(before), if (n2_change) "N2", if (n3_allowed) "N3"),
                      collapse = " "),
+      # Increment 11: whether the call is on a cell of a MASS::rlm() fit (R6).
+      r6 = !is.null(inc11),
       n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
       n2_mode = if (n2_change) n2_mode else NA_character_,
       szroeter = if (is.null(szroeter)) NA else szroeter,
@@ -4177,6 +4236,28 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       changed10$verified_by[is.na(changed10$verified_by)] <- "-"
       print(stats::aggregate(calls ~ fn + change + verified_by + verdict, data = changed10,
                              FUN = sum), row.names = FALSE)
+    }
+  }
+  # Increment 11: the cells of a MASS::rlm() fit (R6), and every other call.
+  r6_calls <- calls[calls$r6, , drop = FALSE]
+  if (nrow(r6_calls) > 0L) {
+    outside <- calls[!calls$r6, , drop = FALSE]
+    cat(sprintf(paste0(
+      "\nIncrement 11, R6: %d calls on %d cells of a MASS::rlm() fit, %d identical() to main, ",
+      "%d refused by the context with its class (%d where main gave a value, %d where it ",
+      "refused otherwise), %d unexpected; outside them %d calls, %d identical() to main with ",
+      "main's warnings, %d unexpected\n"
+    ), nrow(r6_calls), length(unique(r6_calls$cell)), sum(r6_calls$verdict == "identical"),
+    sum(r6_calls$verdict == "allowed"),
+    sum(r6_calls$verdict == "allowed" & r6_calls$change == "value_to_error"),
+    sum(r6_calls$verdict == "allowed" & r6_calls$change == "message_change"),
+    sum(r6_calls$verdict == "unexpected"), nrow(outside), sum(outside$verdict == "identical"),
+    sum(outside$verdict == "unexpected")))
+    changed11 <- r6_calls[r6_calls$verdict != "identical", , drop = FALSE]
+    if (nrow(changed11) > 0L) {
+      changed11$calls <- 1L
+      print(stats::aggregate(calls ~ cell + change + verdict, data = changed11, FUN = sum),
+            row.names = FALSE)
     }
   }
   identical_calls <- calls$verdict == "identical"
