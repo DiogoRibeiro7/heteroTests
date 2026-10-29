@@ -46,9 +46,12 @@
 #'   model frame of the engine's fit is tested, as without `data` (since
 #'   0.17.0; they were refused). A recipe step skipped on new data that
 #'   changed the outcome or a predictor at the fit, such as
-#'   `step_log(y, skip = TRUE)`, is named in the refusal of such data. Each
-#'   result keeps what [generics::augment()] needs to map the data in the same
-#'   way, as `attr(, "tidymodels")`.
+#'   `step_log(y, skip = TRUE)`, is named in the refusal of such data, and the
+#'   data of a [parsnip::fit_xy()] fit with case weights, whose column the
+#'   fit does not record, are refused. Each result keeps what
+#'   [generics::augment()] needs to map the data in the same way, as
+#'   `attr(, "tidymodels")`, the expressions of a recipe keeping no frame of
+#'   the function they were written in.
 #' @param tests Character vector of test names to run: any of the names
 #'   [listDiagnostics()] returns, which include those added with
 #'   `registerDiagnostic()`. On a fit returned by [fitWLS()] the resampling

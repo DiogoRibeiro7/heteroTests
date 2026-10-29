@@ -1501,7 +1501,14 @@ squared residuals that do not vary.
     workflow (2 KB a result, where the workflow added 1,272 KB to three
     results on 5,000 rows); and the identity harness compares the attributes
     of the results of the runners and checks each value of `augment()` on the
-    tidy block row by row.
+    tidy block row by row. From its third review: the expressions of the
+    steps of a recipe keep no frame of the function they were written in,
+    the variables they read of it written in as values (the attribute had
+    taken 49,347 KB for a frame that held 50 MB); the data of a `fit_xy()`
+    fit with case weights, whose column the fit does not record, are
+    refused; a refusal names only the skipped steps without which the rows
+    are not confirmed; and the refusal by `augment()` of a step that makes a
+    row from other rows, whose values 0.16.0 bound right, is announced.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
@@ -1624,6 +1631,16 @@ squared residuals that do not vary.
     120 rows, about 14 s for 5,000, where forging the whole data takes 3 ms),
     and a step that makes a row from other rows gives other values row by
     row; not adopted, the refusal kept.
+  - Found by the third review of step 10, recorded, not fixed: `augment()`
+    refuses the data of a workflow whose recipe makes a row from other rows
+    (`step_mutate(cs = cumsum(x))`, `dplyr::row_number()`, a mean over
+    `dplyr::lag()`, `step_lag()`) or sorts data already in its order
+    (`step_arrange()`), where 0.16.0 bound each row of data in the order of
+    the fit its own values; the runners take them. A way to accept them:
+    data in the order of the fit whose columns the preprocessing leaves
+    unchanged identify each row (no two rows alike in them) and match the
+    mapped rows in that order, so that each mapped row is the row of `data`
+    at its position. A refusal becomes a value, or none.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and

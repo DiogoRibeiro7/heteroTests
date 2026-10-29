@@ -568,7 +568,7 @@ the refusals of `data`, and so is a subset of them ("Missing rows: 101, 102,
     preprocessing needs, the package hardhat not installed, and the outcome of
     `fit_xy()` given as a vector, which the fit does not record.
 
-From the second review of the step, with `d0 <- sim0[c("x", "z", "y")]`:
+From the second and third reviews of the step, with `d0 <- sim0[c("x", "z", "y")]`:
 
 - **New refusal: `augment()` of a workflow whose recipe reorders the rows.**
     `step_arrange()`, which a recipe applies to new data, sorts the rows it
@@ -598,7 +598,11 @@ From the second review of the step, with `d0 <- sim0[c("x", "z", "y")]`:
     or the order of the rows of the data it was fitted to, so `data`, mapped by
     that preprocessing (`hardhat::forge()`), do not hold the values the engine
     was fitted to. Pass `data = NULL`, which tests the model frame of that fit."
-    Without `data` such a workflow gives White 3.495 and Koenker 2.825.
+    Without `data` such a workflow gives White 3.495 and Koenker 2.825. The
+    steps named are those without which the rows are not confirmed: with a
+    `step_filter(x > 0)` before it, skipped on new data too and keeping every
+    row, the second version of the step named "`step_filter()` and `step_log()`",
+    and names `step_log()` alone (from the third review).
 - **Case weights are compared on the rows a recipe keeps.** The first version
     of the step mapped the case weights only when the preprocessing kept every
     row of `data`, and took other weights when a recipe dropped rows of new
@@ -608,6 +612,23 @@ From the second review of the step, with `d0 <- sim0[c("x", "z", "y")]`:
     fit with its own weights. A recipe gives the weights of the rows it keeps, in the
     order it keeps them, and those data are refused ("(weights) differs from
     the model frame"); weights that cannot be told for each row are refused.
+- **New refusal: the data of a `parsnip::fit_xy()` fit with case weights.**
+    `fit_xy()` takes its case weights as a vector, and the fit records the
+    column of its outcome but not that of its weights, so the weights of `data`
+    cannot be compared with those of the fit. With `dw`, `d0` with a column
+    `w = 1 / x`, and `px <- parsnip::fit_xy(parsnip::linear_reg(), x = dw[, c("x", "z")], y = dw[, "y", drop = FALSE], case_weights = hardhat::importance_weights(dw$w))`,
+    `runHeteroTests(px, dw)` was refused ("missing from input data: ..y"), and
+    the second version of the step gave White 6.210 and Koenker 5.245 on these
+    data and on the data with `w` reversed alike, the values of the fit with
+    its own weights. Both are refused, from the third review: "runHeteroTests()
+    cannot compare the case weights of a parsnip fit made with `fit_xy()` with
+    those of `data`: `fit_xy()` takes them as a vector, and the fit does not
+    record which column of `data` held them, so `data` cannot be confirmed to be
+    the data the fit was made from. Pass `data = NULL`, which tests the model
+    frame of that fit." Without `data` it gives White 6.210 and Koenker 5.245. A
+    parsnip fit of `fit()`, given its case weights as a vector too, is matched
+    to `data` by the variables of its formula, as an `lm` whose weights are a
+    vector of the workspace is, and its weights are not compared.
 - **The results of the runners on a workflow or a parsnip fit carry
     `attr(, "tidymodels")`.** Each result keeps what `generics::augment()` needs
     to map the data of the workflow as the runners map them: the blueprint of
@@ -615,11 +636,38 @@ From the second review of the step, with `d0 <- sim0[c("x", "z", "y")]`:
     weights, or the outcome of a parsnip fit of `fit_xy()`. `runHeteroTests(wf)`
     and `runDiagnostics(wf)`, with or without `data`, return what they returned
     with this attribute on each result, and are no longer `identical()` to the
-    results of 0.16.0. Serialized, the results of `runHeteroTests(wf)` with three
-    tests on 5,000 rows take 1,523 KB, where they took 1,522 KB; the first
-    version of the step kept the whole workflow, and took 2,794 KB. A recipe
-    written inside a function keeps the environment its steps were written in,
-    as the workflow does.
+    results of 0.16.0; two calls on the same workflow give `identical()`
+    results. The expressions of the steps of a recipe keep no environment of
+    the function they were written in: they keep the global environment, or the
+    namespace after it, and the variables they read of the function's frame
+    are written in as values (`step_mutate(x3 = x * k)`, with `k <- 3` in the
+    frame, keeps `x * 3`). Serialized, the results of `runHeteroTests(wf)` with
+    three tests on 5,000 rows take 1,523 KB, where they took 1,522 KB, and those
+    of a workflow whose recipe was written in a function whose frame held a
+    50 MB data frame 1,897 KB, where they took 1,894 KB; the attribute takes
+    1 KB of each. The first version of the step kept the whole workflow, and
+    took 2,794 KB; the second kept the frames, and took 51,245 KB for the
+    second workflow, its attribute 49,347 KB (from the third review). A
+    function written in such a frame and called by a step is written in too,
+    pruned in turn; one that calls itself keeps its frame, and so does a step
+    that reads a variable by a name its text does not show (`get("k")`,
+    `eval()` and the like), whose frame is kept whole, as large as it is: up to
+    the 49,347 KB of the frame above.
+- **New refusal, of values that were right: `augment()` of a recipe step that
+    makes a row from other rows.** The rows a workflow's preprocessing maps are
+    traced to the rows of `data` by mapping `data` in two other orders, and a
+    step that makes a row from other rows, as `cumsum()`, `dplyr::row_number()`
+    or a mean over `dplyr::lag()` in `step_mutate()` do, or `step_arrange()`
+    given data already in its order, does not map `data` in another order to
+    the same rows in that order, and is refused, though on data in the order of
+    the fit 0.16.0 bound each row its
+    own values: the refusal is conservative (decision 14), and never gives a
+    wrong value. With `wc`, a workflow of `recipes::step_mutate(recipes::recipe(y ~ x + z, data = d0), cs = cumsum(x))` fitted to `d0`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `generics::augment(runHeteroTests(wc)$white, data = d0)` | 120 rows, each with its own fitted value: rows `1` and `2` with 10.396 and 10.431 | Error: "augment() cannot tell which rows of `data` hold the observations of the fit: the workflow's preprocessing reorders the rows of `data` it maps, or makes a row from other rows, as `step_arrange()` does, ..." |
+| `runHeteroTests(wc, d0)` | Error: "... `data` lacks ..y, cs. ..." | White 16.14, Koenker 15.37, as without `data` |
 
 **The recommendations and `augment()` match the rows of `data` as the tests
 do.** `recommendRemediationStrategies()` correlates the residuals with the
@@ -662,8 +710,8 @@ frame without `data`, such a fit binds them in the order of the fit with a row
 of `NA` at each row it dropped, as in step 9. The first version of the step
 refused, on `augment()` of the results of a workflow, the data it was fitted
 to ("missing from input data: ..y"), where 0.16.0 bound them by position. A
-preprocessing that drops rows of new data, such as `step_filter()` with
-`skip = FALSE`, does not say which rows of `data` it kept, nor one that
+preprocessing that drops or adds rows of new data, such as `step_filter()`
+with `skip = FALSE`, does not say which rows of `data` it kept, nor one that
 reorders them, such as `step_arrange()`, which row of `data` each observation
 comes from, and `augment()` refuses their data (above).
 
@@ -714,12 +762,12 @@ no test has called since step 8, are gone; no value changes.
 
 Unchanged, but for the changes above: every test, and every other call of the
 runners; their results on a workflow or a parsnip fit carry the attribute
-`tidymodels` (above), and are otherwise what they were. A corpus of 43,196
+`tidymodels` (above), and are otherwise what they were. A corpus of 43,226
 calls (`scripts/model-context-identity.R`), the three functions above on every
 fit and form of `data` of the corpus among them, and the attributes of the
 results of the runners compared by name, returns what it returned in the
 previous step, `identical()`, and leaves the generator as it left it, but for
-830 calls of these changes, each change to a value that of the same
+856 calls of these changes, each change to a value that of the same
 call on the rows of the fit, or without `data`, and for the results of the
 runners on a workflow without `data` the value of the previous step but for
 their attribute; and each value of

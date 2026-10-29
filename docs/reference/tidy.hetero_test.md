@@ -50,10 +50,12 @@ tidy(x, ...)
     parsnip fit of `fit_xy()`, are mapped to the variables of its engine as
     [`runHeteroTests()`](runHeteroTests.md) maps them, and each mapped row is traced to
     the row of `data` it was made from: the data of a preprocessing that
-    drops rows of new data, such as `step_filter()` with
+    drops or adds rows of new data, such as `step_filter()` with
     `skip = FALSE`, or reorders them, such as `step_arrange()`, are
     refused, since it does not say which row of `data` each observation
-    comes from. Before 0.17.0 the rows were bound
+    comes from, and so are those of a step that makes a row from other rows,
+    such as `step_mutate(cs = cumsum(x))`, whose values 0.16.0 bound
+    right in the order of the fit. Before 0.17.0 the rows were bound
     row by row: named data in another order than the fit had the values of
     other observations bound to them, and the full data of a fit with
     `na.omit` could not be bound.
