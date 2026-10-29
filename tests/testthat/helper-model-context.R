@@ -808,9 +808,14 @@ context_cells <- function() {
   add(context_cell("class/rank_deficient", "class", function() {
     list(m = stats::lm(y ~ x1 + x2 + I(2 * x2), data = d), data = d)
   }, reference = "fit/ols/none/none/data_frame"))
-  add(context_cell("class/rlm", "class", function() {
-    list(m = MASS::rlm(y ~ x1 + x2, data = d), data = d)
-  }))
+  # A MASS::rlm() fit, an M-estimate whose residuals are not least-squares
+  # residuals, which every test built on the context tested as an lm until
+  # increment 11, and refuses since, before `data` is matched, on every form
+  # (R6, decision 4).
+  rlm_fit <- function() list(m = MASS::rlm(y ~ x1 + x2, data = d), data = d)
+  add(context_cell("class/rlm", "class", rlm_fit, expect = context_rlm_refusal, defect = "R6"))
+  class_forms("rlm", rlm_fit, expect = context_rlm_refusal, defect = "R6",
+              expect_tibble = context_rlm_refusal)
   # A Gaussian mgcv::gam() is a glm by class, and is accepted as before 0.16.0;
   # without smooth terms it is the lm.
   gam_fit <- function() list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
@@ -951,6 +956,14 @@ context_cells <- function() {
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
 }
+
+# The refusal of a MASS::rlm() fit by the model context (increment 11, R6,
+# decision 4), in the words every function built on it uses: the tests
+# "cannot test", fitWLS() "cannot refit" such a fit.
+context_rlm_refusal <- paste(
+  "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares",
+  "residuals"
+)
 
 # Harrison-McCabe's statistic and its lower tail written out with the rank of
 # the fit, independently of the package (N4; decided 2026-10-18), from the
@@ -1627,8 +1640,9 @@ context_runnable <- function(fns = context_migrated) {
 #   terms (context_increment2), once `data` is matched: a shuffled tibble is
 #   refused by the guard first, by RESET too since it matches `data`
 #   (decision 31).
-# - The quantile regression test refuses a weighted fit, and a MASS::rlm()
-#   fit, whose weights it reads, once `data` is aligned.
+# - The quantile regression test refuses a weighted fit once `data` is
+#   aligned. It refused a MASS::rlm() fit so too, whose case weights it read,
+#   until the context refused that fit first (increment 11).
 # - Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read `x1`,
 #   which the model frame of a fit that transforms `x1` does not hold, and
 #   Hartley's test and the five group tests `group`, which only the models
@@ -1689,7 +1703,7 @@ context_cell_for <- function(fn, cell) {
     cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
     return(cell)
   }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls") || identical(cell$id, "class/rlm")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls")
   if (identical(fn, "performQuantileRegressionTest") && weighted &&
         !identical(cell$expect, "guard")) {
     cell$expect <- "does not support weighted fits"
@@ -1776,8 +1790,7 @@ context_cell_for_formula <- function(fn, cell) {
     cell$expect <- "value"
     cell$reference <- if (identical(cell$form, "shuffled")) cell$base
   }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm") ||
-    startsWith(cell$id, "class/zero_weight")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm") || startsWith(cell$id, "class/zero_weight")
   if (variance_form && !identical(cell$expect, "guard")) {
     value_like <- cell$expect %in% c("value", "zero or non-finite weights")
     if (weighted && value_like) {
@@ -1842,7 +1855,7 @@ context_cell_for_model_alone <- function(fn, cell) {
     cell$expect <- "value"
     return(cell)
   }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm")
   if (identical(fn, "performVarianceFormTest") && weighted &&
         (identical(cell$expect, "value") || zero_weight)) {
     cell$expect <- "was fitted with weights that did not come from fitWLS()"

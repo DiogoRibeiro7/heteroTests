@@ -160,7 +160,7 @@ test_that("the context holds the parts of the fit, one per observation", {
   cells <- context_cells()
   ids <- names(cells)[vapply(cells, function(cell) {
     cell$block %in% c("fit", "terms") && identical(cell$form, "data_frame") ||
-      cell$id %in% c("missing/full", "subset/data_frame", "class/rank_deficient", "class/rlm",
+      cell$id %in% c("missing/full", "subset/data_frame", "class/rank_deficient",
                      "ident/repeated_fit")
   }, logical(1))]
   for (id in ids) {
@@ -181,12 +181,12 @@ test_that("the context holds the parts of the fit, one per observation", {
     expect_identical(ctx$rank, m$rank, info = id)
     expect_identical(ctx$aliased, raliased_coefficients(m), info = id)
     expect_length(ctx$rows, n)
+    # A MASS::rlm() fit, whose kind was "rlm", is refused since increment 11
+    # (the test below).
     kind <- if (inherits(m, "glm")) {
       "glm_gaussian"
     } else if (!is.null(attr(m, "variance_function"))) {
       "fitwls"
-    } else if (inherits(m, "rlm")) {
-      "rlm"
     } else {
       "lm"
     }
@@ -366,9 +366,12 @@ test_that("a fit changed after it was fitted is refused", {
                                                        fn = "f")))
   expect_silent(rvalidate_model_context(rmodel_context(lm(y ~ x1 + x2 + x3, data = near),
                                                        fn = "f")))
-  # The M-estimate of MASS::rlm() is not a least-squares fit, and is not checked.
-  expect_silent(rvalidate_model_context(rmodel_context(MASS::rlm(y ~ x1 + x2, data = d),
-                                                       fn = "f")))
+  # The M-estimate of MASS::rlm() is not a least-squares fit: the validator
+  # let it through unchecked, and since increment 11 the context refuses it
+  # before (R6, decision 4).
+  expect_error(rmodel_context(MASS::rlm(y ~ x1 + x2, data = d), fn = "f"),
+               "f() cannot test a MASS::rlm() fit", fixed = TRUE,
+               class = "heteroTests_model_context_error")
 })
 
 test_that("the orthogonality of the residuals allows the rounding of a large response", {
@@ -458,6 +461,172 @@ test_that("the refusals of the context are final in the runners", {
   out <- run(mgcv::gam(y ~ x1 + x2, data = d), d)
   expect_identical(out$white$method, "White's test for heteroscedasticity")
   expect_identical(out$koenker$method, "Koenker studentized Breusch-Pagan test")
+})
+
+test_that("every test, route and runner refuses a MASS::rlm() fit, and the runners keep it final", {
+  # Increment 11 (R6, N10, decision 4). A MASS::rlm() fit is an lm by class
+  # and an M-estimate, whose residuals are not least-squares residuals. Before,
+  # 37 of the 39 tests of helper-test-recipes.R tested it as an lm on this
+  # design (the quantile regression and variance form tests refused it as a
+  # weighted fit, its case weights being all 1), and the studentized
+  # Breusch-Pagan statistic refitted its design by least squares, giving 9.04
+  # where Koenker's test gave 8.74 on the residuals of the M-estimate (N10).
+  d <- contract_data()$d
+  m <- MASS::rlm(y ~ x1 + x2, data = d)
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  refusal <- paste(
+    "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not",
+    "least-squares residuals, and the null distributions of the tests assume least squares.",
+    "Test the lm() fit of the same formula instead, lm(y ~ x1 + x2)."
+  )
+  refused <- function(f, info, fn = NULL, verb = "test") {
+    out <- tryCatch(suppressWarnings(suppressMessages(f())), error = function(e) e)
+    expect_s3_class(out, "heteroTests_model_context_error")
+    expected <- if (is.null(fn)) refusal else sprintf("%s() cannot %s %s", fn, verb, refusal)
+    expect_match(conditionMessage(out), expected, fixed = TRUE, info = info)
+  }
+  # The suggested packages some routes need: without them those routes are
+  # left out, and the rest of the test runs.
+  missing_package <- function(nm) {
+    needs <- c(quantile_regression = "quantreg", performQuantileRegressionTest = "quantreg",
+               spatial_hetero = "spdep", performSpatialHeteroTest = "spdep")
+    nm %in% names(needs) && !requireNamespace(needs[[nm]], quietly = TRUE)
+  }
+  with_listw <- function(data) {
+    set.seed(1)
+    coords <- cbind(stats::runif(nrow(d)), stats::runif(nrow(d)))
+    attr(data, "listw") <- suppressWarnings(
+      spdep::nb2listw(spdep::knn2nb(spdep::knearneigh(coords, k = 4)))
+    )
+    data
+  }
+  # Every exported test, through its recipe, and the calls of a second
+  # formula; each names itself, but for the deprecated name, which calls
+  # performBPTest(), and the recipes the matrix adds.
+  recipes <- context_recipes()
+  recipes <- recipes[setdiff(names(recipes), c("performBoxMTest", "fitWLS",
+                                               "fitWLS(var_formula = ~ z)"))]
+  names_itself <- setdiff(names(contract_recipes), c("performBoxMTest", "performBreuschPaganTest"))
+  dz <- d
+  dz$z <- stats::rnorm(nrow(d))
+  for (fn in names(recipes)) {
+    if (missing_package(fn)) next
+    refused(function() recipes[[fn]](m, dz), fn, if (fn %in% names_itself) fn)
+  }
+  # performStudentizedBPTest() refuses it before its deprecation warning.
+  expect_error(performStudentizedBPTest(m, d), refusal, fixed = TRUE,
+               class = "heteroTests_model_context_error")
+  # On every form of data, and without `data`: the fit is refused before
+  # `data` is matched.
+  set.seed(3)
+  shuffled <- d[sample(nrow(d)), ]
+  for (data in list(NULL, shuffled, stats::model.frame(m))) {
+    refused(function() performKoenkerTest(m, data), "Koenker, forms", "performKoenkerTest")
+    refused(function() performGQTest(m, data, order_by = "x2"), "GQ, forms", "performGQTest")
+  }
+  # The robust and resampling variants, and bootstrapTestStatistic(), which
+  # refuses it before it calls `test_function`, whatever that is; it refused
+  # it after, as a fit its least-squares refit does not reproduce ("`data`
+  # does not reproduce the fit").
+  refused(function() performWhiteTestRobust(m, d, bootstrap = TRUE, B = 19), "robust White",
+          "performWhiteTestRobust")
+  refused(function() performBPTestRobust(m, d, studentize = FALSE), "robust BP",
+          "performBPTestRobust")
+  refused(function() performBPTestRobust(m, d, bootstrap = TRUE, B = 19), "robust BP bootstrap",
+          "performBPTestRobust")
+  refused(function() performWildBootstrapTest(m, d, B = 19, distribution = "mammen",
+                                              progress = FALSE), "wild, Mammen",
+          "performWildBootstrapTest")
+  for (statistic in list(performKoenkerTest, function(model, data) list(statistic = 1))) {
+    refused(function() bootstrapTestStatistic(statistic, m, d, B = 19, progress = FALSE),
+            "bootstrapTestStatistic()", "bootstrapTestStatistic")
+  }
+  refused(function() rbootstrap_test_statistic(performKoenkerTest, m, d, B = 19, progress = FALSE),
+          "rbootstrap_test_statistic()", "bootstrapTestStatistic")
+  for (fn in names(context_streaming_recipes())) {
+    refused(function() context_streaming_recipes()[[fn]](m, d), fn)
+  }
+  # fitWLS(), which fits its variance function to the residuals of the fit.
+  for (call in list(function() fitWLS(m), function() fitWLS(m, dz, var_formula = ~ z))) {
+    out <- tryCatch(call(), error = function(e) e)
+    expect_s3_class(out, "heteroTests_model_context_error")
+    expect_match(conditionMessage(out), paste(
+      "fitWLS() cannot refit a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals",
+      "are not least-squares residuals, and fitWLS() fits its variance function to",
+      "least-squares residuals. Pass the lm() fit of the same formula instead,",
+      "fitWLS(lm(y ~ x1 + x2))."
+    ), fixed = TRUE)
+  }
+  # The registered names, directly, through test_factory, cachedTest() and
+  # the runner, which runs no other test under the name of the one refused
+  # (decision 6): the quantile regression test refused the fit as a weighted
+  # fit, which is not final, and the runner put the rank permutation test
+  # under its name (0.3407).
+  registry <- heteroTests:::.diagnostic_registry
+  for (nm in setdiff(ls(registry), "box_m")) {
+    if (missing_package(nm)) next
+    data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
+    refused(function() get(nm, envir = registry)(m, data), paste("registry", nm))
+    refused(function() cachedTest(nm, m, data), paste("cachedTest", nm))
+    refused(function() runHeteroTests(m, data, tests = nm, use_cache = FALSE, progress = FALSE),
+            paste("runHeteroTests", nm))
+  }
+  for (nm in test_factory$get_available()) {
+    if (missing_package(nm)) next
+    data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
+    refused(function() {
+      if (identical(nm, "szroeter")) {
+        test_factory$run_test(nm, m, data, order_by = "x1")
+      } else {
+        test_factory$run_test(nm, m, data)
+      }
+    }, paste("test_factory", nm))
+  }
+  if (requireNamespace("lmtest", quietly = TRUE)) {
+    refused(function() rvalidate_against_reference("studentized_bp", m, d),
+            "rvalidate_against_reference()", "performStudentizedBPTest")
+  }
+  # The runners: the default battery, the streaming tests asked for, a battery
+  # with a test that has fallbacks, runDiagnostics(), the time-series, panel
+  # and advanced runners, and the functions that run the tests or match
+  # `data` through the context.
+  for (data in list(d, NULL)) {
+    refused(function() runHeteroTests(m, data, use_cache = FALSE, progress = FALSE), "runner")
+    refused(function() runDiagnostics(m, data, use_cache = FALSE, progress = FALSE),
+            "runDiagnostics()")
+  }
+  refused(function() runHeteroTests(m, d, tests = c("cook_weisberg", "white", "koenker"),
+                                    use_cache = FALSE, progress = FALSE), "runner, three")
+  refused(function() runHeteroTests(m, d, chunk_threshold_mb = 0, use_cache = FALSE,
+                                    progress = FALSE), "runner, streaming")
+  refused(function() runTimeSeriesTests(m, lags = 2), "runTimeSeriesTests()",
+          "performArchLMTest")
+  refused(function() runPanelTests(m, d, id = "id", time = "time"), "runPanelTests()")
+  refused(function() runAdvancedDiagnostics(m, d), "runAdvancedDiagnostics()",
+          "performWhiteTestRobust")
+  refused(function() generateHeteroRecommendations(m, d), "generateHeteroRecommendations()",
+          "generateHeteroRecommendations")
+  refused(function() generateHeteroRecommendations(m), "generateHeteroRecommendations(), no data",
+          "generateHeteroRecommendations")
+  results <- list(white = performWhiteTest(lm(y ~ x1 + x2, data = d), d))
+  refused(function() recommendRemediationStrategies(results, m, d),
+          "recommendRemediationStrategies()", "recommendRemediationStrategies", "take")
+  # augment() of a result around such a fit, which the runners no longer
+  # return, given `data`; without `data` it binds the columns of the fit to
+  # its model frame, reading nothing through the context, as before.
+  x <- structure(list(statistic = c(X = 1), p.value = 0.5, method = "fixed"),
+                 class = c("hetero_test", "htest"))
+  attr(x, "model") <- m
+  refused(function() generics::augment(x, data = d), "augment()", "augment", "take")
+  expect_identical(unname(generics::augment(x)$.fitted), unname(stats::fitted(m)))
+  # fitRobust() returns such a fit; the lm() of the same formula is tested.
+  robust <- fitRobust(mpg ~ wt + qsec, mtcars)
+  expect_error(performKoenkerTest(robust, mtcars),
+               "performKoenkerTest() cannot test a MASS::rlm() fit", fixed = TRUE,
+               class = "heteroTests_model_context_error")
+  expect_error(performKoenkerTest(robust, mtcars), "instead, lm(mpg ~ wt + qsec).", fixed = TRUE)
+  expect_s3_class(performKoenkerTest(lm(mpg ~ wt + qsec, mtcars), mtcars), "htest")
 })
 
 test_that("a fit with model = FALSE whose data are gone is tested on data that reproduce it", {
@@ -1035,7 +1204,7 @@ test_that("the registered Szroeter test orders by the fitted values of the conte
     glm_offset = glm(y ~ x1 + x2, data = d, offset = o),
     rank_deficient = lm(y ~ x1 + x2 + I(2 * x2), data = d),
     factor = lm(y ~ x1 + group, data = d),
-    fitwls = fitWLS(lm(y ~ x1 + x2, data = d)), rlm = MASS::rlm(y ~ x1 + x2, data = d),
+    fitwls = fitWLS(lm(y ~ x1 + x2, data = d)),
     na_omit = lm(y ~ x1 + x2, data = d_na)
   )
   if (requireNamespace("mgcv", quietly = TRUE)) {
