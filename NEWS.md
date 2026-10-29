@@ -807,13 +807,13 @@ instead; the runners keep the refusal final:
 
 | Call | Before | Now |
 | --- | --- | --- |
-| `performStudentizedBPTest(m, d)`, `performBPTestRobust(m, d)` | 9.04 (p = 0.011), the value of `lm(y ~ x1 + x2, data = d)` | Error: "performStudentizedBPTest() cannot test a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares residuals, and the null distributions of the tests assume least squares. Test the lm() fit of the same formula instead, lm(y ~ x1 + x2)." (`performBPTestRobust()` names itself) |
-| `performKoenkerTest(m, d)` | 8.74 (p = 0.013), on the residuals of the M-estimate | Error: "performKoenkerTest() cannot test a MASS::rlm() fit: ..." |
-| `performWhiteTest(m, d)` | 11.01 (p = 0.051) | Error: "performWhiteTest() cannot test a MASS::rlm() fit: ..." |
-| `performBPTest(m, d)` | 12.42 (p = 0.0020) | Error: "performBPTest() cannot test a MASS::rlm() fit: ..." |
-| `runHeteroTests(m, d)` | White 11.01, Koenker 8.74 | Error: "Model cannot be tested for White: performWhiteTest() cannot test a MASS::rlm() fit: ..." |
-| `runHeteroTests(m, d, tests = "quantile_regression")` | 0.341: the rank permutation test under the name `quantile_regression`, the quantile test having refused the fit as a weighted one, which is not final | Error: "Model cannot be tested for Quantile Regression: performQuantileRegressionTest() cannot test a MASS::rlm() fit: ..." |
-| `fitWLS(m)` | a fit of class `rlm` refitted by weighted least squares, its variance function fitted to the residuals of the M-estimate, which `summary()` could not read | Error: "fitWLS() cannot refit a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares residuals, and fitWLS() fits its variance function to least-squares residuals. Pass the lm() fit of the same formula instead, fitWLS(lm(y ~ x1 + x2))." |
+| `performStudentizedBPTest(m, d)`, `performBPTestRobust(m, d)` | 9.04 (p = 0.011), the value of `lm(y ~ x1 + x2, data = d)` | Error: "`performStudentizedBPTest()` cannot test a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and the null distributions of the tests assume least squares. Test the `lm()` fit of the same formula instead, `lm(y ~ x1 + x2)`." (`performBPTestRobust()` names itself) |
+| `performKoenkerTest(m, d)` | 8.74 (p = 0.013), on the residuals of the M-estimate | Error: "`performKoenkerTest()` cannot test a `MASS::rlm()` fit: ..." |
+| `performWhiteTest(m, d)` | 11.01 (p = 0.051) | Error: "`performWhiteTest()` cannot test a `MASS::rlm()` fit: ..." |
+| `performBPTest(m, d)` | 12.42 (p = 0.0020) | Error: "`performBPTest()` cannot test a `MASS::rlm()` fit: ..." |
+| `runHeteroTests(m, d)` | White 11.01, Koenker 8.74 | Error: "Model cannot be tested for White: `performWhiteTest()` cannot test a `MASS::rlm()` fit: ..." |
+| `runHeteroTests(m, d, tests = "quantile_regression")` | 0.341: the rank permutation test under the name `quantile_regression`, the quantile test having refused the fit as a weighted one, which is not final | Error: "Model cannot be tested for Quantile Regression: `performQuantileRegressionTest()` cannot test a `MASS::rlm()` fit: ..." |
+| `fitWLS(m)` | a fit of class `rlm` refitted by weighted least squares, its variance function fitted to the residuals of the M-estimate, which `summary()` could not read | Error: "`fitWLS()` cannot refit a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and `fitWLS()` fits its variance function to least-squares residuals. Pass the `lm()` fit of the same formula instead, `fitWLS(lm(y ~ x1 + x2))`." |
 
 So do the other tests, with and without `data` and in every form of it, their
 robust, resampling and streaming forms, `bootstrapTestStatistic()` and its

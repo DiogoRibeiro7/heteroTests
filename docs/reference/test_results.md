@@ -88,9 +88,9 @@ a weighted `lm`, and [`performVarianceFormTest()`](performVarianceFormTest.md), 
 [`fitWLS()`](fitWLS.md), refuse it with the same message. With a zero prior weight it is refused as the `lm` with a
 zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A `survey::svyglm()` fit is
 refused by every test ("The model is a `survey::svyglm()` fit"). `tests/testthat/test-input-validation.R`
-gives every test these inputs. Since 0.17.0 a `MASS::rlm()` fit is refused by every test too ("cannot test a
-MASS::rlm() fit", with class `heteroTests_model_context_error`; see *Supported models*), which
-`tests/testthat/test-model-context.R` checks.
+gives every test these inputs. Since 0.17.0 a `MASS::rlm()` fit is refused by every test too, with class
+`heteroTests_model_context_error` (see *Supported models*), which `tests/testthat/test-model-context.R`
+checks.
 
 The tests that read `data` also refuse `data` whose rows cannot be confirmed to hold the observations of
 the fit ("cannot match the rows of `data` to the observations of the model"). They match the rows of `data`

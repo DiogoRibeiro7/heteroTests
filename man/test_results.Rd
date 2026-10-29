@@ -56,9 +56,9 @@ a weighted \code{lm}, and \code{\link{performVarianceFormTest}()}, which refuses
 \code{\link{fitWLS}()}, refuse it with the same message. With a zero prior weight it is refused as the \code{lm} with a
 zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A \code{survey::svyglm()} fit is
 refused by every test ("The model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R}
-gives every test these inputs. Since 0.17.0 a \code{MASS::rlm()} fit is refused by every test too ("cannot test a
-MASS::rlm() fit", with class \code{heteroTests_model_context_error}; see \emph{Supported models}), which
-\file{tests/testthat/test-model-context.R} checks.
+gives every test these inputs. Since 0.17.0 a \code{MASS::rlm()} fit is refused by every test too, with class
+\code{heteroTests_model_context_error} (see \emph{Supported models}), which \file{tests/testthat/test-model-context.R}
+checks.
 
 The tests that read \code{data} also refuse \code{data} whose rows cannot be confirmed to hold the observations of
 the fit ("cannot match the rows of \code{data} to the observations of the model"). They match the rows of \code{data}
