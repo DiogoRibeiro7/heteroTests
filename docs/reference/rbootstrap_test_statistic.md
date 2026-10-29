@@ -238,10 +238,13 @@ own, such as a tibble or a data.table, that has as many rows as the fit is
 taken in the order of the fit. The rows are then matched to the
 observations of the fit as the tests match them (see [test\_results](test_results.md)), and
 data whose rows cannot be shown to hold them are refused, as are values
-that differ from those the model was fitted to. A model that is not the
-least-squares fit of its design, such as a `MASS::rlm()` fit, is refused
-too ("`data` does not reproduce the fit"): its replicates would be those of
-another model.
+that differ from those the model was fitted to. A model whose least-squares
+refit of its design does not give its residuals, such as an `lm` fitted with
+a smaller `tol` that keeps a column `lm()` would alias, is refused too
+("`data` does not reproduce the fit"): its replicates would be those of
+another model. Since 0.17.0 a `MASS::rlm()` fit, an M-estimate, is refused
+first, as by every test (see *Supported models*); it was refused here
+before, with that message.
 
 Null-imposed resampling additionally requires the response to be a plain
 variable. For `log(y) ~ x` the fitted values are on the log scale while
@@ -288,8 +291,9 @@ Gaussian family and the identity link, weighted or not, bootstrapped as the
 as a pairs resample of an interaction can, fails. It refuses a `glm` of
 another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
 as each replicate is refitted by least squares, a fit with a zero weight,
-a fit that is not the least-squares fit of its design, such as a
-`MASS::rlm()` fit, a fit whose coefficients, residuals or weights were
+a `MASS::rlm()` fit, an M-estimate, with the message of every test since
+0.17.0 (it was refused before as a fit the least-squares refit does not
+reproduce), a fit whose coefficients, residuals or weights were
 changed after it was fitted (since 0.17.0), a `fitWLS()` fit of an
 `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the design of
 its coefficients (since 0.17.0), and `data` whose rows cannot be

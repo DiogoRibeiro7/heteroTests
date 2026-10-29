@@ -777,6 +777,76 @@ their attribute; and each value of
 `augment()` of a workflow checked row by row against the prediction of its
 engine on that row alone.
 
+### The model context, step 11: `MASS::rlm()`
+
+The first part of the last of the eleven steps of the model context: a
+`MASS::rlm()` fit, which every test took for an `lm`, is refused. The second
+part, which tests take a penalised `mgcv::gam()` fit with smooth terms, is
+open, and every test takes or refuses such a fit as before. No export or
+argument changes. The examples use the design of the *Supported models* page:
+
+```r
+set.seed(20261015)
+n <- 120
+d <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n),
+                group = factor(rep(letters[1:4], length.out = n)),
+                id = rep(1:12, each = 10), time = rep(1:10, 12))
+d$y <- 1 + d$x1 - d$x2 + rnorm(n, sd = d$x1)
+m <- MASS::rlm(y ~ x1 + x2, data = d)
+```
+
+**New refusal: a `MASS::rlm()` fit.** An `rlm` fit is an `lm` by class and an
+M-estimate: its coefficients minimise a robust loss of the residuals, by
+iteratively reweighted least squares with weights that depend on them, so its
+residuals are not least-squares residuals, and the null distributions of the
+tests assume least squares. 37 of the 39 tests that take a model tested it as
+an `lm`, its M-estimation residuals as if they were least-squares ones; the
+quantile regression and variance form tests refused it as a weighted fit, its
+case weights being all 1. The studentized Breusch-Pagan statistic refitted its
+design by least squares, and so tested another fit, the `lm()` of the same
+formula. Every function built on the model context refuses it now, before
+`data` is matched, with the class of the refusals of the model context,
+`heteroTests_model_context_error`, and a message that says what to test
+instead; the runners keep the refusal final:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performStudentizedBPTest(m, d)`, `performBPTestRobust(m, d)` | 9.04 (p = 0.011), the value of `lm(y ~ x1 + x2, data = d)` | Error: "performStudentizedBPTest() cannot test a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares residuals, and the null distributions of the tests assume least squares. Test the lm() fit of the same formula instead, lm(y ~ x1 + x2)." (`performBPTestRobust()` names itself) |
+| `performKoenkerTest(m, d)` | 8.74 (p = 0.013), on the residuals of the M-estimate | Error: "performKoenkerTest() cannot test a MASS::rlm() fit: ..." |
+| `performWhiteTest(m, d)` | 11.01 (p = 0.051) | Error: "performWhiteTest() cannot test a MASS::rlm() fit: ..." |
+| `performBPTest(m, d)` | 12.42 (p = 0.0020) | Error: "performBPTest() cannot test a MASS::rlm() fit: ..." |
+| `runHeteroTests(m, d)` | White 11.01, Koenker 8.74 | Error: "Model cannot be tested for White: performWhiteTest() cannot test a MASS::rlm() fit: ..." |
+| `runHeteroTests(m, d, tests = "quantile_regression")` | 0.341: the rank permutation test under the name `quantile_regression`, the quantile test having refused the fit as a weighted one, which is not final | Error: "Model cannot be tested for Quantile Regression: performQuantileRegressionTest() cannot test a MASS::rlm() fit: ..." |
+| `fitWLS(m)` | a fit of class `rlm` refitted by weighted least squares, its variance function fitted to the residuals of the M-estimate, which `summary()` could not read | Error: "fitWLS() cannot refit a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares residuals, and fitWLS() fits its variance function to least-squares residuals. Pass the lm() fit of the same formula instead, fitWLS(lm(y ~ x1 + x2))." |
+
+So do the other tests, with and without `data` and in every form of it, their
+robust, resampling and streaming forms, `bootstrapTestStatistic()` and its
+deprecated name, their registered names, `test_factory` entries and
+`cachedTest()`, `runHeteroTestsParallel()`, `runDiagnostics()`,
+`runTimeSeriesTests()`, `runPanelTests()`, `runAdvancedDiagnostics()`,
+`rvalidate_against_reference()` and `generateHeteroRecommendations()`, and
+`recommendRemediationStrategies()` and `generics::augment()` of a result given
+`data`, which they match through the model context ("cannot take").
+`bootstrapTestStatistic()` refuses it before it calls `test_function`; it
+computed the observed statistic and then refused the fit as one its
+least-squares refit does not reproduce ("`data` does not reproduce the fit"),
+and the quantile regression and variance form tests refused it as a weighted
+fit ("does not support weighted fits", "weights that did not come from
+fitWLS()"): each now gives the refusal above. `fitRobust()` returns such a fit
+for estimation, and its help page says that the tests refuse it.
+`autoCompareRemediations()`, given an `rlm` fit, compared `fitWLS()` of it,
+which is refused now: its row is `NA` (AIC 396.5 before). `augment()` of a
+result around such a fit, which the runners no longer return, binds the
+columns of the fit to its model frame without `data`, as before.
+
+Unchanged: every call on any other fit. A corpus of 43,630 calls
+(`scripts/model-context-identity.R`), the `rlm` fit in five forms of `data`
+through every recipe, route and runner among them, returns what it returned in
+the previous step, `identical()`, with the same warnings, and leaves the
+generator as it left it, but for 486 calls on the `rlm` fit, each now the
+refusal above with its class: 285 that returned a value, and 201 that refused
+the fit with another message.
+
 ### Packaging
 
 - On CRAN the tests no longer require bit-identical numbers under other BLAS
