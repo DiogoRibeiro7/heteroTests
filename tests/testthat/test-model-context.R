@@ -2933,56 +2933,98 @@ test_that("the results of a workflow keep what augment() needs, not the workflow
   xy <- parsnip::fit_xy(parsnip::linear_reg(), x = d[, c("x", "z")], y = d[, "y", drop = FALSE])
   kept_xy <- attr(runHeteroTests(xy, use_cache = FALSE, progress = FALSE)$white, "tidymodels")
   expect_identical(unclass(kept_xy), list(kind = "model_fit", y_var = "y"))
-  # A recipe written in a function kept the frame of the function in the
-  # expressions of its steps, every object of it: 49,347 KB for a frame that
-  # held a 50 MB data frame (the third review of increment 10). The
-  # expressions keep the global environment, and the variables they read of
-  # the frame written in as values; augment() maps the data as with the
-  # blueprint itself, and two runs give identical() results.
-  in_a_function <- function(data) {
-    big <- seq_len(2e6) + 0.5
-    k <- 3
-    rec <- recipes::step_log(
-      recipes::step_mutate(recipes::recipe(y ~ x + z, data = data), x3 = x * k), x
-    )
-    workflows::fit(
-      workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
-                           parsnip::linear_reg()),
-      data = data
-    )
-  }
-  fit <- in_a_function(d)
-  expect_gt(length(serialize(workflows::extract_mold(fit)$blueprint, NULL)), 8e6)
+  # The record holds the blueprint of the workflow as the workflow keeps it
+  # (decision 36, decided by the author on the fourth review of increment 10),
+  # and no fit: a recipe written at the top level keeps a few KB, augment()
+  # maps the data as with the workflow's own blueprint, and two runs give
+  # identical() results. The third review rewrote the expressions of the
+  # steps, which changed what some of them mean.
+  rec <- eval(bquote(recipes::step_log(.(recipes::recipe(y ~ x + z, data = d)), x)), globalenv())
+  fit <- workflows::fit(
+    workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
+                         parsnip::linear_reg()),
+    data = d
+  )
   suite <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
   kept <- attr(suite$white, "tidymodels")
+  expect_named(kept, c("kind", "blueprint", "fitted_rows", "case_weights"))
+  expect_identical(kept$blueprint, workflows::extract_mold(fit)$blueprint)
+  expect_false(context_holds_fit(kept))
   expect_lt(length(serialize(kept, NULL)), 16 * 1024)
-  mutate <- kept$blueprint$recipe$steps[[1L]]$inputs$x3
-  expect_identical(attr(mutate, ".Environment"), globalenv())
-  expect_identical(deparse(unclass(mutate)[[2L]]), "x * 3")
   expect_identical(suite, runHeteroTests(fit, use_cache = FALSE, progress = FALSE))
-  bound <- generics::augment(suite$white, data = d)
-  unpruned <- suite$white
+  own <- suite$white
   whole <- kept
   whole$blueprint <- workflows::extract_mold(fit)$blueprint
-  attr(unpruned, "tidymodels") <- whole
-  expect_identical(bound, generics::augment(unpruned, data = d))
+  attr(own, "tidymodels") <- whole
+  expect_identical(generics::augment(suite$white, data = d), generics::augment(own, data = d))
   expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), suite)
-  # An expression that reads a variable by a name its text does not show, as
-  # get("k") does, keeps the frame it was written in, and maps the data.
-  by_name <- function(data) {
-    k <- 3
-    rec <- recipes::step_mutate(recipes::recipe(y ~ x + z, data = data), x4 = x * get("k"))
+})
+
+test_that("augment() and the runners read the variables a step reads as the step reads them", {
+  # From the fourth review of increment 10. The third review wrote the
+  # variables a step read of the function it was written in into its
+  # expression as values, which changed what some of them mean or broke
+  # them: a variable a later step makes a column (C), a variable named as a
+  # column a step removed (D), a function called by its name as a string
+  # (I, J), and variables holding a symbol or a call, which were spliced in
+  # as code (R, R2). augment() refused or bound other values where 0.16.0
+  # bound each row its own, and the runners refused data where the second
+  # version gave White 14.6845, or 14.8861 for D. The blueprint is kept as
+  # the workflow keeps it (decision 36).
+  for (p in c("workflows", "parsnip", "recipes", "hardhat", "dplyr")) {
+    skip_if_not_installed(p)
+  }
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  set.seed(42)
+  n <- 120
+  d <- data.frame(x = stats::runif(n, 1, 5), z = stats::rnorm(n))
+  d$y <- 1 + 2 * d$x + stats::rnorm(n, sd = 0.3 + 0.6 * d$x)
+  wfit <- function(rec) {
     workflows::fit(
       workflows::add_model(workflows::add_recipe(workflows::workflow(), rec),
                            parsnip::linear_reg()),
-      data = data
+      data = d
     )
   }
-  fit <- by_name(d)
-  suite <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
-  kept <- attr(suite$white, "tidymodels")$blueprint$recipe$steps[[1L]]$inputs$x4
-  expect_false(identical(attr(kept, ".Environment"), globalenv()))
-  expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), suite)
+  base <- function() recipes::recipe(y ~ x + z, data = d)
+  cases <- list(
+    C = function() {
+      k <- 3
+      wfit(recipes::step_mutate(recipes::step_mutate(base(), x2 = x * k), k = 1))
+    },
+    D = function() {
+      z <- 2
+      wfit(recipes::step_mutate(recipes::step_rm(base(), z), x2 = x * z))
+    },
+    I = function() {
+      f <- function(v) v * 2
+      wfit(recipes::step_mutate(base(), x2 = do.call("f", list(x))))
+    },
+    J = function() {
+      f <- function(v) v * 2
+      wfit(recipes::step_mutate(base(), x2 = sapply(x, "f")))
+    },
+    R = function() {
+      nm <- as.name("z")
+      wfit(recipes::step_mutate(base(), s = nchar(deparse(nm)) + x))
+    },
+    R2 = function() {
+      cl <- quote(z + 1)
+      wfit(recipes::step_mutate(base(), s = length(cl) + x))
+    }
+  )
+  white <- c(C = 14.6845, D = 14.8861, I = 14.6845, J = 14.6845, R = 14.6845, R2 = 14.6845)
+  for (name in names(cases)) {
+    fit <- cases[[name]]()
+    reference <- runHeteroTests(fit, use_cache = FALSE, progress = FALSE)
+    expect_identical(runHeteroTests(fit, d, use_cache = FALSE, progress = FALSE), reference,
+                     info = name)
+    expect_equal(unname(reference$white$statistic), white[[name]], tolerance = 1e-5, info = name)
+    bound <- generics::augment(reference$white, data = d)
+    expect_identical(nrow(bound), as.integer(n), info = name)
+    expect_true(context_tidy_own(fit, d, bound, context_tidy_rows(n)), info = name)
+  }
 })
 
 test_that("the data of a fit_xy() fit with case weights are refused", {

@@ -1293,6 +1293,19 @@ context_tidy_own <- function(object, data, bound, at = seq_len(nrow(bound))) {
 # A few rows of `n`, for the tests: the first three, the middle and the last
 # two.
 context_tidy_rows <- function(n) unique(pmin(c(1L, 2L, 3L, n %/% 2L, n - 1L, n), n))
+# Does `x` hold a fitted model or a fitted workflow anywhere in its lists?
+# The record the runners keep for augment() (rtidymodels_map()) holds the
+# blueprint of the workflow and no fit (decision 36, the fourth review of
+# increment 10).
+context_holds_fit <- function(x, depth = 0L) {
+  if (inherits(x, c("workflow", "model_fit", "lm", "glm"))) {
+    return(TRUE)
+  }
+  if (depth > 12L || !is.list(x) || is.data.frame(x)) {
+    return(FALSE)
+  }
+  any(vapply(x, context_holds_fit, logical(1), depth = depth + 1L))
+}
 
 # The cells run on CRAN: no package beyond the hard dependencies, and a few of
 # each block.
