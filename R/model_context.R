@@ -64,15 +64,18 @@
 # generateHeteroRecommendations() and generics::augment() of the results of
 # the runner; the runners map the data of a tidymodels workflow to the
 # variables of its engine (R/ecosystem_integration.R) and refuse a grouped run
-# of a fitWLS() fit (rrefuse_grouped_fitwls(), R/runHeteroTests.R).
+# of a fitWLS() fit (rrefuse_grouped_fitwls(), R/runHeteroTests.R). Since
+# increment 11 the context refuses a MASS::rlm() fit (rrefuse_rlm(), decision 4
+# of the design), which every test built on it tested as an lm.
 
 #' Build the model context of a test
 #'
 #' Runs the refusals every test makes first: a model that is not an `lm` or a
 #' least-squares `glm`, a `survey::svyglm()` fit
-#' ([rrefuse_non_gaussian_glm()]), a multivariate `lm` ([rcontext_kind()]),
-#' and a model frame that `model = FALSE` rebuilt from data that changed after
-#' the fit ([rcheck_model_frame()], with or without `data`). It then takes the
+#' ([rrefuse_non_gaussian_glm()]), a multivariate `lm` and a `MASS::rlm()`
+#' fit ([rcontext_kind()]), and a model frame that `model = FALSE` rebuilt
+#' from data that changed after the fit ([rcheck_model_frame()], with or
+#' without `data`). It then takes the
 #' parts of the fit, and, when `data` is given, matches its rows to the
 #' observations ([rcontext_align()]). The messages are those the tests gave;
 #' on a call with more than one defect, the first one reported may differ.
@@ -109,7 +112,7 @@
 #' @return A list of class `ht_model_context`:
 #'   \describe{
 #'     \item{`model`}{the fit.}
-#'     \item{`kind`}{`"lm"`, `"glm_gaussian"`, `"gam"`, `"fitwls"` or `"rlm"`.}
+#'     \item{`kind`}{`"lm"`, `"glm_gaussian"`, `"gam"` or `"fitwls"`.}
 #'     \item{`frame`}{the model frame, `stats::model.frame(model)`.}
 #'     \item{`obs_id`}{the names of the observations, in the order of the fit.}
 #'     \item{`na_action`}{`model$na.action`.}
@@ -252,10 +255,11 @@ rstop_model_context <- function(message) {
 #' least-squares equations, and a test that fits that design again, its
 #' segments or its quantiles, tests an unpenalised regression the model is not.
 #' Whether the tests take such a fit is a question of the contract left to the
-#' last step of the migration, with `MASS::rlm()` (increment 11 of the design
-#' of the model context); until then the tests of increment 2 refuse every fit
-#' with smooth terms, fixed ones included, decided on 2026-10-18, and those of
-#' increment 1 test it as before 0.16.0.
+#' last step of the migration (increment 11 of the design of the model
+#' context, which refuses `MASS::rlm()`, [rrefuse_rlm()]); until then the
+#' tests of increment 2 refuse every fit with smooth terms, fixed ones
+#' included, decided on 2026-10-18, and those of increment 1 test it as before
+#' 0.16.0.
 #'
 #' @param ctx The model context.
 #' @param fn Character scalar naming the calling test.
@@ -349,16 +353,18 @@ rcontext_frame_from_data <- function(model, data) {
 #' `glm` that is not a least-squares fit, each with the message every test
 #' gives since 0.15.0. A multivariate `lm`, `lm(cbind(y1, y2) ~ x)`, which
 #' inherits from `lm`, is refused next: the tests take one response, and before
-#' 0.16.0 they stopped on it with a coercion error.
+#' 0.16.0 they stopped on it with a coercion error. Then a `MASS::rlm()` fit,
+#' an `lm` by class, which every test tested as an `lm` until increment 11 of
+#' the design of the model context ([rrefuse_rlm()], decision 4).
 #'
 #' A Gaussian `mgcv::gam()` fit, a `glm` by class, is accepted as before
 #' 0.16.0; whether a penalised fit with smooth terms is an input the tests
-#' justify is left to the last step of the migration, with `MASS::rlm()`.
+#' justify is left to the last step of the migration.
 #'
 #' @param model The fitted model.
 #' @param fn Character scalar naming the calling test.
 #' @return `"gam"` (an `mgcv::gam()` fit), `"glm_gaussian"`, `"fitwls"` (a
-#'   [fitWLS()] fit), `"rlm"` (a `MASS::rlm()` fit) or `"lm"`.
+#'   [fitWLS()] fit) or `"lm"`.
 #' @keywords internal
 #' @noRd
 rcontext_kind <- function(model, fn) {
@@ -369,6 +375,7 @@ rcontext_kind <- function(model, fn) {
       sprintf("%s() needs a model with one response; `model` has %d.", fn, responses)
     )
   }
+  rrefuse_rlm(model, fn)
   if (inherits(model, "gam")) {
     return("gam")
   }
@@ -378,10 +385,69 @@ rcontext_kind <- function(model, fn) {
   if (!is.null(attr(model, "variance_function"))) {
     return("fitwls")
   }
-  if (inherits(model, "rlm")) {
-    return("rlm")
-  }
   "lm"
+}
+
+#' Refuse a `MASS::rlm()` fit
+#'
+#' A `MASS::rlm()` fit is an `lm` by class, and is an M-estimate: its
+#' coefficients minimise a robust loss of the residuals, by iteratively
+#' reweighted least squares with weights that depend on the residuals, so its
+#' residuals are not least-squares residuals: they are orthogonal to the
+#' design only in the metric of those robustness weights. The null
+#' distributions of the tests are derived for least-squares residuals. Until
+#' increment 11 of the design of the model context every test built on the
+#' context tested such a fit as an `lm` (37 tests on the design of
+#' `contract_data()`, the other two refusing it as a weighted fit), and the
+#' studentized Breusch-Pagan statistic refitted its design by least squares,
+#' so that it tested another fit (9.04 where Koenker's test gave 8.74 on the
+#' residuals of the M-estimate). Decided on 2026-10-18 (decision 4): it is
+#' refused, with the class of the context, so that the refusal is final in the
+#' runners (decision 6). [fitRobust()] returns such a fit. [fitWLS()], which
+#' fits its variance function to the residuals of the fit, refuses it too.
+#'
+#' @param model The fitted model.
+#' @param fn Character scalar naming the calling function.
+#' @return `NULL`, invisibly; called for the error, of class
+#'   `heteroTests_model_context_error`.
+#' @keywords internal
+#' @noRd
+rrefuse_rlm <- function(model, fn) {
+  if (!inherits(model, "rlm")) {
+    return(invisible(NULL))
+  }
+  formula_text <- tryCatch(deparse1(stats::formula(model), collapse = " "),
+                           error = function(e) NULL)
+  lm_call <- if (length(formula_text) == 1L) sprintf("lm(%s)", formula_text) else "lm()"
+  # The tests test the fit; fitWLS() refits it; augment() and the advice,
+  # which match `data` through the context, read its residuals.
+  refits <- identical(fn, "fitWLS")
+  verb <- if (refits) {
+    "refit"
+  } else if (fn %in% c("augment", "recommendRemediationStrategies")) {
+    "take"
+  } else {
+    "test"
+  }
+  rstop_model_context(sprintf(
+    paste0(
+      "%s() cannot %s a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are ",
+      "not least-squares residuals, and %s. %s instead, %s."
+    ),
+    fn,
+    verb,
+    if (refits) {
+      "fitWLS() fits its variance function to least-squares residuals"
+    } else {
+      "the null distributions of the tests assume least squares"
+    },
+    if (refits) {
+      "Pass the lm() fit of the same formula"
+    } else {
+      "Test the lm() fit of the same formula"
+    },
+    if (refits) sprintf("fitWLS(%s)", lm_call) else lm_call
+  ))
 }
 
 #' Match the rows of `data` to the observations of the fit
@@ -664,8 +730,7 @@ rformula_constants <- function(formula, names) {
 #' Check that the fit reproduces itself
 #'
 #' The parts of the context must have one value per fitted observation, the
-#' rows of `data` must be distinct, and, but for a `MASS::rlm()` fit, whose
-#' residuals are those of an M-estimate, the fit must be the least-squares fit
+#' rows of `data` must be distinct, and the fit must be the least-squares fit
 #' it says it is: its response must be its design times its coefficients, plus
 #' its offset, plus its residuals, and its residuals must be orthogonal to the
 #' columns of its design in the metric of its weights. A fit whose residuals,
@@ -688,7 +753,8 @@ rformula_constants <- function(formula, names) {
 #' residuals unchanged, so only the first check sees it, at `1e-7` of the
 #' largest term: an edit of 0.5 goes undetected once the response is above
 #' about `1e7`. The checks guard against accidental edits; they are not a proof
-#' that a fit is unedited.
+#' that a fit is unedited. A `MASS::rlm()` fit, an M-estimate, was let through
+#' unchecked until the context refused it (increment 11, [rrefuse_rlm()]).
 #'
 #' The tests call it after [rvalidateModelInputs()], which refuses residuals
 #' and coefficients that are not finite with its own messages. Its refusals
@@ -714,7 +780,7 @@ rvalidate_model_context <- function(ctx, tol = 1e-7) {
       "Internal error: two observations of the fit were matched to one row of `data`."
     )
   }
-  if (identical(ctx$kind, "rlm") || n == 0L) {
+  if (n == 0L) {
     return(invisible(ctx))
   }
   coefs <- stats::coef(ctx$model)
@@ -893,8 +959,8 @@ rcontext_fitted <- function(ctx) {
 #'
 #' The fitted values of the fit, the linear predictor with the total offset,
 #' one value per observation, in the order of the fit and without the padding
-#' of `na.exclude`: for an `lm`, a `fitWLS()` fit, a `MASS::rlm()` fit and an
-#' `mgcv::gam()` fit, the design times the coefficients that were not aliased,
+#' of `na.exclude`: for an `lm`, a `fitWLS()` fit and an `mgcv::gam()` fit,
+#' the design times the coefficients that were not aliased,
 #' in the order of the pivot of the fit, plus the offset, as
 #' `stats::predict.lm()` computes it; for a Gaussian `glm`, its fitted values.
 #' They are what `fitted()` holds, and so what `predict(type = "response")`

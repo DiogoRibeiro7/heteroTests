@@ -106,10 +106,13 @@ NULL
 #' taken in the order of the fit. The rows are then matched to the
 #' observations of the fit as the tests match them (see [test_results]), and
 #' data whose rows cannot be shown to hold them are refused, as are values
-#' that differ from those the model was fitted to. A model that is not the
-#' least-squares fit of its design, such as a `MASS::rlm()` fit, is refused
-#' too ("`data` does not reproduce the fit"): its replicates would be those of
-#' another model.
+#' that differ from those the model was fitted to. A model whose least-squares
+#' refit of its design does not give its residuals, such as an `lm` fitted with
+#' a smaller `tol` that keeps a column `lm()` would alias, is refused too
+#' ("`data` does not reproduce the fit"): its replicates would be those of
+#' another model. Since 0.17.0 a `MASS::rlm()` fit, an M-estimate, is refused
+#' first, as by every test (see *Supported models*); it was refused here
+#' before, with that message.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -211,8 +214,9 @@ NULL
 #' as a pairs resample of an interaction can, fails. It refuses a `glm` of
 #' another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
 #' as each replicate is refitted by least squares, a fit with a zero weight,
-#' a fit that is not the least-squares fit of its design, such as a
-#' `MASS::rlm()` fit, a fit whose coefficients, residuals or weights were
+#' a `MASS::rlm()` fit, an M-estimate, with the message of every test since
+#' 0.17.0 (it was refused before as a fit the least-squares refit does not
+#' reproduce), a fit whose coefficients, residuals or weights were
 #' changed after it was fitted (since 0.17.0), a `fitWLS()` fit of an
 #' `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the design of
 #' its coefficients (since 0.17.0), and `data` whose rows cannot be
@@ -295,6 +299,13 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     rstop_model_context(sprintf("%s() needs a model with one response; `model` has %d.", fn,
                                 NCOL(model$residuals)))
   }
+  # A MASS::rlm() fit is refused by the model context too (rrefuse_rlm(),
+  # increment 11): here first, before `test_function` is called on it, so that
+  # the refusal names this function whatever `test_function` is. Before, the
+  # observed statistic was computed and the fit was refused afterwards, its
+  # least-squares refit not reproducing the M-estimate ("`data` does not
+  # reproduce the fit").
+  rrefuse_rlm(model, fn)
   rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
@@ -526,9 +537,12 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # refused, since its replicates would have come from another design.
   ctx <- rmodel_context(model, data, fn = fn, test_label = "Resampling")
   rvalidate_model_context(ctx)
-  # The replicates are least-squares refits of the stored design: a fit that
-  # is not the least-squares fit of its design, as MASS::rlm() is not, would
-  # have replicates of another model, and is refused, as before.
+  # The replicates are least-squares refits of the stored design: a fit whose
+  # least-squares refit of that design does not give its residuals, as an lm
+  # fitted with a smaller `tol` that keeps a column lm() would alias, would
+  # have replicates of another model, and is refused, as before. A
+  # MASS::rlm() fit, which this refused too, is refused first since increment
+  # 11 (rrefuse_rlm()).
   if (!identical(ctx$rows[row_index], seq_len(n)) || !rleast_squares_reproduces(ctx)) {
     stop(
       "`data` does not reproduce the fit: refitted to the rows of `data`, the ",
@@ -776,9 +790,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' That is a replicate of the model supplied only when the model is itself the
 #' least-squares fit of that design: an `lm`, a Gaussian `glm` with the
 #' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit without smooth terms.
-#' A `MASS::rlm()` fit is an M-estimate, whose residuals the refit does not
-#' give. The refit decides its rank at the tolerance of `lm()`, `1e-7`, as the
-#' refits of the formula did before increment 8, so a fit whose rank was
+#' A `MASS::rlm()` fit, an M-estimate, whose residuals the refit does not
+#' give, was refused here until increment 11, which refuses it before
+#' ([rrefuse_rlm()]). The refit decides its rank at the tolerance of `lm()`,
+#' `1e-7`, as the refits of the formula did before increment 8, so a fit whose rank was
 #' decided at a smaller tolerance and differs, an `lm` fitted with a smaller
 #' `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
 #' refused, as such an `lm` was before. Refitting the replicates at the
