@@ -368,12 +368,15 @@
 #' three tests on 5,000 rows took 2,794 KB serialized, where they took 1,522 KB
 #' without it.
 #'
-#' The expressions of the steps of a recipe keep the environment they were
-#' written in, and a recipe written inside a function keeps its frame, every
-#' object of it: 49,347 KB serialized for a frame that held a 50 MB data frame
-#' (the third review of increment 10). The expressions of the blueprint are
-#' given the shared environment after such frames, and the variables they
-#' read from the frames written in as values (`.ht_prune_environments()`).
+#' The blueprint is kept as the workflow keeps it (decision 36 of the design
+#' of the model context, decided by the author on the fourth review of
+#' increment 10): the expressions of the steps of a recipe keep the
+#' environment they were written in, so that a recipe written inside a
+#' function keeps its frame, every object of it, as the workflow does
+#' (49,347 KB serialized for a frame that held a 50 MB data frame). The third
+#' review of increment 10 pruned those environments and wrote the variables
+#' the expressions read into them as values, which changed what some of them
+#' mean and broke others.
 #'
 #' @param object A workflow or a parsnip fit.
 #' @return A list of class `heteroTests_tidymodels`, or `NULL` for another
@@ -388,7 +391,7 @@ rtidymodels_map <- function(object) {
     )
     return(structure(
       list(
-        kind = "workflow", blueprint = .ht_prune_environments(mold$blueprint),
+        kind = "workflow", blueprint = mold$blueprint,
         fitted_rows = if (!is.null(mold)) NROW(mold$predictors),
         case_weights = case_weights
       ),
@@ -401,214 +404,6 @@ rtidymodels_map <- function(object) {
     ))
   }
   NULL
-}
-
-# An environment shared by every object that uses it, which serializing an
-# object refers to without its contents: the global environment, the base and
-# empty environments, a namespace and an attached package.
-.ht_shared_env <- function(env) {
-  identical(env, globalenv()) || identical(env, baseenv()) || identical(env, emptyenv()) ||
-    isNamespace(env) || !is.null(attr(env, "name", exact = TRUE))
-}
-
-# The frames of `env` and its parents before the first shared environment
-# (.ht_shared_env()), and that environment.
-.ht_frames <- function(env) {
-  frames <- list()
-  while (!.ht_shared_env(env)) {
-    frames[[length(frames) + 1L]] <- env
-    env <- parent.env(env)
-  }
-  list(frames = frames, shared = env)
-}
-
-# The value `name` is bound to in the first of `frames` that binds it, as a
-# one-element list, or NULL when none does; a function only, skipping the
-# other bindings, for the name of a function called (`fun`), as R finds it.
-.ht_frame_value <- function(name, frames, fun = FALSE) {
-  for (frame in frames) {
-    if (exists(name, envir = frame, inherits = FALSE)) {
-      value <- tryCatch(list(get(name, envir = frame, inherits = FALSE)),
-        error = function(e) NULL
-      )
-      if (!is.null(value) && (!fun || is.function(value[[1L]]))) {
-        return(value)
-      }
-    }
-  }
-  NULL
-}
-
-# `expr` with each variable it reads from `frames` written in as its value,
-# so that it reads the same values once evaluated in the shared environment
-# after them: a name of a column of the data (`columns`), which the data mask
-# of a step finds first, the names an anonymous function binds (`bound`), the
-# right side of `$`, `@`, `::` and `:::`, and a name no frame binds are left
-# as they are; `.env$name` is the value of `name`; a function a frame binds is
-# written in pruned in turn (.ht_prune_environments()).
-.ht_inline <- function(expr, frames, columns, bound, depth) {
-  if (is.symbol(expr)) {
-    name <- as.character(expr)
-    if (!nzchar(name) || name %in% columns || name %in% bound) {
-      return(expr)
-    }
-    value <- .ht_frame_value(name, frames)
-    if (is.null(value)) {
-      return(expr)
-    }
-    return(.ht_prune_environments(value[[1L]], columns, depth + 1L))
-  }
-  if (!is.call(expr)) {
-    return(expr)
-  }
-  head <- expr[[1L]]
-  if (is.symbol(head)) {
-    head_name <- as.character(head)
-    if (head_name %in% c("::", ":::")) {
-      return(expr)
-    }
-    if (head_name %in% c("$", "@") && length(expr) == 3L) {
-      named <- is.symbol(expr[[3L]]) || is.character(expr[[3L]])
-      if (identical(expr[[2L]], as.symbol(".env")) && named) {
-        value <- .ht_frame_value(as.character(expr[[3L]]), frames)
-        if (!is.null(value)) {
-          return(.ht_prune_environments(value[[1L]], columns, depth + 1L))
-        }
-        return(expr)
-      }
-      expr[2L] <- list(.ht_inline(expr[[2L]], frames, columns, bound, depth))
-      return(expr)
-    }
-    if (identical(head_name, "function")) {
-      inner <- c(bound, names(expr[[2L]]))
-      if (length(expr) >= 3L) {
-        expr[3L] <- list(.ht_inline(expr[[3L]], frames, columns, inner, depth))
-      }
-      return(expr)
-    }
-    if (!head_name %in% bound) {
-      value <- .ht_frame_value(head_name, frames, fun = TRUE)
-      if (!is.null(value)) {
-        expr[[1L]] <- .ht_prune_environments(value[[1L]], columns, depth + 1L)
-      }
-    }
-  } else {
-    expr[1L] <- list(.ht_inline(head, frames, columns, bound, depth))
-  }
-  .ht_inline_arguments(expr, frames, columns, bound, depth)
-}
-
-# The arguments of the call `expr` inlined (.ht_inline()), an empty argument
-# (`x[, 1]`) left as it is, and a value NULL written in, not dropped.
-.ht_inline_arguments <- function(expr, frames, columns, bound, depth) {
-  for (i in seq_along(expr)[-1L]) {
-    if (identical(expr[[i]], quote(expr = )) || is.null(expr[[i]])) {
-      next
-    }
-    expr[i] <- list(.ht_inline(expr[[i]], frames, columns, bound, depth))
-  }
-  expr
-}
-
-# Does `expr` read variables of its environment in a way their names do not
-# show, through `get()`, `eval()` and the like? Such an expression keeps the
-# environment it was written in (.ht_prune_environments()).
-.ht_reads_by_name <- function(expr) {
-  dynamic <- c(
-    "get", "get0", "mget", "exists", "eval", "evalq", "parse", "str2lang", "str2expression",
-    "environment", "parent.frame", "sys.frame", "sys.function", "sys.call", "as.environment",
-    "local", "assign", "<<-", "ls", "with", "within", "env_get", "caller_env",
-    "current_env", "eval_tidy", "inject"
-  )
-  names <- unlist(lapply(as.list(expr), function(part) {
-    if (is.language(part)) all.names(part) else character()
-  }), use.names = FALSE)
-  any(names %in% dynamic)
-}
-
-#' The environments of a blueprint, pruned to what its expressions read
-#'
-#' A recipe written inside a function keeps the frame of that function in the
-#' expressions of its steps, every object of the frame (the third review of
-#' increment 10: 49,347 KB serialized, for a frame that held a 50 MB data
-#' frame). Each quosure, formula and function of `x`, a blueprint or a part of
-#' it, whose environment is such a frame, is given the shared environment
-#' after the frames, the global environment or a namespace, and each variable
-#' it reads from the frames is written into its expression as its value
-#' (`.ht_inline()`): `step_mutate(x3 = x * k)`, with `k <- 3` in the frame,
-#' becomes `x * 3`, `x` being a column of the data, which the step reads
-#' first. The result is the same object on every call, so that two results of
-#' the runners on the same workflow are `identical()`, which a new
-#' environment on each call would not be. A function written in the frame,
-#' called by such an expression, is written in pruned in turn; past `depth`
-#' 4, as for a function that calls itself, it keeps its environment, and so
-#' does an expression that reads variables by a name its text does not show,
-#' through `get()`, `eval()` and the like (`.ht_reads_by_name()`), whose
-#' frame is kept whole, as large as it is.
-#'
-#' @param x A blueprint, or a part of it.
-#' @param columns The names of the columns of the data of the recipe, which
-#'   its steps read from the data.
-#' @param depth The depth of the functions written in.
-#' @return `x`, its environments pruned.
-#' @keywords internal
-#' @noRd
-.ht_prune_environments <- function(x, columns = NULL, depth = 0L) {
-  if (is.null(x) || is.environment(x) || is.data.frame(x) || isS4(x)) {
-    return(x)
-  }
-  if (is.null(columns) && inherits(x, "recipe_blueprint")) {
-    recipe <- x$recipe
-    columns <- unique(c(
-      recipe$var_info$variable, recipe$term_info$variable,
-      recipe$last_term_info$variable
-    ))
-  }
-  if (is.function(x)) {
-    env <- environment(x)
-    if (is.primitive(x) || is.null(env) || .ht_shared_env(env)) {
-      return(x)
-    }
-    if (depth > 4L || .ht_reads_by_name(c(body(x), formals(x)))) {
-      return(x)
-    }
-    found <- .ht_frames(env)
-    arguments <- names(formals(x))
-    defaults <- formals(x)
-    for (i in seq_along(defaults)) {
-      if (!identical(defaults[[i]], quote(expr = )) && !is.null(defaults[[i]])) {
-        defaults[i] <- list(.ht_inline(defaults[[i]], found$frames, columns, arguments, depth))
-      }
-    }
-    new <- x
-    formals(new) <- defaults
-    body(new) <- .ht_inline(body(x), found$frames, columns, arguments, depth)
-    environment(new) <- found$shared
-    return(new)
-  }
-  if (inherits(x, "formula")) {
-    env <- attr(x, ".Environment")
-    if (is.environment(env) && !.ht_shared_env(env) && !.ht_reads_by_name(x)) {
-      found <- .ht_frames(env)
-      at <- attributes(x)
-      plain <- x
-      attributes(plain) <- NULL
-      plain <- .ht_inline_arguments(plain, found$frames, columns, character(), depth)
-      attributes(plain) <- at
-      attr(plain, ".Environment") <- found$shared
-      return(plain)
-    }
-    return(x)
-  }
-  if (is.list(x)) {
-    for (i in seq_along(x)) {
-      part <- x[[i]]
-      if (!is.null(part)) {
-        x[[i]] <- .ht_prune_environments(part, columns, depth)
-      }
-    }
-  }
-  x
 }
 
 # The steps of the recipe of a workflow that it skips on new data

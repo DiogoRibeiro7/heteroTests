@@ -59,8 +59,9 @@ runHeteroTests(
   parsnip fit of \code{fit_xy()} with case weights, whose column the fit does not record, are refused. Each result keeps
   what \code{generics::augment()} needs to map the data in the same way, the blueprint of the preprocessing, the
   number of rows it kept and the column of the case weights, or the outcome of a parsnip fit, as
-  \code{attr(, "tidymodels")}, about 1 KB, the expressions of a recipe keeping no frame of the function they were
-  written in; the results are otherwise those of the fit of the engine.}
+  \code{attr(, "tidymodels")}, the blueprint as the workflow keeps it: a recipe step keeps the environment it was
+  written in, so that a saved result carries what that environment holds, as saving the workflow does. The results
+  are otherwise those of the fit of the engine.}
   \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used, which
   serves only the tests that find what they need there (see their \code{data} argument). With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that

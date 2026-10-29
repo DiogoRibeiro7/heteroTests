@@ -50,8 +50,9 @@
 #'   data of a [parsnip::fit_xy()] fit with case weights, whose column the
 #'   fit does not record, are refused. Each result keeps what
 #'   [generics::augment()] needs to map the data in the same way, as
-#'   `attr(, "tidymodels")`, the expressions of a recipe keeping no frame of
-#'   the function they were written in.
+#'   `attr(, "tidymodels")`, the blueprint as the workflow keeps it: a recipe
+#'   step keeps the environment it was written in, so that a saved result
+#'   carries what that environment holds, as saving the workflow does.
 #' @param tests Character vector of test names to run: any of the names
 #'   [listDiagnostics()] returns, which include those added with
 #'   `registerDiagnostic()`. On a fit returned by [fitWLS()] the resampling
