@@ -1491,7 +1491,17 @@ squared residuals that do not vary.
     as the weights of a fit are for the tests; the report profiles the data as
     given, and keeps the groups of grouped data; and the refusals of a model
     the context refuses by kind, and of data that lack the variables of the
-    model, are announced in bold.
+    model, are announced in bold. From its second review: `augment()` traces
+    the rows a workflow's preprocessing maps to the rows of `data`, and
+    refuses the data of a preprocessing that reorders them (`step_arrange()`,
+    whose rows it bound the values of other rows); a step skipped on new data
+    that changed the outcome (`step_log(y, skip = TRUE)`) is named in the
+    refusal; the case weights are compared on the rows a recipe keeps of new
+    data; the results keep what `augment()` needs of the workflow, not the
+    workflow (2 KB a result, where the workflow added 1,272 KB to three
+    results on 5,000 rows); and the identity harness compares the attributes
+    of the results of the runners and checks each value of `augment()` on the
+    tidy block row by row.
   - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
@@ -1608,7 +1618,12 @@ squared residuals that do not vary.
     `skip = FALSE`), refuses its data, since the preprocessing does not say
     which rows of `data` it kept; the runners take those data, whose rows the
     alignment confirms. Find the rows the preprocessing kept, or keep the
-    refusal. A refusal becomes a value, or none.
+    refusal. A refusal becomes a value, or none. Measured on the second
+    review of step 10: forging each row on its own, which says which rows a
+    step that maps each row on its own kept, costs 2.75 ms a row (0.33 s for
+    120 rows, about 14 s for 5,000, where forging the whole data takes 3 ms),
+    and a step that makes a row from other rows gives other values row by
+    row; not adopted, the refusal kept.
   - `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
     as an `lm` and test its M-estimation residuals as least-squares ones; the
     studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and

@@ -34,8 +34,12 @@ runHeteroTests(
     once their rows are matched to the observations of the fit, every column of its model frame compared, its model
     frame is tested, as without `data`. Before 0.17.0 they were refused. Data in another order than the workflow
     was fitted in are refused, and so are data that cannot be mapped, such as data without a column the
-    preprocessing needs, and grouped data. The results keep the workflow, so that `generics::augment()` maps
-    its data in the same way.
+    preprocessing needs, grouped data, and the data of a workflow whose recipe skips on new data a step that changed
+    the outcome or a predictor at the fit, such as `step_log(y, skip = TRUE)`, which the message names. The case
+    weights of a workflow are compared with those of the fit, on the rows its preprocessing keeps. Each result keeps
+    what `generics::augment()` needs to map the data in the same way, the blueprint of the preprocessing, the
+    number of rows it kept and the column of the case weights, or the outcome of a parsnip fit, as
+    `attr(, "tidymodels")`, about 2 KB; the results are otherwise those of the fit of the engine.
 
 `data`
 :   optional data frame used to fit `model`. If omitted, `model.frame(model)` is used, which

@@ -433,8 +433,9 @@ the number of fitted values, recycled the fitted values, the residuals and the
 standardised residuals over those rows, binding them to rows of other
 observations: `generics::augment(runHeteroTests(lm(y ~ x1 + x2, d), d,
 use_cache = FALSE, progress = FALSE), data = rbind(d, d))` returned 480 rows,
-each fitted value twice, and is refused with the message above ("... 120 of
-them, and `data` has 240 rows."). Given the data of the fit, or its model frame
+each fitted value twice, and was refused in this step with the message above
+("... 120 of them, and `data` has 240 rows."); step 10 binds the 120 rows of
+the first copy (below). Given the data of the fit, or its model frame
 without `data`, it returns what it returned. And
 `recommendRemediationStrategies(results, model, data)` reads one row of `data`
 for each observation of the fit: given the full data of a fit that dropped
@@ -518,8 +519,9 @@ data to the variables of the engine by the workflow's own preprocessing
 (`hardhat::forge()`), the outcome as the preprocessing makes it among them, or
 the outcome of `fit_xy()` to `..y`, match their rows to the observations of the
 fit, every column of its model frame compared, and test the model frame of the
-engine's fit, which gives the value without `data`. The results keep the
-workflow, so that `generics::augment()` maps its data in the same way. With
+engine's fit, which gives the value without `data`. The results keep what
+`generics::augment()` needs of the workflow, so that it maps its data in the
+same way (`attr(, "tidymodels")`, below). With
 `wf <- workflows::fit(workflows::add_model(workflows::add_formula(workflows::workflow(), y ~ x + z), parsnip::linear_reg()), data = sim0)`:
 
 | Call | Before | Now |
@@ -551,13 +553,69 @@ the refusals of `data`, and so is a subset of them ("Missing rows: 101, 102,
   and confirmed: a recipe with `step_naomit()` of the predictors, fitted to `sim` and given it, gives White 14.20 and Koenker 13.93, as without `data`, where it was refused. Otherwise the data are refused with a message
   that names such a step: with `step_filter(x > 1.5)`, which keeps 106 rows of `sim0`, "... its preprocessing kept 106 rows of the data it was fitted to, numbered afresh, where it maps the 120 rows of `data` without dropping any: a step it skips on new data, such as `step_naomit()` or `step_filter()` with `skip = TRUE`, dropped rows at the fit only, ...". A step applied to new data
   (`skip = FALSE`) maps the rows it keeps.
-- A lazy `dtplyr` table is collected first: `dtplyr::lazy_dt(sim0)` gives White 14.68 and Koenker 14.47, where the first
-  version read the names of the lazy object ("`data` lacks ..y, x, z").
-  Grouped data given with a workflow are refused, as before, with a message
+- **A lazy `dtplyr` table is mapped too.** It is collected first:
+  `runHeteroTests(wf, dtplyr::lazy_dt(sim0))` gives White 14.68 and Koenker
+  14.47, as without `data`, where it was refused, the names of the lazy
+  object read for those of the data ("`data` lacks ..y, x, z"), as in the
+  first version of the step.
+- Grouped data given with a workflow are refused, as before, with a message
   that says that only an ungrouped data frame is mapped. Data that cannot be
   mapped are refused with a message that says why: data that lack a column the
   preprocessing needs, the package hardhat not installed, and the outcome of
   `fit_xy()` given as a vector, which the fit does not record.
+
+From the second review of the step, with `d0 <- sim0[c("x", "z", "y")]`:
+
+- **New refusal: `augment()` of a workflow whose recipe reorders the rows.**
+  `step_arrange()`, which a recipe applies to new data, sorts the rows it
+  maps, and `augment()` bound each row of `data` the fitted value and the
+  residual of the row the sort put in its place. The rows a workflow's
+  preprocessing maps are traced to the rows of `data` they were made from,
+  and the data of a preprocessing that reorders them, or makes a row from
+  other rows, are refused by `augment()`. The runners, which test the model
+  frame of the engine once its rows are confirmed, give the value without
+  `data`. With `wa`, a workflow of `recipes::step_arrange(recipes::recipe(y ~ x + z, data = d0), x)` fitted to `d0`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `generics::augment(runHeteroTests(wa)$white, data = d0)` | 120 rows, each with the fitted value of another: rows `1` and `2` with 3.244 and 3.223, where theirs are 10.589 and 10.611, and 8.079 off at most (7.496 with `dplyr::desc(z)`); so in the first version of the step | Error: "augment() cannot tell which rows of `data` hold the observations of the fit: the workflow's preprocessing reorders the rows of `data` it maps, or makes a row from other rows, as `step_arrange()` does, so the row of `data` each observation comes from cannot be told. Pass `data = NULL`, which binds the model frame of the fit." |
+| `runHeteroTests(wa, d0)` | Error: "... `data` lacks ..y. ..." | White 14.68, Koenker 14.47, as without `data` |
+
+- **A step a recipe skips on new data is named.** `step_log(y, skip = TRUE)`,
+  the idiom recipes recommends for the outcome, transforms the outcome at the
+  fit only, so the data the workflow was fitted to, mapped by its
+  preprocessing, hold it untransformed. They were refused ("`data` lacks
+  ..y"), and in the first version of the step with the advice to pass the
+  data the workflow was fitted to, in its order, which they were ("... ..y
+  differs from the model frame"); the refusal now says what stands between
+  them: "runHeteroTests() cannot map `data` to the variables of the fit of the
+  workflow's engine: the workflow's preprocessing has a step it skips on new
+  data, `step_log()` with `skip = TRUE`, which changed the outcome, a predictor
+  or the order of the rows of the data it was fitted to, so `data`, mapped by
+  that preprocessing (`hardhat::forge()`), do not hold the values the engine
+  was fitted to. Pass `data = NULL`, which tests the model frame of that fit."
+  Without `data` such a workflow gives White 3.495 and Koenker 2.825.
+- **Case weights are compared on the rows a recipe keeps.** The first version
+  of the step mapped the case weights only when the preprocessing kept every
+  row of `data`, and took other weights when a recipe dropped rows of new
+  data: with `cw <- hardhat::importance_weights(1 / x)` and
+  `step_filter(x > 1.5, skip = FALSE)`, which keeps 106 rows, the data with
+  the weights reversed gave White 4.102 and Koenker 2.986, the values of the
+  fit with its own weights. A recipe gives the weights of the rows it keeps, in the
+  order it keeps them, and those data are refused ("(weights) differs from
+  the model frame"); weights that cannot be told for each row are refused.
+- **The results of the runners on a workflow or a parsnip fit carry
+  `attr(, "tidymodels")`.** Each result keeps what `generics::augment()` needs
+  to map the data of the workflow as the runners map them: the blueprint of
+  its preprocessing, the number of rows it kept and the column of its case
+  weights, or the outcome of a parsnip fit of `fit_xy()`. `runHeteroTests(wf)`
+  and `runDiagnostics(wf)`, with or without `data`, return what they returned
+  with this attribute on each result, and are no longer `identical()` to the
+  results of 0.16.0. Serialized, the results of `runHeteroTests(wf)` with three
+  tests on 5,000 rows take 1,523 KB, where they took 1,522 KB; the first
+  version of the step kept the whole workflow, and took 2,794 KB. A recipe
+  written inside a function keeps the environment its steps were written in,
+  as the workflow does.
 
 **The recommendations and `augment()` match the rows of `data` as the tests
 do.** `recommendRemediationStrategies()` correlates the residuals with the
@@ -601,8 +659,16 @@ of `NA` at each row it dropped, as in step 9. The first version of the step
 refused, on `augment()` of the results of a workflow, the data it was fitted
 to ("missing from input data: ..y"), where 0.16.0 bound them by position. A
 preprocessing that drops rows of new data, such as `step_filter()` with
-`skip = FALSE`, does not say which rows of `data` it kept, and `augment()`
-refuses its data.
+`skip = FALSE`, does not say which rows of `data` it kept, nor one that
+reorders them, such as `step_arrange()`, which row of `data` each observation
+comes from, and `augment()` refuses their data (above).
+
+**`augment()` given the data of the fit twice binds the rows of the first
+copy.** `generics::augment(runHeteroTests(m0, sim0)$white, data = rbind(sim0,
+sim0))` binds the 120 rows of the first copy, `1` to `120`, each with its own
+fitted value, as the tests take the rows of the fit and leave out the rows
+after them; 0.16.0 bound the 240 rows, each fitted value twice, and step 9
+refused them ("... 120 of them, and `data` has 240 rows.").
 
 **The report profiles `data` as given.** `generateHeteroRecommendations()`
 reads the rows of the fit for the checks, the tests and the advice, which read
@@ -642,13 +708,19 @@ message that says what to pass.
 `rcheck_data_rows()` and `rcheck_rows_after_cleaning()`, internal functions
 no test has called since step 8, are gone; no value changes.
 
-Unchanged, but for the changes above: every test and every other call of the
-runners. A corpus of 43,136 calls (`scripts/model-context-identity.R`), the
-three functions above on every fit and form of `data` of the corpus among
-them, returns what it returned in the previous step, `identical()`, and
-leaves the generator as it left it, but for 738 calls of these
-changes, each change to a value that of the same call on the rows of the fit,
-or without `data`.
+Unchanged, but for the changes above: every test, and every other call of the
+runners; their results on a workflow or a parsnip fit carry the attribute
+`tidymodels` (above), and are otherwise what they were. A corpus of 43,196
+calls (`scripts/model-context-identity.R`), the three functions above on every
+fit and form of `data` of the corpus among them, and the attributes of the
+results of the runners compared by name, returns what it returned in the
+previous step, `identical()`, and leaves the generator as it left it, but for
+830 calls of these changes, each change to a value that of the same
+call on the rows of the fit, or without `data`, and for the results of the
+runners on a workflow without `data` the value of the previous step but for
+their attribute; and each value of
+`augment()` of a workflow checked row by row against the prediction of its
+engine on that row alone.
 
 ## 0.16.0
 

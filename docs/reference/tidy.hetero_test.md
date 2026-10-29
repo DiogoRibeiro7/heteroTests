@@ -48,7 +48,12 @@ tidy(x, ...)
     whose rows cannot be shown to hold the observations are refused (see
     [`test_results`](test_results.md)). The data of a tidymodels workflow, or of a
     parsnip fit of `fit_xy()`, are mapped to the variables of its engine as
-    [`runHeteroTests()`](runHeteroTests.md) maps them. Before 0.17.0 the rows were bound
+    [`runHeteroTests()`](runHeteroTests.md) maps them, and each mapped row is traced to
+    the row of `data` it was made from: the data of a preprocessing that
+    drops rows of new data, such as `step_filter()` with
+    `skip = FALSE`, or reorders them, such as `step_arrange()`, are
+    refused, since it does not say which row of `data` each observation
+    comes from. Before 0.17.0 the rows were bound
     row by row: named data in another order than the fit had the values of
     other observations bound to them, and the full data of a fit with
     `na.omit` could not be bound.
