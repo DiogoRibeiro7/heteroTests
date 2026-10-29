@@ -50,14 +50,21 @@
 # performWhiteTestBootstrap() and performWildBootstrapTest(),
 # bootstrapTestStatistic() and the robust tests performWhiteTestRobust() and
 # performBPTestRobust(), which refit their replicates on the stored design
-# (rreplicate_lm(), R/bootstrap_methods.R). No test prepares the model and
-# data with rdata_or_model_frame() and prepare_model_data_for_test() any
-# more; increment 10 removes them. Since increment 9 a fit with
+# (rreplicate_lm(), R/bootstrap_methods.R). Since increment 9 a fit with
 # na.action = na.exclude is read as the same fit with na.omit, which drops
 # the same rows: the checks of the model and every test read its residuals,
 # fitted values, weights and leverages without the padding (rmodel_unpad(),
 # rcontext_unpad()), and an output with one value per row is padded as
-# naresid() pads it.
+# naresid() pads it. Increment 10 removed the preparation of the model and
+# data that the tests made before the context (prepare_model_data_for_test(),
+# rdata_or_model_frame(), rcheck_data_rows() and
+# rcheck_rows_after_cleaning()), and the functions outside the tests that read
+# `data` row by row match it through the alignment of the context
+# (rcontext_data_rows()): recommendRemediationStrategies(),
+# generateHeteroRecommendations() and generics::augment() of the results of
+# the runner; the runners map the data of a tidymodels workflow to the
+# variables of its engine (R/ecosystem_integration.R) and refuse a grouped run
+# of a fitWLS() fit (rrefuse_grouped_fitwls(), R/runHeteroTests.R).
 
 #' Build the model context of a test
 #'
@@ -94,6 +101,11 @@
 #'   [performRankPermutationTest()]. Those that are not columns of the model
 #'   frame make the alignment stricter for data taken in the order of the fit
 #'   ([rcontext_align()]).
+#' @param beyond `NULL`, or a logical that says whether the caller reads
+#'   columns of its own data beyond the model frame, when `data` is not the
+#'   data it reads: the data of a workflow mapped to the variables of its
+#'   engine, whose other columns `augment()` binds (increment 10). `NULL`
+#'   decides it from `need` and `reads`.
 #' @return A list of class `ht_model_context`:
 #'   \describe{
 #'     \item{`model`}{the fit.}
@@ -128,7 +140,7 @@
 #' @keywords internal
 #' @noRd
 rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = character(),
-                           reads = character()) {
+                           reads = character(), beyond = NULL) {
   # The function the user called, named by the refusals of `data`. It is
   # looked for only when one is made, so a call that is not refused does not
   # search the stack (rtest_name()).
@@ -209,9 +221,11 @@ rmodel_context <- function(model, data = NULL, fn, test_label = fn, need = chara
   if (!is.null(data)) {
     # Does the test read columns of `data` beyond the model frame, which the
     # comparison of the alignment cannot check?
-    beyond <- length(need) > 0L ||
-      (is.data.frame(data) && any(reads %in% setdiff(names(data), names(frame))))
-    aligned <- rcontext_align(ctx, data, caller, test_label, beyond)
+    if (is.null(beyond)) {
+      beyond <- length(need) > 0L ||
+        (is.data.frame(data) && any(reads %in% setdiff(names(data), names(frame))))
+    }
+    aligned <- rcontext_align(ctx, data, caller, test_label, isTRUE(beyond))
     ctx$rows <- aligned$rows
     ctx$alignment <- aligned$alignment
   }
@@ -982,6 +996,96 @@ rcontext_rows <- function(ctx, data) {
     return(ctx$frame)
   }
   rdata_with_fit_rows(data[ctx$rows, , drop = FALSE], ctx$obs_id)
+}
+
+#' The rows of `data` that hold the observations of a fit, for the functions
+#' that read `data` row by row
+#'
+#' [recommendRemediationStrategies()] correlates the residuals of the fit with
+#' the columns of `data` row by row, [generateHeteroRecommendations()] hands
+#' `data` to the tests and to the recommendations, and `generics::augment()` of
+#' the results of the runner binds the columns of the fit to its rows. Until
+#' increment 10 of the model context they read the i-th row of `data` with the
+#' i-th observation: named data in another order than the fit gave the value
+#' of other rows, without an error, and data of another number of rows were
+#' refused (since increment 9). They now match `data` to the observations as
+#' every test does, by the alignment of the context
+#' ([rcontext_data_match()]): named data in any order, numbered data in the
+#' order of the fit, and the full data of a fit that dropped rows give the
+#' value of the rows of the fit in its order, and what the alignment refuses
+#' is refused. They read every column of `data`, beyond the model frame too,
+#' so data taken in the order of the fit whose rows tie on every compared
+#' column are refused, as by a test that reads such a column (`reads`,
+#' [rcontext_align()]). Grouped data (`dplyr::group_by()`) keep their groups
+#' on the rows they keep, so that the analysis of a grouped tibble is grouped
+#' whether or not the fit dropped rows (from the review of increment 10).
+#'
+#' @param model The fitted model.
+#' @param data A data frame.
+#' @param fn Character scalar naming the calling function, for the messages.
+#' @param test_label Character scalar naming it in the messages on the rows
+#'   `data` lacks ([rstop_data_rows()]).
+#' @return `data` itself when its rows are those of the fit, in its order;
+#'   otherwise the rows of `data` that hold the observations, in the order of
+#'   the fit: of a grouped tibble, those rows of it, grouped as it is; of any
+#'   other data, a data frame under the names of the observations
+#'   ([rcontext_rows()]).
+#' @keywords internal
+#' @noRd
+rcontext_data_rows <- function(model, data, fn, test_label = paste0(fn, "()")) {
+  ctx <- rcontext_data_match(model, data, fn = fn, test_label = test_label)
+  if (identical(ctx$rows, seq_len(nrow(data)))) {
+    return(data)
+  }
+  if (inherits(data, "grouped_df")) {
+    return(data[ctx$rows, , drop = FALSE])
+  }
+  rcontext_rows(ctx, as.data.frame(data))
+}
+
+#' Match the rows of `data` to the observations, for a function outside the
+#' tests
+#'
+#' The model context of `model` with `data` aligned ([rmodel_context()]), for
+#' the functions of [rcontext_data_rows()] and `generics::augment()`, which read
+#' every column of `data`. Its refusals are those of the tests and name the
+#' function; data that lack a variable of the model, which the alignment needs
+#' to compare the rows with the model frame, are refused with a message that
+#' says what to pass, where the checks of `data` gave "The following variables
+#' are missing from input data", without the function (from the review of
+#' increment 10).
+#'
+#' @inheritParams rcontext_data_rows
+#' @param beyond Passed to [rmodel_context()]: `NULL` decides it from the
+#'   columns of `data`.
+#' @return The model context, its `rows` and `alignment` set.
+#' @keywords internal
+#' @noRd
+rcontext_data_match <- function(model, data, fn, test_label = paste0(fn, "()"), beyond = NULL) {
+  tryCatch(
+    rmodel_context(model, data, fn = fn, test_label = test_label, reads = names(data),
+                   beyond = beyond),
+    error = function(e) {
+      message <- conditionMessage(e)
+      pattern <- "^The following variables are missing from input data: (.*?)\\. Verify.*$"
+      if (!grepl(pattern, message, perl = TRUE)) {
+        stop(e)
+      }
+      absent <- sub(pattern, "\\1", message, perl = TRUE)
+      stop(
+        sprintf(
+          paste(
+            "%s() matches the rows of `data` to the observations of the fit by the variables",
+            "of the model, and `data` lacks %s. Pass the data the model was fitted to, with",
+            "the columns to examine beside them, such as cbind(model.frame(model), columns)",
+            "for columns with one row per observation in the order of the fit."
+          ),
+          fn, absent
+        ),
+        call. = FALSE
+      )
+    }
+  )
 }
 
 #' The residuals and the rows of a group test, without the observations

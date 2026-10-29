@@ -5,8 +5,9 @@
 # fit, were matched by position and gave wrong values without an error. Since
 # 0.15.0 a test that reads `data` first takes the rows the row names pick for
 # the observations of the fit and compares the response and the variables the
-# model frame holds as themselves with the model frame (rcheck_data_rows()),
-# and refuses data that do not reproduce it. Valid calls are unchanged: data
+# model frame holds as themselves with the model frame, and refuses data that
+# do not reproduce it; since 0.16.0 that guard is the alignment step of the
+# model context (rdata_fit_rows() and rcheck_rows_at()). Valid calls are unchanged: data
 # with row names of its own, in any order, and the very tibble or data.table
 # the model was fitted on, give what they gave.
 
@@ -642,8 +643,8 @@ test_that("messages name the function called and say why", {
   # A tibble the test renumbered when it dropped incomplete rows. The tests
   # built on the model context drop none and accept it (above), the wild
   # bootstrap, the last that dropped them first, since the eighth step; the
-  # preparation of before, which no test calls and the tenth step removes,
-  # still refuses it.
+  # preparation of before, which refused it ("numbers the rows that are left
+  # afresh"), went in the tenth.
   dn <- d
   dn$x2[c(3, 7)] <- NA
   tb <- dplyr::as_tibble(dn)
@@ -651,12 +652,6 @@ test_that("messages name the function called and say why", {
   set.seed(9)
   expect_s3_class(
     suppressWarnings(performWildBootstrapTest(m_short, tb, B = 9, progress = FALSE)), "htest"
-  )
-  expect_error(
-    suppressWarnings(heteroTests:::prepare_model_data_for_test(
-      m_short, tb, c("y", "x1", "x2"), "Wild bootstrap"
-    )),
-    "cannot match.*afresh"
   )
   # The scatter diagnostic read by position and could not match the names of
   # a fit to character row names against a tibble ("the row names of `data`
@@ -810,18 +805,20 @@ test_that("a column from outside data does not need telling rows apart", {
   swapped[tied, ] <- swapped[rev(tied), ]
   rownames(swapped) <- NULL
   expect_error(performKoenkerTest(m_wc, swapped), "(weights) differs", fixed = TRUE)
-  # No column at all can be compared: the guard cannot confirm the data
-  # (rcheck_data_rows(), which no test calls since the eighth step of the
-  # model context, when the wild bootstrap, the last that did, moved onto
-  # it). The tests built on the model context, the scatter diagnostic among
-  # them since 0.16.0 and the wild bootstrap since the eighth step, look for
-  # the variables of the model first, and `d` is not a column of `data`.
+  # No column at all can be compared: the guard cannot confirm the data. The
+  # tests built on the model context, the scatter diagnostic among them since
+  # 0.16.0 and the wild bootstrap since the eighth step, look for the
+  # variables of the model first, and `d` is not a column of `data`; with
+  # them, a model whose every column is computed by a function that is no
+  # longer found compares none. Until the tenth step the guard of the tests
+  # not built on the context (rcheck_data_rows(), removed) was called here.
   d <- data.frame(x = runif(n, 1, 5), z = rnorm(n))
   d$y <- 1 + d$x + d$z + rnorm(n)
-  expect_error(
-    heteroTests:::rcheck_data_rows(lm(d$y ~ d$x + d$z), d, fn = "performX"),
-    "no column can be compared", fixed = TRUE
-  )
+  f <- function(v) v
+  m_f <- lm(f(y) ~ f(x) + f(z), data = d)
+  rm(f)
+  expect_error(performKoenkerTest(m_f, d), "no column can be compared", fixed = TRUE)
+  expect_error(performKoenkerTest(m_f, d), class = "heteroTests_data_rows_error")
   for (call in list(
     function() performWildBootstrapTest(lm(d$y ~ d$x + d$z), d, B = 9, progress = FALSE),
     function() performScatterDiagnostic(lm(d$y ~ d$x + d$z), d, "x")

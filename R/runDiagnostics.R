@@ -41,6 +41,7 @@ runDiagnostics <- function(model, data = NULL,
     model,
     data = data, context = "runDiagnostics()", allow_grouped = FALSE
   )
+  given <- model
   model <- prepared$model
   data <- prepared$data %||% tryCatch(model.frame(model), error = function(e) NULL)
   # The warnings about fixed effects for small groups that runHeteroTests()
@@ -55,7 +56,9 @@ runDiagnostics <- function(model, data = NULL,
     chunk_size = chunk_size,
     progress = progress
   ))
-  hetero <- run$value
+  # What augment() needs of a workflow or parsnip fit, on each result
+  # (rsuite_mark_tidymodels()).
+  hetero <- rsuite_mark_tidymodels(run$value, given)
   vif <- performVIFDiagnostic(model)
   reset <- performRESETTest(model, power = power)
   influence <- performInfluenceDiagnostics(model)

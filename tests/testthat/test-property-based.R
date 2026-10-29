@@ -45,7 +45,10 @@ if (requireNamespace("quickcheck", quietly = TRUE)) {
     )
   })
 
-  test_that("prepare_model_data_for_test respects required variables", {
+  # Until increment 10 of the model context this property was checked on
+  # prepare_model_data_for_test(), removed: the data of the fit hold every
+  # observation, and a test given them reads what it reads without them.
+  test_that("a test given the data of the fit reads every observation", {
     for_all(
       n = quickcheck::integer_bounded(left = 20L, right = 60L, len = 1L),
       property = function(n) {
@@ -54,13 +57,10 @@ if (requireNamespace("quickcheck", quietly = TRUE)) {
           x = rnorm(n)
         )
         model <- lm(y ~ x, data = df)
-        result <- heteroTests:::prepare_model_data_for_test(
-          model,
-          df,
-          required_vars = c("y", "x"),
-          test_label = "prop"
+        expect_identical(
+          performKoenkerTest(model, df)$statistic,
+          performKoenkerTest(model)$statistic
         )
-        expect_equal(nrow(result$data), n)
       },
       tests = 20L
     )

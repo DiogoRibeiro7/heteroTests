@@ -66,7 +66,21 @@ position, is read as the same fit with `na.omit`, the checks of the model and
 every test reading its residuals, fitted values, weights and leverages without
 the padding of `na.exclude` (`rmodel_unpad()`, `rcontext_unpad()`), and an
 output with one value per row padded as `naresid()` pads it (B13).
-Increments 10 and 11 are planned; see [Migration plan](#migration-plan).
+Increment 10, the third of 0.17.0, is in the development version too: the
+runners and the clean-up. A grouped run of a `fitWLS()` fit, which refitted
+each group without the weights it estimated, is refused (B11, decision 10);
+the data a tidymodels workflow, or a parsnip fit of `fit_xy()`, was fitted to
+are mapped to the variables of its engine, a transformed outcome among them
+(decision 35), and its model frame is tested, as without `data` (N5); `recommendRemediationStrategies()`,
+`generateHeteroRecommendations()` and `generics::augment()` of the results of
+the runner match the rows of `data` to the observations of the fit through
+the alignment of the context (`rcontext_data_rows()`), `augment()` binding them
+as broom does (decision 34), the results keeping the blueprint of a workflow
+as the workflow keeps it (decision 36); and the preparation of
+`data` the tests used before the context, `prepare_model_data_for_test()`,
+`rdata_or_model_frame()`, `rcheck_data_rows()` and
+`rcheck_rows_after_cleaning()`, is gone. Increment 11 is planned; see
+[Migration plan](#migration-plan).
 
 ## The problem
 
@@ -246,6 +260,8 @@ The functions of `R/model_context.R`:
 | `rcontext_pearson(ctx)` | The Pearson residuals the tests read (`rpearson_residuals()`), unpadded; refuses a zero weight as before. |
 | `rcontext_design(ctx)` | The design without its aliased columns. |
 | `rcontext_rows(ctx, data)` | The confirmed rows of `data`, in fit order and under the names of the fit, or the model frame without `data`: what a test hands to its checks of the data and to a test it calls. |
+| `rcontext_data_rows(model, data, fn, test_label)` | The rows of `data` that hold the observations of the fit, in its order and under its names, or `data` itself when it is those rows, for the functions outside the tests that read `data` row by row (increment 10): `recommendRemediationStrategies()` and `generateHeteroRecommendations()`. Of a grouped tibble, its rows with its groups (from the review of increment 10). |
+| `rcontext_data_match(model, data, fn, test_label, beyond)` | The context built with `data`, every column of `data` read beyond the model frame, so data in the order of the fit whose rows tie are refused, for the functions of `rcontext_data_rows()` and `generics::augment()`: its refusals name the function, and data that lack the variables of the model are refused with a message that says what to pass (from the review of increment 10). |
 | `rcontext_unpad(ctx, x)` | Removes the padding of `na.exclude`, of `residuals()`, `fitted()`, `weights()` and `hatvalues()` of the fit, which every test reads so since increment 9 (B13). |
 | `rmodel_unpad(model, x)` | The same, from the fit, for the code that reads it before or without its context: the checks of the model (`rvalidateModelInputs()`, `rvalidateSampleSize()`) and `bootstrapTestStatistic()` (increment 9). |
 | `rcontext_fitted(ctx)` | `fitted()` of the fit without the padding of `na.exclude`, what the tests computed from the model alone and RESET read (increment 9). |
@@ -266,10 +282,10 @@ The functions of `R/model_context.R`:
 The guard of 0.15.0 is split in two, so that the alignment can run its
 comparison on rows found another way: `rdata_fit_rows()` picks the rows by
 name or by number, and `rcheck_rows_at()` compares them with the model frame.
-`rcheck_data_rows()` keeps its signature and runs the two, its behaviour
+`rcheck_data_rows()` kept its signature and ran the two, its behaviour
 unchanged; since increment 8, when the wild bootstrap, the last test that
-called it, moved onto the context, no test calls it, and increment 10 removes
-it.
+called it, moved onto the context, no test called it, and increment 10
+removed it.
 
 ### The alignment step
 
@@ -962,8 +978,8 @@ For the functions built on the context in increment 8:
   stored design gives the residuals of the fit (`rleast_squares_reproduces()`),
   which keeps refusing a `MASS::rlm()` fit with the message of before. The
   robust tests drop their own preparation of `data` (`prepare_model_data_for_test()`
-  and `rdata_or_model_frame()`, which no test calls any more, and increment 10
-  removes) and hand the rows the alignment confirmed to the base statistic
+  and `rdata_or_model_frame()`, which no test called any more, and increment 10
+  removed) and hand the rows the alignment confirmed to the base statistic
   and to the bootstrap.
 - **The random numbers.** Every call draws the random numbers it drew before,
   in the same order, the contract of the caches (#144, #146): each replicate
@@ -1150,7 +1166,7 @@ For a fit with `na.action = na.exclude`, in increment 9:
   stopped with "incompatible dimensions", or, on a fit with `na.exclude`
   given the full data, read its padded residuals against the rows by
   position; matching such data to the rows of the fit is left to increment
-  10 (N5). Outside the
+  10 (N5), which matches them (below). Outside the
   context, `runDiagnostics()$influence` holds the Cook's distances of
   `performInfluenceDiagnostics()`, which `cooks.distance()` pads, and the
   positions of the influential ones in that padded vector (ROADMAP.md).
@@ -1187,6 +1203,249 @@ For a fit with `na.action = na.exclude`, in increment 9:
   `NA` themselves and gave the value of the twin; and `fitWLS()`'s
   coefficients, weights and residuals.
 
+For the runners and the functions outside the tests, in increment 10:
+
+- **What the change reaches.** `runHeteroTests()` with grouped data, and so
+  every route that reaches a grouped run (`generateDiagnosticReport()` and
+  `generateHeteroRecommendations()` hand their `data` to it);
+  `runHeteroTests()` and `runDiagnostics()` given a tidymodels workflow or a
+  parsnip fit with `data`; `recommendRemediationStrategies()`,
+  `generateHeteroRecommendations()` and `generics::augment()` of the results
+  of the runner given `data`. The tests themselves are unchanged.
+- **B11, decision 10: new refusals.** A grouped run refits the model within
+  each group by evaluating its call on the rows of the group
+  (`.ht_refit_group()`). The call of a `fitWLS()` fit is that of the model it
+  refitted, without the weights it estimated, so each group was tested as the
+  unweighted fit of its rows, a value of another model without an error. Such
+  a run is refused (`rrefuse_grouped_fitwls()`, `R/runHeteroTests.R`), with
+  the class of the context, before any group is refitted. On the grouped
+  matrix, White's test of the `fitWLS()` fit grouped by `group` gave 5.271,
+  7.538, 3.789 and 5.814, the values of `lm()` on each group. A grouped run of
+  a weighted `lm` is unchanged: its weights are a column of the data, which
+  the refit of each group reads at its rows (an `lm` whose weights are a
+  vector of the workspace was refused already). `runDiagnostics()`, which
+  ungroups the data and runs no grouped analysis, tests the fit as a whole, as
+  before.
+- **N5: errors that become values.** A workflow is tested on the fit of its
+  engine, which names its response `..y` and its predictors as the
+  workflow's preprocessing made them (`log(x1)`, the dummies of a factor, a
+  column a recipe transformed), and the runners refused the data the workflow
+  was fitted to ("`data` lacks ..y. Pass `data = NULL`"); a parsnip fit of
+  `fit_xy()` names its response `..y` too, and the tests refused its data.
+  The runners map such data to the variables of the engine by the workflow's
+  own preprocessing, `hardhat::forge()` with its blueprint and the outcome,
+  or the outcome of `fit_xy()` to `..y` from the column the fit records,
+  confirm the rows by the alignment of the context (`rmodel_context()`), and
+  test the model frame of the engine's fit, the value without `data`,
+  `identical()` (`.ht_workflow_data()`, `.ht_parsnip_data()`,
+  `R/ecosystem_integration.R`). The engine's fit of a workflow numbers its
+  observations in the order of the data it was fitted to, so its rows are
+  matched by number.
+- **N5: a transformed outcome (decision 35).** A preprocessing that
+  transforms the outcome, a recipe with `step_log()` of it or a formula
+  preprocessor `log(y) ~ x + z`, maps the outcome of `data` to the outcome it
+  makes, which is the response `..y` of the engine's fit; the rows are
+  confirmed against every column of its model frame, and the value is that
+  without `data`. The first version of the increment refused such data, the
+  formula preprocessor with a wrong message ("the column `log(y)` of `data`
+  is not the response").
+- **N5: case weights, steps that drop rows, lazy tables** (from the review of
+  increment 10). The case weights of a workflow are mapped under the name the
+  engine's call gives them, so the alignment compares them as it compares the
+  weights of a fit for the tests: other weights are refused, where the first
+  version took them. A recipe step that drops rows at the fit and is skipped
+  on new data, as `step_naomit()` and `step_filter()` are by default, numbers
+  the rows it kept afresh: the rows of `data` complete in the variables of the
+  engine are taken in their order when they are as many as the rows it kept,
+  and confirmed in turn (`step_naomit()`); otherwise the data are refused with
+  a message that names such a step (`step_filter()`), where the first version
+  said to pass the data the workflow was fitted to, which the caller had done.
+  A step applied to new data (`skip = FALSE`) maps the rows it keeps, which
+  the alignment confirms. A lazy `dtplyr` table is collected first, where the
+  first version read the names of the lazy object ("`data` lacks ..y, x, z").
+- **N5 and `augment()`, from the second review of increment 10.**
+  - *Rows a recipe reorders.* `augment()` took the mapped rows for the rows
+    of `data` in their order whenever the preprocessing kept every row;
+    `step_arrange()`, which a recipe applies to new data, sorts them, and each
+    row of `data` was bound the fitted value and the residual of another row,
+    by up to 8.08 on the reviewer's data, without an error. The mapped rows
+    are now traced to the rows of `data` (`.ht_workflow_mapped()`): `data`
+    with its rows rotated by one, and with its first two rows swapped, must be
+    mapped to the mapped rows in that order. A preprocessing that maps each
+    row on its own passes; one that reorders the rows, or makes a row from
+    other rows, does not, and `augment()` refuses its data, with a message
+    that says so. The runners, which test the model frame once the rows are
+    confirmed, are unchanged: a recipe that sorts the rows of new data sorts
+    the data it was fitted to as it sorted them at the fit, in any order.
+    Forging each row on its own would also say which rows a step that drops
+    rows of new data kept, but costs 2.75 ms a row (0.33 s for 120 rows, about
+    14 s for 5,000, where forging the whole data takes 3 ms) and was not
+    adopted: `augment()` refuses such data, as before (ROADMAP.md).
+  - *A step skipped on new data.* `step_log(y, skip = TRUE)`, the idiom
+    recipes recommends for the outcome, transforms it at the fit only, so the
+    data the workflow was fitted to, mapped by its preprocessing, hold the
+    outcome untransformed, and were refused with the advice to pass the data
+    the workflow was fitted to, which they were. When `data` mapped with the
+    skipped steps applied are confirmed, the refusal names the steps, says
+    that they changed the outcome, a predictor or the order of the rows at
+    the fit, and points to `data = NULL`.
+  - *Case weights of the rows a recipe keeps.* The case weights were mapped
+    only when the preprocessing kept every row of `data`, so that with a
+    `step_filter()` it applies to new data other weights were accepted (White
+    9.4702 on the reviewer's data, with the weights reversed). A recipe gives
+    the weights of the rows it keeps, in the order it keeps them
+    (`recipes::bake()`), and a formula keeps every row; weights that cannot
+    be told for each mapped row are refused.
+  - *What the results keep.* The runners kept the workflow, or the parsnip
+    fit, on each result, whose fit and mold hold the data: the results of
+    `runHeteroTests(wf)` with three tests on 5,000 rows took 2,794 KB
+    serialized, where `main` gave 1,522 KB. They keep what `augment()` needs
+    (`rtidymodels_map()`): the blueprint of the preprocessing, the number of
+    rows it kept, the column of the case weights, or the outcome of a parsnip
+    fit, about 2 KB a result (1,523 KB). The results of the runners on a
+    workflow or a parsnip fit, with or without `data`, are those of `main` but
+    for this attribute, and the identity harness compares the attributes of
+    the results of the runners (`identity_runner_summary()`).
+- **N5 and `augment()`, from the third review of increment 10.**
+  - *The frames of a recipe written in a function (decision 36).* The
+    expressions of the steps of a recipe keep the environment they were
+    written in, and the attribute keeps the frame of the function a recipe
+    was written in, every object of it: 49,347 KB for a frame that held a
+    50 MB data frame, and 51,245 KB for the results, where `main` gave
+    1,894 KB and `saveRDS()` of the workflow takes 50,272 KB. The third
+    review pruned those environments and wrote the variables the expressions
+    read into them as values (`.ht_prune_environments()`); the fourth found
+    that this changed what some expressions mean or broke them (a variable a
+    later step makes a column, a variable named as a column a step removed,
+    a function called by its name as a string, `do.call("f", ...)` or
+    `sapply(x, "f")`, a variable holding a symbol or a call, spliced in as
+    code), kept named and attached environments whole (19,691 KB where
+    `main` gave 28 KB), stopped at the namespace clone in which R CMD check
+    runs the tests, and copied large values into every result (114,196 KB
+    for a step reading one value of a local vector of 5,000,000 numbers,
+    39,418 KB as the step keeps it). The author decided to keep the
+    blueprint as the workflow keeps it: no expression is rewritten and no
+    environment changed, the record holds no fit, and NEWS says in bold
+    what a saved result carries.
+  - *Steps that make a row from other rows.* `cumsum()`, `row_number()`, a
+    mean over `lag()` in `step_mutate()`, `step_lag()`, and `step_arrange()`
+    given data already in its order, give other values when `data` is mapped
+    in another order, and `augment()` refuses their data, where `main` bound
+    each row of data in the order of the fit its own values. The refusal is
+    kept, as conservative (decision 14), and announced; a way to accept such
+    data, by the columns the preprocessing leaves unchanged, is recorded in
+    ROADMAP.md.
+  - *The case weights of `fit_xy()`.* The fit records the column of its
+    outcome and not that of its case weights, which `fit_xy()` takes as a
+    vector, so the weights of `data` cannot be compared; such data were
+    taken whatever their weights (White 14.2138 on the reviewer's data with
+    the weights reversed), and are refused, as the data of a workflow whose
+    weights cannot be told are. A parsnip fit of `fit()` with case weights is
+    an `lm` whose weights are a vector of the workspace: its data are matched
+    by the variables of its formula, and its weights are not compared.
+  - *The skipped steps named.* The refusal named every step skipped on new
+    data; it names those without which the rows are not confirmed, each left
+    out of the others in turn (a `step_filter()` that keeps every row is
+    not), or "one or more of" them when none is needed alone. A step that
+    drops rows of new data is said to drop or add rows, as `step_sample()`
+    with replacement can.
+- **N5: messages.** Data a workflow cannot be matched to, such as its rows
+  shuffled or a subset of them ("Missing rows: 101, 102, 103"), are refused
+  with the class of the guard, a lead that says what was matched and the
+  advice of a workflow; data that cannot be mapped with a message that says
+  why: the preprocessing cannot map them (a column it needs is missing), the
+  package hardhat is not installed, and the outcome of `fit_xy()` given as a
+  vector, which the fit does not record. Grouped data given with a workflow
+  are refused, as before, now with a message that says that only an
+  ungrouped data frame is mapped.
+- **The rows of `data` outside the tests.** `recommendRemediationStrategies()`
+  correlates the residuals with the columns of `data` row by row,
+  `generateHeteroRecommendations()` profiles `data` and hands it to the tests
+  and to the advice, and `augment()` binds the columns of the fit to its rows.
+  They read the i-th row of `data` with the i-th observation, and since the
+  review of increment 9 refused data of another number of rows. They now match
+  `data` to the observations of the fit by the alignment of the context
+  (`rcontext_data_rows()`), every column of `data` read beyond the model frame,
+  and read those rows, in the order of the fit: named data in any order,
+  numbered data in the order of the fit and, for the advice, the full data of
+  a fit that dropped rows give the value of the rows of the fit in its order,
+  on a fit with `na.exclude` the value of its twin (decision 32).
+  - Errors that become values: the full data of a fit that dropped rows,
+    refused by the count since the review of increment 9 (the advice), or by
+    the checks of `generateHeteroRecommendations()` ("Model reports 117
+    residuals but the supplied data has 120 rows"), and rows after those of
+    the fit; for `augment()`, the full data of a fit with `na.omit` (below).
+  - Values that change: named data in another order than the fit, from which
+    the advice, the report and `augment()` computed the values of other rows:
+    on the cell `terms/ols/none/log/shuffled` the advice "No dominant variance
+    pattern detected." becomes "Variance is strongly associated with x1 higher
+    values.", that of the rows in order; `augment()` bound the fitted values of
+    observations 1, 2, ... to the rows of `data` in their order; and the
+    profile of the report, whose skewness of `id` was `-1.45e-20` for `0` in
+    the order of the rows.
+  - New refusals, announced in bold (decision 14): what the alignment
+    refuses, numbered data in another order than the fit, repeated row names,
+    data whose rows tie on every compared column in the order of the fit (the
+    tibble of a fit to repeated rows), and a `model = FALSE` fit whose frame
+    cannot be rebuilt from `data` or was rebuilt from data changed after the
+    fit, from which they computed a value; data that lack the variables of the
+    model, which the alignment compares, and which they read by position
+    (`recommendRemediationStrategies(res, m, mtcars[, c("hp", "disp")])`), now
+    refused with a message that names the function and says what to pass; and
+    a model the context refuses by kind, a binomial, Poisson or Gaussian `glm`
+    with another link than the identity, on which the advice said "No
+    dominant variance pattern detected." and `augment()` bound its values,
+    refused as by every function built on the context (decisions 14 and 31),
+    each from the review of increment 10.
+  - The report: the checks, the tests and the advice, which read the
+    residuals, read the rows of the fit; the profile of the data, their size
+    and missing values, describes `data` as given (from the review of
+    increment 10, where the first version profiled the rows of the fit, so its
+    missing values were always none and its advice on missing data never
+    fired). Grouped data keep their groups on the rows of the fit, so that the
+    analysis of a grouped tibble is grouped whether or not the fit dropped
+    rows, where the first version returned them ungrouped when it did.
+  - Messages: the refusal of the guard, naming the function, where the
+    report stopped with the refusal of a test inside the runner, or the
+    advice and `augment()` with the count of rows (rows in front of those of
+    the fit); and M7 for a multivariate `lm`, on which they stopped with a
+    coercion error or the count.
+- **`augment()` binds as broom does (decision 34).** The rows of `data` are
+  matched to the observations as the tests match them and bound in the order
+  of `data`, each with its own fitted value, residual and standardised
+  residual (`raugment_bind()`): on a fit with `na.omit` the rows the fit used,
+  so its full data give 117 rows of 120, where they were refused; on a fit
+  with `na.exclude` those rows and the rows it dropped, with `NA` there, every
+  row of its full data, as `broom::augment()` binds the full data in their
+  order, so that it is its twin padded. Its full data shuffled under their own
+  row names had the values of other observations bound to them by position,
+  and get each row its own. Given the rows of its observations only, as its
+  model frame without `data`, a fit with `na.exclude` binds them in the order
+  of the fit with a row of `NA` at each row it dropped, as in increment 9.
+  The data of a workflow, or of a parsnip fit of `fit_xy()`, are mapped as the
+  runners map them, from what the runners keep on their results (from
+  the review of increment 10, where the first version refused them: "missing
+  from input data: ..y"); a preprocessing that drops rows of new data does
+  not say which rows of `data` it kept, nor one that reorders them which row
+  of `data` each observation comes from, and their data are refused by
+  `augment()` (from the second review of increment 10, above).
+- **The clean-up.** `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
+  `rcheck_data_rows()` and `rcheck_rows_after_cleaning()` go, with the refusal
+  only the last could give ("numbers the rows that are left afresh") and the
+  `label` argument of `rstop_data_rows_unmatched()`, which only it passed. No
+  test called them since increment 8; the assertions of the test suite on
+  them that a public function still makes are made on that function: the rows
+  a test reads of named data in another order and the "Missing rows" refusal
+  (`test-additional-tests.R`), a test given the data of the fit reading what it
+  reads without them (`test-property-based.R`), the rows picked by the row
+  numbers of the fit (`rmodel_context()`, `test-model-context.R`), and data
+  of which no column can be compared (`performKoenkerTest()` on a fit whose
+  every column is computed by a function that is gone,
+  `test-data-alignment-guard.R`).
+- **Unchanged**: every test, every other call of the runners, a grouped run of
+  any other fit, and the calls of the three functions on data that are the
+  rows of the fit in its order, `identical()`.
+
 ## Migration plan
 
 Each increment is one pull request from `main`, in this order: the
@@ -1205,7 +1464,7 @@ migrations that keep every value, then the riskier resampling and
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
 | 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
 | 9 | `na.exclude`: unpadded residuals in the checks (`rmodel_unpad()`) and in every test (`rcontext_pearson()`, `rcontext_fitted()`, `rcontext_unpad()`), padded outputs per observation (`fitWLS()`); the positional reading of the panel tests and the scatter diagnostic goes, with `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()` and `rstop_unbalanced_panel()` | B13; N12 on the positional reading | **Done, development version (0.17.0)** |
-| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10), workflows with `data` (N5); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go; with N5, `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` match the rows of `data` to the observations of the fit, where since increment 9 they refuse data of another number of rows | B11, N5 | Planned, 0.17.0 |
+| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10, `rrefuse_grouped_fitwls()`), workflows with `data` (N5, mapped by the workflow's preprocessing, a transformed outcome among them, decision 35); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go; with N5, `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` match the rows of `data` to the observations of the fit (`rcontext_data_rows()`, `rcontext_data_match()`), where since increment 9 they refuse data of another number of rows, `augment()` binding as broom does (decision 34) and tracing the rows a workflow's preprocessing maps to the rows of `data` (from the second review, `.ht_workflow_mapped()`); the results keep what `augment()` needs of a workflow (`rtidymodels_map()`) | B11, N5 | **Done, development version (0.17.0)** |
 | 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4); and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together: accepted as before by the five of increment 1 until then, refused by the four of increment 2 (decision 23) | R6, N10 | Planned, 0.17.0 |
 
 Outside the context, as separate pull requests: White's degrees of freedom
@@ -1794,6 +2053,125 @@ increment, against 974bd53 before the review, gave 40,816 calls, 38,412
 identical, 2,404 allowed and 0 unexpected; it set `R_LIBS` to main's library
 for both sides, and its counts are replaced by these.
 
+Increment 10 adds to the corpus `recommendRemediationStrategies()`, with a
+fixed list of test results, `generateHeteroRecommendations()` and
+`generics::augment()` of a result built around the model of the cell, its
+columns unnamed (`identity_rows10_recipes`), on every cell; for each cell
+whose `data` is a data frame that is not already the rows of the fit in its
+order, the reference of item 3, as main computes it: the same call on those
+rows, written out from the names of the observations (`identity_fit_rows()`,
+a grouped tibble keeping its groups), and for the report, since its review,
+the report composed from main's own functions with the tests and the advice
+on those rows and the profile on `data` as given
+(`identity_generate_composed()`); the block `grouped/` (the grouped matrix of
+`helper-model-context.R`: an `lm`, a weighted `lm`, the `fitWLS()` fit of the
+`lm` and the model as a formula, on a tibble grouped by one column and by
+two) through `runHeteroTests()` and `runDiagnostics()`; the block `tidy/`
+(the tidy matrix: sixteen workflows, four of them from its second review,
+and three parsnip fits, each without
+`data`, with its data, as a tibble, shuffled and without the outcome) through
+the two runners and, since the review, `augment()` of the runner's result;
+the block `item3/`, from the review (a binomial, a Poisson and a Gaussian
+`glm` with the log link, data that lack the variables of the model, of a fit
+that dropped rows or not, and grouped data of a fit that dropped rows and of
+one that did not), through the three functions of item 3; and the example of
+`runDiagnostics()`. These calls are judged by a rule of their own
+(`identity_increment10_verdict()`): a change to a value must be main's value
+of the same call on the rows of the fit, for `augment()` each row bound to the
+values main binds to it there, by name, the rows the fit dropped with `NA`
+(`identity_augment_matches()`, decision 34), and for N5 main's value without
+`data`, for `augment()` the columns of the fit main binds to the model frame;
+a new refusal, or a message that changes, must be main's on the rows of the
+fit, a refusal of the alignment where the cell calls for it (the guard on the
+cells it refuses, or that the twin's cell expects, the refusal of tied rows),
+the refusal the cell expects (of the context by kind, of data that lack the
+variables of the model, of the tidy block by `context_tidy_expect()`, since
+the review, where any refusal with the lead of N5 passed), or B11's on the
+cells of a `fitWLS()` fit. A call on a fit with `na.exclude` must give what its
+twin gives, `augment()` the rows of its twin with the rows the fit dropped
+bound with `NA` in the columns of the fit (by name, or, given the rows of the
+observations only, at the positions naresid() pads, `identity_augment_padded_at()`).
+Since the second review, each result of a runner is recorded with the names
+of its attributes and what it keeps of a tidymodels object
+(`identity_runner_summary()`, `identity_tidymodels_summary()`), so that a
+change to the object returned cannot pass as identical; a result of a runner
+on a workflow or a parsnip fit without `data` must be main's but for that
+attribute, which must be the record of `rtidymodels_map()` and no more
+(`identity_tidymodels_kept()`); and each value of `augment()` of the tidy
+block on a form of data must bind each row its own values, the engine's
+prediction of that row alone, mapped by the preprocessing, and its outcome
+less that prediction (`context_tidy_own()`, recorded as `own`), changed or
+identical to main, where the rule compared the columns of the fit with those
+of the model frame in their order.
+Each side runs from its own private installation, its workers loading it
+through `R_LIBS`.
+
+Increment 10 with its four reviews, against `main` at the merge of increment 9
+(8f55598), each side installed privately and its workers loading it through
+`R_LIBS`, both run again with the code of decision 36 and the harness and the
+cells of the fourth review, the harness recording what `main` returns too: 43,226 calls on the 406 cells
+of the matrix, the 5 cells of Harrison-McCabe's rank, the 8 cells of the
+follow-up of N2, the 4 cells of the coding of a factor, the 8 grouped cells,
+the 7 cells of the block `item3/` and the 105 cells of the tidy block, and the
+examples of forty-one help pages, of which 42,370 identical, 856 allowed
+changes (245 errors that become values, 98 values that change, 252 new
+refusals, 261 messages) and 0 unexpected, every one of them a call of the three functions
+of item 3, of the grouped runs or of the runners and `augment()` on the tidy
+block. The 41,605 other calls, every call of a test, a route or a runner of
+the earlier increments among them, the names of the attributes of every
+result of a runner compared, are `identical()` to `main` and leave the
+generator as it left it: the clean-up changes no value. The 343 changes to a
+value are each verified: 219 against `main`'s value of the same call on the
+rows of the fit, 82 against `main`'s value without `data`, and 42, the
+results of the two runners on the 21 tidymodels objects without `data`,
+against `main`'s value but for `attr(, "tidymodels")`, which is the record of
+`rtidymodels_map()` and no more: exactly its fields, no fitted model or
+workflow, and the blueprint `identical()` to the workflow's (decision 36),
+whose size is recorded and not judged. Of the changes, for
+`recommendRemediationStrategies()`, `generateHeteroRecommendations()` and
+`augment()`: 64, 64 and 43 errors that become values (the full data of a fit
+that dropped rows, rows after those of the fit, and for `augment()` the full
+data of a fit with `na.omit`); 3, 3 and 42 values that change (named data in
+another order, and the full data of a fit with `na.exclude` shuffled under
+their names, which `augment()` bound by position); 105, 1 and 106 new
+refusals (numbered data in another order, repeated row names, tied rows in
+the order of the fit, the frames of `model = FALSE` fits, data that lack the
+variables of the model and a model the context refuses by kind; the report
+refused most of them already, through the tests it runs); and 14, 122 and 15
+messages. The grouped block gives 16 calls, 14 `identical()` and the 2
+refusals of B11; the tidy block 315, 43 `identical()`, and, through each of
+the two runners, 35 errors that become values, 24 values that change (21
+without `data` and the 3 forms of the data of a parsnip fit of `fit()`, which
+`main` took, each only by the attribute) and 45 messages, and through
+`augment()` 4 errors that become values, 2 values that change (the data of a
+`fit_xy()` fit shuffled under their names), 38 new refusals (data a
+workflow's preprocessing cannot map, reorders or drops rows of, or the guard
+refuses, which `augment()` bound by position, and the data of a `fit_xy()`
+fit with case weights) and 20 messages. Of the 84
+calls of `augment()` on the tidy block given a form of data, the branch gives
+26 values, each binding every row its own values (`context_tidy_own()`), and
+refuses 58; `main` gave 60 values, 22 of which pass that check: the others
+bound rows the values of other rows (the shuffled data of every object it
+took, the data of a recipe that sorts the rows) or cannot be checked row by
+row (data without the outcome, the outcome of a step skipped on new data, the
+outcome of `fit_xy()` given as a vector). Of the 3,030 calls on
+the 30 cells of a fit with `na.exclude`, 2,978 are `identical()` to `main`,
+and all give what the same call gives on the twin: 2,419 values, 139 outputs
+per row padded, 469 refusals and 3 skipped; all leave the generator as the
+twin left it and give its warnings. Every one of the 856 changes leaves the
+generator as `main` left it. The 642 `poly()` calls that `main` computes on
+the stored design are `identical()` to it, and the warnings are those of
+`main` on every call. The 196 results of the runners on workflows keep the
+blueprint of the workflow, `identical()`, and none of the 236 results on
+tidymodels objects holds a fit. `main` took 1,533 s and the branch 1,452 s, on
+a shared machine; the verdict on every call is that of the run of the third
+review. The first run of
+the increment, before its review, gave 42,980 calls, 42,371 identical, 609
+allowed and 0 unexpected, the run of its first review 43,136, 42,398 and 738,
+that of its second 43,196, 42,366 and 830, and that of its third, with the
+pruning that decision 36 removed, the same counts as these; their counts are
+replaced by these.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
@@ -1841,7 +2219,30 @@ the span of the regressors, and a positive response `ypos`.
   dropped, given the data, shuffled and renumbered, and a model of the group;
   `id` and `time` missing at rows the fit dropped only; `z` missing at a row
   the fit dropped; and a balanced panel, a fit that drops every row of a unit,
-  in fit order and shuffled, and an unbalanced one.
+  in fit order and shuffled, and an unbalanced one. Increment 10, in matrices
+  of their own (`helper-model-context.R`): the grouped runs of B11, an `lm`, a
+  weighted `lm`, the `fitWLS()` fit of the `lm` and the model as a formula on
+  a tibble grouped by one column and by two (`context_grouped_fits`,
+  `context_groupings`); and the runners of N5 on workflows with a formula,
+  with transformed predictors and a factor, with a recipe that transforms a
+  predictor, with a transformed outcome (a recipe and a formula preprocessor,
+  decision 35), fitted to data with missing values, with variables, with case
+  weights, and with recipes that drop rows (`step_naomit()`, `step_filter()`,
+  skipped on new data or not), and, from the second review of increment 10,
+  with recipes that sort the rows (`step_arrange()` of `x1`, and of `x2` in
+  descending order), that skip on new data a step that transformed the
+  outcome (`step_log(ypos, skip = TRUE)`) and that drop rows of new data with
+  case weights, and, from its third review, with a recipe written in a
+  function whose step reads a variable of its frame, and on parsnip fits of
+  `fit()` and of
+  `fit_xy()`, with the outcome as a data frame and as a vector, and with case
+  weights (from the third review), each given no
+  data, its data, a tibble, its rows shuffled and its data without the
+  outcome, through the runners and `augment()` of their results
+  (`context_tidy_models()`, `context_tidy_forms`, `context_tidy_expect()`,
+  `context_tidy_augment_expect()`), each value of `augment()` checked row by
+  row against the prediction of the engine on that row alone
+  (`context_tidy_own()`).
 - **Cells.** The fit by offset block without terms, the term block on `ols`
   and `wls`, each crossed with the eight forms of data; the blocks of missing
   rows, of identifiers, of `subset =` and of model classes on `ols`, among them
@@ -1939,6 +2340,9 @@ the span of the regressors, and a positive response `ypos`.
 | missing equivalence | `na.omit` with any accepted form against the fit to the complete rows, `identical()`; `I(x1 > median(x1))` against the term computed beforehand |
 | `na.exclude` (increment 9) | every function of the matrix and every call of a second formula on a fit with `na.exclude` against the same call on its twin, the same fit with `na.omit` given the same data (`context_same_as_twin()`): the same refusal, class and message, or the same value, `identical()`, the weights `fitWLS()` returns padded as `naresid()` pads them (`context_twin_value()`); and, in tests of their own, the same warnings and draws of the generator, for the resampling tests and the runners too, Pesaran's CD that of `plm::pcdtest()` on the rows of the fit, and the estimated variances of `fitWLS()` padded |
 | identifiers | rows at the end, the tibble of a fit to repeated rows, character row names: `identical()` to their reference; rows in front and repeated row names: the guard's error |
+| grouped runs (increment 10, B11) | a `fitWLS()` fit refused with the class of the context, on one and two grouping columns; an `lm`, a weighted `lm` and a formula: each group the test of `lm()` fitted to the rows of the group, with its weights, to `1e-10`; the `fitWLS()` fit given the data ungrouped and through `runDiagnostics()`, which ungroups them, `identical()` to the fit tested as a whole |
+| workflows and parsnip fits (increment 10, N5) | given the data the fit was made from, as a data frame or a tibble, `identical()` to the call without `data`, through `runHeteroTests()` and `runDiagnostics()`, a transformed outcome among them (decision 35), and `augment()` of the result binding each row the value of its observation, checked row by row against the prediction of the engine on that row alone, mapped by the preprocessing (`context_tidy_own()`, from the second review of increment 10); a workflow given its rows shuffled, a subset of them, or the data of a step that dropped rows at the fit only that cannot be found again, refused with the class of the guard; a recipe that sorts the rows (`step_arrange()`, both directions) testing the model frame, its data refused by `augment()`; a step skipped on new data that transformed the outcome named in the refusal; other case weights refused, on the rows a recipe that drops rows of new data keeps too; the results keeping what `augment()` needs of the workflow, its blueprint as the workflow keeps it and no fit (decision 36), a few KB for a recipe written at the top level, two calls `identical()`; the variables a step reads of the function it was written in read as the step reads them (the cases of the fourth review); a step that makes a row from other rows (`cumsum()`, `row_number()`) testing the model frame, its data refused by `augment()`; the data of a `fit_xy()` fit with case weights refused; only the skipped steps that matter named; data that cannot be mapped refused with a message that says why |
+| the rows of `data` outside the tests (increment 10) | `recommendRemediationStrategies()` on the full data of a fit that dropped rows, shuffled, renumbered and as a tibble, with `na.omit` and with `na.exclude`, `identical()` to the call on the rows of the fit in its order, and `generateHeteroRecommendations()` its tests and advice so, its profile that of `data` as given; `augment()` binding the rows of `data` in their order, each with the fitted value and residual of its observation (`fitted()`, `residuals()`, `predict()` row by row), the rows the fit used on a fit with `na.omit`, every row with `NA` at the rows it dropped on a fit with `na.exclude`, as `broom::augment()` binds them, to `1e-12` (decision 34); numbered data in another order refused by the guard; data that lack the variables of the model and a model the context refuses by kind refused, naming the function; grouped data matched with their groups, and the advice on missing data of a profile with more than 5% of values missing |
 | classes | a multivariate `lm`: M7; a binomial `glm` and a `survey::svyglm()` fit: today's messages |
 
 The unit tests of the context check its fields and their lengths on every
@@ -1963,7 +2367,7 @@ that fixes each.
 | B7 | Offsets left out of a refit | Refused by #134; fixed in increment 2 |
 | B8, B10, B17 | Stale `fitWLS()` weights; a zero prior weight of a `glm`; White streaming on `aov` | Fixed in 0.15.0 and 0.16.0 |
 | B9 | A second formula matched by position | Fixed in increment 6: `var_formula` and `against` are evaluated on the rows the alignment confirmed (`rcontext_formula_rows()`); `rvariance_frame()` is gone |
-| B11 | A grouped run of a `fitWLS()` fit refits without weights | Increment 10 (decision 10) |
+| B11 | A grouped run of a `fitWLS()` fit refits without weights | Fixed in increment 10 (decision 10): refused, with the class of the context, before any group is refitted (`rrefuse_grouped_fitwls()`); a grouped run of a weighted `lm`, whose weights the refit of each group reads from its rows, is unchanged |
 | B12 | Weights or an offset from a column, `data` omitted | Fixed in increment 1 for the five and the runner, in increment 2 for its four, in increment 8 for the replicates and the White bootstrap; the group tests of increment 4 and the streaming tests of increment 7 gave values already |
 | B13 | `na.exclude` | Fixed in increment 9: the checks of the model and every test read the residuals, fitted values, weights and leverages of the fit without the padding, and a fit with `na.exclude` gives what the same fit with `na.omit` gives, an output with one value per row padded as `naresid()` pads it (`fitWLS()`'s `"variance_model"`); the panel tests and the scatter diagnostic no longer read it by position |
 | B14 | Numbered data holding the rows the fit dropped, or only those it kept | Fixed in increment 1 for the five, in increment 2 for its four, in increment 3 for its six, in increment 4 for the five group tests (the complete rows renumbered, the tibble of the character-named fit), in increment 5 for the panel tests and the scatter diagnostic, in increment 7 for the streaming tests, in increment 8 for the resampling tests and the robust tests |
@@ -1981,7 +2385,7 @@ that fixes each.
 | N2 | White's degrees of freedom when the auxiliary columns span the constant | Fixed in 0.16.0 by a separate pull request (decision 22): the rank of the auxiliary design with its intercept, minus one, as `lmtest::bptest()` with the same terms; the harness allows the changes on the cells where main's count was wrong (the `poly()` fits, and the `gam` with a smooth term, whose auxiliary regression lost a column to its intercept and whose statistic changes by 0.28%) and verifies each against White's test written out (`identity_white_by_hand()`). Its follow-up (decisions 25 and 26) decides the rank on the auxiliary design of the centred regressors, refuses an auxiliary regression that fits the squared residuals exactly, saturated or not, and fits it with `lm.fit()`; the harness runs cells of its own for them, checks every number of a changed result, and requires the refusal on the exact fits |
 | N3 | White streaming on collinear terms | Fixed in 0.17.0 by a separate pull request (decision 22): the three streaming tests reduce each chunk of the auxiliary design of the centred regressors by a QR decomposition stacked on the factor of the chunks before it, and decide its rank as `performWhiteTest()` does, by `qr()` of that factor at its tolerance, in the order of the columns; White's streaming test drops the collinear terms and gives the degrees of freedom and the value of `performWhiteTest()` (17.83 on 8 on `lm(y ~ x1 + group)`, where it stopped), and the cross-products of a regressor located far from zero no longer look collinear. With it, the threshold on squared residuals that do not vary is relative to their scale, and the columns of the chunks are taken in their order, not matched by name. The harness verifies each change against the exact test of the call (`identity_n3_verdict()`) |
 | N4 | Harrison-McCabe's rank is not the fit's | Fixed in increment 3 (decision 21) |
-| N5 | `runHeteroTests(<workflow>, data)` | Increment 10 |
+| N5 | `runHeteroTests(<workflow>, data)` | Fixed in increment 10: the data a workflow was fitted to are mapped to the variables of its engine by its preprocessing (`hardhat::forge()`), the outcome of a parsnip fit of `fit_xy()` to `..y`, their rows confirmed by the alignment, and the model frame of the engine's fit tested, the value without `data`, a transformed outcome mapped as the preprocessing makes it (decision 35); data in another order and data that cannot be mapped are refused; with it, the recommendations and `generics::augment()` match the rows of `data` (`rcontext_data_rows()`), `augment()` binding as broom does (decision 34) |
 | N6 | RESET reads a stale `model = FALSE` frame | Fixed in increment 2 for RESET, in increment 6 for the other tests computed from the model alone and `fitWLS()` |
 | N7 | `cut(x1, quantile(x1))` stops with "new levels" | Fixed in increment 1 for the five, in increment 2 for its four, in increment 7 for the streaming tests, in chunks of any size (B6), in increment 8 for the White bootstrap and for the replicates of `bootstrapTestStatistic()`, which refused the fit ("`data` does not reproduce the fit") |
 | N8 | `bootstrapTestStatistic()` refuses every `glm` | Fixed in increment 8: a Gaussian `glm` with the identity link is bootstrapped as the `lm` it is, with its prior weights; another `glm`, a `survey::svyglm()` fit and an `mgcv::gam()` fit are refused, as before |
@@ -2004,7 +2408,7 @@ that fixes each.
 | 7 | The "Removed N observations" warning is kept, and nothing is dropped. | 2026-10-16 |
 | 8 | An extra variable that is `NA` for a fitted row: each test keeps its behaviour, with a message that names the variable and the rows. | 2026-10-18 |
 | 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. Increment 6 applies it to every second formula (`var_formula`, `against`) and with `data` too: a variable that neither `data`, when it is given, nor, without `data`, the model frame holds is refused (with the message of `data`, or M1), never read from the workspace. A constant, a value of length one such as `k` in `~ I(hp^k)` or `pi`, is not a variable and is evaluated as R evaluates it (from the review of increment 6). | 2026-10-16 |
-| 10 | A grouped run of a `fitWLS()` fit is refused, with a final error class. | 2026-10-18 |
+| 10 | A grouped run of a `fitWLS()` fit is refused, with a final error class. Done in increment 10: the class of the context, `heteroTests_model_context_error`, on every route that reaches a grouped run, before any group is refitted. | 2026-10-18 |
 | 11 | The estimated weights of `fitWLS()` are not written into `(weights)` of its model frame, since the guard would then refuse every `fitWLS()` fit of a weighted model given `data`. | 2026-10-18 |
 | 12 | The tests build tibbles with `dplyr::as_tibble()` under `skip_if_not_installed("dplyr")`; dplyr and data.table stay in Suggests. | 2026-10-18 |
 | 13 | Repeated `(id, time)` pairs are refused, in increment 5. | 2026-10-18 |
@@ -2027,6 +2431,9 @@ that fixes each.
 | 31 | The tests that read nothing from `data`, the nine tests computed from the model alone, RESET and `fitWLS()` without `var_formula`, match `data` through the guard, as every test built on the context does: one rule for every test. Data the guard cannot match are refused, where they returned the value of the fit, and numbered data in the order of the fit that the check of 0.15.0 refused are taken; that check goes, but for the type of `data`. It ends decision 24. Decided by the author, on the open question of the first version of increment 6. | 2026-10-26 |
 | 32 | A fit with `na.action = na.exclude` gives what its twin gives, the same fit with `na.omit` on the same data: the same values and refusals, the same warnings, the twin's "Removed N observations" among them (decision 7), and the same draws of the generator; an output with one value per row is the twin's padded as `naresid()` pads it. A group, `id` or `time` that is `NA`, or a pair of `id` and `time` that repeats, only at a row the fit dropped is not read, as for the twin, so that Pesaran's test gives a value there. Decided by the author on the review of increment 9. | 2026-10-28 |
 | 33 | The record of the variance function that `fitWLS()` attaches to its fit (`"variance_function"`: `regressors`, `index`, `initial_weights`) stays unpadded on a fit with `na.exclude`, one row per fitted observation, as the bootstraps read it; only the estimated variances, `"variance_model"`, are padded. Decided by the author on the review of increment 9. | 2026-10-28 |
+| 34 | `generics::augment()` of the results of the runner binds as broom does. The rows of `data` are matched to the fit by name or number through the alignment, as the tests match them, and bound in the order of `data`: a fit with `na.omit` given its full data binds only the rows it used (117 of 120); a fit with `na.exclude` given its full data binds every row (120), with `NA` at the rows it dropped, so that it is its twin with `na.omit` padded (decision 32); shuffled full data, named, get each row its own fitted value and residual, for both, which ends the binding by position of a fit with `na.exclude`. Decided by the author on the review of increment 10. | 2026-10-28 |
+| 35 | A transformed outcome is mapped too. When a workflow's preprocessing transforms the outcome (`step_log(y)` in a recipe, or a formula preprocessor `log(y) ~ x + z`), `..y` is mapped to the outcome `hardhat::forge()` produces, as for the predictors; the rows are still confirmed against every column of the engine's model frame, and the value is `identical()` to that with `data = NULL`. Decided by the author on the review of increment 10. | 2026-10-28 |
+| 36 | The `"tidymodels"` attribute of the results of the runners keeps the mold's blueprint exactly as the workflow keeps it, with no rewriting of the user's expressions and no change to their environments; it stays the small record (`kind`, `blueprint`, `fitted_rows`, `case_weights`), not the fitted workflow. A recipe step keeps the environment it was written in, so that a saved result carries whatever that environment holds, as saving the workflow does: 1,523 KB against 1,522 KB on 5,000 rows, and 51,245 KB against 1,894 KB for a recipe written in a function whose frame held a 50 MB data frame, where `saveRDS()` of the workflow takes 50,272 KB; NEWS says so in bold. The pruning of the third review, which rewrote the expressions, goes. Decided by the author on the fourth review of increment 10. | 2026-10-29 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

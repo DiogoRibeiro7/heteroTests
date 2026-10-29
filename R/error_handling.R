@@ -304,7 +304,7 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     ))
   }
   if (inherits(error, "heteroTests_data_rows_error")) {
-    # `data` cannot be matched to the rows of the fit (rcheck_data_rows()).
+    # `data` cannot be matched to the rows of the fit (rcheck_rows_at()).
     # Every substitute would read the same rows, or, as the Cook-Weisberg
     # test does, ignore `data` and return another test under this name, so
     # there is no fallback and no cleaning to suggest.

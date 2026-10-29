@@ -437,8 +437,9 @@ the number of fitted values, recycled the fitted values, the residuals and the
 standardised residuals over those rows, binding them to rows of other
 observations: `generics::augment(runHeteroTests(lm(y ~ x1 + x2, d), d,
 use_cache = FALSE, progress = FALSE), data = rbind(d, d))` returned 480 rows,
-each fitted value twice, and is refused with the message above ("... 120 of
-them, and `data` has 240 rows."). Given the data of the fit, or its model frame
+each fitted value twice, and was refused in this step with the message above
+("... 120 of them, and `data` has 240 rows."); step 10 binds the 120 rows of
+the first copy (below). Given the data of the fit, or its model frame
 without `data`, it returns what it returned. And
 `recommendRemediationStrategies(results, model, data)` reads one row of `data`
 for each observation of the fit: given the full data of a fit that dropped
@@ -448,7 +449,8 @@ position, returning a value; both are refused with a message that names the
 two counts ("`recommendRemediationStrategies()` reads one row of `data` for each
 observation of the fit, 117 of them, and `data` has 120 rows."). Given the
 model frame, both give the value; `generateHeteroRecommendations()`, which
-calls it, refused such data before, and still does.
+calls it, refused such data before, and still does. Step 10 (below) matches
+such data to the rows of the fit, and both give the value of those rows.
 
 Unchanged, but for these two refusals: every call on a fit without
 `na.exclude`; the spread-level and Davidian-Carroll tests on such a fit, which
@@ -463,6 +465,317 @@ form of `data`, weighted, with an offset, a Gaussian `glm`, a `gam` with and
 without a smooth term, and a balanced and an unbalanced panel, each of which
 gives what it gives on the same fit with `na.omit`, with its warnings and its
 draws.
+
+### The model context, step 10: the runners and the clean-up
+
+The tenth of the eleven steps of the model context. A grouped run of a
+`fitWLS()` fit is refused; the runners take the data a tidymodels workflow was
+fitted to; the functions outside the tests that read `data` row by row match
+its rows to the observations of the fit, as the tests do; and the preparation
+of `data` the tests used before the model context is gone. No export or
+argument changes; `hardhat`, which `workflows` imports, joins the suggested
+packages. The examples use the data of step 9, `sim`, with `z` missing in
+rows 3, 7 and 11, `sim0`, the same data before `z` was removed, with a
+column `half`, and `sim2`, `sim0` with a response whose variance grows faster
+with `x`:
+
+```r
+set.seed(42)
+n <- 120
+sim0 <- data.frame(id = rep(1:12, each = 10), time = rep(1:10, 12),
+                   x = runif(n, 1, 5), z = rnorm(n))
+sim0$y <- 1 + 2 * sim0$x + rnorm(n, sd = 0.3 + 0.6 * sim0$x)
+sim <- sim0
+sim$z[c(3, 7, 11)] <- NA
+sim2 <- sim0
+set.seed(5)
+sim2$y <- 1 + 2 * sim2$x + rnorm(n, sd = 0.1 * sim2$x^2)
+sim0$half <- rep(c("first", "second"), each = 60)
+set.seed(3)
+perm <- sample(n)
+```
+
+**New refusal: a grouped run of a `fitWLS()` fit.** Given grouped data,
+`runHeteroTests()` refits the model within each group by evaluating its call
+on the rows of the group. The call of a `fitWLS()` fit is that of the model it
+refitted, without the weights it estimated, so each group was tested as the
+unweighted fit of its rows, without an error. Such a run is refused, with the
+class of the refusals of the model context, before any group is refitted.
+With `fw <- fitWLS(lm(y ~ x + z, data = sim0), sim0)`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `runHeteroTests(fw, dplyr::group_by(sim0, half))` | White 8.335 (p = 0.139) and 8.567 (p = 0.128), Koenker 7.286 and 6.508: the values of `lm()` on each half | Error: "runHeteroTests() cannot run a grouped analysis of a fitWLS() fit: each group is refitted by evaluating the call of the model on its rows, and that call does not hold the weights fitWLS() estimated, ..." |
+
+`fitWLS()` fitted within each half gives White 4.924 and 6.755: fit it within
+each group and test each fit, or pass the data ungrouped to test the fit as a
+whole (White 4.562). A grouped run of a weighted `lm`, whose weights are a
+column of the data that the refit of each group reads at its rows, of an
+unweighted `lm` and of a formula, is unchanged, and so is `runDiagnostics()`,
+which runs no grouped analysis.
+
+**The runners take the data a tidymodels workflow was fitted to.** A workflow
+is tested on the fit of its engine, which names its response `..y` and its
+predictors as the workflow's preprocessing made them, and the runners refused
+the data the workflow was fitted to; the tests refused the data of a parsnip
+fit of `fit_xy()`, which names its response `..y` too. The runners map such
+data to the variables of the engine by the workflow's own preprocessing
+(`hardhat::forge()`), the outcome as the preprocessing makes it among them, or
+the outcome of `fit_xy()` to `..y`, match their rows to the observations of the
+fit, every column of its model frame compared, and test the model frame of the
+engine's fit, which gives the value without `data`. The results keep what
+`generics::augment()` needs of the workflow, so that it maps its data in the
+same way (`attr(, "tidymodels")`, below). With
+`wf <- workflows::fit(workflows::add_model(workflows::add_formula(workflows::workflow(), y ~ x + z), parsnip::linear_reg()), data = sim0)`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `runHeteroTests(wf, sim0)` | Error: "A tidymodels workflow is tested on the fit of its engine, ... and `data` lacks ..y. Pass `data = NULL`, which tests the model frame of that fit." | White 14.68 (p = 0.012), Koenker 14.47 (p = 0.00072), as `runHeteroTests(wf)` |
+| the same with a recipe, `recipes::step_log(recipes::recipe(y ~ x + z, data = sim0), x)` | the same error | White 14.95 (p = 0.011), Koenker 13.78 (p = 0.0010), as without `data` |
+| the workflow fitted to `sim`, given `sim` | the same error | White 14.20 (p = 0.014), Koenker 13.93 (p = 0.00095), as without `data` |
+| `runDiagnostics(wf, sim0)` | the same error | White 14.68, RESET 1.273, as without `data` |
+| `runHeteroTests(parsnip::fit_xy(parsnip::linear_reg(), x = sim0[, c("x", "z")], y = sim0[, "y", drop = FALSE]), sim0)` | Error: "Data quality issue detected for White: The following variables are missing from input data: ..y. ..." | White 14.68, Koenker 14.47, as without `data` |
+
+The engine's fit of a workflow numbers its observations in the order of the
+data it was fitted to, so data in another order are refused, with the class of
+the refusals of `data`, and so is a subset of them ("Missing rows: 101, 102,
+103"), with the same advice. From the review of the step:
+
+- **A transformed outcome is mapped too** (decided by the author). A recipe
+    with `step_log()` of the outcome, or a formula preprocessor `log(y) ~ x + z`,
+    maps the outcome of `data` to the outcome it makes, which is the response
+    of the engine's fit, and the value is that without `data`: White 3.495 and Koenker 2.825 on a recipe with `step_log()` of `y` and on a formula preprocessor `log(y) ~ x + z`, fitted to `sim0` and given it, where both were refused ("`data` lacks ..y"). The
+    first version of the step refused such data.
+- **Case weights are compared.** The case weights of a workflow
+    (`workflows::add_case_weights()`) are mapped under the name the engine's
+    call gives them, so other weights are refused, as the weights of a fit are
+    for the tests: with `cw <- hardhat::importance_weights(1 / x)`, the data of the workflow give White 6.21 and Koenker 5.245, as without `data`, and the same data with the weights reversed are refused ("(weights) differs from the model frame").
+- **Recipe steps that drop rows.** A step that drops rows at the fit and is
+    skipped on new data, as `step_naomit()` and `step_filter()` are by default,
+    numbers the rows it kept afresh. The rows of `data` complete in the
+    variables of the engine are taken when they are as many as the rows it kept,
+    and confirmed: a recipe with `step_naomit()` of the predictors, fitted to `sim` and given it, gives White 14.20 and Koenker 13.93, as without `data`, where it was refused. Otherwise the data are refused with a message
+    that names such a step: with `step_filter(x > 1.5)`, which keeps 106 rows of `sim0`, "... its preprocessing kept 106 rows of the data it was fitted to, numbered afresh, where it maps the 120 rows of `data` without dropping any: a step it skips on new data, such as `step_naomit()` or `step_filter()` with `skip = TRUE`, dropped rows at the fit only, ...". A step applied to new data
+    (`skip = FALSE`) maps the rows it keeps.
+- **A lazy `dtplyr` table is mapped too.** It is collected first:
+    `runHeteroTests(wf, dtplyr::lazy_dt(sim0))` gives White 14.68 and Koenker
+    14.47, as without `data`, where it was refused, the names of the lazy
+    object read for those of the data ("`data` lacks ..y, x, z"), as in the
+    first version of the step.
+- Grouped data given with a workflow are refused, as before, with a message
+    that says that only an ungrouped data frame is mapped. Data that cannot be
+    mapped are refused with a message that says why: data that lack a column the
+    preprocessing needs, the package hardhat not installed, and the outcome of
+    `fit_xy()` given as a vector, which the fit does not record.
+
+From the second and third reviews of the step, with `d0 <- sim0[c("x", "z", "y")]`:
+
+- **New refusal: `augment()` of a workflow whose recipe reorders the rows.**
+    `step_arrange()`, which a recipe applies to new data, sorts the rows it
+    maps, and `augment()` bound each row of `data` the fitted value and the
+    residual of the row the sort put in its place. The rows a workflow's
+    preprocessing maps are traced to the rows of `data` they were made from,
+    and the data of a preprocessing that reorders them, or makes a row from
+    other rows, are refused by `augment()`. The runners, which test the model
+    frame of the engine once its rows are confirmed, give the value without
+    `data`. With `wa`, a workflow of `recipes::step_arrange(recipes::recipe(y ~ x + z, data = d0), x)` fitted to `d0`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `generics::augment(runHeteroTests(wa)$white, data = d0)` | 120 rows, each with the fitted value of another: rows `1` and `2` with 3.244 and 3.223, where theirs are 10.589 and 10.611, and 8.079 off at most (7.496 with `dplyr::desc(z)`); so in the first version of the step | Error: "augment() cannot tell which rows of `data` hold the observations of the fit: the workflow's preprocessing reorders the rows of `data` it maps, or makes a row from other rows, as `step_arrange()` does, so the row of `data` each observation comes from cannot be told. Pass `data = NULL`, which binds the model frame of the fit." |
+| `runHeteroTests(wa, d0)` | Error: "... `data` lacks ..y. ..." | White 14.68, Koenker 14.47, as without `data` |
+
+- **A step a recipe skips on new data is named.** `step_log(y, skip = TRUE)`,
+    the idiom recipes recommends for the outcome, transforms the outcome at the
+    fit only, so the data the workflow was fitted to, mapped by its
+    preprocessing, hold it untransformed. They were refused ("`data` lacks
+    ..y"), and in the first version of the step with the advice to pass the
+    data the workflow was fitted to, in its order, which they were ("... ..y
+    differs from the model frame"); the refusal now says what stands between
+    them: "runHeteroTests() cannot map `data` to the variables of the fit of the
+    workflow's engine: the workflow's preprocessing has a step it skips on new
+    data, `step_log()` with `skip = TRUE`, which changed the outcome, a predictor
+    or the order of the rows of the data it was fitted to, so `data`, mapped by
+    that preprocessing (`hardhat::forge()`), do not hold the values the engine
+    was fitted to. Pass `data = NULL`, which tests the model frame of that fit."
+    Without `data` such a workflow gives White 3.495 and Koenker 2.825. The
+    steps named are those without which the rows are not confirmed: with a
+    `step_filter(x > 0)` before it, skipped on new data too and keeping every
+    row, the second version of the step named "`step_filter()` and `step_log()`",
+    and names `step_log()` alone (from the third review).
+- **Case weights are compared on the rows a recipe keeps.** The first version
+    of the step mapped the case weights only when the preprocessing kept every
+    row of `data`, and took other weights when a recipe dropped rows of new
+    data: with `cw <- hardhat::importance_weights(1 / x)` and
+    `step_filter(x > 1.5, skip = FALSE)`, which keeps 106 rows, the data with
+    the weights reversed gave White 4.102 and Koenker 2.986, the values of the
+    fit with its own weights. A recipe gives the weights of the rows it keeps, in the
+    order it keeps them, and those data are refused ("(weights) differs from
+    the model frame"); weights that cannot be told for each row are refused.
+- **New refusal: the data of a `parsnip::fit_xy()` fit with case weights.**
+    `fit_xy()` takes its case weights as a vector, and the fit records the
+    column of its outcome but not that of its weights, so the weights of `data`
+    cannot be compared with those of the fit. With `dw`, `d0` with a column
+    `w = 1 / x`, and `px <- parsnip::fit_xy(parsnip::linear_reg(), x = dw[, c("x", "z")], y = dw[, "y", drop = FALSE], case_weights = hardhat::importance_weights(dw$w))`,
+    `runHeteroTests(px, dw)` was refused ("missing from input data: ..y"), and
+    the second version of the step gave White 6.210 and Koenker 5.245 on these
+    data and on the data with `w` reversed alike, the values of the fit with
+    its own weights. Both are refused, from the third review: "runHeteroTests()
+    cannot compare the case weights of a parsnip fit made with `fit_xy()` with
+    those of `data`: `fit_xy()` takes them as a vector, and the fit does not
+    record which column of `data` held them, so `data` cannot be confirmed to be
+    the data the fit was made from. Pass `data = NULL`, which tests the model
+    frame of that fit." Without `data` it gives White 6.210 and Koenker 5.245. A
+    parsnip fit of `fit()`, given its case weights as a vector too, is matched
+    to `data` by the variables of its formula, as an `lm` whose weights are a
+    vector of the workspace is, and its weights are not compared.
+- **The results of the runners on a workflow or a parsnip fit carry
+    `attr(, "tidymodels")`.** Each result keeps what `generics::augment()` needs
+    to map the data of the workflow as the runners map them: the blueprint of
+    its preprocessing, the number of rows it kept and the column of its case
+    weights, or the outcome of a parsnip fit of `fit_xy()`. `runHeteroTests(wf)`
+    and `runDiagnostics(wf)`, with or without `data`, return what they returned
+    with this attribute on each result, and are no longer `identical()` to the
+    results of 0.16.0; two calls on the same workflow give `identical()`
+    results. The blueprint is kept as the workflow keeps it, and no fit
+    (decision 36, decided by the author on the fourth review). **A recipe step
+    keeps the environment it was written in, so that a saved result carries
+    whatever that environment holds, as saving the workflow does.**
+    Serialized, the results of `runHeteroTests(wf)` with three tests on 5,000
+    rows take 1,523 KB, where they took 1,522 KB; those of a workflow whose
+    recipe was written in a function whose frame held a 50 MB data frame take
+    51,245 KB, where they took 1,894 KB, the attribute 49,347 KB of them, and
+    `saveRDS()` of that workflow takes 50,272 KB. The first version of the step
+    kept the whole workflow, 2,794 KB on 5,000 rows. The third rewrote the
+    expressions of the steps, writing the variables they read of the frame into
+    them as values: that changed what some of them mean or broke them (a
+    variable a later step makes a column, a variable named as a column a step
+    removed, a function called by its name as a string, a variable holding a
+    symbol or a call, where the runners gave White 14.6845, or 14.8861 for the
+    removed column, and `augment()` each row its own value, as they do), and
+    copied the values into each result: 114,196 KB for a step reading one value
+    of a local vector of 5,000,000 numbers, against 39,418 KB as the step keeps
+    it.
+- **New refusal, of values that were right: `augment()` of a recipe step that
+    makes a row from other rows.** The rows a workflow's preprocessing maps are
+    traced to the rows of `data` by mapping `data` in two other orders, and a
+    step that makes a row from other rows, as `cumsum()`, `dplyr::row_number()`
+    or a mean over `dplyr::lag()` in `step_mutate()` do, or `step_arrange()`
+    given data already in its order, does not map `data` in another order to
+    the same rows in that order, and is refused, though on data in the order of
+    the fit 0.16.0 bound each row its
+    own values: the refusal is conservative (decision 14), and never gives a
+    wrong value. With `wc`, a workflow of `recipes::step_mutate(recipes::recipe(y ~ x + z, data = d0), cs = cumsum(x))` fitted to `d0`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `generics::augment(runHeteroTests(wc)$white, data = d0)` | 120 rows, each with its own fitted value: rows `1` and `2` with 10.396 and 10.431 | Error: "augment() cannot tell which rows of `data` hold the observations of the fit: the workflow's preprocessing reorders the rows of `data` it maps, or makes a row from other rows, as `step_arrange()` does, ..." |
+| `runHeteroTests(wc, d0)` | Error: "... `data` lacks ..y, cs. ..." | White 16.14, Koenker 15.37, as without `data` |
+
+**The recommendations and `augment()` match the rows of `data` as the tests
+do.** `recommendRemediationStrategies()` correlates the residuals with the
+columns of `data` row by row, `generateHeteroRecommendations()` hands `data` to
+the tests and to that advice, and `generics::augment()` of the results of the
+runner binds the columns of the fit to its rows. They read the i-th row of
+`data` with the i-th observation, and since step 9 refused data of another
+number of rows. They now read the rows of `data` that hold the observations of
+the fit, found as the tests find them: named data in any order, numbered data
+in the order of the fit and the full data of a fit that dropped rows give the
+value of the rows of the fit, and on a fit with `na.exclude` the value of the
+same fit with `na.omit`. With `m <- lm(y ~ x + z, data = sim)`,
+`me <- lm(y ~ x + z, data = sim, na.action = na.exclude)`,
+`res <- runHeteroTests(m, sim)`, `m0 <- lm(y ~ x + z, data = sim0)` and
+`m2 <- lm(y ~ x + z, data = sim2)`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `recommendRemediationStrategies(res, m, sim)` | Error: "`recommendRemediationStrategies()` reads one row of `data` for each observation of the fit, 117 of them, and `data` has 120 rows. ..." | the advice of the 117 rows of the fit ("No dominant variance pattern detected."), with `na.exclude` too |
+| `generateHeteroRecommendations(m, sim)` | Error: "Input validation for recommendation_engine failed: Model reports 117 residuals but the supplied data has 120 rows. ..." | the report of the 117 rows of the fit: White 14.20, Koenker 13.93, with `na.exclude` too; its profile is that of `sim`, 120 rows with their missing values |
+| `recommendRemediationStrategies(runHeteroTests(m2, sim2), m2, sim2[perm, ])$pattern` | "Variance appears to increase with fitted values.", from the residuals read against other rows | "Variance is strongly associated with x higher values.", as on `sim2` |
+| `generateHeteroRecommendations(m2, sim2[perm, ])$remediation$pattern` | "Variance appears to increase with fitted values." | "Variance is strongly associated with x higher values.", as on `sim2` |
+
+**`augment()` binds as broom does** (decided by the author). The rows of
+`data` are matched to the observations and bound in the order of `data`, each
+with its own fitted value, residual and standardised residual: on a fit with
+`na.omit` the rows the fit used, and on a fit with `na.exclude` every row,
+with `NA` at the rows it dropped, as `broom::augment()` binds the full data of
+such a fit in their order:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `generics::augment(res$white, data = sim)` | Error: "augment() binds one row of `data` to each fitted value of the model, 117 of them, and `data` has 120 rows. ..." | 117 rows, the rows the fit used, `1`, `2`, `4`, ..., in the order of `sim`, each with its fitted value; shuffled, `sim[perm, ]`, the same rows in that order |
+| `generics::augment(runHeteroTests(me, sim)$white, data = sim[perm, ])` | rows `5`, `58` and `12` with the fitted values of observations 1, 2 and 3 by position, 10.563, 10.580 and `NA` (row 3 is one the fit dropped), and `NA` at rows `12`, `104` and `20` | rows `5`, `58` and `12` with theirs, 8.379, 3.368 and 8.833, and `NA` at rows `3`, `7` and `11`, the rows the fit dropped |
+| `head(generics::augment(runHeteroTests(m0, sim0)$white, data = sim0[perm, ]), 2)` | rows `5` and `58` of `sim0` with the fitted values of observations 1 and 2, 10.589 and 10.611 | rows `5` and `58` with theirs, 8.398 and 3.417 |
+
+Given the full data of a fit with `na.exclude` in their order, `augment()`
+binds what it bound. Given the rows of its observations only, as its model
+frame without `data`, such a fit binds them in the order of the fit with a row
+of `NA` at each row it dropped, as in step 9. The first version of the step
+refused, on `augment()` of the results of a workflow, the data it was fitted
+to ("missing from input data: ..y"), where 0.16.0 bound them by position. A
+preprocessing that drops or adds rows of new data, such as `step_filter()`
+with `skip = FALSE`, does not say which rows of `data` it kept, nor one that
+reorders them, such as `step_arrange()`, which row of `data` each observation
+comes from, and `augment()` refuses their data (above).
+
+**`augment()` given the data of the fit twice binds the rows of the first
+copy.** `generics::augment(runHeteroTests(m0, sim0)$white, data = rbind(sim0,
+sim0))` binds the 120 rows of the first copy, `1` to `120`, each with its own
+fitted value, as the tests take the rows of the fit and leave out the rows
+after them; 0.16.0 bound the 240 rows, each fitted value twice, and step 9
+refused them ("... 120 of them, and `data` has 240 rows.").
+
+**The report profiles `data` as given.** `generateHeteroRecommendations()`
+reads the rows of the fit for the checks, the tests and the advice, which read
+the residuals, and profiles `data` as given, its size and its missing values,
+so its advice on missing data fires: with `simna`, `sim0` with `z` missing in its first 40 rows, `generateHeteroRecommendations(lm(y ~ x + z, simna), simna[, c("y", "x", "z")])` was refused ("Model reports 80 residuals but the supplied data has 120 rows") and profiles 120 rows with 11% of their values missing, advising multiple imputation; the first version of the step profiled the 80 rows of the fit, with none missing. Grouped data keep their
+groups on the rows of the fit, so the analysis of a grouped tibble is grouped
+whether or not the fit dropped rows; the first version of the step returned
+them ungrouped when it did.
+
+**New refusals.** What the tests refuse of `data`, these functions refuse
+too. Where they computed a value from other rows: numbered data in another
+order than the fit (`dplyr::as_tibble(sim0)[perm, ]`, a shuffled `data.table`,
+`dplyr::arrange()`), repeated row names, and data in the order of the fit
+whose rows tie on every column of the model frame (the tibble of a fit to
+repeated rows: they read every column of `data`, as a test that reads a
+column beyond the model frame does); and, by `augment()` of the results of a
+workflow, its data in another order, bound by position before. And, from the
+review of the step, where they computed a value from the model or from the
+data without matching them:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `recommendRemediationStrategies(res, m0, sim0[, c("id", "time")])`, data without the variables of the model | "No dominant variance pattern detected.", from `id` and `time` read against the residuals by position | Error: "`recommendRemediationStrategies()` matches the rows of `data` to the observations of the fit by the variables of the model, and `data` lacks y, x, z. Pass the data the model was fitted to, with the columns to examine beside them, such as `cbind(model.frame(model), columns)` ..." |
+| `recommendRemediationStrategies(res, glm(I(y > median(y)) ~ x + z, data = sim0, family = binomial()), sim0)`, a model the tests refuse | "No dominant variance pattern detected." | Error: "`recommendRemediationStrategies()` needs a model fitted by `stats::lm()`: a glm with the binomial family and the logit link is not a least-squares fit. ..." |
+
+The models the tests refuse before matching `data`, a `glm` of another family
+or link than the Gaussian with the identity, a multivariate `lm` and a fit with
+`model = FALSE` whose frame cannot be rebuilt or was rebuilt from data changed
+after the fit, are refused by the three, as by every function built on the
+model context; `augment()` bound the values of such a `glm`, and the advice
+computed its correlations. Each refusal has the message and class of the
+tests' refusal, naming the function; data that lack the variables of the
+model, which `augment()` and the advice read by position, are refused with a
+message that says what to pass.
+
+**The clean-up.** `prepare_model_data_for_test()`, `rdata_or_model_frame()`,
+`rcheck_data_rows()` and `rcheck_rows_after_cleaning()`, internal functions
+no test has called since step 8, are gone; no value changes.
+
+Unchanged, but for the changes above: every test, and every other call of the
+runners; their results on a workflow or a parsnip fit carry the attribute
+`tidymodels` (above), and are otherwise what they were. A corpus of 43,226
+calls (`scripts/model-context-identity.R`), the three functions above on every
+fit and form of `data` of the corpus among them, and the attributes of the
+results of the runners compared by name, returns what it returned in the
+previous step, `identical()`, and leaves the generator as it left it, but for
+856 calls of these changes, each change to a value that of the same
+call on the rows of the fit, or without `data`, and for the results of the
+runners on a workflow without `data` the value of the previous step but for
+their attribute; and each value of
+`augment()` of a workflow checked row by row against the prediction of its
+engine on that row alone.
 
 ## 0.16.0
 

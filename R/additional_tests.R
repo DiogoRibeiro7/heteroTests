@@ -7,62 +7,6 @@
 #' @name additional_tests
 NULL
 
-# Internal helper --------------------------------------------------------------
-
-# `allow_aliased = TRUE` for a test computed on the estimable part of the
-# design, which accepts a rank-deficient fit (see rnon_aliased_columns()).
-prepare_model_data_for_test <- function(model, data, required_vars, test_label,
-                                        min_obs_model = 10L, min_obs_data = 10L,
-                                        allow_aliased = FALSE) {
-  rvalidateModelInputs(
-    model, test_name = test_label, min_obs = min_obs_model, allow_aliased = allow_aliased
-  )
-  rvalidateDataInputs(data, required_vars = required_vars, min_obs = min_obs_data)
-
-  cleaned <- rhandleMissingValues(data, variables = required_vars)
-  # Pearson residuals: identical to residuals(model) for an unweighted fit, and
-  # sqrt(w) * e for a weighted one. See rpearson_residuals().
-  residuals <- rpearson_residuals(model)
-
-  resid_names <- names(residuals)
-  data_rows <- rownames(cleaned$data)
-
-  if (!is.null(resid_names) && length(resid_names) > 0 && !is.null(data_rows)) {
-    match_idx <- match(resid_names, data_rows)
-    if (anyNA(match_idx)) {
-      missing_rows <- resid_names[is.na(match_idx)]
-      stop(
-        sprintf(
-          "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
-          test_label,
-          paste(utils::head(missing_rows, 3L), collapse = ", ")
-        ),
-        call. = FALSE
-      )
-    }
-    rcheck_rows_after_cleaning(
-      data, cleaned, match_idx, resid_names,
-      fn = rtest_name(sys.parent()), test_label = test_label
-    )
-    aligned_data <- cleaned$data[match_idx, , drop = FALSE]
-  } else {
-    if (nrow(cleaned$data) != length(residuals)) {
-      stop(
-        sprintf(
-          "%s requires `data` with %d observations to match the fitted model, got %d.",
-          test_label,
-          length(residuals),
-          nrow(cleaned$data)
-        ),
-        call. = FALSE
-      )
-    }
-    aligned_data <- cleaned$data
-  }
-
-  list(data = aligned_data, residuals = residuals)
-}
-
 #' Studentized Breusch–Pagan test (deprecated)
 #'
 #' `performStudentizedBPTest()` is deprecated since 0.14.0: use

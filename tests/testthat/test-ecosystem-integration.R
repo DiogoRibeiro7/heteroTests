@@ -63,10 +63,14 @@ testthat::test_that("tidymodels workflows are supported", {
     unname(performWhiteTest(engine, stats::model.frame(engine))$statistic)
   )
   # The data the workflow was fitted to lack the response the engine's fit
-  # names `..y`, and are refused with a message that says what to pass.
+  # names `..y`: until 0.17.0 they were refused ("`data` lacks ..y. Pass
+  # `data = NULL`"); they are mapped to the variables of the engine by the
+  # workflow's preprocessing, and the model frame of the engine's fit is
+  # tested, as without `data` (N5).
+  testthat::expect_identical(runHeteroTests(wf, mtcars, tests = "white"), res)
   testthat::expect_error(
-    runHeteroTests(wf, mtcars, tests = "white"),
-    "and `data` lacks ..y. Pass `data = NULL`", fixed = TRUE
+    runHeteroTests(wf, mtcars[, c("wt", "qsec")], tests = "white"),
+    "the workflow's preprocessing cannot map `data` to them", fixed = TRUE
   )
 })
 

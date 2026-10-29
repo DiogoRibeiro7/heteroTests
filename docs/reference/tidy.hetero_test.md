@@ -34,7 +34,31 @@ tidy(x, ...)
 
 `data`
 :   Optional data frame used to augment diagnostics; defaults to the
-    data embedded within the fitted model when available.
+    data embedded within the fitted model when available. The rows of `data`
+    are matched to the observations of the fit as the tests match them, by row
+    name in any order, or for data that only number their rows by the row
+    numbers of the fit or in its order, and bound as broom binds them, in the
+    order of `data`, each row with its own fitted value and residual: on a
+    fit without `na.action = na.exclude` the rows the fit used, so the full
+    data of a fit that dropped rows give those rows; on a fit with
+    `na.exclude` those rows and the rows it dropped, with `NA` there,
+    every row of its full data. Given the rows of its observations only, as its
+    model frame without `data`, a fit with `na.exclude` binds them in
+    the order of the fit with a row of `NA` at each row it dropped. Data
+    whose rows cannot be shown to hold the observations are refused (see
+    [`test_results`](test_results.md)). The data of a tidymodels workflow, or of a
+    parsnip fit of `fit_xy()`, are mapped to the variables of its engine as
+    [`runHeteroTests()`](runHeteroTests.md) maps them, and each mapped row is traced to
+    the row of `data` it was made from: the data of a preprocessing that
+    drops or adds rows of new data, such as `step_filter()` with
+    `skip = FALSE`, or reorders them, such as `step_arrange()`, are
+    refused, since it does not say which row of `data` each observation
+    comes from, and so are those of a step that makes a row from other rows,
+    such as `step_mutate(cs = cumsum(x))`, whose values 0.16.0 bound
+    right in the order of the fit. Before 0.17.0 the rows were bound
+    row by row: named data in another order than the fit had the values of
+    other observations bound to them, and the full data of a fit with
+    `na.omit` could not be bound.
 
 `...`
 :   Passed through for compatibility.

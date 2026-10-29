@@ -46,11 +46,29 @@ runHeteroTests(
   formula, a tidymodels workflow or a parsnip model fit. The tests refuse a \code{glm} of any other family or link
   since 0.15.0, the deprecated registry names \code{"ncv"} and \code{"student_bp"} and the substitutes of the
   fallback (Details) included: the call stops with the error of the first test asked for, and with grouped data
-  each test is returned as failed.}
+  each test is returned as failed. A workflow, or a parsnip fit, is tested on the fit of its engine, which names its
+  response \code{..y} and its predictors as the workflow's preprocessing made them: the data the workflow was fitted
+  to are mapped to those variables by that preprocessing (\code{hardhat::forge()}), the outcome as the
+  preprocessing transforms it among them, or the outcome of a fit of \code{parsnip::fit_xy()} to \code{..y}, and
+  once their rows are matched to the observations of the fit, every column of its model frame compared, its model
+  frame is tested, as without \code{data}. Before 0.17.0 they were refused. Data in another order than the workflow
+  was fitted in are refused, and so are data that cannot be mapped, such as data without a column the
+  preprocessing needs, grouped data, and the data of a workflow whose recipe skips on new data a step that changed
+  the outcome or a predictor at the fit, such as \code{step_log(y, skip = TRUE)}, which the message names. The case
+  weights of a workflow are compared with those of the fit, on the rows its preprocessing keeps; the data of a
+  parsnip fit of \code{fit_xy()} with case weights, whose column the fit does not record, are refused. Each result keeps
+  what \code{generics::augment()} needs to map the data in the same way, the blueprint of the preprocessing, the
+  number of rows it kept and the column of the case weights, or the outcome of a parsnip fit, as
+  \code{attr(, "tidymodels")}, the blueprint as the workflow keeps it: a recipe step keeps the environment it was
+  written in, so that a saved result carries what that environment holds, as saving the workflow does. The results
+  are otherwise those of the fit of the engine.}
   \item{data}{optional data frame used to fit \code{model}. If omitted, \code{model.frame(model)} is used, which
   serves only the tests that find what they need there (see their \code{data} argument). With
   data grouped by \code{dplyr::group_by()} the model is refitted within each group by evaluating its own call on that
-  group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}.}
+  group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}. A fit
+  returned by \code{\link{fitWLS}()} is refused with grouped data since 0.17.0: its call does not hold the weights
+  it estimated, so each group was tested as the unweighted fit of its rows; fit \code{fitWLS()} within each group,
+  or pass the data ungrouped.}
   \item{tests}{character vector of test names to run: any of the names \code{\link{listDiagnostics}()} returns, which
   include those added with \code{registerDiagnostic}. On a fit returned by \code{\link{fitWLS}()} the resampling tests
   \code{"wild_bootstrap"} and \code{"white_bootstrap"} estimate the weights again in each replicate, as

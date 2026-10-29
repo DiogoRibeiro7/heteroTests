@@ -66,6 +66,7 @@ Suggests:
     workflows,
     parsnip,
     recipes,
+    hardhat,
     survey,
     data.table,
     dtplyr,
