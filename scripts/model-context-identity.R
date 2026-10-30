@@ -58,7 +58,15 @@
 #     may change only to the refusal of the context, with its class
 #     (identity_increment11_verdict()), and every other call must be
 #     identical() to main, with main's warnings and the state of the generator
-#     main left, as main holds increments 1 to 10;
+#     main left, as main holds increments 1 to 10; and, for its second part
+#     (decisions 37 and 38), the cells of an mgcv::gam() fit, each recorded
+#     with the kind of its gam (identity_gam_kind()): on a penalised one a call
+#     may change only to the refusal of the context, or, for the streaming
+#     tests, to the value of the exact test of the same call; on one that is
+#     the least-squares fit of its basis, only to what the same call gives on
+#     the lm() of the basis (the reference cells lmbasis/), or on the cell it
+#     reproduces, or on its twin; a gam with a fixed smooth joins the class
+#     block, in every form of data, and the grouped block gains an rlm fit;
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -2351,7 +2359,10 @@ identity_grouped_runner <- "runHeteroTests(<grouped>)"
 identity_grouped_diagnostics <- "runDiagnostics(<grouped>)"
 identity_grouped_cells <- function() {
   cells <- list()
-  for (fit in names(context_grouped_fits)) {
+  # Increment 11, from its review: a MASS::rlm() fit, which a grouped run
+  # refitted by its call in each group (R6).
+  fits <- c(context_grouped_fits, list(rlm = function(d) MASS::rlm(y ~ x1 + x2, data = d)))
+  for (fit in names(fits)) {
     for (grouping in names(context_groupings)) {
       local({
         fit <- fit
@@ -2359,11 +2370,11 @@ identity_grouped_cells <- function() {
         cells[[length(cells) + 1L]] <<- list(
           id = paste("grouped", fit, grouping, sep = "/"), block = "grouped",
           form = "grouped", expect = "value",
-          defect = if (identical(fit, "fitwls")) "B11" else character(),
+          defect = switch(fit, fitwls = "B11", rlm = "R6", character()),
           build = function() {
             testthat::skip_if_not_installed("dplyr")
             d <- context_grouped_data()
-            list(m = context_grouped_fits[[fit]](d), data = context_grouped(d, grouping))
+            list(m = fits[[fit]](d), data = context_grouped(d, grouping))
           }
         )
       })
@@ -2639,18 +2650,148 @@ identity_r6_message <- paste(
   "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares",
   "residuals"
 )
-identity_increment11_verdict <- function(record, after, verdict) {
-  if (!"R6" %in% record$defect) {
+# Decisions 37 and 38 of the design (decided by the author on 2026-10-29), the
+# second part of increment 11, on the cells of an mgcv::gam() fit, each
+# recorded with the kind of its gam (identity_gam_kind()), decided here
+# without the package: "least_squares" when the least-squares refit of its
+# stored design, with its weights and its offset, gives its residuals, to
+# 1e-8 of the spread of the response (no smooth term, or fixed ones);
+# "penalised" otherwise.
+# - Decision 37, a penalised gam: a call may change to the refusal of the
+#   context only, its class and its words (`identity_d37_message`), from a
+#   value or another refusal; or, for the streaming tests and the runner that
+#   streams them, which read the basis since, to the value of the exact test
+#   of the same call on the same cell, to 1e-8 on the statistic, its degrees
+#   of freedom and the p-value.
+# - Decision 38, a gam that is the least-squares fit of its basis: a call may
+#   change, to a value or to a refusal, to what the same call gives on the
+#   lm() of the basis of the cell (context_basis_lm(), run as the reference
+#   cell lmbasis/<cell> on the cells of the data frame of the fit), to 1e-8 on
+#   every number, the generator left as it leaves it; or, on the other forms
+#   of the data, to the value of the cell it must reproduce, itself verified;
+#   or, on a cell of na.exclude, to what its twin gives; or to the refusal of
+#   the guard on a cell that expects it.
+identity_d37_message <- "a penalised mgcv::gam() fit"
+identity_d38_tolerance <- 1e-8
+identity_gam_kind <- function(m) {
+  if (!inherits(m, "gam")) {
+    return(NULL)
+  }
+  X <- stats::model.matrix(m)
+  X <- X[stats::complete.cases(X), , drop = FALSE]
+  frame <- stats::model.frame(m)
+  y <- stats::model.response(frame, "numeric")
+  offset <- stats::model.offset(frame)
+  fit <- stats::lm.wfit(X, y, m$prior.weights, offset = offset)
+  e <- unname(m$residuals)
+  same <- length(e) == length(fit$residuals) &&
+    max(abs(unname(fit$residuals) - e)) <= 1e-8 * max(abs(y - mean(y)))
+  if (isTRUE(same)) "least_squares" else "penalised"
+}
+# The exact test of a streaming call, by the name of the recipe, and of each
+# test of the runner that streams them.
+identity_d37_exact <- c(
+  performWhiteTestStreaming = "performWhiteTest", performBPTestStreaming = "performBPTest",
+  performKoenkerTestStreaming = "performKoenkerTest", white = "performWhiteTest",
+  breusch_pagan = "performBPTest", koenker = "performKoenkerTest"
+)
+identity_d37_same <- function(a, b) {
+  pick <- function(v) c(unname(v$statistic), unname(v$parameter), v$p.value)
+  is.list(a) && is.list(b) && !is.null(a$statistic) && !is.null(b$statistic) &&
+    isTRUE(identity_relative(pick(a), pick(b)) <= identity_d38_tolerance)
+}
+identity_d37_streaming <- function(record, after, branch) {
+  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  if (failed(after$value)) {
+    return(FALSE)
+  }
+  exact_of <- function(name) {
+    branch[[paste("recipe", identity_d37_exact[[name]], record$cell, sep = " | ")]]$value
+  }
+  base <- identity_streaming_base(record$fn)
+  if (identical(record$kind, "recipe") && base %in% names(identity_d37_exact)) {
+    return(identity_d37_same(after$value, exact_of(base)))
+  }
+  if (identical(record$kind, "runner") && record$fn %in% names(identity_streaming_runners)) {
+    tests <- names(after$value)
+    return(length(tests) > 0L && all(tests %in% names(identity_d37_exact)) &&
+             all(vapply(tests, function(k) identity_d37_same(after$value[[k]], exact_of(k)),
+                        logical(1))))
+  }
+  FALSE
+}
+# What verifies a change on a cell of decision 38, or NA.
+identity_d38_verify <- function(record, after, main, branch, seen = character()) {
+  failed <- function(v) is.list(v) && isTRUE(v$.error)
+  # A cell of na.exclude gives what its twin gives (identity_twin()); the twin
+  # is verified as a cell of its own.
+  if (!is.null(record$twin)) {
+    twin <- identity_twin(record, after, branch)
+    return(if (isTRUE(twin$verdict %in% c("value", "padded", "refusal"))) "twin" else NA_character_)
+  }
+  # The lm() of the basis of the cell.
+  oracle_kind <- if (identical(record$kind, "runner")) "reference_runner" else "reference"
+  oracle <- branch[[paste(oracle_kind, record$fn, paste0("lmbasis/", record$cell), sep = " | ")]]
+  if (!is.null(oracle)) {
+    if (failed(after$value) || failed(oracle$value)) {
+      return(if (failed(after$value) && failed(oracle$value)) "lm of the basis" else NA_character_)
+    }
+    same <- identity_same_key(identity_key(after$value), identity_key(oracle$value),
+                              identity_d38_tolerance) && identical(after$rng, oracle$rng)
+    return(if (isTRUE(same)) "lm of the basis" else NA_character_)
+  }
+  # The refusal of the guard, on a cell that expects it.
+  if (failed(after$value) && identical(record$expect, "guard") &&
+        "heteroTests_data_rows_error" %in% after$value$class) {
+    return("guard")
+  }
+  # The cell it must reproduce, its value on the branch, itself unchanged or
+  # verified.
+  reference <- record$reference
+  if (is.null(reference) || reference %in% seen) {
+    return(NA_character_)
+  }
+  reference_id <- paste(record$kind, record$fn, reference, sep = " | ")
+  ref_after <- branch[[reference_id]]
+  ref_before <- main[[reference_id]]
+  if (is.null(ref_after) || failed(after$value) || failed(ref_after$value) ||
+        !identity_same_key(identity_key(after$value), identity_key(ref_after$value), 1e-10)) {
+    return(NA_character_)
+  }
+  if (identical(ref_before$value, ref_after$value)) {
+    return("cell")
+  }
+  deeper <- identity_d38_verify(ref_before, ref_after, main, branch, c(seen, record$cell))
+  if (is.na(deeper)) NA_character_ else paste("cell", deeper, sep = ", ")
+}
+identity_increment11_verdict <- function(record, after, verdict, main, branch) {
+  r6 <- "R6" %in% record$defect
+  gam <- record$gam
+  if (!r6 && is.null(gam)) {
     return(NULL)
   }
   if (identical(verdict$change, "identical")) {
     return(list(verdict = "identical", verified = NA_character_))
   }
-  refused <- is.list(after$value) && isTRUE(after$value$.error) &&
-    "heteroTests_model_context_error" %in% after$value$class &&
-    grepl(identity_r6_message, after$value$message, fixed = TRUE)
-  ok <- verdict$change %in% c("value_to_error", "message_change") && refused
-  list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_)
+  failed <- is.list(after$value) && isTRUE(after$value$.error)
+  in_class <- failed && "heteroTests_model_context_error" %in% after$value$class
+  if (r6) {
+    ok <- verdict$change %in% c("value_to_error", "message_change") && in_class &&
+      grepl(identity_r6_message, after$value$message, fixed = TRUE)
+    return(list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_))
+  }
+  if (identical(gam, "penalised")) {
+    if (failed) {
+      ok <- verdict$change %in% c("value_to_error", "message_change") && in_class &&
+        grepl(identity_d37_message, after$value$message, fixed = TRUE)
+      return(list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_))
+    }
+    ok <- identical(verdict$change, "value_change") && identity_d37_streaming(record, after, branch)
+    return(list(verdict = if (ok) "allowed" else "unexpected",
+                verified = if (ok) "exact test" else NA_character_))
+  }
+  verified <- identity_d38_verify(record, after, main, branch)
+  list(verdict = if (is.na(verified)) "unexpected" else "allowed", verified = verified)
 }
 
 # --- canonical results ---------------------------------------------------------
@@ -3035,7 +3176,7 @@ identity_run <- function(where, out, root = ".") {
     identity_sz$id <- NULL
     records[[id]] <<- c(
       list(id = id, kind = kind, fn = fn, cell = cell$id, form = cell$form,
-           defect = cell$defect, expect = cell$expect, twin = cell$twin,
+           defect = cell$defect, expect = cell$expect, twin = cell$twin, gam = cell$gam,
            reference = identity_chain_reference(fn, cell),
            externals = c(identity_plm_reference(fn, cell), identity_external_ids(fn, cell),
                          identity_rank_reference(fn, cell))),
@@ -3110,7 +3251,8 @@ identity_run <- function(where, out, root = ".") {
     }))
     # Increment 8: the runner with the resampling tests, on some cells and on
     # the references of their changes.
-    if (identity_resampling_runner_cell(cell) || startsWith(cell$id, "precomputed/")) {
+    if (identity_resampling_runner_cell(cell) || startsWith(cell$id, "precomputed/") ||
+          startsWith(cell$id, "lmbasis/")) {
       add(runner_kind, identity_resampling_runner, cell, identity_outcome(function() {
         set.seed(7)
         identity_runner_summary(runHeteroTests(
@@ -3138,6 +3280,8 @@ identity_run <- function(where, out, root = ".") {
   }
   for (cell in cells) {
     built <- suppressWarnings(suppressMessages(cell$build()))
+    # Increment 11: the kind of the gam of the cell (decisions 37 and 38).
+    cell$gam <- identity_gam_kind(built$m)
     run_cell(cell, built, names(recipes), "recipe", "runner")
     add_fit_rows(cell, built)
     # N2: White's test written out on the cell, the reference of its changes.
@@ -3151,6 +3295,25 @@ identity_run <- function(where, out, root = ".") {
         list(na_action = built$m$na.action, n = length(built$m$residuals))
       }))
     }
+  }
+  # Increment 11, decision 38: the lm() of the basis of each cell of a gam that
+  # is the least-squares fit of its basis, in the data frame of the fit, the
+  # reference of its changes, through every recipe and runner
+  # (context_basis_lm(), helper-model-context.R). The other forms of its data
+  # are verified through the cell they reproduce, and a cell of na.exclude
+  # through its twin.
+  for (cell in cells) {
+    if (!identical(cell$form, "data_frame") || !is.null(cell$twin)) {
+      next
+    }
+    built <- tryCatch(suppressWarnings(suppressMessages(cell$build())), error = function(e) NULL)
+    if (is.null(built) || !identical(identity_gam_kind(built$m), "least_squares")) {
+      next
+    }
+    oracle <- context_basis_lm(built$m, built$data)
+    oracle_cell <- list(id = paste0("lmbasis/", cell$id), form = "data_frame",
+                        defect = character())
+    run_cell(oracle_cell, oracle, names(recipes), "reference", "reference_runner")
   }
   # Decision 1: the cells of a poly() term on the stored design.
   identity_trace(TRUE)
@@ -3905,7 +4068,7 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     # Increment 10: the calls of item 3, B11 and N5 are judged by their own
     # rule (identity_increment10_verdict()) alone. Increment 11: the calls on
     # the cells of a MASS::rlm() fit (R6), by theirs, before any other.
-    inc11 <- identity_increment11_verdict(before, after, verdict)
+    inc11 <- identity_increment11_verdict(before, after, verdict, main$records, branch$records)
     inc10 <- if (is.null(inc11)) {
       identity_increment10_verdict(before, after, verdict, main$records, branch$records)
     }
@@ -3960,7 +4123,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
     # against h and the moments written out from its design.
     to_value <- identical(allowed, "allowed") &&
       verdict$change %in% c("error_to_value", "value_change")
-    verified <- if (to_value && !is.null(inc10)) {
+    verified <- if (to_value && !is.null(inc11)) {
+      inc11$verified
+    } else if (to_value && !is.null(inc10)) {
       inc10$verified
     } else if (to_value && isTRUE(szroeter)) {
       "Q from h and the design's moments"
@@ -4000,15 +4165,18 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       verdict$change <- "data_name"
     }
     # Increment 11, the last: main holds increments 1 to 10, so outside the
-    # cells of a MASS::rlm() fit (R6) every call must be identical() to main,
-    # the generator as it left it (below) and its warnings, as
-    # identity_outcome() records them, which the earlier runs counted and
-    # found equal; a change that an earlier rule would allow is unexpected.
+    # cells of a MASS::rlm() fit (R6) and of an mgcv::gam() fit (decisions 37
+    # and 38) every call must be identical() to main, the generator as it left
+    # it (below) and its warnings, as identity_outcome() records them, which the
+    # earlier runs counted and found equal; a change that an earlier rule would
+    # allow is unexpected. A call identical to main must give its warnings on
+    # those cells too.
     if (is.null(inc11) && !allowed %in% c("identical", "unexpected")) {
       allowed <- "unexpected"
-      verdict$detail <- paste("a change outside the cells of R6;", verdict$detail)
+      verdict$detail <- paste("a change outside the cells of increment 11;", verdict$detail)
     }
-    if (is.null(inc11) && !identical(before$warnings, after$warnings)) {
+    if ((is.null(inc11) || identical(allowed, "identical")) &&
+          !identical(before$warnings, after$warnings)) {
       allowed <- "unexpected"
       verdict$detail <- paste("the warnings are not main's;", verdict$detail)
     }
@@ -4027,8 +4195,10 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # the streaming tests allowed the change.
       defect = paste(c(identity_defects(before), if (n2_change) "N2", if (n3_allowed) "N3"),
                      collapse = " "),
-      # Increment 11: whether the call is on a cell of a MASS::rlm() fit (R6).
-      r6 = !is.null(inc11),
+      # Increment 11: whether the call is on a cell of a MASS::rlm() fit (R6),
+      # and the kind of the gam of its cell (decisions 37 and 38).
+      r6 = "R6" %in% before$defect,
+      gam = if (is.null(before$gam)) NA_character_ else before$gam,
       n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
       n2_mode = if (n2_change) n2_mode else NA_character_,
       szroeter = if (is.null(szroeter)) NA else szroeter,
@@ -4238,25 +4408,42 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
                              FUN = sum), row.names = FALSE)
     }
   }
-  # Increment 11: the cells of a MASS::rlm() fit (R6), and every other call.
-  r6_calls <- calls[calls$r6, , drop = FALSE]
-  if (nrow(r6_calls) > 0L) {
-    outside <- calls[!calls$r6, , drop = FALSE]
+  # Increment 11: the cells of a MASS::rlm() fit (R6), of a penalised gam
+  # (decision 37) and of a gam that is the least-squares fit of its basis
+  # (decision 38), and every other call; and every class of change, by its
+  # cells, its kind of call, its change and what verified it.
+  calls$class11 <- ifelse(calls$r6, "R6", ifelse(is.na(calls$gam), NA_character_,
+                                                 ifelse(calls$gam == "penalised", "D37", "D38")))
+  inside <- calls[!is.na(calls$class11), , drop = FALSE]
+  if (nrow(inside) > 0L) {
+    outside <- calls[is.na(calls$class11), , drop = FALSE]
+    for (k in c("R6", "D37", "D38")) {
+      part <- inside[inside$class11 == k, , drop = FALSE]
+      cat(sprintf(paste0(
+        "\nIncrement 11, %s: %d calls on %d cells, %d identical() to main, %d allowed changes ",
+        "(%d errors to values, %d values that change, %d new refusals, %d messages), %d ",
+        "unexpected"
+      ), k, nrow(part), length(unique(part$cell)), sum(part$verdict == "identical"),
+      sum(part$verdict == "allowed"),
+      sum(part$verdict == "allowed" & part$change == "error_to_value"),
+      sum(part$verdict == "allowed" & part$change == "value_change"),
+      sum(part$verdict == "allowed" & part$change == "value_to_error"),
+      sum(part$verdict == "allowed" & part$change == "message_change"),
+      sum(part$verdict == "unexpected")))
+    }
     cat(sprintf(paste0(
-      "\nIncrement 11, R6: %d calls on %d cells of a MASS::rlm() fit, %d identical() to main, ",
-      "%d refused by the context with its class (%d where main gave a value, %d where it ",
-      "refused otherwise), %d unexpected; outside them %d calls, %d identical() to main with ",
-      "main's warnings, %d unexpected\n"
-    ), nrow(r6_calls), length(unique(r6_calls$cell)), sum(r6_calls$verdict == "identical"),
-    sum(r6_calls$verdict == "allowed"),
-    sum(r6_calls$verdict == "allowed" & r6_calls$change == "value_to_error"),
-    sum(r6_calls$verdict == "allowed" & r6_calls$change == "message_change"),
-    sum(r6_calls$verdict == "unexpected"), nrow(outside), sum(outside$verdict == "identical"),
-    sum(outside$verdict == "unexpected")))
-    changed11 <- r6_calls[r6_calls$verdict != "identical", , drop = FALSE]
+      "\nOutside them: %d calls, %d identical() to main with main's warnings and generator ",
+      "state, %d unexpected\n"
+    ), nrow(outside), sum(outside$verdict == "identical"), sum(outside$verdict == "unexpected")))
+    changed11 <- inside[inside$verdict != "identical", , drop = FALSE]
     if (nrow(changed11) > 0L) {
       changed11$calls <- 1L
-      print(stats::aggregate(calls ~ cell + change + verdict, data = changed11, FUN = sum),
+      changed11$verified_by[is.na(changed11$verified_by)] <- "-"
+      cat("\nEvery class of change of increment 11:\n")
+      print(stats::aggregate(calls ~ class11 + kind + change + verified_by + verdict,
+                             data = changed11, FUN = sum), row.names = FALSE)
+      cat("\nBy cell:\n")
+      print(stats::aggregate(calls ~ class11 + cell + change + verdict, data = changed11, FUN = sum),
             row.names = FALSE)
     }
   }
