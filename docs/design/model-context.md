@@ -52,21 +52,21 @@ from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increment 7 is
 in 0.16.0 too: the three streaming tests, `performWhiteTestStreaming()`,
 `performBPTestStreaming()` and `performKoenkerTestStreaming()`, built on it,
 reading the stored design chunk by chunk (`rstreaming_design()`, in
-`R/performance.R`). Increment 8, the first of 0.17.0, is in the development
-version: the resampling tests, `performWhiteTestBootstrap()`, whose observed
+`R/performance.R`). Increment 8 is in 0.17.0, the first of its four: the
+resampling tests, `performWhiteTestBootstrap()`, whose observed
 statistic and replicates moved together, and `performWildBootstrapTest()`,
 `bootstrapTestStatistic()` and the robust White and Breusch-Pagan tests,
 `performWhiteTestRobust()` and `performBPTestRobust()`, built on it, each
 replicate refitted by least squares on the stored design
 (`rreplicate_lm()`, in `R/bootstrap_methods.R`), and a Gaussian `glm`
-bootstrapped as the `lm` it is (N8). Increment 9, the second of 0.17.0, is in
-the development version too: a fit with `na.action = na.exclude`, which the
+bootstrapped as the `lm` it is (N8). Increment 9 is in 0.17.0 too, the
+second: a fit with `na.action = na.exclude`, which the
 tests refused and the panel tests and the scatter diagnostic read by
 position, is read as the same fit with `na.omit`, the checks of the model and
 every test reading its residuals, fitted values, weights and leverages without
 the padding of `na.exclude` (`rmodel_unpad()`, `rcontext_unpad()`), and an
 output with one value per row padded as `naresid()` pads it (B13).
-Increment 10, the third of 0.17.0, is in the development version too: the
+Increment 10 is in 0.17.0 too, the third: the
 runners and the clean-up. A grouped run of a `fitWLS()` fit, which refitted
 each group without the weights it estimated, is refused (B11, decision 10);
 the data a tidymodels workflow, or a parsnip fit of `fit_xy()`, was fitted to
@@ -79,8 +79,8 @@ as broom does (decision 34), the results keeping the blueprint of a workflow
 as the workflow keeps it (decision 36); and the preparation of
 `data` the tests used before the context, `prepare_model_data_for_test()`,
 `rdata_or_model_frame()`, `rcheck_data_rows()` and
-`rcheck_rows_after_cleaning()`, is gone. Increment 11, the last, is in the
-development version too, in two parts. In its first a `MASS::rlm()` fit, an
+`rcheck_rows_after_cleaning()`, is gone. Increment 11, the last, is in
+0.17.0 too, in two parts. In its first a `MASS::rlm()` fit, an
 M-estimate that every test built on the context took for an `lm`, is refused
 by the context, with its class, on every route, a grouped run and
 `autoCompareRemediations()` among them (decision 4, R6 and N10;
@@ -93,8 +93,8 @@ by every test that fits it again by least squares or whose null distribution
 is derived for least-squares residuals of its design
 (`rrefuse_penalised_gam()`); a `gam` that is the least-squares fit of its
 design, without smooth terms or with fixed ones, is taken by every test as the
-`lm()` of that design (`rgam_least_squares()`). Every increment is done; see
-[Migration plan](#migration-plan).
+`lm()` of that design (`rgam_least_squares()`). Every increment is done, 1
+to 7 in 0.16.0 and 8 to 11 in 0.17.0; see [Migration plan](#migration-plan).
 
 ## The problem
 
@@ -343,7 +343,8 @@ removed it.
    every compared column.
 8. Extra variables are read as `data[[v]][ctx$rows]`.
 
-A follow-up of the review, recorded for a later step: try the rows in the
+A follow-up of the review, recorded under 0.18.0 in ROADMAP.md (*Left from
+step 1 of the model context*): try the rows in the
 order of the fit also when the rows picked by number fail the comparison and
 `data` has one row per observation, which would accept a fit to
 `d[order(x), ]` given that same data frame numbered again, and character row
@@ -1095,8 +1096,8 @@ For the functions built on the context in increment 8:
   tolerance of `lm()`, as the refits of the formula were, so such a fit is
   refused as an `lm` fitted with a smaller `tol` is, "`data` does not
   reproduce the fit". Refitting the replicates at the tolerance of the fit
-  would give both values, a change of value for the `lm`, left to a later step
-  (ROADMAP.md).
+  would give both values, a change of value for the `lm`, left to 0.18.0
+  (ROADMAP.md, *Left from steps 8 to 10 of the model context*).
 - **A new refusal outside the corpus.** `bootstrapTestStatistic()` matches
   `data` through the guard, which refuses data that lack a variable of the
   formula: a statistic of the caller's own that reads nothing from `data`, on a
