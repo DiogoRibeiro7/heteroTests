@@ -26,8 +26,8 @@ test_that("fitWLS defaults are the log-variance fit on the model's own design", 
   m <- obj$model
   expected <- heteroTests:::rfgls_weights(m$residuals, model.matrix(m))
 
-  expect_identical(fitWLS(m)$weights, expected)
-  expect_identical(fitWLS(m, form = "exponential")$weights, expected)
+  expect_identical_numbers(fitWLS(m)$weights, expected)
+  expect_identical_numbers(fitWLS(m, form = "exponential")$weights, expected)
 })
 
 test_that("the exponential form with var_formula matches its definition", {

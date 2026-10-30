@@ -431,6 +431,8 @@ test_that("the validation cache keeps a bounded number of results", {
 
   # The oldest results were dropped and the newest kept: validating the last
   # model again is answered from the cache, and the first is validated anew.
+  # Off CRAN: under another BLAS a refit can differ in its last bits, and miss.
+  skip_on_cran()
   before <- keys()
   o <- fit(calls)
   performWhiteTest(o$model, o$data)

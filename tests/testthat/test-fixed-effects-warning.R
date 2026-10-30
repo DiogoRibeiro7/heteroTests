@@ -87,7 +87,7 @@ test_that("a factor with more levels than observations per level warns, with the
     )
     # The value is the one the test computes without the warning.
     muffled <- suppressWarnings(fe_tests[[fn]](m, d), classes = fe_class)
-    expect_identical(out$value, muffled)
+    expect_identical_numbers(out$value, muffled)
   }
 })
 
@@ -314,7 +314,7 @@ test_that("a result answered from either cache gives the warning again", {
   invisible(fe_capture(cachedTest("white", m, d)))
   mixed <- fe_capture(runHeteroTests(m, d, progress = FALSE))
   expect_length(mixed$warnings, 2L)
-  expect_identical(mixed$value, fresh$value)
+  expect_identical_numbers(mixed$value, fresh$value)
 
   # With the caches off, every call computes and warns.
   withr::local_options(heteroTests.cache_size = 0)
@@ -380,7 +380,7 @@ test_that("under options(warn = 2) the runners store the real values and take no
   # not those of a fallback, and the two warnings.
   out <- fe_capture(runHeteroTests(m, d, tests = tests, progress = FALSE))
   for (t in tests) {
-    expect_identical(unname(out$value[[t]]$statistic), unname(reference[[t]]$statistic))
+    expect_identical_numbers(unname(out$value[[t]]$statistic), unname(reference[[t]]$statistic))
     expect_identical(out$value[[t]]$method, reference[[t]]$method)
     expect_null(attr(out$value[[t]], "extras")$fallback_strategy)
   }
@@ -392,7 +392,7 @@ test_that("under options(warn = 2) the runners store the real values and take no
     expect_error(runDiagnostics(m, d, tests = tests, progress = FALSE), "converted from warning")
   })
   stored <- fe_capture(cachedTest("koenker", m, d))
-  expect_identical(unname(stored$value$statistic), unname(reference$koenker$statistic))
+  expect_identical_numbers(unname(stored$value$statistic), unname(reference$koenker$statistic))
   expect_length(stored$warnings, 1L)
   # Grouped data: every group runs before the warnings are given.
   skip_if_not_installed("dplyr")

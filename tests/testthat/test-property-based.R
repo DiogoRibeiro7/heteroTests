@@ -57,7 +57,7 @@ if (requireNamespace("quickcheck", quietly = TRUE)) {
           x = rnorm(n)
         )
         model <- lm(y ~ x, data = df)
-        expect_identical(
+        expect_identical_numbers(
           performKoenkerTest(model, df)$statistic,
           performKoenkerTest(model)$statistic
         )

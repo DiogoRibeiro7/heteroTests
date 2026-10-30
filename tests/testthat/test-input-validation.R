@@ -282,14 +282,14 @@ test_that("a model-only test checks the data it is given against the model", {
   on.exit(ht_set_log_level(old), add = TRUE)
   # The model frame holds the terms, not the variables, and is accepted.
   logged <- lm(log(y + 10) ~ x1 + x2, data = s$d)
-  expect_identical(
+  expect_identical_numbers(
     performSpearmanTest(logged, stats::model.frame(logged)),
     performSpearmanTest(logged)
   )
   # So are the data with rows the fit did not use, in any order.
   extra <- rbind(s$d, s$d[1:5, ])
   rownames(extra) <- c(rownames(s$d), paste0("extra", 1:5))
-  expect_identical(performHarveyTest(m, extra[sample(nrow(extra)), ]), performHarveyTest(m))
+  expect_identical_numbers(performHarveyTest(m, extra[sample(nrow(extra)), ]), performHarveyTest(m))
   expect_error(
     performArchLMTest(m, s$d[-7, ], lags = 2),
     "ARCH LM requires `data` to contain the rows used to fit the model. Missing rows: 7"
@@ -398,12 +398,12 @@ test_that("the deprecated names give their implementations' value on a least-squ
       m <- cases[[case]][[fit]]
       d <- cases[[case]]$d
       info <- paste(fit, case)
-      expect_identical(ncv(m, d), heteroTests:::.ncv_test(m), info = info)
+      expect_identical_numbers(ncv(m, d), heteroTests:::.ncv_test(m), info = info)
       expected <- heteroTests:::.studentized_bp_test(m, d, data_name = "model")
-      expect_identical(student_bp(m, d), expected, info = info)
+      expect_identical_numbers(student_bp(m, d), expected, info = info)
       from_factory <- test_factory$run_test("student_bp", m, d)
       from_factory$test_metadata <- NULL
-      expect_identical(from_factory, expected, info = info)
+      expect_identical_numbers(from_factory, expected, info = info)
     }
   }
 })

@@ -441,9 +441,12 @@ test_that("White's located test is lmtest::bptest() on the centred terms", {
       info <- paste("x1 +", shift, if (cross_products) "with" else "without", "cross products")
       ours <- performWhiteTest(m, moved, cross_products = cross_products)
       bp <- white_df_bptest(m, cross_products, centre = TRUE)
-      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = 1e-10, info = info)
+      # A design 1e6 from zero amplifies the last bits of the BLAS.
+      tolerance <- if (shift > 1e4) blas_tolerance(1e-10) else 1e-10
+      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = tolerance,
+                   info = info)
       expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
-      expect_equal(ours$p.value, unname(bp$p.value), tolerance = 1e-10, info = info)
+      expect_equal(ours$p.value, unname(bp$p.value), tolerance = tolerance, info = info)
     }
   }
 })
@@ -676,8 +679,8 @@ test_that("a regressor named like a column White's test generates is tested", {
     ours <- performWhiteTest(lm(y ~ a + a_sq, data = d), d, cross_products = cross_products)
     other <- performWhiteTest(lm(y ~ a + b, data = renamed), renamed,
                               cross_products = cross_products)
-    expect_identical(ours[c("statistic", "parameter", "p.value")],
-                     other[c("statistic", "parameter", "p.value")])
+    expect_identical_numbers(ours[c("statistic", "parameter", "p.value")],
+                             other[c("statistic", "parameter", "p.value")])
     ref <- white_df_by_hand(lm(y ~ a + a_sq, data = d), cross_products)
     expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10)
     # The streaming test, in chunks of any size. Up to 0.16.0 it matched the

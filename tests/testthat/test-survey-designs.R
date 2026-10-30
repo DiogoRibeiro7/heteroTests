@@ -106,7 +106,7 @@ test_that("runHeteroTests() and runDiagnostics() treat a design the same way", {
     ),
     "runHeteroTests\\(\\) does not use the sampling weights"
   )
-  expect_identical(direct$koenker$statistic, from_wrapper$koenker$statistic)
+  expect_identical_numbers(direct$koenker$statistic, from_wrapper$koenker$statistic)
   expect_false(inherits(attr(direct, "model"), "svyglm"))
 
   expect_warning(
@@ -116,7 +116,7 @@ test_that("runHeteroTests() and runDiagnostics() treat a design the same way", {
     ),
     "runDiagnostics\\(\\) does not use the sampling weights"
   )
-  expect_identical(broad$koenker$statistic, from_wrapper$koenker$statistic)
+  expect_identical_numbers(broad$koenker$statistic, from_wrapper$koenker$statistic)
 
   expect_error(
     runHeteroTests(lm(y ~ x, data = d), design),

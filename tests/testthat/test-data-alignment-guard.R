@@ -76,8 +76,8 @@ guard_run <- function(fn, m, data, recipes = guard_recipes()) {
 
 expect_same_result <- function(object, expected, info) {
   if (is.list(expected) && !is.null(expected$statistic)) {
-    expect_identical(unname(object$statistic), unname(expected$statistic), info = info)
-    expect_identical(object$p.value, expected$p.value, info = info)
+    expect_identical_numbers(unname(object$statistic), unname(expected$statistic), info = info)
+    expect_identical_numbers(object$p.value, expected$p.value, info = info)
     expect_identical(unname(object$parameter), unname(expected$parameter), info = info)
   } else {
     expect_identical(unname(object), unname(expected), info = info)
@@ -129,7 +129,7 @@ test_that("a data frame whose row names were reset, in another order, is refused
     fixed = TRUE
   )
   # The same rows with their own row names are matched by name, as before.
-  expect_identical(
+  expect_identical_numbers(
     performKoenkerTest(m, d[order(d$x), ])$statistic,
     performKoenkerTest(m, d)$statistic
   )
@@ -374,7 +374,7 @@ test_that("the variables of var_formula are read from rows the guard confirmed",
   m <- lm(y ~ x1 + x2, data = d)
   set.seed(10)
   shuffled <- d[sample(nrow(d)), ]
-  expect_identical(
+  expect_identical_numbers(
     performCookWeisbergTest(m, shuffled, var_formula = ~ group)$statistic,
     performCookWeisbergTest(m, d, var_formula = ~ group)$statistic
   )
@@ -392,7 +392,7 @@ test_that("the variables of var_formula are read from rows the guard confirmed",
     "performCookWeisbergTest() cannot match the rows of `data`",
     fixed = TRUE
   )
-  expect_identical(
+  expect_identical_numbers(
     performCookWeisbergTest(m, shuffled)$statistic,
     performCookWeisbergTest(m, d)$statistic
   )
@@ -462,7 +462,7 @@ test_that("runHeteroTests() and runDiagnostics() stop and fall back on nothing",
     expect_true(is.na(out[[nm]]$statistic), info = nm)
   }
   # The same battery on the data of the fit is unchanged.
-  expect_identical(
+  expect_identical_numbers(
     unname(runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)$koenker$statistic),
     unname(performKoenkerTest(m, d)$statistic)
   )
@@ -589,7 +589,7 @@ test_that("the registry name student_bp checks data as performStudentizedBPTest(
     test_factory$run_test("student_bp", m, arranged),
     class = "heteroTests_data_rows_error"
   )
-  expect_identical(
+  expect_identical_numbers(
     unname(suppressWarnings(runHeteroTests(m, d, tests = "student_bp", use_cache = FALSE,
                                            progress = FALSE))$student_bp$statistic),
     unname(suppressWarnings(performStudentizedBPTest(m, d))$statistic)
@@ -660,11 +660,11 @@ test_that("messages name the function called and say why", {
   dc <- d
   rownames(dc) <- paste0("obs", seq_len(nrow(dc)))
   m_c <- lm(y ~ x1 + x2, data = dc)
-  expect_identical(
+  expect_identical_numbers(
     performScatterDiagnostic(m_c, dplyr::as_tibble(dc), "x1"),
     performScatterDiagnostic(m, d, "x1")
   )
-  expect_identical(
+  expect_identical_numbers(
     performScatterDiagnostic(m_c, dc, "x1"),
     performScatterDiagnostic(m, d, "x1")
   )

@@ -58,8 +58,8 @@ test_that("a test called without data reads the model frame", {
     omitted <- run(NULL)
     if (is.null(omitted)) next
     expect_s3_class(omitted, "htest")
-    expect_identical(omitted, run(stats::model.frame(m)), info = fn)
-    expect_identical(omitted, run(d), info = fn)
+    expect_identical_numbers(omitted, run(stats::model.frame(m)), info = fn)
+    expect_identical_numbers(omitted, run(d), info = fn)
   }
 })
 
@@ -69,10 +69,10 @@ test_that("supplying the data does not change the result", {
   d <- s$d
   for (fn in convention_tests) {
     f <- getExportedValue("heteroTests", fn)
-    expect_identical(quiet_test(f(m, d)), quiet_test(f(m)), info = fn)
-    expect_identical(quiet_test(f(m, data = d)), quiet_test(f(m)), info = fn)
+    expect_identical_numbers(quiet_test(f(m, d)), quiet_test(f(m)), info = fn)
+    expect_identical_numbers(quiet_test(f(m, data = d)), quiet_test(f(m)), info = fn)
   }
-  expect_identical(
+  expect_identical_numbers(
     quiet_test(performCookWeisbergTest(m, d, var_formula = ~ x1 + x2)),
     quiet_test(performCookWeisbergTest(m, var_formula = ~ x1 + x2))
   )
@@ -108,7 +108,7 @@ test_that("old positional calls warn, show the new call and keep their value", {
     "performArchLMTest\\(m, 3\\) is deprecated.*Use performArchLMTest\\(m, lags = 3\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performArchLMTest(m, lags = 3)))
+  expect_identical_numbers(a, q(performArchLMTest(m, lags = 3)))
   # The warning says when the old form goes.
   expect_warning(
     q(performArchLMTest(m, 3)), "stops working in 1\\.0\\.0",
@@ -121,43 +121,43 @@ test_that("old positional calls warn, show the new call and keep their value", {
     "Use performRESETTest\\(m, power = 2:4\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performRESETTest(m, power = 2:4)))
-  expect_identical(q(performRESETTest(m, convention_model()$d, power = 2:4)), a)
+  expect_identical_numbers(a, q(performRESETTest(m, power = 2:4)))
+  expect_identical_numbers(q(performRESETTest(m, convention_model()$d, power = 2:4)), a)
 
   expect_warning(
     a <- q(performMcLeodLiTest(m, 4)),
     "Use performMcLeodLiTest\\(m, lags = 4\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performMcLeodLiTest(m, lags = 4)))
+  expect_identical_numbers(a, q(performMcLeodLiTest(m, lags = 4)))
 
   expect_warning(
     a <- q(performDavidianCarrollTest(m, 3)),
     "Use performDavidianCarrollTest\\(m, degree = 3\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performDavidianCarrollTest(m, degree = 3)))
+  expect_identical_numbers(a, q(performDavidianCarrollTest(m, degree = 3)))
 
   expect_warning(
     a <- q(performCookWeisbergTest(m, ~x1)),
     "Use performCookWeisbergTest\\(m, var_formula = ~x1\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performCookWeisbergTest(m, var_formula = ~x1)))
+  expect_identical_numbers(a, q(performCookWeisbergTest(m, var_formula = ~x1)))
 
   expect_warning(
     a <- q(performHarveyTest(m, "fitted")),
     "Use performHarveyTest\\(m, auxiliary = \"fitted\"\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performHarveyTest(m, auxiliary = "fitted")))
+  expect_identical_numbers(a, q(performHarveyTest(m, auxiliary = "fitted")))
 
   expect_warning(
     a <- q(performHarveyTest(m, "fitted", TRUE)),
     "Use performHarveyTest\\(m, auxiliary = \"fitted\", studentize = TRUE\\)",
     class = "deprecatedWarning"
   )
-  expect_identical(a, q(performHarveyTest(m, auxiliary = "fitted", studentize = TRUE)))
+  expect_identical_numbers(a, q(performHarveyTest(m, auxiliary = "fitted", studentize = TRUE)))
 
   # performNCVTest() is deprecated as a whole as well, so it warns twice.
   n_warn <- 0L
@@ -169,7 +169,7 @@ test_that("old positional calls warn, show the new call and keep their value", {
     }
   )
   expect_identical(n_warn, 2L)
-  expect_identical(a, quiet_test(performNCVTest(m, var_formula = ~x1)))
+  expect_identical_numbers(a, quiet_test(performNCVTest(m, var_formula = ~x1)))
 })
 
 test_that("var_formula is evaluated in data, rows matched by name", {
@@ -183,7 +183,7 @@ test_that("var_formula is evaluated in data, rows matched by name", {
   expect_equal(ours$p.value, ref$p, tolerance = 1e-8)
 
   shuffled <- mtcars[rev(seq_len(nrow(mtcars))), ]
-  expect_identical(
+  expect_identical_numbers(
     quiet_test(performCookWeisbergTest(m, shuffled, var_formula = ~ wt + hp)),
     ours
   )

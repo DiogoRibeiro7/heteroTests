@@ -46,7 +46,7 @@ test_that("the additional tests take the rows of the fit from its data", {
   model <- lm(mpg ~ wt + cyl, data = df)
   set.seed(4)
   shuffled <- df[sample(nrow(df)), ]
-  expect_identical(
+  expect_identical_numbers(
     performSzroeterTest(model, shuffled, "wt")$statistic,
     performSzroeterTest(model, df, "wt")$statistic
   )

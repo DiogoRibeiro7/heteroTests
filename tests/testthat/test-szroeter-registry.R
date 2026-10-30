@@ -76,6 +76,8 @@ test_that("the registered Szroeter test does not depend on the order of the colu
     rev(names(mtcars))
   )
 
+  # Off CRAN: Merc 280 and 280C share wt and hp; their fitted values tie only in equal last bits.
+  skip_on_cran()
   results <- lapply(orders, function(cols) run_szroeter(m, mtcars[, cols]))
   stats <- vapply(results, function(r) unname(r$statistic), numeric(1))
   p_values <- vapply(results, `[[`, numeric(1), "p.value")
@@ -182,15 +184,24 @@ test_that("equal fitted values tie exactly, however the model is written", {
   d3_helmert <- d3
   contrasts(d3_helmert$g) <- contr.helmert(3)
   d3_rev <- transform(d3, g = factor(g, levels = c("c", "b", "a")))
+  # A row of these designs has at most two terms that are not zero, whose sum
+  # is the same under any BLAS.
   groups <- list(
     treatment = szroeter(lm(y ~ g, data = d3), d3),
-    sum = szroeter(lm(y ~ g, data = d3_sum), d3_sum),
-    helmert = szroeter(lm(y ~ g, data = d3_helmert), d3_helmert),
     cell_means = szroeter(lm(y ~ 0 + g, data = d3), d3),
     levels_reversed = szroeter(lm(y ~ g, data = d3_rev), d3_rev)
   )
   for (nm in names(groups)) {
     expect_equal(unname(groups[[nm]]$statistic), ref3, tolerance = 1e-10, info = nm)
+  }
+  # Off CRAN: with three terms a row's sum, and so the ties, depend on the BLAS.
+  skip_on_cran()
+  dense <- list(
+    sum = szroeter(lm(y ~ g, data = d3_sum), d3_sum),
+    helmert = szroeter(lm(y ~ g, data = d3_helmert), d3_helmert)
+  )
+  for (nm in names(dense)) {
+    expect_equal(unname(dense[[nm]]$statistic), ref3, tolerance = 1e-10, info = nm)
   }
 })
 
@@ -225,7 +236,8 @@ test_that("the registered Szroeter test uses the rows the model used, and says n
   named <- `rownames<-`(d, paste0("r", seq_len(n)))
   m_named <- lm(y ~ x1 + x2, data = named)
   expect_warning(res_named <- run_szroeter(m_named, d), NA)
-  expect_identical(unname(res_named$statistic), unname(run_szroeter(m_named, named)$statistic))
+  expect_identical_numbers(unname(res_named$statistic),
+                           unname(run_szroeter(m_named, named)$statistic))
   expect_warning(
     expect_error(
       run_szroeter(m_named, named[-(1:3), ]),

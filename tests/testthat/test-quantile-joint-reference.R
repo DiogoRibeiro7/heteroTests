@@ -82,11 +82,11 @@ test_that("performQuantileRegressionTest matches quantreg on a model with one re
   suite <- runHeteroTests(model, quakes, tests = "quantile_regression", use_cache = FALSE)
   expect_identical(attr(suite$quantile_regression, "diagnostic"), "quantile_regression")
   expect_identical(suite$quantile_regression$method, ours$method)
-  expect_identical(suite$quantile_regression$statistic, ours$statistic)
-  expect_identical(suite$quantile_regression$p.value, ours$p.value)
+  expect_identical_numbers(suite$quantile_regression$statistic, ours$statistic)
+  expect_identical_numbers(suite$quantile_regression$p.value, ours$p.value)
   factory <- test_factory$run_test("quantile_regression", model, quakes)
   factory$test_metadata <- NULL
-  expect_identical(factory, ours)
+  expect_identical_numbers(factory, ours)
 })
 
 test_that("performQuantileRegressionTest refuses a model without a slope", {

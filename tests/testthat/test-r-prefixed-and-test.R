@@ -13,7 +13,7 @@ test_that("rbootstrap_test_statistic() warns and returns what bootstrapTestStati
   )
   set.seed(1)
   new <- bootstrapTestStatistic(performKoenkerTest, m, mtcars, B = 19, progress = FALSE)
-  expect_identical(old[names(old) != "call"], new[names(new) != "call"])
+  expect_identical_numbers(old[names(old) != "call"], new[names(new) != "call"])
   # Each name records the call it was given, as before.
   expect_identical(as.character(old$call[[1L]]), "rbootstrap_test_statistic")
   expect_identical(as.character(new$call[[1L]]), "bootstrapTestStatistic")
@@ -24,16 +24,16 @@ test_that("the r-prefixed helpers that leave the exports warn and keep their val
   base <- performKoenkerTest(m, mtcars)
   msg <- "is deprecated: it is an internal helper of heteroTests"
   expect_warning(e <- rcalculateEffectSize(base, m, mtcars), msg, class = "deprecatedWarning")
-  expect_identical(e, .calculate_effect_size(base, m, mtcars))
+  expect_identical_numbers(e, .calculate_effect_size(base, m, mtcars))
   expect_warning(p <- restimate_test_power(base, m, mtcars), msg, class = "deprecatedWarning")
-  expect_identical(p, .estimate_test_power(base, m, mtcars))
+  expect_identical_numbers(p, .estimate_test_power(base, m, mtcars))
   skip_if_not_installed("lmtest")
   expect_warning(
     v <- rvalidate_against_reference("breusch_pagan", m, mtcars),
     msg,
     class = "deprecatedWarning"
   )
-  expect_identical(v, .validate_against_reference("breusch_pagan", m, mtcars))
+  expect_identical_numbers(v, .validate_against_reference("breusch_pagan", m, mtcars))
 })
 
 test_that("test() warns, names runDiagnostics() and returns what it returns", {

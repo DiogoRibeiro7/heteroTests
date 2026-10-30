@@ -214,11 +214,11 @@ test_that("the quantile regression test fits the estimable part of a rank-defici
   )
   a <- performQuantileRegressionTest(s$m, s$d)
   b <- performQuantileRegressionTest(s$reduced, s$d)
-  expect_identical(a$statistic, b$statistic)
+  expect_identical_numbers(a$statistic, b$statistic)
   expect_identical(a$parameter, b$parameter)
-  expect_identical(a$p.value, b$p.value)
+  expect_identical_numbers(a$p.value, b$p.value)
   # The slopes are those of the columns the fit estimated, under their names.
-  expect_identical(a$estimate, b$estimate)
+  expect_identical_numbers(a$estimate, b$estimate)
   expect_identical(rownames(a$estimate), c("x", "z"))
 })
 
@@ -501,7 +501,7 @@ test_that("the four tests give a model with an offset the value of that model", 
     expect_equal(unname(out$statistic), reference$F[2], tolerance = 1e-10, info = k)
     expect_equal(unname(out$parameter), c(reference$Df[2], reference$Res.Df[2]), info = k)
     expect_equal(out$p.value, reference$`Pr(>F)`[2], tolerance = 1e-10, info = k)
-    expect_identical(performRESETTest(f[[k]])$statistic, out$statistic, info = k)
+    expect_identical_numbers(performRESETTest(f[[k]])$statistic, out$statistic, info = k)
   }
   expect_gt(abs(unname(performRESETTest(f$argument)$statistic) -
                   unname(performRESETTest(f$reference)$statistic)), 0.1)
@@ -512,7 +512,7 @@ test_that("the four tests give a model with an offset the value of that model", 
                unname(performBPTestRobust(f$reference, d, studentize = FALSE)$statistic),
                tolerance = 1e-10)
   # An offset that is zero everywhere changes nothing.
-  expect_identical(performRESETTest(f$zero)$statistic, performRESETTest(f$plain)$statistic)
+  expect_identical_numbers(performRESETTest(f$zero)$statistic, performRESETTest(f$plain)$statistic)
   expect_equal(unname(performGQTest(f$zero, d, order_by = "x1")$statistic),
                unname(performGQTest(f$plain, d, order_by = "x1")$statistic), tolerance = 1e-12)
   # Nothing in the package refuses an offset any more.
@@ -967,7 +967,8 @@ test_that("the R-squared of a Gaussian glm is that of the lm", {
         fit_lm <- eval(bquote(lm(.(f), data = d)))
         fit_glm <- eval(bquote(glm(.(f), data = d)))
       }
-      expect_identical(rleast_squares_r_squared(fit_lm), summary(fit_lm)$r.squared, info = info)
+      expect_identical_numbers(rleast_squares_r_squared(fit_lm), summary(fit_lm)$r.squared,
+                               info = info)
       expect_equal(rleast_squares_r_squared(fit_glm), summary(fit_lm)$r.squared,
                    tolerance = 1e-12, info = info)
     }

@@ -8,7 +8,7 @@ test_that("performCookWeisbergTest(var_formula) returns what performNCVTest(var_
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   for (f in list(~wt, ~ wt + qsec, ~ I(wt^2))) {
     old <- without_deprecation(performNCVTest(m, var_formula = f))
-    expect_identical(performCookWeisbergTest(m, var_formula = f), old)
+    expect_identical_numbers(performCookWeisbergTest(m, var_formula = f), old)
   }
 })
 
@@ -16,9 +16,9 @@ test_that("performCookWeisbergTest() without var_formula keeps its value and lab
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   cw <- performCookWeisbergTest(m)
   ncv <- without_deprecation(performNCVTest(m))
-  expect_identical(cw$statistic, ncv$statistic)
+  expect_identical_numbers(cw$statistic, ncv$statistic)
   expect_identical(cw$parameter, ncv$parameter)
-  expect_identical(cw$p.value, ncv$p.value)
+  expect_identical_numbers(cw$p.value, ncv$p.value)
   expect_identical(cw$method, "Cook-Weisberg test for heteroscedasticity")
   expect_identical(cw$alternative, "error variance depends on the fitted values")
 })
@@ -30,7 +30,7 @@ test_that("performNCVTest() warns, names performCookWeisbergTest() and keeps its
     "'performNCVTest' is deprecated.*Use 'performCookWeisbergTest' instead",
     class = "deprecatedWarning"
   )
-  expect_identical(old, heteroTests:::.ncv_test(m, var_formula = ~wt))
+  expect_identical_numbers(old, heteroTests:::.ncv_test(m, var_formula = ~wt))
 })
 
 test_that("the ncv registry name keeps its value and warns once per run", {

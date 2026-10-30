@@ -8,8 +8,13 @@ changed and why lives in `NEWS.md`; the statistical evidence lives in
 ## Where things stand (0.16.0)
 
 - **On CRAN.** 0.11.2 was accepted in September 2026, after one review round on
-  0.11.1. 0.12.0, 0.13.0, 0.14.0, 0.15.0 and 0.16.0 are GitHub releases: the
-  next submission is 1.0.0 (decided 2026-10-11).
+  0.11.1; 0.12.0, 0.13.0, 0.14.0 and 0.15.0 are GitHub releases. 0.16.0 was
+  accepted on 2026-10-29, after its auto-check. From 0.16.0 releases go to
+  CRAN again, about one to two months apart (decided 2026-10-28), so not
+  every GitHub release goes. CRAN's additional check of 0.16.0 with Intel MKL
+  as BLAS failed on tests that compared two computations of the same numbers
+  bit for bit. From the next release they compare them on CRAN to a
+  tolerance of 1e-10, and off CRAN still bit for bit (under 0.11.x).
 - **The validation matrix is complete** for every exported `perform*Test()`.
   The sweep found six broken procedures, all corrected or withdrawn, and
   twenty-five of the twenty-six heteroscedasticity tests hold their nominal
@@ -136,6 +141,54 @@ it, so the API is next.
   2026-10-11 and on `main` on 2026-10-12. The function still uses
   `detectCores() - 1` workers by default; since 0.15.0 `n_cores` sets them,
   and the result no longer depends on how the draws are split.
+- [x] **CRAN's check of 0.16.0 with Intel MKL as BLAS failed** on 2026-10-30
+  (`https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out`, R-devel
+  r90786): `[ FAIL 179 | WARN 17 | SKIP 96 | PASS 15260 ]`, where the eight
+  regular flavours that had checked it were OK. Every failure was an
+  `expect_identical()` between two computations of the same numbers: a cached
+  result and an uncached one, a call with `data` and one without, an lm and
+  the Gaussian glm of the same model, an old call form and the new one, the
+  streaming runner and the exact one, a test and its registered name. They
+  agree to the last bit on R's reference BLAS; under MKL they differed by up
+  to 1.6e-12 relative (`performVarianceFormTest()`, 0.008329376120413 against
+  0.008329376120400), and MKL gave different last bits for the same call made
+  twice. In one the last bits changed a discrete outcome: on every row of
+  `iris` twice, which absolute residuals of Fligner-Killeen's test tie, 8.133
+  for the lm against 8.149 for the glm, a fragility of
+  `performFlignerKilleenTest()` itself (under 0.18.0). Fixed in #172. The tests compare such numbers with
+  `expect_identical_numbers()` (`tests/testthat/helper-numbers.R`), bit for
+  bit off CRAN, as in CI and on the author's machine, and on CRAN, as
+  testthat's `on_cran()` decides it, with `expect_equal()` to a tolerance of
+  1e-10: waldo's, the mean absolute difference of the elements that differ
+  relative to their mean expected size, or absolute where that size is at
+  most 1e-10. That is 64 times the largest difference under MKL. It is used
+  at 235 sites in 30 files, found by running the suite as CRAN runs it with
+  every `expect_identical()` of two non-integral numbers recorded, and by
+  the noisy BLAS below. Six blocks whose ties, merged residuals or cache hits
+  turn on the last bits run off CRAN only, the Fligner block among them: 27
+  of the expectations CRAN ran on `main`. On CRAN, the F of the variance
+  form test on the cells of the matrix with missing rows and White's test on
+  a design 1e6 from zero are compared to 1e-8
+  (`blas_tolerance()`), Harrison-McCabe's two-sided p-value with twice the
+  one-sided one on the scale of the integral both come from, and the p-values
+  of Box's M, about 1.8e-10, by their logs.
+  `cran-blas.yml` runs `R CMD check --as-cran` with `NOT_CRAN` unset in the
+  R-hub containers for MKL (CRAN's version, 2026.2), OpenBLAS, BLIS and R
+  without long doubles, and with a BLAS that moves its results by up to one
+  unit in the last place (`tools/noisy-blas.c`, on three seeds), on pushes to
+  `main`, weekly, and on the pull requests that change the package or its
+  tests. On `main` before the fix MKL passed, 2025.3 and 2026.2 alike: on the
+  runners' AMD processors MKL runs its generic code, whose last bits do not
+  depend on where the data sit in memory, where CRAN's machine runs its code
+  for Intel processors. The first version of the noisy BLAS failed 1,923
+  expectations, at the sites of all 179 of CRAN's; OpenBLAS, BLIS and noLD
+  passed. Since the review of #172 the noisy BLAS leaves alone the integral
+  results no IEEE BLAS changes and what the reference BLAS leaves exact, and
+  moves equal results of one call alike. A real BLAS can break such a tie,
+  when a row falls to a peel or tail loop whose kernel rounds otherwise; the
+  tests whose ties turn on it were reviewed by hand, and those of Szroeter's
+  test run off CRAN only. With the fix every job passes, the noisy BLAS on
+  each of its three seeds.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
@@ -1918,6 +1971,15 @@ announced in bold in `NEWS.md`.
   Hash them part by part, or stream the serialization into the hash, so that
   the temporary allocation stays small (found by the review of #144). No
   value changes.
+- [ ] **A runner call changes how the workflow it is given serializes.** The
+  `names` of the `residuals` and `fitted.values` of a workflow's engine fit
+  are ALTREP deferred string conversions of the row numbers, which expand
+  when they are read, and the runners read them: after `runHeteroTests()` of
+  a workflow fitted to 120 observations they take 2,236 bytes where they took
+  1,209. No value of the workflow changes, but a cache that hashes objects,
+  such as that of `targets`, sees a workflow changed by the call. Found by
+  the review of #169, which saw it on `main` as well; recorded, not fixed.
+  Read the names without expanding them, or work on a copy of the vectors.
 - [ ] **Replicates lost without a warning.** A replicate of
   `bootstrapTestStatistic()` whose refit fails, or, under pairs resampling,
   whose design cannot be built on the rows it drew (`rpairs_design()`, since
@@ -2018,6 +2080,33 @@ announced in bold in `NEWS.md`.
   0.16.0; recorded, not fixed. A tolerance scaled by the response would cover
   it, at the cost of
   merging deviations of continuous data that differ (the review of #156).
+- [ ] **`performFlignerKilleenTest()` depends on the last bits of the BLAS.**
+  On `iris` with every row twice, `lm(Sepal.Length ~ Petal.Length)` by
+  `Species` gives 8.14863 on R's reference BLAS; with its coefficients moved
+  by one unit in the last place, as another BLAS may compute them, it gives
+  8.13333, 8.14287, 8.14863 or 8.14867, and 8.13333 is what CRAN's check of
+  0.16.0 with Intel MKL gave for the lm (8.149 for the glm). With `+ Species`
+  the value moves in its sixth digit (0.479151 to 0.479156); the `poly()`
+  form does not move. So the statistic and the p-value a user sees depend on
+  their BLAS. The likely cause: `rfligner_rounding_ties()` ties deviations
+  within 8 eps times the largest absolute residual of their group, while the
+  rounding of `y - X b` scales with `|y| + |X b|`, the `size` that
+  `rfligner_residuals()` already computes; scale the tolerance by it. Found
+  by the review of #172 (whose test of these fits runs off CRAN only);
+  recorded, not fixed. Changes a value on such data.
+- [ ] **`performVIFDiagnostic()` gives a number for an infinite VIF.** On a
+  design with exactly collinear columns, such as `x3 = x1 * 3` beside `x1`
+  (the `wf_local_variable` workflow of `helper-model-context.R`), the VIF of
+  both is infinite, and the function returns the diagonal of
+  `solve(cor(X))`: of the order of 1 / eps where `solve()` succeeds, its
+  digits set by the last bits of the BLAS, and `Inf` for every column where
+  it fails, that of `x2`, 1.0, among them. Under the noisy BLAS of
+  `cran-blas.yml` the two computations that test compares gave 1.5e15,
+  1.8e15, 2.25e15 or `Inf` for `x1` and `x3`, and 1.0 or `Inf` for `x2`, as
+  the seed and the call decided. Take the rank of the design first and give
+  `Inf` for the columns it aliases only. Found by the noisy BLAS in #172,
+  whose test leaves such VIFs out on CRAN; recorded, not fixed. Changes a
+  value on such designs.
 - [ ] **Left from step 1 of the model context** (under 0.16.0), on the rows of
   `data` matched by number:
   - Follow-up, from the review of step 1: try the rows in the order of the

@@ -169,21 +169,21 @@ test_that("by default the runner runs the exact tests, even on data above 100 MB
     expect_false(attr(large[[nm]], "extras")$streaming, info = nm)
     expect_no_match(large[[nm]]$method, "streaming", ignore.case = TRUE)
   }
-  expect_identical(large, small)
-  expect_identical(
+  expect_identical_numbers(large, small)
+  expect_identical_numbers(
     suppressMessages(runDiagnostics(m, d, tests = tests, use_cache = FALSE, progress = FALSE)),
     diagnostics
   )
-  expect_identical(performWhiteTest(m, d), exact$performWhiteTest)
-  expect_identical(performBPTest(m, d), exact$performBPTest)
-  expect_identical(performKoenkerTest(m, d), exact$performKoenkerTest)
+  expect_identical_numbers(performWhiteTest(m, d), exact$performWhiteTest)
+  expect_identical_numbers(performBPTest(m, d), exact$performBPTest)
+  expect_identical_numbers(performKoenkerTest(m, d), exact$performKoenkerTest)
   # The threshold of before, given, still streams above it, and not below.
   streamed <- run(chunk_threshold_mb = 100, chunk_size = 30)
   for (nm in tests) {
     expect_true(attr(streamed[[nm]], "extras")$streaming, info = nm)
     expect_match(streamed[[nm]]$method, "streaming", ignore.case = TRUE)
   }
-  expect_identical(run(chunk_threshold_mb = 200), small)
+  expect_identical_numbers(run(chunk_threshold_mb = 200), small)
 })
 
 test_that("a model with a factor gets White's test above 100 MB, not a fallback", {
@@ -207,23 +207,23 @@ test_that("a model with a factor gets White's test above 100 MB, not a fallback"
   )
   expect_null(attr(asked$white, "extras")$status)
   expect_true(attr(asked$white, "extras")$streaming)
-  expect_identical(unname(asked$white$statistic), unname(streamed$statistic))
+  expect_identical_numbers(unname(asked$white$statistic), unname(streamed$statistic))
 
   local_data_size(150)
   large <- runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)
-  expect_identical(large, small)
+  expect_identical_numbers(large, small)
   expect_identical(attr(large$white, "diagnostic"), "white")
   expect_null(attr(large$white, "extras")$status)
-  expect_identical(unname(large$white$statistic), unname(white$statistic))
+  expect_identical_numbers(unname(large$white$statistic), unname(white$statistic))
   expect_identical(unname(large$white$parameter), unname(white$parameter))
-  expect_identical(performWhiteTest(m, d), white)
+  expect_identical_numbers(performWhiteTest(m, d), white)
   # With the streaming tests asked for, the runner streams White's test on
   # data of any size. Up to 0.15.0 it switched to the streaming test above
   # 100 MB, which stopped, and returned the classical Breusch-Pagan test under
   # the name "white"; in 0.16.0 it fell back on the exact test without cross
   # products.
   asked_large <- runHeteroTests(m, d, use_cache = FALSE, chunk_threshold_mb = 100, progress = FALSE)
-  expect_identical(asked_large, asked)
+  expect_identical_numbers(asked_large, asked)
   expect_identical(asked_large$white$method, streamed$method)
 })
 

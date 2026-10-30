@@ -48,7 +48,7 @@ test_that("a fitted lm and its formula give the same grouped results", {
     tests = "koenker", progress = FALSE
   )
   expect_s3_class(from_fit, "hetero_grouped_suite")
-  expect_identical(group_statistics(from_fit), group_statistics(from_formula))
+  expect_identical_numbers(group_statistics(from_fit), group_statistics(from_formula))
   expect_identical(attr(from_fit, "group_keys")$g, c("a", "b", "c"))
 })
 

@@ -1,0 +1,235 @@
+# R CMD check --as-cran of the built tarball as CRAN's additional checks run
+# it: on R-devel, with NOT_CRAN unset, under the BLAS libraries and the build
+# without long doubles that those checks use. Each job runs in an R-hub
+# container (https://github.com/r-hub/containers) that reproduces one of them:
+#
+#   MKL         mkl: Fedora 44, R-devel built with serial Intel MKL
+#               (-lmkl_gf_lp64 -lmkl_core -lmkl_sequential), as CRAN's MKL
+#               check, with the version of that check, 2026.2, in place of the
+#               container's 2025.3
+#   OpenBLAS    blis, with libRblas.so pointed at Fedora's serial OpenBLAS, as
+#               CRAN's OpenBLAS check does it
+#   BLIS        blis: Fedora 44, R-devel with serial BLIS and the system LAPACK
+#   Noisy BLAS  blis, with a BLAS that moves its results by up to one unit in
+#               the last place (tools/noisy-blas.c), on three seeds
+#   noLD        nold: Ubuntu 26.04, R-devel configured without long doubles
+#
+# CRAN no longer runs ATLAS regularly (2026-09-01), so no job does.
+#
+# On the runners' AMD processors MKL runs its generic code, whose last bits do
+# not depend on where the data sit in memory, and the MKL job passed on main's
+# tests before #172, which failed on CRAN's machine, where MKL runs its code
+# for Intel processors, whose last bits do. The noisy BLAS does to the tests
+# what that code does, on any processor: on main before #172 its first
+# version failed 1,923 expectations, at the sites of all 179 failures of
+# CRAN's MKL check.
+#
+# 0.16.0 failed CRAN's MKL check
+# (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
+# on 179 expect_identical() between two computations of the same numbers,
+# which agree to the last bit on R's reference BLAS and differ by up to
+# 1.6e-12 relative under MKL. NOT_CRAN is unset here, as on CRAN, so the
+# tests compare those numbers to a tolerance of 1e-10
+# (expect_identical_numbers(), tests/testthat/helper-numbers.R); the other
+# workflows set NOT_CRAN=true and compare them bit for bit.
+#
+# The vignettes are neither built (R CMD build --no-build-vignettes) nor
+# checked (--ignore-vignettes): they compare nothing bit for bit, CRAN's MKL
+# check rebuilt them without a problem, and building them would add pandoc
+# and the packages they use to every job. R-CMD-check.yml builds and checks
+# them.
+name: CRAN BLAS checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'R/**'
+      - 'tests/**'
+      - 'inst/**'
+      - 'data/**'
+      - 'man/**'
+      - 'DESCRIPTION'
+      - 'NAMESPACE'
+      - '.Rbuildignore'
+      - 'tools/noisy-blas.c'
+      - '.github/workflows/cran-blas.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'R/**'
+      - 'tests/**'
+      - 'inst/**'
+      - 'data/**'
+      - 'man/**'
+      - 'DESCRIPTION'
+      - 'NAMESPACE'
+      - '.Rbuildignore'
+      - 'tools/noisy-blas.c'
+      - '.github/workflows/cran-blas.yml'
+  # Weekly, as R-CMD-check.yml, an hour after it: R-devel and the containers
+  # change without a commit here.
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Supersede a pull request's earlier runs, keyed as in R-CMD-check.yml.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: ${{ matrix.config.name }} (R devel, --as-cran)
+    runs-on: ubuntu-latest
+    # A job takes 10 to 15 minutes with its library restored from the cache.
+    # Without it, the first run of a container installs every dependency, and
+    # MKL's took 50 minutes; a run that times out saves nothing, so a rerun
+    # starts over.
+    timeout-minutes: 60
+    container:
+      image: ghcr.io/r-hub/containers/${{ matrix.config.container }}:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {name: 'MKL', container: 'mkl', mkl: '2026.2'}
+          - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
+          - {name: 'BLIS', container: 'blis'}
+          - {name: 'Noisy BLAS 1', container: 'blis', blas: 'noisy', seed: '1', cache: 'BLIS'}
+          - {name: 'Noisy BLAS 2', container: 'blis', blas: 'noisy', seed: '2', cache: 'BLIS'}
+          - {name: 'Noisy BLAS 3', container: 'blis', blas: 'noisy', seed: '3', cache: 'BLIS'}
+          - {name: 'noLD', container: 'nold'}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # As CRAN's checks: the BLAS runs serially.
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      # 0.16.0 is on CRAN, so the incoming checks would only report that.
+      _R_CHECK_CRAN_INCOMING_: 'false'
+      _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
+      _R_CHECK_FORCE_SUGGESTS_: 'false'
+      # The whole of the test output in the log, not its last 13 lines.
+      _R_CHECK_TESTS_NLINES_: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use serial OpenBLAS
+        if: matrix.config.blas == 'openblas'
+        run: |
+          dnf install -y openblas-serial
+          ln -sf /usr/lib64/libopenblas.so.0 "$(R RHOME)/lib/libRblas.so"
+
+      # The MKL of CRAN's check, in place of the container's: the libraries R
+      # links, of 2025.3, point at those of the version asked for.
+      - name: Use MKL ${{ matrix.config.mkl }}
+        if: matrix.config.mkl
+        run: |
+          dnf install -y "intel-oneapi-mkl-core-${{ matrix.config.mkl }}"
+          core="$(find "/opt/intel/oneapi/mkl/${{ matrix.config.mkl }}/" -name 'libmkl_core.so*' | head -n 1)"
+          if [ -z "$core" ]; then
+            echo "No libmkl_core.so in MKL ${{ matrix.config.mkl }}"
+            exit 1
+          fi
+          new="$(dirname "$core")"
+          old="$(dirname "$(Rscript -e 'cat(La_library())')")"
+          # 2026 names its libraries .so.3, where R links those of 2025, .so.2;
+          # their BLAS and LAPACK are called the same way.
+          for f in "$new"/libmkl_*.so.3; do
+            ln -sf "$f" "$old/$(basename "$f" .so.3).so.2"
+          done
+
+      # A BLAS that moves its results by up to one unit in the last place
+      # (tools/noisy-blas.c): two computations of the same numbers differ in
+      # their last bits, on any processor. Each seed moves them otherwise.
+      - name: Use the noisy BLAS
+        if: matrix.config.blas == 'noisy'
+        run: |
+          gcc -O2 -Wall -shared -fPIC -o /usr/local/lib/libnoisyblas.so tools/noisy-blas.c -ldl -lm
+          echo "BLAS_PRELOAD=/usr/local/lib/libnoisyblas.so" >> "$GITHUB_ENV"
+          echo "NOISY_BLAS_SEED=${{ matrix.config.seed }}" >> "$GITHUB_ENV"
+
+      - name: Platform
+        run: |
+          grep -m 1 'model name' /proc/cpuinfo || true
+          echo "flags: $(grep -o -w -E 'avx2|avx512f' /proc/cpuinfo | sort -u | tr '\n' ' ')"
+          cat > /tmp/platform.R <<'RSCRIPT'
+          print(sessionInfo())
+          print(extSoftVersion()["BLAS"])
+          print(La_library())
+          print(La_version())
+          cat("long.double:", capabilities("long.double"),
+              " sizeof.longdouble:", .Machine$sizeof.longdouble, "\n")
+          cat("NOT_CRAN: '", Sys.getenv("NOT_CRAN"), "'\n", sep = "")
+          # Whether the BLAS gives the same last bits for the same numbers in
+          # memory allocated elsewhere, as R's reference BLAS does.
+          set.seed(1)
+          n <- 120
+          X <- cbind(1, matrix(stats::rnorm(n * 2), n))
+          y <- stats::rnorm(n)
+          ref <- stats::lm.fit(X, y)$coefficients
+          cp <- crossprod(X, y)
+          same <- vapply(seq_len(50), function(i) {
+            pad <- numeric(i)
+            X2 <- X + 0
+            y2 <- y + 0
+            c(identical(stats::lm.fit(X2, y2)$coefficients, ref), identical(crossprod(X2, y2), cp))
+          }, logical(2))
+          cat("Same last bits in 50 copies: lm.fit()", sum(same[1, ]), ", crossprod()",
+              sum(same[2, ]), "\n")
+          RSCRIPT
+          LD_PRELOAD="${BLAS_PRELOAD:-}" Rscript /tmp/platform.R
+          # MKL names its version and its code path: on an AMD processor its
+          # generic one, "Intel(R) Architecture processors", even when
+          # MKL_ENABLE_INSTRUCTIONS asks for AVX2 or AVX-512.
+          MKL_VERBOSE=1 Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 1
+
+      # In a container job HOME is /github/home, not the /root of the image.
+      - name: Set the user library
+        run: |
+          cat > /tmp/libpath.R <<'RSCRIPT'
+          lib <- Sys.getenv("R_LIBS_USER")
+          dir.create(lib, showWarnings = FALSE, recursive = TRUE)
+          cat("R_LIBS_USER=", lib, "\n", file = Sys.getenv("GITHUB_ENV"), sep = "", append = TRUE)
+          RSCRIPT
+          Rscript /tmp/libpath.R
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # Packages built from source link to the BLAS of their container,
+          # so each job keeps its own library.
+          cache-version: ${{ matrix.config.cache || matrix.config.name }}-1
+          needs: check
+          install-pandoc: false
+
+      - name: Build and check the tarball, with NOT_CRAN unset
+        run: |
+          unset NOT_CRAN
+          R CMD build --no-build-vignettes --no-manual .
+          LD_PRELOAD="${BLAS_PRELOAD:-}" \
+            R CMD check --as-cran --no-manual --ignore-vignettes heteroTests_*.tar.gz
+
+      - name: Show the test results
+        if: always()
+        run: |
+          out="$(ls heteroTests.Rcheck/tests/testthat.Rout* 2>/dev/null | head -n 1)"
+          if [ -n "$out" ]; then
+            grep -E '^\[ FAIL|^  \[ FAIL' "$out" | tail -n 1 | tee -a "$GITHUB_STEP_SUMMARY"
+            grep -E "^── (Failure|Error) \('" "$out" | sed -E "s/^── (Failure|Error) \('([^:']+:[0-9]+).*/\2/" |
+              sort | uniq -c | sort -k2 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.config.name }}-check
+          path: |
+            heteroTests.Rcheck/00check.log
+            heteroTests.Rcheck/00install.out
+            heteroTests.Rcheck/tests
