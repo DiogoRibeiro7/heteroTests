@@ -112,6 +112,12 @@ context_check_matrix <- function(ids, fns = context_runnable(), recipes = contex
           tolerance <- if (id %in% context_rounded_cells) {
             if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-10
           }
+          # The F of the variance form test near zero is the small difference of
+          # two residual sums of squares, which amplifies the last bits of the BLAS.
+          if (is.null(tolerance) && startsWith(fn, "performVarianceFormTest") &&
+                numbers_on_cran()) {
+            tolerance <- blas_tolerance(1e-10)
+          }
           context_same(out, result_of(cell$reference), info, tolerance)
         }
       } else if (identical(cell$expect, "guard")) {
@@ -2685,6 +2691,15 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
   numbers <- function(suite) {
     lapply(suite, function(r) list(r$method, r$statistic, r$parameter, r$p.value))
   }
+  # x3 = x1 * 3 (wf_local_variable) has an infinite VIF, which
+  # performVIFDiagnostic() gives as Inf or about 1 / eps as the last bits of
+  # the BLAS decide (under 0.18.0): on CRAN such VIFs are compared as Inf.
+  aliased_vif <- function(diagnostics) {
+    if (numbers_on_cran() && is.numeric(diagnostics$vif)) {
+      diagnostics$vif[diagnostics$vif > 1e12] <- Inf
+    }
+    diagnostics
+  }
   models <- context_tidy_models()
   for (name in names(models)) {
     model <- models[[name]]
@@ -2705,8 +2720,10 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
         expect_identical_numbers(numbers(got), numbers(reference), info = info)
         if (!identical(name, "parsnip_formula")) {
           expect_identical_numbers(got, reference, info = info)
-          expect_identical_numbers(runDiagnostics(fit, data, use_cache = FALSE, progress = FALSE),
-                                   reference_diagnostics, info = info)
+          expect_identical_numbers(
+            aliased_vif(runDiagnostics(fit, data, use_cache = FALSE, progress = FALSE)),
+            aliased_vif(reference_diagnostics), info = info
+          )
         }
         # Each row bound with the values of its own observation, the rows the
         # preprocessing or the engine dropped left out; a preprocessing that
