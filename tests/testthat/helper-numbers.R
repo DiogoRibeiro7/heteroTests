@@ -24,6 +24,15 @@
 # with a BLAS that changes the last bits of its results (tools/noisy-blas.c).
 identical_numbers_tolerance <- 1e-10
 
+# The tolerance of a comparison that amplifies the last bits of the BLAS, such
+# as a design far from zero or p-values in a tail: `tolerance` off CRAN, and at
+# least 1e-8 on CRAN. The noisy BLAS of cran-blas.yml moved two such
+# comparisons by more than 1e-10, White's test on a design 1e6 from zero
+# against lmtest::bptest() by 1.7e-10.
+blas_tolerance <- function(tolerance) {
+  if (identical(Sys.getenv("NOT_CRAN"), "true")) tolerance else max(tolerance, 1e-8)
+}
+
 expect_identical_numbers <- function(object, expected, info = NULL, label = NULL,
                                      expected.label = NULL) {
   if (is.null(label)) {

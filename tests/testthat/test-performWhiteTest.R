@@ -433,9 +433,7 @@ test_that("White's located test is lmtest::bptest() on the centred terms", {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   d <- contract_data()$d
-  # 1e6 off CRAN only: under another BLAS its last bits move the two apart by more than 1e-10.
-  shifts <- if (identical(Sys.getenv("NOT_CRAN"), "true")) c(1e4, 1e6) else 1e4
-  for (shift in shifts) {
+  for (shift in c(1e4, 1e6)) {
     moved <- d
     moved$x1 <- d$x1 + shift
     m <- lm(y ~ x1 + x2, data = moved)
@@ -443,9 +441,12 @@ test_that("White's located test is lmtest::bptest() on the centred terms", {
       info <- paste("x1 +", shift, if (cross_products) "with" else "without", "cross products")
       ours <- performWhiteTest(m, moved, cross_products = cross_products)
       bp <- white_df_bptest(m, cross_products, centre = TRUE)
-      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = 1e-10, info = info)
+      # A design 1e6 from zero amplifies the last bits of the BLAS.
+      expect_equal(unname(ours$statistic), unname(bp$statistic),
+                   tolerance = blas_tolerance(1e-10), info = info)
       expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
-      expect_equal(ours$p.value, unname(bp$p.value), tolerance = 1e-10, info = info)
+      expect_equal(ours$p.value, unname(bp$p.value), tolerance = blas_tolerance(1e-10),
+                   info = info)
     }
   }
 })
