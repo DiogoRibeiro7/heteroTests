@@ -647,7 +647,34 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   expect_error(performKoenkerTest(robust, mtcars),
                "performKoenkerTest() cannot test a MASS::rlm() fit", fixed = TRUE,
                class = "heteroTests_model_context_error")
-  expect_error(performKoenkerTest(robust, mtcars), "instead, lm(mpg ~ wt + qsec", fixed = TRUE)
+  # Its call names the data the caller gave (from the second review of
+  # increment 11, where it named the variables of fitRobust() and the
+  # message suggested lm(mpg ~ wt + qsec, data = data)): the suggested call
+  # fits the lm of the same formula at top level, and update() refits it.
+  message <- tryCatch(performKoenkerTest(robust, mtcars), error = conditionMessage)
+  expect_true(endsWith(message, paste("Test the lm() fit of the same formula instead,",
+                                      "lm(mpg ~ wt + qsec, data = mtcars).")))
+  suggested <- sub("\\.$", "", sub(".*instead, ", "", message))
+  expect_equal(coef(eval(parse(text = suggested), globalenv())),
+               coef(lm(mpg ~ wt + qsec, data = mtcars)))
+  expect_identical(deparse1(robust$call),
+                   "MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)")
+  # update() calls MASS::rlm(), whose fit records its own call, without MASS
+  # attached.
+  expect_equal(coef(update(robust, . ~ . - qsec)), coef(MASS::rlm(mpg ~ wt, data = mtcars)))
+  bisquare <- fitRobust(mpg ~ wt + qsec, mtcars, psi = MASS::psi.bisquare, maxit = 50)
+  expect_identical(deparse1(bisquare$call), paste(
+    "MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars, psi = MASS::psi.bisquare,",
+    "maxit = 50)"
+  ))
+  expect_equal(coef(update(bisquare)), coef(bisquare))
+  # Of an lm, the data, subset and na.action of its call.
+  from_lm <- fitRobust(lm(mpg ~ wt + qsec, data = mtcars, subset = cyl > 4))
+  expect_identical(deparse1(from_lm$call),
+                   "MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars, subset = cyl > 4)")
+  expect_equal(coef(update(from_lm)), coef(from_lm))
+  message <- tryCatch(performKoenkerTest(from_lm, mtcars), error = conditionMessage)
+  expect_true(endsWith(message, "instead, lm(mpg ~ wt + qsec, data = mtcars, subset = cyl > 4)."))
   expect_s3_class(performKoenkerTest(lm(mpg ~ wt + qsec, mtcars), mtcars), "htest")
   # autoCompareRemediations() refuses it too (from the review of increment
   # 11): it compared it as its "OLS" row with fitWLS() of it and with itself,
@@ -807,12 +834,63 @@ test_that("a gam that is the least-squares fit of its basis is taken by every te
                "wild bootstrap, gam", tolerance = 1e-10)
   expect_identical(rmodel_context(plain, fn = "f")$kind, "gam")
   expect_identical(rmodel_context(plain, fn = "f")$obs_id, rownames(stats::model.frame(plain)))
-  # The check is the least-squares refit of the basis, to 1e-8 of the spread
-  # of the response: a smoothing parameter of 0 passes it, and one of 1e-8,
-  # whose residuals move by 1.9e-7 of that spread on these data, does not.
-  for (sp in c(0, 1e-8)) {
+  # The check is the least-squares refit of the basis, to 1e-8 of its largest
+  # residual plus 1e3 epsilon of the largest response and offset: on these
+  # data a smoothing parameter of 0 leaves the residuals within 0.005 of that
+  # line, one of 1e-10 within 0.22 of it, and one of 1e-9 2.2 times beyond it.
+  for (sp in c(0, 1e-10, 1e-9, 1e-8)) {
     g <- mgcv::gam(y ~ s(x1) + x2, data = d, sp = sp)
-    expect_identical(rgam_least_squares(rmodel_context(g, fn = "f")), sp == 0, info = sp)
+    expect_identical(rgam_least_squares(rmodel_context(g, fn = "f")), sp <= 1e-10, info = sp)
+  }
+})
+
+test_that("the least-squares check of a gam does not depend on how the model is written", {
+  # From the second review of increment 11: the line was drawn on the spread
+  # of the response, which an offset or a trend the design fits makes as
+  # large as they are, so that a penalised gam with an offset of 1e7 passed,
+  # and the same model written as (y - offset) ~ ... did not; and a fixed
+  # smooth with a mean of 1e8 failed through rounding, and was refused as a
+  # penalised fit. The line is drawn on the residuals of the refit now, with
+  # the rounding of the response and the offset.
+  skip_if_not_installed("mgcv")
+  set.seed(20261015)
+  n <- 120
+  d <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n))
+  d$y0 <- 1 + sin(3 * d$x1) - d$x2 + rnorm(n, sd = 0.3 * d$x1)
+  d$big <- 1e7 * rnorm(n)
+  d$y <- d$y0 + d$big
+  d$trend <- d$y0 + 3e7 * d$x2
+  d$high <- d$y0 + 1e8
+  least_squares <- function(g) rgam_least_squares(rmodel_context(g, fn = "f"))
+  penalised <- "performRESETTest() cannot test a penalised mgcv::gam() fit (s(x1))"
+  offset <- mgcv::gam(y ~ s(x1) + x2 + offset(big), data = d)
+  without <- mgcv::gam(y0 ~ s(x1) + x2, data = d)
+  trend <- mgcv::gam(trend ~ s(x1) + x2, data = d)
+  for (g in list(offset, without, trend)) {
+    expect_false(least_squares(g))
+    expect_error(performRESETTest(g, d), penalised, fixed = TRUE,
+                 class = "heteroTests_model_context_error")
+  }
+  # A fixed smooth with a mean of 1e8 is the least-squares fit of its basis,
+  # and is tested as the lm() of it.
+  high <- mgcv::gam(high ~ s(x1, fx = TRUE) + x2, data = d)
+  expect_true(least_squares(high))
+  oracle <- context_basis_lm(high, d)
+  # The studentized statistic refits the basis: to the rounding of a mean of
+  # 1e8.
+  expect_equal(unname(performBPTestRobust(high, d)$statistic),
+               unname(performBPTestRobust(oracle$m, oracle$data)$statistic), tolerance = 1e-5)
+  # A gam without a penalised term that fails the check, here because its
+  # residuals were changed after the fit, is not called penalised.
+  fixed <- mgcv::gam(y0 ~ s(x1, fx = TRUE) + x2, data = d)
+  expect_true(least_squares(fixed))
+  fixed$residuals <- fixed$residuals + 1e-6
+  for (call in list(function() performRESETTest(fixed, d), function() fitWLS(fixed, d))) {
+    out <- tryCatch(call(), error = function(e) e)
+    expect_s3_class(out, "heteroTests_model_context_error")
+    expect_match(conditionMessage(out), "cannot (test|refit) this mgcv::gam\\(\\) fit \\(s\\(x1\\)\\)")
+    expect_match(conditionMessage(out), "although none of its terms is penalised", fixed = TRUE)
+    expect_no_match(conditionMessage(out), "penalised mgcv::gam", fixed = TRUE)
   }
 })
 
@@ -3028,6 +3106,46 @@ test_that("a grouped run of a fitWLS() fit is refused, the others refit each gro
   diagnostics <- runDiagnostics(fw, context_grouped(d, "one"), use_cache = FALSE,
                                 progress = FALSE)
   expect_identical_numbers(diagnostics$white$statistic, whole$white$statistic)
+})
+
+test_that("a refusal of the context in a group stops a grouped run (decision 6)", {
+  # From the second review of increment 11: a grouped run records the failure
+  # of a test in a group and goes on, and recorded a refusal of the model by
+  # the model context so too, as a failed test of NA, where the run on
+  # ungrouped data stops with it. It stops the grouped run now, with its class
+  # and message: a penalised gam given a test that needs least squares
+  # (decision 37; Szroeter's test gave 0.687 and 0.777 in two groups on main),
+  # and a multivariate lm. The failures of a test for another reason are
+  # recorded in its group, as before (White's test on groups of 15, above).
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("mgcv")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- context_grouped_data()
+  grouped <- context_grouped(d, "one")
+  run <- function(m, tests) {
+    suppressWarnings(runHeteroTests(m, grouped, tests = tests, use_cache = FALSE,
+                                    progress = FALSE))
+  }
+  g <- mgcv::gam(y ~ s(x1, k = 4) + x2, data = d)
+  refusals <- list(
+    szroeter = "Model cannot be tested for Szroeter: performSzroeterTest() cannot test a penalised",
+    student_bp = "performStudentizedBPTest() cannot test a penalised mgcv::gam() fit",
+    quantile_regression = "performQuantileRegressionTest() cannot test a penalised"
+  )
+  for (test in names(refusals)) {
+    out <- tryCatch(run(g, c("white", test)), error = function(e) e)
+    expect_s3_class(out, "heteroTests_model_context_error")
+    expect_match(conditionMessage(out), refusals[[test]], fixed = TRUE, info = test)
+  }
+  # The tests that take the gam run in each group.
+  res <- run(g, c("white", "koenker"))
+  expect_s3_class(res, "hetero_grouped_suite")
+  expect_true(all(vapply(unclass(res), function(s) is.finite(s$koenker$statistic), logical(1))))
+  mm <- lm(cbind(y, x2) ~ x1, data = d)
+  expect_error(run(mm, c("white", "koenker")),
+               "Model cannot be tested for White: performWhiteTest() needs a model with one response",
+               fixed = TRUE, class = "heteroTests_model_context_error")
 })
 
 test_that("the runners take the data a tidymodels workflow was fitted to (N5)", {

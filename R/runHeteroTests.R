@@ -41,7 +41,14 @@
 #'   offset and subset, must be a column of `data`. A fit returned by
 #'   [fitWLS()] is refused with grouped data since 0.17.0: its call does not
 #'   hold the weights it estimated, so each group was tested as the unweighted
-#'   fit of its rows. The data a tidymodels workflow was fitted to are mapped
+#'   fit of its rows; so is a `MASS::rlm()` fit, which every test refuses. A
+#'   test that refuses the model of a group as the model context refuses a
+#'   model, such as a multivariate `lm` or a penalised `mgcv::gam()` fit given
+#'   a test that needs least squares, stops the grouped run with that refusal
+#'   and its class since 0.17.0, as the run on ungrouped data does; before,
+#'   the group recorded it as a failed test, whose statistic was `NA`. The
+#'   failures of a test for another reason are recorded in its group, as
+#'   before. The data a tidymodels workflow was fitted to are mapped
 #'   to the variables of its engine by the workflow's preprocessing, and the
 #'   model frame of the engine's fit is tested, as without `data` (since
 #'   0.17.0; they were refused). A recipe step skipped on new data that
@@ -374,7 +381,13 @@ rsuite_mark_origin <- function(suite, origin) {
           suggestions = failure_context$suggestions,
           issue = failure_context$issue
         )
-        if (isTRUE(recover_failures)) {
+        # A grouped run records the failure of a test in a group and goes on,
+        # but a refusal of the model by the model context is final there too
+        # (decision 6): the run stops with it, its class and its message,
+        # where each group recorded it as a failed test of NA (from the review
+        # of increment 11: a penalised gam that a test refuses, a
+        # multivariate lm).
+        if (isTRUE(recover_failures) && !identical(failure_context$issue, "model_context")) {
           return(failure)
         }
         if (failure_context$issue %in% c("data_rows", "model_context")) {

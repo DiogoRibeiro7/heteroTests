@@ -561,8 +561,15 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # fitted with a smaller `tol` that keeps a column lm() would alias, would
   # have replicates of another model, and is refused, as before. A
   # MASS::rlm() fit, which this refused too, is refused first since increment
-  # 11 (rrefuse_rlm()).
-  if (!identical(ctx$rows[row_index], seq_len(n)) || !rleast_squares_reproduces(ctx)) {
+  # 11 (rrefuse_rlm()). A gam is held to its own line (rgam_least_squares()),
+  # on its residuals rather than on the spread of its response, which it
+  # passed to come here (from the review of increment 11).
+  reproduces <- if (identical(ctx$kind, "gam")) {
+    rgam_least_squares(ctx)
+  } else {
+    rleast_squares_reproduces(ctx)
+  }
+  if (!identical(ctx$rows[row_index], seq_len(n)) || !reproduces) {
     stop(
       "`data` does not reproduce the fit: refitted to the rows of `data`, the ",
       "model does not give the residuals it was fitted with. Data without row ",
@@ -820,7 +827,8 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit that is the
 #' least-squares fit of its design, without smooth terms or with fixed ones,
 #' whose replicates are fitted on its stored design (decision 38; a penalised
-#' one is refused before, [rrefuse_penalised_gam()]).
+#' one is refused before, [rrefuse_penalised_gam()]). A `gam` is held to the
+#' line of [rgam_least_squares()], on its residuals, instead of this one.
 #' A `MASS::rlm()` fit, an M-estimate, whose residuals the refit does not
 #' give, was refused here until increment 11, which refuses it before
 #' ([rrefuse_rlm()]). The refit decides its rank at the tolerance of `lm()`,

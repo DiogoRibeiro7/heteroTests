@@ -151,7 +151,8 @@ that a fit is unedited: an edited coefficient leaves the residuals unchanged, so
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
 \code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
-\code{data}, without running another test under the name of the one refused. A test that reads a column of
+\code{data}, without running another test under the name of the one refused; since 0.17.0 a grouped run stops
+with such a refusal in a group too, where the group recorded it as a failed test of \code{NA}. A test that reads a column of
 \code{data} the model frame does not hold, as the rank permutation, Goldfeld-Quandt, Szroeter and
 Harrison-McCabe tests do with their \code{order_by}, Glejser's and Park's with their \code{variable}, Hartley's
 and the group tests with their \code{group}, the panel tests with their \code{id} and \code{time} and the scatter
@@ -273,8 +274,11 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   of its design, without smooth terms or with fixed ones, is tested by every test as the \code{lm()} of that design,
   the refitting and resampling tests included, where the fixed smooths were refused as penalised ones. Whether a
   \code{gam} is that fit is decided from the fit: its design refitted by least squares, with its weights and offset,
-  gives its residuals to \code{1e-8} of the spread of the response. Decisions 37 and 38 of the design of the model
-  context (decided on 2026-10-29) set this out.
+  gives its residuals to \code{1e-8} of the largest residual of that refit, plus \code{1e3} times the machine epsilon
+  of the largest value of the response and of the offset, the rounding of a fit on that scale, so that an offset
+  or a trend of any size does not change the verdict. A \code{gam} without a penalised term that fails the check
+  is refused as one whose residuals are not those of that fit, not as a penalised one. Decisions 37 and 38 of the
+  design of the model context (decided on 2026-10-29) set this out.
 }
 \code{\link{checkModel}()} checks the class of a model only, \code{lm} or \code{glm}; it does not check whether a test
 accepts it.

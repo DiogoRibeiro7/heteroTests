@@ -256,11 +256,26 @@ rstop_model_context <- function(message) {
 #' design. A fit without smooth terms, or whose smooths are all fixed, is the
 #' least-squares fit, and every test treats it as one, those that fit the
 #' design again included (decision 38 of the design of the model context,
-#' decided by the author on 2026-10-29). Which it is, is decided by the check
-#' that the least-squares refit of the stored design, with the weights and the
-#' offset of the fit, gives its residuals ([rleast_squares_reproduces()]), to
-#' `1e-8` of the spread of the response, rather than by the arguments of its
-#' smooths.
+#' decided by the author on 2026-10-29). Which it is, is decided from the fit,
+#' rather than from the arguments of its smooths: the least-squares refit of
+#' the stored design, with the weights and the offset of the fit, gives its
+#' residuals to `1e-8` of the largest residual of that refit, plus `1e3`
+#' times the machine epsilon of the largest absolute value of the response
+#' and of the offset, the rounding of a fit on that scale. The line is drawn
+#' on the residuals, not on the spread of the response, so that it does not
+#' depend on how the model is written: an offset, or a trend the design
+#' fits, of any size, leaves the residuals as they are (from the review of
+#' increment 11, where a penalised fit with an offset of `1e7` passed a line
+#' on the spread of the response, and the same fit written as
+#' `(y - offset) ~ ...` did not). In the measurement of that review, the
+#' residuals of a fixed smooth, or of a `gam` without smooth terms, were
+#' within `1e-10` of those of the refit, or, with a mean or an offset up to
+#' `1e12`, within 79 epsilon of its scale; those of a penalised fit were 0.11
+#' of the largest residual away, and on `contract_data()` a smoothing
+#' parameter of `1e-10` left them within `2.2e-9` of it, and one of `1e-9`
+#' within `2.2e-8`. [rleast_squares_reproduces()], the check of
+#' [bootstrapTestStatistic()] for the other fits, keeps its line on the spread
+#' of the response.
 #'
 #' @param ctx The model context.
 #' @return `TRUE` for a fit that is not a `gam`, or a `gam` that is the
@@ -268,7 +283,40 @@ rstop_model_context <- function(message) {
 #' @keywords internal
 #' @noRd
 rgam_least_squares <- function(ctx) {
-  !identical(ctx$kind, "gam") || isTRUE(rleast_squares_reproduces(ctx))
+  if (!identical(ctx$kind, "gam")) {
+    return(TRUE)
+  }
+  y <- unname(ctx$response)
+  refit <- tryCatch(
+    if (is.null(ctx$weights)) {
+      stats::lm.fit(ctx$design, y, offset = ctx$offset)
+    } else {
+      stats::lm.wfit(ctx$design, y, ctx$weights, offset = ctx$offset)
+    },
+    error = function(e) NULL
+  )
+  if (is.null(refit) || anyNA(y)) {
+    return(FALSE)
+  }
+  least_squares <- unname(refit$residuals)
+  gap <- max(abs(least_squares - unname(rcontext_unpad(ctx, ctx$residuals))))
+  rounding <- 1e3 * .Machine$double.eps *
+    (max(abs(y)) + if (is.null(ctx$offset)) 0 else max(abs(ctx$offset)))
+  isTRUE(gap <= 1e-8 * max(abs(least_squares)) + rounding)
+}
+
+#' Does an `mgcv::gam()` fit have a penalised term?
+#'
+#' A smooth term with a penalty matrix (`s(x)`, as opposed to
+#' `s(x, fx = TRUE)`), or a parametric term penalised through `paraPen`.
+#'
+#' @param model An `mgcv::gam()` fit.
+#' @return Logical scalar.
+#' @keywords internal
+#' @noRd
+rgam_penalised <- function(model) {
+  penalties <- vapply(model$smooth %||% list(), function(s) length(s$S) > 0L, logical(1))
+  any(penalties) || length(model$paraPen) > 0L
 }
 
 #' Refuse a penalised `mgcv::gam()` fit, in a test that needs least squares
@@ -307,12 +355,30 @@ rrefuse_penalised_gam <- function(ctx, fn, why = c("refit", "replicate", "fitwls
   smooths <- ctx$model$smooth
   labels <- vapply(smooths, function(s) as.character(s$label %||% "a smooth"), character(1))
   terms_named <- if (length(labels) > 0L) sprintf(" (%s)", paste(labels, collapse = ", ")) else ""
+  penalised <- rgam_penalised(ctx$model)
   reason <- switch(why,
     refit = "which the test fits again",
     replicate = "which each replicate of the bootstrap fits again",
-    fitwls = "which fitWLS() refits by weighted least squares, without the penalty",
+    fitwls = paste0("which fitWLS() refits by weighted least squares",
+                    if (penalised) ", without the penalty"),
     null = "for which the null distribution of the test is derived"
   )
+  verb <- if (identical(why, "fitwls")) "refit" else "test"
+  if (!penalised) {
+    # A fit without a penalised term whose residuals are not those of the
+    # least-squares fit of its design was changed after it was fitted, or
+    # fitted otherwise; it is not called penalised (from the review of
+    # increment 11).
+    rstop_model_context(sprintf(
+      paste0(
+        "%s() cannot %s this mgcv::gam() fit%s: its residuals are not those of the ",
+        "least-squares fit of its design, the basis of its smooths, %s, although none of ",
+        "its terms is penalised, so the fit may have been changed after it was fitted. ",
+        "Refit the model."
+      ),
+      fn, verb, terms_named, reason
+    ))
+  }
   rstop_model_context(sprintf(
     paste0(
       "%s() cannot %s a penalised mgcv::gam() fit%s: its residuals are not those of the ",

@@ -68,7 +68,11 @@ runHeteroTests(
   group, so every variable it uses, including weights, offset and subset, must be a column of \code{data}. A fit
   returned by \code{\link{fitWLS}()} is refused with grouped data since 0.17.0: its call does not hold the weights
   it estimated, so each group was tested as the unweighted fit of its rows; fit \code{fitWLS()} within each group,
-  or pass the data ungrouped.}
+  or pass the data ungrouped. So is a \code{MASS::rlm()} fit, which every test refuses. A test that refuses the model
+  of a group as the model context refuses a model, such as a multivariate \code{lm} or a penalised
+  \code{mgcv::gam()} fit given a test that needs least squares, stops the grouped run with that refusal and its
+  class since 0.17.0, as the run on ungrouped data does; before, the group recorded it as a failed test, whose
+  statistic was \code{NA}. The failures of a test for another reason are recorded in its group, as before.}
   \item{tests}{character vector of test names to run: any of the names \code{\link{listDiagnostics}()} returns, which
   include those added with \code{registerDiagnostic}. On a fit returned by \code{\link{fitWLS}()} the resampling tests
   \code{"wild_bootstrap"} and \code{"white_bootstrap"} estimate the weights again in each replicate, as

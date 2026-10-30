@@ -29,6 +29,14 @@ class \code{heteroTests_model_context_error}; until then 37 tests took it for an
 of the errors, test the \code{\link[stats:lm]{stats::lm()}} fit of the same formula. The result is for
 estimation, and for comparisons such as those of
 \code{\link[=autoCompareRemediations]{autoCompareRemediations()}}, which reads its AIC and residuals only.
+
+Since 0.17.0 the call the result records names what was given: the
+formula, and the data as the caller named them, or, for an \code{lm}, the
+\code{data}, \code{subset} and \code{na.action} of its call, so that \code{print()} and
+\code{summary()} show \code{MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)}, where they
+showed \code{rlm(formula = form, data = data)}, \code{update()} refits it, and the
+refusal of the tests names the \code{\link[stats:lm]{stats::lm()}} call to test instead,
+\code{lm(mpg ~ wt + qsec, data = mtcars)}.
 }
 \examples{
 data(mtcars)
