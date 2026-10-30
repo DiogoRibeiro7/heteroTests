@@ -2388,6 +2388,67 @@ calls that `main` computes on the stored design are `identical()` to it.
 `main` took 625 s and the branch 581 s, each with the other processes of the
 machine.
 
+Its second part, with the review of the first, adds to the corpus the `gam`
+with a fixed smooth, `gam(y ~ s(x1, fx = TRUE) + x2)`, in every form of data
+(`class/gam_fixed` and `class_forms()`), and the `rlm` fit to the grouped
+block, and records each `gam` cell with the kind of its fit
+(`identity_gam_kind()`, decided in the harness without the package: the
+least-squares refit of its stored design, with its weights and offset, gives
+its residuals to `1e-8` of the spread of the response, or not). On a
+penalised `gam` (decision 37) a call may change only to the refusal of the
+context, its class and its words, or, for the streaming tests and the runner
+that streams them, to the value of the exact test of the same call on the
+same cell, to `1e-8` on every number. On a `gam` that is the least-squares fit
+of its design (decision 38) a call may change only to what the same call
+gives on the `lm()` of its basis, to `1e-8` on every number and with the same
+draws of the generator: the harness runs every recipe and runner on that `lm`
+as reference cells `lmbasis/` (`context_basis_lm()`), on the data frame of the
+fit and on its data shuffled, the `lm` fitted in the order of the
+observations of the `gam` there, so that a bootstrap draws the same rows of
+both (from the smoke run, where the five bootstraps of each of the four
+shuffled cells had no reference); or to the value of the cell it reproduces,
+itself verified; or to what its twin gives, on a cell of `na.exclude`; or to
+the refusal of the guard, on a cell that expects it. Every other call must be
+`identical()` to `main`, with its warnings and the state of the generator.
+
+Increment 11, both parts, against `main` at the merge of increment 10
+(565e6ae), each side installed privately and its workers loading it through
+`R_LIBS`: 44,140 calls on the 415 cells of the matrix, the 5 cells of
+Harrison-McCabe's rank, the 8 cells of the follow-up of N2, the 4 cells of
+the coding of a factor, the 10 grouped cells, the 7 cells of the block
+`item3/` and the 105 cells of the tidy block, and the examples of forty-one
+help pages, of which 43,075 identical, 1,065 allowed changes and 0
+unexpected. The 41,099 calls outside the cells of increment 11 are all
+`identical()` to `main`, with its warnings and the state of the generator it
+left. On those cells:
+
+| Class | Cells | Calls | `identical()` | New refusals | Other refusals now the refusal of the context | Values that change | Refusals that become values |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| R6, `MASS::rlm()` | 7 | 510 | 20 | 287 | 203 | 0 | 0 |
+| decision 37, a penalised `gam` | 7 | 708 | 391 | 78 | 173 | 66, each the exact test | 0 |
+| decision 38, a least-squares `gam` | 18 | 1,823 | 1,565 | 0 | 10, the guard on a shuffled tibble | 48, each the `lm()` of the basis | 200, each the `lm()` of the basis |
+
+The 78 new refusals of decision 37 are those of `fitWLS()` (22),
+`performVarianceFormTest()` (20) and its registered name (6),
+`performHarrisonMcCabeTest()` (6), `performSzroeterTest()` (6) and its
+registered name (6), and the runner (12); its 173 changes of message are those
+of the tests that refused a `gam` with smooth terms already (RESET,
+Goldfeld-Quandt, the quantile and studentized tests, the White bootstrap),
+and of `bootstrapTestStatistic()`, the robust bootstraps and the wild
+bootstrap, which refused or stopped on it with messages of their own; its 66
+changes of value are those of the three streaming tests (18 each) and of the
+runner that streams them (12). The 200 refusals that became values of
+decision 38 are those of `bootstrapTestStatistic()` (70), the robust (52) and
+wild (32) bootstraps, and the tests that refit the design, their registered
+names, routes and runners; its 48 changes of value are those of the
+streaming tests on a `gam` with a fixed smooth (12 each) and of the runner
+(12). 861 of the 1,065 changes leave the generator as `main` left it; the
+others are resampling calls that drew on `main` and are refused before they
+draw, or bootstraps that draw where `main` refused. The 642 `poly()` calls
+that `main` computes on the stored design are `identical()` to it. `main`
+took 647 s and the branch 1,368 s, with other R processes running on the
+machine during the second.
+
 ## Test matrix and oracles
 
 `tests/testthat/test-model-context.R`, with the cells in
