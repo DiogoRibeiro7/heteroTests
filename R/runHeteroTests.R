@@ -131,8 +131,12 @@ runHeteroTests <- function(model, data = NULL,
 
   if (prepared$grouped && length(prepared$group_splits) > 0) {
     # A fitWLS() fit is refused before any group is refitted (B11, decision 10
-    # of the design of the model context).
+    # of the design of the model context), and so is a MASS::rlm() fit, which
+    # every test refuses (R6, decision 4): each group was refitted by its call
+    # and its refusals recorded as failures of the group, or, with MASS
+    # attached, the rlm() of each group tested.
     rrefuse_grouped_fitwls(prepared$model)
+    rrefuse_rlm(prepared$model, "runHeteroTests")
     if (is.null(prepared$fit_factory)) {
       stop(
         "Grouped diagnostics require a formula-based model specification so each group can be refitted.",

@@ -5,7 +5,9 @@
 #' weighted least squares and robust regression against the original
 #' model.
 #'
-#' @param model Fitted `lm` model or formula.
+#' @param model Fitted `lm` model or formula. Since 0.17.0 a
+#'   `MASS::rlm()` fit, an M-estimate, is refused, as by every test: its
+#'   residuals are not least-squares residuals.
 #' @param data Optional data frame if `model` is a formula.
 #' @return A list with components `metrics`, `models`, and `best` indicating
 #'   the recommended method.
@@ -23,6 +25,10 @@ autoCompareRemediations <- function(model, data = NULL) {
     lm_model <- lm(model, data = data)
   } else {
     checkModel(model)
+    # A MASS::rlm() fit is refused, as by every test (R6, decision 4 of the
+    # design of the model context): it was compared as the "OLS" row with
+    # fitWLS() of it, which refuses it now, and with itself.
+    rrefuse_rlm(model, "autoCompareRemediations")
     lm_model <- model
     if (is.null(data)) {
       data <- model.frame(model)

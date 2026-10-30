@@ -246,43 +246,115 @@ rstop_model_context <- function(message) {
   ))
 }
 
-#' Refuse an `mgcv::gam()` fit with smooth terms
+#' Is an `mgcv::gam()` fit the least-squares fit of its stored design?
 #'
-#' A Gaussian `mgcv::gam()` fit without smooth terms is the least-squares fit
-#' of its design, the fit of the Gaussian `glm`. A smooth term is penalised
-#' unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not the
-#' least-squares fit of its design: its coefficients do not solve the
-#' least-squares equations, and a test that fits that design again, its
-#' segments or its quantiles, tests an unpenalised regression the model is not.
-#' Whether the tests take such a fit is a question of the contract left to the
-#' last step of the migration (increment 11 of the design of the model
-#' context, which refuses `MASS::rlm()`, [rrefuse_rlm()]); until then the
-#' tests of increment 2 refuse every fit with smooth terms, fixed ones
-#' included, decided on 2026-10-18, and those of increment 1 test it as before
-#' 0.16.0.
+#' A Gaussian `mgcv::gam()` fit is tested on its stored design, the basis of
+#' its smooths and its parametric columns (`model.matrix()`). A smooth term is
+#' penalised unless it is fixed (`s(x, fx = TRUE)`), and a penalised fit is not
+#' the least-squares fit of that design: its coefficients do not solve the
+#' least-squares equations, and its residuals are not orthogonal to the
+#' design. A fit without smooth terms, or whose smooths are all fixed, is the
+#' least-squares fit, and every test treats it as one, those that fit the
+#' design again included (decision 38 of the design of the model context,
+#' decided by the author on 2026-10-29). Which it is, is decided by the check
+#' that the least-squares refit of the stored design, with the weights and the
+#' offset of the fit, gives its residuals ([rleast_squares_reproduces()]), to
+#' `1e-8` of the spread of the response, rather than by the arguments of its
+#' smooths.
 #'
 #' @param ctx The model context.
-#' @param fn Character scalar naming the calling test.
+#' @return `TRUE` for a fit that is not a `gam`, or a `gam` that is the
+#'   least-squares fit of its design; `FALSE` otherwise.
+#' @keywords internal
+#' @noRd
+rgam_least_squares <- function(ctx) {
+  !identical(ctx$kind, "gam") || isTRUE(rleast_squares_reproduces(ctx))
+}
+
+#' Refuse a penalised `mgcv::gam()` fit, in a test that needs least squares
+#'
+#' Decision 37 of the design of the model context (decided by the author on
+#' 2026-10-29): a penalised `mgcv::gam()` fit, whose residuals are not those
+#' of the least-squares fit of its stored design ([rgam_least_squares()]), is
+#' tested on that design, the basis of its smooths, by every test that reads
+#' only its residuals, its fitted values, columns of `data` or its design as
+#' the regressors of an auxiliary regression; and refused by every test that
+#' fits it again by least squares, its segments, its quantiles, a design
+#' augmented by its fitted values, the replicates of a bootstrap or a weighted
+#' refit (`why = "refit"`, `"replicate"`, `"fitwls"`), and by every test whose
+#' null distribution is derived for the least-squares residuals of its design,
+#' through the residual-maker of that design (`why = "null"`:
+#' Harrison-McCabe's and Szroeter's tests). Before increment 11 the tests of
+#' increment 2, the White bootstrap and the robust Breusch-Pagan test refused
+#' every fit with smooth terms, fixed ones included (decision 23), and the
+#' others took it as before 0.16.0.
+#'
+#' @param ctx The model context.
+#' @param fn Character scalar naming the calling function.
+#' @param why Why least squares is needed: the test fits the design again, a
+#'   bootstrap fits each replicate again, [fitWLS()] refits it by weighted
+#'   least squares, or the null distribution is derived for least-squares
+#'   residuals.
 #' @return `NULL`, invisibly; called for the error, of class
 #'   `heteroTests_model_context_error`.
 #' @keywords internal
 #' @noRd
-rrefuse_smooth_gam <- function(ctx, fn) {
-  smooths <- ctx$model$smooth
-  if (!identical(ctx$kind, "gam") || length(smooths) == 0L) {
+rrefuse_penalised_gam <- function(ctx, fn, why = c("refit", "replicate", "fitwls", "null")) {
+  why <- match.arg(why)
+  if (rgam_least_squares(ctx)) {
     return(invisible(NULL))
   }
+  smooths <- ctx$model$smooth
   labels <- vapply(smooths, function(s) as.character(s$label %||% "a smooth"), character(1))
+  terms_named <- if (length(labels) > 0L) sprintf(" (%s)", paste(labels, collapse = ", ")) else ""
+  reason <- switch(why,
+    refit = "which the test fits again",
+    replicate = "which each replicate of the bootstrap fits again",
+    fitwls = "which fitWLS() refits by weighted least squares, without the penalty",
+    null = "for which the null distribution of the test is derived"
+  )
   rstop_model_context(sprintf(
     paste0(
-      "%s() cannot test an mgcv::gam() fit with smooth terms (%s): a smooth term is ",
-      "usually penalised, and a penalised fit is not the least-squares fit of its design, ",
-      "which the test fits again. Whether the tests take such a fit is left to a later ",
-      "step of the package. Refit the model with lm() or glm(), with a parametric term ",
-      "such as splines::ns() in place of each smooth."
+      "%s() cannot %s a penalised mgcv::gam() fit%s: its residuals are not those of the ",
+      "least-squares fit of its design, the basis of its smooths, %s. Fix its smooths, ",
+      "s(x, fx = TRUE), so that it is that fit, or refit the model with lm() and a ",
+      "parametric term such as splines::ns() in place of each smooth."
     ),
-    fn, paste(labels, collapse = ", ")
+    fn, if (identical(why, "fitwls")) "refit" else "test", terms_named, reason
   ))
+}
+
+#' The leverages of the observations, on the design the tests read
+#'
+#' The diagonal of the hat matrix of the weighted design,
+#' \eqn{\sqrt{W} X (X' W X)^{-1} X' \sqrt{W}}, one value per observation of
+#' the fit, without the padding of `na.exclude`, which the null-imposed
+#' bootstraps divide the residuals by. For an `lm` or a Gaussian `glm`,
+#' `hatvalues()`, as before. An `mgcv::gam()` fit has no QR decomposition of
+#' an `lm`, and `hatvalues()` stopped on it ("lm object does not have a proper
+#' 'qr' component"); its leverages are those of its stored design, from a QR
+#' decomposition of it with the prior weights, at the tolerance of `lm()`
+#' (since increment 11 of the model context, decision 38: only a `gam` that is
+#' the least-squares fit of that design reaches the bootstraps).
+#'
+#' @param model The fitted model.
+#' @param design The design of the fit, one row per observation, or `NULL`
+#'   for that of the fit.
+#' @return Numeric vector of leverages, one per observation.
+#' @keywords internal
+#' @noRd
+rmodel_leverage <- function(model, design = NULL) {
+  if (!inherits(model, "gam")) {
+    return(rmodel_unpad(model, stats::hatvalues(model)))
+  }
+  if (is.null(design)) {
+    design <- stats::model.matrix(rmodel_as_na_omit(model))
+  }
+  weights <- rleast_squares_weights(model)
+  weighted <- if (is.null(weights)) design else sqrt(weights) * design
+  decomposition <- qr(weighted, tol = 1e-7)
+  q <- qr.Q(decomposition)[, seq_len(decomposition$rank), drop = FALSE]
+  unname(rowSums(q^2))
 }
 
 # The names of the observations, in the order of the fit: those of its
@@ -357,9 +429,11 @@ rcontext_frame_from_data <- function(model, data) {
 #' an `lm` by class, which every test tested as an `lm` until increment 11 of
 #' the design of the model context ([rrefuse_rlm()], decision 4).
 #'
-#' A Gaussian `mgcv::gam()` fit, a `glm` by class, is accepted as before
-#' 0.16.0; whether a penalised fit with smooth terms is an input the tests
-#' justify is left to the last step of the migration.
+#' A Gaussian `mgcv::gam()` fit, a `glm` by class, is accepted, and tested on
+#' its stored design, the basis of its smooths. A penalised one is refused by
+#' the tests that need the least-squares fit of that design, each through
+#' [rrefuse_penalised_gam()] (decision 37), and one that is that fit is taken
+#' by every test (decision 38, [rgam_least_squares()]).
 #'
 #' @param model The fitted model.
 #' @param fn Character scalar naming the calling test.
@@ -416,23 +490,28 @@ rrefuse_rlm <- function(model, fn) {
   if (!inherits(model, "rlm")) {
     return(invisible(NULL))
   }
-  formula_text <- tryCatch(deparse1(stats::formula(model), collapse = " "),
-                           error = function(e) NULL)
-  lm_call <- if (length(formula_text) == 1L) sprintf("lm(%s)", formula_text) else "lm()"
-  # The tests test the fit; fitWLS() refits it; augment() and the advice,
-  # which match `data` through the context, read its residuals.
+  lm_call <- rrlm_lm_call(model)
+  # The tests test the fit; fitWLS() refits it; augment(), the advice and
+  # autoCompareRemediations() read its residuals.
   refits <- identical(fn, "fitWLS")
   verb <- if (refits) {
     "refit"
-  } else if (fn %in% c("augment", "recommendRemediationStrategies")) {
+  } else if (fn %in% c("augment", "recommendRemediationStrategies", "autoCompareRemediations")) {
     "take"
   } else {
     "test"
   }
+  advice <- if (is.null(lm_call)) {
+    if (refits) "Pass the lm() fit of the same model instead." else "Test the lm() fit of the same model instead."
+  } else if (refits) {
+    sprintf("Pass the lm() fit of the same formula instead, fitWLS(%s).", lm_call)
+  } else {
+    sprintf("Test the lm() fit of the same formula instead, %s.", lm_call)
+  }
   rstop_model_context(sprintf(
     paste0(
       "%s() cannot %s a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are ",
-      "not least-squares residuals, and %s. %s instead, %s."
+      "not least-squares residuals, and %s. %s"
     ),
     fn,
     verb,
@@ -441,13 +520,40 @@ rrefuse_rlm <- function(model, fn) {
     } else {
       "the null distributions of the tests assume least squares"
     },
-    if (refits) {
-      "Pass the lm() fit of the same formula"
-    } else {
-      "Test the lm() fit of the same formula"
-    },
-    if (refits) sprintf("fitWLS(%s)", lm_call) else lm_call
+    advice
   ))
+}
+
+#' The `lm()` call of the model a `MASS::rlm()` fit estimated
+#'
+#' The call of the fit with `lm` in place of `rlm`, its formula and the
+#' arguments `lm()` takes, `data`, `weights`, `subset`, `na.action`,
+#' `offset` and `contrasts`, as the call holds them, and without the
+#' arguments of the M-estimation (`psi`, `method`, `maxit`, `init`,
+#' `scale.est`, `k2`, `acc`, `test.vec`, `wt.method`, `lqs.control`, `c`
+#' and the others `lm()` does not take). The formula is that of the fit, so
+#' that a formula held in a variable is written out. `NULL` for a fit without
+#' a two-sided formula, as one made with the matrix interface, `rlm(x, y)`,
+#' whose `formula()` is empty.
+#'
+#' @param model A `MASS::rlm()` fit.
+#' @return Character scalar, the call deparsed, or `NULL`.
+#' @keywords internal
+#' @noRd
+rrlm_lm_call <- function(model) {
+  f <- tryCatch(stats::formula(model), error = function(e) NULL)
+  if (!inherits(f, "formula") || length(f) != 3L) {
+    return(NULL)
+  }
+  # The formula as a call, without the class and the environment of a
+  # formula object, which deparse() would write out.
+  f <- as.call(as.list(f))
+  call <- model$call
+  args <- if (is.call(call)) as.list(call)[-1L] else list()
+  named <- names(args) %||% rep("", length(args))
+  kept <- c("data", "weights", "subset", "na.action", "offset", "contrasts")
+  lm_call <- as.call(c(list(as.name("lm"), f), args[named %in% kept]))
+  tryCatch(deparse1(lm_call, collapse = " "), error = function(e) NULL)
 }
 
 #' Match the rows of `data` to the observations of the fit
@@ -747,9 +853,10 @@ rformula_constants <- function(formula, names) {
 #' \eqn{\epsilon |\bar y|}, so a response near `1e11` with a residual standard
 #' deviation of 2 leaves scores that the first term alone refuses. In a sweep of
 #' `lm` and Gaussian `glm` fits with 120 to 10,000 observations and responses
-#' up to `1e14`, the largest score of a valid fit was 0.04 of that term. A
-#' `mgcv::gam()` fit is penalised, so its residuals are not orthogonal to its
-#' design, and only its first check is made. An edited coefficient leaves the
+#' up to `1e14`, the largest score of a valid fit was 0.04 of that term. An
+#' `mgcv::gam()` fit with penalised smooth terms is not the least-squares fit
+#' of its design, so its residuals are not orthogonal to it, and only the first
+#' check is made on a `gam`. An edited coefficient leaves the
 #' residuals unchanged, so only the first check sees it, at `1e-7` of the
 #' largest term: an edit of 0.5 goes undetected once the response is above
 #' about `1e7`. The checks guard against accidental edits; they are not a proof

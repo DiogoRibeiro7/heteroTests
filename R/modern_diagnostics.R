@@ -219,9 +219,16 @@
 #' which it computed the value of the fit before the edit, and a `fitWLS()` fit
 #' of an `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the
 #' design of its coefficients, on which it computed a value on the variables of
-#' the formula. Which model each
-#' test accepts, and why, is set out in [test_results], under *Supported
-#' models*.
+#' the formula. Since 0.17.0 it refuses an `mgcv::gam()` fit with penalised
+#' smooth terms, which is not the least-squares fit of its design, the basis of
+#' its smooths, that each replicate fits again, and it tests a `gam` that is
+#' that fit, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`) or
+#' one without smooth terms, on that design, its leverages those of the design,
+#' with the value and the replicates of the `lm()` of it (decisions 37 and 38 of
+#' the design of the model context). Before, it stopped on every `gam`
+#' ("lm object does not have a proper 'qr' component"), reading its leverages
+#' with `hatvalues()`. Which model each test accepts, and why, is set out in
+#' [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -243,6 +250,12 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # `data`, when given, is matched to its observations and checked
   # (R/model_context.R). The test reads nothing else from `data`.
   ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
+  # Each replicate refits the design by least squares: a penalised
+  # mgcv::gam() fit is refused, and a gam that is the least-squares fit of its
+  # design is bootstrapped on it (decisions 37 and 38 of the design of the
+  # model context), where the test stopped on every gam, reading its leverages
+  # with hatvalues().
+  rrefuse_penalised_gam(ctx, fn, "replicate")
   distribution <- match.arg(distribution)
   if (!is.numeric(B) || length(B) != 1L || is.na(B) || B < 1) {
     stop("`B` must be a positive integer.", call. = FALSE)
@@ -311,8 +324,13 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # each bootstrap sample a common error variance, and apply the wild multiplier
   # only as a symmetric sign/scale perturbation. See Davidson & Flachaire (2008)
   # and Godfrey (2006) on null-imposed bootstraps for heteroscedasticity tests.
-  # Without the padding of na.exclude (B13).
-  leverage <- rcontext_unpad(ctx, stats::hatvalues(model))
+  # Without the padding of na.exclude (B13). Those of a gam, which hatvalues()
+  # does not give, from its stored design (rmodel_leverage(), decision 38).
+  leverage <- if (identical(ctx$kind, "gam")) {
+    rmodel_leverage(model, ctx$design)
+  } else {
+    rcontext_unpad(ctx, stats::hatvalues(model))
+  }
   null_residuals <- residuals / sqrt(pmax(1 - leverage, .Machine$double.eps))
   null_residuals <- null_residuals - mean(null_residuals)
 
@@ -711,8 +729,9 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
 #' lack rows or variables of the fit.
 #' It refuses a multivariate `lm` ("needs a model with one response"), since
 #' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
-#' tested as before 0.16.0, with smooth terms too, until a later step settles
-#' which tests take such a fit.
+#' tested as before 0.16.0, with penalised smooth terms too: the test reads its
+#' residuals and does not fit it again, so it does not take them for
+#' least-squares residuals (decision 37 of the design of the model context).
 #' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'

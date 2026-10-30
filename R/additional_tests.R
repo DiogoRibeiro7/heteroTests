@@ -94,10 +94,13 @@ NULL
 #' 0.16.0: the refit of the design carries the offset, as [performKoenkerTest()]
 #' accounts for it.
 #' It refuses a multivariate `lm` ("needs a model with one response"), and,
-#' since 0.16.0, an `mgcv::gam()` fit with smooth terms: a smooth term is
-#' usually penalised, and a penalised fit is not the least-squares fit of the
-#' design the test fits again. A later step settles which tests take such a
-#' fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+#' since 0.16.0, an `mgcv::gam()` fit with penalised smooth terms, which is not
+#' the least-squares fit of its design, the basis of its smooths, that the test
+#' fits again. Since 0.17.0 a `gam` that is the least-squares fit of its design,
+#' as one whose smooth terms are all fixed (`s(x, fx = TRUE)`), is tested on
+#' that design and gives the value of the `lm()` of it; before, it was refused
+#' as a penalised one. A `gam` without smooth terms is tested as the Gaussian
+#' `glm` it is (decisions 37 and 38 of the design of the model context).
 #' Which model each test accepts, and why, is set out in
 #' [test_results], under *Supported models*.
 #'
@@ -141,7 +144,7 @@ performStudentizedBPTest <- function(model, data = NULL) {
   if (is.null(ctx)) {
     ctx <- rmodel_context(model, data, fn = "performStudentizedBPTest", test_label = test_label)
   }
-  rrefuse_smooth_gam(ctx, rtest_name(sys.parent(), "performStudentizedBPTest"))
+  rrefuse_penalised_gam(ctx, rtest_name(sys.parent(), "performStudentizedBPTest"), "refit")
   rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
   rwarn_incomplete_rows(data, model)
@@ -424,10 +427,13 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
 #' lack rows or variables of the fit. Since 0.17.0 it refuses an `mgcv::gam()`
-#' fit with smooth terms: a smooth term is usually penalised, and a penalised
-#' fit is not the least-squares fit of its design, which each replicate fits
-#' again (before, the refit from the formula stopped on the smooth term); a
-#' `gam` without smooth terms is tested as the Gaussian `glm` it is. It also
+#' fit with penalised smooth terms, which is not the least-squares fit of its
+#' design, the basis of its smooths, that each replicate fits again (before, the
+#' refit from the formula stopped on the smooth term), and it tests a `gam` that
+#' is that fit, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`), on
+#' that design, with the value and the replicates of the `lm()` of it; a `gam`
+#' without smooth terms is tested as the Gaussian `glm` it is (decisions 37 and
+#' 38 of the design of the model context). It also
 #' refuses a fit whose coefficients, residuals or weights were changed after it
 #' was fitted, from which it computed the value of the fit before the edit, and
 #' a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not rebuild the
@@ -476,8 +482,10 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
   # (rwhite_test_rebuilt_design(), gone).
   ctx <- rmodel_context(model, data, fn = fn, test_label = test_label)
   # Each replicate refits the design by least squares, which is not the fit of
-  # a penalised smooth term (decision 23 of the design of the model context).
-  rrefuse_smooth_gam(ctx, fn)
+  # a penalised mgcv::gam() fit, refused (decision 37 of the design of the
+  # model context); a gam that is the least-squares fit of its design is
+  # bootstrapped on it (decision 38).
+  rrefuse_penalised_gam(ctx, fn, "replicate")
   rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
   rwarn_incomplete_rows(data, model)
@@ -802,14 +810,19 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' weight, a coefficient that is not finite for another reason, and `data` that
 #' lack rows or variables of the fit.
 #' It refuses a multivariate `lm` ("needs a model with one response"), since
-#' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
-#' tested as before 0.16.0, with smooth terms too, until a later step settles
-#' which tests take such a fit; since 0.16.0 its observations are matched to the
-#' rows of `data` by the row names of its model frame. Before, they were matched
-#' by position, since the residuals of a `gam` carry no names, and `data` with
-#' the rows of the fit in another order gave a wrong value. The null moments of
-#' a `gam` with smooth terms are those of its design as an unpenalised
-#' least-squares fit, with the rank of that design, as
+#' 0.16.0; before, it stopped with a coercion error. Since 0.17.0 it refuses an
+#' `mgcv::gam()` fit with penalised smooth terms: the null distribution of the
+#' test is derived for the least-squares residuals of the design of the fit, the
+#' basis of its smooths, which the residuals of a penalised fit are not; before,
+#' it compared them with that distribution. A `gam` that is the least-squares
+#' fit of its design, as one whose smooth terms are all fixed
+#' (`s(x, fx = TRUE)`), is tested on that design, as before, and gives the value
+#' of the `lm()` of it (decisions 37 and 38 of the design of the model context).
+#' Since 0.16.0 the observations of a `gam` are matched to the rows of `data` by
+#' the row names of its model frame. Before, they were matched by position,
+#' since the residuals of a `gam` carry no names, and `data` with the rows of
+#' the fit in another order gave a wrong value. The null moments of a `gam` are
+#' those of its design, with the rank of that design, as
 #' [performHarrisonMcCabeTest()] takes its null distribution.
 #' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
@@ -864,6 +877,12 @@ performSzroeterTest <- function(model, data = NULL, order_by,
 .szroeter_test <- function(ctx, data, order_by, alternative, data_name, by_mean = FALSE) {
   test_label <- "Szroeter test"
   model <- ctx$model
+  # The null moments of h are those of the least-squares residuals of the
+  # design, through its residual-maker (rszroeter_moments()): a penalised
+  # mgcv::gam() fit, whose residuals are not those, is refused (decision 37 of
+  # the design of the model context); a gam that is the least-squares fit of
+  # its design is tested.
+  rrefuse_penalised_gam(ctx, "performSzroeterTest", "null")
   rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
 

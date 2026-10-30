@@ -90,8 +90,16 @@ NULL
 #' the value of the same model fitted without the aliased columns. It refuses a
 #' `glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
 #' weight, a coefficient that is not finite for another reason, and `data` that
-#' lack rows or variables of the fit. Which model each test accepts, and why, is
-#' set out in [test_results], under *Supported models*.
+#' lack rows or variables of the fit. An `mgcv::gam()` fit with penalised
+#' smooth terms is tested on its design, the basis of its smooths, as by
+#' [performWhiteTest()], and refused with `bootstrap = TRUE` (since 0.17.0;
+#' before, the bootstrap refused every `gam` with an error of its own): each
+#' replicate fits that design again by least squares, which a penalised fit is
+#' not. A `gam` that is the least-squares fit of its design, as one whose
+#' smooth terms are all fixed (`s(x, fx = TRUE)`) or one without smooth terms,
+#' is bootstrapped too, as the `lm()` of that design (decisions 37 and 38 of
+#' the design of the model context). Which model each test accepts, and why,
+#' is set out in [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -135,6 +143,12 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
     stop("`parallel` must be a single logical value.", call. = FALSE)
   }
 
+  # The bootstrap refits each replicate by least squares: a penalised
+  # mgcv::gam() fit is refused here, under the name of this test, as by
+  # bootstrapTestStatistic() (decision 37 of the design of the model context).
+  if (isTRUE(bootstrap)) {
+    rrefuse_penalised_gam(ctx, fn, "replicate")
+  }
   rvalidateModelInputs(model, test_name = test_label, min_obs = 20L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
   rwarn_incomplete_rows(data, model)
@@ -262,10 +276,17 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' `studentize = FALSE`, and since 0.16.0 with `studentize = TRUE`, the default,
 #' whose refit of the design carries the offset of the fit.
 #' It refuses a multivariate `lm` ("needs a model with one response"), and,
-#' since 0.16.0, an `mgcv::gam()` fit with smooth terms: a smooth term is
-#' usually penalised, and a penalised fit is not the least-squares fit of the
-#' design the test fits again. A later step settles which tests take such a
-#' fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+#' since 0.16.0, with `studentize = TRUE`, the default, an `mgcv::gam()` fit
+#' with penalised smooth terms, which is not the least-squares fit of its
+#' design, the basis of its smooths, that the studentized statistic fits again,
+#' and, since 0.17.0, such a fit with `bootstrap = TRUE`, whose replicates are
+#' fitted again. With `studentize = FALSE` and no bootstrap it tests such a fit
+#' on its design, as `performBPTest()` does. Since 0.17.0 a `gam` that is the
+#' least-squares fit of its design, as one whose smooth terms are all fixed
+#' (`s(x, fx = TRUE)`), is tested on that design and gives the value of the
+#' `lm()` of it; before, it was refused as a penalised one. A `gam` without
+#' smooth terms is tested as the Gaussian `glm` it is (decisions 37 and 38 of
+#' the design of the model context).
 #' Which model each
 #' test accepts, and why, is set out in [test_results], under *Supported models*.
 #'
@@ -327,6 +348,12 @@ performBPTestRobust <- function(model, data = NULL, studentize = TRUE,
     stop("`parallel` must be a single logical value.", call. = FALSE)
   }
 
+  # The bootstrap refits each replicate by least squares: a penalised
+  # mgcv::gam() fit is refused here, under the name of this test, as by
+  # bootstrapTestStatistic() (decision 37 of the design of the model context).
+  if (isTRUE(bootstrap)) {
+    rrefuse_penalised_gam(ctx, fn, "replicate")
+  }
   rvalidateModelInputs(model, test_name = test_label, min_obs = 15L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
   rwarn_incomplete_rows(data, model)

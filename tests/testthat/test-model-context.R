@@ -479,7 +479,7 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   refusal <- paste(
     "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not",
     "least-squares residuals, and the null distributions of the tests assume least squares.",
-    "Test the lm() fit of the same formula instead, lm(y ~ x1 + x2)."
+    "Test the lm() fit of the same formula instead, lm(y ~ x1 + x2, data = d)."
   )
   refused <- function(f, info, fn = NULL, verb = "test") {
     out <- tryCatch(suppressWarnings(suppressMessages(f())), error = function(e) e)
@@ -554,7 +554,7 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
       "fitWLS() cannot refit a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals",
       "are not least-squares residuals, and fitWLS() fits its variance function to",
       "least-squares residuals. Pass the lm() fit of the same formula instead,",
-      "fitWLS(lm(y ~ x1 + x2))."
+      "fitWLS(lm(y ~ x1 + x2, data = d))."
     ), fixed = TRUE)
   }
   # The registered names, directly, through test_factory, cachedTest() and
@@ -564,12 +564,22 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   # under its name (0.3407).
   # The names the package registers, not those another test file may have
   # registered in the same session, as R CMD check runs them all in one.
+  # They are read from .diagnostic_kind, which holds every name the package
+  # registers with what it does, and loses a name registerDiagnostic() gives
+  # another function (as test-diagnostics.R does with custom_test), so that a
+  # name added later is covered. Those of kind "data", Box's M test, test
+  # data rather than a model and never reach the context.
   registry <- heteroTests:::.diagnostic_registry
-  own <- c("white", "breusch_pagan", "koenker", "student_bp", "quantile_regression",
-           "szroeter", "spatial_hetero", "high_dimensional", "rank_permutation",
-           "white_bootstrap", "wild_bootstrap", "cook_weisberg", "ncv", "spread_level",
-           "variance_form")
-  for (nm in intersect(own, ls(registry))) {
+  kinds <- heteroTests:::.diagnostic_kind
+  own <- ls(kinds)
+  expect_true(all(c("white", "koenker", "student_bp", "wild_bootstrap", "box_m") %in% own))
+  for (nm in own[vapply(own, function(k) identical(get(k, envir = kinds), "data"), TRUE)]) {
+    expect_error(suppressWarnings(get(nm, envir = registry)(m, d)), info = nm)
+    expect_error(suppressWarnings(runHeteroTests(m, d, tests = nm, use_cache = FALSE,
+                                                 progress = FALSE)), info = nm)
+  }
+  own <- own[!vapply(own, function(k) identical(get(k, envir = kinds), "data"), TRUE)]
+  for (nm in own) {
     if (missing_package(nm)) next
     data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
     refused(function() get(nm, envir = registry)(m, data), paste("registry", nm))
@@ -577,7 +587,9 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
     refused(function() runHeteroTests(m, data, tests = nm, use_cache = FALSE, progress = FALSE),
             paste("runHeteroTests", nm))
   }
-  for (nm in intersect(own, test_factory$get_available())) {
+  # The entries the package gives test_factory (.ht_factory_tests), not those
+  # another test file registers.
+  for (nm in intersect(names(heteroTests:::.ht_factory_tests), test_factory$get_available())) {
     if (missing_package(nm)) next
     data <- if (identical(nm, "spatial_hetero")) with_listw(d) else d
     refused(function() {
@@ -632,8 +644,53 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   expect_error(performKoenkerTest(robust, mtcars),
                "performKoenkerTest() cannot test a MASS::rlm() fit", fixed = TRUE,
                class = "heteroTests_model_context_error")
-  expect_error(performKoenkerTest(robust, mtcars), "instead, lm(mpg ~ wt + qsec).", fixed = TRUE)
+  expect_error(performKoenkerTest(robust, mtcars), "instead, lm(mpg ~ wt + qsec", fixed = TRUE)
   expect_s3_class(performKoenkerTest(lm(mpg ~ wt + qsec, mtcars), mtcars), "htest")
+  # autoCompareRemediations() refuses it too (from the review of increment
+  # 11): it compared it as its "OLS" row with fitWLS() of it and with itself,
+  # and recommended WLS (AIC 396.5).
+  refused(function() autoCompareRemediations(m, d), "autoCompareRemediations()",
+          "autoCompareRemediations", "take")
+  # A grouped run is refused before any group is refitted, with the class
+  # (from the review of increment 11), where each group was refitted by the
+  # call of the fit and its refusals recorded as failures of the group, or,
+  # with MASS attached, the rlm() of each group tested (White 5.65, p 0.342,
+  # in group a).
+  skip_if_not_installed("dplyr")
+  grouped <- dplyr::group_by(dplyr::as_tibble(d), group)
+  refused(function() runHeteroTests(m, grouped, use_cache = FALSE, progress = FALSE), "grouped",
+          "runHeteroTests")
+  refused(function() runHeteroTests(m, grouped, tests = "quantile_regression", use_cache = FALSE,
+                                    progress = FALSE), "grouped, quantile", "runHeteroTests")
+  # A tibble, in the order of the fit, and a fit with model = FALSE whose data
+  # are gone, given them.
+  refused(function() performKoenkerTest(m, dplyr::as_tibble(d)), "tibble", "performKoenkerTest")
+  env <- new.env()
+  assign("gone", d, envir = env)
+  m_false <- eval(quote(MASS::rlm(y ~ x1 + x2, data = gone, model = FALSE)), env)
+  rm("gone", envir = env)
+  out <- tryCatch(performKoenkerTest(m_false, d), error = function(e) e)
+  expect_s3_class(out, "heteroTests_model_context_error")
+  expect_match(conditionMessage(out), "lm(y ~ x1 + x2, data = gone).", fixed = TRUE)
+  # The lm() call it suggests is that of the fit, with the arguments lm()
+  # takes and without those of the M-estimation (from the review of
+  # increment 11); a fit of the matrix interface, which has no formula, gets
+  # the lm() fit of the same model.
+  d$w <- 1 / d$x1^2
+  weighted <- MASS::rlm(y ~ x1 + x2, data = d, weights = w, subset = x1 > 0.6,
+                        psi = MASS::psi.bisquare, maxit = 50)
+  out <- tryCatch(performKoenkerTest(weighted, d), error = function(e) e)
+  expect_s3_class(out, "heteroTests_model_context_error")
+  expect_match(conditionMessage(out),
+               "instead, lm(y ~ x1 + x2, data = d, weights = w, subset = x1 > 0.6).", fixed = TRUE)
+  expect_false(grepl("psi|maxit", conditionMessage(out)))
+  matrix_fit <- MASS::rlm(cbind(1, d$x1, d$x2), d$y)
+  out <- tryCatch(performKoenkerTest(matrix_fit), error = function(e) e)
+  expect_s3_class(out, "heteroTests_model_context_error")
+  expect_match(conditionMessage(out), "least squares. Test the lm() fit of the same model instead.",
+               fixed = TRUE)
+  out <- tryCatch(fitWLS(matrix_fit), error = function(e) e)
+  expect_match(conditionMessage(out), "Pass the lm() fit of the same model instead.", fixed = TRUE)
 })
 
 test_that("a fit with model = FALSE whose data are gone is tested on data that reproduce it", {
@@ -673,53 +730,165 @@ test_that("a fit with model = FALSE whose data are gone is tested on data that r
   }
 })
 
-test_that("a Gaussian gam is tested as before, and without smooths it is the lm", {
+test_that("a gam that is the least-squares fit of its basis is tested by every test (decision 38)", {
+  # Increment 11, decision 38: a Gaussian gam without smooth terms, or whose
+  # smooths are fixed, s(x, fx = TRUE), is the least-squares fit of its stored
+  # design, the basis, and every test gives it the value of the lm() of that
+  # basis (context_basis_lm()), to rounding: the tests of increment 2 and the
+  # White bootstrap, which refused a fixed smooth as a gam with smooth terms;
+  # the wild bootstrap, which stopped on every gam reading its leverages with
+  # hatvalues(), and bootstrapTestStatistic() with the robust bootstraps, which
+  # refused every gam. Without smooth terms the basis is the design of the lm
+  # of the same formula.
   skip_if_not_installed("mgcv")
   d <- context_data()
   plain <- mgcv::gam(y ~ x1 + x2, data = d)
-  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
-  for (fn in context_runnable()) {
-    # Before 0.16.0 Fligner-Killeen's ranks tied at a group median on one fit
-    # and not, by rounding, on the other (N15, context_fligner_tolerance).
-    fligner <- identical(fn, "performFlignerKilleenTest")
-    tolerance <- if (fligner) context_fligner_tolerance else 1e-10
-    for (data in list(d, NULL)) {
-      # Hartley's test and the group tests group by a variable of `data` that
-      # the model frame does not hold, and so do the panel tests: without
-      # `data` they are refused (M1), as the matrix checks; the scatter
-      # diagnostic and runPanelTests() need `data`.
-      if (is.null(data) && fn %in% context_data_readers()) next
-      # The wild bootstrap stops on every gam, whose leverages hatvalues() does
-      # not give, as before increment 8 (context_cell_for()).
-      if (identical(fn, "performWildBootstrapTest")) {
-        for (m in list(plain, smooth)) {
-          out <- context_run(fn, list(build = function() list(m = m, data = data)))
-          expect_match(conditionMessage(out), "lm object does not have a proper 'qr' component",
-                       fixed = TRUE)
-        }
+  fixed <- mgcv::gam(y ~ s(x1, fx = TRUE) + x2, data = d)
+  recipes <- context_recipes()
+  extra <- list(
+    `bootstrapTestStatistic(null)` = function(m, data) {
+      bootstrapTestStatistic(performKoenkerTest, m, data, B = 19, progress = FALSE)
+    },
+    `performWhiteTestRobust(bootstrap = TRUE)` = function(m, data) {
+      performWhiteTestRobust(m, data, bootstrap = TRUE, B = 19)
+    },
+    `performBPTestRobust(studentize = FALSE, bootstrap = TRUE)` = function(m, data) {
+      performBPTestRobust(m, data, studentize = FALSE, bootstrap = TRUE, B = 19)
+    }
+  )
+  numbers <- function(v) {
+    if (is.list(v) && !is.null(v$original_statistic)) {
+      return(c(v$original_statistic, v$p_value, v$replicates))
+    }
+    c(unname(v$statistic), unname(v$parameter), v$p.value)
+  }
+  for (g in list(plain = plain, fixed = fixed)) {
+    expect_true(rgam_least_squares(rmodel_context(g, fn = "f")))
+    oracle <- context_basis_lm(g, d)
+    bare <- function(x) matrix(as.vector(x), nrow(x))
+    expect_identical(bare(stats::model.matrix(oracle$m)), bare(stats::model.matrix(g)))
+    for (fn in c(context_runnable(), names(extra))) {
+      recipe <- if (fn %in% names(extra)) extra[[fn]] else recipes[[fn]]
+      set.seed(7)
+      out <- suppressWarnings(tryCatch(recipe(g, d), error = function(e) e))
+      set.seed(7)
+      expected <- suppressWarnings(tryCatch(recipe(oracle$m, oracle$data), error = function(e) e))
+      info <- paste(fn, deparse(stats::formula(g)))
+      if (inherits(expected, "error")) {
+        expect_s3_class(out, "error")
         next
       }
-      context_same(context_run(fn, list(build = function() list(m = plain, data = data))),
-                   context_run(fn, list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
-                   paste(fn, "gam"), tolerance = tolerance)
-      out <- context_run(fn, list(build = function() list(m = smooth, data = data)))
-      if (fn %in% c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")) {
-        # A smooth term is usually penalised, and a penalised fit is not the
-        # least-squares fit of its design: the tests of increment 2 refuse it,
-        # until increment 11 settles which tests take it, and so do the robust
-        # Breusch-Pagan test, which studentizes by default, and the White
-        # bootstrap (increment 8), whose replicates refit the design.
-        expect_s3_class(out, "heteroTests_model_context_error")
-        refusal <- "%s() cannot test an mgcv::gam() fit with smooth terms (s(x1))"
-        expect_match(conditionMessage(out), sprintf(refusal, fn), fixed = TRUE, info = fn)
+      expect_false(inherits(out, "error"), info = paste(info, conditionMessage(out)))
+      if (inherits(out, "error") || !is.list(out) || is.null(out$statistic) &&
+            is.null(out$original_statistic)) {
+        next
+      }
+      expect_equal(numbers(out), numbers(expected), tolerance = 1e-8, info = info)
+    }
+    # Its data are matched by the row names of its model frame, by the
+    # bootstraps too, which numbered them by position before.
+    set.seed(7)
+    shuffled <- d[sample(nrow(d)), ]
+    set.seed(7)
+    a <- bootstrapTestStatistic(performKoenkerTest, g, d, B = 19, progress = FALSE)
+    set.seed(7)
+    b <- bootstrapTestStatistic(performKoenkerTest, g, shuffled, B = 19, progress = FALSE)
+    expect_identical(a$original_statistic, b$original_statistic)
+  }
+  # The plain gam is still the lm of its formula.
+  context_same(context_run("performWildBootstrapTest", list(build = function() list(m = plain, data = d))),
+               context_run("performWildBootstrapTest",
+                           list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
+               "wild bootstrap, gam", tolerance = 1e-10)
+  expect_identical(rmodel_context(plain, fn = "f")$kind, "gam")
+  expect_identical(rmodel_context(plain, fn = "f")$obs_id, rownames(stats::model.frame(plain)))
+  # The check is the least-squares refit of the basis, to 1e-8 of the spread
+  # of the response: a smoothing parameter of 0 passes it, and one of 1e-8,
+  # whose residuals move by 1.9e-7 of that spread on these data, does not.
+  for (sp in c(0, 1e-8)) {
+    g <- mgcv::gam(y ~ s(x1) + x2, data = d, sp = sp)
+    expect_identical(rgam_least_squares(rmodel_context(g, fn = "f")), sp == 0, info = sp)
+  }
+})
+
+test_that("a penalised gam is refused by the tests that fit it again (decision 37)", {
+  # Increment 11, decision 37: a penalised gam is tested on its stored design,
+  # the basis of its smooths, by every test that reads only its residuals, its
+  # fitted values, columns of `data` or its basis as the regressors of an
+  # auxiliary regression; and refused, with the class of the context, by the
+  # tests that fit it again by least squares and those whose null
+  # distribution is that of the least-squares residuals of the design.
+  skip_if_not_installed("mgcv")
+  d <- context_data()
+  smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
+  refusal <- "%s() cannot %s a penalised mgcv::gam() fit (s(x1)): its residuals are not those of"
+  refused <- function(f, fn, verb = "test") {
+    out <- tryCatch(suppressWarnings(f()), error = function(e) e)
+    expect_s3_class(out, "heteroTests_model_context_error")
+    expect_match(conditionMessage(out), sprintf(refusal, fn, verb), fixed = TRUE, info = fn)
+  }
+  recipes <- context_recipes()
+  for (fn in context_runnable()) {
+    for (data in list(d, NULL)) {
+      if (is.null(data) && fn %in% context_data_readers()) next
+      if (fn %in% context_refuse_penalised) {
+        refused(function() recipes[[fn]](smooth, data), fn)
       } else {
-        # Those of increments 1, 3, 4 and 5 test it as before 0.16.0.
-        context_expect_value(out, fn)
+        context_expect_value(context_run(fn, list(build = function() list(m = smooth, data = data))),
+                             fn)
       }
     }
   }
-  expect_identical(rmodel_context(plain, fn = "f")$kind, "gam")
-  expect_identical(rmodel_context(plain, fn = "f")$obs_id, rownames(stats::model.frame(plain)))
+  # The streaming tests read the basis, chunk by chunk, and give the values of
+  # the exact tests: the Breusch-Pagan test 23.995 and Koenker's 18.313 on 10,
+  # White's 46.05 on 60, where on the variables of the formula they gave
+  # 11.185 and 8.537 on 2 and 10.61 on 5.
+  exact <- list(
+    performWhiteTestStreaming = performWhiteTest(smooth, d),
+    performBPTestStreaming = performBPTest(smooth, d),
+    performKoenkerTestStreaming = performKoenkerTest(smooth, d)
+  )
+  for (fn in names(exact)) {
+    for (chunk in c(7, 40, 10000)) {
+      streamed <- get(fn)(smooth, d, chunk_size = chunk, progress = FALSE)
+      expect_equal(unname(streamed$statistic), unname(exact[[fn]]$statistic), tolerance = 1e-8,
+                   info = paste(fn, chunk))
+      expect_identical(unname(streamed$parameter), unname(exact[[fn]]$parameter))
+    }
+  }
+  expect_equal(unname(exact$performBPTestStreaming$statistic), 23.9947, tolerance = 1e-5)
+  expect_equal(unname(exact$performKoenkerTestStreaming$statistic), 18.3128, tolerance = 1e-5)
+  expect_equal(unname(exact$performWhiteTestStreaming$parameter), 60)
+  run <- function(...) suppressWarnings(runHeteroTests(smooth, d, use_cache = FALSE,
+                                                       progress = FALSE, ...))
+  tests <- c("white", "breusch_pagan", "koenker")
+  whole <- run(tests = tests)
+  chunked <- run(tests = tests, chunk_threshold_mb = 0, chunk_size = 7)
+  for (nm in tests) {
+    expect_equal(unname(chunked[[nm]]$statistic), unname(whole[[nm]]$statistic), tolerance = 1e-8,
+                 info = nm)
+  }
+  # The bootstraps refuse it with the class of the context, under their own
+  # names, where bootstrapTestStatistic() refused every gam without it and the
+  # wild bootstrap stopped on its leverages; the runner keeps the refusal of
+  # the wild bootstrap final, where it put White's test under its name.
+  refused(function() bootstrapTestStatistic(performKoenkerTest, smooth, d, B = 19,
+                                            progress = FALSE), "bootstrapTestStatistic")
+  refused(function() performWhiteTestRobust(smooth, d, bootstrap = TRUE, B = 19),
+          "performWhiteTestRobust")
+  refused(function() performBPTestRobust(smooth, d, studentize = FALSE, bootstrap = TRUE, B = 19),
+          "performBPTestRobust")
+  refused(function() fitWLS(smooth, d), "fitWLS", "refit")
+  refused(function() get("szroeter", envir = heteroTests:::.diagnostic_registry)(smooth, d),
+          "performSzroeterTest")
+  refused(function() run(tests = "wild_bootstrap"), "performWildBootstrapTest")
+  refused(function() run(tests = "szroeter"), "performSzroeterTest")
+  # runDiagnostics() runs RESET, whose refusal is final: it refuses the fit as
+  # a whole.
+  refused(function() suppressWarnings(runDiagnostics(smooth, d, use_cache = FALSE,
+                                                     progress = FALSE)),
+          "performRESETTest")
+  expect_false(rgam_least_squares(rmodel_context(smooth, fn = "f")))
 })
 
 test_that("data in the order of the fit must tell apart the rows a test reads beyond the frame", {
@@ -871,11 +1040,20 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
   )
   fns <- c(context_increment3, context_increment4, context_increment5, context_streaming)
   for (m in fits) {
+    penalised <- !rgam_least_squares(rmodel_context(m, fn = "f"))
     for (fn in context_runnable(fns)) {
       expected <- context_run(fn, list(build = function() list(m = m, data = d)))
+      got <- context_run(fn, list(build = function() list(m = m, data = shuffled)))
+      # Since increment 11 Szroeter's and Harrison-McCabe's tests refuse the
+      # penalised gam, whose residuals are not those their null distributions
+      # are derived for (decision 37), on any data.
+      if (penalised && fn %in% context_refuse_penalised) {
+        expect_s3_class(expected, "heteroTests_model_context_error")
+        expect_identical(conditionMessage(got), conditionMessage(expected), info = fn)
+        next
+      }
       context_expect_value(expected, fn)
-      context_same(context_run(fn, list(build = function() list(m = m, data = shuffled))),
-                   expected, paste(fn, deparse(stats::formula(m))))
+      context_same(got, expected, paste(fn, deparse(stats::formula(m))))
     }
   }
 })
@@ -1082,20 +1260,21 @@ test_that("the runner keeps the refusals of the streaming tests final", {
   }
 })
 
-test_that("a gam with smooth terms is streamed as before, on the variables of its formula", {
+test_that("a gam with smooth terms is streamed on its basis, as the exact tests read it", {
   # Its stored design is the basis of its smooths, on which the exact tests
-  # test it (decision 23). The streaming tests built the design of each chunk
-  # from its terms, those of the variables of its formula, and keep that
-  # design, now from its model frame, until the last step of the model
-  # context settles which tests take such a fit: Breusch-Pagan's and Koenker's
-  # statistics of its residuals on x1 and x2, written out here.
+  # test it. The streaming tests built the design of each chunk from its
+  # terms, those of the variables of its formula, and kept that design until
+  # the last step of the model context (decision 23); since, they read the
+  # basis chunk by chunk (decision 37): Breusch-Pagan's and Koenker's
+  # statistics of its residuals on the basis, written out here, where on x1
+  # and x2 they gave 11.185 and 8.537 on 2.
   skip_if_not_installed("mgcv")
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   d <- context_data()
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d)
   e2 <- unname(stats::residuals(smooth))^2
-  X <- cbind(d$x1, d$x2)
+  X <- stats::model.matrix(smooth)[, -1]
   g <- e2 / mean(e2) - 1
   bp <- 0.5 * sum(stats::fitted(stats::lm(g ~ X))^2)
   koenker <- length(e2) * summary(stats::lm(e2 ~ X))$r.squared
@@ -1104,8 +1283,8 @@ test_that("a gam with smooth terms is streamed as before, on the variables of it
     out_k <- performKoenkerTestStreaming(smooth, NULL, chunk_size = chunk, progress = FALSE)
     expect_equal(unname(out_bp$statistic), bp, tolerance = 1e-8)
     expect_equal(unname(out_k$statistic), koenker, tolerance = 1e-8)
-    expect_equal(unname(out_bp$parameter), 2)
-    expect_equal(unname(out_k$parameter), 2)
+    expect_equal(unname(out_bp$parameter), 10)
+    expect_equal(unname(out_k$parameter), 10)
   }
 })
 
@@ -2526,12 +2705,13 @@ test_that("a gam with na.exclude is read as the same gam with na.omit (B13)", {
     influence$cooks_distance,
     naresid(excluded$na.action, performInfluenceDiagnostics(omitted)$cooks_distance)
   )
-  # With a smooth term, the tests of increment 2 refuse it as its twin.
+  # With a penalised smooth term, the tests that fit it again refuse it as its
+  # twin (decision 37).
   smooth <- mgcv::gam(y ~ s(x1) + x2, data = d, na.action = na.exclude)
   expect_identical_numbers(performKoenkerTest(smooth, d),
                            performKoenkerTest(update(smooth, na.action = na.omit), d))
-  expect_error(performRESETTest(smooth, d), "cannot test an mgcv::gam() fit with smooth terms",
-               fixed = TRUE)
+  expect_error(performRESETTest(smooth, d), "cannot test a penalised mgcv::gam() fit",
+               fixed = TRUE, class = "heteroTests_model_context_error")
 })
 
 test_that("the functions outside the context read a fit with na.exclude as its twin (B13)", {
@@ -3792,8 +3972,9 @@ test_that("bootstrapTestStatistic() bootstraps a Gaussian glm as the lm it is (N
     robust_lm <- performWhiteTestRobust(lm_cell$m, lm_cell$data, bootstrap = TRUE, B = 9)
     expect_identical(robust$p.value_bootstrap, robust_lm$p.value_bootstrap)
   }
-  # Another family or link is refused, as before, and so is an mgcv::gam() fit,
-  # a glm by class, whose smooth terms are usually penalised.
+  # Another family or link is refused, as before, and so, since increment 11,
+  # with the class of the context, is a penalised mgcv::gam() fit (decision
+  # 37), where every gam was refused without it.
   d <- context_data()
   set.seed(77)
   d$count <- stats::rpois(nrow(d), exp(0.2 + 0.3 * d$x1))
@@ -3806,7 +3987,8 @@ test_that("bootstrapTestStatistic() bootstraps a Gaussian glm as the lm it is (N
   expect_error(
     bootstrapTestStatistic(performKoenkerTest, mgcv::gam(y ~ s(x1) + x2, data = d), d, B = 9,
                            progress = FALSE),
-    "An mgcv::gam() fit is not taken", fixed = TRUE
+    "bootstrapTestStatistic() cannot test a penalised mgcv::gam() fit (s(x1))", fixed = TRUE,
+    class = "heteroTests_model_context_error"
   )
 })
 
@@ -3914,7 +4096,12 @@ test_that("the resampling tests refuse a fitWLS() fit of a gam with smooth terms
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   d <- context_data()
-  g <- suppressWarnings(fitWLS(mgcv::gam(y ~ s(x1) + x2, data = d), d))
+  # Since increment 11 fitWLS() refuses a penalised gam itself (decision 37);
+  # a fixed smooth, the least-squares fit of its basis, it refits.
+  expect_error(fitWLS(mgcv::gam(y ~ s(x1) + x2, data = d), d),
+               "fitWLS() cannot refit a penalised mgcv::gam() fit", fixed = TRUE,
+               class = "heteroTests_model_context_error")
+  g <- suppressWarnings(fitWLS(mgcv::gam(y ~ s(x1, fx = TRUE) + x2, data = d), d))
   for (call in list(
     function() performWhiteTestBootstrap(g, d, B = 9),
     function() performWildBootstrapTest(g, d, B = 9, progress = FALSE),
