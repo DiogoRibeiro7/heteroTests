@@ -1589,7 +1589,10 @@ squared residuals that do not vary.
       with MASS attached it refitted each group as an `rlm` and returned its
       values; `autoCompareRemediations()` refuses it; and the `lm()` call the
       message suggests keeps the `data`, `weights`, `subset`, `na.action`,
-      `offset` and `contrasts` of the fit.
+      `offset` and `contrasts` of the fit. From its second review, the call
+      of a `fitRobust()` result names the formula and the data the caller
+      gave, where it named the variables of `fitRobust()`, so that the
+      suggested call works and `update()` refits it.
     - [x] The penalised `mgcv::gam()` with smooth terms (decision 23): which
       tests take it. Decided by the author on 2026-10-29 on the survey of the
       first part (decisions 37 and 38 of the design of the model context).
@@ -1612,7 +1615,13 @@ squared residuals that do not vary.
       is taken by every test as the `lm()` of that design, the refitting and
       resampling tests included, where a fixed smooth was refused as a
       penalised one and `bootstrapTestStatistic()` and the wild bootstrap
-      refused or stopped on every `gam`.
+      refused or stopped on every `gam`. From the second review: the check
+      of a least-squares `gam` is drawn on the residuals of the refit of its
+      design, plus the rounding of the response and the offset, not on the
+      spread of the response, which an offset or a trend inflates, so that
+      how the model is written no longer decides it; a `gam` without a
+      penalised term that fails it is not called penalised; and a refusal of
+      the context in a group stops a grouped run (decision 6).
 - [ ] **Found by the model-eligibility work (the *Supported models* page),
   recorded, not fixed**, as they change what a test computes rather than which
   models it accepts. Those below are settled by the steps above or with them;
@@ -2048,7 +2057,7 @@ announced in bold in `NEWS.md`.
   of the registry report `data.name = "model"` there, where `runHeteroTests()`
   reports the formula of the model since 0.16.0 (`NEWS.md`). Give it the rule
   of the runner, or say on its help page that it does not.
-- [ ] **A grouped run of a multivariate `lm`.** `runHeteroTests()` refuses
+- [x] **A grouped run of a multivariate `lm`.** `runHeteroTests()` refuses
   `lm(cbind(y, x2) ~ x1)` with the class of the model context ("needs a model
   with one response"), but on grouped data it refits the model in each group
   and records each refusal as a failure of the group: it returns a grouped
@@ -2057,9 +2066,12 @@ announced in bold in `NEWS.md`.
   (decision 6). A grouped `MASS::rlm()` fit behaved the same in the first
   version of step 11 of the model context, and with MASS attached `main`
   returned the values of an `rlm` in each group; step 11 refuses it before any
-  group is refitted, beside a `fitWLS()` fit. Found by the review of step 11,
-  recorded, not fixed; the same on `main` at the merge of step 10. Refuse a
-  multivariate `lm` there too. A suite of `NA` becomes a refusal.
+  group is refitted, beside a `fitWLS()` fit. Found by the review of step 11;
+  the same on `main` at the merge of step 10. Done in step 11, from its second
+  review, for every refusal of the context: one in a group stops the grouped
+  run with its class and message, a multivariate `lm` and a penalised `gam`
+  given a test that needs least squares among them; other failures are
+  recorded in their group, as before. A suite of `NA` becomes a refusal.
 - [ ] **`recommendRemediationStrategies()` without `data`.**
   `recommendRemediationStrategies(results, model, NULL)` stops with "argument
   is of length zero" for every model, an `lm` included:

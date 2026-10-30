@@ -200,8 +200,10 @@ guard as its alignment step and removes the rebuilding behind it.
   Szroeter), refuse it with the class of the context
   (`rrefuse_penalised_gam()`), final in the runners. A `gam` that is the
   least-squares fit of its design, decided from the fit as the refit of the
-  design reproducing its residuals to `1e-8` of the spread of the response
-  (`rgam_least_squares()`, `rleast_squares_reproduces()`), is taken by every
+  design reproducing its residuals to `1e-8` of its largest residual, plus
+  `1e3` epsilon of the largest response and offset (`rgam_least_squares()`;
+  from the second review of increment 11, where the line was on the spread
+  of the response), is taken by every
   test as the `lm()` of that design, the refitting and resampling tests
   included, the wild bootstrap reading its leverages from the design
   (`rmodel_leverage()`) (decision 38). Until increment 11 the tests of
@@ -293,7 +295,8 @@ The functions of `R/model_context.R`:
 | `rcontext_fitted(ctx)` | `fitted()` of the fit without the padding of `na.exclude`, what the tests computed from the model alone and RESET read (increment 9). |
 | `rmodel_as_na_omit(model)` | A fit with `na.exclude` with the class of the `na.action` of `na.omit`, the same rows: what `rvalidate_against_reference()` gives `lmtest::bptest()` and `car::ncvTest()`, which read `weights()` and `residuals()` (increment 9). |
 | `rwarn_incomplete_rows(data, model, also)` | The "Removed N observations" warning, dropping nothing; `also` names the other variables the test reads from `data`, such as the `order_by` of Goldfeld-Quandt. |
-| `rgam_least_squares(ctx)` | Whether a fit is not a `gam`, or a `gam` that is the least-squares fit of its stored design: the refit of the design by least squares, with its weights and offset, gives its residuals to `1e-8` of the spread of the response (`rleast_squares_reproduces()`; increment 11, decision 38). |
+| `rgam_least_squares(ctx)` | Whether a fit is not a `gam`, or a `gam` that is the least-squares fit of its stored design: the refit of the design by least squares, with its weights and offset, gives its residuals to `1e-8` of the largest residual of that refit, plus `1e3` epsilon of the largest response and offset (increment 11, decision 38; from its second review, where the line was that of `rleast_squares_reproduces()`, on the spread of the response, which an offset or a trend inflates). `bootstrapTestStatistic()` holds a `gam` to it too. |
+| `rgam_penalised(model)` | Whether a `gam` has a penalised term: a smooth with a penalty matrix, or `paraPen`; a `gam` without one that fails `rgam_least_squares()` is refused with a message of its own, not as a penalised fit (from the second review of increment 11). |
 | `rrefuse_penalised_gam(ctx, fn, why)` | Refuses a `gam` that is not that fit, a penalised one, with the class of the context, in the tests that fit it again (`why = "refit"`), the bootstraps (`"replicate"`), `fitWLS()` (`"fitwls"`) and the tests whose null distribution is derived for least-squares residuals of the design (`"null"`); its message names the smooths and says to fix them or to refit with `lm()` and a parametric term (increment 11, decision 37). It replaces `rrefuse_smooth_gam()`, which refused every `gam` with smooth terms, fixed ones included, in the tests of increment 2 (decision 23). |
 | `rmodel_leverage(model, design)` | The leverages of the fit: `hatvalues()` without the padding of `na.exclude`, and for a `gam`, which has no QR decomposition of its own, the diagonal of the hat matrix of its stored design in the metric of its weights (increment 11; the wild bootstrap and `bootstrapTestStatistic()`). |
 | `rcontext_mean(ctx)` | The fitted values, the linear predictor with the total offset, computed from the coefficients as `predict.lm()` computes it, in fit order: what `fitted()` holds (an `lm` up to rounding, as `y - e`), and so what `predict(type = "response")` returns, but on a `gam` with an `offset` argument, which `predict.gam()` leaves out. The registered `"szroeter"` orders by it (increment 3). |
@@ -1530,7 +1533,14 @@ For a `MASS::rlm()` fit, in the first part of increment 11:
   context; `bootstrapTestStatistic()` before it calls `test_function`, where
   it computed the observed statistic first.
 - **Outside the context.** `fitRobust()` returns such a fit, and its help page
-  says that the tests refuse it. `autoCompareRemediations()` compares an `rlm`
+  says that the tests refuse it. From the second review, the call of its
+  result names the formula and the data the caller gave (an `lm`'s `data`,
+  `subset` and `na.action`), where it named the variables of `fitRobust()`,
+  `rlm(formula = form, data = data)`, so that the refusal suggested
+  `lm(mpg ~ wt + qsec, data = data)`, which stops at top level or fits
+  whatever `data` names there, and `update()` failed; it suggests
+  `lm(mpg ~ wt + qsec, data = mtcars)` now, and the call is that of
+  `MASS::rlm()`, which `update()` finds without MASS attached. `autoCompareRemediations()` compares an `rlm`
   fit of its own with the fit it was given by their AIC and residuals, and
   tests nothing; given an `rlm` fit itself, it refuses it, where it compared
   `fitWLS()` of it and recommended it (`best` "WLS", AIC 396.5). `augment()`
@@ -1603,12 +1613,46 @@ columns; its stored design has 11, and the variables of its formula 3):
 - **Which `gam` is the least-squares fit** is decided from the fit, not from
   the arguments of its smooths (`rgam_least_squares()`): the refit of its
   design by least squares, with its weights and offset, reproduces its
-  residuals to `1e-8` of the spread of the response, the check
-  `bootstrapTestStatistic()` makes of every fit (`rleast_squares_reproduces()`).
-  A penalised fit whose smoothing parameter is near zero passes: on this fit,
-  `sp = 1e-10` leaves residuals within `1.9e-9` of the spread of those of the
-  least-squares refit and is taken, `sp = 1e-8` within `1.9e-7` and is
-  refused; REML chooses `sp = 1.30`.
+  residuals to `1e-8` of the largest residual of that refit, plus `1e3`
+  times the machine epsilon of the largest absolute value of the response
+  and of the offset, the rounding of a fit on that scale. A penalised fit
+  whose smoothing parameter is near zero passes: on this fit `sp = 0` leaves
+  the residuals 0.005 of the way to the line, `sp = 1e-10` 0.22 of the way,
+  and is taken, `sp = 1e-9` 2.2 times beyond it and `sp = 1e-8` 22 times,
+  and are refused; REML chooses `sp = 1.30`, 1.5e7 times beyond it.
+- **The line, from the second review.** The first version drew it as
+  `rleast_squares_reproduces()`, the check `bootstrapTestStatistic()` makes
+  of every fit, does: at `1e-8` of the spread of the response,
+  `max(abs(y - mean(y)))`. An offset, or a trend the design fits, makes that
+  spread as large as they are, so that the verdict depended on how the model
+  was written: `gam(y ~ s(x1) + x2 + offset(big))`, `big = 1e7 * rnorm(n)`,
+  edf 6.34, passed as least squares, RESET gave it 1.881, Goldfeld-Quandt
+  2.965 and Harrison-McCabe 0.3204, where the same model written as
+  `(y - big) ~ s(x1) + x2` was refused; so did `y + 3e7 * x2` (RESET 7.925);
+  and a fixed smooth with `y + 1e8`, whose residuals differ from those of the
+  refit by rounding, 32 epsilon of the response, failed and was refused as a
+  penalised fit. On the residuals the verdict does not depend on the offset
+  or the trend: in the measurement of the review, the residuals of a fixed
+  smooth or a `gam` without smooth terms were within `1e-10` of the largest
+  residual of the refit, or, with a mean or an offset up to `1e12`, within 79
+  epsilon of the response and the offset; those of the penalised fits were
+  0.11 to 0.37 of the largest residual away, at least 139 times beyond the
+  line with an offset up to `1e9`, which their rounding term only reaches
+  with an offset or a mean near `1e12`. `bootstrapTestStatistic()` holds a
+  `gam` to the same line. A `gam` without a penalised term (no smooth with a
+  penalty, no `paraPen`, `rgam_penalised()`) that fails it, as one whose
+  residuals were changed after the fit, is refused with a message of its
+  own, "cannot test this mgcv::gam() fit (s(x1)): its residuals are not those
+  of the least-squares fit of its design, ..., although none of its terms is
+  penalised, so the fit may have been changed after it was fitted".
+- **Grouped runs, from the second review.** A grouped run of
+  `runHeteroTests()` records the failure of a test in a group and goes on,
+  and recorded a refusal of the context so too, as a failed test of `NA`:
+  Szroeter's test on a penalised `gam` gave per-group `NA` where `main` gave
+  0.687 and 0.777, and the studentized statistic and a multivariate `lm`
+  gave `NA` rows on `main` too. A refusal of the context in a group stops the
+  run now, with its class and message, as on ungrouped data (decision 6);
+  other failures are recorded in their group, as before.
 - **`runDiagnostics()`** refuses a penalised fit as a whole, through RESET,
   whose refusal is final, as since 0.16.0, although White's and Koenker's
   tests, which it also runs, take the fit; `runHeteroTests()` returns them.
@@ -2394,7 +2438,9 @@ with a fixed smooth, `gam(y ~ s(x1, fx = TRUE) + x2)`, in every form of data
 block, and records each `gam` cell with the kind of its fit
 (`identity_gam_kind()`, decided in the harness without the package: the
 least-squares refit of its stored design, with its weights and offset, gives
-its residuals to `1e-8` of the spread of the response, or not). On a
+its residuals to the line of the package, `1e-8` of the largest residual of
+that refit plus `1e3` epsilon of the largest response and offset, or not;
+until the second review, `1e-8` of the spread of the response). On a
 penalised `gam` (decision 37) a call may change only to the refusal of the
 context, its class and its words, or, for the streaming tests and the runner
 that streams them, to the value of the exact test of the same call on the
@@ -2690,7 +2736,7 @@ that fixes each.
 | 3 | Numbered data in another order than the fit are refused, not matched by position. | 2026-10-16 |
 | 4 | `MASS::rlm()` is refused, in increment 11. Done in its first part: the context refuses it (`rrefuse_rlm()`), with the class of its refusals, before `data` is matched, on every route, a grouped run and `autoCompareRemediations()` among them (from its review). | 2026-10-18 |
 | 5 | The quantile regression test refuses an offset until it accounts for it; increment 2 is the fix (done). | 2026-10-17 |
-| 6 | A refusal of the context inside `runHeteroTests()` is final: no fallback test runs under its name. | 2026-10-16 |
+| 6 | A refusal of the context inside `runHeteroTests()` is final: no fallback test runs under its name. Since the second review of increment 11 a refusal in a group stops a grouped run too, where the group recorded it as a failed test of `NA`. | 2026-10-16 |
 | 7 | The "Removed N observations" warning is kept, and nothing is dropped. | 2026-10-16 |
 | 8 | An extra variable that is `NA` for a fitted row: each test keeps its behaviour, with a message that names the variable and the rows. | 2026-10-18 |
 | 9 | A variable of `var_formula` found only in the workspace, with `data = NULL`, is refused. Increment 6 applies it to every second formula (`var_formula`, `against`) and with `data` too: a variable that neither `data`, when it is given, nor, without `data`, the model frame holds is refused (with the message of `data`, or M1), never read from the workspace. A constant, a value of length one such as `k` in `~ I(hp^k)` or `pi`, is not a variable and is evaluated as R evaluates it (from the review of increment 6). | 2026-10-16 |
@@ -2721,7 +2767,7 @@ that fixes each.
 | 35 | A transformed outcome is mapped too. When a workflow's preprocessing transforms the outcome (`step_log(y)` in a recipe, or a formula preprocessor `log(y) ~ x + z`), `..y` is mapped to the outcome `hardhat::forge()` produces, as for the predictors; the rows are still confirmed against every column of the engine's model frame, and the value is `identical()` to that with `data = NULL`. Decided by the author on the review of increment 10. | 2026-10-28 |
 | 36 | The `"tidymodels"` attribute of the results of the runners keeps the mold's blueprint exactly as the workflow keeps it, with no rewriting of the user's expressions and no change to their environments; it stays the small record (`kind`, `blueprint`, `fitted_rows`, `case_weights`), not the fitted workflow. A recipe step keeps the environment it was written in, so that a saved result carries whatever that environment holds, as saving the workflow does: 1,523 KB against 1,522 KB on 5,000 rows, and 51,245 KB against 1,894 KB for a recipe written in a function whose frame held a 50 MB data frame, where `saveRDS()` of the workflow takes 50,272 KB; NEWS says so in bold. The pruning of the third review, which rewrote the expressions, goes. Decided by the author on the fourth review of increment 10. | 2026-10-29 |
 | 37 | A penalised `mgcv::gam()` fit is tested on its stored design (the basis of its smooths, `model.matrix()`) by every test that reads only its residuals, its fitted values, columns of `data`, groups, panel identifiers, the order of time, or the columns of that design as auxiliary regressors. Every test that refits it by least squares (RESET, Goldfeld-Quandt, the quantile regression test, the studentized Breusch-Pagan statistic of `performStudentizedBPTest()`, of `performBPTestRobust()` by default, of the registered `"student_bp"` and of `rvalidate_against_reference("studentized_bp")`, the White and wild bootstraps, `bootstrapTestStatistic()` and the robust bootstraps, the variance form test and `fitWLS()`), or whose null distribution is derived for least-squares residuals of its design (Harrison-McCabe and Szroeter), refuses it with `heteroTests_model_context_error`, final in the runners. The streaming tests read the basis chunk by chunk and give the values of the exact tests (Breusch-Pagan 23.995 on 10, Koenker 18.313 on 10, White 46.05 on 60), and `runHeteroTests()` gives the same with and without chunking. The wild bootstrap and `bootstrapTestStatistic()` refuse with the class of the context, which ends the fallback of the runner that returned White's test under the name `wild_bootstrap`. `runDiagnostics()` keeps refusing such a fit as a whole, through RESET. Decided by the author on the survey of the first part of increment 11. | 2026-10-29 |
-| 38 | A `gam` whose residuals are those of the least-squares fit of its stored design is treated as least squares by every test, the refitting ones included, on its basis: one with fixed smooths (`fx = TRUE`) or none. It is decided by the check of `rleast_squares_reproduces()`, residuals to `1e-8` of the spread of the response (`rgam_least_squares()`), not by the arguments of its smooths; a penalised fit with a smoothing parameter near zero passes (`sp = 1e-10` on the fit of the survey, not `1e-8`). Its refusals become values: the tests of increment 2 and the White bootstrap on a fixed smooth, the bootstraps on every such `gam`. The wild bootstrap reads its leverages from the stored design (`rmodel_leverage()`), not from `hatvalues()`. Decided by the author with decision 37. | 2026-10-29 |
+| 38 | A `gam` whose residuals are those of the least-squares fit of its stored design is treated as least squares by every test, the refitting ones included, on its basis: one with fixed smooths (`fx = TRUE`) or none. It is decided by the check of `rleast_squares_reproduces()`, residuals to `1e-8` of the spread of the response (`rgam_least_squares()`), not by the arguments of its smooths; a penalised fit with a smoothing parameter near zero passes (`sp = 1e-10` on the fit of the survey, not `1e-8`). From the second review of increment 11, the line is drawn on the residuals instead, `1e-8` of the largest residual of the refit plus `1e3` epsilon of the largest response and offset, so that an offset or a trend does not change the verdict (`sp = 1e-10` passes, `1e-9` does not), and a `gam` without a penalised term that fails it is not called penalised. Its refusals become values: the tests of increment 2 and the White bootstrap on a fixed smooth, the bootstraps on every such `gam`. The wild bootstrap reads its leverages from the stored design (`rmodel_leverage()`), not from `hatvalues()`. Decided by the author with decision 37. | 2026-10-29 |
 
 Decision 15 of the first design, B8, was fixed in 0.15.0 by #129 on
 2026-10-16, without the context.

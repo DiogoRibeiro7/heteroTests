@@ -855,6 +855,19 @@ is told to test `lm(y ~ x1 + x2, data = d, weights = w, subset = x1 > 0.6)`.
 An `rlm` of the matrix interface, `MASS::rlm(X, y)`, which has no formula, is
 told to test "the `lm()` fit of the same model".
 
+**The call of a `fitRobust()` result names what was given.** It named the
+variables of `fitRobust()`, `rlm(formula = form, data = data)`: `print()` and
+`summary()` showed that call, `update()` failed on it ("could not find
+function \"rlm\"" without MASS attached, and `form` and `data` are not the
+caller's either), and the refusal of the tests suggested
+`lm(mpg ~ wt + qsec, data = data)`, which stops at top level, or fits
+whatever object `data` names there. The call names the formula and the data
+the caller gave now, `MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)`, with the
+other arguments as written (`psi = MASS::psi.bisquare`, where it recorded
+`..1`), and, for an `lm`, the `data`, `subset` and `na.action` of its call:
+`print()` and `summary()` show it, `update()` refits it, and the tests suggest
+`lm(mpg ~ wt + qsec, data = mtcars)`. The fit itself is unchanged.
+
 **New refusal: a grouped run of a `MASS::rlm()` fit.** `runHeteroTests()` on
 grouped data refits the model in each group from its call: with MASS
 attached, `runHeteroTests(m, dplyr::group_by(d, group))` refitted an `rlm` in
@@ -899,6 +912,22 @@ auxiliary regressors, and test such a fit on its design, as before;
 `runDiagnostics()` refuses it as a whole, through RESET, as before, and
 `runHeteroTests()` returns White's and Koenker's tests.
 
+**New refusals: a refusal of the model context in a group stops a grouped
+run.** `runHeteroTests()` on grouped data records the failure of a test in a
+group and goes on, and it recorded a refusal of the model by the model
+context so too, as a failed test whose statistic is `NA`, where the run on
+ungrouped data stops with it (decision 6). It stops the grouped run now, with
+the class and the message of the refusal; the failures of a test for another
+reason are recorded in their group, as before. On the data of the examples
+with a factor of two levels, `d$group <- factor(rep(letters[1:2], length.out = n))`,
+and `grouped <- dplyr::group_by(d, group)`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `runHeteroTests(g, grouped, tests = "szroeter")`, `g` a penalised `gam` | 0.687 and 0.777, in its two groups | Error: "Model cannot be tested for Szroeter: `performSzroeterTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..." |
+| `runHeteroTests(g, grouped, tests = "student_bp")` | a failed test of `NA` in each group | Error: "Model cannot be tested for Student Bp: `performStudentizedBPTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..." |
+| `runHeteroTests(lm(cbind(y, x2) ~ x1, data = d), grouped)` | a failed test of `NA` for White's and Koenker's tests in each group | Error: "Model cannot be tested for White: `performWhiteTest()` needs a model with one response; `model` has 2." |
+
 **The streaming tests read the basis of the smooths of a `gam`.** They read
 the design of the variables of its formula, which its model frame holds; they
 read its stored design now, chunk by chunk, as the exact tests do, and give
@@ -917,9 +946,18 @@ design.** A `gam` without smooth terms, or whose smooths are all fixed, is the
 least-squares fit of its design, and every test takes it now as the `lm()` of
 that design, those that fit it again included. Whether a `gam` is that fit is
 decided from the fit: its design refitted by least squares, with its weights
-and offset, gives its residuals to `1e-8` of the spread of the response. A
-penalised fit whose smoothing parameter is near zero passes that check (on
-`g`'s formula, `sp = 1e-10` does and `sp = 1e-8` does not):
+and offset, gives its residuals to `1e-8` of the largest residual of that
+refit, plus `1e3` times the machine epsilon of the largest value of the
+response and of the offset, the rounding of a fit on that scale. So the
+verdict does not depend on how the model is written: an offset or a trend of
+any size leaves it as it is, and a fixed smooth on a response of `1e8` is
+taken as one. A penalised fit whose smoothing parameter is near zero passes
+that check (on `g`'s formula, `sp = 1e-10` does and `sp = 1e-9` does not). A
+`gam` without a penalised term that fails it, as one whose residuals were
+changed after the fit, is refused as such ("cannot test this `mgcv::gam()`
+fit (s(x1)): its residuals are not those of the least-squares fit of its
+design, ..., although none of its terms is penalised"), not as a penalised
+fit:
 
 | Call | Before | Now |
 | --- | --- | --- |
@@ -930,7 +968,9 @@ penalised fit whose smoothing parameter is near zero passes that check (on
 | `performWhiteTestBootstrap(f, d, B = 19)` | Error, as above | 43.88 (p = 0.95 after `set.seed(7)`) |
 | `performWildBootstrapTest(f, d, B = 19)` | Error: "lm object does not have a proper 'qr' component" | 14.70 (p = 0.15 after `set.seed(7)`) |
 | `bootstrapTestStatistic(performKoenkerTest, f, d, B = 19)` | Error: "`bootstrapTestStatistic()` supports Gaussian `lm` models only: ..." | 14.70 (p = 0.10 after `set.seed(7)`) |
-| the wild bootstrap, `bootstrapTestStatistic()` and the robust bootstraps on `mgcv::gam(y ~ x1 + x2, data = d)` | Error, as above | 9.04 (p = 0.05), the value of `lm(y ~ x1 + x2, data = d)` |
+| `performWildBootstrapTest()` and `bootstrapTestStatistic(performKoenkerTest)` on `mgcv::gam(y ~ x1 + x2, data = d)`, `B = 19` | Error, as above | 9.04 (p = 0.05 after `set.seed(7)`), each the value of the same call on `lm(y ~ x1 + x2, data = d)` |
+| `performWhiteTestRobust(bootstrap = TRUE, B = 19)` on the same `gam` | Error, as above | White's 11.14 (bootstrap p = 0.20 after `set.seed(7)`), the value of the `lm` |
+| `performBPTestRobust(studentize = FALSE, bootstrap = TRUE, B = 19)` on the same `gam` | Error, as above | 12.45 (bootstrap p = 0.05 after `set.seed(7)`), the value of the `lm` |
 
 Each is the value of the same call on the `lm()` of the basis of the `gam`,
 with the same replicates; the wild bootstrap reads the leverages of a `gam`
