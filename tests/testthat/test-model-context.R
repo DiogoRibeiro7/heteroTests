@@ -797,7 +797,7 @@ test_that("a gam that is the least-squares fit of its basis is taken by every te
     expect_true(rgam_least_squares(rmodel_context(g, fn = "f")))
     oracle <- context_basis_lm(g, d)
     bare <- function(x) matrix(as.vector(x), nrow(x))
-    expect_identical(bare(stats::model.matrix(oracle$m)), bare(stats::model.matrix(g)))
+    expect_identical_numbers(bare(stats::model.matrix(oracle$m)), bare(stats::model.matrix(g)))
     for (fn in c(context_runnable(), names(extra))) {
       recipe <- if (fn %in% names(extra)) extra[[fn]] else recipes[[fn]]
       set.seed(7)
@@ -824,7 +824,7 @@ test_that("a gam that is the least-squares fit of its basis is taken by every te
     a <- bootstrapTestStatistic(performKoenkerTest, g, d, B = 19, progress = FALSE)
     set.seed(7)
     b <- bootstrapTestStatistic(performKoenkerTest, g, shuffled, B = 19, progress = FALSE)
-    expect_identical(a$original_statistic, b$original_statistic)
+    expect_identical_numbers(a$original_statistic, b$original_statistic)
   }
   # The plain gam is still the lm of its formula.
   context_same(context_run("performWildBootstrapTest",
