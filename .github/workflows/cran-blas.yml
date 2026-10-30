@@ -11,7 +11,7 @@
 #               CRAN's OpenBLAS check does it
 #   BLIS        blis: Fedora 44, R-devel with serial BLIS and the system LAPACK
 #   Noisy BLAS  blis, with a BLAS that moves its results by up to one unit in
-#               the last place at random (tools/noisy-blas.c)
+#               the last place (tools/noisy-blas.c), on three seeds
 #   noLD        nold: Ubuntu 26.04, R-devel configured without long doubles
 #
 # CRAN no longer runs ATLAS regularly (2026-09-01), so no job does.
@@ -26,14 +26,33 @@
 # 0.16.0 failed CRAN's MKL check
 # (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
 # on 179 expect_identical() between two computations of the same numbers,
-# which agree to the last bit on R's reference BLAS and differ by up to 2e-12
-# relative under MKL. NOT_CRAN is unset here, as on CRAN, so the tests compare
-# those numbers to 1e-10 (expect_identical_numbers(),
-# tests/testthat/helper-numbers.R); the other workflows set NOT_CRAN=true and
-# compare them bit for bit.
+# which agree to the last bit on R's reference BLAS and differ by up to
+# 1.6e-12 relative under MKL. NOT_CRAN is unset here, as on CRAN, so the
+# tests compare those numbers to a tolerance of 1e-10
+# (expect_identical_numbers(), tests/testthat/helper-numbers.R); the other
+# workflows set NOT_CRAN=true and compare them bit for bit.
+#
+# The vignettes are neither built (R CMD build --no-build-vignettes) nor
+# checked (--ignore-vignettes): they compare nothing bit for bit, CRAN's MKL
+# check rebuilt them without a problem, and building them would add pandoc
+# and the packages they use to every job. R-CMD-check.yml builds and checks
+# them.
 name: CRAN BLAS checks
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'R/**'
+      - 'tests/**'
+      - 'inst/**'
+      - 'data/**'
+      - 'man/**'
+      - 'DESCRIPTION'
+      - 'NAMESPACE'
+      - '.Rbuildignore'
+      - 'tools/noisy-blas.c'
+      - '.github/workflows/cran-blas.yml'
   pull_request:
     branches: [main]
     paths:
@@ -41,11 +60,20 @@ on:
       - 'tests/**'
       - 'inst/**'
       - 'data/**'
+      - 'man/**'
       - 'DESCRIPTION'
       - 'NAMESPACE'
+      - '.Rbuildignore'
       - 'tools/noisy-blas.c'
       - '.github/workflows/cran-blas.yml'
+  # Weekly, as R-CMD-check.yml, an hour after it: R-devel and the containers
+  # change without a commit here.
+  schedule:
+    - cron: '0 4 * * 1'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 # Supersede a pull request's earlier runs, keyed as in R-CMD-check.yml.
 concurrency:
@@ -58,9 +86,11 @@ jobs:
   check:
     name: ${{ matrix.config.name }} (R devel, --as-cran)
     runs-on: ubuntu-latest
-    # The first run of a container installs every dependency, most of them
-    # from source on Fedora; later runs restore the library from the cache.
-    timeout-minutes: 120
+    # A job takes 10 to 15 minutes with its library restored from the cache.
+    # Without it, the first run of a container installs every dependency, and
+    # MKL's took 50 minutes; a run that times out saves nothing, so a rerun
+    # starts over.
+    timeout-minutes: 60
     container:
       image: ghcr.io/r-hub/containers/${{ matrix.config.container }}:latest
     strategy:
@@ -70,7 +100,9 @@ jobs:
           - {name: 'MKL', container: 'mkl', mkl: '2026.2'}
           - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
           - {name: 'BLIS', container: 'blis'}
-          - {name: 'Noisy BLAS', container: 'blis', blas: 'noisy', cache: 'BLIS'}
+          - {name: 'Noisy BLAS 1', container: 'blis', blas: 'noisy', seed: '1', cache: 'BLIS'}
+          - {name: 'Noisy BLAS 2', container: 'blis', blas: 'noisy', seed: '2', cache: 'BLIS'}
+          - {name: 'Noisy BLAS 3', container: 'blis', blas: 'noisy', seed: '3', cache: 'BLIS'}
           - {name: 'noLD', container: 'nold'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -112,14 +144,15 @@ jobs:
             ln -sf "$f" "$old/$(basename "$f" .so.3).so.2"
           done
 
-      # A BLAS that moves its results by up to one unit in the last place, at
-      # random (tools/noisy-blas.c): two computations of the same numbers
-      # differ in their last bits, on any processor.
+      # A BLAS that moves its results by up to one unit in the last place
+      # (tools/noisy-blas.c): two computations of the same numbers differ in
+      # their last bits, on any processor. Each seed moves them otherwise.
       - name: Use the noisy BLAS
         if: matrix.config.blas == 'noisy'
         run: |
-          gcc -O2 -shared -fPIC -o /usr/local/lib/libnoisyblas.so tools/noisy-blas.c -ldl -lm
+          gcc -O2 -Wall -shared -fPIC -o /usr/local/lib/libnoisyblas.so tools/noisy-blas.c -ldl -lm
           echo "BLAS_PRELOAD=/usr/local/lib/libnoisyblas.so" >> "$GITHUB_ENV"
+          echo "NOISY_BLAS_SEED=${{ matrix.config.seed }}" >> "$GITHUB_ENV"
 
       - name: Platform
         run: |
