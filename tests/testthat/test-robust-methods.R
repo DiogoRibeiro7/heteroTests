@@ -46,7 +46,7 @@ test_that("performBPTestRobust handles studentize toggle", {
       "`studentized` of performBPTestRobust\\(\\) is deprecated.*1\\.0\\.0.*Use `studentize`",
       class = "deprecatedWarning"
     )
-    expect_identical(
+    expect_identical_numbers(
       old,
       performBPTestRobust(model, mtcars, studentize = value, bootstrap = FALSE)
     )
@@ -123,7 +123,8 @@ test_that("runAdvancedDiagnostics() runs the studentized Breusch-Pagan test what
   expect_false(entry$robust_details$bootstrap$enabled)
   expect_equal(unname(entry$statistic), 3.0858363, tolerance = 1e-7)
   expect_equal(entry$p.value, 0.2137564, tolerance = 1e-6)
-  expect_identical(entry, performBPTestRobust(model, mtcars, studentize = TRUE, bootstrap = FALSE))
+  expect_identical_numbers(entry,
+                           performBPTestRobust(model, mtcars, studentize = TRUE, bootstrap = FALSE))
   expect_false(off$results$white$robust_details$bootstrap$enabled)
   expect_false(off$metadata$auto_enhance)
 
@@ -133,7 +134,7 @@ test_that("runAdvancedDiagnostics() runs the studentized Breusch-Pagan test what
   d <- data.frame(x = stats::runif(60, 1, 5))
   d$y <- 1 + d$x + stats::rnorm(60, sd = d$x)
   big <- stats::lm(y ~ x, data = d)
-  expect_identical(
+  expect_identical_numbers(
     runAdvancedDiagnostics(big, d, auto_enhance = FALSE)$results,
     runAdvancedDiagnostics(big, d, auto_enhance = TRUE)$results
   )
@@ -146,15 +147,15 @@ test_that("runAdvancedDiagnostics() takes \"bp\" for \"breusch_pagan\", as its h
   on.exit(ht_set_log_level(old), add = TRUE)
   model <- stats::lm(mpg ~ wt + qsec, data = mtcars)
   both <- runAdvancedDiagnostics(model, mtcars, tests = c("white", "breusch_pagan"), auto_enhance = FALSE)
-  expect_identical(
+  expect_identical_numbers(
     runAdvancedDiagnostics(model, mtcars, tests = c("white", "bp"), auto_enhance = FALSE),
     both
   )
   bp <- runAdvancedDiagnostics(model, mtcars, tests = "BP", auto_enhance = FALSE)
   expect_named(bp$results, "breusch_pagan")
   expect_identical(bp$metadata$tests, "breusch_pagan")
-  expect_identical(bp$results$breusch_pagan, both$results$breusch_pagan)
-  expect_identical(
+  expect_identical_numbers(bp$results$breusch_pagan, both$results$breusch_pagan)
+  expect_identical_numbers(
     runAdvancedDiagnostics(model, mtcars, tests = c("bp", "breusch_pagan"), auto_enhance = FALSE),
     bp
   )
@@ -181,7 +182,7 @@ test_that("rrunAdvancedDiagnostics() warns, names its new name and keeps its val
     class = "deprecatedWarning"
   )
   set.seed(15)
-  expect_identical(old, runAdvancedDiagnostics(model_small, small_data, bootstrap_B = 20))
+  expect_identical_numbers(old, runAdvancedDiagnostics(model_small, small_data, bootstrap_B = 20))
 })
 
 test_that("rvalidate_against_reference reports comparison status", {

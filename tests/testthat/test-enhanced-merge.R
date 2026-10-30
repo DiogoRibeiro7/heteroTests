@@ -12,7 +12,7 @@ test_that("plotResidualsFittedEnhanced() warns and draws plotResidualsFitted(enh
     class = "deprecatedWarning"
   )
   new <- plotResidualsFitted(m, enhanced = TRUE)
-  expect_identical(old$data, new$data)
+  expect_identical_numbers(old$data, new$data)
   expect_identical(old$labels, new$labels)
   expect_identical(length(old$layers), length(new$layers))
   expect_identical(plotResidualsFitted(m)$labels$title, "Residuals vs Fitted")

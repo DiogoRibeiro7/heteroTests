@@ -128,7 +128,7 @@ test_that("the default on a fitWLS() fit is TRUE, and differs from FALSE", {
     }
     default <- run()
     expect_true(all(is.finite(default)), label = nm)
-    expect_identical(default, run(reestimate_weights = TRUE), label = nm)
+    expect_identical_numbers(default, run(reestimate_weights = TRUE), label = nm)
     expect_false(isTRUE(all.equal(default, run(reestimate_weights = FALSE))), label = nm)
   }
 })
@@ -183,7 +183,7 @@ test_that("reestimate_weights = FALSE returns the values of 0.14.0 on a fitWLS()
     pairs$call <- NULL
     list(wild = wild, white = white, null = null, pairs = pairs)
   }
-  expect_identical(quiet(run(obj$fit, reestimate_weights = FALSE)), quiet(run(stripped)))
+  expect_identical_numbers(quiet(run(obj$fit, reestimate_weights = FALSE)), quiet(run(stripped)))
 })
 
 test_that("an lm, a weighted lm and a Gaussian glm return the values of 0.14.0", {
@@ -204,7 +204,7 @@ test_that("an lm, a weighted lm and a Gaussian glm return the values of 0.14.0",
         white = performWhiteTestBootstrap(models[[nm]], d, B = 19, ...)
       )
     }
-    expect_identical(quiet(full()), quiet(full(reestimate_weights = FALSE)), label = nm)
+    expect_identical_numbers(quiet(full()), quiet(full(reestimate_weights = FALSE)), label = nm)
   }
   # bootstrapTestStatistic() refused every glm. Since the eighth step of the
   # model context (N8) it bootstraps a Gaussian glm with the identity link as
@@ -437,7 +437,7 @@ test_that("a fit made before 0.15.0 is estimated again from the weights in its m
                                     progress = FALSE)$replicates
     )
   }
-  expect_identical(quiet(run(old_fit)), quiet(run(obj$fit)))
+  expect_identical_numbers(quiet(run(old_fit)), quiet(run(obj$fit)))
   # An unweighted fit has no weights in its frame, and is fitted unweighted.
   unweighted <- make_fgls_fit()
   expect_null(rwls_reestimation(unweighted$fit, NULL, "f")$initial_weights)
@@ -529,7 +529,7 @@ test_that("a replicate does not warn about the residuals it floors", {
     local_mocked_bindings(rwithout_floor_warning = function(expr) expr)
     loud <- run()
     expect_gt(sum(grepl("floored", loud$warnings)), 1L)
-    expect_identical(loud$value$replicates, caught$value$replicates)
+    expect_identical_numbers(loud$value$replicates, caught$value$replicates)
   })
 })
 
@@ -599,7 +599,7 @@ test_that("a fit on which fitWLS() fell back to equal weights holds them fixed",
     set.seed(41)
     quiet(performWildBootstrapTest(fit, d, B = 9, progress = FALSE, ...))
   }
-  expect_identical(run(), run(reestimate_weights = FALSE))
+  expect_identical_numbers(run(), run(reestimate_weights = FALSE))
   expect_error(run(reestimate_weights = TRUE), "fell back to equal weights")
 })
 
@@ -635,8 +635,8 @@ test_that("a variance regressor of the response holds the weights fixed, with a 
     expect_identical(sum(grepl("computed from the response", caught$warnings)), 3L,
                      label = nm)
     # The values of 0.14.0, which the same fit without its record gives.
-    expect_identical(default, run(strip_record(fit)), label = nm)
-    expect_identical(default, run(fit, reestimate_weights = FALSE), label = nm)
+    expect_identical_numbers(default, run(strip_record(fit)), label = nm)
+    expect_identical_numbers(default, run(fit, reestimate_weights = FALSE), label = nm)
   }
 })
 
@@ -681,8 +681,8 @@ test_that("a regressor of a variable the response regenerates holds the weights 
     caught <- collect_warnings(run())
     expect_true(any(grepl("computed from the response.*d\\$r <- d\\$y / d\\$x",
                           caught$warnings)), label = nm)
-    expect_identical(caught$value, suppressWarnings(run(reestimate_weights = FALSE)),
-                     label = nm)
+    expect_identical_numbers(caught$value, suppressWarnings(run(reestimate_weights = FALSE)),
+                             label = nm)
   }
 })
 
@@ -800,7 +800,7 @@ test_that("rbootstrap_test_statistic() takes the argument and forwards it", {
     set.seed(51)
     new_name <- bootstrapTestStatistic(performKoenkerTest, obj$fit, d, B = 9,
                                        progress = FALSE, reestimate_weights = value)
-    expect_identical(alias$replicates, new_name$replicates)
+    expect_identical_numbers(alias$replicates, new_name$replicates)
     expect_identical(alias$p_value, new_name$p_value)
   }
 })
@@ -813,7 +813,7 @@ test_that("the robust tests bootstrap a fitWLS() fit with its weights estimated 
   set.seed(52)
   direct <- quiet(bootstrapTestStatistic(performWhiteTest, obj$fit, d, B = 9,
                                          cross_products = TRUE, progress = FALSE))
-  expect_identical(wrapped$robust_details$bootstrap$replicates, direct$replicates)
+  expect_identical_numbers(wrapped$robust_details$bootstrap$replicates, direct$replicates)
   set.seed(52)
   fixed <- quiet(bootstrapTestStatistic(performWhiteTest, obj$fit, d, B = 9,
                                         cross_products = TRUE, progress = FALSE,
@@ -833,7 +833,7 @@ test_that("a seeded bootstrap that estimates the weights again repeats itself", 
                                     progress = FALSE)[c("replicates", "p_value")]
     )
   }
-  expect_identical(quiet(run()), quiet(run()))
+  expect_identical_numbers(quiet(run()), quiet(run()))
 })
 
 test_that("runHeteroTestsParallel() estimates the weights again on the stream of the test", {

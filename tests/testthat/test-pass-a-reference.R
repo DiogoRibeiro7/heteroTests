@@ -69,8 +69,8 @@ test_that("performCookWeisbergTest is the fitted-value case of the score test", 
 
   # The two exports must not drift apart.
   ncv <- without_deprecation(performNCVTest(obj$model))
-  expect_equal(unname(ours$statistic), unname(ncv$statistic), tolerance = 0)
-  expect_equal(ours$p.value, ncv$p.value, tolerance = 0)
+  expect_identical_numbers(unname(ours$statistic), unname(ncv$statistic))
+  expect_identical_numbers(ours$p.value, ncv$p.value)
 })
 
 # --- Harvey ----------------------------------------------------------------

@@ -181,7 +181,7 @@ test_that("performStudentizedBPTest() warns, names performKoenkerTest() and keep
     "'performStudentizedBPTest' is deprecated.*Use 'performKoenkerTest' instead",
     class = "deprecatedWarning"
   )
-  expect_identical(old, heteroTests:::.studentized_bp_test(m, mtcars, data_name = "m"))
+  expect_identical_numbers(old, heteroTests:::.studentized_bp_test(m, mtcars, data_name = "m"))
   expect_identical(old$data.name, "m")
 })
 

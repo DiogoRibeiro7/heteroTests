@@ -8,5 +8,5 @@ test_that("performBreuschPaganTest() warns and returns what performBPTest() retu
     old <- performBreuschPaganTest(m, mtcars),
     "'performBreuschPaganTest' is deprecated.*Use 'performBPTest' instead"
   )
-  expect_identical(old, performBPTest(m, mtcars))
+  expect_identical_numbers(old, performBPTest(m, mtcars))
 })

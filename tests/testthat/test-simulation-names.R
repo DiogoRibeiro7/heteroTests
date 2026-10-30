@@ -11,7 +11,7 @@ test_that("simulate_type_I_errors() warns and returns what simulate_size() retur
     "'simulate_type_I_errors' is deprecated.*Use 'simulate_size' instead",
     class = "deprecatedWarning"
   )
-  expect_identical(old, simulate_size(quick_test, n_sims = 5, n_obs = 30, seed = 7))
+  expect_identical_numbers(old, simulate_size(quick_test, n_sims = 5, n_obs = 30, seed = 7))
 })
 
 test_that("simulate_power_analysis() warns and returns what simulate_power() returns", {
@@ -24,5 +24,6 @@ test_that("simulate_power_analysis() warns and returns what simulate_power() ret
     class = "deprecatedWarning"
   )
   set.seed(11)
-  expect_identical(old, simulate_power(quick_test, effect_sizes = 0.5, n_sims = 5, n_obs = 30))
+  expect_identical_numbers(old,
+                           simulate_power(quick_test, effect_sizes = 0.5, n_sims = 5, n_obs = 30))
 })

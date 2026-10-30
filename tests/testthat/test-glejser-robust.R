@@ -54,7 +54,7 @@ test_that("the default is robust = TRUE, the corrected statistic", {
     default <- quiet(performGlejserTest(obj$model, obj$data, "x1"))
     explicit <- quiet(performGlejserTest(obj$model, obj$data, "x1", robust = TRUE))
     expect_htest(default)
-    expect_identical(default, explicit, info = errors)
+    expect_identical_numbers(default, explicit, info = errors)
     expect_identical(
       default$method,
       "Glejser test for heteroscedasticity (robust to asymmetric errors)",
@@ -69,17 +69,17 @@ test_that("robust = FALSE returns what the default of 0.14.0 returned", {
   regressors <- list(abs = abs(x), sqrt = sqrt(x), inverse = 1 / x, inverse_sqrt = 1 / sqrt(x))
   for (transformation in names(regressors)) {
     result <- quiet(performGlejserTest(obj$model, obj$data, "x1", transformation, robust = FALSE))
-    expect_identical(result, glejser_1969(obj$model, regressors[[transformation]]),
-                     info = transformation)
+    expect_identical_numbers(result, glejser_1969(obj$model, regressors[[transformation]]),
+                             info = transformation)
   }
 
   # From the model frame, and after a weighted fit.
-  expect_identical(
+  expect_identical_numbers(
     quiet(performGlejserTest(obj$model, variable = "x1", robust = FALSE)),
     glejser_1969(obj$model, abs(x))
   )
   weighted <- lm(y ~ x1 + x2, data = obj$data, weights = w)
-  expect_identical(
+  expect_identical_numbers(
     quiet(performGlejserTest(weighted, obj$data, "x1", robust = FALSE)),
     glejser_1969(weighted, abs(x))
   )
@@ -122,7 +122,7 @@ test_that("the default reports the values NEWS.md gives for 0.15.0", {
     expect_equal(unname(before$statistic), cases[[i]]$before[["t"]], tolerance = 1e-10, info = i)
     expect_equal(before$p.value, cases[[i]]$before[["p"]], tolerance = 1e-10, info = i)
   }
-  expect_identical(
+  expect_identical_numbers(
     quiet(performGlejserTest(mtcars_model, mtcars, "wt")),
     quiet(cases[[1]]$call(TRUE))
   )

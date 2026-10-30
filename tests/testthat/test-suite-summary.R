@@ -203,7 +203,7 @@ test_that("a test of the runner that named its argument \"model\" names the form
   again <- suppressWarnings(runHeteroTests(m, mtcars, progress = FALSE))
   expect_identical(cached$white$data.name, formula_text)
   expect_identical(again, cached)
-  expect_identical(cached, suite_run(m, mtcars))
+  expect_identical_numbers(cached, suite_run(m, mtcars))
   # A data.name that begins with the formula and says more is kept.
   ncv <- suppressWarnings(suite_run(m, mtcars, tests = "ncv"))
   expect_identical(ncv$ncv$data.name, paste0(formula_text, "; variance model: fitted values"))
@@ -399,7 +399,7 @@ test_that("the fallback on White's test without cross products is named", {
     paste0("white failed, and \"white_simplified\" ran in its place (White's test without ",
            "cross products). The failure: the cross products failed")
   )
-  expect_identical(
+  expect_identical_numbers(
     unname(coef(sm)["white", "Statistic"]),
     unname(suppressWarnings(performWhiteTest(m, mtcars, cross_products = FALSE))$statistic)
   )

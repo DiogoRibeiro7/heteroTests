@@ -80,14 +80,14 @@ test_that("the registered Szroeter test does not depend on the order of the colu
   stats <- vapply(results, function(r) unname(r$statistic), numeric(1))
   p_values <- vapply(results, `[[`, numeric(1), "p.value")
 
-  expect_equal(stats, rep(stats[1], length(stats)), tolerance = 0)
-  expect_equal(p_values, rep(p_values[1], length(p_values)), tolerance = 0)
+  expect_identical_numbers(stats, rep(stats[1], length(stats)))
+  expect_identical_numbers(p_values, rep(p_values[1], length(p_values)))
 
   # Without data, runHeteroTests() uses the model frame.
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   no_data <- runHeteroTests(m, tests = "szroeter", use_cache = FALSE)$szroeter
-  expect_equal(unname(no_data$statistic), stats[1], tolerance = 0)
+  expect_identical_numbers(unname(no_data$statistic), stats[1])
 })
 
 test_that("with one regressor the order follows the sign of its slope", {
@@ -149,6 +149,8 @@ test_that("equal fitted values tie exactly, however the model is written", {
   # residual. Ordered by those values, the statistic changed when y was
   # rescaled or a factor was coded differently. The reference orders by the
   # group means, which tie exactly, and leaves the rows of a group in order.
+  # Off CRAN: another BLAS can give equal design rows fitted values that differ in their last bits.
+  skip_on_cran()
   szroeter <- szroeter_entry()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -225,7 +227,8 @@ test_that("the registered Szroeter test uses the rows the model used, and says n
   named <- `rownames<-`(d, paste0("r", seq_len(n)))
   m_named <- lm(y ~ x1 + x2, data = named)
   expect_warning(res_named <- run_szroeter(m_named, d), NA)
-  expect_identical(unname(res_named$statistic), unname(run_szroeter(m_named, named)$statistic))
+  expect_identical_numbers(unname(res_named$statistic),
+                           unname(run_szroeter(m_named, named)$statistic))
   expect_warning(
     expect_error(
       run_szroeter(m_named, named[-(1:3), ]),

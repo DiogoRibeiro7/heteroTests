@@ -277,7 +277,7 @@ test_that("the factory's Szroeter test asks for its ordering and passes it on", 
   )) {
     expect_identical(result$test_metadata$description, "Heteroscedasticity test: szroeter")
     result$test_metadata <- NULL
-    expect_identical(result, direct)
+    expect_identical_numbers(result, direct)
   }
 })
 
