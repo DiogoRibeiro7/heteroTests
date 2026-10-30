@@ -2,6 +2,10 @@
 
 ## Development version
 
+The tests no longer require bit-identical numbers under other BLAS libraries
+on CRAN, where the check of 0.16.0 with Intel MKL failed on them; off CRAN
+they still do.
+
 ### The streaming tests
 
 **White's streaming test drops the collinear terms of its auxiliary
