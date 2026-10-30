@@ -16,8 +16,10 @@
 # (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
 # on 179 expect_identical() between two computations of the same numbers,
 # which agree to the last bit on R's reference BLAS and differ by up to 2e-12
-# relative under MKL. NOT_CRAN is unset here, as on CRAN; the other workflows
-# set NOT_CRAN=true.
+# relative under MKL. NOT_CRAN is unset here, as on CRAN, so the tests compare
+# those numbers to 1e-10 (expect_identical_numbers(),
+# tests/testthat/helper-numbers.R); the other workflows set NOT_CRAN=true and
+# compare them bit for bit.
 name: CRAN BLAS checks
 
 on:
@@ -54,6 +56,7 @@ jobs:
       matrix:
         config:
           - {name: 'MKL', container: 'mkl'}
+          - {name: 'MKL 2026.2', container: 'mkl', mkl: '2026.2', cache: 'MKL'}
           - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
           - {name: 'BLIS', container: 'blis'}
           - {name: 'noLD', container: 'nold'}
@@ -78,8 +81,22 @@ jobs:
           dnf install -y openblas-serial
           ln -sf /usr/lib64/libopenblas.so.0 "$(R RHOME)/lib/libRblas.so"
 
+      # The MKL of CRAN's check, in place of the container's: R links the
+      # libraries by soname, which the two versions share.
+      - name: Use MKL ${{ matrix.config.mkl }}
+        if: matrix.config.mkl
+        run: |
+          dnf install -y "intel-oneapi-mkl-core-${{ matrix.config.mkl }}"
+          new="/opt/intel/oneapi/mkl/${{ matrix.config.mkl }}/lib"
+          old="$(dirname "$(Rscript -e 'cat(La_library())')")"
+          for f in "$new"/libmkl_*.so.2; do
+            ln -sf "$f" "$old/$(basename "$f")"
+          done
+
       - name: Platform
         run: |
+          grep -m 1 'model name' /proc/cpuinfo || true
+          echo "flags: $(grep -o -w -E 'avx2|avx512f' /proc/cpuinfo | sort -u | tr '\n' ' ')"
           cat > /tmp/platform.R <<'RSCRIPT'
           print(sessionInfo())
           print(extSoftVersion()["BLAS"])
@@ -88,9 +105,26 @@ jobs:
           cat("long.double:", capabilities("long.double"),
               " sizeof.longdouble:", .Machine$sizeof.longdouble, "\n")
           cat("NOT_CRAN: '", Sys.getenv("NOT_CRAN"), "'\n", sep = "")
+          # Whether the BLAS gives the same last bits for the same numbers in
+          # memory allocated elsewhere, as R's reference BLAS does.
+          set.seed(1)
+          n <- 120
+          X <- cbind(1, matrix(stats::rnorm(n * 2), n))
+          y <- stats::rnorm(n)
+          ref <- stats::lm.fit(X, y)$coefficients
+          cp <- crossprod(X, y)
+          same <- vapply(seq_len(50), function(i) {
+            pad <- numeric(i)
+            X2 <- X + 0
+            y2 <- y + 0
+            c(identical(stats::lm.fit(X2, y2)$coefficients, ref), identical(crossprod(X2, y2), cp))
+          }, logical(2))
+          cat("Same last bits in 50 copies: lm.fit()", sum(same[1, ]), ", crossprod()",
+              sum(same[2, ]), "\n")
           RSCRIPT
           Rscript /tmp/platform.R
-          ldd "$(R RHOME)/lib/libR.so" | grep -i -E 'blas|lapack|mkl|blis' || true
+          # MKL names its version and the instructions it uses.
+          MKL_VERBOSE=1 Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 2
 
       # In a container job HOME is /github/home, not the /root of the image.
       - name: Set the user library
@@ -106,7 +140,7 @@ jobs:
         with:
           # Packages built from source link to the BLAS of their container,
           # so each job keeps its own library.
-          cache-version: ${{ matrix.config.name }}-1
+          cache-version: ${{ matrix.config.cache || matrix.config.name }}-1
           needs: check
           install-pandoc: false
 
