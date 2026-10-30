@@ -3,9 +3,10 @@
 # without long doubles that those checks use. Each job runs in an R-hub
 # container (https://github.com/r-hub/containers) that reproduces one of them:
 #
-#   MKL         mkl: Fedora 44, R-devel built with serial Intel MKL 2025.3
-#               (-lmkl_gf_lp64 -lmkl_core -lmkl_sequential), as CRAN's MKL check
-#   MKL 2026.2  the same, with the MKL of CRAN's check, 2026.2
+#   MKL         mkl: Fedora 44, R-devel built with serial Intel MKL
+#               (-lmkl_gf_lp64 -lmkl_core -lmkl_sequential), as CRAN's MKL
+#               check, with the version of that check, 2026.2, in place of the
+#               container's 2025.3
 #   OpenBLAS    blis, with libRblas.so pointed at Fedora's serial OpenBLAS, as
 #               CRAN's OpenBLAS check does it
 #   BLIS        blis: Fedora 44, R-devel with serial BLIS and the system LAPACK
@@ -16,11 +17,11 @@
 # CRAN no longer runs ATLAS regularly (2026-09-01), so no job does.
 #
 # On the runners' AMD processors MKL runs its generic code, whose last bits do
-# not depend on where the data sit in memory, and the MKL jobs pass on tests
-# that fail on CRAN's machine, where MKL runs its code for Intel processors,
-# whose last bits do. The noisy BLAS does to the tests what that code does, on
-# any processor: on main before #172 it failed 1,923 expectations, at the
-# sites of the 179 failures of CRAN's MKL check.
+# not depend on where the data sit in memory, and the MKL job passed on main's
+# tests before #172, which failed on CRAN's machine, where MKL runs its code
+# for Intel processors, whose last bits do. The noisy BLAS does to the tests
+# what that code does, on any processor: on main before #172 it failed 1,923
+# expectations, at the sites of all 179 failures of CRAN's MKL check.
 #
 # 0.16.0 failed CRAN's MKL check
 # (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
@@ -66,8 +67,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {name: 'MKL', container: 'mkl'}
-          - {name: 'MKL 2026.2', container: 'mkl', mkl: '2026.2', cache: 'MKL'}
+          - {name: 'MKL', container: 'mkl', mkl: '2026.2'}
           - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
           - {name: 'BLIS', container: 'blis'}
           - {name: 'Noisy BLAS', container: 'blis', blas: 'noisy', cache: 'BLIS'}
@@ -93,8 +93,8 @@ jobs:
           dnf install -y openblas-serial
           ln -sf /usr/lib64/libopenblas.so.0 "$(R RHOME)/lib/libRblas.so"
 
-      # The MKL of CRAN's check, in place of the container's: R links the
-      # libraries by soname, which the two versions share.
+      # The MKL of CRAN's check, in place of the container's: the libraries R
+      # links, of 2025.3, point at those of the version asked for.
       - name: Use MKL ${{ matrix.config.mkl }}
         if: matrix.config.mkl
         run: |
@@ -106,7 +106,8 @@ jobs:
           fi
           new="$(dirname "$core")"
           old="$(dirname "$(Rscript -e 'cat(La_library())')")"
-          # 2026 names its libraries .so.3, where R links those of 2025, .so.2.
+          # 2026 names its libraries .so.3, where R links those of 2025, .so.2;
+          # their BLAS and LAPACK are called the same way.
           for f in "$new"/libmkl_*.so.3; do
             ln -sf "$f" "$old/$(basename "$f" .so.3).so.2"
           done
@@ -150,12 +151,10 @@ jobs:
               sum(same[2, ]), "\n")
           RSCRIPT
           LD_PRELOAD="${BLAS_PRELOAD:-}" Rscript /tmp/platform.R
-          # MKL names its version and the instructions it uses, by default and
-          # when asked for those of CRAN's machine.
-          for isa in "" AVX2 AVX512; do
-            MKL_ENABLE_INSTRUCTIONS="$isa" MKL_VERBOSE=1 \
-              Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 1
-          done
+          # MKL names its version and its code path: on an AMD processor its
+          # generic one, "Intel(R) Architecture processors", even when
+          # MKL_ENABLE_INSTRUCTIONS asks for AVX2 or AVX-512.
+          MKL_VERBOSE=1 Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 1
 
       # In a container job HOME is /github/home, not the /root of the image.
       - name: Set the user library
