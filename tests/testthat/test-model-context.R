@@ -112,10 +112,12 @@ context_check_matrix <- function(ids, fns = context_runnable(), recipes = contex
           tolerance <- if (id %in% context_rounded_cells) {
             if (identical(fn, "performFlignerKilleenTest")) context_fligner_tolerance else 1e-10
           }
-          # The F of the variance form test near zero is the small difference of
-          # two residual sums of squares, which amplifies the last bits of the BLAS.
+          # The F of the variance form test is a difference of two residual sums
+          # of squares, which amplifies the last bits of the BLAS where it is
+          # small: the noisy BLAS of cran-blas.yml moved it by more than 1e-10 on
+          # the cells with missing rows.
           if (is.null(tolerance) && startsWith(fn, "performVarianceFormTest") &&
-                numbers_on_cran()) {
+                startsWith(id, "missing/") && numbers_on_cran()) {
             tolerance <- blas_tolerance(1e-10)
           }
           context_same(out, result_of(cell$reference), info, tolerance)

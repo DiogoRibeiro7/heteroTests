@@ -27,11 +27,17 @@
 # expectation runs off CRAN only (skip_on_cran()). The jobs of
 # .github/workflows/cran-blas.yml run the tests as CRAN does, three of them
 # with a BLAS that changes the last bits of its results (tools/noisy-blas.c).
+# That BLAS moves equal results of one call alike, so it does not break ties
+# within a call, as a real BLAS can where a row falls to another kernel: the
+# tests whose ties turn on that were reviewed by hand.
 identical_numbers_tolerance <- 1e-10
 
 # Whether the tests run as on CRAN, as testthat's on_cran() decides it
 # (testthat 3.2.3): not interactively, and with NOT_CRAN unset or not a true
-# value such as "true" or "TRUE".
+# value such as "true" or "TRUE". The suite's own skip_on_cran()
+# (helper_setup.R) runs a block only where NOT_CRAN is exactly "true", so
+# NOT_CRAN=TRUE or an interactive run keeps this helper strict but skips those
+# blocks.
 numbers_on_cran <- function() {
   !interactive() && !isTRUE(as.logical(Sys.getenv("NOT_CRAN", "false")))
 }
