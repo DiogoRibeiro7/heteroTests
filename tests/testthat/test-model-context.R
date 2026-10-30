@@ -793,6 +793,7 @@ test_that("a gam that is the least-squares fit of its basis is taken by every te
     }
     c(unname(v$statistic), unname(v$parameter), v$p.value)
   }
+  basis_tolerance <- if (numbers_on_cran()) 1e-6 else 1e-8
   for (g in list(plain = plain, fixed = fixed)) {
     expect_true(rgam_least_squares(rmodel_context(g, fn = "f")))
     oracle <- context_basis_lm(g, d)
@@ -814,7 +815,12 @@ test_that("a gam that is the least-squares fit of its basis is taken by every te
             is.null(out$original_statistic)) {
         next
       }
-      expect_equal(numbers(out), numbers(expected), tolerance = 1e-8, info = info)
+      # The gam and the lm of its basis are two fits of the same design: their
+      # residuals agree to about 1e-10 relative, which White's 60 nearly
+      # collinear auxiliary terms of the fixed smooth and the variance form
+      # test amplify. Under the noisy BLAS of cran-blas.yml they differed by
+      # up to 1.8e-8 relative, so on CRAN they are compared to 1e-6.
+      expect_equal(numbers(out), numbers(expected), tolerance = basis_tolerance, info = info)
     }
     # Its data are matched by the row names of its model frame, by the
     # bootstraps too, which numbered them by position before.
@@ -932,11 +938,16 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
     performBPTestStreaming = performBPTest(smooth, d),
     performKoenkerTestStreaming = performKoenkerTest(smooth, d)
   )
+  # The 60 nearly collinear auxiliary terms of White's test on the basis
+  # amplify the last bits of the BLAS (1.2e-9 relative between two calls
+  # under the noisy BLAS of cran-blas.yml): on CRAN the streaming and the
+  # exact tests are compared to 1e-6.
+  streaming_tolerance <- if (numbers_on_cran()) 1e-6 else 1e-8
   for (fn in names(exact)) {
     for (chunk in c(7, 40, 10000)) {
       streamed <- get(fn)(smooth, d, chunk_size = chunk, progress = FALSE)
-      expect_equal(unname(streamed$statistic), unname(exact[[fn]]$statistic), tolerance = 1e-8,
-                   info = paste(fn, chunk))
+      expect_equal(unname(streamed$statistic), unname(exact[[fn]]$statistic),
+                   tolerance = streaming_tolerance, info = paste(fn, chunk))
       expect_identical(unname(streamed$parameter), unname(exact[[fn]]$parameter))
     }
   }
@@ -950,8 +961,8 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
   whole <- run(tests = tests)
   chunked <- run(tests = tests, chunk_threshold_mb = 0, chunk_size = 7)
   for (nm in tests) {
-    expect_equal(unname(chunked[[nm]]$statistic), unname(whole[[nm]]$statistic), tolerance = 1e-8,
-                 info = nm)
+    expect_equal(unname(chunked[[nm]]$statistic), unname(whole[[nm]]$statistic),
+                 tolerance = streaming_tolerance, info = nm)
   }
   # The bootstraps refuse it with the class of the context, under their own
   # names, where bootstrapTestStatistic() refused every gam without it and the
