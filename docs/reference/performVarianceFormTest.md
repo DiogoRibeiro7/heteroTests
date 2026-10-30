@@ -157,8 +157,14 @@ changed after the fit: it refitted that frame and returned a value. A fit with
 fitted values. Without `var_formula` or `against`, the test reads nothing from
 `data`, which it matches as every test does, and refuses numbered data in another
 order, rows in front of those of the fit and repeated row names, where it gave the
-value of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+value of the fit. Since 0.17.0 it refuses an `mgcv::gam()` fit with
+penalised smooth terms, which it refitted by weighted least squares on the
+basis of its smooths without the penalty, and so tested another fit; a
+`gam` that is the least-squares fit of its design, as one whose smooth
+terms are all fixed (`s(x, fx = TRUE)`), is tested on that design, as
+before (decisions 37 and 38 of the design of the model context). Which
+model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+*Supported models*.
 
 ## References
 

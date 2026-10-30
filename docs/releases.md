@@ -777,13 +777,17 @@ their attribute; and each value of
 `augment()` of a workflow checked row by row against the prediction of its
 engine on that row alone.
 
-### The model context, step 11: `MASS::rlm()`
+### The model context, step 11: `MASS::rlm()` and the penalised `mgcv::gam()`
 
-The first part of the last of the eleven steps of the model context: a
-`MASS::rlm()` fit, which every test took for an `lm`, is refused. The second
-part, which tests take a penalised `mgcv::gam()` fit with smooth terms, is
-open, and every test takes or refuses such a fit as before. No export or
-argument changes. The examples use the design of the *Supported models* page:
+The last of the eleven steps of the model context, in two parts. A
+`MASS::rlm()` fit, which every test took for an `lm`, is refused. A penalised
+`mgcv::gam()` fit with smooth terms is tested on the basis of its smooths by
+the tests that do not need least squares, the streaming tests included, and
+refused by those that do; a `gam` that is the least-squares fit of its design,
+without smooth terms or with fixed ones, is taken by every test (decisions 37
+and 38 of the design of the model context, decided on 2026-10-29). No export
+or argument changes. The examples use the design of the *Supported models*
+page:
 
 ```r
 set.seed(20261015)
@@ -793,6 +797,8 @@ d <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n),
                 id = rep(1:12, each = 10), time = rep(1:10, 12))
 d$y <- 1 + d$x1 - d$x2 + rnorm(n, sd = d$x1)
 m <- MASS::rlm(y ~ x1 + x2, data = d)
+g <- mgcv::gam(y ~ s(x1) + x2, data = d)            # penalised
+f <- mgcv::gam(y ~ s(x1, fx = TRUE) + x2, data = d) # a fixed smooth
 ```
 
 **New refusal: a `MASS::rlm()` fit.** An `rlm` fit is an `lm` by class and an
@@ -811,13 +817,13 @@ instead; the runners keep the refusal final:
 
 | Call | Before | Now |
 | --- | --- | --- |
-| `performStudentizedBPTest(m, d)`, `performBPTestRobust(m, d)` | 9.04 (p = 0.011), the value of `lm(y ~ x1 + x2, data = d)` | Error: "`performStudentizedBPTest()` cannot test a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and the null distributions of the tests assume least squares. Test the `lm()` fit of the same formula instead, `lm(y ~ x1 + x2)`." (`performBPTestRobust()` names itself) |
+| `performStudentizedBPTest(m, d)`, `performBPTestRobust(m, d)` | 9.04 (p = 0.011), the value of `lm(y ~ x1 + x2, data = d)` | Error: "`performStudentizedBPTest()` cannot test a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and the null distributions of the tests assume least squares. Test the `lm()` fit of the same formula instead, `lm(y ~ x1 + x2, data = d)`." (`performBPTestRobust()` names itself) |
 | `performKoenkerTest(m, d)` | 8.74 (p = 0.013), on the residuals of the M-estimate | Error: "`performKoenkerTest()` cannot test a `MASS::rlm()` fit: ..." |
 | `performWhiteTest(m, d)` | 11.01 (p = 0.051) | Error: "`performWhiteTest()` cannot test a `MASS::rlm()` fit: ..." |
 | `performBPTest(m, d)` | 12.42 (p = 0.0020) | Error: "`performBPTest()` cannot test a `MASS::rlm()` fit: ..." |
 | `runHeteroTests(m, d)` | White 11.01, Koenker 8.74 | Error: "Model cannot be tested for White: `performWhiteTest()` cannot test a `MASS::rlm()` fit: ..." |
 | `runHeteroTests(m, d, tests = "quantile_regression")` | 0.341: the rank permutation test under the name `quantile_regression`, the quantile test having refused the fit as a weighted one, which is not final | Error: "Model cannot be tested for Quantile Regression: `performQuantileRegressionTest()` cannot test a `MASS::rlm()` fit: ..." |
-| `fitWLS(m)` | a fit of class `rlm` refitted by weighted least squares, its variance function fitted to the residuals of the M-estimate, which `summary()` could not read | Error: "`fitWLS()` cannot refit a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and `fitWLS()` fits its variance function to least-squares residuals. Pass the `lm()` fit of the same formula instead, `fitWLS(lm(y ~ x1 + x2))`." |
+| `fitWLS(m)` | a fit of class `rlm` refitted by weighted least squares, its variance function fitted to the residuals of the M-estimate, which `summary()` could not read | Error: "`fitWLS()` cannot refit a `MASS::rlm()` fit: an `rlm` fit is an M-estimate, whose residuals are not least-squares residuals, and `fitWLS()` fits its variance function to least-squares residuals. Pass the `lm()` fit of the same formula instead, `fitWLS(lm(y ~ x1 + x2, data = d))`." |
 
 So do the other tests, with and without `data` and in every form of it, their
 robust, resampling and streaming forms, `bootstrapTestStatistic()` and its
@@ -833,19 +839,128 @@ least-squares refit does not reproduce ("`data` does not reproduce the fit"),
 and the quantile regression and variance form tests refused it as a weighted
 fit ("does not support weighted fits", "weights that did not come from
 fitWLS()"): each now gives the refusal above. `fitRobust()` returns such a fit
-for estimation, and its help page says that the tests refuse it.
-`autoCompareRemediations()`, given an `rlm` fit, compared `fitWLS()` of it,
-which is refused now: its row is `NA` (AIC 396.5 before). `augment()` of a
-result around such a fit, which the runners no longer return, binds the
-columns of the fit to its model frame without `data`, as before.
+for estimation, and its help page says that the tests refuse it. The functions
+that run the tests through the runners stop with the refusal of the first
+test: `compareTestResults(m, d)`, which gave White's 11.01 and Koenker's 8.74,
+`summary()` and `test()` of `HeteroDiagnostic(m, d)`, and
+`generateDiagnosticReport(m, d)`, which wrote its report; and
+`compareModelDiagnostics(list(m), d)` gives the fit a row of `NA`, with the
+warning "Diagnostics for model 1 failed: Model cannot be tested for White:
+...", where it gave 11.01 and 8.74. `augment()` of a result around such a fit,
+which the runners no longer return, binds the columns of the fit to its model
+frame without `data`, as before.
 
-Unchanged: every call on any other fit. A corpus of 43,630 calls
+The `lm()` call the message names is built from the call of the fit: its
+formula, and its `data`, `weights`, `subset`, `na.action`, `offset` and
+`contrasts`, without the arguments only `rlm()` takes (`psi`, `method`,
+`maxit` and the others), so that
+`MASS::rlm(y ~ x1 + x2, data = d, weights = w, subset = x1 > 0.6, psi = MASS::psi.bisquare)`
+is told to test `lm(y ~ x1 + x2, data = d, weights = w, subset = x1 > 0.6)`.
+An `rlm` of the matrix interface, `MASS::rlm(X, y)`, which has no formula, is
+told to test "the `lm()` fit of the same model".
+
+**New refusal: a grouped run of a `MASS::rlm()` fit.** `runHeteroTests()` on
+grouped data refits the model in each group from its call: with MASS
+attached, `runHeteroTests(m, dplyr::group_by(d, group))` refitted an `rlm` in
+each group and returned its values (White's 5.65, p = 0.342, in group `a`).
+It refuses the fit now before any group is refitted, as it refuses a
+`fitWLS()` fit (since step 10), with the class of the model context:
+"`runHeteroTests()` cannot test a `MASS::rlm()` fit: ...".
+
+**New refusal: `autoCompareRemediations()` of a `MASS::rlm()` fit.** Given an
+`rlm` fit, it compared the fit, `fitWLS()` of it and a robust refit by their
+AIC and recommended `fitWLS()` of it (`best` "WLS", AIC 396.5 against
+417.0). It refuses the fit now with the message of the tests,
+"`autoCompareRemediations()` cannot take a `MASS::rlm()` fit: ...", and the
+class of the model context. Given an `lm`, it still compares the `rlm` fit of
+`fitRobust()` by its AIC, as before.
+
+**New refusals: a penalised `mgcv::gam()` fit, in the tests that need least
+squares.** A smooth term is penalised unless it is fixed
+(`s(x, fx = TRUE)`), and the residuals of a penalised fit are not those of the
+least-squares fit of its design, the basis of its smooths. The tests that fit
+that design again by least squares, those whose replicates do, and those whose
+null distribution is derived for least-squares residuals of the design refuse
+it now with the class of the model context, and the runners keep the refusal
+final:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performHarrisonMcCabeTest(g, d, order_by = "x1")` | 0.315 (p = 0.0025), from the null distribution of the least-squares residuals of the basis | Error: "`performHarrisonMcCabeTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): its residuals are not those of the least-squares fit of its design, the basis of its smooths, for which the null distribution of the test is derived. Fix its smooths, `s(x, fx = TRUE)`, so that it is that fit, or refit the model with `lm()` and a parametric term such as `splines::ns()` in place of each smooth." |
+| `performSzroeterTest(g, d, order_by = "x1")` | 3.029 (p = 0.0012); the registered `"szroeter"`, ordered by the fitted values, 1.634 (p = 0.051) | Error: "`performSzroeterTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..." |
+| `performVarianceFormTest(g, d)` | 1.053 on 49 and 60 degrees of freedom (p = 0.42), the test of a weighted least-squares refit of the basis without the penalty | Error: "`performVarianceFormTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..., which the test fits again. ..." |
+| `fitWLS(g, d)` | an `lm` of 11 coefficients, the weighted least-squares refit of the basis without the penalty, which every test then refused | Error: "`fitWLS()` cannot refit a penalised `mgcv::gam()` fit (s(x1)): ..., which `fitWLS()` refits by weighted least squares, without the penalty. ..." |
+| `performWildBootstrapTest(g, d)` | Error: "lm object does not have a proper 'qr' component", on every `gam` | Error: "`performWildBootstrapTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..., which each replicate of the bootstrap fits again. ..." |
+| `runHeteroTests(g, d, tests = "wild_bootstrap")` | 46.05 on 60: White's test under the name `wild_bootstrap`, tagged as a fallback, the error of the wild bootstrap not being final | Error: "Model cannot be tested for Wild Bootstrap: `performWildBootstrapTest()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..." |
+| `bootstrapTestStatistic(performKoenkerTest, g, d)`, and `performWhiteTestRobust()` and `performBPTestRobust(studentize = FALSE)` with `bootstrap = TRUE` | Error, without the class of the model context: "`bootstrapTestStatistic()` supports Gaussian `lm` models only: ... An `mgcv::gam()` fit is not taken: ...", on every `gam` | Error: "`bootstrapTestStatistic()` cannot test a penalised `mgcv::gam()` fit (s(x1)): ..." (the robust tests name themselves) |
+
+RESET, Goldfeld-Quandt, the quantile regression test, the studentized
+Breusch-Pagan statistic and the White bootstrap refused such a fit already,
+since 0.16.0 or step 8, and refuse it with this message, where theirs said
+that a later step would settle it. The other tests read only the residuals,
+the fitted values, columns of `data` or the columns of the design as
+auxiliary regressors, and test such a fit on its design, as before;
+`runDiagnostics()` refuses it as a whole, through RESET, as before, and
+`runHeteroTests()` returns White's and Koenker's tests.
+
+**The streaming tests read the basis of the smooths of a `gam`.** They read
+the design of the variables of its formula, which its model frame holds; they
+read its stored design now, chunk by chunk, as the exact tests do, and give
+the value of the exact test in chunks of any size, so `runHeteroTests()` gives
+the same values with and without `chunk_threshold_mb`:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performBPTestStreaming(g, d)` | 11.19 on 2 (p = 0.0037) | 23.99 on 10 (p = 0.0076), the value of `performBPTest(g, d)` |
+| `performKoenkerTestStreaming(g, d)` | 8.54 on 2 (p = 0.014) | 18.31 on 10 (p = 0.050), the value of `performKoenkerTest(g, d)` |
+| `performWhiteTestStreaming(g, d)` | 10.61 on 5 (p = 0.060) | 46.05 on 60 (p = 0.91), the value of `performWhiteTest(g, d)` |
+| the same on `f`, the fixed smooth | 9.59 on 2, 6.55 on 2 and 8.22 on 5 | 21.49, 14.70 and 43.88, on 10, 10 and 60 |
+
+**Refusals become values: a `gam` that is the least-squares fit of its
+design.** A `gam` without smooth terms, or whose smooths are all fixed, is the
+least-squares fit of its design, and every test takes it now as the `lm()` of
+that design, those that fit it again included. Whether a `gam` is that fit is
+decided from the fit: its design refitted by least squares, with its weights
+and offset, gives its residuals to `1e-8` of the spread of the response. A
+penalised fit whose smoothing parameter is near zero passes that check (on
+`g`'s formula, `sp = 1e-10` does and `sp = 1e-8` does not):
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performStudentizedBPTest(f, d)`, `performBPTestRobust(f, d)` | Error: "cannot test an `mgcv::gam()` fit with smooth terms (s(x1)): a smooth term is usually penalised, ..." | 14.70 on 10 (p = 0.14) |
+| `performGQTest(f, d, order_by = "x1")` | Error, as above | 2.96 on 38 and 38 (p = 0.00058) |
+| `performRESETTest(f, d)` | Error, as above | 2.61 on 2 and 107 (p = 0.078) |
+| `performQuantileRegressionTest(f, d)` | Error, as above | 1.40 on 10 and 230 (p = 0.18) |
+| `performWhiteTestBootstrap(f, d, B = 19)` | Error, as above | 43.88 (p = 0.95 after `set.seed(7)`) |
+| `performWildBootstrapTest(f, d, B = 19)` | Error: "lm object does not have a proper 'qr' component" | 14.70 (p = 0.15 after `set.seed(7)`) |
+| `bootstrapTestStatistic(performKoenkerTest, f, d, B = 19)` | Error: "`bootstrapTestStatistic()` supports Gaussian `lm` models only: ..." | 14.70 (p = 0.10 after `set.seed(7)`) |
+| the wild bootstrap, `bootstrapTestStatistic()` and the robust bootstraps on `mgcv::gam(y ~ x1 + x2, data = d)` | Error, as above | 9.04 (p = 0.05), the value of `lm(y ~ x1 + x2, data = d)` |
+
+Each is the value of the same call on the `lm()` of the basis of the `gam`,
+with the same replicates; the wild bootstrap reads the leverages of a `gam`
+from its design, where `hatvalues()` stopped on it. `fitWLS()` of such a `gam`
+refits its design, but returns an `lm` whose terms rebuild the variables of
+the formula, so that the tests refuse it when the `gam` has smooth terms, as
+since step 8.
+
+Unchanged: every call on any other fit. A corpus of 44,140 calls
 (`scripts/model-context-identity.R`), the `rlm` fit in five forms of `data`
-through every recipe, route and runner among them, returns what it returned in
-the previous step, `identical()`, with the same warnings, and leaves the
-generator as it left it, but for 486 calls on the `rlm` fit, each now the
-refusal above with its class: 285 that returned a value, and 201 that refused
-the fit with another message.
+and in two grouped runs, the penalised `gam` in seven cells and a `gam` that
+is the least-squares fit of its design in eighteen, a fixed smooth among them,
+through every recipe, route and runner among them, returns what it returned
+in the previous step, `identical()`, with the same warnings, and leaves the
+generator as it left it, but for 1,065 calls on those cells: 490 on the `rlm`
+fit, each now the refusal above with its class (287 that returned a value,
+203 that refused the fit with another message); 317 on the penalised `gam`,
+251 of them now the refusal above (78 that returned a value, 173 that refused
+it with another message) and 66 of the streaming tests and the runner that
+streams them, each now the value of the exact test of the same call; and 258
+on a `gam` that is the least-squares fit of its design, each now what the
+same call gives on the `lm()` of its basis, to `1e-8`, with the same draws
+of the generator (200 refusals that became values, 48 values of the streaming
+tests and the runner that streams them, and 10 calls of
+`bootstrapTestStatistic()` on a shuffled tibble that refuse its rows, as for
+any fit, where it refused every `gam`).
 
 ### Packaging
 

@@ -186,13 +186,19 @@ every `glm` before 0.16.0. It refuses a `glm` of another family or link, a
 `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not
 finite for another reason, and `data` that lack rows or variables of the fit.
 It refuses a multivariate `lm` ("needs a model with one response"), since
-0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
-tested as before 0.16.0, with smooth terms too, until a later step settles
-which tests take such a fit; since 0.16.0 its observations are matched to the
-rows of `data` by the row names of its model frame. Before, they were matched
-by position, since the residuals of a `gam` carry no names, and `data` with
-the rows of the fit in another order gave a wrong value. Which model each test
-accepts, and why, is set out in [`test_results`](test_results.md), under *Supported models*.
+0.16.0; before, it stopped with a coercion error. Since 0.17.0 it refuses an
+`mgcv::gam()` fit with penalised smooth terms: the null distribution of the
+test is derived for the least-squares residuals of the design of the fit, the
+basis of its smooths, which the residuals of a penalised fit are not; before,
+it compared them with that distribution. A `gam` that is the least-squares
+fit of its design, as one whose smooth terms are all fixed
+(`s(x, fx = TRUE)`), is tested on that design, as before, and gives the value
+of the `lm()` of it (decisions 37 and 38 of the design of the model context).
+Since 0.16.0 the observations of a `gam` are matched to the rows of `data` by
+the row names of its model frame. Before, they were matched by position,
+since the residuals of a `gam` carry no names, and `data` with the rows of
+the fit in another order gave a wrong value. Which model each test accepts,
+and why, is set out in [`test_results`](test_results.md), under *Supported models*.
 
 ## References
 

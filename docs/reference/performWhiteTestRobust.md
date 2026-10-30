@@ -88,8 +88,16 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Which model each test accepts, and why, is set out in
-[`test_results`](test_results.md), under *Supported models*.
+lack rows or variables of the fit. An `mgcv::gam()` fit with penalised
+smooth terms is tested on its design, the basis of its smooths, as by
+[`performWhiteTest()`](performWhiteTest.md), and refused with `bootstrap = TRUE` (since 0.17.0;
+before, the bootstrap refused every `gam` with an error of its own): each
+replicate fits that design again by least squares, which a penalised fit is
+not. A `gam` that is the least-squares fit of its design, as one whose
+smooth terms are all fixed (`s(x, fx = TRUE)`) or one without smooth terms,
+is bootstrapped too, as the `lm()` of that design (decisions 37 and 38 of
+the design of the model context). Which model each test accepts, and why,
+is set out in [`test_results`](test_results.md), under *Supported models*.
 
 ## References
 

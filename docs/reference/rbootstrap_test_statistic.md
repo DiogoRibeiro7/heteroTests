@@ -54,8 +54,12 @@ rbootstrap_test_statistic(
     since 0.17.0, a `glm` with the Gaussian family and the identity link, the
     least-squares fit of `lm()` with its prior weights, whose replicates are
     those of that `lm`. Another `glm` is rejected: each replicate is refitted
-    with least squares, which would discard its family and link. So is an
-    `mgcv::gam()` fit, a `glm` by class.
+    with least squares, which would discard its family and link. A Gaussian
+    `mgcv::gam()` fit, a `glm` by class, is accepted since 0.17.0 when it is
+    the least-squares fit of its design, as one whose smooth terms are all
+    fixed (`s(x, fx = TRUE)`) or one without smooth terms, and its replicates
+    are those of the `lm()` of that design; one with penalised smooth terms
+    is refused, as every `gam` was before.
 
 `data`
 :   Data frame used when fitting `model`, holding the rows it was
@@ -288,9 +292,16 @@ It accepts an `lm`, unweighted or with positive weights, a `fitWLS()` fit,
 since 0.16.0 a rank-deficient `lm`, and since 0.17.0 a `glm` with the
 Gaussian family and the identity link, weighted or not, bootstrapped as the
 `lm` it is; a replicate whose refit aliases a coefficient the fit estimated,
-as a pairs resample of an interaction can, fails. It refuses a `glm` of
-another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
-as each replicate is refitted by least squares, a fit with a zero weight,
+as a pairs resample of an interaction can, fails. Since 0.17.0 it accepts
+an `mgcv::gam()` fit that is the least-squares fit of its design, as one
+whose smooth terms are all fixed (`s(x, fx = TRUE)`) or one without smooth
+terms, bootstrapped on that design, the basis of its smooths, as the `lm()`
+of it (decision 38 of the design of the model context); it refused every
+`gam` before. It refuses a `glm` of another family or link and a
+`survey::svyglm()` fit, as each replicate is refitted by least squares, an
+`mgcv::gam()` fit with penalised smooth terms, which is not the
+least-squares fit of its design, with the class of the refusals of the
+model context since 0.17.0 (decision 37), a fit with a zero weight,
 a `MASS::rlm()` fit, an M-estimate, with the message of every test since
 0.17.0 (it was refused before as a fit the least-squares refit does not
 reproduce), a fit whose coefficients, residuals or weights were
