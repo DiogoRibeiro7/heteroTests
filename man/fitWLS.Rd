@@ -13,7 +13,14 @@ fitWLS(
 }
 \arguments{
 \item{model}{A fitted model of class \code{lm}, or a \code{glm} with the Gaussian
-family and the identity link.}
+family and the identity link. Since 0.17.0 it refuses a \code{MASS::rlm()}
+fit, an M-estimate, whose residuals are not the least-squares residuals
+it fits its variance function to, and an \code{mgcv::gam()} fit with penalised
+smooth terms, which it refitted by weighted least squares on the basis of
+its smooths without the penalty; a \code{gam} that is the least-squares fit of
+its design, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}),
+is refitted on that design (decisions 4, 37 and 38 of the design of the
+model context).}
 
 \item{data}{Optional \link[base:data.frame]{base::data.frame} holding the variables named in
 \code{var_formula}. It is needed only when they are not in the model frame.

@@ -19,8 +19,29 @@ An object of class \code{rlm}.
 \description{
 Provides a simple interface to \code{MASS::rlm} for robust estimation.
 }
+\details{
+The result is an M-estimate, not a least-squares fit: its residuals are not
+least-squares residuals, and the null distributions of the tests of the
+package assume least squares. Since 0.17.0 every test refuses it, and so do
+\code{\link[=fitWLS]{fitWLS()}}, \code{\link[=runHeteroTests]{runHeteroTests()}} and \code{\link[=runDiagnostics]{runDiagnostics()}}, with an error of
+class \code{heteroTests_model_context_error}; until then 37 tests took it for an
+\code{lm} and tested its residuals as least-squares ones. To test the variance
+of the errors, test the \code{\link[stats:lm]{stats::lm()}} fit of the same formula. The result is for
+estimation, and for comparisons such as those of
+\code{\link[=autoCompareRemediations]{autoCompareRemediations()}}, which reads its AIC and residuals only.
+
+Since 0.17.0 the call the result records names what was given: the
+formula, and the data as the caller named them, or, for an \code{lm}, the
+\code{data}, \code{subset} and \code{na.action} of its call, so that \code{print()} and
+\code{summary()} show \code{MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)}, where they
+showed \code{rlm(formula = form, data = data)}, \code{update()} refits it, and the
+refusal of the tests names the \code{\link[stats:lm]{stats::lm()}} call to test instead,
+\code{lm(mpg ~ wt + qsec, data = mtcars)}.
+}
 \examples{
 data(mtcars)
 m <- fitRobust(mpg ~ wt + qsec, mtcars)
 summary(m)
+# The tests refuse it; test the lm() fit of the same formula instead.
+performKoenkerTest(lm(mpg ~ wt + qsec, mtcars))
 }

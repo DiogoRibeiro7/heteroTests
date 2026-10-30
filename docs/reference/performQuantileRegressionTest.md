@@ -84,9 +84,12 @@ refuses a weighted fit, a `fitWLS()` fit among them, as it refits the model with
 weights, a `glm` of another family or link, a `survey::svyglm()` fit, a coefficient that
 is not finite for another reason, and `data` that lack rows or variables of the fit.
 It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
-`mgcv::gam()` fit with smooth terms: a smooth term is usually penalised, and a penalised fit
-is not the least-squares fit of the design the test fits again. A later step settles which tests
-take such a fit; a `gam` without smooth terms is tested as the Gaussian `glm` it is.
+`mgcv::gam()` fit with penalised smooth terms, which is not the least-squares fit of its
+design, the basis of its smooths, that the test fits again. Since 0.17.0 a `gam` that is the
+least-squares fit of its design, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`),
+is tested on that design and gives the value of the `lm()` of it; before, it was refused as a
+penalised one. A `gam` without smooth terms is tested as the Gaussian `glm` it is
+(decisions 37 and 38 of the design of the model context).
 Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
 models*.
 

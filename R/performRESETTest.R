@@ -50,7 +50,7 @@ performRESETTest <- function(model, data = NULL, power = 2:3) {
   # `data`, which kept the check of 0.15.0, decision 24).
   rcheck_data_argument(data, "performRESETTest")
   ctx <- rmodel_context(model, data, fn = "performRESETTest", test_label = "RESET")
-  rrefuse_smooth_gam(ctx, "performRESETTest")
+  rrefuse_penalised_gam(ctx, "performRESETTest", "refit")
   checkModel(model)
   rrefuse_nonfinite_coefficients(model, "RESET test", allow_aliased = TRUE)
   rvalidate_model_context(ctx)

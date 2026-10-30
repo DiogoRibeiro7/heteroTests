@@ -156,8 +156,14 @@
 #' fitted values. Without `var_formula` or `against`, the test reads nothing from
 #' `data`, which it matches as every test does, and refuses numbered data in another
 #' order, rows in front of those of the fit and repeated row names, where it gave the
-#' value of the fit. Which model each test accepts, and why, is set out in
-#' [test_results], under *Supported models*.
+#' value of the fit. Since 0.17.0 it refuses an `mgcv::gam()` fit with
+#' penalised smooth terms, which it refitted by weighted least squares on the
+#' basis of its smooths without the penalty, and so tested another fit; a
+#' `gam` that is the least-squares fit of its design, as one whose smooth
+#' terms are all fixed (`s(x, fx = TRUE)`), is tested on that design, as
+#' before (decisions 37 and 38 of the design of the model context). Which
+#' model each test accepts, and why, is set out in [test_results], under
+#' *Supported models*.
 #'
 #' @examples
 #' # Standard deviation proportional to x, so the variance is a power of x
@@ -202,6 +208,10 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   ctx <- rcontext_second_formula(
     model, data, list(var_formula, against), "performVarianceFormTest", "Variance form test"
   )
+  # The test refits the model by weighted least squares on its design
+  # (rresolve_variance_fit()): a penalised mgcv::gam() fit is refused, as that
+  # refit drops its penalty (decision 37 of the design of the model context).
+  rrefuse_penalised_gam(ctx, "performVarianceFormTest", "refit")
   rvalidateModelInputs(model, test_name = "Variance form test", min_obs = 30L, allow_aliased = TRUE)
   rvalidate_model_context(ctx)
   requirements <- rvalidateTestRequirements("variance_form", model = model, data = ctx$frame)

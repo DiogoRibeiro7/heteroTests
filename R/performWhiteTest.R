@@ -126,9 +126,10 @@
 #' change on a design that spans the constant. [performWhiteTestStreaming()]
 #' gives these degrees of freedom, also on such a design, whose auxiliary
 #' columns are collinear with its intercept, on which it stopped until 0.17.0,
-#' but on an `mgcv::gam()` fit with smooth terms, whose smooth terms it does
-#' not test. On an auxiliary design whose columns are nearly collinear, as the
-#' squares and products of the basis of a smooth term can be, the columns
+#' and, since 0.17.0, on an `mgcv::gam()` fit with smooth terms, whose basis it
+#' tests, where it tested the variables of the formula. On an auxiliary design
+#' whose columns are nearly collinear, as the squares and products of the basis
+#' of a smooth term can be, the columns
 #' kept can differ from those kept in 0.15.0, so the statistic can change too:
 #' there the auxiliary regression of 0.15.0 could silently lose a column to
 #' its intercept while its degrees of freedom still counted it, as on a

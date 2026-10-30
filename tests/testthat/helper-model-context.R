@@ -808,9 +808,14 @@ context_cells <- function() {
   add(context_cell("class/rank_deficient", "class", function() {
     list(m = stats::lm(y ~ x1 + x2 + I(2 * x2), data = d), data = d)
   }, reference = "fit/ols/none/none/data_frame"))
-  add(context_cell("class/rlm", "class", function() {
-    list(m = MASS::rlm(y ~ x1 + x2, data = d), data = d)
-  }))
+  # A MASS::rlm() fit, an M-estimate whose residuals are not least-squares
+  # residuals, which every test built on the context tested as an lm until
+  # increment 11, and refuses since, before `data` is matched, on every form
+  # (R6, decision 4).
+  rlm_fit <- function() list(m = MASS::rlm(y ~ x1 + x2, data = d), data = d)
+  add(context_cell("class/rlm", "class", rlm_fit, expect = context_rlm_refusal, defect = "R6"))
+  class_forms("rlm", rlm_fit, expect = context_rlm_refusal, defect = "R6",
+              expect_tibble = context_rlm_refusal)
   # A Gaussian mgcv::gam() is a glm by class, and is accepted as before 0.16.0;
   # without smooth terms it is the lm.
   gam_fit <- function() list(m = mgcv::gam(y ~ x1 + x2, data = d), data = d)
@@ -840,14 +845,24 @@ context_cells <- function() {
   # either, and the group tests matched it by position too (N17).
   class_forms("gam_offset", gam_offset_fit, needs = "mgcv", defect = "gam_offset",
               shuffled_defect = "N17")
-  # A smooth term, usually penalised: the tests of increments 1 and 3 test the
-  # fit as before, and those of increment 2 refuse it until increment 11
-  # settles which tests take it ("gam"). Goldfeld-Quandt and the quantile
-  # regression test, which refitted the formula, stopped on its smooth term
-  # outside mgcv.
+  # A smooth term, penalised: the tests of increment 2 refused it ("gam",
+  # decision 23), and since increment 11 every test that fits the design
+  # again, or whose null distribution is that of the least-squares residuals
+  # of the design, refuses it, the others testing it on its basis (decision
+  # 37, context_refuse_penalised). Goldfeld-Quandt and the quantile regression
+  # test, which refitted the formula, stopped on its smooth term outside mgcv.
   gam_smooth_fit <- function() list(m = mgcv::gam(y ~ s(x1) + x2, data = d), data = d)
   add(context_cell("class/gam_smooth", "class", gam_smooth_fit, needs = "mgcv", defect = "gam"))
   class_forms("gam_smooth", gam_smooth_fit, needs = "mgcv", defect = "gam",
+              shuffled_defect = "N17")
+  # A fixed smooth, s(x1, fx = TRUE): the least-squares fit of its basis, which
+  # every test takes since increment 11, those that fit the design again
+  # included, with the value of the lm() of the basis (decision 38,
+  # context_basis_lm()); the tests of increment 2 refused it as a gam with
+  # smooth terms, and the bootstraps every gam.
+  gam_fixed_fit <- function() list(m = mgcv::gam(y ~ s(x1, fx = TRUE) + x2, data = d), data = d)
+  add(context_cell("class/gam_fixed", "class", gam_fixed_fit, needs = "mgcv", defect = "gam"))
+  class_forms("gam_fixed", gam_fixed_fit, needs = "mgcv", defect = "gam",
               shuffled_defect = "N17")
   # A zero weight leaves an observation out of the fit with a residual that is
   # not one: refused by every test but RESET, whose two weighted fits both
@@ -950,6 +965,79 @@ context_cells <- function() {
   })
   names(cells) <- vapply(cells, `[[`, character(1), "id")
   cells
+}
+
+# The refusal of a MASS::rlm() fit by the model context (increment 11, R6,
+# decision 4), in the words every function built on it uses: the tests
+# "cannot test", fitWLS() "cannot refit" such a fit.
+context_rlm_refusal <- paste(
+  "a MASS::rlm() fit: an rlm fit is an M-estimate, whose residuals are not least-squares",
+  "residuals"
+)
+
+# Decision 37 (increment 11): the functions of the matrix that refuse a
+# penalised mgcv::gam() fit, those that fit its design again, the tests of
+# increment 2, the White and wild bootstraps, the robust Breusch-Pagan test,
+# which studentizes by default, and the variance form test, and those whose
+# null distribution is that of the least-squares residuals of the design,
+# Harrison-McCabe's and Szroeter's tests; with fitWLS() and the calls of a
+# second formula of the variance form test (context_cell_for_formula()). The
+# cells of a penalised gam, and the words of the refusal.
+context_refuse_penalised <- c(
+  "performStudentizedBPTest", "performRESETTest", "performGQTest",
+  "performQuantileRegressionTest", "performWhiteTestBootstrap", "performBPTestRobust",
+  "performWildBootstrapTest", "performHarrisonMcCabeTest", "performSzroeterTest",
+  "performVarianceFormTest"
+)
+context_penalised <- function(cell) grepl("^class/gam_smooth|^exclude/gam_smooth", cell$id)
+context_penalised_refusal <- "a penalised mgcv::gam() fit (s(x1))"
+
+# Decision 38 (increment 11): the oracle of a gam that is the least-squares fit
+# of its stored design, the lm() of its basis. The columns of the design but
+# the intercept, b1, b2, ..., are added to `data`, matched to the observations
+# by the row names of the model frame, and the lm is fitted to them with the
+# weights and the offset of the gam, so that its design is the basis, column
+# for column; a test gives the gam the value it gives this lm, to rounding.
+# With `fit_order = TRUE` the lm is fitted to the rows of `data` taken in the
+# order of the observations of the gam, so that its observations come in the
+# same order when `data` holds them in another (the shuffled data of a cell),
+# and a bootstrap draws the same replicates of both; `data` is returned in its
+# own order.
+context_basis_lm <- function(gam, data, fit_order = FALSE) {
+  frame <- stats::model.frame(gam)
+  basis <- stats::model.matrix(gam)
+  intercept <- colnames(basis) == "(Intercept)"
+  columns <- as.data.frame(basis[, !intercept, drop = FALSE])
+  names(columns) <- paste0("b", seq_len(ncol(columns)))
+  rows <- match(rownames(frame), rownames(data))
+  out <- data
+  for (k in names(columns)) {
+    out[[k]] <- NA_real_
+    out[[k]][rows] <- columns[[k]]
+  }
+  response <- names(frame)[1L]
+  f <- stats::as.formula(paste(response, "~", paste(names(columns), collapse = " + "),
+                               if (!any(intercept)) "- 1"))
+  environment(f) <- globalenv()
+  weights <- gam$prior.weights
+  out$.basis_w <- NA_real_
+  out$.basis_w[rows] <- weights
+  offset <- stats::model.offset(frame)
+  out$.basis_o <- 0
+  out$.basis_o[rows] <- if (is.null(offset)) 0 else offset
+  fitted_to <- if (fit_order) {
+    out[c(rows, setdiff(seq_len(nrow(out)), rows)), , drop = FALSE]
+  } else {
+    out
+  }
+  fit <- if (all(weights == 1) && is.null(offset)) {
+    eval(bquote(stats::lm(.(f), data = fitted_to)))
+  } else if (all(weights == 1)) {
+    eval(bquote(stats::lm(.(f), data = fitted_to, offset = .basis_o)))
+  } else {
+    eval(bquote(stats::lm(.(f), data = fitted_to, weights = .basis_w, offset = .basis_o)))
+  }
+  list(m = fit, data = out)
 }
 
 # Harrison-McCabe's statistic and its lower tail written out with the rank of
@@ -1314,7 +1402,11 @@ context_cran_cells <- c(
   "fit/ols/none/none/model_frame", "fit/wls/none/none/null", "fit/ols/argument/none/null",
   "terms/ols/none/log/null", "missing/complete_renumbered", "missing/median_full",
   "subset/data_frame", "ident/front", "class/mlm", "group/na_shuffled",
-  "panel/unit_lm_shuffled", "panel/repeated_id_time"
+  "panel/unit_lm_shuffled", "panel/repeated_id_time",
+  # Increment 11: a MASS::rlm() fit (MASS is imported), refused by every test;
+  # a penalised gam and a gam with a fixed smooth (mgcv, a recommended package
+  # R ships with, skipped where it is not installed), decisions 37 and 38.
+  "class/rlm", "class/gam_smooth", "class/gam_fixed"
 )
 
 # Whether the full matrix runs, or only the cells CRAN runs. The full matrix
@@ -1627,8 +1719,9 @@ context_runnable <- function(fns = context_migrated) {
 #   terms (context_increment2), once `data` is matched: a shuffled tibble is
 #   refused by the guard first, by RESET too since it matches `data`
 #   (decision 31).
-# - The quantile regression test refuses a weighted fit, and a MASS::rlm()
-#   fit, whose weights it reads, once `data` is aligned.
+# - The quantile regression test refuses a weighted fit once `data` is
+#   aligned. It refused a MASS::rlm() fit so too, whose case weights it read,
+#   until the context refused that fit first (increment 11).
 # - Goldfeld-Quandt, Glejser, Park, Szroeter and Harrison-McCabe read `x1`,
 #   which the model frame of a fit that transforms `x1` does not hold, and
 #   Hartley's test and the five group tests `group`, which only the models
@@ -1670,26 +1763,20 @@ context_cell_for <- function(fn, cell) {
   if (fn %in% context_second_formula) {
     return(context_cell_for_formula(fn, cell))
   }
-  # The wild bootstrap reads the leverages of the fit with hatvalues(), which
-  # an mgcv::gam() fit, whose qr component is not that of an lm, does not
-  # give: it stops on every gam, as before increment 8 (outside the model
-  # context; ROADMAP.md).
-  if (identical(fn, "performWildBootstrapTest") && identical(cell$expect, "value") &&
-        grepl("^class/gam|^panel/unit_gam|^exclude/gam", cell$id)) {
-    cell$expect <- "lm object does not have a proper 'qr' component"
+  # Decision 37 (increment 11): the tests that fit the design of a penalised
+  # gam again, or whose null distribution is that of the least-squares
+  # residuals of the design, refuse it once `data` is matched; the others test
+  # it on its basis. A gam that is the least-squares fit of its basis, without
+  # smooth terms or with fixed ones, is tested by every test (decision 38): the
+  # wild bootstrap, which stopped on every gam reading its leverages with
+  # hatvalues(), reads them from its stored design.
+  if (fn %in% context_refuse_penalised && context_penalised(cell) &&
+        !identical(cell$expect, "guard")) {
+    cell$expect <- context_penalised_refusal
     cell$reference <- NULL
     return(cell)
   }
-  # The White bootstrap (increment 8) refits the design in each replicate, and
-  # the robust Breusch-Pagan test studentizes by default, as the tests of
-  # increment 2 do.
-  refits_design <- c(context_increment2, "performWhiteTestBootstrap", "performBPTestRobust")
-  if (fn %in% refits_design && grepl("^class/gam_smooth|^exclude/gam_smooth", cell$id) &&
-        !identical(cell$expect, "guard")) {
-    cell$expect <- "cannot test an mgcv::gam() fit with smooth terms (s(x1))"
-    return(cell)
-  }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls") || identical(cell$id, "class/rlm")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm", "fitwls")
   if (identical(fn, "performQuantileRegressionTest") && weighted &&
         !identical(cell$expect, "guard")) {
     cell$expect <- "does not support weighted fits"
@@ -1758,6 +1845,14 @@ context_cell_for_formula <- function(fn, cell) {
   variance_form <- startsWith(fn, "performVarianceFormTest")
   edited <- grepl("does not reproduce its residuals", cell$expect, fixed = TRUE)
   zero_weight <- identical(cell$expect, "zero or non-finite weights")
+  # Decision 37 (increment 11): fitWLS() and the variance form test refit a
+  # penalised gam by weighted least squares, and refuse it once `data` is
+  # matched, before they read a variable of the second formula.
+  if ((wls || variance_form) && context_penalised(cell) && !identical(cell$expect, "guard")) {
+    cell$expect <- context_penalised_refusal
+    cell$reference <- NULL
+    return(cell)
+  }
   # fitWLS() refits a rank-deficient fit with its aliased coefficient: a value
   # of its own.
   if (wls && identical(cell$id, "class/rank_deficient")) {
@@ -1776,8 +1871,7 @@ context_cell_for_formula <- function(fn, cell) {
     cell$expect <- "value"
     cell$reference <- if (identical(cell$form, "shuffled")) cell$base
   }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm") ||
-    startsWith(cell$id, "class/zero_weight")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm") || startsWith(cell$id, "class/zero_weight")
   if (variance_form && !identical(cell$expect, "guard")) {
     value_like <- cell$expect %in% c("value", "zero or non-finite weights")
     if (weighted && value_like) {
@@ -1842,7 +1936,7 @@ context_cell_for_model_alone <- function(fn, cell) {
     cell$expect <- "value"
     return(cell)
   }
-  weighted <- cell$fit %in% c("wls", "wvec", "glm") || identical(cell$id, "class/rlm")
+  weighted <- cell$fit %in% c("wls", "wvec", "glm")
   if (identical(fn, "performVarianceFormTest") && weighted &&
         (identical(cell$expect, "value") || zero_weight)) {
     cell$expect <- "was fitted with weights that did not come from fitWLS()"

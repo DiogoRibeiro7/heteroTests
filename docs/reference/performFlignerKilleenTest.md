@@ -47,7 +47,13 @@ tests on the estimable part of its design: it gives the value of the same model 
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
 lack rows or variables of the fit.
-It refuses a multivariate `lm` ("needs a model with one response"), since 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is tested as before 0.16.0, with smooth terms too, until a later step settles which tests take such a fit; since 0.16.0 its observations are matched to the rows of `data` by the row names of its model frame. Before, they were matched by position, since the residuals of a `gam` carry no names, and `data` with the rows of the fit in another order gave a wrong value.
+It refuses a multivariate `lm` ("needs a model with one response"), since 0.16.0; before, it
+stopped with a coercion error. An `mgcv::gam()` fit is tested as before 0.16.0, with penalised
+smooth terms too: the test reads its residuals and does not fit it again, so it does not take them
+for least-squares residuals (decision 37 of the design of the model context); since 0.16.0 its
+observations are matched to the rows of `data` by the row names of its model frame. Before,
+they were matched by position, since the residuals of a `gam` carry no names, and `data`
+with the rows of the fit in another order gave a wrong value.
 Which model each test accepts, and why, is set out in
 [`test_results`](test_results.md), under *Supported models*.
 

@@ -158,13 +158,19 @@
 #' `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not
 #' finite for another reason, and `data` that lack rows or variables of the fit.
 #' It refuses a multivariate `lm` ("needs a model with one response"), since
-#' 0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
-#' tested as before 0.16.0, with smooth terms too, until a later step settles
-#' which tests take such a fit; since 0.16.0 its observations are matched to the
-#' rows of `data` by the row names of its model frame. Before, they were matched
-#' by position, since the residuals of a `gam` carry no names, and `data` with
-#' the rows of the fit in another order gave a wrong value. Which model each test
-#' accepts, and why, is set out in [test_results], under *Supported models*.
+#' 0.16.0; before, it stopped with a coercion error. Since 0.17.0 it refuses an
+#' `mgcv::gam()` fit with penalised smooth terms: the null distribution of the
+#' test is derived for the least-squares residuals of the design of the fit, the
+#' basis of its smooths, which the residuals of a penalised fit are not; before,
+#' it compared them with that distribution. A `gam` that is the least-squares
+#' fit of its design, as one whose smooth terms are all fixed
+#' (`s(x, fx = TRUE)`), is tested on that design, as before, and gives the value
+#' of the `lm()` of it (decisions 37 and 38 of the design of the model context).
+#' Since 0.16.0 the observations of a `gam` are matched to the rows of `data` by
+#' the row names of its model frame. Before, they were matched by position,
+#' since the residuals of a `gam` carry no names, and `data` with the rows of
+#' the fit in another order gave a wrong value. Which model each test accepts,
+#' and why, is set out in [test_results], under *Supported models*.
 #'
 #' @examples
 #' data(mtcars)
@@ -202,6 +208,11 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
     model, data, fn = "performHarrisonMcCabeTest", test_label = test_label,
     reads = if (!missing(order_by) && is.character(order_by)) order_by else character()
   )
+  # Its exact null distribution is that of the least-squares residuals of the
+  # design, through its residual-maker: a penalised mgcv::gam() fit, whose
+  # residuals are not those, is refused (decision 37 of the design of the model
+  # context); a gam that is the least-squares fit of its design is tested.
+  rrefuse_penalised_gam(ctx, "performHarrisonMcCabeTest", "null")
 
   if (!is.character(order_by) || length(order_by) != 1L || is.na(order_by) || !nzchar(order_by)) {
     stop("`order_by` must be supplied as a single column name.", call. = FALSE)
@@ -337,11 +348,11 @@ performHarrisonMcCabeTest <- function(model, data = NULL, order_by, point = 0.5,
 #'
 #' The residuals the test reads are those of the fit, so the null distribution
 #' takes the rank of the fit (decided on 2026-10-18), which its design without
-#' the aliased columns has as its number of columns. A penalised
-#' `mgcv::gam()` fit with smooth terms is not the least-squares fit of its
-#' design, and its rank is not that of one: it keeps the rank of its design
-#' decided at `1e-7`, as before 0.16.0, until the last step of the migration
-#' to the model context settles which tests take such a fit.
+#' the aliased columns has as its number of columns. An `mgcv::gam()` fit
+#' keeps the rank of its design decided at `1e-7`, as before 0.16.0: a
+#' penalised one is refused (decision 37 of the design of the model context),
+#' and one that is the least-squares fit of its design is tested with the rank
+#' of that design, as it was.
 #'
 #' @param ctx The model context.
 #' @param basis The QR decomposition of the design, at the tolerance of the

@@ -7,7 +7,9 @@
 autoCompareRemediations(model, data = NULL)
 }
 \arguments{
-\item{model}{Fitted \code{lm} model or formula.}
+\item{model}{Fitted \code{lm} model or formula. Since 0.17.0 a
+\code{MASS::rlm()} fit, an M-estimate, is refused, as by every test: its
+residuals are not least-squares residuals.}
 
 \item{data}{Optional data frame if \code{model} is a formula.}
 }

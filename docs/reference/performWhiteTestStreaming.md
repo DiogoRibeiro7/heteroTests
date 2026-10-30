@@ -112,10 +112,11 @@ from the formula, on its rows of `data`, so a term computed from the rows it
 is given took other values in each chunk than in the fit:
 `I(x > median(x))` the median of the chunk, and `cut(x, quantile(x))` its
 breaks, which stopped the test ("factor has new levels") in chunks of any
-size on a fit that dropped the row at the minimum of `x`. An `mgcv::gam()`
-fit with smooth terms is tested as before, on the design of the variables of
-its formula, which its model frame holds, rather than on the basis of its
-smooths, on which [`performWhiteTest()`](performWhiteTest.md) tests it.
+size on a fit that dropped the row at the minimum of `x`. Since 0.17.0 an `mgcv::gam()`
+fit with smooth terms, penalised or fixed, is tested on its design, the basis of its smooths, as by
+the exact tests, read chunk by chunk, and gives their value; before, it was tested on the design of
+the variables of its formula, which its model frame holds (decision 37 of the design of the model
+context).
 
 ## Supported models
 

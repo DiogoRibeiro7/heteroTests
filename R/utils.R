@@ -372,7 +372,8 @@ rlog_squared_residuals <- function(e, test_name) {
 #' `lm` only. [rleast_squares_weights()] reads the prior weights of a
 #' Gaussian `glm`. A `MASS::rlm()` fit is an `lm` whose `weights` are its case
 #' weights, all 1 when none were given, and whose robustness weights are in
-#' `w`, which nothing reads.
+#' `w`, which nothing reads; since increment 11 of the model context the tests
+#' refuse it before they read its weights ([rrefuse_rlm()]).
 #'
 #' @param model A fitted model.
 #' @return Numeric vector of weights, or `NULL`.

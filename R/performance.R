@@ -35,16 +35,11 @@ chunk_indices <- function(n, chunk_size) {
 # from the rows it is given, such as I(x > median(x)) or cut(x, quantile(x)),
 # took other values in each chunk than in the fit (B6 of the design of the
 # model context). An mgcv::gam() fit with smooth terms, whose stored design is
-# the basis of its smooths, is tested as before 0.16.0, on the design of the
-# variables of its formula, which its model frame holds, until the last step
-# of the model context settles which tests take such a fit (decision 23).
+# the basis of its smooths, is read on that basis too, since the last step of
+# the model context (decision 37), as the exact tests read it; until then the
+# streaming tests read the design of the variables of its formula, which its
+# model frame holds, as before 0.16.0 (decision 23).
 rstreaming_design <- function(ctx) {
-  model <- ctx$model
-  if (identical(ctx$kind, "gam") && length(model$smooth) > 0L) {
-    design <- stats::model.matrix(stats::terms(model), ctx$frame,
-                                  contrasts.arg = model$contrasts, xlev = model$xlevels)
-    return(rnon_aliased_columns(design, model))
-  }
   rcontext_design(ctx)
 }
 
@@ -365,10 +360,12 @@ koenker_response_builder <- function(residuals_chunk) {
 #' is given took other values in each chunk than in the fit:
 #' `I(x > median(x))` the median of the chunk, and `cut(x, quantile(x))` its
 #' breaks, which stopped the test ("factor has new levels") in chunks of any
-#' size on a fit that dropped the row at the minimum of `x`. An `mgcv::gam()`
-#' fit with smooth terms is tested as before, on the design of the variables of
-#' its formula, which its model frame holds, rather than on the basis of its
-#' smooths, on which [performWhiteTest()] tests it.
+#' size on a fit that dropped the row at the minimum of `x`. Since 0.17.0 an
+#' `mgcv::gam()` fit with smooth terms, penalised or fixed, is tested on its
+#' design, the basis of its smooths, as by the exact tests, read chunk by chunk,
+#' and gives their value; before, it was tested on the design of the variables
+#' of its formula, which its model frame holds (decision 37 of the design of the
+#' model context).
 #'
 #' @references
 #' White, H. (1980). A heteroskedasticity-consistent covariance matrix estimator

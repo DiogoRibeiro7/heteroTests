@@ -18,7 +18,9 @@ autoCompareRemediations(model, data = NULL)
 ## Arguments
 
 `model`
-:   Fitted `lm` model or formula.
+:   Fitted `lm` model or formula. Since 0.17.0 a
+    `MASS::rlm()` fit, an M-estimate, is refused, as by every test: its
+    residuals are not least-squares residuals.
 
 `data`
 :   Optional data frame if `model` is a formula.

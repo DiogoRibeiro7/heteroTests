@@ -100,10 +100,11 @@ from the formula, on its rows of \code{data}, so a term computed from the rows i
 is given took other values in each chunk than in the fit:
 \code{I(x > median(x))} the median of the chunk, and \code{cut(x, quantile(x))} its
 breaks, which stopped the test ("factor has new levels") in chunks of any
-size on a fit that dropped the row at the minimum of \code{x}. An \code{mgcv::gam()}
-fit with smooth terms is tested as before, on the design of the variables of
-its formula, which its model frame holds, rather than on the basis of its
-smooths, on which \code{\link[=performWhiteTest]{performWhiteTest()}} tests it.
+size on a fit that dropped the row at the minimum of \code{x}. Since 0.17.0 an \code{mgcv::gam()}
+fit with smooth terms, penalised or fixed, is tested on its design, the basis of its smooths, as by
+the exact tests, read chunk by chunk, and gives their value; before, it was tested on the design of
+the variables of its formula, which its model frame holds (decision 37 of the design of the model
+context).
 }
 \section{Supported models}{
 It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity

@@ -106,10 +106,13 @@ NULL
 #' taken in the order of the fit. The rows are then matched to the
 #' observations of the fit as the tests match them (see [test_results]), and
 #' data whose rows cannot be shown to hold them are refused, as are values
-#' that differ from those the model was fitted to. A model that is not the
-#' least-squares fit of its design, such as a `MASS::rlm()` fit, is refused
-#' too ("`data` does not reproduce the fit"): its replicates would be those of
-#' another model.
+#' that differ from those the model was fitted to. A model whose least-squares
+#' refit of its design does not give its residuals, such as an `lm` fitted with
+#' a smaller `tol` that keeps a column `lm()` would alias, is refused too
+#' ("`data` does not reproduce the fit"): its replicates would be those of
+#' another model. Since 0.17.0 a `MASS::rlm()` fit, an M-estimate, is refused
+#' first, as by every test (see *Supported models*); it was refused here
+#' before, with that message.
 #'
 #' Null-imposed resampling additionally requires the response to be a plain
 #' variable: for `log(y) ~ x` the fitted values are on the log scale while the
@@ -147,8 +150,12 @@ NULL
 #'   since 0.17.0, a `glm` with the Gaussian family and the identity link, the
 #'   least-squares fit of `lm()` with its prior weights, whose replicates are
 #'   those of that `lm`. Another `glm` is rejected: each replicate is refitted
-#'   with least squares, which would discard its family and link. So is an
-#'   `mgcv::gam()` fit, a `glm` by class.
+#'   with least squares, which would discard its family and link. A Gaussian
+#'   `mgcv::gam()` fit, a `glm` by class, is accepted since 0.17.0 when it is
+#'   the least-squares fit of its design, as one whose smooth terms are all
+#'   fixed (`s(x, fx = TRUE)`) or one without smooth terms, and its replicates
+#'   are those of the `lm()` of that design; one with penalised smooth terms
+#'   is refused, as every `gam` was before.
 #' @param data Data frame used when fitting `model`, holding the rows it was
 #'   fitted to, or its model frame. Other rows are left out. See Details.
 #' @param B Integer, number of bootstrap replications. Defaults to 999. The
@@ -208,11 +215,19 @@ NULL
 #' since 0.16.0 a rank-deficient `lm`, and since 0.17.0 a `glm` with the
 #' Gaussian family and the identity link, weighted or not, bootstrapped as the
 #' `lm` it is; a replicate whose refit aliases a coefficient the fit estimated,
-#' as a pairs resample of an interaction can, fails. It refuses a `glm` of
-#' another family or link, an `mgcv::gam()` fit and a `survey::svyglm()` fit,
-#' as each replicate is refitted by least squares, a fit with a zero weight,
-#' a fit that is not the least-squares fit of its design, such as a
-#' `MASS::rlm()` fit, a fit whose coefficients, residuals or weights were
+#' as a pairs resample of an interaction can, fails. Since 0.17.0 it accepts
+#' an `mgcv::gam()` fit that is the least-squares fit of its design, as one
+#' whose smooth terms are all fixed (`s(x, fx = TRUE)`) or one without smooth
+#' terms, bootstrapped on that design, the basis of its smooths, as the `lm()`
+#' of it (decision 38 of the design of the model context); it refused every
+#' `gam` before. It refuses a `glm` of another family or link and a
+#' `survey::svyglm()` fit, as each replicate is refitted by least squares, an
+#' `mgcv::gam()` fit with penalised smooth terms, which is not the
+#' least-squares fit of its design, with the class of the refusals of the
+#' model context since 0.17.0 (decision 37), a fit with a zero weight,
+#' a `MASS::rlm()` fit, an M-estimate, with the message of every test since
+#' 0.17.0 (it was refused before as a fit the least-squares refit does not
+#' reproduce), a fit whose coefficients, residuals or weights were
 #' changed after it was fitted (since 0.17.0), a `fitWLS()` fit of an
 #' `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the design of
 #' its coefficients (since 0.17.0), and `data` whose rows cannot be
@@ -295,6 +310,27 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     rstop_model_context(sprintf("%s() needs a model with one response; `model` has %d.", fn,
                                 NCOL(model$residuals)))
   }
+  # A MASS::rlm() fit is refused by the model context too (rrefuse_rlm(),
+  # increment 11): here first, before `test_function` is called on it, so that
+  # the refusal names this function whatever `test_function` is. Before, the
+  # observed statistic was computed and the fit was refused afterwards, its
+  # least-squares refit not reproducing the M-estimate ("`data` does not
+  # reproduce the fit").
+  rrefuse_rlm(model, fn)
+  # A Gaussian mgcv::gam() fit, a glm by class, that is not the least-squares
+  # fit of its stored design, a penalised one, is refused, as each replicate
+  # refits that design by least squares; one that is, without smooth terms or
+  # with fixed ones, is bootstrapped as the lm of its basis (decisions 37 and
+  # 38 of the design of the model context). Until increment 11 every gam was
+  # refused, without the class of the context ("supports Gaussian `lm` models
+  # only").
+  gaussian <- function(m) {
+    fam <- tryCatch(stats::family(m), error = function(e) NULL)
+    !is.null(fam) && identical(fam$family, "gaussian") && identical(fam$link, "identity")
+  }
+  if (inherits(model, "gam") && gaussian(model)) {
+    rrefuse_penalised_gam(rmodel_context(model, fn = fn), fn, "replicate")
+  }
   rvalidateModelInputs(model, test_name = "Bootstrap helper", min_obs = 5L, allow_aliased = TRUE)
   rvalidateDataInputs(data, min_obs = 5L)
 
@@ -327,31 +363,17 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # counts the coefficients move from (0.457, 0.406) on the log link to
   # (-0.931, 2.281) on the identity scale, so the replicates would describe a
   # different model from the one supplied. So is a survey::svyglm() fit, whose
-  # weights are not precision weights, and, as before, an mgcv::gam() fit: a
-  # smooth term is usually penalised, and a penalised fit is not the
-  # least-squares fit of its design, which each replicate fits again
-  # (decision 23 of the design); a gam without one is the fit of glm().
+  # weights are not precision weights. A Gaussian mgcv::gam() fit that is the
+  # least-squares fit of its design passed the check above, and is
+  # bootstrapped as that lm (decision 38).
   if (inherits(model, "glm")) {
-    fam <- tryCatch(stats::family(model), error = function(e) NULL)
-    least_squares <- !inherits(model, c("svyglm", "gam")) && !is.null(fam) &&
-      identical(fam$family, "gaussian") && identical(fam$link, "identity")
+    least_squares <- !inherits(model, "svyglm") && gaussian(model)
     if (!least_squares) {
       stop(
         "`bootstrapTestStatistic()` supports Gaussian `lm` models only: an `lm`, or a ",
         "`glm` with the gaussian family and the identity link, which is a least-squares ",
-        "fit. ",
-        if (inherits(model, "gam")) {
-          paste0(
-            "An mgcv::gam() fit is not taken: a smooth term is usually penalised, and the ",
-            "least-squares refit of each replicate is not the fit. Refit a gam without ",
-            "smooth terms with glm()."
-          )
-        } else {
-          paste0(
-            "Each replicate is refitted with least squares, which would discard the ",
-            "family and link of another `glm` and bootstrap a different model."
-          )
-        },
+        "fit. Each replicate is refitted with least squares, which would discard the ",
+        "family and link of another `glm` and bootstrap a different model.",
         call. = FALSE
       )
     }
@@ -382,6 +404,12 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # the complete cases of the data would be; the match of the model context
   # below decides whether they are its rows.
   fit_rows <- names(model$residuals)
+  # The residuals of an mgcv::gam() fit carry no names: its observations are
+  # those of the row names of its model frame (rcontext_ids(), N17), as for
+  # the tests, so that its data are matched by them in any order.
+  if (is.null(fit_rows) && inherits(model, "gam")) {
+    fit_rows <- rcontext_ids(model, stats::model.frame(model))
+  }
   automatic <- .row_names_info(data) < 0L && nrow(data) == length(model$residuals)
   if (is.null(fit_rows) || automatic) {
     row_index <- seq_len(nrow(data))
@@ -480,7 +508,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
         call. = FALSE
       )
     }
-    leverage <- rmodel_unpad(model, stats::hatvalues(model))
+    # Those of a gam, which hatvalues() does not give, from its stored design
+    # (rmodel_leverage(), decision 38).
+    leverage <- rmodel_leverage(model)
     null_residuals <- rmodel_unpad(model, rpearson_residuals(model)) /
       sqrt(pmax(1 - leverage, .Machine$double.eps))
     null_residuals <- null_residuals - mean(null_residuals)
@@ -526,10 +556,20 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   # refused, since its replicates would have come from another design.
   ctx <- rmodel_context(model, data, fn = fn, test_label = "Resampling")
   rvalidate_model_context(ctx)
-  # The replicates are least-squares refits of the stored design: a fit that
-  # is not the least-squares fit of its design, as MASS::rlm() is not, would
-  # have replicates of another model, and is refused, as before.
-  if (!identical(ctx$rows[row_index], seq_len(n)) || !rleast_squares_reproduces(ctx)) {
+  # The replicates are least-squares refits of the stored design: a fit whose
+  # least-squares refit of that design does not give its residuals, as an lm
+  # fitted with a smaller `tol` that keeps a column lm() would alias, would
+  # have replicates of another model, and is refused, as before. A
+  # MASS::rlm() fit, which this refused too, is refused first since increment
+  # 11 (rrefuse_rlm()). A gam is held to its own line (rgam_least_squares()),
+  # on its residuals rather than on the spread of its response, which it
+  # passed to come here (from the review of increment 11).
+  reproduces <- if (identical(ctx$kind, "gam")) {
+    rgam_least_squares(ctx)
+  } else {
+    rleast_squares_reproduces(ctx)
+  }
+  if (!identical(ctx$rows[row_index], seq_len(n)) || !reproduces) {
     stop(
       "`data` does not reproduce the fit: refitted to the rows of `data`, the ",
       "model does not give the residuals it was fitted with. Data without row ",
@@ -593,6 +633,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
   model_terms <- stats::terms(model)
   model_contrasts <- model$contrasts
   model_xlevels <- model$xlevels
+  # A replicate of an mgcv::gam() fit, which is the least-squares fit of its
+  # stored design (decision 38), keeps that design, the basis of its smooths:
+  # its terms rebuild the design of the variables of its formula instead.
+  keep_design <- inherits(model, "gam")
 
   compute_bootstrap <- function(index) {
     boot_weights <- prior_weights
@@ -633,7 +677,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                      model_terms, model_contrasts, rownames(boot_data), model_xlevels),
         error = function(e) NULL
       )
-      if (is.null(drawn)) {
+      # The design of a gam is not rebuilt from its terms, which would give the
+      # variables of its formula: a draw that would need it fails.
+      if (is.null(drawn) || keep_design && ncol(drawn$design) != ncol(boot_design_all)) {
         return(NA_real_)
       }
       boot_frame <- drawn$frame
@@ -662,6 +708,9 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
     }
     if (is.null(boot_model)) {
       return(NA_real_)
+    }
+    if (keep_design) {
+      boot_model$x <- boot_design
     }
     # A replicate whose refit aliases a coefficient the fit estimated, as a
     # pairs resample can that leaves a cell of an interaction empty, has lost
@@ -775,10 +824,15 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' on the stored design of the fit, with its weights and its total offset.
 #' That is a replicate of the model supplied only when the model is itself the
 #' least-squares fit of that design: an `lm`, a Gaussian `glm` with the
-#' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit without smooth terms.
-#' A `MASS::rlm()` fit is an M-estimate, whose residuals the refit does not
-#' give. The refit decides its rank at the tolerance of `lm()`, `1e-7`, as the
-#' refits of the formula did before increment 8, so a fit whose rank was
+#' identity link, a [fitWLS()] fit, an `mgcv::gam()` fit that is the
+#' least-squares fit of its design, without smooth terms or with fixed ones,
+#' whose replicates are fitted on its stored design (decision 38; a penalised
+#' one is refused before, [rrefuse_penalised_gam()]). A `gam` is held to the
+#' line of [rgam_least_squares()], on its residuals, instead of this one.
+#' A `MASS::rlm()` fit, an M-estimate, whose residuals the refit does not
+#' give, was refused here until increment 11, which refuses it before
+#' ([rrefuse_rlm()]). The refit decides its rank at the tolerance of `lm()`,
+#' `1e-7`, as the refits of the formula did before increment 8, so a fit whose rank was
 #' decided at a smaller tolerance and differs, an `lm` fitted with a smaller
 #' `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
 #' refused, as such an `lm` was before. Refitting the replicates at the

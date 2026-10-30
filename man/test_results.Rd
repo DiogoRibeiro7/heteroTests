@@ -56,7 +56,9 @@ a weighted \code{lm}, and \code{\link{performVarianceFormTest}()}, which refuses
 \code{\link{fitWLS}()}, refuse it with the same message. With a zero prior weight it is refused as the \code{lm} with a
 zero weight is ("The model was fitted with zero or non-finite weights"), since 0.16.0. A \code{survey::svyglm()} fit is
 refused by every test ("The model is a \code{survey::svyglm()} fit"). \code{tests/testthat/test-input-validation.R}
-gives every test these inputs.
+gives every test these inputs. Since 0.17.0 a \code{MASS::rlm()} fit is refused by every test too, with class
+\code{heteroTests_model_context_error} (see \emph{Supported models}), which \file{tests/testthat/test-model-context.R}
+checks.
 
 The tests that read \code{data} also refuse \code{data} whose rows cannot be confirmed to hold the observations of
 the fit ("cannot match the rows of \code{data} to the observations of the model"). They match the rows of \code{data}
@@ -138,10 +140,10 @@ coefficients", "The weights of the model are not those its coefficients were fit
 not rebuild the design of its coefficients, as a \code{fitWLS()} fit of an \code{mgcv::gam()} fit with smooth terms
 (the first of these messages, since 0.17.0), and a fit with
 \code{model = FALSE} whose model frame can no longer be rebuilt, unless \code{data} gives its response and fitted
-values, on which it is then tested. RESET,
-Goldfeld-Quandt, the quantile regression test and the studentized Breusch-Pagan statistic refuse an
-\code{mgcv::gam()} fit with smooth terms, which are usually penalised, so that the fit is not the least-squares
-fit of its design, until a later step settles which tests take it; the others test it as before 0.16.0. The
+values, on which it is then tested. The tests that fit the model again by least squares, or whose null
+distribution is derived for the least-squares residuals of its design, refuse an \code{mgcv::gam()} fit with
+penalised smooth terms, which is not the least-squares fit of its design, and the others test it on that design,
+the basis of its smooths, since 0.17.0 (see \emph{Supported models} below). The
 residuals of a \code{gam} carry no names, and these tests match \code{data} to its observations by the row names of
 its model frame; the tests that are not built on the context yet and read a column of \code{data} match them by
 position. The check of an edited fit is a guard against accidental edits, not a proof
@@ -149,7 +151,8 @@ that a fit is unedited: an edited coefficient leaves the residuals unchanged, so
 the largest term of the response, the design times the coefficients and the residuals, and an edit of 0.5 goes
 undetected once the response is above about \code{1e7}. These refusals have class \code{heteroTests_model_context_error}, which
 \code{\link{runHeteroTests}()} and \code{\link{runDiagnostics}()} keep, as they keep that of a refusal of
-\code{data}, without running another test under the name of the one refused. A test that reads a column of
+\code{data}, without running another test under the name of the one refused; since 0.17.0 a grouped run stops
+with such a refusal in a group too, where the group recorded it as a failed test of \code{NA}. A test that reads a column of
 \code{data} the model frame does not hold, as the rank permutation, Goldfeld-Quandt, Szroeter and
 Harrison-McCabe tests do with their \code{order_by}, Glejser's and Park's with their \code{variable}, Hartley's
 and the group tests with their \code{group}, the panel tests with their \code{id} and \code{time} and the scatter
@@ -205,7 +208,8 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   0.16.0, and \code{\link{fitWLS}()} refits it as that \code{lm} since then. \code{\link{bootstrapTestStatistic}()}
   refused every \code{glm} until 0.17.0, as it refits each replicate by least squares, which would drop a family and
   a link; it bootstraps a Gaussian \code{glm} with the identity link as that \code{lm}, with its prior weights, and
-  refuses any other \code{glm}, and an \code{mgcv::gam()} fit, as before.
+  refuses any other \code{glm}, as before. It refused every \code{mgcv::gam()} fit until 0.17.0, and refuses one
+  with penalised smooth terms since then (see the item on the \code{gam} below).
   The checks of the model read its R-squared,
   which \code{summary()} of a \code{glm} does not report, as that of the \code{lm}: \code{summary.lm()} applied to the
   \code{glm}, whose fitted values, residuals, weights and offset are those of the \code{lm}, so that a near-perfect fit
@@ -245,10 +249,39 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   them (and does not depend on the order of the terms); with the exponential form, the default, it is.
   \item A \code{fitWLS()} fit is a weighted \code{lm}, with estimated weights: accepted, but the reference
   distributions take the weights as known (\code{\link{performVarianceFormTest}()} accounts for the estimation).
-  \item A \code{MASS::rlm()} fit is an \code{lm} by class, so the tests accept it, as before 0.16.0, and test its
-  M-estimation residuals as if they were least-squares ones; its case weights, all 1 unless given, are read as
-  precision weights, so \code{\link{performQuantileRegressionTest}()} refuses it as a weighted fit. Whether to keep
-  accepting it or refuse it was deferred on 2026-10-17 to the work on the model context.
+  \item A \code{MASS::rlm()} fit, such as \code{\link{fitRobust}()} returns, is an \code{lm} by class and an
+  M-estimate, whose residuals are not least-squares residuals. Since 0.17.0 every test refuses it, with an error of
+  class \code{heteroTests_model_context_error} that names the \code{lm()} fit of the same formula to test instead,
+  and so do \code{\link{fitWLS}()}, the registered names and the runners, which keep the refusal final. Until then 37
+  tests took it for an \code{lm} and tested its M-estimation residuals as if they were least-squares ones, the
+  studentized Breusch-Pagan statistic tested the least-squares refit of its design, and
+  \code{\link{performQuantileRegressionTest}()} and \code{\link{performVarianceFormTest}()} refused it as a weighted
+  fit, its case weights, all 1 unless given, being read as precision weights.
+  \item An \code{mgcv::gam()} fit with the Gaussian family and the identity link, a \code{glm} by class, is tested on
+  its stored design, \code{model.matrix()}: its parametric columns and the basis of its smooths. A smooth term is
+  penalised unless it is fixed, \code{s(x, fx = TRUE)}, and the residuals of a penalised fit are not those of the
+  least-squares fit of that design. Since 0.17.0 the tests that read only its residuals, its fitted values, columns of
+  \code{data} and the columns of the design as auxiliary regressors test a penalised fit, the streaming tests on the
+  basis too, as the exact tests do, where they read the variables of the formula. The tests that fit it again by
+  least squares, or whose null distribution is derived for the least-squares residuals of its design, refuse it with
+  class \code{heteroTests_model_context_error}, and the runners keep the refusal final:
+  \code{\link{performGQTest}()}, \code{\link{performRESETTest}()}, \code{\link{performQuantileRegressionTest}()}, the
+  studentized Breusch-Pagan statistic, \code{\link{performWhiteTestBootstrap}()},
+  \code{\link{performWildBootstrapTest}()}, \code{\link{bootstrapTestStatistic}()} and the robust forms with
+  \code{bootstrap = TRUE}, \code{\link{performVarianceFormTest}()} and \code{\link{fitWLS}()}, which refitted it
+  without its penalty, and \code{\link{performHarrisonMcCabeTest}()} and \code{\link{performSzroeterTest}()}, which
+  compared its residuals with the null distribution of least-squares ones. A \code{gam} that is the least-squares fit
+  of its design, without smooth terms or with fixed ones, is tested by every test as the \code{lm()} of that design,
+  the refitting and resampling tests included, where the fixed smooths were refused as penalised ones. Whether a
+  \code{gam} is that fit is decided from the fit: its design refitted by least squares, with its weights and offset,
+  gives its residuals to \code{1e-8} of the largest residual of that refit, plus \code{1e3} times the machine epsilon
+  of the largest value of the response and of the offset, the rounding of a fit on that scale, so that an offset
+  or a trend does not change the verdict, up to the scale at which that rounding hides a penalised fit (the largest
+  value of the response or of the offset about \code{1e12} times its residuals). A \code{gam} without a penalised
+  term that fails the check is refused as one whose residuals are not those of that fit, not as a penalised one:
+  mgcv's own fit is not the least-squares fit of an ill-conditioned design, as one with a regressor far from zero
+  (centre the regressor, or fit the model with \code{lm()}), or the fit was changed after it was fitted. Decisions
+  37 and 38 of the design of the model context (decided on 2026-10-29) set this out.
 }
 \code{\link{checkModel}()} checks the class of a model only, \code{lm} or \code{glm}; it does not check whether a test
 accepts it.

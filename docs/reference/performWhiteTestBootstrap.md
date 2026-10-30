@@ -181,11 +181,13 @@ or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient f
 tests on the estimable part of its design: it gives the value of the same model fitted without the
 aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
 fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. Since 0.17.0 it refuses an `mgcv::gam()`
-fit with smooth terms: a smooth term is usually penalised, and a penalised
-fit is not the least-squares fit of its design, which each replicate fits
-again (before, the refit from the formula stopped on the smooth term); a
-`gam` without smooth terms is tested as the Gaussian `glm` it is. It also
+lack rows or variables of the fit. Since 0.17.0 it refuses an `mgcv::gam()` fit with penalised
+smooth terms, which is not the least-squares fit of its design, the basis of its smooths, that each
+replicate fits again (before, the refit from the formula stopped on the smooth term), and it tests a
+`gam` that is that fit, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`), on
+that design, with the value and the replicates of the `lm()` of it; a `gam` without smooth
+terms is tested as the Gaussian `glm` it is (decisions 37 and 38 of the design of the model
+context). It also
 refuses a fit whose coefficients, residuals or weights were changed after it
 was fitted, from which it computed the value of the fit before the edit, and
 a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not rebuild the
