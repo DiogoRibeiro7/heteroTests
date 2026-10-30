@@ -66,7 +66,11 @@
 #     the least-squares fit of its basis, only to what the same call gives on
 #     the lm() of the basis (the reference cells lmbasis/), or on the cell it
 #     reproduces, or on its twin; a gam with a fixed smooth joins the class
-#     block, in every form of data, and the grouped block gains an rlm fit;
+#     block, in every form of data, and the grouped block gains an rlm fit,
+#     and, from the second review, a penalised gam and a multivariate lm, on
+#     which a grouped call may change only to the refusal of the context that
+#     main recorded in a group, now the refusal of the run (decision 6,
+#     identity_grouped_final()), or, on the gam, to the refusal of decision 37;
 #   - the examples of the help pages of the functions built on the context.
 #
 # Decision 1: on a fit with a poly() term, the value of a function built on
@@ -2360,17 +2364,27 @@ identity_grouped_diagnostics <- "runDiagnostics(<grouped>)"
 identity_grouped_cells <- function() {
   cells <- list()
   # Increment 11, from its review: a MASS::rlm() fit, which a grouped run
-  # refitted by its call in each group (R6).
-  fits <- c(context_grouped_fits, list(rlm = function(d) MASS::rlm(y ~ x1 + x2, data = d)))
+  # refitted by its call in each group (R6); and, from its second review, a
+  # penalised gam and a multivariate lm, whose refusals by the model context
+  # in a group stop the run (decision 6), where each group recorded them as a
+  # failed test. Their groups are those of one column, of 30 rows each.
+  fits <- c(context_grouped_fits, list(
+    rlm = function(d) MASS::rlm(y ~ x1 + x2, data = d),
+    gam = function(d) mgcv::gam(y ~ s(x1, k = 4) + x2, data = d),
+    mlm = function(d) stats::lm(cbind(y, x2) ~ x1, data = d)
+  ))
   for (fit in names(fits)) {
     for (grouping in names(context_groupings)) {
+      if (fit %in% c("gam", "mlm") && !identical(grouping, "one")) {
+        next
+      }
       local({
         fit <- fit
         grouping <- grouping
         cells[[length(cells) + 1L]] <<- list(
           id = paste("grouped", fit, grouping, sep = "/"), block = "grouped",
           form = "grouped", expect = "value",
-          defect = switch(fit, fitwls = "B11", rlm = "R6", character()),
+          defect = switch(fit, fitwls = "B11", rlm = "R6", mlm = "M7", character()),
           build = function() {
             testthat::skip_if_not_installed("dplyr")
             d <- context_grouped_data()
@@ -2386,8 +2400,39 @@ identity_grouped_summary <- function(suite) {
   if (!inherits(suite, "hetero_grouped_suite")) {
     return(identity_runner_summary(suite))
   }
-  list(keys = as.data.frame(attr(suite, "group_keys")),
-       groups = lapply(unclass(suite), identity_runner_summary))
+  # With the message of each failed test of a group, which a refusal of the
+  # model context in a group gives since the second review of increment 11
+  # as the refusal of the run (identity_grouped_final()).
+  groups <- lapply(unclass(suite), function(s) {
+    summary <- identity_runner_summary(s)
+    for (k in seq_along(summary)) {
+      summary[[k]]$message <- attr(s[[k]], "extras")$message
+    }
+    summary
+  })
+  list(keys = as.data.frame(attr(suite, "group_keys")), groups = groups)
+}
+# The message of the first test of a grouped run that main recorded as
+# refused by the model context in a group (issue "model_context"), in the
+# order of the groups and of the tests, or NULL: since the second review of
+# increment 11 that refusal stops the run (decision 6), and a grouped call
+# may change only to it, with the class of the context and that message.
+identity_grouped_runners <- c("runHeteroTests(<grouped>)",
+                              "runHeteroTests(<grouped>, szroeter, student_bp)")
+identity_grouped_final <- function(record, main) {
+  if (!record$fn %in% identity_grouped_runners) {
+    return(NULL)
+  }
+  before <- main[[record$id]]
+  groups <- if (is.list(before$value)) before$value$groups else NULL
+  for (group in groups) {
+    for (test in group) {
+      if (identical(test$issue, "model_context")) {
+        return(test$message %||% "")
+      }
+    }
+  }
+  NULL
 }
 
 # Item 3, from the review of increment 10: the three on models the context
@@ -2655,8 +2700,11 @@ identity_r6_message <- paste(
 # recorded with the kind of its gam (identity_gam_kind()), decided here
 # without the package: "least_squares" when the least-squares refit of its
 # stored design, with its weights and its offset, gives its residuals, to
-# 1e-8 of the spread of the response (no smooth term, or fixed ones);
-# "penalised" otherwise.
+# 1e-8 of the largest residual of that refit plus 1e3 epsilon of the largest
+# response and offset (no smooth term, or fixed ones); "penalised" otherwise.
+# A grouped run of a gam is judged by the kind of the gam of its cell, and
+# a grouped run whose groups main recorded as refused by the model context
+# by the rule of decision 6 (identity_grouped_final()).
 # - Decision 37, a penalised gam: a call may change to the refusal of the
 #   context only, its class and its words (`identity_d37_message`), from a
 #   value or another refusal; or, for the streaming tests and the runner that
@@ -2684,8 +2732,11 @@ identity_gam_kind <- function(m) {
   offset <- stats::model.offset(frame)
   fit <- stats::lm.wfit(X, y, m$prior.weights, offset = offset)
   e <- unname(m$residuals)
+  # The line of the package since the review of increment 11, on the
+  # residuals of the refit and the rounding of the response and the offset.
+  rounding <- 1e3 * .Machine$double.eps * (max(abs(y)) + max(abs(c(0, offset))))
   same <- length(e) == length(fit$residuals) &&
-    max(abs(unname(fit$residuals) - e)) <= 1e-8 * max(abs(y - mean(y)))
+    max(abs(unname(fit$residuals) - e)) <= 1e-8 * max(abs(fit$residuals)) + rounding
   if (isTRUE(same)) "least_squares" else "penalised"
 }
 # The exact test of a streaming call, by the name of the recipe, and of each
@@ -2734,7 +2785,12 @@ identity_d38_verify <- function(record, after, main, branch, seen = character())
   oracle <- branch[[paste(oracle_kind, record$fn, paste0("lmbasis/", record$cell), sep = " | ")]]
   if (!is.null(oracle)) {
     if (failed(after$value) || failed(oracle$value)) {
-      return(if (failed(after$value) && failed(oracle$value)) "lm of the basis" else NA_character_)
+      # Both refuse: with the same class and message (from the review of
+      # increment 11, where any two refusals passed).
+      same <- failed(after$value) && failed(oracle$value) &&
+        identical(after$value$class, oracle$value$class) &&
+        identical(after$value$message, oracle$value$message)
+      return(if (same) "lm of the basis" else NA_character_)
     }
     same <- identity_same_key(identity_key(after$value), identity_key(oracle$value),
                               identity_d38_tolerance) && identical(after$rng, oracle$rng)
@@ -2767,7 +2823,8 @@ identity_d38_verify <- function(record, after, main, branch, seen = character())
 identity_increment11_verdict <- function(record, after, verdict, main, branch) {
   r6 <- "R6" %in% record$defect
   gam <- record$gam
-  if (!r6 && is.null(gam)) {
+  final <- identity_grouped_final(record, main)
+  if (!r6 && is.null(gam) && is.null(final)) {
     return(NULL)
   }
   if (identical(verdict$change, "identical")) {
@@ -2790,8 +2847,15 @@ identity_increment11_verdict <- function(record, after, verdict, main, branch) {
     return(list(verdict = if (ok) "allowed" else "unexpected",
                 verified = if (ok) "exact test" else NA_character_))
   }
-  verified <- identity_d38_verify(record, after, main, branch)
-  list(verdict = if (is.na(verified)) "unexpected" else "allowed", verified = verified)
+  if (!is.null(gam)) {
+    verified <- identity_d38_verify(record, after, main, branch)
+    return(list(verdict = if (is.na(verified)) "unexpected" else "allowed", verified = verified))
+  }
+  # A grouped run whose group main recorded as refused by the model context:
+  # only that refusal, its class and its message, as the refusal of the run.
+  ok <- identical(verdict$change, "value_to_error") && in_class &&
+    identical(after$value$message, final)
+  list(verdict = if (ok) "allowed" else "unexpected", verified = NA_character_)
 }
 
 # --- canonical results ---------------------------------------------------------
@@ -3436,9 +3500,20 @@ identity_run <- function(where, out, root = ".") {
     })
   }
   for (cell in identity_grouped_cells()) {
+    # Increment 11: the kind of the gam of the cell (decisions 37 and 38).
+    built <- tryCatch(suppressWarnings(suppressMessages(cell$build())), error = function(e) NULL)
+    cell$gam <- if (!is.null(built)) identity_gam_kind(built$m)
     add("recipe", identity_grouped_runner, cell, grouped_outcome(cell, function(built) {
       identity_grouped_summary(runHeteroTests(built$m, built$data, use_cache = FALSE,
                                               progress = FALSE))
+    }))
+    # From the second review of increment 11: two tests that refuse a
+    # penalised gam, one of them already on main (decision 37), whose
+    # refusals in a group stop the run.
+    add("recipe", identity_grouped_runners[2L], cell, grouped_outcome(cell, function(built) {
+      identity_grouped_summary(runHeteroTests(built$m, built$data,
+                                              tests = c("szroeter", "student_bp"),
+                                              use_cache = FALSE, progress = FALSE))
     }))
     add("recipe", identity_grouped_diagnostics, cell, grouped_outcome(cell, function(built) {
       out <- runDiagnostics(built$m, built$data, use_cache = FALSE, progress = FALSE)
@@ -4204,6 +4279,9 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       # and the kind of the gam of its cell (decisions 37 and 38).
       r6 = "R6" %in% before$defect,
       gam = if (is.null(before$gam)) NA_character_ else before$gam,
+      # And whether it is a grouped run whose group main recorded as refused by
+      # the model context (decision 6, from the second review).
+      g6 = !is.null(identity_grouped_final(before, main$records)),
       n2 = if (n2_change) paste(n2$kinds, collapse = " ") else NA_character_,
       n2_mode = if (n2_change) n2_mode else NA_character_,
       szroeter = if (is.null(szroeter)) NA else szroeter,
@@ -4417,12 +4495,14 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
   # (decision 37) and of a gam that is the least-squares fit of its basis
   # (decision 38), and every other call; and every class of change, by its
   # cells, its kind of call, its change and what verified it.
-  calls$class11 <- ifelse(calls$r6, "R6", ifelse(is.na(calls$gam), NA_character_,
-                                                 ifelse(calls$gam == "penalised", "D37", "D38")))
+  calls$class11 <- ifelse(calls$r6, "R6", ifelse(
+    !is.na(calls$gam), ifelse(calls$gam == "penalised", "D37", "D38"),
+    ifelse(calls$g6, "G6", NA_character_)
+  ))
   inside <- calls[!is.na(calls$class11), , drop = FALSE]
   if (nrow(inside) > 0L) {
     outside <- calls[is.na(calls$class11), , drop = FALSE]
-    for (k in c("R6", "D37", "D38")) {
+    for (k in c("R6", "D37", "D38", "G6")) {
       part <- inside[inside$class11 == k, , drop = FALSE]
       cat(sprintf(paste0(
         "\nIncrement 11, %s: %d calls on %d cells, %d identical() to main, %d allowed changes ",
