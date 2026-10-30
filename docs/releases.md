@@ -946,22 +946,22 @@ the same values with and without `chunk_threshold_mb`:
 | the same on `f`, the fixed smooth | 9.59 on 2, 6.55 on 2 and 8.22 on 5 | 21.49, 14.70 and 43.88, on 10, 10 and 60 |
 
 **Refusals become values: a `gam` that is the least-squares fit of its
-design.** A `gam` without smooth terms, or whose smooths are all fixed, is the
-least-squares fit of its design, and every test takes it now as the `lm()` of
-that design, those that fit it again included. Whether a `gam` is that fit is
-decided from the fit: its design refitted by least squares, with its weights
-and offset, gives its residuals to `1e-8` of the largest residual of that
-refit, plus `1e3` times the machine epsilon of the largest value of the
+design.** A `gam` without smooth terms, or whose smooths are all fixed, is as
+a rule the least-squares fit of its design (on an ill-conditioned design
+mgcv's fit is not, below), and every test takes such a fit now as the `lm()`
+of that design, those that fit it again included. Whether a `gam` is that fit
+is decided from the fit: its design refitted by least squares, with its
+weights and offset, gives its residuals to `1e-8` of the largest residual of
+that refit, plus `1e3` times the machine epsilon of the largest value of the
 response and of the offset, the rounding of a fit on that scale. So the
-verdict does not depend on how the model is written: an offset or a trend of
-any size leaves it as it is, and a fixed smooth on a response of `1e8` is
-taken as one. A penalised fit whose smoothing parameter is near zero passes
-that check (on `g`'s formula, `sp = 1e-10` does and `sp = 1e-9` does not). A
-`gam` without a penalised term that fails it, as one whose residuals were
-changed after the fit, is refused as such ("cannot test this `mgcv::gam()`
-fit (s(x1)): its residuals are not those of the least-squares fit of its
-design, ..., although none of its terms is penalised"), not as a penalised
-fit:
+verdict does not depend on how the model is written: an offset or a trend
+leaves it as it is, up to the scale at which that rounding hides a penalised
+fit, which passes once the largest value of the response or of the offset is
+about `1e12` times its residuals; and a fixed smooth on a response of `1e8` is
+taken as least squares. A penalised fit whose smoothing parameter is near
+zero passes that check (on `g`'s formula, `sp = 1e-10` does and `sp = 1e-9`
+does not). A `gam` without a penalised term that fails it is refused with a
+message of its own, not as a penalised fit (below):
 
 | Call | Before | Now |
 | --- | --- | --- |
@@ -982,6 +982,40 @@ from its design, where `hatvalues()` stopped on it. `fitWLS()` of such a `gam`
 refits its design, but returns an `lm` whose terms rebuild the variables of
 the formula, so that the tests refuse it when the `gam` has smooth terms, as
 since step 8.
+
+**New refusal: a `gam` without smooth terms on an ill-conditioned design.**
+mgcv's fit of a `gam` without a penalised term is not the least-squares fit
+of its design when the design is ill-conditioned, as with a regressor far
+from zero:
+
+```r
+set.seed(20261015)
+n <- 120
+dd <- data.frame(x1 = runif(n, 0.5, 2), x2 = rnorm(n))
+dd$y <- 1 + sin(3 * dd$x1) - dd$x2 + rnorm(n, sd = 0.3 * dd$x1)
+dd$x3 <- 1e4 + dd$x2
+far <- mgcv::gam(y ~ x1 + x3, data = dd)   # residual sum of squares 169.1
+lm(y ~ x1 + x3, data = dd)                 # 41.9, on the same design
+```
+
+The tests that fit the design again took such a fit when it has no smooth
+terms: RESET compared mgcv's fit with the least-squares fit of the augmented
+design, and Goldfeld-Quandt and the studentized statistic gave the values of
+the `lm`. They refuse it now, and so do the bootstraps, the Harrison-McCabe
+and Szroeter tests, the variance form test and `fitWLS()`, which took it too
+but for the bootstraps (decision 14):
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `performRESETTest(far, dd)` | 476.2 (p = 2.3e-56), where `lm(y ~ x1 + x3, data = dd)` gives 0.31 | Error: "`performRESETTest()` cannot test this `mgcv::gam()` fit: its residuals are not those of the least-squares fit of its design, the basis of its smooths, which the test fits again, although none of its terms is penalised. mgcv's fit is not that fit on an ill-conditioned design, such as one with a regressor far from zero: centre that regressor, or fit the model with `lm()`. Otherwise the fit was changed after it was fitted: refit it." |
+| `performGQTest(far, dd, order_by = "x1")`, `performBPTestRobust(far, dd)` | 2.65 and 12.84, the values of the `lm`, from the least-squares refit of the design | Error, as above |
+
+The same holds with `x3 = 1e6 + x2` and with a fixed smooth,
+`s(x1, fx = TRUE) + x3`, which these tests refused before as a `gam` with
+smooth terms. With `x3 = 1e3 + x2` mgcv's fit is the least-squares fit, and
+is taken. The tests that read only the residuals of the fit test mgcv's
+residuals, as they test those of a penalised fit (Koenker's 2.55, where the
+`lm` gives 12.84).
 
 Unchanged: every call on any other fit. A corpus of 44,156 calls
 (`scripts/model-context-identity.R`), the `rlm` fit in five forms of `data`
