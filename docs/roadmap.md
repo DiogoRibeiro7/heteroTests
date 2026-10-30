@@ -1645,10 +1645,10 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
 - [x] **Found by the model-eligibility work (the *Supported models* page),
     recorded, not fixed**, as they change what a test computes rather than which
     models it accepts. Those below are settled by the steps above or with them;
-    the others are under 0.16.0 and 0.18.0. Done in 0.17.0, but for the one
-    found by the third review of step 10 on `augment()` of a workflow, which is
-    not settled and moved to 0.18.0 at the release (*Left from steps 8 to 10 of
-    the model context*):
+    the others are under 0.16.0 and 0.18.0. Done in 0.17.0, but for the two
+    found by the reviews of step 10 on `augment()` of a workflow, which are not
+    settled and moved to 0.18.0 at the release (*Left from steps 8 to 10 of the
+    model context*):
     - [x] `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
         deficient" when terms of its auxiliary regression are collinear, as the
         squares of dummy variables are, on any model with a factor, where
@@ -1750,20 +1750,6 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
         (decision 35): the transformed outcome is taken, for a recipe and for a
         formula preprocessor `log(y) ~ x + z` alike, and the value is that
         without `data`. Done in step 10 (#169).
-    - [x] Found by the review of step 10, recorded, not fixed: `augment()` of the
-        results of a workflow whose preprocessing drops rows of new data, a
-        recipe step applied to them (`step_filter()` or `step_naomit()` with
-        `skip = FALSE`), refuses its data, since the preprocessing does not say
-        which rows of `data` it kept; the runners take those data, whose rows the
-        alignment confirms. Find the rows the preprocessing kept, or keep the
-        refusal. A refusal becomes a value, or none. Measured on the second
-        review of step 10: forging each row on its own, which says which rows a
-        step that maps each row on its own kept, costs 2.75 ms a row (0.33 s for
-        120 rows, about 14 s for 5,000, where forging the whole data takes 3 ms),
-        and a step that makes a row from other rows gives other values row by
-        row; not adopted, the refusal kept. Closed as decided on that review, on
-        2026-10-29 (#169): forging row by row is not adopted, and `augment()`
-        keeps refusing such data, as the design page records.
     - [x] `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
         as an `lm` and test its M-estimation residuals as least-squares ones; the
         studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -1913,16 +1899,16 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
         such data. Since step 10 of the model context the guard is only its
         alignment step (`rdata_fit_rows()`, `rcheck_rows_at()`):
         `prepare_model_data_for_test()`, `rdata_or_model_frame()` and
-        `rcheck_data_rows()` are gone. Done in 0.17.0: the replicates of the
-        White bootstrap in step 8 (#165), and the removal of the guard in step 10
-        (#169). Its cost on a valid call grows
+        `rcheck_data_rows()` are gone. Its cost on a valid call grows
         with the columns it computes again: at 100,000 rows it takes about 5 ms on
         `lm(y ~ x1 + x2 + g)` and about 43 ms on a weighted fit with `log()` and
         `poly()` terms, against 50 to 70 ms for the Glejser and Bartlett tests and
         about 200 ms for Koenker's on main. The review of 0.15.0 measured it at
         about a third of the Glejser (100 ms) and Bartlett (120 ms) calls at that
         size, before factors were compared by their codes; the model context,
-        which reads the design from the fit, does not need it. Not covered by the
+        which reads the design from the fit, does not need it. Done in 0.17.0:
+        the replicates of the White bootstrap in step 8 (#165), and the guard
+        reduced to its alignment step in step 10 (#169). Not covered by the
         guard:
         - `fitWLS(data, var_formula)` and `performVarianceFormTest()` with
             `var_formula` or `against` read the variables of the second formula
@@ -2111,7 +2097,9 @@ announced in bold in `NEWS.md`.
     responses, 0.0345, where `lm(y ~ x1)` gives 4 / 118.
     `performVIFDiagnostic()` of the same fit returns the VIF of the design the
     responses share, 1 for `x1`, the value of `lm(y ~ x1)` (and with a second
-    regressor of normal draws, 1.005 for each, as for `lm(y ~ x1 + x3)`). The
+    regressor, `d$x3 <- rnorm(120)` drawn straight after `contract_data()`,
+    which sets the seed 20261015, 1.005058 for each, as for
+    `lm(y ~ x1 + x3)`). The
     decision is whether they refuse it as the tests do. Found in the 0.17.0
     release audit; recorded, not fixed. A value becomes a refusal, or none.
 - [ ] **`recommendRemediationStrategies()` without `data`.**
@@ -2262,6 +2250,18 @@ announced in bold in `NEWS.md`.
         positions among the rows, where the same fit with `na.omit` gives their
         positions among the observations (the names are the same). Decide which
         the positions count. A value changes, or none.
+    - From the review of step 10: `augment()` of the results of a workflow
+        whose preprocessing drops rows of new data, a recipe step applied to them
+        (`step_filter()` or `step_naomit()` with `skip = FALSE`), refuses its
+        data, since the preprocessing does not say which rows of `data` it kept;
+        the runners take those data, whose rows the alignment confirms. Find the
+        rows the preprocessing kept, or keep the refusal. A refusal becomes a
+        value, or none. Measured on the second review of step 10: forging each
+        row on its own, which says which rows a step that maps each row on its
+        own kept, costs 2.75 ms a row (0.33 s for 120 rows, about 14 s for 5,000,
+        where forging the whole data takes 3 ms), and a step that makes a row
+        from other rows gives other values row by row; not adopted, the refusal
+        kept.
     - From the third review of step 10: `augment()` refuses the data of a
         workflow whose recipe makes a row from other rows
         (`step_mutate(cs = cumsum(x))`, `dplyr::row_number()`, a mean over
