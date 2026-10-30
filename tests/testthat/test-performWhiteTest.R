@@ -442,11 +442,11 @@ test_that("White's located test is lmtest::bptest() on the centred terms", {
       ours <- performWhiteTest(m, moved, cross_products = cross_products)
       bp <- white_df_bptest(m, cross_products, centre = TRUE)
       # A design 1e6 from zero amplifies the last bits of the BLAS.
-      expect_equal(unname(ours$statistic), unname(bp$statistic),
-                   tolerance = blas_tolerance(1e-10), info = info)
-      expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
-      expect_equal(ours$p.value, unname(bp$p.value), tolerance = blas_tolerance(1e-10),
+      tolerance <- if (shift > 1e4) blas_tolerance(1e-10) else 1e-10
+      expect_equal(unname(ours$statistic), unname(bp$statistic), tolerance = tolerance,
                    info = info)
+      expect_identical(unname(ours$parameter[["df"]]), as.integer(bp$parameter), info = info)
+      expect_equal(ours$p.value, unname(bp$p.value), tolerance = tolerance, info = info)
     }
   }
 })

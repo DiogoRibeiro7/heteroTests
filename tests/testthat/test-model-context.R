@@ -1911,8 +1911,6 @@ test_that("Pesaran's test computes an unbalanced panel from the periods each pai
   expect_equal(cd, (sqrt(3) * pair_12 + sqrt(3) * pair_13) / sqrt(3), tolerance = 1e-12)
   # plm::pcdtest() calls plm() without its namespace, so plm is attached for
   # this block, as in test-panel-reference.R.
-  # Off CRAN: with other last bits in its residuals, plm::pcdtest() gave NA on one of these.
-  skip_on_cran()
   skip_if_not_installed("plm")
   skip_if_not_installed("withr")
   suppressMessages(withr::local_package("plm"))
@@ -2338,7 +2336,7 @@ test_that("a gam with na.exclude is read as the same gam with na.omit (B13)", {
   # performVIFDiagnostic() reads the design too, and gave NA; the Cook's
   # distances of mgcv recycled the padded residuals against the leverages,
   # with a warning, and are those of the twin, padded.
-  expect_identical(performVIFDiagnostic(excluded), performVIFDiagnostic(omitted))
+  expect_identical_numbers(performVIFDiagnostic(excluded), performVIFDiagnostic(omitted))
   expect_no_warning(influence <- performInfluenceDiagnostics(excluded))
   expect_identical_numbers(
     influence$cooks_distance,

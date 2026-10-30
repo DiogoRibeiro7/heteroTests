@@ -151,8 +151,6 @@ test_that("equal fitted values tie exactly, however the model is written", {
   # residual. Ordered by those values, the statistic changed when y was
   # rescaled or a factor was coded differently. The reference orders by the
   # group means, which tie exactly, and leaves the rows of a group in order.
-  # Off CRAN: another BLAS can give equal design rows fitted values that differ in their last bits.
-  skip_on_cran()
   szroeter <- szroeter_entry()
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
@@ -186,15 +184,24 @@ test_that("equal fitted values tie exactly, however the model is written", {
   d3_helmert <- d3
   contrasts(d3_helmert$g) <- contr.helmert(3)
   d3_rev <- transform(d3, g = factor(g, levels = c("c", "b", "a")))
+  # A row of these designs has at most two terms that are not zero, whose sum
+  # is the same under any BLAS.
   groups <- list(
     treatment = szroeter(lm(y ~ g, data = d3), d3),
-    sum = szroeter(lm(y ~ g, data = d3_sum), d3_sum),
-    helmert = szroeter(lm(y ~ g, data = d3_helmert), d3_helmert),
     cell_means = szroeter(lm(y ~ 0 + g, data = d3), d3),
     levels_reversed = szroeter(lm(y ~ g, data = d3_rev), d3_rev)
   )
   for (nm in names(groups)) {
     expect_equal(unname(groups[[nm]]$statistic), ref3, tolerance = 1e-10, info = nm)
+  }
+  # Off CRAN: with three terms a row's sum, and so the ties, depend on the BLAS.
+  skip_on_cran()
+  dense <- list(
+    sum = szroeter(lm(y ~ g, data = d3_sum), d3_sum),
+    helmert = szroeter(lm(y ~ g, data = d3_helmert), d3_helmert)
+  )
+  for (nm in names(dense)) {
+    expect_equal(unname(dense[[nm]]$statistic), ref3, tolerance = 1e-10, info = nm)
   }
 })
 

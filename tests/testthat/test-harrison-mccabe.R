@@ -294,10 +294,10 @@ test_that("the alternative is the direction of the variance along the ordering",
   expect_gt(greater$p.value, 0.99)
   expect_equal(less$p.value + greater$p.value, 1, tolerance = 1e-10)
   # Each call integrates to 1e-10; on CRAN, under another BLAS, the two agree on that scale.
-  if (identical(Sys.getenv("NOT_CRAN"), "true")) {
-    expect_equal(both$p.value, 2 * less$p.value, tolerance = 1e-10)
-  } else {
+  if (numbers_on_cran()) {
     expect_lt(abs(both$p.value - 2 * less$p.value), 1e-9)
+  } else {
+    expect_equal(both$p.value, 2 * less$p.value, tolerance = 1e-10)
   }
   expect_identical(less$alternative, "variance increases with 'x1'")
   expect_identical(greater$alternative, "variance decreases with 'x1'")

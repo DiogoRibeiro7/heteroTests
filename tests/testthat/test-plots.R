@@ -58,5 +58,5 @@ test_that("cachedTest stores results", {
   clearTestCache()
   res1 <- cachedTest("white", model, data_heterosced)
   res2 <- cachedTest("white", model, data_heterosced)
-  expect_identical_numbers(res1, res2)
+  expect_identical(res1, res2)
 })

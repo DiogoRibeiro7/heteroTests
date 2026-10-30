@@ -74,7 +74,8 @@ test_that("performBoxMTest tests the groups observed and drops an empty level", 
   ref <- performBoxMTest(two[, 1:4], two$Species)
   expect_identical_numbers(unname(res$statistic), unname(ref$statistic))
   expect_identical(unname(res$parameter), unname(ref$parameter))
-  expect_identical_numbers(res$p.value, ref$p.value)
+  # The p-values, about 1.8e-10, on the scale of their logs (helper-numbers.R).
+  expect_identical_numbers(log(res$p.value), log(ref$p.value))
   expect_equal(unname(res$statistic), 66.8104812066, tolerance = 1e-10)
   expect_equal(unname(res$parameter), 10, tolerance = 0)
   expect_equal(res$p.value, 1.8233e-10, tolerance = 1e-4)
@@ -82,7 +83,7 @@ test_that("performBoxMTest tests the groups observed and drops an empty level", 
   # A character group has no empty level, and gives the same values.
   chr <- performBoxMTest(sub[, 1:4], as.character(sub$Species))
   expect_identical_numbers(unname(chr$statistic), unname(res$statistic))
-  expect_identical_numbers(chr$p.value, res$p.value)
+  expect_identical_numbers(log(chr$p.value), log(res$p.value))
 
   # An unused level of a factor of mtcars' cylinders.
   cyl <- factor(mtcars$cyl, levels = c(4, 6, 8, 10))

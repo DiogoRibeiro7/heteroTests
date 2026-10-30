@@ -500,14 +500,8 @@ test_that("an identical call hits, and so does the same model refitted in anothe
   runs$n <- 0L
   first <- cachedTest("cache_contract_counted", ma, d)
   again <- cachedTest("cache_contract_counted", ma, d)
-  expect_identical(again, first)
-  # Off CRAN: under another BLAS a refit can differ in its last bits, and miss.
-  skip_on_cran()
-  refit <- cachedTest("cache_contract_counted", mb, d)
   expect_identical(runs$n, 1L)
-  expect_identical_numbers(refit, reference)
-  expect_identical(attr(refit, "model"), mb)
-  expect_identical(cache_sizes()[["test"]], 1L)
+  expect_identical(again, first)
 
   # The key of a fit is that of its values, whatever their representation:
   # the names of the residuals of a new fit are kept as a deferred
@@ -517,6 +511,24 @@ test_that("an identical call hits, and so does the same model refitted in anothe
   quiet(performKoenkerTest(mc, d))
   invisible(paste(names(mc$residuals), collapse = ""))
   expect_identical(heteroTests:::rcache_inputs(mc, d), before)
+
+  # A stored result keeps no copy of the model.
+  cache_reset()
+  first_suite <- quiet(runHeteroTests(ma, d, progress = FALSE))
+  entry <- heteroTests:::.analysis_cache$values[[1]]
+  expect_null(attr(entry$value, "model"))
+  expect_null(attr(entry$value$white, "model"))
+
+  # Off CRAN: under another BLAS a refit can differ in its last bits, and miss.
+  skip_on_cran()
+  cache_reset()
+  runs$n <- 0L
+  first <- cachedTest("cache_contract_counted", ma, d)
+  refit <- cachedTest("cache_contract_counted", mb, d)
+  expect_identical(runs$n, 1L)
+  expect_identical_numbers(refit, reference)
+  expect_identical(attr(refit, "model"), mb)
+  expect_identical(cache_sizes()[["test"]], 1L)
 
   # runHeteroTests(): the battery of the refit is answered from the cache.
   cache_reset()
@@ -528,10 +540,6 @@ test_that("an identical call hits, and so does the same model refitted in anothe
   expect_identical_numbers(refit_suite, fresh_suite)
   expect_identical(attr(refit_suite, "model"), mb)
   expect_identical(attr(refit_suite$white, "model"), mb)
-  # A stored result keeps no copy of the model.
-  entry <- heteroTests:::.analysis_cache$values[[1]]
-  expect_null(attr(entry$value, "model"))
-  expect_null(attr(entry$value$white, "model"))
 })
 
 test_that("a cache holds at most heteroTests.cache_size results and evicts the least used", {

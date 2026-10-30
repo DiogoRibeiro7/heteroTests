@@ -839,8 +839,8 @@ test_that("fitWLS() refits a Gaussian glm as the lm it is", {
     expect_equal(attr(from_glm, "variance_function"), attr(from_lm, "variance_function"),
                  tolerance = 1e-10, info = info)
     # The prior weights of the weighted glm are recorded as those of the lm.
-    expect_identical_numbers(attr(from_glm, "variance_function")$initial_weights,
-                             attr(from_lm, "variance_function")$initial_weights, info = info)
+    expect_identical(attr(from_glm, "variance_function")$initial_weights,
+                     attr(from_lm, "variance_function")$initial_weights, info = info)
     expect_no_error(summary(from_glm))
     expect_same_test_value(performVarianceFormTest(from_lm), performVarianceFormTest(from_glm),
                            paste("variance form on fitWLS() of", info))
