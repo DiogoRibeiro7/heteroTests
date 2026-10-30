@@ -62,9 +62,9 @@ the value of the same model fitted without the aliased columns. It refuses a
 weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit.
 It refuses a multivariate \code{lm} ("needs a model with one response"), since
-0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is
-tested as before 0.16.0, with smooth terms too, until a later step settles
-which tests take such a fit.
+0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is tested as before
+0.16.0, with penalised smooth terms too: the test reads its residuals and does not fit it again, so
+it does not take them for least-squares residuals (decision 37 of the design of the model context).
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
 \emph{Supported models}.
 }

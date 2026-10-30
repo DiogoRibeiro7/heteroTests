@@ -173,13 +173,19 @@ every \code{glm} before 0.16.0. It refuses a \code{glm} of another family or lin
 \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not
 finite for another reason, and \code{data} that lack rows or variables of the fit.
 It refuses a multivariate \code{lm} ("needs a model with one response"), since
-0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is
-tested as before 0.16.0, with smooth terms too, until a later step settles
-which tests take such a fit; since 0.16.0 its observations are matched to the
-rows of \code{data} by the row names of its model frame. Before, they were matched
-by position, since the residuals of a \code{gam} carry no names, and \code{data} with
-the rows of the fit in another order gave a wrong value. Which model each test
-accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
+0.16.0; before, it stopped with a coercion error. Since 0.17.0 it refuses an
+\code{mgcv::gam()} fit with penalised smooth terms: the null distribution of the
+test is derived for the least-squares residuals of the design of the fit, the
+basis of its smooths, which the residuals of a penalised fit are not; before,
+it compared them with that distribution. A \code{gam} that is the least-squares
+fit of its design, as one whose smooth terms are all fixed
+(\code{s(x, fx = TRUE)}), is tested on that design, as before, and gives the value
+of the \code{lm()} of it (decisions 37 and 38 of the design of the model context).
+Since 0.16.0 the observations of a \code{gam} are matched to the rows of \code{data} by
+the row names of its model frame. Before, they were matched by position,
+since the residuals of a \code{gam} carry no names, and \code{data} with the rows of
+the fit in another order gave a wrong value. Which model each test accepts,
+and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 data(mtcars)

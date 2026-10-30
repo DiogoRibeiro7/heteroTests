@@ -72,9 +72,12 @@ refuses a weighted fit, a \code{fitWLS()} fit among them, as it refits the model
 weights, a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a coefficient that
 is not finite for another reason, and \code{data} that lack rows or variables of the fit.
 It refuses a multivariate \code{lm} ("needs a model with one response"), and, since 0.16.0, an
-\code{mgcv::gam()} fit with smooth terms: a smooth term is usually penalised, and a penalised fit
-is not the least-squares fit of the design the test fits again. A later step settles which tests
-take such a fit; a \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is.
+\code{mgcv::gam()} fit with penalised smooth terms, which is not the least-squares fit of its
+design, the basis of its smooths, that the test fits again. Since 0.17.0 a \code{gam} that is the
+least-squares fit of its design, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}),
+is tested on that design and gives the value of the \code{lm()} of it; before, it was refused as a
+penalised one. A \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is
+(decisions 37 and 38 of the design of the model context).
 Which model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
 models}.
 }

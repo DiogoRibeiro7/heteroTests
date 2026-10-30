@@ -180,9 +180,16 @@ coefficients, residuals or weights were changed after it was fitted, from
 which it computed the value of the fit before the edit, and a \code{fitWLS()} fit
 of an \code{mgcv::gam()} fit with smooth terms, whose terms do not rebuild the
 design of its coefficients, on which it computed a value on the variables of
-the formula. Which model each
-test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
-models}.
+the formula. Since 0.17.0 it refuses an \code{mgcv::gam()} fit with penalised
+smooth terms, which is not the least-squares fit of its design, the basis of
+its smooths, that each replicate fits again, and it tests a \code{gam} that is
+that fit, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}) or
+one without smooth terms, on that design, its leverages those of the design,
+with the value and the replicates of the \code{lm()} of it (decisions 37 and 38 of
+the design of the model context). Before, it stopped on every \code{gam}
+("lm object does not have a proper 'qr' component"), reading its leverages
+with \code{hatvalues()}. Which model each test accepts, and why, is set out in
+\code{\link{test_results}}, under \emph{Supported models}.
 }
 \examples{
 data(mtcars)
