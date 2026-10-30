@@ -1,6 +1,86 @@
 # heteroTests News
 
-## Development version
+## 0.17.0
+
+0.17.0 completes the model context, in the last four of its eleven steps
+(*The model context*, under 0.16.0), and fixes the failures of CRAN's
+additional check of 0.16.0 with Intel MKL as BLAS. The resampling tests,
+`bootstrapTestStatistic()` and the robust tests are built on the context, and
+each replicate is refitted by least squares on the stored design, where the
+White bootstrap and `bootstrapTestStatistic()` refitted the formula on the
+rows of `data`; a Gaussian `glm` is bootstrapped as the `lm` it is (step 8).
+A fit with `na.action = na.exclude`, which the tests refused, is read as the
+same fit with `na.omit` (step 9). A grouped run of a `fitWLS()` fit is
+refused, the runners take the data a tidymodels workflow was fitted to, the
+recommendations and `generics::augment()` match the rows of `data` to the
+observations of the fit as the tests do, and the preparation of `data` the
+tests used before the context is gone (step 10). A `MASS::rlm()` fit is
+refused; a penalised `mgcv::gam()` fit is tested on the basis of its smooths
+by the tests that do not need least squares and refused by those that do, and
+a `gam` that is the least-squares fit of its design is taken by every test
+(step 11). Beside the steps, the three streaming tests drop the collinear
+terms of their auxiliary regression and compare the variation of the squared
+residuals with their scale (N3, *The streaming tests*). The MKL check failed
+179 expectations that compared two computations of the same numbers bit for
+bit: on CRAN the tests compare them to a tolerance of 1e-10, and off CRAN
+still bit for bit, and a CI workflow runs `R CMD check --as-cran` as CRAN's
+additional checks do, under MKL, OpenBLAS, BLIS and R without long doubles,
+and under a BLAS that moves its results by up to one unit in the last place,
+on every pull request that changes the package (*Packaging*). No export,
+argument or default changes; `hardhat` joins the suggested packages.
+
+The changes in bold change what calls return. The streaming tests: White's
+drops the collinear terms of its auxiliary regression and gives the value of
+`performWhiteTest()`, where it stopped on any model with a factor; the three
+no longer take the terms of a regressor located far from zero for collinear
+ones, compare the variation of the squared residuals with their scale, so
+that residuals of about `1e-5` give a value, and refuse squared residuals
+that agree to about eight digits, at every scale and in chunks of any size;
+and White's, in more than one chunk, gives the value of `performWhiteTest()`
+on a regressor named like a term it generates. Step 8: the White bootstrap
+computes its observed statistic and its replicates on the stored design;
+`bootstrapTestStatistic()` refits each replicate on it, no longer refuses a
+fit whose model frame cannot be rebuilt from `data`, and bootstraps a
+Gaussian `glm` with the identity link; the resampling and robust tests take a
+model without `data`, and the model frame as `data`; the White and wild
+bootstraps and the robust tests refuse a fit changed after it was fitted, the
+White bootstrap a fit with `model = FALSE` whose data are gone given a tibble
+in another order, and a `gam` with smooth terms, and
+`bootstrapTestStatistic()` data that lack a variable of the formula; every
+test built on the context refuses a `fitWLS()` fit of a `gam` with smooth
+terms; and a multivariate `lm`, a fit with `model = FALSE` whose data are gone
+and not given, and, in `bootstrapTestStatistic()`, a Gaussian `glm` with a
+zero weight are refused with a message that says why. Step 9: the tests and
+the runners take a fit with `na.exclude`, and give the value of the same fit
+with `na.omit`; the panel tests and the scatter diagnostic read it at the rows
+it kept; `fitWLS()` pads its estimated variances; and a `gam` with
+`na.exclude` is read through its design with `na.omit`, and the functions
+outside the tests that read such a fit, the influence and VIF diagnostics, the
+recommendations, `autoCompareRemediations()`, `analyzeMLResiduals()`, the
+plots and `augment()`, read it without the padding. Step 10: a grouped run of
+a `fitWLS()` fit is refused; the runners take the data a workflow or a parsnip
+fit of `fit_xy()` was fitted to, a transformed outcome, a lazy `dtplyr` table
+and the data of a recipe step that dropped rows at the fit among them, with
+their case weights compared, and refuse the data of a `fit_xy()` fit with case
+weights; a refusal names a recipe step skipped on new data that changed the
+data; their results on a workflow or a parsnip fit carry
+`attr(, "tidymodels")`, a recipe step with the environment it was written in;
+`recommendRemediationStrategies()`, `generateHeteroRecommendations()` and
+`augment()` match the rows of `data` as the tests do, and refuse what the
+tests refuse, data that lack the variables of the model and a model the tests
+refuse among them; `augment()` binds the rows as broom does, binds the first
+copy of data given twice, and refuses the data of a preprocessing that
+reorders the rows or makes a row from other rows, values that were right
+among them; and the report profiles `data` as given. Step 11: a `MASS::rlm()`
+fit is refused by every function built on the context, in a grouped run and
+by `autoCompareRemediations()` too, and the call of a `fitRobust()` result
+names what was given; a penalised `gam` is refused by the tests that need
+least squares, and the streaming tests read the basis of its smooths; a `gam`
+that is the least-squares fit of its design is taken by every test, and one
+without a penalised term on an ill-conditioned design, where mgcv's fit is not
+that fit, is refused by the tests that need least squares; and a refusal of
+the model context in a group stops a grouped run. The clean-up of step 10, in
+bold too, changes no value.
 
 ### The streaming tests
 
