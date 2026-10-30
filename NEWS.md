@@ -3,8 +3,8 @@
 ## 0.17.0
 
 0.17.0 completes the model context, in the last four of its eleven steps
-(*The model context*, under 0.16.0), and fixes the failures of CRAN's
-additional check of 0.16.0 with Intel MKL as BLAS. The resampling tests,
+(*The model context*, under 0.16.0), and fixes the failures of the additional
+check of 0.16.0 on CRAN with Intel MKL as BLAS. The resampling tests,
 `bootstrapTestStatistic()` and the robust tests are built on the context, and
 each replicate is refitted by least squares on the stored design, where the
 White bootstrap and `bootstrapTestStatistic()` refitted the formula on the
@@ -23,11 +23,12 @@ terms of their auxiliary regression and compare the variation of the squared
 residuals with their scale (N3, *The streaming tests*). The MKL check failed
 179 expectations that compared two computations of the same numbers bit for
 bit: on CRAN the tests compare them to a tolerance of 1e-10, and off CRAN
-still bit for bit, and a CI workflow runs `R CMD check --as-cran` as CRAN's
-additional checks do, under MKL, OpenBLAS, BLIS and R without long doubles,
-and under a BLAS that moves its results by up to one unit in the last place,
-on every pull request that changes the package (*Packaging*). No export,
-argument or default changes; `hardhat` joins the suggested packages.
+still bit for bit, and a CI workflow runs `R CMD check --as-cran` as the
+additional checks of CRAN do, under MKL, the other BLAS libraries they use and
+R without long doubles, and under a BLAS that moves its results by up to one
+unit in the last place, on every pull request that changes the package
+(*Packaging*). No export, argument or default changes; `hardhat` joins the
+suggested packages.
 
 The changes in bold change what calls return. The streaming tests: White's
 drops the collinear terms of its auxiliary regression and gives the value of
