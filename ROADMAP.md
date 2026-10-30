@@ -154,8 +154,8 @@ it, so the API is next.
   0.008329376120400), and MKL gave different last bits for the same call made
   twice. In one the last bits changed a discrete outcome: on every row of
   `iris` twice, which absolute residuals of Fligner-Killeen's test tie, 8.133
-  for the lm against 8.149 for the glm, a fragility of the test itself
-  (under 0.18.0). Fixed in #172. The tests compare such numbers with
+  for the lm against 8.149 for the glm, a fragility of
+  `performFlignerKilleenTest()` itself (under 0.18.0). Fixed in #172. The tests compare such numbers with
   `expect_identical_numbers()` (`tests/testthat/helper-numbers.R`), bit for
   bit off CRAN, as in CI and on the author's machine, and on CRAN, as
   testthat's `on_cran()` decides it, with `expect_equal()` to a tolerance of
@@ -167,7 +167,8 @@ it, so the API is next.
   the noisy BLAS below. Six blocks whose ties, merged residuals or cache hits
   turn on the last bits run off CRAN only, the Fligner block among them: 27
   of the expectations CRAN ran on `main`. On CRAN, the F of the variance
-  form test and White's test on a design 1e6 from zero are compared to 1e-8
+  form test on the cells of the matrix with missing rows and White's test on
+  a design 1e6 from zero are compared to 1e-8
   (`blas_tolerance()`), Harrison-McCabe's two-sided p-value with twice the
   one-sided one on the scale of the integral both come from, and the p-values
   of Box's M, about 1.8e-10, by their logs.
@@ -181,9 +182,13 @@ it, so the API is next.
   depend on where the data sit in memory, where CRAN's machine runs its code
   for Intel processors. The first version of the noisy BLAS failed 1,923
   expectations, at the sites of all 179 of CRAN's; OpenBLAS, BLIS and noLD
-  passed. The noisy BLAS leaves alone what no IEEE BLAS changes, integral
-  results and equal results of one call (the review of #172). With the fix
-  every job passes, the noisy BLAS on each of its three seeds.
+  passed. Since the review of #172 the noisy BLAS leaves alone the integral
+  results no IEEE BLAS changes and what the reference BLAS leaves exact, and
+  moves equal results of one call alike. A real BLAS can break such a tie,
+  when a row falls to a peel or tail loop whose kernel rounds otherwise; the
+  tests whose ties turn on it were reviewed by hand, and those of Szroeter's
+  test run off CRAN only. With the fix every job passes, the noisy BLAS on
+  each of its three seeds.
 
 ### 0.12.0: weighted fits and the shape of the variance (done)
 
