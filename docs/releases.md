@@ -22,12 +22,15 @@ tests used before the context is gone (step 10). A `MASS::rlm()` fit is
 refused; a penalised `mgcv::gam()` fit is tested on the basis of its smooths
 by the tests that do not need least squares and refused by those that do, and
 a `gam` that is the least-squares fit of its design is taken by every test
-(step 11). Beside the steps, the three streaming tests drop the collinear
-terms of their auxiliary regression and compare the variation of the squared
-residuals with their scale (N3, *The streaming tests*). The MKL check failed
-179 expectations that compared two computations of the same numbers bit for
-bit: on CRAN the tests compare them to a tolerance of 1e-10, and off CRAN
-still bit for bit, and a CI workflow runs `R CMD check --as-cran` as the
+(step 11). Beside the steps, White's streaming test drops the collinear terms
+of its auxiliary regression, and the three streaming tests no longer take the
+terms of a regressor located far from zero for collinear ones and compare the
+variation of the squared residuals with their scale (N3, *The streaming
+tests*). The MKL check failed 179 expectations that compared two computations
+of the same numbers bit for bit: on CRAN most such comparisons are now made to
+a tolerance of 1e-10, a few to 1e-8 or on another scale, and six blocks whose
+outcome turns on the last bits run off CRAN only; off CRAN they are still made
+bit for bit. A CI workflow runs `R CMD check --as-cran` as the
 additional checks of CRAN do, under MKL, the other BLAS libraries they use and
 R without long doubles, and under a BLAS that moves its results by up to one
 unit in the last place, on every pull request that changes the package
@@ -55,10 +58,11 @@ in another order, and a `gam` with smooth terms, and
 test built on the context refuses a `fitWLS()` fit of a `gam` with smooth
 terms; and a multivariate `lm`, a fit with `model = FALSE` whose data are gone
 and not given, and, in `bootstrapTestStatistic()`, a Gaussian `glm` with a
-zero weight are refused with a message that says why. Step 9: the tests and
-the runners take a fit with `na.exclude`, and give the value of the same fit
-with `na.omit`; the panel tests and the scatter diagnostic read it at the rows
-it kept; `fitWLS()` pads its estimated variances; and a `gam` with
+zero weight or with data the tests refuse are refused with a message that says
+why. Step 9: the tests and the runners take a fit with `na.exclude`, and give
+the value of the same fit with `na.omit`; the panel tests and the scatter
+diagnostic read it at the rows it kept; `fitWLS()` pads its estimated
+variances; and a `gam` with
 `na.exclude` is read through its design with `na.omit`, and the functions
 outside the tests that read such a fit, the influence and VIF diagnostics, the
 recommendations, `autoCompareRemediations()`, `analyzeMLResiduals()`, the
@@ -80,12 +84,12 @@ among them; and the report profiles `data` as given. Step 11: a `MASS::rlm()`
 fit is refused by every function built on the context, in a grouped run and
 by `autoCompareRemediations()` too, and the call of a `fitRobust()` result
 names what was given; a penalised `gam` is refused by the tests that need
-least squares, and the streaming tests read the basis of its smooths; a `gam`
-that is the least-squares fit of its design is taken by every test, and one
-without a penalised term on an ill-conditioned design, where mgcv's fit is not
-that fit, is refused by the tests that need least squares; and a refusal of
-the model context in a group stops a grouped run. The clean-up of step 10, in
-bold too, changes no value.
+least squares and by `fitWLS()`, and the streaming tests read the basis of its
+smooths; a `gam` that is the least-squares fit of its design is taken by every
+test, and one without a penalised term on an ill-conditioned design, where
+mgcv's fit is not that fit, is refused by the tests that need least squares
+and by `fitWLS()`; and a refusal of the model context in a group stops a
+grouped run. The clean-up of step 10, in bold too, changes no value.
 
 ### The streaming tests
 
@@ -1132,6 +1136,18 @@ any fit, where it refused every `gam`).
     that differ, relative to their mean expected size, or absolute where that
     size is at most 1e-10. Off CRAN they still compare them bit for bit. No
     function changes.
+- A CI workflow, `.github/workflows/cran-blas.yml`, checks the package as the
+    additional checks of CRAN do: it builds the tarball and runs
+    `R CMD check --as-cran` on it with R-devel and `NOT_CRAN` unset, so that the
+    tests compare as on CRAN, in R-hub containers that reproduce those checks.
+    Its jobs are `MKL` (Intel MKL 2026.2, the version of the MKL check of CRAN),
+    `OpenBLAS`, `BLIS` and `noLD` (R built without long doubles), and
+    `Noisy BLAS 1` to `3`, a BLAS that moves its results by up to one unit in
+    the last place (`tools/noisy-blas.c`) on three seeds. The vignettes are
+    neither built nor checked there. It runs on the pull requests to `main` and
+    the pushes to it that change the package (`R/`, `tests/`, `inst/`, `data/`,
+    `man/`, `DESCRIPTION`, `NAMESPACE`, `.Rbuildignore`, the noisy BLAS or the
+    workflow), weekly, and by hand.
 
 ## 0.16.0
 
