@@ -1002,8 +1002,12 @@ The tests that fit the design again took such a fit when it has no smooth
 terms: RESET compared mgcv's fit with the least-squares fit of the augmented
 design, and Goldfeld-Quandt and the studentized statistic gave the values of
 the `lm`. They refuse it now, and so do the bootstraps, the Harrison-McCabe
-and Szroeter tests, the variance form test and `fitWLS()`, which took it too
-but for the bootstraps (decision 14):
+and Szroeter tests, the variance form test and `fitWLS()`. Of these,
+`performWhiteTestBootstrap()` (63.38), the Harrison-McCabe and Szroeter
+tests, the variance form test and `fitWLS()` took it;
+`bootstrapTestStatistic()`, which the robust tests' bootstraps call, refused
+it as not an `lm`, and `performWildBootstrapTest()` stopped with an error of
+its own (decision 14):
 
 | Call | Before | Now |
 | --- | --- | --- |
