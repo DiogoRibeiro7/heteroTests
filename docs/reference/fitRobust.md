@@ -39,6 +39,14 @@ of the errors, test the [`stats::lm()`](https://rdrr.io/r/stats/lm.html) fit of 
 estimation, and for comparisons such as those of
 [`autoCompareRemediations()`](autoCompareRemediations.md), which reads its AIC and residuals only.
 
+Since 0.17.0 the call the result records names what was given: the
+formula, and the data as the caller named them, or, for an `lm`, the
+`data`, `subset` and `na.action` of its call, so that `print()` and
+`summary()` show `MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)`, where they
+showed `rlm(formula = form, data = data)`, `update()` refits it, and the
+refusal of the tests names the [`stats::lm()`](https://rdrr.io/r/stats/lm.html) call to test instead,
+`lm(mpg ~ wt + qsec, data = mtcars)`.
+
 ## Examples
 
 ```r

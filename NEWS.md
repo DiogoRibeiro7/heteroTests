@@ -857,9 +857,9 @@ told to test "the `lm()` fit of the same model".
 
 **The call of a `fitRobust()` result names what was given.** It named the
 variables of `fitRobust()`, `rlm(formula = form, data = data)`: `print()` and
-`summary()` showed that call, `update()` failed on it ("could not find
-function \"rlm\"" without MASS attached, and `form` and `data` are not the
-caller's either), and the refusal of the tests suggested
+`summary()` showed that call, `update()` failed on it (it could not find
+`rlm()` without MASS attached, and `form` and `data` are not the caller's
+either), and the refusal of the tests suggested
 `lm(mpg ~ wt + qsec, data = data)`, which stops at top level, or fits
 whatever object `data` names there. The call names the formula and the data
 the caller gave now, `MASS::rlm(formula = mpg ~ wt + qsec, data = mtcars)`, with the
@@ -979,18 +979,20 @@ refits its design, but returns an `lm` whose terms rebuild the variables of
 the formula, so that the tests refuse it when the `gam` has smooth terms, as
 since step 8.
 
-Unchanged: every call on any other fit. A corpus of 44,140 calls
+Unchanged: every call on any other fit. A corpus of 44,156 calls
 (`scripts/model-context-identity.R`), the `rlm` fit in five forms of `data`
-and in two grouped runs, the penalised `gam` in seven cells and a `gam` that
-is the least-squares fit of its design in eighteen, a fixed smooth among them,
-through every recipe, route and runner among them, returns what it returned
-in the previous step, `identical()`, with the same warnings, and leaves the
-generator as it left it, but for 1,065 calls on those cells: 490 on the `rlm`
-fit, each now the refusal above with its class (287 that returned a value,
-203 that refused the fit with another message); 317 on the penalised `gam`,
-251 of them now the refusal above (78 that returned a value, 173 that refused
-it with another message) and 66 of the streaming tests and the runner that
-streams them, each now the value of the exact test of the same call; and 258
+and in two grouped runs, the penalised `gam` in seven cells and a grouped
+run, a `gam` that is the least-squares fit of its design in eighteen, a fixed
+smooth among them, and a grouped run of a multivariate `lm`, through every
+recipe, route and runner among them, returns what it returned in the previous
+step, `identical()`, with the same warnings, and leaves the generator as it
+left it, but for 1,071 calls on those cells: 492 on the `rlm` fit, each now
+the refusal above with its class (287 that returned a value, 205 that refused
+the fit with another message); 319 on the penalised `gam`, 253 of them now
+the refusal above (79 that returned a value, 174 that refused it with another
+message) and 66 of the streaming tests and the runner that streams them, each
+now the value of the exact test of the same call; 2 grouped runs of the
+multivariate `lm`, now the refusal its first group recorded; and 258
 on a `gam` that is the least-squares fit of its design, each now what the
 same call gives on the `lm()` of its basis, to `1e-8`, with the same draws
 of the generator (200 refusals that became values, 48 values of the streaming
