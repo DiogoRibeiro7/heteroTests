@@ -2464,7 +2464,8 @@ test_that("augment() and the remediation advice match the rows of data as the te
       expect_identical(got$remediation, report$remediation, info = info)
       response <- as.character(stats::formula(m))[2]
       expect_identical_numbers(got$profile,
-                               analyseDatasetCharacteristics(data, response = response), info = info)
+                               analyseDatasetCharacteristics(data, response = response),
+                               info = info)
     }
     # Numbered data in another order than the fit are refused by the guard
     # (decision 3), as by the tests.

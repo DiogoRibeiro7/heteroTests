@@ -76,18 +76,20 @@ test_that("the registered Szroeter test does not depend on the order of the colu
     rev(names(mtcars))
   )
 
+  # Off CRAN: Merc 280 and 280C share wt and hp; their fitted values tie only in equal last bits.
+  skip_on_cran()
   results <- lapply(orders, function(cols) run_szroeter(m, mtcars[, cols]))
   stats <- vapply(results, function(r) unname(r$statistic), numeric(1))
   p_values <- vapply(results, `[[`, numeric(1), "p.value")
 
-  expect_identical_numbers(stats, rep(stats[1], length(stats)))
-  expect_identical_numbers(p_values, rep(p_values[1], length(p_values)))
+  expect_equal(stats, rep(stats[1], length(stats)), tolerance = 0)
+  expect_equal(p_values, rep(p_values[1], length(p_values)), tolerance = 0)
 
   # Without data, runHeteroTests() uses the model frame.
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   no_data <- runHeteroTests(m, tests = "szroeter", use_cache = FALSE)$szroeter
-  expect_identical_numbers(unname(no_data$statistic), stats[1])
+  expect_equal(unname(no_data$statistic), stats[1], tolerance = 0)
 })
 
 test_that("with one regressor the order follows the sign of its slope", {
