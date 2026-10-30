@@ -2457,43 +2457,49 @@ itself verified; or to what its twin gives, on a cell of `na.exclude`; or to
 the refusal of the guard, on a cell that expects it. Every other call must be
 `identical()` to `main`, with its warnings and the state of the generator.
 
-Increment 11, both parts, against `main` at the merge of increment 10
-(565e6ae), each side installed privately and its workers loading it through
-`R_LIBS`: 44,140 calls on the 415 cells of the matrix, the 5 cells of
-Harrison-McCabe's rank, the 8 cells of the follow-up of N2, the 4 cells of
-the coding of a factor, the 10 grouped cells, the 7 cells of the block
-`item3/` and the 105 cells of the tidy block, and the examples of forty-one
-help pages, of which 43,075 identical, 1,065 allowed changes and 0
-unexpected. The 41,099 calls outside the cells of increment 11 are all
-`identical()` to `main`, with its warnings and the state of the generator it
-left. On those cells:
+Increment 11, both parts, with the fixes of its second review, against
+`main` at the merge of #172 (d4e7486, which changed no R code), each side
+installed privately and its workers loading it through `R_LIBS`: 44,156 calls
+on the 415 cells of the matrix, the 5 cells of Harrison-McCabe's rank, the 8
+cells of the follow-up of N2, the 4 cells of the coding of a factor, the 12
+grouped cells, the 7 cells of the block `item3/` and the 105 cells of the
+tidy block, and the examples of forty-one help pages, of which 43,085
+identical, 1,071 allowed changes and 0 unexpected. The 41,108 calls outside
+the cells of increment 11 are all `identical()` to `main`, with its warnings
+and the state of the generator it left. On those cells:
 
 | Class | Cells | Calls | `identical()` | New refusals | Other refusals now the refusal of the context | Values that change | Refusals that become values |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| R6, `MASS::rlm()` | 7 | 510 | 20 | 287 | 203 | 0 | 0 |
-| decision 37, a penalised `gam` | 7 | 708 | 391 | 78 | 173 | 66, each the exact test | 0 |
+| R6, `MASS::rlm()` | 7 | 512 | 20 | 287 | 205 | 0 | 0 |
+| decision 37, a penalised `gam` | 8 | 711 | 392 | 79 | 174 | 66, each the exact test | 0 |
 | decision 38, a least-squares `gam` | 18 | 1,823 | 1,565 | 0 | 10, the guard on a shuffled tibble | 48, each the `lm()` of the basis | 200, each the `lm()` of the basis |
+| decision 6, a refusal in a group (the multivariate `lm`) | 1 | 2 | 0 | 2, each the refusal its first group recorded | 0 | 0 | 0 |
 
-The 78 new refusals of decision 37 are those of `fitWLS()` (22),
+The 79 new refusals of decision 37 are those of `fitWLS()` (22),
 `performVarianceFormTest()` (20) and its registered name (6),
 `performHarrisonMcCabeTest()` (6), `performSzroeterTest()` (6) and its
-registered name (6), and the runner (12); its 173 changes of message are those
-of the tests that refused a `gam` with smooth terms already (RESET,
-Goldfeld-Quandt, the quantile and studentized tests, the White bootstrap),
-and of `bootstrapTestStatistic()`, the robust bootstraps and the wild
-bootstrap, which refused or stopped on it with messages of their own; its 66
+registered name (6), the runner (12), and the grouped run of Szroeter's test
+and the studentized statistic on a penalised `gam`, which stops on the first
+(1); its 174 changes of message are those of the tests that refused a `gam`
+with smooth terms already (RESET, Goldfeld-Quandt, the quantile and
+studentized tests, the White bootstrap), of `bootstrapTestStatistic()`, the
+robust bootstraps and the wild bootstrap, which refused or stopped on it with
+messages of their own, and of `runDiagnostics()` on the grouped `gam`; its 66
 changes of value are those of the three streaming tests (18 each) and of the
 runner that streams them (12). The 200 refusals that became values of
 decision 38 are those of `bootstrapTestStatistic()` (70), the robust (52) and
 wild (32) bootstraps, and the tests that refit the design, their registered
 names, routes and runners; its 48 changes of value are those of the
 streaming tests on a `gam` with a fixed smooth (12 each) and of the runner
-(12). 861 of the 1,065 changes leave the generator as `main` left it; the
-others are resampling calls that drew on `main` and are refused before they
-draw, or bootstraps that draw where `main` refused. The 642 `poly()` calls
-that `main` computes on the stored design are `identical()` to it. `main`
-took 647 s and the branch 1,368 s, with other R processes running on the
-machine during the second.
+(12). The R6 calls gained the two grouped runs of the `rlm` fit through the
+tests of the new grouped call (Szroeter's test and the studentized
+statistic). 867 of the 1,071 changes leave the generator as `main` left it;
+the others are resampling calls that drew on `main` and are refused before
+they draw, or bootstraps that draw where `main` refused. The 642 `poly()`
+calls that `main` computes on the stored design are `identical()` to it.
+`main` took 1,443 s and the branch 1,434 s, with other R processes running on
+the machine. Against 565e6ae, before the rebase, every call had the same
+change and verdict.
 
 ## Test matrix and oracles
 

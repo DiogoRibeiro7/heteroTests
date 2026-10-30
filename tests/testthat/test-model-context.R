@@ -888,7 +888,8 @@ test_that("the least-squares check of a gam does not depend on how the model is 
   for (call in list(function() performRESETTest(fixed, d), function() fitWLS(fixed, d))) {
     out <- tryCatch(call(), error = function(e) e)
     expect_s3_class(out, "heteroTests_model_context_error")
-    expect_match(conditionMessage(out), "cannot (test|refit) this mgcv::gam\\(\\) fit \\(s\\(x1\\)\\)")
+    expect_match(conditionMessage(out),
+                 "cannot (test|refit) this mgcv::gam\\(\\) fit \\(s\\(x1\\)\\)")
     expect_match(conditionMessage(out), "although none of its terms is penalised", fixed = TRUE)
     expect_no_match(conditionMessage(out), "penalised mgcv::gam", fixed = TRUE)
   }
@@ -1138,7 +1139,16 @@ test_that("a gam is matched to `data` by the row names of its model frame", {
         next
       }
       context_expect_value(expected, fn)
-      context_same(got, expected, paste(fn, deparse(stats::formula(m))))
+      # Since increment 11 the streaming tests read the basis of the smooth,
+      # whose 60 auxiliary terms of White's test are nearly collinear: under the
+      # noisy BLAS of cran-blas.yml two calls on the same fit differed by up to
+      # 1.2e-9 relative there, on three seeds, so on CRAN they are compared to
+      # 1e-7, and bit for bit off CRAN, as every other call.
+      tolerance <- if (fn %in% context_streaming && length(m$smooth) > 0L &&
+                         numbers_on_cran()) {
+        1e-7
+      }
+      context_same(got, expected, paste(fn, deparse(stats::formula(m))), tolerance)
     }
   }
 })
@@ -3144,7 +3154,8 @@ test_that("a refusal of the context in a group stops a grouped run (decision 6)"
   expect_true(all(vapply(unclass(res), function(s) is.finite(s$koenker$statistic), logical(1))))
   mm <- lm(cbind(y, x2) ~ x1, data = d)
   expect_error(run(mm, c("white", "koenker")),
-               "Model cannot be tested for White: performWhiteTest() needs a model with one response",
+               paste("Model cannot be tested for White: performWhiteTest() needs a model",
+                     "with one response"),
                fixed = TRUE, class = "heteroTests_model_context_error")
 })
 
