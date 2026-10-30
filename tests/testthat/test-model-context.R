@@ -899,6 +899,33 @@ test_that("the least-squares check of a gam does not depend on how the model is 
     expect_match(conditionMessage(out), "although none of its terms is penalised", fixed = TRUE)
     expect_no_match(conditionMessage(out), "penalised mgcv::gam", fixed = TRUE)
   }
+  # Nor is a gam without a penalised term on an ill-conditioned design, whose
+  # fit by mgcv is not the least-squares fit of that design (from the third
+  # review of increment 11): with a regressor 1e4 from zero, mgcv's residual
+  # sum of squares is 169.1 against 41.9 for least squares, and RESET gave
+  # 476.2 (p = 2.3e-56) where the lm() of the same formula gives 0.31. The
+  # refusal says so, and that refitting the gam would give the same fit.
+  # Whether mgcv's fit of such a design falls short of least squares is
+  # decided by its numerics, which another BLAS may change: off CRAN only.
+  skip_on_cran()
+  d$x3 <- 1e4 + d$x2
+  advice <- paste("mgcv's fit is not that fit on an ill-conditioned design, such as one with a",
+                  "regressor far from zero: centre that regressor, or fit the model with lm().")
+  for (g in list(mgcv::gam(y0 ~ x1 + x3, data = d),
+                 mgcv::gam(y0 ~ s(x1, fx = TRUE) + x3, data = d))) {
+    expect_false(least_squares(g))
+    for (call in list(function() performRESETTest(g, d),
+                      function() performGQTest(g, d, order_by = "x1"),
+                      function() performBPTestRobust(g, d))) {
+      out <- tryCatch(call(), error = function(e) e)
+      expect_s3_class(out, "heteroTests_model_context_error")
+      expect_match(conditionMessage(out), "cannot test this mgcv::gam() fit", fixed = TRUE)
+      expect_match(conditionMessage(out), advice, fixed = TRUE)
+      expect_no_match(conditionMessage(out), "penalised mgcv::gam", fixed = TRUE)
+    }
+  }
+  centred <- mgcv::gam(y0 ~ x1 + x2, data = d)
+  expect_true(least_squares(centred))
 })
 
 test_that("a penalised gam is refused by the tests that fit it again (decision 37)", {

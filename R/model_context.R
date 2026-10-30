@@ -366,15 +366,18 @@ rrefuse_penalised_gam <- function(ctx, fn, why = c("refit", "replicate", "fitwls
   verb <- if (identical(why, "fitwls")) "refit" else "test"
   if (!penalised) {
     # A fit without a penalised term whose residuals are not those of the
-    # least-squares fit of its design was changed after it was fitted, or
-    # fitted otherwise; it is not called penalised (from the review of
-    # increment 11).
+    # least-squares fit of its design: mgcv's own fit on an ill-conditioned
+    # design, as one with a regressor far from zero (`x3 = 1e4 + x2`, where
+    # its residual sum of squares was 169.1 against 41.9 for least squares),
+    # or a fit changed after it was fitted. It is not called penalised (from
+    # the second and third reviews of increment 11).
     rstop_model_context(sprintf(
       paste0(
         "%s() cannot %s this mgcv::gam() fit%s: its residuals are not those of the ",
         "least-squares fit of its design, the basis of its smooths, %s, although none of ",
-        "its terms is penalised, so the fit may have been changed after it was fitted. ",
-        "Refit the model."
+        "its terms is penalised. mgcv's fit is not that fit on an ill-conditioned design, ",
+        "such as one with a regressor far from zero: centre that regressor, or fit the ",
+        "model with lm(). Otherwise the fit was changed after it was fitted: refit it."
       ),
       fn, verb, terms_named, reason
     ))

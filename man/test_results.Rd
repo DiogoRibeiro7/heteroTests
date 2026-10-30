@@ -276,9 +276,12 @@ documentation site; \code{tests/testthat/test-model-eligibility.R} and \code{tes
   \code{gam} is that fit is decided from the fit: its design refitted by least squares, with its weights and offset,
   gives its residuals to \code{1e-8} of the largest residual of that refit, plus \code{1e3} times the machine epsilon
   of the largest value of the response and of the offset, the rounding of a fit on that scale, so that an offset
-  or a trend of any size does not change the verdict. A \code{gam} without a penalised term that fails the check
-  is refused as one whose residuals are not those of that fit, not as a penalised one. Decisions 37 and 38 of the
-  design of the model context (decided on 2026-10-29) set this out.
+  or a trend does not change the verdict, up to the scale at which that rounding hides a penalised fit (the largest
+  value of the response or of the offset about \code{1e12} times its residuals). A \code{gam} without a penalised
+  term that fails the check is refused as one whose residuals are not those of that fit, not as a penalised one:
+  mgcv's own fit is not the least-squares fit of an ill-conditioned design, as one with a regressor far from zero
+  (centre the regressor, or fit the model with \code{lm()}), or the fit was changed after it was fitted. Decisions
+  37 and 38 of the design of the model context (decided on 2026-10-29) set this out.
 }
 \code{\link{checkModel}()} checks the class of a model only, \code{lm} or \code{glm}; it does not check whether a test
 accepts it.
