@@ -1457,8 +1457,8 @@ Moved from 0.16.0 on 2026-10-26: the last four steps of the model context,
 and the defects found with it that those steps, or a pull request of their
 own, settle. Among those are N3, White's streaming test on collinear terms
 (decision 22 of the design), and the threshold of the streaming tests on
-squared residuals that do not vary. Done in #164 (N3 and the threshold), in
-#165 and #167 (step 8), #168 (step 9), #169 (step 10) and #171 (step 11).
+squared residuals that do not vary. Done in #164 (N3 and the threshold),
+in #165 and #167 (step 8), #168 (step 9), #169 (step 10) and #171 (step 11).
 The release also fixes CRAN's additional check of 0.16.0 with Intel MKL
 (#172, under 0.11.x). No export, argument or default changes; `hardhat`
 joins the suggested packages. What the steps found and did not settle moved
@@ -1494,8 +1494,8 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
         does; a `fitWLS()` fit of a `gam` with smooth terms, whose terms do not
         rebuild its design, is refused (M8); and `bootstrapTestStatistic()`
         refuses a multivariate `lm` with M7.
-    - [x] 9. `na.exclude`, the last step (decision 16). Closes B13. Done in
-        0.17.0 (#168): a fit with `na.action = na.exclude` drops the rows
+    - [x] 9. `na.exclude`, the second step of 0.17.0 (decision 16). Closes
+        B13. Done in 0.17.0 (#168): a fit with `na.action = na.exclude` drops the rows
         `na.omit` drops, and pads `residuals()`, `fitted()`, `weights()` and
         `hatvalues()` with `NA` at them. The checks of the model read one
         residual per observation of the fit, and every test built on the context
@@ -1645,10 +1645,10 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
 - [x] **Found by the model-eligibility work (the *Supported models* page),
     recorded, not fixed**, as they change what a test computes rather than which
     models it accepts. Those below are settled by the steps above or with them;
-    the others are under 0.16.0 and 0.18.0. Done in 0.17.0, but for the two
-    found by the reviews of step 10 on `augment()` of a workflow, which are not
-    settled and moved to 0.18.0 at the release (*Left from steps 8 to 10 of the
-    model context*):
+    the others are under 0.16.0 and 0.18.0. Done in 0.17.0, but for the one
+    found by the third review of step 10 on `augment()` of a workflow, which is
+    not settled and moved to 0.18.0 at the release (*Left from steps 8 to 10 of
+    the model context*):
     - [x] `performWhiteTestStreaming()` stops with "Auxiliary regression became rank
         deficient" when terms of its auxiliary regression are collinear, as the
         squares of dummy variables are, on any model with a factor, where
@@ -1750,6 +1750,20 @@ to 0.18.0 at the release (*Left from steps 8 to 10 of the model context*).
         (decision 35): the transformed outcome is taken, for a recipe and for a
         formula preprocessor `log(y) ~ x + z` alike, and the value is that
         without `data`. Done in step 10 (#169).
+    - [x] Found by the review of step 10, recorded, not fixed: `augment()` of the
+        results of a workflow whose preprocessing drops rows of new data, a
+        recipe step applied to them (`step_filter()` or `step_naomit()` with
+        `skip = FALSE`), refuses its data, since the preprocessing does not say
+        which rows of `data` it kept; the runners take those data, whose rows the
+        alignment confirms. Find the rows the preprocessing kept, or keep the
+        refusal. A refusal becomes a value, or none. Measured on the second
+        review of step 10: forging each row on its own, which says which rows a
+        step that maps each row on its own kept, costs 2.75 ms a row (0.33 s for
+        120 rows, about 14 s for 5,000, where forging the whole data takes 3 ms),
+        and a step that makes a row from other rows gives other values row by
+        row; not adopted, the refusal kept. Closed as decided on that review, on
+        2026-10-29 (#169): forging row by row is not adopted, and `augment()`
+        keeps refusing such data, as the design page records.
     - [x] `MASS::rlm()`, decision 4 of the model-context design: 37 tests accept it
         as an `lm` and test its M-estimation residuals as least-squares ones; the
         studentized Breusch-Pagan statistic of `performStudentizedBPTest()` and
@@ -2006,10 +2020,11 @@ announced in bold in `NEWS.md`.
     the 0.16.0 release branch, it stopped in `setup-r-dependencies` with "Could
     not solve package dependencies" (`pkgdepends`), before
     `revdepcheck::revdep_check()` ran. It is not part of the release gate
-    (`release.yml`). Done: the job asked for `any::revdepcheck`, and
+    (`release.yml`). Done in #166: the job asked for `any::revdepcheck`, and
     revdepcheck is not on CRAN; it is installed from GitHub,
     `r-lib/revdepcheck`. The package has had no reverse dependencies on CRAN
-    so far, so the job checks none, but it runs.
+    so far, so the job checks none, but it runs: on the manual run of the
+    0.17.0 release branch it passed, with no reverse dependency to check.
 - [ ] **Dependencies.**
     - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
     - `R6` goes if `TestFactory` leaves the API, since it is the only user.
@@ -2076,11 +2091,29 @@ announced in bold in `NEWS.md`.
     version of step 11 of the model context, and with MASS attached `main`
     returned the values of an `rlm` in each group; step 11 refuses it before any
     group is refitted, beside a `fitWLS()` fit. Found by the review of step 11;
-    the same on `main` at the merge of step 10. Done in step 11, from its second
-    review, for every refusal of the context: one in a group stops the grouped
-    run with its class and message, a multivariate `lm` and a penalised `gam`
-    given a test that needs least squares among them; other failures are
-    recorded in their group, as before. A suite of `NA` becomes a refusal.
+    the same on `main` at the merge of step 10. Done in step 11 (#171), from
+    its second review, for every refusal of the context: one in a group stops
+    the grouped run with its class and message, a multivariate `lm` and a
+    penalised `gam` given a test that needs least squares among them; other
+    failures are recorded in their group, as before. A suite of `NA` becomes a
+    refusal.
+- [ ] **`performInfluenceDiagnostics()` and `performVIFDiagnostic()` on a
+    multivariate `lm`.** Every test, the runners, `fitWLS()` and
+    `bootstrapTestStatistic()` refuse `lm(cbind(y, x2) ~ x1)` with "needs a
+    model with one response"; these two, which are not built on the model
+    context, return a value. On `main`, with `d` from `contract_data()`
+    (`tests/testthat/helper-test-recipes.R`),
+    `performInfluenceDiagnostics(lm(cbind(y, x2) ~ x1, data = d))` returns the
+    Cook's distances as a 120 by 2 matrix, a column for each response;
+    `influential` as 12 positions among its 240 cells (31, 32, 46, 59, 91, 122,
+    152, 155, 164, 166, 185 and 201, the seven above 120 rows of the column of
+    `x2`); and a cutoff `4 / (n - p)` that counts the 4 coefficients of both
+    responses, 0.0345, where `lm(y ~ x1)` gives 4 / 118.
+    `performVIFDiagnostic()` of the same fit returns the VIF of the design the
+    responses share, 1 for `x1`, the value of `lm(y ~ x1)` (and with a second
+    regressor of normal draws, 1.005 for each, as for `lm(y ~ x1 + x3)`). The
+    decision is whether they refuse it as the tests do. Found in the 0.17.0
+    release audit; recorded, not fixed. A value becomes a refusal, or none.
 - [ ] **`recommendRemediationStrategies()` without `data`.**
     `recommendRemediationStrategies(results, model, NULL)` stops with "argument
     is of length zero" for every model, an `lm` included:
@@ -2229,18 +2262,6 @@ announced in bold in `NEWS.md`.
         positions among the rows, where the same fit with `na.omit` gives their
         positions among the observations (the names are the same). Decide which
         the positions count. A value changes, or none.
-    - From the review of step 10: `augment()` of the results of a workflow
-        whose preprocessing drops rows of new data, a recipe step applied to them
-        (`step_filter()` or `step_naomit()` with `skip = FALSE`), refuses its
-        data, since the preprocessing does not say which rows of `data` it kept;
-        the runners take those data, whose rows the alignment confirms. Find the
-        rows the preprocessing kept, or keep the refusal. A refusal becomes a
-        value, or none. Measured on the second review of step 10: forging each
-        row on its own, which says which rows a step that maps each row on its
-        own kept, costs 2.75 ms a row (0.33 s for 120 rows, about 14 s for 5,000,
-        where forging the whole data takes 3 ms), and a step that makes a row
-        from other rows gives other values row by row; not adopted, the refusal
-        kept.
     - From the third review of step 10: `augment()` refuses the data of a
         workflow whose recipe makes a row from other rows
         (`step_mutate(cs = cumsum(x))`, `dplyr::row_number()`, a mean over
