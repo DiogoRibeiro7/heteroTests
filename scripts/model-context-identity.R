@@ -3299,18 +3299,23 @@ identity_run <- function(where, out, root = ".") {
   # Increment 11, decision 38: the lm() of the basis of each cell of a gam that
   # is the least-squares fit of its basis, in the data frame of the fit, the
   # reference of its changes, through every recipe and runner
-  # (context_basis_lm(), helper-model-context.R). The other forms of its data
-  # are verified through the cell they reproduce, and a cell of na.exclude
-  # through its twin.
+  # (context_basis_lm(), helper-model-context.R); and in its data shuffled,
+  # the lm fitted to them in the order of the observations of the gam, so that
+  # a bootstrap, which draws rows of `data` or its replicates in the order of
+  # the fit, draws the same of both (from the smoke run of decision 38, where
+  # the shuffled cells of the bootstraps had no reference). The other forms of
+  # its data are verified through the cell they reproduce, and a cell of
+  # na.exclude through its twin.
   for (cell in cells) {
-    if (!identical(cell$form, "data_frame") || !is.null(cell$twin)) {
+    if (!cell$form %in% c("data_frame", "shuffled") || !is.null(cell$twin)) {
       next
     }
     built <- tryCatch(suppressWarnings(suppressMessages(cell$build())), error = function(e) NULL)
     if (is.null(built) || !identical(identity_gam_kind(built$m), "least_squares")) {
       next
     }
-    oracle <- context_basis_lm(built$m, built$data)
+    oracle <- context_basis_lm(built$m, built$data,
+                               fit_order = identical(cell$form, "shuffled"))
     oracle_cell <- list(id = paste0("lmbasis/", cell$id), form = "data_frame",
                         defect = character())
     run_cell(oracle_cell, oracle, names(recipes), "reference", "reference_runner")

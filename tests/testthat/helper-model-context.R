@@ -998,7 +998,12 @@ context_penalised_refusal <- "a penalised mgcv::gam() fit (s(x1))"
 # by the row names of the model frame, and the lm is fitted to them with the
 # weights and the offset of the gam, so that its design is the basis, column
 # for column; a test gives the gam the value it gives this lm, to rounding.
-context_basis_lm <- function(gam, data) {
+# With `fit_order = TRUE` the lm is fitted to the rows of `data` taken in the
+# order of the observations of the gam, so that its observations come in the
+# same order when `data` holds them in another (the shuffled data of a cell),
+# and a bootstrap draws the same replicates of both; `data` is returned in its
+# own order.
+context_basis_lm <- function(gam, data, fit_order = FALSE) {
   frame <- stats::model.frame(gam)
   basis <- stats::model.matrix(gam)
   intercept <- colnames(basis) == "(Intercept)"
@@ -1020,12 +1025,17 @@ context_basis_lm <- function(gam, data) {
   offset <- stats::model.offset(frame)
   out$.basis_o <- 0
   out$.basis_o[rows] <- if (is.null(offset)) 0 else offset
-  fit <- if (all(weights == 1) && is.null(offset)) {
-    eval(bquote(stats::lm(.(f), data = out)))
-  } else if (all(weights == 1)) {
-    eval(bquote(stats::lm(.(f), data = out, offset = .basis_o)))
+  fitted_to <- if (fit_order) {
+    out[c(rows, setdiff(seq_len(nrow(out)), rows)), , drop = FALSE]
   } else {
-    eval(bquote(stats::lm(.(f), data = out, weights = .basis_w, offset = .basis_o)))
+    out
+  }
+  fit <- if (all(weights == 1) && is.null(offset)) {
+    eval(bquote(stats::lm(.(f), data = fitted_to)))
+  } else if (all(weights == 1)) {
+    eval(bquote(stats::lm(.(f), data = fitted_to, offset = .basis_o)))
+  } else {
+    eval(bquote(stats::lm(.(f), data = fitted_to, weights = .basis_w, offset = .basis_o)))
   }
   list(m = fit, data = out)
 }
