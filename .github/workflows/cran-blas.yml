@@ -13,10 +13,14 @@
 #               the last place at random (tools/noisy-blas.c)
 #   noLD        nold: Ubuntu 26.04, R-devel configured without long doubles
 #
-# CRAN no longer runs ATLAS regularly (2026-09-01), so no job does. The MKL
-# jobs make MKL run its code for Intel processors on the runners' AMD ones,
-# as on CRAN's machine; the noisy BLAS does what that code does to the tests
-# on any processor.
+# CRAN no longer runs ATLAS regularly (2026-09-01), so no job does.
+#
+# On the runners' AMD processors MKL runs its generic code, whose last bits do
+# not depend on where the data sit in memory, and the MKL jobs pass on tests
+# that fail on CRAN's machine, where MKL runs its code for Intel processors,
+# whose last bits do. The noisy BLAS does to the tests what that code does, on
+# any processor: on main before #172 it failed 1,923 expectations, at the
+# sites of the 179 failures of CRAN's MKL check.
 #
 # 0.16.0 failed CRAN's MKL check
 # (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
@@ -62,8 +66,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {name: 'MKL', container: 'mkl', intel: 'true'}
-          - {name: 'MKL 2026.2', container: 'mkl', mkl: '2026.2', intel: 'true', cache: 'MKL'}
+          - {name: 'MKL', container: 'mkl'}
+          - {name: 'MKL 2026.2', container: 'mkl', mkl: '2026.2', cache: 'MKL'}
           - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
           - {name: 'BLIS', container: 'blis'}
           - {name: 'Noisy BLAS', container: 'blis', blas: 'noisy', cache: 'BLIS'}
@@ -102,21 +106,10 @@ jobs:
           fi
           new="$(dirname "$core")"
           old="$(dirname "$(Rscript -e 'cat(La_library())')")"
-          ls "$new"
-          for f in "$new"/libmkl_*.so*; do
-            ln -sf "$f" "$old/$(basename "$f")"
+          # 2026 names its libraries .so.3, where R links those of 2025, .so.2.
+          for f in "$new"/libmkl_*.so.3; do
+            ln -sf "$f" "$old/$(basename "$f" .so.3).so.2"
           done
-
-      # On a processor of another maker MKL runs its generic code, whose last
-      # bits do not depend on where the data sit in memory; CRAN's machine runs
-      # its code for Intel processors, whose last bits do. The runners have
-      # AMD processors with AVX-512: MKL is told that they are Intel's.
-      - name: Let MKL run its code for Intel processors
-        if: matrix.config.intel
-        run: |
-          printf 'int mkl_serv_intel_cpu_true(void) { return 1; }\n' > /tmp/mkl-intel.c
-          gcc -O2 -shared -fPIC -o /usr/local/lib/libmkl-intel.so /tmp/mkl-intel.c
-          echo "BLAS_PRELOAD=/usr/local/lib/libmkl-intel.so" >> "$GITHUB_ENV"
 
       # A BLAS that moves its results by up to one unit in the last place, at
       # random (tools/noisy-blas.c): two computations of the same numbers
@@ -157,9 +150,12 @@ jobs:
               sum(same[2, ]), "\n")
           RSCRIPT
           LD_PRELOAD="${BLAS_PRELOAD:-}" Rscript /tmp/platform.R
-          # MKL names its version and the instructions it uses.
-          LD_PRELOAD="${BLAS_PRELOAD:-}" MKL_VERBOSE=1 \
-            Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 2
+          # MKL names its version and the instructions it uses, by default and
+          # when asked for those of CRAN's machine.
+          for isa in "" AVX2 AVX512; do
+            MKL_ENABLE_INSTRUCTIONS="$isa" MKL_VERBOSE=1 \
+              Rscript -e 'invisible(crossprod(matrix(1, 2, 2)))' 2>&1 | head -n 1
+          done
 
       # In a container job HOME is /github/home, not the /root of the image.
       - name: Set the user library
