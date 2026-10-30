@@ -1566,13 +1566,14 @@ squared residuals that do not vary.
     function whose frame held 50 MB, where `main` gave 1,894 KB); the third
     review's rewriting of the expressions, which changed what some of them
     mean, is gone.
-  - [ ] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
+  - [x] 11. `MASS::rlm()` refused (decision 4). Closes R6, N10. Settle with
     it whether a penalised `mgcv::gam()` with smooth terms, a Gaussian `glm`
     by class, is an input the tests justify: its residuals are not orthogonal
     to its design, and the null distributions assume least squares. The five
     tests of step 1, the six of step 3, the five of step 4 and the three
     streaming tests of step 7 accept it as before; the four of step 2 refuse it
-    until this step settles it for every test together. In two parts:
+    until this step settles it for every test together. In two parts, both
+    done in the development version:
     - [x] `MASS::rlm()` refused. Closes R6, N10. Done in the development
       version: the model context refuses such a fit, an M-estimate whose
       residuals are not least-squares residuals, with the class of its
@@ -1583,11 +1584,35 @@ squared residuals that do not vary.
       studentized Breusch-Pagan statistic tested the least-squares refit of
       its design (9.04 where Koenker's test gave 8.74); `fitWLS()`, which fits
       its variance function to the residuals of the fit, refuses it too, and
-      the help page of `fitRobust()`, which returns such a fit, says so.
-    - [ ] The penalised `mgcv::gam()` with smooth terms (decision 23): which
-      tests take it. Open: a survey of what each test reads of such a fit, and
-      whether it refits it, is with the author, who decides; until then every
-      test takes or refuses it as before.
+      the help page of `fitRobust()`, which returns such a fit, says so. From
+      its review: a grouped run refuses it before any group is refitted, where
+      with MASS attached it refitted each group as an `rlm` and returned its
+      values; `autoCompareRemediations()` refuses it; and the `lm()` call the
+      message suggests keeps the `data`, `weights`, `subset`, `na.action`,
+      `offset` and `contrasts` of the fit.
+    - [x] The penalised `mgcv::gam()` with smooth terms (decision 23): which
+      tests take it. Decided by the author on 2026-10-29 on the survey of the
+      first part (decisions 37 and 38 of the design of the model context).
+      Such a fit is tested on its stored design, the basis of its smooths, by
+      every test that reads only its residuals, fitted values, columns of
+      `data` or the columns of its design as auxiliary regressors, and the
+      three streaming tests read that basis too, where they read the variables
+      of the formula (the Breusch-Pagan test 23.995 on 10, where it gave
+      11.185 on 2, Koenker's 18.313 on 10 for 8.537 on 2, White's 46.05 on 60
+      for 10.61 on 5). Every test that fits it again by least squares, or whose
+      null distribution is derived for least-squares residuals of its design,
+      refuses it with the class of the model context, final in the runners:
+      RESET, Goldfeld-Quandt, the quantile regression test and the studentized
+      Breusch-Pagan statistic, as before, and now the White and wild
+      bootstraps, `bootstrapTestStatistic()` and the robust bootstraps, the
+      variance form test and `fitWLS()`, which refitted it without its penalty,
+      and the Harrison-McCabe and Szroeter tests; the runner no longer puts
+      White's test under the name `wild_bootstrap`. A `gam` that is the
+      least-squares fit of its design, without smooth terms or with fixed ones,
+      is taken by every test as the `lm()` of that design, the refitting and
+      resampling tests included, where a fixed smooth was refused as a
+      penalised one and `bootstrapTestStatistic()` and the wild bootstrap
+      refused or stopped on every `gam`.
 - [ ] **Found by the model-eligibility work (the *Supported models* page),
   recorded, not fixed**, as they change what a test computes rather than which
   models it accepts. Those below are settled by the steps above or with them;
@@ -1631,7 +1656,7 @@ squared residuals that do not vary.
     `chunk_threshold_mb`, whose default is `Inf`; the three stay exported, not
     deprecated. The rest is N3 of the design of the model context, a pull
     request of its own (decision 22).
-  - `performWhiteTestStreaming()` on an `mgcv::gam()` fit with smooth terms
+  - [x] `performWhiteTestStreaming()` on an `mgcv::gam()` fit with smooth terms
     tests the design of `terms(gam)`, the parametric terms with the variables
     of the smooths as linear terms, not the design of the fit: on
     `gam(y ~ s(x1) + x2)` it gives 33.31 on 5 degrees of freedom where
@@ -1649,7 +1674,9 @@ squared residuals that do not vary.
     of `performWhiteTest()` there too: on `gam(y ~ s(x1) + x2)` in the design
     of `contract_data()`, 46.05 on 60 degrees of freedom on the basis, as
     `performWhiteTest()` gives, where on the variables of the formula, which
-    it keeps, it gives 10.61 on 5, as before (to the last bits).
+    it keeps, it gives 10.61 on 5, as before (to the last bits). Done in step
+    11 (decision 37): the three streaming tests read the basis, chunk by
+    chunk, and give the values of the exact tests, 46.05 on 60 here.
   - [x] The three streaming tests refuse squared residuals that do not vary,
     "requires variation in squared residuals", by an absolute threshold:
     `chunked_regression_r2()` compares their total sum of squares with
@@ -2021,6 +2048,25 @@ announced in bold in `NEWS.md`.
   of the registry report `data.name = "model"` there, where `runHeteroTests()`
   reports the formula of the model since 0.16.0 (`NEWS.md`). Give it the rule
   of the runner, or say on its help page that it does not.
+- [ ] **A grouped run of a multivariate `lm`.** `runHeteroTests()` refuses
+  `lm(cbind(y, x2) ~ x1)` with the class of the model context ("needs a model
+  with one response"), but on grouped data it refits the model in each group
+  and records each refusal as a failure of the group: it returns a grouped
+  suite whose every test is `NA`, with status `"error"` and issue
+  `"model_context"`, where the refusal of the context should be final
+  (decision 6). A grouped `MASS::rlm()` fit behaved the same in the first
+  version of step 11 of the model context, and with MASS attached `main`
+  returned the values of an `rlm` in each group; step 11 refuses it before any
+  group is refitted, beside a `fitWLS()` fit. Found by the review of step 11,
+  recorded, not fixed; the same on `main` at the merge of step 10. Refuse a
+  multivariate `lm` there too. A suite of `NA` becomes a refusal.
+- [ ] **`recommendRemediationStrategies()` without `data`.**
+  `recommendRemediationStrategies(results, model, NULL)` stops with "argument
+  is of length zero" for every model, an `lm` included:
+  `identifyVariancePatterns()` indexes the `NULL` it is given. Found by
+  increment 11 of the model context, recorded, not fixed; the same on `main`
+  at the merge of increment 10. Read the model frame without `data`, or say
+  that `data` is needed. A refusal becomes a value, or a clearer refusal.
 - [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
