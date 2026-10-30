@@ -10,13 +10,18 @@
  * data are aligned in memory (CRAN's check of 0.16.0, 2026-10-30), whatever
  * processor runs the job.
  *
- * What a real IEEE BLAS cannot change, it leaves alone:
+ * It leaves alone:
  *   - an integral result, such as the counts crossprod() makes of 0/1 values,
- *     which are exact under any BLAS;
- *   - equal results of one call, such as the fitted values of equal design
- *     rows: the move is a function of the value and of a salt drawn for each
- *     call, so equal values within a call move alike, and the same values in
- *     two calls do not.
+ *     which are exact under any IEEE BLAS;
+ *   - what the reference BLAS leaves exact: a call with alpha 0 (daxpy,
+ *     dgemv, dgemm, dger), dscal by 1 or -1, and an element of dger whose
+ *     x_i or y_j is 0.
+ * Equal results of one call, such as the fitted values of equal design rows,
+ * move alike: the move is a function of the value and of a salt drawn for
+ * each call, and the same values in two calls move differently. A real BLAS
+ * can break such a tie, when a row falls to a peel or tail loop whose kernel
+ * rounds otherwise; that is not modelled here, so the tests whose ties turn
+ * on it were reviewed by hand and run off CRAN only (test-szroeter-registry.R).
  *
  * The salts come from a pseudo-random sequence whose seed is NOISY_BLAS_SEED
  * (1 when unset), so a run can be repeated.
@@ -141,6 +146,8 @@ void daxpy_(const int *n, const double *alpha, const double *x, const int *incx,
     static daxpy_fn real = NULL;
     if (real == NULL) real = (daxpy_fn) next_symbol("daxpy_");
     real(n, alpha, x, incx, y, incy);
+    /* The reference returns y as it is when alpha is 0. */
+    if (*alpha == 0.0) return;
     new_call();
     nudge_vector(*n, y, *incy);
 }
@@ -151,6 +158,8 @@ void dscal_(const int *n, const double *alpha, double *x, const int *incx)
     static dscal_fn real = NULL;
     if (real == NULL) real = (dscal_fn) next_symbol("dscal_");
     real(n, alpha, x, incx);
+    /* A product by 1 or -1 is exact. */
+    if (*alpha == 1.0 || *alpha == -1.0) return;
     new_call();
     nudge_vector(*n, x, *incx);
 }
@@ -167,6 +176,8 @@ void dgemv_(const char *trans, const int *m, const int *n, const double *alpha,
     static dgemv_fn real = NULL;
     if (real == NULL) real = (dgemv_fn) next_symbol("dgemv_");
     real(trans, m, n, alpha, a, lda, x, incx, beta, y, incy, lt);
+    /* The reference returns with y = beta y when alpha is 0. */
+    if (*alpha == 0.0) return;
     new_call();
     nudge_vector((*trans == 'N' || *trans == 'n') ? *m : *n, y, *incy);
 }
@@ -219,8 +230,20 @@ void dger_(const int *m, const int *n, const double *alpha, const double *x, con
     static dger_fn real = NULL;
     if (real == NULL) real = (dger_fn) next_symbol("dger_");
     real(m, n, alpha, x, incx, y, incy, a, lda);
+    /* The reference returns A as it is when alpha is 0, and leaves an element
+     * exact where x_i or y_j is 0. With a negative increment the vector is
+     * read from its last element, as the reference reads it. */
+    if (*alpha == 0.0) return;
     new_call();
-    nudge_matrix(*m, *n, a, *lda);
+    for (int j = 0; j < *n; j++) {
+        size_t jy = *incy > 0 ? (size_t) j * *incy : (size_t) (*n - 1 - j) * -*incy;
+        if (y[jy] == 0.0) continue;
+        for (int i = 0; i < *m; i++) {
+            size_t ix = *incx > 0 ? (size_t) i * *incx : (size_t) (*m - 1 - i) * -*incx;
+            if (x[ix] == 0.0) continue;
+            a[i + (size_t) j * *lda] = nudge(a[i + (size_t) j * *lda]);
+        }
+    }
 }
 
 /* Level 3. */
@@ -236,6 +259,8 @@ void dgemm_(const char *ta, const char *tb, const int *m, const int *n, const in
     static dgemm_fn real = NULL;
     if (real == NULL) real = (dgemm_fn) next_symbol("dgemm_");
     real(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, la, lb);
+    /* The reference returns with C = beta C when alpha is 0. */
+    if (*alpha == 0.0) return;
     new_call();
     nudge_matrix(*m, *n, c, *ldc);
 }
