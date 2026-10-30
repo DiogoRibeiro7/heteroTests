@@ -2,10 +2,6 @@
 
 ## Development version
 
-The tests no longer require bit-identical numbers under other BLAS libraries
-on CRAN, where the check of 0.16.0 with Intel MKL failed on them; off CRAN
-they still do.
-
 ### The streaming tests
 
 **White's streaming test drops the collinear terms of its auxiliary
@@ -776,6 +772,16 @@ runners on a workflow without `data` the value of the previous step but for
 their attribute; and each value of
 `augment()` of a workflow checked row by row against the prediction of its
 engine on that row alone.
+
+### Packaging
+
+- On CRAN the tests no longer require bit-identical numbers under other BLAS
+  libraries, on which the check of 0.16.0 with Intel MKL failed 179 of them.
+  There they compare two computations of the same numbers to a tolerance of
+  1e-10, as waldo applies it: the mean absolute difference of the elements
+  that differ, relative to their mean expected size, or absolute where that
+  size is at most 1e-10. Off CRAN they still compare them bit for bit. No
+  function changes.
 
 ## 0.16.0
 

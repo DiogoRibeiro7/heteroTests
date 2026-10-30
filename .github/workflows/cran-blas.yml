@@ -20,8 +20,9 @@
 # not depend on where the data sit in memory, and the MKL job passed on main's
 # tests before #172, which failed on CRAN's machine, where MKL runs its code
 # for Intel processors, whose last bits do. The noisy BLAS does to the tests
-# what that code does, on any processor: on main before #172 it failed 1,923
-# expectations, at the sites of all 179 failures of CRAN's MKL check.
+# what that code does, on any processor: on main before #172 its first
+# version failed 1,923 expectations, at the sites of all 179 failures of
+# CRAN's MKL check.
 #
 # 0.16.0 failed CRAN's MKL check
 # (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
