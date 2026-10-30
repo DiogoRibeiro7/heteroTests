@@ -534,9 +534,9 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
           "performBPTestRobust")
   refused(function() performBPTestRobust(m, d, bootstrap = TRUE, B = 19), "robust BP bootstrap",
           "performBPTestRobust")
-  refused(function() performWildBootstrapTest(m, d, B = 19, distribution = "mammen",
-                                              progress = FALSE), "wild, Mammen",
-          "performWildBootstrapTest")
+  refused(function() {
+    performWildBootstrapTest(m, d, B = 19, distribution = "mammen", progress = FALSE)
+  }, "wild, Mammen", "performWildBootstrapTest")
   for (statistic in list(performKoenkerTest, function(model, data) list(statistic = 1))) {
     refused(function() bootstrapTestStatistic(statistic, m, d, B = 19, progress = FALSE),
             "bootstrapTestStatistic()", "bootstrapTestStatistic")
@@ -613,10 +613,13 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
     refused(function() runDiagnostics(m, data, use_cache = FALSE, progress = FALSE),
             "runDiagnostics()")
   }
-  refused(function() runHeteroTests(m, d, tests = c("cook_weisberg", "white", "koenker"),
-                                    use_cache = FALSE, progress = FALSE), "runner, three")
-  refused(function() runHeteroTests(m, d, chunk_threshold_mb = 0, use_cache = FALSE,
-                                    progress = FALSE), "runner, streaming")
+  refused(function() {
+    runHeteroTests(m, d, tests = c("cook_weisberg", "white", "koenker"), use_cache = FALSE,
+                   progress = FALSE)
+  }, "runner, three")
+  refused(function() {
+    runHeteroTests(m, d, chunk_threshold_mb = 0, use_cache = FALSE, progress = FALSE)
+  }, "runner, streaming")
   refused(function() runHeteroTestsParallel(m, d, tests = c("white", "koenker"), n_cores = 1L),
           "runHeteroTestsParallel()", "performWhiteTest")
   refused(function() runTimeSeriesTests(m, lags = 2), "runTimeSeriesTests()",
@@ -660,8 +663,9 @@ test_that("every test, route and runner refuses a MASS::rlm() fit, and the runne
   grouped <- dplyr::group_by(dplyr::as_tibble(d), group)
   refused(function() runHeteroTests(m, grouped, use_cache = FALSE, progress = FALSE), "grouped",
           "runHeteroTests")
-  refused(function() runHeteroTests(m, grouped, tests = "quantile_regression", use_cache = FALSE,
-                                    progress = FALSE), "grouped, quantile", "runHeteroTests")
+  refused(function() {
+    runHeteroTests(m, grouped, tests = "quantile_regression", use_cache = FALSE, progress = FALSE)
+  }, "grouped, quantile", "runHeteroTests")
   # A tibble, in the order of the fit, and a fit with model = FALSE whose data
   # are gone, given them.
   refused(function() performKoenkerTest(m, dplyr::as_tibble(d)), "tibble", "performKoenkerTest")
@@ -730,7 +734,7 @@ test_that("a fit with model = FALSE whose data are gone is tested on data that r
   }
 })
 
-test_that("a gam that is the least-squares fit of its basis is tested by every test (decision 38)", {
+test_that("a gam that is the least-squares fit of its basis is taken by every test (decision 38)", {
   # Increment 11, decision 38: a Gaussian gam without smooth terms, or whose
   # smooths are fixed, s(x, fx = TRUE), is the least-squares fit of its stored
   # design, the basis, and every test gives it the value of the lm() of that
@@ -796,7 +800,8 @@ test_that("a gam that is the least-squares fit of its basis is tested by every t
     expect_identical(a$original_statistic, b$original_statistic)
   }
   # The plain gam is still the lm of its formula.
-  context_same(context_run("performWildBootstrapTest", list(build = function() list(m = plain, data = d))),
+  context_same(context_run("performWildBootstrapTest",
+                           list(build = function() list(m = plain, data = d))),
                context_run("performWildBootstrapTest",
                            list(build = function() list(m = lm(y ~ x1 + x2, d), data = d))),
                "wild bootstrap, gam", tolerance = 1e-10)
@@ -834,8 +839,8 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
       if (fn %in% context_refuse_penalised) {
         refused(function() recipes[[fn]](smooth, data), fn)
       } else {
-        context_expect_value(context_run(fn, list(build = function() list(m = smooth, data = data))),
-                             fn)
+        built <- list(build = function() list(m = smooth, data = data))
+        context_expect_value(context_run(fn, built), fn)
       }
     }
   }
@@ -859,8 +864,9 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
   expect_equal(unname(exact$performBPTestStreaming$statistic), 23.9947, tolerance = 1e-5)
   expect_equal(unname(exact$performKoenkerTestStreaming$statistic), 18.3128, tolerance = 1e-5)
   expect_equal(unname(exact$performWhiteTestStreaming$parameter), 60)
-  run <- function(...) suppressWarnings(runHeteroTests(smooth, d, use_cache = FALSE,
-                                                       progress = FALSE, ...))
+  run <- function(...) {
+    suppressWarnings(runHeteroTests(smooth, d, use_cache = FALSE, progress = FALSE, ...))
+  }
   tests <- c("white", "breusch_pagan", "koenker")
   whole <- run(tests = tests)
   chunked <- run(tests = tests, chunk_threshold_mb = 0, chunk_size = 7)
@@ -872,8 +878,9 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
   # names, where bootstrapTestStatistic() refused every gam without it and the
   # wild bootstrap stopped on its leverages; the runner keeps the refusal of
   # the wild bootstrap final, where it put White's test under its name.
-  refused(function() bootstrapTestStatistic(performKoenkerTest, smooth, d, B = 19,
-                                            progress = FALSE), "bootstrapTestStatistic")
+  refused(function() {
+    bootstrapTestStatistic(performKoenkerTest, smooth, d, B = 19, progress = FALSE)
+  }, "bootstrapTestStatistic")
   refused(function() performWhiteTestRobust(smooth, d, bootstrap = TRUE, B = 19),
           "performWhiteTestRobust")
   refused(function() performBPTestRobust(smooth, d, studentize = FALSE, bootstrap = TRUE, B = 19),
@@ -885,9 +892,9 @@ test_that("a penalised gam is refused by the tests that fit it again (decision 3
   refused(function() run(tests = "szroeter"), "performSzroeterTest")
   # runDiagnostics() runs RESET, whose refusal is final: it refuses the fit as
   # a whole.
-  refused(function() suppressWarnings(runDiagnostics(smooth, d, use_cache = FALSE,
-                                                     progress = FALSE)),
-          "performRESETTest")
+  refused(function() {
+    suppressWarnings(runDiagnostics(smooth, d, use_cache = FALSE, progress = FALSE))
+  }, "performRESETTest")
   expect_false(rgam_least_squares(rmodel_context(smooth, fn = "f")))
 })
 

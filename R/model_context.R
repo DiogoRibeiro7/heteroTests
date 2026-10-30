@@ -502,7 +502,7 @@ rrefuse_rlm <- function(model, fn) {
     "test"
   }
   advice <- if (is.null(lm_call)) {
-    if (refits) "Pass the lm() fit of the same model instead." else "Test the lm() fit of the same model instead."
+    sprintf("%s the lm() fit of the same model instead.", if (refits) "Pass" else "Test")
   } else if (refits) {
     sprintf("Pass the lm() fit of the same formula instead, fitWLS(%s).", lm_call)
   } else {

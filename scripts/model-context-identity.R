@@ -4448,8 +4448,8 @@ identity_compare <- function(main_file, branch_file, csv = NULL) {
       print(stats::aggregate(calls ~ class11 + kind + change + verified_by + verdict,
                              data = changed11, FUN = sum), row.names = FALSE)
       cat("\nBy cell:\n")
-      print(stats::aggregate(calls ~ class11 + cell + change + verdict, data = changed11, FUN = sum),
-            row.names = FALSE)
+      print(stats::aggregate(calls ~ class11 + cell + change + verdict, data = changed11,
+                             FUN = sum), row.names = FALSE)
     }
   }
   identical_calls <- calls$verdict == "identical"
