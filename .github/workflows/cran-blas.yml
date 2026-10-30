@@ -1,0 +1,136 @@
+# R CMD check --as-cran of the built tarball as CRAN's additional checks run
+# it: on R-devel, with NOT_CRAN unset, under the BLAS libraries and the build
+# without long doubles that those checks use. Each job runs in an R-hub
+# container (https://github.com/r-hub/containers) that reproduces one of them:
+#
+#   MKL       mkl: Fedora 44, R-devel built with serial Intel MKL
+#             (-lmkl_gf_lp64 -lmkl_core -lmkl_sequential), as CRAN's MKL check
+#   OpenBLAS  blis, with libRblas.so pointed at Fedora's serial OpenBLAS, as
+#             CRAN's OpenBLAS check does it
+#   BLIS      blis: Fedora 44, R-devel with serial BLIS and the system LAPACK
+#   noLD      nold: Ubuntu 26.04, R-devel configured without long doubles
+#
+# CRAN no longer runs ATLAS regularly (2026-09-01), so no job does.
+#
+# 0.16.0 failed CRAN's MKL check
+# (https://www.stats.ox.ac.uk/pub/bdr/Rblas/MKL/heteroTests.out, 2026-10-30)
+# on 179 expect_identical() between two computations of the same numbers,
+# which agree to the last bit on R's reference BLAS and differ by up to 2e-12
+# relative under MKL. NOT_CRAN is unset here, as on CRAN; the other workflows
+# set NOT_CRAN=true.
+name: CRAN BLAS checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'R/**'
+      - 'tests/**'
+      - 'inst/**'
+      - 'data/**'
+      - 'DESCRIPTION'
+      - 'NAMESPACE'
+      - '.github/workflows/cran-blas.yml'
+  workflow_dispatch:
+
+# Supersede a pull request's earlier runs, keyed as in R-CMD-check.yml.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: ${{ matrix.config.name }} (R devel, --as-cran)
+    runs-on: ubuntu-latest
+    # The first run of a container installs every dependency, most of them
+    # from source on Fedora; later runs restore the library from the cache.
+    timeout-minutes: 120
+    container:
+      image: ghcr.io/r-hub/containers/${{ matrix.config.container }}:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {name: 'MKL', container: 'mkl'}
+          - {name: 'OpenBLAS', container: 'blis', blas: 'openblas'}
+          - {name: 'BLIS', container: 'blis'}
+          - {name: 'noLD', container: 'nold'}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # As CRAN's checks: the BLAS runs serially.
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      # 0.16.0 is on CRAN, so the incoming checks would only report that.
+      _R_CHECK_CRAN_INCOMING_: 'false'
+      _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
+      _R_CHECK_FORCE_SUGGESTS_: 'false'
+      # The whole of the test output in the log, not its last 13 lines.
+      _R_CHECK_TESTS_NLINES_: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use serial OpenBLAS
+        if: matrix.config.blas == 'openblas'
+        run: |
+          dnf install -y openblas-serial
+          ln -sf /usr/lib64/libopenblas.so.0 "$(R RHOME)/lib/libRblas.so"
+
+      - name: Platform
+        run: |
+          cat > /tmp/platform.R <<'RSCRIPT'
+          print(sessionInfo())
+          print(extSoftVersion()["BLAS"])
+          print(La_library())
+          print(La_version())
+          cat("long.double:", capabilities("long.double"),
+              " sizeof.longdouble:", .Machine$sizeof.longdouble, "\n")
+          cat("NOT_CRAN: '", Sys.getenv("NOT_CRAN"), "'\n", sep = "")
+          RSCRIPT
+          Rscript /tmp/platform.R
+          ldd "$(R RHOME)/lib/libR.so" | grep -i -E 'blas|lapack|mkl|blis' || true
+
+      # In a container job HOME is /github/home, not the /root of the image.
+      - name: Set the user library
+        run: |
+          cat > /tmp/libpath.R <<'RSCRIPT'
+          lib <- Sys.getenv("R_LIBS_USER")
+          dir.create(lib, showWarnings = FALSE, recursive = TRUE)
+          cat("R_LIBS_USER=", lib, "\n", file = Sys.getenv("GITHUB_ENV"), sep = "", append = TRUE)
+          RSCRIPT
+          Rscript /tmp/libpath.R
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # Packages built from source link to the BLAS of their container,
+          # so each job keeps its own library.
+          cache-version: ${{ matrix.config.name }}-1
+          needs: check
+          install-pandoc: false
+
+      - name: Build and check the tarball, with NOT_CRAN unset
+        run: |
+          unset NOT_CRAN
+          R CMD build --no-build-vignettes --no-manual .
+          R CMD check --as-cran --no-manual --ignore-vignettes heteroTests_*.tar.gz
+
+      - name: Show the test results
+        if: always()
+        run: |
+          out="$(ls heteroTests.Rcheck/tests/testthat.Rout* 2>/dev/null | head -n 1)"
+          if [ -n "$out" ]; then
+            grep -E '^\[ FAIL|^  \[ FAIL' "$out" | tail -n 1 | tee -a "$GITHUB_STEP_SUMMARY"
+            grep -E "^── (Failure|Error) \('" "$out" | sed -E "s/^── (Failure|Error) \('([^:']+:[0-9]+).*/\2/" |
+              sort | uniq -c | sort -k2 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.config.name }}-check
+          path: |
+            heteroTests.Rcheck/00check.log
+            heteroTests.Rcheck/00install.out
+            heteroTests.Rcheck/tests
