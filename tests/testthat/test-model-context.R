@@ -2692,11 +2692,12 @@ test_that("the runners take the data a tidymodels workflow was fitted to (N5)", 
     lapply(suite, function(r) list(r$method, r$statistic, r$parameter, r$p.value))
   }
   # x3 = x1 * 3 (wf_local_variable) has an infinite VIF, which
-  # performVIFDiagnostic() gives as Inf or about 1 / eps as the last bits of
-  # the BLAS decide (under 0.18.0): on CRAN such VIFs are compared as Inf.
+  # performVIFDiagnostic() gives as about 1 / eps, or as Inf for every column,
+  # as the last bits of the BLAS decide (under 0.18.0): on CRAN the VIFs of
+  # such a design are left out.
   aliased_vif <- function(diagnostics) {
-    if (numbers_on_cran() && is.numeric(diagnostics$vif)) {
-      diagnostics$vif[diagnostics$vif > 1e12] <- Inf
+    if (numbers_on_cran() && isTRUE(any(diagnostics$vif > 1e12, na.rm = TRUE))) {
+      diagnostics$vif <- NULL
     }
     diagnostics
   }
