@@ -361,8 +361,10 @@ The runners and the registry call the tests, and inherit what they refuse:
   no name holds a test computed regardless of them. A test refused for a
   reason of its own, such as the quantile regression test on a weighted fit,
   still falls back on another test under its name, tagged
-  `attr(, "extras")$status == "fallback"` (an open decision for 1.0.0, in the
-  roadmap).
+  `attr(, "extras")$status == "fallback"`. From 1.0.0 (decided on
+  2026-10-23, in the roadmap), a test that fails keeps its name, with an `NA`
+  p-value and the reason it failed, and the test that stands in for it is
+  returned under its own name.
 - The registry names, `cachedTest()`, `runHeteroTestsParallel()` and
   `test_factory$run_test()` call the same tests. `test_factory` leaves a
   rank-deficient fit to a function of the package, whoever registered it, and
@@ -371,9 +373,12 @@ The runners and the registry call the tests, and inherit what they refuse:
 - `runPanelTests()` and `runTimeSeriesTests()` refuse anything but an `lm` or a
   `glm` with the message of the tests, then call them.
 - `runHeteroTests()` tests a tidymodels workflow on the model frame of its
-  engine's fit, with `data = NULL`. Given `data`, such as the data the
-  workflow was fitted to, it refuses them when they lack the variables of that
-  fit, which names its response `..y`, and says to pass `data = NULL`.
+  engine's fit. Given `data`, such as the data the workflow was fitted to, it
+  maps them to the variables of that fit by the workflow's own preprocessing
+  (`hardhat::forge()`), matches their rows to the observations of the fit,
+  and tests that model frame, which gives the value without `data`. Data in
+  another order, a subset of them, grouped data and data the preprocessing
+  cannot map are refused with a message that says why.
 - `runSurveyHeteroTests()` fits the model by least squares to the data of a
   design, and is never given a `svyglm()` fit.
 - `runMultivariateTests()` runs Box's M test on data and a grouping; a test of
