@@ -2390,6 +2390,22 @@ be frozen, and the decisions still open.
   36 to 50 CPU-hours for the four cells, and about 7.6 for the two cells of
   the wild bootstrap alone. If the wild bootstrap stays outside the gate at
   150 observations, say so on its help page.
+- [ ] **The validation rows the R Journal article reads, on the code to be
+  frozen.** The article reads rates at render time from seven studies in
+  `inst/validation/`: `weighted-fits-size.csv`, `glejser-skewed-errors.csv`,
+  `harrison-mccabe-size-power.csv`, `modified-wald-size-power.csv`,
+  `offset-refits-size.csv`, `variance-form-dnvk-size-power.csv` and
+  `szroeter-design-null-size.csv`. Five were last written in 0.13.0 or
+  0.15.0, `offset-refits-size.csv` early in the work on 0.16.0 (2026-10-18),
+  and `szroeter-design-null-size.csv` the day before 0.16.0 was released
+  (2026-10-26), so none was measured on 0.17.0. The README says which rows
+  predate a later change to their procedure, not the version each block was
+  measured on. One such row is the Szroeter row of the known-weights block of
+  `weighted-fits-size.csv`, measured before 0.16.0 took the test's null
+  moments from the design, and not run again. Re-measure every row that
+  predates a change to its procedure on the code to be frozen, and record in
+  the README the version on which each block was measured, so that the
+  article can say it. Found by the review of the article's update to 0.17.0.
 - [ ] **Provenance of a study run in chunks.** Commit the script before a
   chunked run is launched, and record its md5 in the settings of each part,
   so that `MERGE` refuses parts written by another version of the script.
