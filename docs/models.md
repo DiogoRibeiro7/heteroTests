@@ -12,8 +12,8 @@ models* and *Inputs every test refuses*.
 
 The table was measured, not written from the code: every exported test was
 called as in `tests/testthat/helper-test-recipes.R`, on a fit of each class to
-the 120 observations of `contract_data()`, on 0.15.0 and on the development
-version. A cell in bold changed in 0.16.0, or, in the column of
+the 120 observations of `contract_data()`, on 0.15.0 and on the code
+released as 0.17.0. A cell in bold changed in 0.16.0, or, in the column of
 `MASS::rlm()`, in the row of `bootstrapTestStatistic()` and in the cell of
 White's streaming test on an empty cell, in 0.17.0.
 
