@@ -52,21 +52,21 @@ from the workspace (R3, decision 9; `rcontext_formula_rows()`). Increment 7 is
 in 0.16.0 too: the three streaming tests, `performWhiteTestStreaming()`,
 `performBPTestStreaming()` and `performKoenkerTestStreaming()`, built on it,
 reading the stored design chunk by chunk (`rstreaming_design()`, in
-`R/performance.R`). Increment 8, the first of 0.17.0, is in the development
-version: the resampling tests, `performWhiteTestBootstrap()`, whose observed
+`R/performance.R`). Increment 8 is in 0.17.0, the first of its four: the
+resampling tests, `performWhiteTestBootstrap()`, whose observed
 statistic and replicates moved together, and `performWildBootstrapTest()`,
 `bootstrapTestStatistic()` and the robust White and Breusch-Pagan tests,
 `performWhiteTestRobust()` and `performBPTestRobust()`, built on it, each
 replicate refitted by least squares on the stored design
 (`rreplicate_lm()`, in `R/bootstrap_methods.R`), and a Gaussian `glm`
-bootstrapped as the `lm` it is (N8). Increment 9, the second of 0.17.0, is in
-the development version too: a fit with `na.action = na.exclude`, which the
+bootstrapped as the `lm` it is (N8). Increment 9 is in 0.17.0 too, the
+second: a fit with `na.action = na.exclude`, which the
 tests refused and the panel tests and the scatter diagnostic read by
 position, is read as the same fit with `na.omit`, the checks of the model and
 every test reading its residuals, fitted values, weights and leverages without
 the padding of `na.exclude` (`rmodel_unpad()`, `rcontext_unpad()`), and an
 output with one value per row padded as `naresid()` pads it (B13).
-Increment 10, the third of 0.17.0, is in the development version too: the
+Increment 10 is in 0.17.0 too, the third: the
 runners and the clean-up. A grouped run of a `fitWLS()` fit, which refitted
 each group without the weights it estimated, is refused (B11, decision 10);
 the data a tidymodels workflow, or a parsnip fit of `fit_xy()`, was fitted to
@@ -79,8 +79,8 @@ as broom does (decision 34), the results keeping the blueprint of a workflow
 as the workflow keeps it (decision 36); and the preparation of
 `data` the tests used before the context, `prepare_model_data_for_test()`,
 `rdata_or_model_frame()`, `rcheck_data_rows()` and
-`rcheck_rows_after_cleaning()`, is gone. Increment 11, the last, is in the
-development version too, in two parts. In its first a `MASS::rlm()` fit, an
+`rcheck_rows_after_cleaning()`, is gone. Increment 11, the last, is in
+0.17.0 too, in two parts. In its first a `MASS::rlm()` fit, an
 M-estimate that every test built on the context took for an `lm`, is refused
 by the context, with its class, on every route, a grouped run and
 `autoCompareRemediations()` among them (decision 4, R6 and N10;
@@ -93,8 +93,8 @@ by every test that fits it again by least squares or whose null distribution
 is derived for least-squares residuals of its design
 (`rrefuse_penalised_gam()`); a `gam` that is the least-squares fit of its
 design, without smooth terms or with fixed ones, is taken by every test as the
-`lm()` of that design (`rgam_least_squares()`). Every increment is done; see
-[Migration plan](#migration-plan).
+`lm()` of that design (`rgam_least_squares()`). Every increment is done, 1
+to 7 in 0.16.0 and 8 to 11 in 0.17.0; see [Migration plan](#migration-plan).
 
 ## The problem
 
@@ -343,7 +343,8 @@ removed it.
    every compared column.
 8. Extra variables are read as `data[[v]][ctx$rows]`.
 
-A follow-up of the review, recorded for a later step: try the rows in the
+A follow-up of the review, recorded under 0.18.0 in ROADMAP.md (*Left from
+step 1 of the model context*): try the rows in the
 order of the fit also when the rows picked by number fail the comparison and
 `data` has one row per observation, which would accept a fit to
 `d[order(x), ]` given that same data frame numbered again, and character row
@@ -1095,8 +1096,8 @@ For the functions built on the context in increment 8:
   tolerance of `lm()`, as the refits of the formula were, so such a fit is
   refused as an `lm` fitted with a smaller `tol` is, "`data` does not
   reproduce the fit". Refitting the replicates at the tolerance of the fit
-  would give both values, a change of value for the `lm`, left to a later step
-  (ROADMAP.md).
+  would give both values, a change of value for the `lm`, left to 0.18.0
+  (ROADMAP.md, *Left from steps 8 to 10 of the model context*).
 - **A new refusal outside the corpus.** `bootstrapTestStatistic()` matches
   `data` through the guard, which refuses data that lack a variable of the
   formula: a statistic of the caller's own that reads nothing from `data`, on a
@@ -1692,10 +1693,10 @@ migrations that keep every value, then the riskier resampling and
 | 5 | `performPesaranTest()`, `performBPRandomEffectsTest()`, `performScatterDiagnostic()`, `runPanelTests()`: `id`, `time` and `vars` read at the confirmed rows (`rcontext_columns_at_fit()`); repeated pairs of `id` and `time` refused | B3, B4, B16, R2 (decision 13); N17 for these. Pesaran's test refuses an unbalanced panel, as that of a fit that dropped some rows of some units, until the pull request of N12 (decision 28); `na.exclude` is read as before until 9 (decision 29, done) | **Done, 0.16.0** |
 | 6 | The tests computed from the model alone (the context applies `rcheck_model_frame()` to them), and the check of `data` RESET keeps until then; Cook-Weisberg with `var_formula`; `performVarianceFormTest()`; `fitWLS(data, var_formula)`: `rcontext_second_formula()`, `rcontext_formula_rows()`; `rvariance_frame()` goes. The tests that read nothing from `data`, RESET included, match it through the guard, as every test does (decision 31): the check of 0.15.0 goes, but for its check of the type of `data` | B9, R3, N6; M7, M8 and "frame" for these; decision 31 | **Done, 0.16.0** |
 | 7 | The three streaming tests, chunk by chunk from the stored design (`rstreaming_design()`) | B6; B12, B14, L1 for these, with B5, L2, N7, N17 and R4 (B12 and B15 gave values already); a smooth `gam` kept on the design of its variables, as before (decision 23) | **Done, 0.16.0** |
-| 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, development version (0.17.0)** |
-| 9 | `na.exclude`: unpadded residuals in the checks (`rmodel_unpad()`) and in every test (`rcontext_pearson()`, `rcontext_fitted()`, `rcontext_unpad()`), padded outputs per observation (`fitWLS()`); the positional reading of the panel tests and the scatter diagnostic goes, with `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()` and `rstop_unbalanced_panel()` | B13; N12 on the positional reading | **Done, development version (0.17.0)** |
-| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10, `rrefuse_grouped_fitwls()`), workflows with `data` (N5, mapped by the workflow's preprocessing, a transformed outcome among them, decision 35); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go; with N5, `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` match the rows of `data` to the observations of the fit (`rcontext_data_rows()`, `rcontext_data_match()`), where since increment 9 they refuse data of another number of rows, `augment()` binding as broom does (decision 34) and tracing the rows a workflow's preprocessing maps to the rows of `data` (from the second review, `.ht_workflow_mapped()`); the results keep what `augment()` needs of a workflow (`rtidymodels_map()`) | B11, N5 | **Done, development version (0.17.0)** |
-| 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4, `rrefuse_rlm()`), on every route, a grouped run among them, the runners keeping it final; and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together (decisions 37 and 38): tested on its stored design by the tests that read only its residuals, fitted values, columns of `data` or its design as auxiliary regressors, the streaming tests included; refused by those that fit it again by least squares or whose null distribution is derived for least-squares residuals (`rrefuse_penalised_gam()`); a `gam` that is the least-squares fit of its design taken by every test (`rgam_least_squares()`) | R6, N10; decision 23 | **Done, development version (0.17.0)** |
+| 8 | The resampling tests and `bootstrapTestStatistic()`, replicates from the stored design (`rreplicate_lm()`): `performWhiteTestBootstrap()`, whose observed statistic and replicates moved together, and `rwhite_test_rebuilt_design()`, which kept them on the rebuilt design until then, is gone; `performWildBootstrapTest()`; `bootstrapTestStatistic()` and the robust bootstraps, which no longer refuse a fit whose frame cannot be rebuilt from `data`, a Gaussian `glm` bootstrapped as its `lm`; the robust White and Breusch-Pagan tests, whose own preparation of `data` goes | B12 for replicates, N8, N17 for the White bootstrap; B5, B14, B15, L1, L2, N7 for these; M7, M8 and "frame" for these | **Done, 0.17.0** (#165, #167) |
+| 9 | `na.exclude`: unpadded residuals in the checks (`rmodel_unpad()`) and in every test (`rcontext_pearson()`, `rcontext_fitted()`, `rcontext_unpad()`), padded outputs per observation (`fitWLS()`); the positional reading of the panel tests and the scatter diagnostic goes, with `rcheck_data_in_fit_order()`, `rcheck_data_matches_model()` and `rstop_unbalanced_panel()` | B13; N12 on the positional reading | **Done, 0.17.0** (#168) |
+| 10 | The runners and the clean-up: grouped `fitWLS()` refused (decision 10, `rrefuse_grouped_fitwls()`), workflows with `data` (N5, mapped by the workflow's preprocessing, a transformed outcome among them, decision 35); `prepare_model_data_for_test()`, `rdata_or_model_frame()`, `rcheck_data_rows()`, `rcheck_rows_after_cleaning()` and the copies of the old preparation go; with N5, `recommendRemediationStrategies()`, `generateHeteroRecommendations()` and `generics::augment()` match the rows of `data` to the observations of the fit (`rcontext_data_rows()`, `rcontext_data_match()`), where since increment 9 they refuse data of another number of rows, `augment()` binding as broom does (decision 34) and tracing the rows a workflow's preprocessing maps to the rows of `data` (from the second review, `.ht_workflow_mapped()`); the results keep what `augment()` needs of a workflow (`rtidymodels_map()`) | B11, N5 | **Done, 0.17.0** (#169) |
+| 11 | `MASS::rlm()` refused in `rcontext_kind()` (decision 4, `rrefuse_rlm()`), on every route, a grouped run among them, the runners keeping it final; and the same question for a penalised `mgcv::gam()` with smooth terms, settled for every test together (decisions 37 and 38): tested on its stored design by the tests that read only its residuals, fitted values, columns of `data` or its design as auxiliary regressors, the streaming tests included; refused by those that fit it again by least squares or whose null distribution is derived for least-squares residuals (`rrefuse_penalised_gam()`); a `gam` that is the least-squares fit of its design taken by every test (`rgam_least_squares()`) | R6, N10; decision 23 | **Done, 0.17.0** (#171) |
 
 Outside the context, as separate pull requests: White's degrees of freedom
 when the auxiliary columns span the constant (N2, done) and White streaming on
