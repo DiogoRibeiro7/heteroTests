@@ -837,7 +837,7 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
 #' `tol` or a Gaussian `glm` (`1e-11`) with a nearly collinear column, is
 #' refused, as such an `lm` was before. Refitting the replicates at the
 #' tolerance of the fit would change the values of such an `lm`; it is left to
-#' a later step (ROADMAP.md). Before increment 8 of the model context the refit was made from the
+#' 0.18.0 (ROADMAP.md). Before increment 8 of the model context the refit was made from the
 #' formula on the rows of `data` (`rdata_reproduces_fit()`), which also
 #' checked those rows; the model context matches them now.
 #'

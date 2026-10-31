@@ -55,3 +55,23 @@ tests/testthat/testthat-problems.rds
 
 # The R Journal article lives in its own repository; keep it out of this one.
 paper/
+
+# A local pkgdown::build_site() writes the pkgdown site this package had
+# before the MkDocs site into docs/, beside the tracked sources.
+docs/404.html
+docs/index.html
+docs/pkgdown.js
+docs/pkgdown.yml
+docs/katex-auto.js
+docs/lightswitch.js
+docs/link.svg
+docs/search.json
+docs/sitemap.xml
+docs/deps/
+docs/tutorials/
+docs/articles/*_files/
+docs/reference/*.png
+docs/reference/index.html
+
+# Claude Code's worktrees.
+.claude/worktrees/
