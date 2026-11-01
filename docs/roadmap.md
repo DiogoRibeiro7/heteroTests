@@ -2226,6 +2226,23 @@ announced in bold in `NEWS.md`.
         permutation test with `order_by = "z"` gives -0.02142 instead of
         -0.02619 in the order of the fit. Extend the rule on ties to rows
         matched by number when the call reads such a column.
+- [ ] **Data that lack rows of the fit are refused without the class of the
+    other refusals of rows.** `rstop_data_rows()` (`R/interface.R:673`, called
+    at `R/model_context.R:678`) refuses them with a plain `stop()`. Every other
+    refusal of the rows of `data` has the class `heteroTests_data_rows_error`
+    (`rstop_data_rows_unmatched()`), which the runners treat as final
+    (`R/error_handling.R:306`). On a fit to the 120 rows of `d`,
+    `runHeteroTests(m, d[1:100, ])` tries the four fallbacks of White's test,
+    each of which refuses the same rows. It then stops with "Data quality issue
+    detected for White" and the advice to "Remove or impute missing values",
+    which the "missing" of "Missing rows" selects (see the item on
+    `ht_analyse_failure()` above). A tidymodels workflow and a parsnip
+    `fit_xy()` fit already give this refusal the class
+    (`R/ecosystem_integration.R:636-645`). Give it the class and keep its
+    message, which the suite pins (`tests/testthat/test-model-context.R:287`),
+    so that the runners raise it at once. Only the class, and the message of
+    the runners, change. Found by the review of the R Journal article's
+    subsection on the model context.
 - [ ] **Left from steps 8 to 10 of the model context**, recorded, not fixed.
     Moved from 0.17.0 at its release (2026-10-30), where the steps that found
     them are done; each changes what a call returns:
@@ -2410,6 +2427,24 @@ be frozen, and the decisions still open.
     predates a change to its procedure on the code to be frozen, and record in
     the README the version on which each block was measured, so that the
     article can say it. Found by the review of the article's update to 0.17.0.
+- [ ] **The performance study the R Journal article reads, on the code to be
+    frozen.** The article and its supplement read their timings and memory
+    allocations from three extracts in the article's repository,
+    `paper/generated/performance_*.csv`. `paper/scripts/performance_study.R`
+    wrote them under heteroTests 0.11.2, and they were not written again, so the
+    article says they do not measure the current code. Since then the exact
+    Breusch-Pagan and Koenker tests have come to read the fit through the model
+    context, the cache key has changed, and the streaming code has been rebuilt
+    twice: on the stored design in 0.16.0 and on a stacked QR in 0.17.0. No
+    milestone ran the study again. The script calls `run_benchmark_suite()` and
+    `generate_benchmark_report()`, which move to the companion package (see the
+    row of *Decisions needed* on its name, due in 0.19.0). The suite's `ncv`
+    entry also times the internal `.ncv_test(model)`
+    (`R/benchmarking_system.R:363-368`), where in 0.11.2 it timed the exported
+    `performNCVTest(model)`. Rewrite the script so that it times the exported
+    tests and calls no function that leaves the package. Run it on the code to
+    be frozen, and record the run in the article's `PROVENANCE.md`. Found by the
+    review of the article's restructure to the journal's 20 pages.
 - [ ] **Provenance of a study run in chunks.** Commit the script before a
     chunked run is launched, and record its md5 in the settings of each part,
     so that `MERGE` refuses parts written by another version of the script.
