@@ -256,27 +256,38 @@ performBPTest <- function(model, data = NULL) {
     stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
-  aux_data <- as.data.frame(predictors)
   n <- length(residuals)
 
-  if (n <= (ncol(aux_data) + 1L)) {
+  if (n <= (ncol(predictors) + 1L)) {
     .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan auxiliary regression requires observations to exceed predictors plus intercept"
     )
   }
 
+  # The columns of the auxiliary regression and its rank, decided on the
+  # regressors centred one by one, as White's test decides them
+  # (rauxiliary_columns()): a model without an intercept whose columns span
+  # the constant, as the dummies of every level of a factor do, counts the
+  # intercept of the auxiliary regression once. Until 0.18.0 the degrees of
+  # freedom were the number of regressors, one more on such a model.
+  centred <- predictors - rep(colMeans(predictors), each = n)
+  columns <- rauxiliary_columns(centred)
+  if (length(columns$keep) == 0L) {
+    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+
   # Classical Breusch-Pagan (1979): regress the scaled squared residuals
   # g_i = e_i^2 / sigma^2 - 1 (with sigma^2 the ML variance estimate) on the
   # regressors and take half the explained sum of squares. The statistic is
-  # chi-squared(df) under homoskedasticity *and* normal disturbances. For the
+  # chi-squared(df) under homoskedasticity *and* normal disturbances, with df
+  # the rank of the auxiliary regression less its intercept. For the
   # studentized form that drops the normality assumption use performKoenkerTest().
   sigma2 <- sum(residuals^2) / n
   scaled_sq <- residuals^2 / sigma2 - 1
-  aux_model <- safe_lm(scaled_sq ~ ., data = aux_data)
-  fitted_aux <- stats::fitted(aux_model)
-  test_statistic <- 0.5 * sum(fitted_aux^2)
-  df <- ncol(aux_data)
+  aux_fit <- rauxiliary_fit(scaled_sq, predictors, centred, columns, test_label)
+  test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
+  df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   # A factor with more levels than observations per level, among the

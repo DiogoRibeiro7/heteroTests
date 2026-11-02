@@ -460,6 +460,47 @@ rwhite_regressors_fit_exactly <- function(X, e_squared) {
   total > 0 && sum(fit$residuals^2) <= rwhite_exact_tolerance * total
 }
 
+# The columns an auxiliary regression of the squared residuals keeps, and its
+# rank with its intercept, decided on `centred`, its design built from the
+# regressors centred one by one, which spans the same columns with the
+# intercept: the columns QR pivoting of [1, centred] keeps, at the default
+# tolerance of qr(). A column that is a combination of the intercept and the
+# columns before it is dropped, so a design whose columns span the constant,
+# as the dummies of every level of a factor in a model without an intercept
+# do, counts the intercept once. `keep` holds the positions of the columns
+# kept among those of `centred`. Shared by rwhite_statistic(), whose design
+# holds the regressors, their squares and their products, and by
+# performBPTest() and performKoenkerTest(), whose design holds the
+# regressors. Until 0.18.0 these two counted the columns of the design but its
+# intercept.
+rauxiliary_columns <- function(centred) {
+  qr_aux <- qr(cbind(1, centred))
+  rank <- qr_aux$rank
+  # The intercept is the first column and is never pivoted out.
+  list(rank = rank, keep = setdiff(sort(qr_aux$pivot[seq_len(rank)]), 1L) - 1L)
+}
+
+# The auxiliary regression of `response` on the intercept and the columns of
+# rauxiliary_columns(), fitted with lm.fit() at its default tolerance: on the
+# columns of `design` as they are, which keeps the value of a design whose
+# regressors are not located far from zero, or on the centred ones, which span
+# the same space, when the fit of those as they are aliases one of them. Its
+# rank is that of `columns`; the test stops where it is not.
+rauxiliary_fit <- function(response, design, centred, columns, test_label) {
+  keep <- columns$keep
+  aux_fit <- stats::lm.fit(cbind(1, design[, keep, drop = FALSE]), response)
+  if (aux_fit$rank < columns$rank) {
+    aux_fit <- stats::lm.fit(cbind(1, centred[, keep, drop = FALSE]), response)
+  }
+  if (aux_fit$rank != columns$rank) {
+    stop(sprintf(
+      "%s: the auxiliary regression has rank %d where its columns have rank %d.",
+      test_label, aux_fit$rank, columns$rank
+    ), call. = FALSE)
+  }
+  aux_fit
+}
+
 # White's statistic from the residuals the test reads and the design of the
 # auxiliary regression, with its intercept. performWhiteTest() gives it the
 # design of the fit (the model context), and performWhiteTestBootstrap() the
@@ -545,10 +586,9 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   # version before this change, that of [1, Z], which lost the square of a
   # regressor located far from zero.
   centred <- auxiliary_design(X - rep(colMeans(X), each = n))
-  qr_aux <- qr(cbind(1, centred))
-  rank_with_intercept <- qr_aux$rank
-  # The intercept is the first column and is never pivoted out.
-  keep <- setdiff(sort(qr_aux$pivot[seq_len(rank_with_intercept)]), 1L) - 1L
+  columns <- rauxiliary_columns(centred)
+  rank_with_intercept <- columns$rank
+  keep <- columns$keep
   dropped <- ncol(aux_matrix) - length(keep)
   if (dropped > 0L) {
     ht_log("INFO", sprintf(
@@ -573,24 +613,12 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
                             regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
   }
 
-  # The auxiliary regression, e^2 on the intercept and the columns kept, fitted
-  # with lm.fit() at its default tolerance: on the columns of Z as they are,
-  # which keeps the value of a design whose regressors are not located far from
-  # zero, or on the centred ones, which span the same space, when the fit of
-  # those as they are aliases one of them. Its rank less one is the degrees of
-  # freedom. Fitted from the matrix rather than a formula, it does not depend on
-  # the names of the regressors: a regressor `a` beside a regressor `a_sq` is
-  # tested, where the formula stopped on the duplicated name.
-  aux_fit <- stats::lm.fit(cbind(1, aux_matrix[, keep, drop = FALSE]), e_squared)
-  if (aux_fit$rank < rank_with_intercept) {
-    aux_fit <- stats::lm.fit(cbind(1, centred[, keep, drop = FALSE]), e_squared)
-  }
-  if (aux_fit$rank != rank_with_intercept) {
-    stop(sprintf(
-      "%s: the auxiliary regression has rank %d where its columns have rank %d.",
-      test_label, aux_fit$rank, rank_with_intercept
-    ), call. = FALSE)
-  }
+  # The auxiliary regression, e^2 on the intercept and the columns kept
+  # (rauxiliary_fit()). Its rank less one is the degrees of freedom. Fitted
+  # from the matrix rather than a formula, it does not depend on the names of
+  # the regressors: a regressor `a` beside a regressor `a_sq` is tested, where
+  # the formula stopped on the duplicated name.
+  aux_fit <- rauxiliary_fit(e_squared, aux_matrix, centred, columns, test_label)
   aux_rank <- aux_fit$rank - 1L
 
   # R^2 as summary.lm() computes it for a model with an intercept.

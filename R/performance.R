@@ -573,11 +573,14 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming Breusch-Pagan test"
   )
 
-  if (isTRUE(stats$rank_deficient)) {
-    .std_error(
-      "rassumption_violation",
-      assumption = "Breusch-Pagan auxiliary regression became rank deficient"
-    )
+  # The degrees of freedom are the rank of the auxiliary regression less its
+  # intercept, decided as performBPTest() decides it (chunked_regression_r2()):
+  # a model without an intercept whose columns span the constant, as the
+  # dummies of every level of a factor do, counts the intercept once. Until
+  # 0.18.0 the test stopped on such a model ("Breusch-Pagan auxiliary
+  # regression became rank deficient").
+  if (stats$df < 1L) {
+    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
   if (isTRUE(stats$zero_variation)) {
@@ -680,11 +683,14 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming Koenker test"
   )
 
-  if (isTRUE(stats$rank_deficient)) {
-    .std_error(
-      "rassumption_violation",
-      assumption = "Koenker auxiliary regression became rank deficient"
-    )
+  # The degrees of freedom are the rank of the auxiliary regression less its
+  # intercept, decided as performKoenkerTest() decides it
+  # (chunked_regression_r2()): a model without an intercept whose columns span
+  # the constant, as the dummies of every level of a factor do, counts the
+  # intercept once. Until 0.18.0 the test stopped on such a model ("Koenker
+  # auxiliary regression became rank deficient").
+  if (stats$df < 1L) {
+    stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
   if (isTRUE(stats$zero_variation)) {

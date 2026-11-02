@@ -254,11 +254,25 @@ performKoenkerTest <- function(model, data = NULL) {
     )
   }
 
-  aux_data <- as.data.frame(predictors)
-  aux_model <- safe_lm(e_squared ~ ., data = aux_data)
-  r2 <- summary(aux_model)$r.squared
+  # The columns of the auxiliary regression and its rank, decided on the
+  # regressors centred one by one, as White's test decides them
+  # (rauxiliary_columns()): a model without an intercept whose columns span
+  # the constant, as the dummies of every level of a factor do, counts the
+  # intercept of the auxiliary regression once. Until 0.18.0 the degrees of
+  # freedom were the number of regressors, one more on such a model.
+  centred <- predictors - rep(colMeans(predictors), each = n)
+  columns <- rauxiliary_columns(centred)
+  if (length(columns$keep) == 0L) {
+    stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+  aux_fit <- rauxiliary_fit(e_squared, predictors, centred, columns, test_label)
+  # R^2 as summary.lm() computes it for a model with an intercept.
+  fitted_squares <- aux_fit$fitted.values
+  explained <- sum((fitted_squares - mean(fitted_squares))^2)
+  r2 <- explained / (explained + sum(aux_fit$residuals^2))
   test_statistic <- n * r2
-  df <- ncol(aux_data)
+  # The rank of the auxiliary regression less its intercept.
+  df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   # A factor with more levels than observations per level, among the
