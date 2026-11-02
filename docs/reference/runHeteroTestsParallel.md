@@ -31,7 +31,18 @@ runHeteroTestsParallel(model, data, tests, n_cores = NULL)
 
 ## Value
 
-Named list of test results in the order provided by `tests`.
+Named list of test results in the order provided by `tests`. Each
+is the result [`runHeteroTests()`](runHeteroTests.md) gives for that test on the same call,
+since 0.18.0: a result whose `data.name` is `"model"`, the name of the
+argument of the function the registry calls the test with, reports the
+formula of the model instead, and `attr(, "extras")$streaming` is
+`FALSE`, as this function runs the exact tests only. Before, White's test,
+its bootstrap, the studentized Breusch-Pagan statistic and Szroeter's test
+reported `"model"` here. A resampling test draws from a stream of its own
+(Details), and so does not return the value it returns in
+[`runHeteroTests()`](runHeteroTests.md), which draws from the session's generator. The list
+is not a [`hetero_test_suite`](hetero_test_suite.md), and a test that fails stops the call,
+without the fallbacks of [`runHeteroTests()`](runHeteroTests.md).
 
 ## Details
 

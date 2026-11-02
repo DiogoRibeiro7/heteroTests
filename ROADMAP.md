@@ -2091,6 +2091,27 @@ announced in bold in `NEWS.md`.
   no `NAMESPACE` also exports the two `autoplot()` methods as functions,
   since the package then loads without `importFrom(ggplot2, autoplot)`; a
   second run registers them again. Found by #180.
+- [ ] **The site's reference pages do not render `\tabular`.**
+  `tools/build-docs.R` has no case for it, so `render()` renders its
+  children: the column format becomes text, `\tab` is dropped and `\cr`
+  becomes a line break. The tables of four pages come out as lines of cells
+  separated by two spaces, after the format as a stray token:
+  `docs/reference/performBPTest.md`, `performKoenkerTest.md` and
+  `performWhiteTest.md` (`rrrrrl`, lines 42, 41 and 67), the rejection rates
+  with fixed effects for small groups, from `man/performBPTest.Rd`,
+  `performKoenkerTest.Rd` and `performWhiteTest.Rd`, written by hand; and
+  `performWildBootstrapTest.md` (line 112, "0.058.llrrrr", the format glued
+  to the sentence before the table), the size of the wild bootstrap by
+  errors and multiplier, from the markdown table of the roxygen of
+  `performWildBootstrapTest()` (`R/modern_diagnostics.R`). R's help renders
+  them. `build-docs.R` would need a `"\\tabular"` case that writes a pipe
+  table: the alignment of each column from the format (`l`, `r` and `c` as
+  `:---`, `---:` and `:---:`), the rows split at `\cr` and the cells at
+  `\tab`, each cell rendered inline on one line, with `|` escaped, the first
+  row as the header, which each of the four tables has, and a blank line
+  before and after, since the table of `performWildBootstrapTest.Rd` starts on
+  the line of the sentence before it. Found by #182; recorded, not fixed. No
+  value changes.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.

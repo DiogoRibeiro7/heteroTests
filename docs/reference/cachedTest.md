@@ -35,7 +35,14 @@ cachedTest(test_name, model, data, ..., use_cache = TRUE)
 ## Value
 
 The diagnostic result, either retrieved from cache or freshly
-computed.
+computed. A result whose `data.name` is `"model"`, the name of the
+argument of the function the registry calls the test with, reports the
+formula of the model instead, as in [`runHeteroTests()`](runHeteroTests.md), since 0.18.0;
+White's test, its bootstrap, the studentized Breusch-Pagan statistic and
+Szroeter's test reported `"model"` here before. The cache keeps the result
+as the test returns it, and the rule applies to a result read from it too.
+Unlike a result of [`runHeteroTests()`](runHeteroTests.md), it has no
+`attr(, "extras")$streaming`, which says how the runner ran a test.
 
 ## Details
 
