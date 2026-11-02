@@ -2061,24 +2061,32 @@ announced in bold in `NEWS.md`.
   block in `R/`, which users do not read and the CI step above cannot see;
   the other 7 (`test_results`, `diagnostic_data`, `hetero_test_suite`,
   `simulate_hetero` and the methods of `HeteroDiagnostic`) have no block.
-  The page and the block have been kept up side by side: written by
-  roxygen, the 45 pages change by about 3,500 lines, with some 740
-  sentences of the page that the block lacks (the *Supported models*
-  sections, the DOIs, aliases such as `generate_benchmark_report` and the
-  `glance()` and `augment()` methods) and as many of the block that the page
-  lacks (references, see-also lists, examples). Merge each page into its
-  block, delete the page and let roxygen write it; write the 7 as blocks.
-  The blocks of `performBPTest()`, `performKoenkerTest()` and
-  `performWhiteTest()` have 28 lines with `\%`, which markdown writes as
-  `\\%`; two blocks have no `@name` (`R/error_handling.R`,
-  `R/intelligent_recommendations.R`). `NAMESPACE` has no roxygen line
-  either: written by roxygen it would lose 59 exports whose blocks have no
-  `@export` (`runHeteroTests()`, `performBPTest()`, the `sigma_*()`
-  functions among them), the `importFrom()` of stats, MASS, R6 and utils,
-  and the registration of the two `autoplot()` methods, which it would
-  export as functions, and gain `a`, `Register` and `heteroscedasticity`
-  and the registration of `print.htest_enhanced()`, which `NAMESPACE`
-  lacks today. Found by #180.
+  The page and the block have been kept up side by side. Given the roxygen
+  line, the 45 pages are rewritten by +3,332 / -1,451 lines
+  (`git diff --numstat`). Split into sentences, their rendered text holds
+  550 to 715 sentences of the page that the block lacks (the *Supported
+  models* sections, the DOIs, aliases such as `generate_benchmark_report`
+  and the `glance()` and `augment()` methods) and 570 to 670 of the block
+  that the page lacks (references, see-also lists, examples), by the two
+  ways #180 and its review matched them. Merge each page into its block,
+  delete the page and let roxygen write it; write the 7 as blocks. The blocks of
+  `performBPTest()`, `performKoenkerTest()` and `performWhiteTest()` have 28
+  lines with `\%`, which markdown writes as `\\%`; two blocks have no
+  `@name` (`R/error_handling.R`, `R/intelligent_recommendations.R`).
+  `generateHeteroRecommendations.Rd` documents nine functions whose blocks
+  name it with `@rdname`: written by roxygen, it would take its `\name` and
+  title from the first of them, `analyseDatasetCharacteristics()`, and one
+  `data` argument, that of `generateHeteroRecommendations()`, while the
+  page's `data`, updated for 0.17.0, is in no block. `NAMESPACE` has no
+  roxygen line either: written by roxygen it would lose 59 exports whose
+  blocks have no `@export` (`runHeteroTests()`, `performBPTest()`, the
+  `sigma_*()` functions among them), the `importFrom()` of stats, MASS, R6
+  and utils and `importFrom(ggplot2, scale_fill_manual)`, and gain `a`,
+  `Register` and `heteroscedasticity` and the registration of
+  `print.htest_enhanced()`, which `NAMESPACE` lacks today. A first run with
+  no `NAMESPACE` also exports the two `autoplot()` methods as functions,
+  since the package then loads without `importFrom(ggplot2, autoplot)`; a
+  second run registers them again. Found by #180.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
