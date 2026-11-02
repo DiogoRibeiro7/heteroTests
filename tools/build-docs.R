@@ -769,9 +769,10 @@ redirects <- rbind(
   data.frame(from = names(pkgdown_pages), to = unname(pkgdown_pages), reference = FALSE),
   # The pages of this site of the help files that are gone, whose anchors
   # are those of the page that took their place.
+  # sprintf(), not paste0(), so that an empty list gives no row.
   data.frame(
-    from = paste0("reference/", names(gone_pages), "/index.html"),
-    to = paste0("reference/", unname(gone_pages), ".md"),
+    from = sprintf("reference/%s/index.html", names(gone_pages)),
+    to = sprintf("reference/%s.md", unname(gone_pages)),
     reference = rep(FALSE, length(gone_pages))
   )
 )
