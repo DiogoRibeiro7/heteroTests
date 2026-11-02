@@ -134,21 +134,24 @@ log-linear form it was 22% at 150 observations and 74% at 400. See
 
 ## Supported models
 
-It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, an unweighted
-`glm` with the Gaussian family and the identity link and a rank-deficient fit. The Gaussian
-`glm` is the least-squares fit `lm()`, with the same design and residuals, from which the
-variance function is estimated and the model refitted, so the test gives the value of the
-`lm`, and [`fitWLS()`](fitWLS.md) refits it as that `lm`; it refused every `glm`
-before 0.16.0.
-With the exponential form, the default, the variance regressors of a rank-deficient fit span the
-same space with or without its aliased columns, and the test gives the value of the same model
-fitted without them. With the power form they are the logarithms of every column of the design,
-the aliased ones included, and the logarithm of an aliased column is not a combination of the
-logarithms of the others, so the value is not that of the model without them; it does not depend on
-the order of the terms, as the value of the model without them does. It refuses weights that did
-not come from `fitWLS()`, the prior weights of a Gaussian `glm` among them, a `glm`
-of another family or link, a `survey::svyglm()` fit, a coefficient that is not finite for another reason,
-and `data` that lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also
+It accepts an unweighted `lm`, a `fitWLS()` fit and, since 0.16.0, an
+unweighted `glm` with the Gaussian family and the identity link and a
+rank-deficient fit. The Gaussian `glm` is the least-squares fit `lm()`, with
+the same design and residuals, from which the variance function is estimated
+and the model refitted, so the test gives the value of the `lm`, and
+[`fitWLS()`](fitWLS.md) refits it as that `lm`; it refused every `glm` before 0.16.0.
+With the exponential form, the default, the variance
+regressors of a rank-deficient fit span the same space with or without its
+aliased columns, and the test gives the value of the same model fitted without
+them. With the power form they are the logarithms of every column of the
+design, the aliased ones included, and the logarithm of an aliased column is not
+a combination of the logarithms of the others, so the value is not that of the
+model without them; it does not depend on the order of the terms, as the value
+of the model without them does. It refuses weights that did not come from
+`fitWLS()`, the prior weights of a Gaussian `glm` among them, a `glm` of
+another family or link, a `survey::svyglm()` fit, a
+coefficient that is not finite for another reason, and `data` that lack rows or
+variables of the fit. Since 0.16.0 it is built on the model context, and also
 refuses a multivariate `lm`, a fit whose coefficients, residuals or weights were
 changed after the fit, and a fit with `model = FALSE` whose model frame, rebuilt
 from the data it was fitted to, no longer holds its response, because those data
@@ -163,7 +166,7 @@ basis of its smooths without the penalty, and so tested another fit; a
 `gam` that is the least-squares fit of its design, as one whose smooth
 terms are all fixed (`s(x, fx = TRUE)`), is tested on that design, as
 before (decisions 37 and 38 of the design of the model context). Which
-model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+model each test accepts, and why, is set out in [test\_results](test_results.md), under
 *Supported models*.
 
 ## References

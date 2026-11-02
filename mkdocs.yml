@@ -147,7 +147,7 @@ nav:
               - "performWildBootstrapTest()": reference/performWildBootstrapTest.md
               - "performRankPermutationTest()": reference/performRankPermutationTest.md
               - "performQuantileRegressionTest()": reference/performQuantileRegressionTest.md
-              - "bootstrapTestStatistic()": reference/rbootstrap_test_statistic.md
+              - "bootstrapTestStatistic()": reference/bootstrapTestStatistic.md
               - "bootstrap_methods": reference/bootstrap_methods.md
               - "robust_implementations": reference/robust_implementations.md
               - "modern_diagnostics": reference/modern_diagnostics.md
@@ -222,7 +222,10 @@ nav:
           - "launchDiagnosticDashboard()": reference/launchDiagnosticDashboard.md
           - "run_benchmark_suite()": reference/run_benchmark_suite.md
       - "Package infrastructure":
-          - "ht_set_log_level()": reference/ht_logging.md
+          - "ht_set_log_level()": reference/ht_set_log_level.md
+          - "ht_enable_log_capture()": reference/ht_enable_log_capture.md
+          - "ht_log_history()": reference/ht_log_history.md
+          - "ht_clear_log_history()": reference/ht_clear_log_history.md
           - "std_error()": reference/std_error.md
           - "std_warning()": reference/std_warning.md
           - "validateTestInputs()": reference/validateTestInputs.md
@@ -239,6 +242,7 @@ nav:
           - "clearValidationCache()": reference/clearValidationCache.md
           - ".ht_null": reference/dot-ht_null.md
           - "ht_log()": reference/ht_log.md
+          - "identifyVariancePatterns()": reference/identifyVariancePatterns.md
           - "interpret_white_test()": reference/interpret_white_test.md
           - "messages": reference/messages.md
           - "rTEST_REQUIREMENTS": reference/rTEST_REQUIREMENTS.md

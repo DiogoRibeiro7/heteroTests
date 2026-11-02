@@ -43,7 +43,7 @@ performHarrisonMcCabeTest(
     names were reset) by the row numbers of the fit, or in the order of the fit
     when they hold one row per observation. The rows the fit dropped may be
     there or not. Data whose rows cannot be shown to hold the observations of
-    the fit are refused; see [`test_results`](test_results.md).
+    the fit are refused; see [test\_results](test_results.md).
 
 `order_by`
 :   Character scalar naming the column of `data` that orders the
@@ -198,7 +198,7 @@ Since 0.16.0 the observations of a `gam` are matched to the rows of `data` by
 the row names of its model frame. Before, they were matched by position,
 since the residuals of a `gam` carry no names, and `data` with the rows of
 the fit in another order gave a wrong value. Which model each test accepts,
-and why, is set out in [`test_results`](test_results.md), under *Supported models*.
+and why, is set out in [test\_results](test_results.md), under *Supported models*.
 
 ## References
 

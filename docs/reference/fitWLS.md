@@ -129,7 +129,7 @@ although they were estimated from the same data, so its reference
 distribution is only approximate: see the validation study in
 `inst/validation/README.md`. The bootstrap
 tests [`performWildBootstrapTest()`](performWildBootstrapTest.md), [`performWhiteTestBootstrap()`](performWhiteTestBootstrap.md) and
-[`bootstrapTestStatistic()`](rbootstrap_test_statistic.md) allow for the estimation. Since 0.15.0 they run
+[`bootstrapTestStatistic()`](bootstrapTestStatistic.md) allow for the estimation. Since 0.15.0 they run
 `fitWLS()` again on each replicate by default: they fit it as `model` was
 fitted, fit the recorded variance function again to its residuals, on the
 recorded regressors, and refit it with the weights that gives. Their

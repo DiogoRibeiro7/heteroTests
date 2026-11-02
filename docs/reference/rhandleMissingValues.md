@@ -27,9 +27,9 @@ rhandleMissingValues(data, variables, strategy = "complete_cases")
 :   Strategy describing how missing values should be handled.
     The options are:
 
-    - `"complete_cases"` – remove incomplete rows and emit a warning that summarizes the data loss.
-    - `"warn"` – behaves identically to `"complete_cases"` but is provided as a semantic alias when a calling test wants to emphasize the warning behaviour explicitly.
-    - `"fail"` – abort when any missing values are detected.
+    - `"complete_cases"` - remove incomplete rows and emit a warning that summarizes the data loss.
+    - `"warn"` - behaves identically to `"complete_cases"` but is provided as a semantic alias when a calling test wants to emphasize the warning behaviour explicitly.
+    - `"fail"` - abort when any missing values are detected.
 
 ## Value
 

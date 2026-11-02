@@ -112,32 +112,37 @@ from the formula, on its rows of `data`, so a term computed from the rows it
 is given took other values in each chunk than in the fit:
 `I(x > median(x))` the median of the chunk, and `cut(x, quantile(x))` its
 breaks, which stopped the test ("factor has new levels") in chunks of any
-size on a fit that dropped the row at the minimum of `x`. Since 0.17.0 an `mgcv::gam()`
-fit with smooth terms, penalised or fixed, is tested on its design, the basis of its smooths, as by
-the exact tests, read chunk by chunk, and gives their value; before, it was tested on the design of
-the variables of its formula, which its model frame holds (decision 37 of the design of the model
-context).
+size on a fit that dropped the row at the minimum of `x`. Since 0.17.0 an
+`mgcv::gam()` fit with smooth terms, penalised or fixed, is tested on its
+design, the basis of its smooths, as by the exact tests, read chunk by chunk,
+and gives their value; before, it was tested on the design of the variables
+of its formula, which its model frame holds (decision 37 of the design of the
+model context).
 
 ## Supported models
 
-It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the identity
-link, unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
-rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
-same model fitted without the aliased columns. The Gaussian `glm` with prior weights `w`
-is the least-squares fit `lm(..., weights = w)`, with the same design and residuals, and the
-test gives the value of the `lm`. It refused every `glm` before 0.16.0, because the
-checks it runs read the R-squared of `summary()`, which a `glm` does not report; they read
-that of the least-squares fit now. It refuses a `glm` of another family or link, a
-`survey::svyglm()` fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, `data` that lack rows or variables of the fit, and, since 0.16.0, a multivariate `lm`, a
-fit changed after it was fitted and a fit with `model = FALSE` whose data are gone, unless `data`
-gives its response and fitted values (see [`test_results`](test_results.md)). Since 0.17.0 it drops the
-terms of its auxiliary regression that are collinear, as the squares of dummy variables are, as
-[`performWhiteTest()`](performWhiteTest.md) drops them, where it stopped. Since 0.16.0 it stops with the
-refusal of [`performWhiteTest()`](performWhiteTest.md) (see its section *Too few observations*) when its
-independent terms are at least as many as the observations, where it stopped as on collinear terms,
-or fit the squared residuals exactly, collinear or not, as on a paired design. Which model each
-test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported models*.
+It accepts an `lm` and, since 0.16.0, a `glm` with the Gaussian family and the
+identity link, unweighted or with positive weights, a `fitWLS()` fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+design: it gives the value of the same model fitted without the aliased columns.
+The Gaussian `glm` with prior weights `w` is the least-squares fit
+`lm(..., weights = w)`, with the same design and residuals, and the test gives
+the value of the `lm`. It refused every `glm` before 0.16.0, because the checks
+it runs read the R-squared of `summary()`, which a `glm` does not report; they
+read that of the least-squares fit now. It refuses a `glm` of another family or
+link, a `survey::svyglm()` fit, a fit with a zero weight, a coefficient that is
+not finite for another reason, `data` that lack rows or variables of the
+fit, and, since 0.16.0, a multivariate `lm`, a fit changed after it was
+fitted and a fit with `model = FALSE` whose data are gone, unless `data`
+gives its response and fitted values (see [test\_results](test_results.md)). Since 0.17.0 it
+drops the terms of its auxiliary regression that are collinear, as the
+squares of dummy variables are, as [`performWhiteTest()`](performWhiteTest.md) drops them, where it
+stopped. Since 0.16.0 it stops with the refusal of [`performWhiteTest()`](performWhiteTest.md) (see
+its section *Too few observations*) when its independent terms are at least
+as many as the observations, where it stopped as on collinear terms, or fit
+the squared residuals exactly, collinear or not, as on a paired design.
+Which model each test accepts, and why, is set out in [test\_results](test_results.md), under
+*Supported models*.
 
 ## References
 

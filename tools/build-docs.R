@@ -729,6 +729,13 @@ reference_redirects <- local({
       taken <- c(taken, tolower(alias))
     }
   }
+  # The help files pkgdown had a page for that are gone, each to the page
+  # that took its place: ht_logging.Rd, which documented the four logging
+  # functions, gave way to their own pages in 0.18.0.
+  gone <- c(ht_logging = "ht_set_log_level")
+  gone <- gone[!tolower(names(gone)) %in% taken]
+  from <- c(from, names(gone))
+  to <- c(to, unname(gone))
   data.frame(
     from = paste0("reference/", from, ".html"),
     to = paste0("reference/", to, ".md"),

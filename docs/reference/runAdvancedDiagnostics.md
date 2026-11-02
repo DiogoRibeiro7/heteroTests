@@ -64,13 +64,13 @@ rrunAdvancedDiagnostics(
     resampling test in the package since 0.15.0; it was 500 before. On a fit
     returned by [`fitWLS()`](fitWLS.md) the bootstrap of [`performWhiteTestRobust()`](performWhiteTestRobust.md) and
     [`performBPTestRobust()`](performBPTestRobust.md) estimates the weights again in each replicate, the
-    default of [`bootstrapTestStatistic()`](rbootstrap_test_statistic.md) since 0.15.0, and there is no
+    default of [`bootstrapTestStatistic()`](bootstrapTestStatistic.md) since 0.15.0, and there is no
     argument to hold them fixed here.
 
 `parallel`
 :   Logical, allow parallel bootstrap evaluation when the
     `parallel` package is available. A seeded call gives the same result
-    each time; see *Parallel replicates* in [`bootstrapTestStatistic()`](rbootstrap_test_statistic.md).
+    each time; see *Parallel replicates* in [`bootstrapTestStatistic()`](bootstrapTestStatistic.md).
 
 `ci_level`
 :   Confidence level for reported intervals.

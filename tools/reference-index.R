@@ -60,7 +60,7 @@ list(
     contents = c(
       "performWhiteTestBootstrap", "performWildBootstrapTest",
       "performRankPermutationTest", "performQuantileRegressionTest",
-      "rbootstrap_test_statistic", "bootstrap_methods", "robust_implementations",
+      "bootstrapTestStatistic", "bootstrap_methods", "robust_implementations",
       "modern_diagnostics", "additional_tests"
     )
   ),
@@ -134,7 +134,8 @@ list(
   list(
     title = "Package infrastructure",
     contents = c(
-      "ht_set_log_level", "std_error", "std_warning", "validateTestInputs",
+      "ht_set_log_level", "ht_enable_log_capture", "ht_log_history",
+      "ht_clear_log_history", "std_error", "std_warning", "validateTestInputs",
       "checkData", "rcalculateEffectSize", "restimate_test_power",
       "rvalidate_against_reference"
     )
