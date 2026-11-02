@@ -4,10 +4,13 @@
 
 <small>Source: [`R/utils.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/utils.R) · Help: `?safe_lm`</small>
 
-Wraps [`stats::lm()`](https://rdrr.io/r/stats/lm.html) in a `tryCatch` block that logs the error via
-[`ht_log()`](ht_log.md) and optionally attempts recovery (e.g., dropping
-rows with missing values) before rethrowing. This helper is used internally by
-diagnostic tests so failures are easier to debug.
+Wraps [`stats::lm()`](https://rdrr.io/r/stats/lm.html) in a `tryCatch` block. If the fit fails, it logs the
+error via [`ht_log()`](ht_log.md) and, with `.recover = TRUE`, refits the model without
+the rows whose variables of the formula hold missing or non-finite values,
+if there are any: it returns that refit when it succeeds, and otherwise
+stops with the message of the error and any suggestions for cleaning the
+data. This helper is used internally by diagnostic tests so failures are
+easier to debug.
 
 ## Usage
 
@@ -27,10 +30,10 @@ safe_lm(formula, data, ..., .recover = TRUE)
 :   Additional arguments passed to [`stats::lm()`](https://rdrr.io/r/stats/lm.html).
 
 `.recover`
-:   Logical flag controlling whether the helper should attempt
-    automatic recovery strategies (e.g., removing problematic rows) before
-    rethrowing the error.
+:   Logical flag: whether a failed fit is attempted again
+    without the problematic rows before the helper stops.
 
 ## Value
 
-A fitted model object.
+A fitted model object: the fit of `formula` to `data`, or the refit
+that recovered from its failure.

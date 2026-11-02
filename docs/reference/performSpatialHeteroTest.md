@@ -39,7 +39,7 @@ performSpatialHeteroTest(
     data.table, a data frame whose row names were reset) by the row numbers of
     the fit, or in the order of the fit when they hold one row per observation.
     The rows the fit dropped may be there or not. Data whose rows cannot be
-    shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
+    shown to hold the observations of the fit are refused; see [test\_results](test_results.md).
 
 `listw`
 :   Spatial weights in `spdep` `listw` format or a numeric
@@ -72,10 +72,11 @@ the value of the same model fitted without the aliased columns. It refuses a
 weight, a coefficient that is not finite for another reason, and `data` that
 lack rows or variables of the fit.
 It refuses a multivariate `lm` ("needs a model with one response"), since
-0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is tested as before
-0.16.0, with penalised smooth terms too: the test reads its residuals and does not fit it again, so
-it does not take them for least-squares residuals (decision 37 of the design of the model context).
-Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+0.16.0; before, it stopped with a coercion error. An `mgcv::gam()` fit is
+tested as before 0.16.0, with penalised smooth terms too: the test reads its
+residuals and does not fit it again, so it does not take them for
+least-squares residuals (decision 37 of the design of the model context).
+Which model each test accepts, and why, is set out in [test\_results](test_results.md), under
 *Supported models*.
 
 ## References

@@ -21,7 +21,7 @@ order; rows that only number themselves (a tibble, a data.table, a data
 frame whose row names were reset) by the row numbers of the fit, or in the
 order of the fit when they hold one row per observation. The rows the fit
 dropped may be there or not. Data whose rows cannot be shown to hold the
-observations of the fit are refused; see \code{\link{test_results}}.}
+observations of the fit are refused; see \link{test_results}.}
 }
 \value{
 An object of class \code{htest} reporting the chi-squared statistic
@@ -76,23 +76,28 @@ requirements registered for this test in
 \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
 }
 \section{Supported models}{
-It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
-or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. A model with an offset is accepted since 0.16.0: the refit of
-the design carries the offset, as \code{\link{performKoenkerTest}()} accounts for it.
-It refuses a multivariate \code{lm} ("needs a model with one response"), and, since 0.16.0, an
-\code{mgcv::gam()} fit with penalised smooth terms, which is not the least-squares fit of its
-design, the basis of its smooths, that the test fits again. Since 0.17.0 a \code{gam} that is the
-least-squares fit of its design, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}),
-is tested on that design and gives the value of the \code{lm()} of it; before, it was refused as a
-penalised one. A \code{gam} without smooth terms is tested as the Gaussian \code{glm} it is
-(decisions 37 and 38 of the design of the model context).
-Which model each test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported
-models}.
+
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link,
+unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+\code{glm} of another family or link, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that
+lack rows or variables of the fit. A model with an offset is accepted since
+0.16.0: the refit of the design carries the offset, as \code{\link[=performKoenkerTest]{performKoenkerTest()}}
+accounts for it.
+It refuses a multivariate \code{lm} ("needs a model with one response"), and,
+since 0.16.0, an \code{mgcv::gam()} fit with penalised smooth terms, which is not
+the least-squares fit of its design, the basis of its smooths, that the test
+fits again. Since 0.17.0 a \code{gam} that is the least-squares fit of its design,
+as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}), is tested on
+that design and gives the value of the \code{lm()} of it; before, it was refused
+as a penalised one. A \code{gam} without smooth terms is tested as the Gaussian
+\code{glm} it is (decisions 37 and 38 of the design of the model context).
+Which model each test accepts, and why, is set out in
+\link{test_results}, under \emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)

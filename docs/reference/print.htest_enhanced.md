@@ -16,8 +16,9 @@ print(x, ...)
 ## Arguments
 
 `x`
-:   An object of class `htest_enhanced`, as returned by
-    `performWhiteTestEnhanced()`.
+:   An `htest` of class `htest_enhanced`, whose `interpretation`
+    element is printed after it. No function of the package returns one:
+    `performWhiteTestEnhanced()`, which is internal, returns an `htest`.
 
 `...`
 :   Further arguments passed to `print.htest()`.

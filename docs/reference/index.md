@@ -77,7 +77,7 @@ Each test returns an `htest` object, whose fields `test_results` documents. The 
 | [Wild bootstrap heteroscedasticity test](performWildBootstrapTest.md) | `performWildBootstrapTest()` |
 | [Rank-based permutation heteroscedasticity test](performRankPermutationTest.md) | `performRankPermutationTest()` |
 | [Quantile regression heteroscedasticity test](performQuantileRegressionTest.md) | `performQuantileRegressionTest()` |
-| [Bootstrap a test statistic](rbootstrap_test_statistic.md) | `bootstrapTestStatistic()`, `rbootstrap_test_statistic()` |
+| [Bootstrap a test statistic](bootstrapTestStatistic.md) | `bootstrapTestStatistic()`, `rbootstrap_test_statistic()` |
 | [Bootstrap utilities for heteroscedasticity diagnostics](bootstrap_methods.md) |  |
 | [Robust heteroscedasticity diagnostics](robust_implementations.md) |  |
 | [Modern heteroscedasticity diagnostics](modern_diagnostics.md) | `modern_diagnostics` |
@@ -194,7 +194,10 @@ To move to a companion package, once it has a name.
 
 | Topic | Functions |
 | --- | --- |
-| [Control logging for heteroTests diagnostics](ht_logging.md) | `ht_set_log_level()`, `ht_enable_log_capture()`, `ht_log_history()`, `ht_clear_log_history()` |
+| [Set log verbosity for heteroTests](ht_set_log_level.md) | `ht_set_log_level()` |
+| [Enable log capture for debugging complex diagnostics](ht_enable_log_capture.md) | `ht_enable_log_capture()` |
+| [Retrieve captured log messages](ht_log_history.md) | `ht_log_history()` |
+| [Clear captured log history](ht_clear_log_history.md) | `ht_clear_log_history()` |
 | [Generate standardized error message (deprecated)](std_error.md) | `std_error()` |
 | [Generate standardized warning message (deprecated)](std_warning.md) | `std_warning()` |
 | [Validate model and data inputs before running diagnostics (deprecated)](validateTestInputs.md) | `validateTestInputs()` |
@@ -215,6 +218,7 @@ To move to a companion package, once it has a name.
 | [Reset cached validation results](clearValidationCache.md) | `clearValidationCache()` |
 | [Ecosystem integration helpers](dot-ht_null.md) | `.ht_null` |
 | [Log a formatted message](ht_log.md) | `ht_log()` |
+| [Detect heteroscedasticity patterns from fitted model](identifyVariancePatterns.md) | `identifyVariancePatterns()` |
 | [Interpret White test results](interpret_white_test.md) | `interpret_white_test()` |
 | [Standardized error and warning messages](messages.md) |  |
 | [Test-specific sample size requirements](rTEST_REQUIREMENTS.md) | `rTEST_REQUIREMENTS` |

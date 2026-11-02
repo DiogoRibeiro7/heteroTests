@@ -4,8 +4,12 @@
 \alias{performSzroeterTest}
 \title{Szroeter test for ordered alternatives}
 \usage{
-performSzroeterTest(model, data = NULL, order_by,
-  alternative = c("greater", "two.sided", "less"))
+performSzroeterTest(
+  model,
+  data = NULL,
+  order_by,
+  alternative = c("greater", "two.sided", "less")
+)
 }
 \arguments{
 \item{model}{A fitted \link[stats:lm]{stats::lm} object representing the mean equation under
@@ -23,7 +27,7 @@ name, in any order; rows that only number themselves (a tibble, a
 data.table, a data frame whose row names were reset) by the row numbers of
 the fit, or in the order of the fit when they hold one row per observation.
 The rows the fit dropped may be there or not. Data whose rows cannot be
-shown to hold the observations of the fit are refused; see \code{\link{test_results}}.}
+shown to hold the observations of the fit are refused; see \link{test_results}.}
 
 \item{order_by}{Character scalar naming the column that defines the ordering of
 observations prior to computing the statistic. The column must be numeric or
@@ -117,11 +121,11 @@ refused both ("Missing rows").
 
 The statistic and its null moments are checked against an independent
 reconstruction from the full residual-maker in
-\file{tests/testthat/test-pass-a-reference.R}, and the moments against the
+\code{tests/testthat/test-pass-a-reference.R}, and the moments against the
 eigenvalues of \eqn{MAM} to \code{1e-13}. Releases before 0.7.0 divided
 the centred statistic by a further \eqn{\sqrt{n}}, shrinking \eqn{Q} by a
 factor of roughly \eqn{2 / \sqrt{n}} and leaving the test with essentially no
-power against any alternative; see \file{NEWS.md}.
+power against any alternative; see \code{NEWS.md}.
 
 \code{inst/validation/szroeter-design-null-size.R} tested the samples of
 \code{inst/validation/harrison-mccabe-size-power.R}, \code{lm(y ~ x1 + x2)} ordered by
@@ -163,9 +167,10 @@ since the residuals of a \code{gam} carry no names, and \code{data} with the row
 the fit in another order gave a wrong value. The null moments of a \code{gam} are
 those of its design, with the rank of that design, as
 \code{\link[=performHarrisonMcCabeTest]{performHarrisonMcCabeTest()}} takes its null distribution.
-Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+Which model each test accepts, and why, is set out in \link{test_results}, under
 \emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)

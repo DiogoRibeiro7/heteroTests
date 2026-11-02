@@ -4,7 +4,10 @@
 
 <small>Source: [`R/quantile_regression_joint.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/quantile_regression_joint.R) · Help: `?performQuantileRegressionTest`</small>
 
-Tests equality of regression slopes across two or more conditional quantiles using the joint Wald-type test implemented by `quantreg::anova.rqs()`. The procedure accounts for dependence among quantile-specific estimates from the same sample rather than treating their covariance matrices as independent.
+Tests equality of regression slopes across two or more conditional quantiles
+using the joint Wald-type test implemented by [`quantreg::anova.rqs()`](https://rdrr.io/cran/quantreg/man/anova.rq.html). This
+avoids treating quantile-specific coefficient estimates from the same sample
+as independent.
 
 ## Usage
 
@@ -21,7 +24,8 @@ performQuantileRegressionTest(
 ## Arguments
 
 `model`
-:   A fitted [stats::lm](https://rdrr.io/r/stats/lm.html) object describing the mean structure whose conditional quantile slopes are to be compared.
+:   A fitted [stats::lm](https://rdrr.io/r/stats/lm.html) object describing the mean structure whose
+    conditional quantile slopes are to be compared.
 
 `data`
 :   The data frame `model` was fitted to, or `NULL`, the default.
@@ -35,24 +39,33 @@ performQuantileRegressionTest(
     were reset) by the row numbers of the fit, or in the order of the fit when
     they hold one row per observation. The rows the fit dropped may be there
     or not. Data whose rows cannot be shown to hold the observations of the
-    fit are refused; see [`test_results`](test_results.md).
+    fit are refused; see [test\_results](test_results.md).
 
 `taus`
-:   Numeric vector containing at least two distinct quantiles strictly between zero and one.
+:   Numeric vector containing at least two distinct quantiles in
+    `(0, 1)`. Defaults to `c(0.25, 0.75)`.
 
 `se_type`
-:   Standard-error method used by `quantreg::anova.rqs()`; supported values are `"nid"` and `"ker"`.
+:   Standard-error method used by [`quantreg::anova.rqs()`](https://rdrr.io/cran/quantreg/man/anova.rq.html). Supported
+    values are `"nid"` and `"ker"`.
 
 `iid`
-:   Logical indicating whether identical conditional densities are assumed when computing the joint test.
+:   Logical indicating whether the conditional densities are assumed
+    identical when computing the joint test. Passed to
+    [`quantreg::anova.rqs()`](https://rdrr.io/cran/quantreg/man/anova.rq.html). Defaults to `TRUE`.
 
 ## Value
 
-An `htest` object containing the F-like joint statistic, numerator and denominator degrees of freedom, p-value, fitted quantiles, and quantile-specific slope estimates.
+An object of class `htest` containing the F-like joint test
+statistic, numerator and denominator degrees of freedom, p-value, fitted
+quantiles, and quantile-specific slope estimates.
 
 ## Details
 
-Under a pure location-shift model with homoskedastic errors, regression slopes are equal across quantiles. Rejection therefore provides evidence against that location-shift/homoskedastic specification. The result should not be interpreted as a universal test for every possible form of heteroscedasticity.
+Under a pure location-shift model with homoskedastic errors, slopes are equal
+across quantiles. Systematic slope differences are therefore evidence against
+that location-shift/homoskedastic specification. The test should not be read
+as a universal test for every possible form of heteroscedasticity.
 
 Weighted fits are refused, although the resampling tests accept them. On a
 fit with weights \(w_i\) the null hypothesis is that the Pearson residuals
@@ -70,32 +83,38 @@ study, and has neither.
 
 ## Supported models
 
-It accepts an unweighted `lm` and an unweighted `glm` with the Gaussian family and the
-identity link and, since 0.16.0, a rank-deficient one: `quantreg::rq()` refuses a singular
-design, so the quantile regressions are fitted to the columns that were not aliased, which gives the
-value of the same model fitted without them. Since 0.16.0 it also accepts a model with an offset:
-the quantile regressions are fitted to the response of the fit minus its offset, on the design of
-the fit, which is the model with the offset, since the offset shifts every conditional quantile as
-it shifts the mean; before, they were refitted from the formula, which left the offset out. Since
-0.16.0 it also accepts a model with a single regressor, such as `lm(y ~ x)`; before, it
-stopped with "subscript out of bounds" on one, and `runHeteroTests()` returned its fallback,
-the rank permutation test, under the name `quantile_regression`. It
-refuses a weighted fit, a `fitWLS()` fit among them, as it refits the model without the
-weights, a `glm` of another family or link, a `survey::svyglm()` fit, a coefficient that
-is not finite for another reason, and `data` that lack rows or variables of the fit.
-It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
-`mgcv::gam()` fit with penalised smooth terms, which is not the least-squares fit of its
-design, the basis of its smooths, that the test fits again. Since 0.17.0 a `gam` that is the
-least-squares fit of its design, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`),
-is tested on that design and gives the value of the `lm()` of it; before, it was refused as a
-penalised one. A `gam` without smooth terms is tested as the Gaussian `glm` it is
-(decisions 37 and 38 of the design of the model context).
-Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
-models*.
+It accepts an unweighted `lm` and an unweighted `glm` with the Gaussian family
+and the identity link and, since 0.16.0, a rank-deficient one: `quantreg::rq()`
+refuses a singular design, so the quantile regressions are fitted to the columns
+that were not aliased, which gives the value of the same model fitted without
+them. Since 0.16.0 it also accepts a model with an offset: the quantile
+regressions are fitted to the response of the fit minus its offset, on the
+design of the fit, which is the model with the offset, since the offset
+shifts every conditional quantile as it shifts the mean; before, they were
+refitted from the formula, which left the offset out. Since 0.16.0 it also
+accepts a model with a single regressor, such as `lm(y ~ x)`; before, it
+stopped with "subscript out of bounds" on one, and `runHeteroTests()`
+returned its fallback, the rank permutation test, under the name
+`quantile_regression`. It refuses a weighted
+fit, a `fitWLS()` fit among them, as it refits the
+model without the weights, a `glm` of another family or link, a
+`survey::svyglm()` fit, a coefficient that is not finite for another reason, and
+`data` that lack rows or variables of the fit.
+It refuses a multivariate `lm` ("needs a model with one response"), and,
+since 0.16.0, an `mgcv::gam()` fit with penalised smooth terms, which is not
+the least-squares fit of its design, the basis of its smooths, that the test
+fits again. Since 0.17.0 a `gam` that is the least-squares fit of its design,
+as one whose smooth terms are all fixed (`s(x, fx = TRUE)`), is tested on
+that design and gives the value of the `lm()` of it; before, it was refused
+as a penalised one. A `gam` without smooth terms is tested as the Gaussian
+`glm` it is (decisions 37 and 38 of the design of the model context).
+Which model each test accepts,
+and why, is set out in [test\_results](test_results.md), under *Supported models*.
 
 ## References
 
-Koenker, R., & Bassett, G. (1982). Robust tests for heteroscedasticity based on regression quantiles. *Econometrica, 50*(1), 43–61.
+Koenker, R., & Bassett, G. (1982). Robust tests for heteroscedasticity based
+on regression quantiles. *Econometrica, 50*(1), 43-61.
 
 Koenker, R. (2005). *Quantile Regression*. Cambridge University Press.
 

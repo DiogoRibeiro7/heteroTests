@@ -5,9 +5,9 @@
 <small>Source: [`R/utils.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/utils.R) · Help: `?ht_log`</small>
 
 This helper wraps [`base::message()`](https://rdrr.io/r/base/message.html) but prepends a log level for
-clearer diagnostics when running algorithms. Messages are filtered according to
-[`ht_set_log_level()`](ht_logging.md) and can optionally be captured with
-[`ht_enable_log_capture()`](ht_logging.md). Intended for internal use.
+clearer diagnostics when running algorithms. Logs are filtered according
+to [`ht_set_log_level()`](ht_set_log_level.md) and can optionally be captured with
+[`ht_enable_log_capture()`](ht_enable_log_capture.md). Intended for internal use.
 
 ## Usage
 

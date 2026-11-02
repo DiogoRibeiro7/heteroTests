@@ -12,17 +12,17 @@ rvalidateDistributionalAssumptions(data, assumptions = list())
 \item{assumptions}{A named list describing the desired checks. Recognised
 entries are:
 \itemize{
-\item \code{normality} – character vector or list with element \code{variables}
+\item \code{normality} - character vector or list with element \code{variables}
 specifying which columns should satisfy approximate normality. Optional
 list elements \code{alpha} (significance level) and \code{sample_limit} (maximum
-sample size for the Shapiro–Wilk test) can be supplied.
-\item \code{positive} – character vector or list identifying variables that
+sample size for the Shapiro-Wilk test) can be supplied.
+\item \code{positive} - character vector or list identifying variables that
 must contain positive values. When provided as a list, \code{test_name}
 overrides the label used in error messages.
-\item \code{variation} – character vector or list (with \code{variables} and
+\item \code{variation} - character vector or list (with \code{variables} and
 optional \code{tolerance}) describing variables that must exhibit
 non-negligible variance.
-\item \code{outliers} – character vector or list of variables to screen for
+\item \code{outliers} - character vector or list of variables to screen for
 extreme observations. Lists may include a numeric \code{threshold}
 specifying the acceptable number of robust standard deviations.
 }}

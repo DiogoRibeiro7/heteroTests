@@ -11,8 +11,12 @@ scheme proposed by Szroeter (1978).
 ## Usage
 
 ```r
-performSzroeterTest(model, data = NULL, order_by,
-  alternative = c("greater", "two.sided", "less"))
+performSzroeterTest(
+  model,
+  data = NULL,
+  order_by,
+  alternative = c("greater", "two.sided", "less")
+)
 ```
 
 ## Arguments
@@ -34,7 +38,7 @@ performSzroeterTest(model, data = NULL, order_by,
     data.table, a data frame whose row names were reset) by the row numbers of
     the fit, or in the order of the fit when they hold one row per observation.
     The rows the fit dropped may be there or not. Data whose rows cannot be
-    shown to hold the observations of the fit are refused; see [`test_results`](test_results.md).
+    shown to hold the observations of the fit are refused; see [test\_results](test_results.md).
 
 `order_by`
 :   Character scalar naming the column that defines the ordering of
@@ -183,7 +187,7 @@ since the residuals of a `gam` carry no names, and `data` with the rows of
 the fit in another order gave a wrong value. The null moments of a `gam` are
 those of its design, with the rank of that design, as
 [`performHarrisonMcCabeTest()`](performHarrisonMcCabeTest.md) takes its null distribution.
-Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under
+Which model each test accepts, and why, is set out in [test\_results](test_results.md), under
 *Supported models*.
 
 ## References

@@ -590,7 +590,7 @@ rwls_reestimation <- function(model, reestimate_weights, fn) {
 #'
 #' The rule is conservative: `x` for `I(y / x) ~ z` counts as computed from
 #' the response, since the replicate cannot tell which of `y` and `x`
-#' changed. Giving the response as a column of the data, `r <- y / x` and
+#' changed. Giving the response as a column of the data, \code{r <- y / x} and
 #' `lm(r ~ z)`, says that `x` stays.
 #'
 #' @param model A fitted `lm`.

@@ -40,7 +40,7 @@ performStudentizedBPTest(model, data = NULL)
     frame whose row names were reset) by the row numbers of the fit, or in the
     order of the fit when they hold one row per observation. The rows the fit
     dropped may be there or not. Data whose rows cannot be shown to hold the
-    observations of the fit are refused; see [`test_results`](test_results.md).
+    observations of the fit are refused; see [test\_results](test_results.md).
 
 ## Value
 
@@ -85,22 +85,25 @@ requirements registered for this test in
 
 ## Supported models
 
-It accepts an `lm` and a `glm` with the Gaussian family and the identity link, unweighted
-or with positive weights, a `fitWLS()` fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a `glm` of another family or link, a `survey::svyglm()` fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and `data` that
-lack rows or variables of the fit. A model with an offset is accepted since 0.16.0: the refit of
-the design carries the offset, as [`performKoenkerTest()`](performKoenkerTest.md) accounts for it.
-It refuses a multivariate `lm` ("needs a model with one response"), and, since 0.16.0, an
-`mgcv::gam()` fit with penalised smooth terms, which is not the least-squares fit of its
-design, the basis of its smooths, that the test fits again. Since 0.17.0 a `gam` that is the
-least-squares fit of its design, as one whose smooth terms are all fixed (`s(x, fx = TRUE)`),
-is tested on that design and gives the value of the `lm()` of it; before, it was refused as a
-penalised one. A `gam` without smooth terms is tested as the Gaussian `glm` it is
-(decisions 37 and 38 of the design of the model context).
-Which model each test accepts, and why, is set out in [`test_results`](test_results.md), under *Supported
-models*.
+It accepts an `lm` and a `glm` with the Gaussian family and the identity link,
+unweighted or with positive weights, a `fitWLS()` fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+`glm` of another family or link, a `survey::svyglm()` fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and `data` that
+lack rows or variables of the fit. A model with an offset is accepted since
+0.16.0: the refit of the design carries the offset, as [`performKoenkerTest()`](performKoenkerTest.md)
+accounts for it.
+It refuses a multivariate `lm` ("needs a model with one response"), and,
+since 0.16.0, an `mgcv::gam()` fit with penalised smooth terms, which is not
+the least-squares fit of its design, the basis of its smooths, that the test
+fits again. Since 0.17.0 a `gam` that is the least-squares fit of its design,
+as one whose smooth terms are all fixed (`s(x, fx = TRUE)`), is tested on
+that design and gives the value of the `lm()` of it; before, it was refused
+as a penalised one. A `gam` without smooth terms is tested as the Gaussian
+`glm` it is (decisions 37 and 38 of the design of the model context).
+Which model each test accepts, and why, is set out in
+[test\_results](test_results.md), under *Supported models*.
 
 ## References
 

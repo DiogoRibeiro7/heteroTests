@@ -190,7 +190,7 @@ and little more.
 | Path | Holds |
 | --- | --- |
 | `R/` | One file per diagnostic, named after the function it defines, with no subdirectories. `R/interface.R` holds the calling convention and the checks of `data`; `R/model_context.R` the model context; `R/validation.R` the input validation the tests share. |
-| `man/` | The help pages. 52 of the 133 are written by hand and roxygen2 generates the rest; see [Development](development.md). |
+| `man/` | The help pages. roxygen2 writes 86 of the 138 from `R/`, and 52 are written by hand; see [Development](development.md#help-pages-and-roxygen2). |
 | `tests/testthat/` | Unit tests, property-based tests and comparisons with reference implementations. |
 | `inst/validation/` | Simulated size and power of the tests, and the scripts that produce them. |
 | `inst/tutorials/` | A six-part course as Jupyter notebooks with an R kernel. |

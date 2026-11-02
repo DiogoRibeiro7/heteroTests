@@ -5,10 +5,10 @@
 <small>Source: [`R/bootstrap_methods.R`](https://github.com/DiogoRibeiro7/heteroTests/blob/main/R/bootstrap_methods.R) · Help: `?bootstrapTestStatistic`</small>
 
 Provides a consistent wrapper around bootstrap resampling for test
-statistics produced by heteroscedasticity diagnostics. The routine
-refits the supplied model on each bootstrap replicate and evaluates
-`test_function` on it, returning the bootstrap distribution, a
-percentile interval, and—for null-imposed resampling—a p-value.
+statistics produced by heteroscedasticity diagnostics. The routine refits
+the supplied model on each bootstrap replicate and evaluates
+`test_function` on it, returning the bootstrap distribution, a percentile
+interval, and—for null-imposed resampling—a p-value.
 
 ## Usage
 
@@ -79,10 +79,10 @@ rbootstrap_test_statistic(
 :   Confidence level for the percentile interval.
 
 `resample`
-:   Bootstrap strategy. `"null"` (the default) regenerates
-    the response under homoscedasticity and yields a testable `p_value`;
-    `"pairs"` samples rows of `data` with replacement and yields
-    replicates and an interval but no p-value. See Details.
+:   Bootstrap strategy. `"null"` (the default) regenerates the
+    response under homoscedasticity and yields a testable `p_value`;
+    `"pairs"` samples rows of `data` with replacement and yields replicates
+    and an interval but no p-value. See Details.
 
 `n_cores`
 :   Optional integer specifying the number of worker processes to
@@ -108,9 +108,9 @@ rbootstrap_test_statistic(
     of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
     is the response term itself, as `~ .` gives, cannot be estimated again:
     `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
-    error. Giving the response as a column of the data, as in `r ~ z`, says
-    which variables stay. It comes after `...`, so it has to be named in
-    full. See Details.
+    error. Giving the response as a column of the data, as in
+    `r ~ z`, says which variables stay. It comes after `...`, so it has
+    to be named in full. See Details.
 
 ## Value
 
@@ -129,9 +129,9 @@ A list with components:
 
 `ci`
 :   Percentile interval of the bootstrap distribution of the
-    statistic, at `ci_level`. This summarises where the resampled statistic
-    falls; it is not a confidence interval for a parameter and carries no
-    coverage guarantee.
+    statistic, at `ci_level`. This summarises where the resampled
+    statistic falls; it is not a confidence interval for a parameter and
+    carries no coverage guarantee.
 
 `p_value`
 :   Empirical p-value from the null-imposed replicates,
@@ -153,25 +153,22 @@ A list with components:
 The `resample` argument decides what the replicates mean.
 
 With `resample = "null"` (the default) the response is regenerated as
-\(\hat y_i + e^*_i\), where the \(e^*_i\) are drawn with replacement from
-the model's residuals after dividing by \(\sqrt{1 - h_i}\) and centring.
-Those data satisfy homoscedasticity by construction, so the replicates
-estimate the null distribution and `p_value` is a test. The leverage
-correction matters: OLS residuals have variance \(\sigma^2 (1 - h_i)\), and
-resampling them unscaled under-disperses the regenerated errors, which
-inflates the rejection rate.
+\(\hat y_i + e^*_i\), where the \(e^*_i\) are drawn with replacement
+from the model's residuals after dividing by \(\sqrt{1 - h_i}\) and
+centring. Those data satisfy homoscedasticity by construction, so the
+replicates estimate the null distribution and `p_value` is a test. The
+leverage correction matters: OLS residuals have variance
+\(\sigma^2 (1 - h_i)\), and resampling them unscaled under-disperses the
+regenerated errors, which inflates the rejection rate.
 
-With `resample = "pairs"` rows are sampled with replacement. The
-replicates then follow the statistic's distribution under whatever variance
-structure the data actually have, which is useful for describing its
-variability but is not a null distribution: the replicates are centred on the
-observed statistic, so comparing the two returns roughly 0.5 whatever the
-data. Measured rejection under \(\sigma_i = x_i^2\) was 0%.
-`p_value` is therefore `NA` for pairs resampling.
-
-Neither strategy accepts a `glm`: each replicate is refitted with least
-squares, so the family and link would be discarded and the replicates would
-describe a different model from the one supplied.
+With `resample = "pairs"` rows are sampled with replacement. The replicates
+then follow the statistic's distribution under whatever variance structure
+the data actually have, which is useful for describing its variability but
+is not a null distribution: the replicates are centred on the observed
+statistic, so comparing the two returns roughly 0.5 whatever the data.
+Measured rejection under \(\sigma_i = x_i^2\) was 0%. `p_value` is
+therefore `NA` for pairs resampling, and was removed rather than kept as a
+number that cannot be interpreted.
 
 A weighted `lm` is resampled on the scale where its null hypothesis is
 constant variance, the regression of \(\sqrt{w_i}\, y_i\)
@@ -251,9 +248,9 @@ first, as by every test (see *Supported models*); it was refused here
 before, with that message.
 
 Null-imposed resampling additionally requires the response to be a plain
-variable. For `log(y) ~ x` the fitted values are on the log scale while
-the data column holds `y`, so regenerating one from the other and
-refitting would take the logarithm twice. That case raises an error;
+variable: for `log(y) ~ x` the fitted values are on the log scale while the
+data column holds `y`, so regenerating one from the other and refitting
+would take the logarithm twice. That case raises an error;
 `resample = "pairs"` resamples rows and is unaffected by it.
 
 The warning White's, Koenker's and the Breusch-Pagan tests give since 0.16.0
@@ -272,19 +269,14 @@ With `parallel = TRUE` replicate `i` draws its random numbers from stream
 `i` of a L'Ecuyer-CMRG generator ([`parallel::nextRNGStream()`](https://rdrr.io/r/parallel/RngStream.html)), seeded by
 one number drawn from the session's generator. A call made after
 `set.seed()` therefore returns the same result each time, whatever
-`n_cores` and whether the workers are forked ([`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html)) or
+`n_cores` and whether the workers are forked
+([`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html)) or
 run on a socket cluster ([`parallel::makeCluster()`](https://rdrr.io/r/parallel/makeCluster.html), where the platform
 cannot fork). It does not return the result of the same call with
 `parallel = FALSE`, which draws every replicate from the session's
 generator, as it did before 0.15.0: the two are bootstraps of the same data
 with different draws, and each is valid. Before 0.15.0 a seeded call with
 `parallel = TRUE` gave a different result each time.
-
-## Deprecated name
-
-`rbootstrap_test_statistic()` is deprecated since 0.14.0: use
-`bootstrapTestStatistic()`, the same function under the package's naming
-scheme. The old name still works, returns what it returned and warns.
 
 ## Supported models
 
@@ -309,7 +301,13 @@ changed after it was fitted (since 0.17.0), a `fitWLS()` fit of an
 `mgcv::gam()` fit with smooth terms, whose terms do not rebuild the design of
 its coefficients (since 0.17.0), and `data` whose rows cannot be
 shown to hold the observations of the fit. Which model each test accepts,
-and why, is set out in [`test_results`](test_results.md), under *Supported models*.
+and why, is set out in [test\_results](test_results.md), under *Supported models*.
+
+## Deprecated name
+
+`rbootstrap_test_statistic()` is deprecated since 0.14.0: use
+`bootstrapTestStatistic()`, the same function under the package's naming
+scheme. The old name still works, returns what it returned and warns.
 
 ## Examples
 

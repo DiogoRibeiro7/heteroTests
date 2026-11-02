@@ -302,7 +302,8 @@ performStudentizedBPTest <- function(model, data = NULL) {
 #'   `alpha * (B_eff + 1)` is an integer: with 999 it is at the 5% and 1%
 #'   levels, and with 1000, the default before 0.15.0, at neither.
 #' @param parallel Logical scalar; if `TRUE` the replicates are computed in
-#'   parallel, by forked workers ([parallel::mclapply()]) where the platform
+#'   parallel, by forked workers
+#'   (\code{\link[parallel:mclapply]{parallel::mclapply()}}) where the platform
 #'   can fork and on a socket cluster ([parallel::makeCluster()]) elsewhere.
 #'   See *Parallel replicates*.
 #' @param n_cores Optional integer number of worker processes when

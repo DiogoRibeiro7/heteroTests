@@ -6,8 +6,9 @@ library(testthat)
 # These checks close the gap by running R's own documentation tools directly.
 #
 # They also matter because man/ is maintained by hand for a large share of the
-# package: roxygen2 generated 78 of the 130 pages and the other 52 were written
-# directly, so nothing regenerates them when a signature changes.
+# package: roxygen2 writes 86 of the 138 pages from R/, which the check of
+# run-checks.yml keeps up to date, and the other 52 are written directly, so
+# nothing regenerates them when a signature changes.
 
 # skip_if_not_source_tree() comes from helper-source-tree.R.
 
@@ -19,7 +20,8 @@ test_that("no code/documentation mismatches", {
     info = paste(
       "\\usage disagrees with the function signature for:",
       paste(names(mismatches), collapse = ", "),
-      "- man/ is largely hand-written, so update the .Rd alongside the code."
+      "- run devtools::document() for a page roxygen2 writes, or update the .Rd",
+      "alongside the code for one written by hand."
     )
   )
 })

@@ -5,6 +5,7 @@
 #' from their tidy representations.
 #'
 #' @name heteroTests_ggplot
+#' @noRd
 NULL
 
 #' Heteroscedasticity diagnostic theme

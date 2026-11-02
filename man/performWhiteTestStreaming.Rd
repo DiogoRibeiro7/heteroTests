@@ -100,32 +100,39 @@ from the formula, on its rows of \code{data}, so a term computed from the rows i
 is given took other values in each chunk than in the fit:
 \code{I(x > median(x))} the median of the chunk, and \code{cut(x, quantile(x))} its
 breaks, which stopped the test ("factor has new levels") in chunks of any
-size on a fit that dropped the row at the minimum of \code{x}. Since 0.17.0 an \code{mgcv::gam()}
-fit with smooth terms, penalised or fixed, is tested on its design, the basis of its smooths, as by
-the exact tests, read chunk by chunk, and gives their value; before, it was tested on the design of
-the variables of its formula, which its model frame holds (decision 37 of the design of the model
-context).
+size on a fit that dropped the row at the minimum of \code{x}. Since 0.17.0 an
+\code{mgcv::gam()} fit with smooth terms, penalised or fixed, is tested on its
+design, the basis of its smooths, as by the exact tests, read chunk by chunk,
+and gives their value; before, it was tested on the design of the variables
+of its formula, which its model frame holds (decision 37 of the design of the
+model context).
 }
 \section{Supported models}{
-It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the identity
-link, unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
-rank-deficient fit, which it tests on the estimable part of its design: it gives the value of the
-same model fitted without the aliased columns. The Gaussian \code{glm} with prior weights \code{w}
-is the least-squares fit \code{lm(..., weights = w)}, with the same design and residuals, and the
-test gives the value of the \code{lm}. It refused every \code{glm} before 0.16.0, because the
-checks it runs read the R-squared of \code{summary()}, which a \code{glm} does not report; they read
-that of the least-squares fit now. It refuses a \code{glm} of another family or link, a
-\code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is not finite for another
-reason, \code{data} that lack rows or variables of the fit, and, since 0.16.0, a multivariate \code{lm}, a
-fit changed after it was fitted and a fit with \code{model = FALSE} whose data are gone, unless \code{data}
-gives its response and fitted values (see \code{\link{test_results}}). Since 0.17.0 it drops the
-terms of its auxiliary regression that are collinear, as the squares of dummy variables are, as
-\code{\link{performWhiteTest}()} drops them, where it stopped. Since 0.16.0 it stops with the
-refusal of \code{\link{performWhiteTest}()} (see its section \emph{Too few observations}) when its
-independent terms are at least as many as the observations, where it stopped as on collinear terms,
-or fit the squared residuals exactly, collinear or not, as on a paired design. Which model each
-test accepts, and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
+
+It accepts an \code{lm} and, since 0.16.0, a \code{glm} with the Gaussian family and the
+identity link, unweighted or with positive weights, a \code{fitWLS()} fit and, since
+0.16.0, a rank-deficient fit, which it tests on the estimable part of its
+design: it gives the value of the same model fitted without the aliased columns.
+The Gaussian \code{glm} with prior weights \code{w} is the least-squares fit
+\code{lm(..., weights = w)}, with the same design and residuals, and the test gives
+the value of the \code{lm}. It refused every \code{glm} before 0.16.0, because the checks
+it runs read the R-squared of \code{summary()}, which a \code{glm} does not report; they
+read that of the least-squares fit now. It refuses a \code{glm} of another family or
+link, a \code{survey::svyglm()} fit, a fit with a zero weight, a coefficient that is
+not finite for another reason, \code{data} that lack rows or variables of the
+fit, and, since 0.16.0, a multivariate \code{lm}, a fit changed after it was
+fitted and a fit with \code{model = FALSE} whose data are gone, unless \code{data}
+gives its response and fitted values (see \link{test_results}). Since 0.17.0 it
+drops the terms of its auxiliary regression that are collinear, as the
+squares of dummy variables are, as \code{\link[=performWhiteTest]{performWhiteTest()}} drops them, where it
+stopped. Since 0.16.0 it stops with the refusal of \code{\link[=performWhiteTest]{performWhiteTest()}} (see
+its section \emph{Too few observations}) when its independent terms are at least
+as many as the observations, where it stopped as on collinear terms, or fit
+the squared residuals exactly, collinear or not, as on a paired design.
+Which model each test accepts, and why, is set out in \link{test_results}, under
+\emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 performWhiteTestStreaming(lm(mpg ~ wt + qsec, data = mtcars), mtcars, chunk_size = 16)

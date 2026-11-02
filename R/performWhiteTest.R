@@ -786,6 +786,10 @@ interpret_white_test <- function(result, alpha = 0.05) {
 }
 
 #' Print method for enhanced White test results
+#' @param x An `htest` of class `htest_enhanced`, whose `interpretation`
+#'   element is printed after it. No function of the package returns one:
+#'   `performWhiteTestEnhanced()`, which is internal, returns an `htest`.
+#' @param ... Further arguments passed to `print.htest()`.
 #' @export
 print.htest_enhanced <- function(x, ...) {
   # Use standard htest print method first

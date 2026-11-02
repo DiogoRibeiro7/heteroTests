@@ -22,6 +22,7 @@ NULL
 #' @return A list with summary statistics, including overall size, missingness
 #'   rates, skewness diagnostics for numeric variables, and detected risk
 #'   factors (e.g. high dimensionality, spatial columns).
+#' @rdname generateHeteroRecommendations
 #' @export
 analyseDatasetCharacteristics <- function(data, response = NULL) {
   .check_data(data)
@@ -182,6 +183,7 @@ rwild_small_sample_caution <- function() {
 #'
 #' @return A data frame with recommended diagnostics and the rationale for each
 #'   suggestion.
+#' @rdname generateHeteroRecommendations
 #' @export
 suggestDiagnosticsForProfile <- function(profile) {
   stopifnot(is.list(profile))
@@ -320,6 +322,7 @@ suggestDiagnosticsForProfile <- function(profile) {
 #'
 #' @return A list containing a tidy data frame of interpretations and a summary
 #'   conclusion.
+#' @rdname generateHeteroRecommendations
 #' @export
 interpretHeteroTestResults <- function(test_results, alpha = 0.05) {
   stopifnot(is.list(test_results))
@@ -505,6 +508,7 @@ identifyVariancePatterns <- function(model, data) {
 #'
 #' @return Structured remediation guidance with severity assessments and
 #'   recommended actions.
+#' @rdname generateHeteroRecommendations
 #' @export
 recommendRemediationStrategies <- function(test_results, model, data, profile = NULL) {
   base <- suggestRemediation(test_results)
@@ -559,6 +563,7 @@ recommendRemediationStrategies <- function(test_results, model, data, profile = 
 #' @param test_results Named list of diagnostics.
 #'
 #' @return Character vector of warnings and alternative strategies.
+#' @rdname generateHeteroRecommendations
 #' @export
 warnDiagnosticAssumptions <- function(profile, interpretations, model, data, test_results) {
   warnings <- character()
@@ -606,6 +611,7 @@ warnDiagnosticAssumptions <- function(profile, interpretations, model, data, tes
 #' @param recommendations Data frame produced by [suggestDiagnosticsForProfile()].
 #'
 #' @return A tidy data frame describing decision points and suggested actions.
+#' @rdname generateHeteroRecommendations
 #' @export
 buildDiagnosticDecisionTree <- function(profile, recommendations) {
   stopifnot(is.list(profile))
@@ -675,6 +681,7 @@ buildDiagnosticDecisionTree <- function(profile, recommendations) {
 #'
 #' @return Character vector containing a plain-language report aimed at
 #'   non-statisticians.
+#' @rdname generateHeteroRecommendations
 #' @export
 composeDiagnosticNarrative <- function(profile, interpretations, remediation, assumption_warnings, decision_tree) {
   lines <- c(
@@ -786,6 +793,7 @@ generateHeteroRecommendations <- function(model, data = NULL, test_results = NUL
 #'
 #' @param x Object produced by [generateHeteroRecommendations()].
 #' @param ... Not used.
+#' @rdname generateHeteroRecommendations
 #' @export
 print.hetero_recommendation_report <- function(x, ...) {
   cat("Heteroscedasticity Recommendation Overview\n")

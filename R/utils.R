@@ -197,14 +197,21 @@ ht_clear_log_history <- function() {
 
 #' Safely fit a linear model
 #'
-#' Wraps [stats::lm()] in a `tryCatch` block that logs the error via
-#' [ht_log()] before rethrowing. This helper is used internally by
-#' diagnostic tests so failures are easier to debug.
+#' Wraps [stats::lm()] in a `tryCatch` block. If the fit fails, it logs the
+#' error via [ht_log()] and, with `.recover = TRUE`, refits the model without
+#' the rows whose variables of the formula hold missing or non-finite values,
+#' if there are any: it returns that refit when it succeeds, and otherwise
+#' stops with the message of the error and any suggestions for cleaning the
+#' data. This helper is used internally by diagnostic tests so failures are
+#' easier to debug.
 #'
 #' @param formula Model formula.
 #' @param data Data frame to evaluate the formula in.
 #' @param ... Additional arguments passed to [stats::lm()].
-#' @return A fitted model object.
+#' @param .recover Logical flag: whether a failed fit is attempted again
+#'   without the problematic rows before the helper stops.
+#' @return A fitted model object: the fit of `formula` to `data`, or the refit
+#'   that recovered from its failure.
 #' @keywords internal
 safe_lm <- function(formula, data, ..., .recover = TRUE) {
   tryCatch(

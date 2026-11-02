@@ -8,6 +8,7 @@
 }
 \arguments{
 \item{x}{Object returned by \code{simulate_power()}.}
+
 \item{...}{Further arguments passed to the underlying plotting routines.}
 }
 \description{
