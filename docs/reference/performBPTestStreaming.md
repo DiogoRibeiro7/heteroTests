@@ -51,6 +51,14 @@ residuals of about \(10^{-10}\) were taken for constant ("requires variation in
 squared residuals"). It gives the value of [`performBPTest()`](performBPTest.md) on both.
 Sparse cross-products from Matrix are no longer used.
 
+The degrees of freedom are the rank of the auxiliary regression less its
+intercept, as in [`performBPTest()`](performBPTest.md) (see its *Degrees of freedom*).
+Since 0.18.0 the test gives them, and the value of [`performBPTest()`](performBPTest.md), on
+a model without an intercept whose columns span the constant, such as the
+dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 8.653 on
+4 degrees of freedom, where it stopped ("Breusch-Pagan auxiliary
+regression became rank deficient").
+
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), whose details say what changed.
 

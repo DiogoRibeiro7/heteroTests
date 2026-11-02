@@ -36,18 +36,55 @@
 #' \link[=rvalidateModelInputs]{rvalidateModelInputs()}, (ii) the response, design, residuals and
 #' weights of the fit itself, with the rows of `data` matched to its observations (the model
 #' context, since 0.16.0), (iii) satisfaction of Koenker-specific
-#' requirements using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, and (iv) a full-rank design
-#' matrix for the auxiliary regression.
+#' requirements using \link[=rvalidateTestRequirements]{rvalidateTestRequirements()}, and
+#' (iv) an auxiliary regression with at least one regressor beyond its intercept.
 #'
 #' Rejecting the null indicates that the squared residuals—and hence the error
 #' variance—vary systematically with the predictors. The statistic simplifies to
 #' \eqn{n R^2} from the auxiliary regression and is compared against a
-#' chi-squared distribution with degrees of freedom equal to the number of
-#' regressors.
+#' chi-squared distribution whose degrees of freedom are the rank of the
+#' auxiliary regression less its intercept, the number of regressors on a
+#' model with an intercept (see *Degrees of freedom*).
 #'
 #' The test is computed in memory whatever the size of the data. Up to 0.15.0
 #' it switched to [performKoenkerTestStreaming()] on data above 100 MB; call
 #' that function to stream.
+#'
+#' @section Degrees of freedom:
+#' The auxiliary regression of the squared residuals on the regressors
+#' \eqn{Z} has an intercept, and the degrees of freedom are the rank of
+#' \eqn{[1, Z]} minus one, the rank of the auxiliary regression less its
+#' intercept, as White's test counts them (see *Degrees of freedom* in
+#' [performWhiteTest()]) and as `lmtest::bptest()` does. A column of \eqn{Z}
+#' that is a linear combination of the intercept and the columns before it is
+#' dropped. So a model with an intercept counts its regressors, and a model
+#' without an intercept whose columns span the constant, such as the dummies of
+#' every level of a factor in `lm(y ~ 0 + group + x1)`, counts one fewer: the
+#' auxiliary regression adds an intercept that those columns already span. The
+#' rank is decided as in White's test, on the regressors centred one by one, at
+#' the default tolerance of [qr()]. A model whose only regressors are constant
+#' has none beyond the intercept, and is refused.
+#'
+#' Up to 0.17.0 the degrees of freedom were the number of columns of
+#' \eqn{Z}, one more on a model without an intercept whose columns span the
+#' constant, with the same statistic and a larger p-value: on
+#' `lm(y ~ 0 + group + x1)`, with a factor of four levels and 120
+#' observations, 10.52 on 5 degrees of freedom (p = 0.062), where
+#' `lm(y ~ x1 + group)`, the same column space, and `lmtest::bptest()` give
+#' 10.52 on 4 (p = 0.032), as the test now does. [performKoenkerTestStreaming()]
+#' gives these degrees of freedom too, on such a model, which it refused up to
+#' 0.17.0 ("Koenker auxiliary regression became rank deficient"), and so does
+#' the registered `"koenker"` of [runHeteroTests()].
+#' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = TRUE`,
+#' the deprecated [performStudentizedBPTest()] and the registered
+#' `"student_bp"` counted the rank already. [performWildBootstrapTest()] reports
+#' these degrees of freedom since 0.18.0, where it reported the number of
+#' regressors; its p-value, a bootstrap's, does not use them. A model with an
+#' intercept, or without one whose columns do not span the constant, such as
+#' `lm(y ~ 0 + x1 + x2)`, keeps its degrees of freedom. On the latter
+#' `lmtest::bptest()` given the model regresses the squared residuals on its
+#' columns without an intercept, and gives another statistic, as before; given
+#' the regressors as `varformula = ~ x1 + x2` it gives the value of this test.
 #'
 #' @section Fixed effects for small groups:
 #' Koenker's test, like White's and the Breusch-Pagan tests, is not valid with

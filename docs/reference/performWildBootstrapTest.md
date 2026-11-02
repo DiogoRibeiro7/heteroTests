@@ -78,7 +78,11 @@ performWildBootstrapTest(
 
 An object of class `htest` containing the observed
 Breusch-Pagan statistic, bootstrap p-value, and additional details under the
-`bootstrap` element.
+`bootstrap` element. Its `parameter` holds `B` and `df`, the degrees of
+freedom of [`performKoenkerTest()`](performKoenkerTest.md), the rank of the auxiliary regression
+less its intercept, which the p-value does not use. Up to 0.17.0 `df` was
+the number of regressors, one more on a model without an intercept whose
+columns span the constant, such as `lm(y ~ 0 + group + x1)`.
 
 ## Details
 

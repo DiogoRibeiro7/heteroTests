@@ -534,6 +534,14 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   gives the value of [performBPTest()] on both. Sparse cross-products from
 #'   \pkg{Matrix} are no longer used.
 #'
+#'   The degrees of freedom are the rank of the auxiliary regression less its
+#'   intercept, as in [performBPTest()] (see its *Degrees of freedom*). Since
+#'   0.18.0 the test gives them, and the value of [performBPTest()], on a
+#'   model without an intercept whose columns span the constant, such as the
+#'   dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 8.653 on
+#'   4 degrees of freedom, where it stopped ("Breusch-Pagan auxiliary
+#'   regression became rank deficient").
+#'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
@@ -651,6 +659,14 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   taken for constant ("requires variation in squared residuals"). It gives
 #'   the value of [performKoenkerTest()] on both. Sparse cross-products from
 #'   \pkg{Matrix} are no longer used.
+#'
+#'   The degrees of freedom are the rank of the auxiliary regression less its
+#'   intercept, as in [performKoenkerTest()] (see its *Degrees of freedom*).
+#'   Since 0.18.0 the test gives them, and the value of [performKoenkerTest()],
+#'   on a model without an intercept whose columns span the constant, such as
+#'   the dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 10.52
+#'   on 4 degrees of freedom, where it stopped ("Koenker auxiliary regression
+#'   became rank deficient").
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.

@@ -61,7 +61,11 @@ error. Giving the response as a column of the data, as in
 \value{
 An object of class \code{htest} containing the observed
 Breusch-Pagan statistic, bootstrap p-value, and additional details under the
-\code{bootstrap} element.
+\code{bootstrap} element. Its \code{parameter} holds \code{B} and \code{df}, the degrees of
+freedom of \code{\link[=performKoenkerTest]{performKoenkerTest()}}, the rank of the auxiliary regression
+less its intercept, which the p-value does not use. Up to 0.17.0 \code{df} was
+the number of regressors, one more on a model without an intercept whose
+columns span the constant, such as \code{lm(y ~ 0 + group + x1)}.
 }
 \description{
 Calibrates the Breusch-Pagan Lagrange multiplier statistic with a

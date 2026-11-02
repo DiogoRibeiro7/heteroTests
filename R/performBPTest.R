@@ -30,8 +30,10 @@
 #' design matrix without the intercept, the test regresses the scaled squared
 #' residuals \eqn{\hat{e}_i^2 / \hat{\sigma}^2 - 1} on \eqn{Z} and forms half the
 #' explained sum of squares. Under the null of homoskedasticity *and normal
-#' disturbances*, this statistic converges to a chi-squared distribution with
-#' degrees of freedom equal to the number of regressors in \eqn{Z}. This matches
+#' disturbances*, this statistic converges to a chi-squared distribution whose
+#' degrees of freedom are the rank of the auxiliary regression less its
+#' intercept, the number of regressors in \eqn{Z} on a model with an intercept
+#' (see *Degrees of freedom*). This matches
 #' `lmtest::bptest(..., studentize = FALSE)`. The
 #' implementation integrates the validation helpers to:
 #' \enumerate{
@@ -54,6 +56,40 @@
 #' The test is computed in memory whatever the size of the data. Up to 0.15.0
 #' it switched to [performBPTestStreaming()] on data above 100 MB; call that
 #' function to stream.
+#'
+#' @section Degrees of freedom:
+#' The auxiliary regression of the scaled squared residuals on \eqn{Z} has an
+#' intercept, and the degrees of freedom are the rank of \eqn{[1, Z]} minus
+#' one, the rank of the auxiliary regression less its intercept, as White's
+#' test counts them (see *Degrees of freedom* in [performWhiteTest()]) and as
+#' `lmtest::bptest()` does. A column of \eqn{Z} that is a linear combination of
+#' the intercept and the columns before it is dropped. So a model with an
+#' intercept counts its regressors, and a model without an intercept whose
+#' columns span the constant, such as the dummies of every level of a factor
+#' in `lm(y ~ 0 + group + x1)`, counts one fewer: the auxiliary regression adds
+#' an intercept that those columns already span. The rank is decided as in
+#' White's test, on the regressors centred one by one, at the default
+#' tolerance of [qr()]. A model whose only regressors are constant has none
+#' beyond the intercept, and is refused.
+#'
+#' Up to 0.17.0 the degrees of freedom were the number of columns of
+#' \eqn{Z}, one more on a model without an intercept whose columns span the
+#' constant, with the same statistic and a larger p-value: on
+#' `lm(y ~ 0 + group + x1)`, with a factor of four levels and 120
+#' observations, 8.653 on 5 degrees of freedom (p = 0.124), where
+#' `lm(y ~ x1 + group)`, the same column space, and
+#' `lmtest::bptest(..., studentize = FALSE)` give 8.653 on 4 (p = 0.070), as
+#' the test now does. [performBPTestStreaming()] gives these degrees of freedom
+#' too, on such a model, which it refused up to 0.17.0 ("Breusch-Pagan
+#' auxiliary regression became rank deficient"), and so do
+#' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = FALSE`,
+#' whose interval follows them, and the registered `"breusch_pagan"` of
+#' [runHeteroTests()]. A model with an intercept, or without one whose columns
+#' do not span the constant, such as `lm(y ~ 0 + x1 + x2)`, keeps its degrees
+#' of freedom. On the latter `lmtest::bptest()` given the model regresses the
+#' squared residuals on its columns without an intercept, and gives another
+#' statistic, as before; given the regressors as `varformula = ~ x1 + x2` it
+#' gives the value of this test.
 #'
 #' @section Fixed effects for small groups:
 #' The Breusch-Pagan test, like White's and Koenker's tests, is not valid with
