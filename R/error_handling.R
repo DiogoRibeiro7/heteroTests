@@ -16,16 +16,22 @@ ht_pretty_test_name <- function(test_name) {
 
 # The words of a failure's message that say what kind of failure it is, and
 # so which advice it gets: "NA", "NaN" and "Inf" as R writes them, in
-# capitals, and the other words in any case, each as a whole word. A word
-# inside another names nothing, nor does the name of a rank test ("Rank
-# permutation", "rank-based", "Spearman rank correlation"). Before 0.18.0 they
-# were matched anywhere and in any case, so that the "na" of
+# capitals, with R's plurals "NAs" and "NaNs", and the other words in any
+# case, each as a whole word, with "singularity" and "singularities". A word
+# inside another names nothing, nor does the name of a rank test: "Rank
+# permutation", "Rank-based", "Spearman rank" and "rank correlation" (the
+# labels of performRankPermutationTest(), of the requirements of Szroeter's
+# and the Fligner-Killeen tests and of performSpearmanTest()). Before 0.18.0
+# they were matched anywhere and in any case, so that the "na" of
 # performHighDimensionalTest() in a message made it a data-quality issue, and
 # the "Rank" of performRankPermutationTest() a rank deficiency.
 .ht_failure_words <- list(
-  missing = list(cased = "\\b(NA|NaN)\\b", any_case = "\\bmissing\\b"),
+  missing = list(cased = "\\b(NA|NaN)s?\\b", any_case = "\\bmissing\\b"),
   infinite = list(cased = "\\bInf\\b", any_case = "\\binfinite\\b"),
-  rank = list(any_case = "\\b(rank|singular)\\b(?![- ](permutation|based|correlation))"),
+  rank = list(any_case = paste0(
+    "(?<!spearman )\\b(rank|singular(ity|ities)?)\\b",
+    "(?! permutation|-based| correlation)"
+  )),
   separation = list(any_case = "\\bseparation\\b")
 )
 

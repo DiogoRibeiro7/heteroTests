@@ -27,7 +27,9 @@ testthat::test_that("a failure is labelled by whole words, NA only in capitals",
   # The names of the rank tests are not a rank deficiency either.
   for (message in c(
     "Only 15 observations detected but Rank permutation requires at least 20.",
+    "Rank permutations need a numeric predictor.",
     "Rank-based statistic requires enough ordered observations",
+    "Only 5 observations detected but Spearman rank requires at least 10.",
     "the Spearman rank correlation test cannot run."
   )) {
     testthat::expect_identical(issue_of(message), "diagnostic_failure", info = message)
@@ -38,8 +40,20 @@ testthat::test_that("a failure is labelled by whole words, NA only in capitals",
                              "rank_deficiency")
   testthat::expect_identical(issue_of("performX() cannot use a rank-deficient model"),
                              "rank_deficiency")
+  # The word, with its inflections in R's messages, and a rank that is not the
+  # name of a rank test.
+  testthat::expect_identical(issue_of("coefficients not defined because of singularities"),
+                             "rank_deficiency")
+  testthat::expect_identical(issue_of("rank based on QR is 2"), "rank_deficiency")
   testthat::expect_identical(issue_of("glm.fit: perfect Separation occurred"), "perfect_separation")
   testthat::expect_identical(issue_of("NA/NaN/Inf in 'y'"), "data_quality")
+  # R's plurals, as main read them.
+  testthat::expect_identical(issue_of("NAs are not allowed in subscripted assignments"),
+                             "data_quality")
+  testthat::expect_identical(issue_of("NaNs produced"), "data_quality")
+  testthat::expect_true(any(grepl(
+    "missing values", heteroTests:::ht_data_cleaning_suggestions("NAs introduced by coercion")
+  )))
   testthat::expect_identical(issue_of("Missing values detected in x2."), "data_quality")
   testthat::expect_identical(issue_of("Check for NA or infinite estimates."), "data_quality")
   # "na" and "inf" in small letters are not R's NA and Inf.
