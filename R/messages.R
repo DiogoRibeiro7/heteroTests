@@ -51,6 +51,21 @@ std_error <- function(type, ...) {
   )
 }
 
+# The message of the warning a name deprecated for another gives, in the form
+# of rrunAdvancedDiagnostics(), deprecated in 0.15.0: that it goes in 1.0.0,
+# and what to use instead. Until 0.18.0 the names deprecated in 0.14.0 that
+# have a replacement gave the default text of .Deprecated(), or one in its
+# form, which does not say when they go.
+.ht_renamed_deprecation <- function(old, new) {
+  sprintf(
+    paste0(
+      "'%s' is deprecated and leaves the exports in heteroTests 1.0.0.\n",
+      "Use '%s' instead.\nSee help(\"Deprecated\")"
+    ),
+    old, new
+  )
+}
+
 .std_error <- function(type, ...) {
   template <- error_messages[[type]]
   if (is.null(template)) {

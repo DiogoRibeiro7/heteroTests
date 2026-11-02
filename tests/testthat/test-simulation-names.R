@@ -8,7 +8,10 @@ test_that("simulate_type_I_errors() warns and returns what simulate_size() retur
   on.exit(ht_set_log_level(old_level), add = TRUE)
   expect_warning(
     old <- simulate_type_I_errors(quick_test, n_sims = 5, n_obs = 30, seed = 7),
-    "'simulate_type_I_errors' is deprecated.*Use 'simulate_size' instead",
+    paste0(
+      "'simulate_type_I_errors' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'simulate_size' instead"
+    ),
     class = "deprecatedWarning"
   )
   expect_identical_numbers(old, simulate_size(quick_test, n_sims = 5, n_obs = 30, seed = 7))
@@ -20,7 +23,10 @@ test_that("simulate_power_analysis() warns and returns what simulate_power() ret
   set.seed(11)
   expect_warning(
     old <- simulate_power_analysis(quick_test, effect_sizes = 0.5, n_sims = 5, n_obs = 30),
-    "'simulate_power_analysis' is deprecated.*Use 'simulate_power' instead",
+    paste0(
+      "'simulate_power_analysis' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'simulate_power' instead"
+    ),
     class = "deprecatedWarning"
   )
   set.seed(11)

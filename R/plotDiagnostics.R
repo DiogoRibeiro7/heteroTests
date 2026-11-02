@@ -266,7 +266,11 @@ plotBubbleVariance <- function(model, variable = NULL) {
 #' @return A \code{ggplot} object.
 #' @export
 plotResidualsFittedEnhanced <- function(model) {
-  .Deprecated("plotResidualsFitted(model, enhanced = TRUE)", old = "plotResidualsFittedEnhanced")
+  new <- "plotResidualsFitted(model, enhanced = TRUE)"
+  .Deprecated(
+    new, old = "plotResidualsFittedEnhanced",
+    msg = .ht_renamed_deprecation("plotResidualsFittedEnhanced", new)
+  )
   plotResidualsFitted(model, enhanced = TRUE)
 }
 
@@ -307,6 +311,10 @@ plotResidualsFittedEnhanced <- function(model) {
 #' @return A list of ggplot objects.
 #' @export
 plotDiagnosticSuiteEnhanced <- function(model) {
-  .Deprecated("plotDiagnosticSuite(model, enhanced = TRUE)", old = "plotDiagnosticSuiteEnhanced")
+  new <- "plotDiagnosticSuite(model, enhanced = TRUE)"
+  .Deprecated(
+    new, old = "plotDiagnosticSuiteEnhanced",
+    msg = .ht_renamed_deprecation("plotDiagnosticSuiteEnhanced", new)
+  )
   plotDiagnosticSuite(model, enhanced = TRUE)
 }

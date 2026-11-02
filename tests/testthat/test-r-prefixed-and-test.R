@@ -8,7 +8,10 @@ test_that("rbootstrap_test_statistic() warns and returns what bootstrapTestStati
   set.seed(1)
   expect_warning(
     old <- rbootstrap_test_statistic(performKoenkerTest, m, mtcars, B = 19, progress = FALSE),
-    "'rbootstrap_test_statistic' is deprecated.*Use 'bootstrapTestStatistic' instead",
+    paste0(
+      "'rbootstrap_test_statistic' is deprecated and leaves the exports in ",
+      "heteroTests 1\\.0\\.0\\..*Use 'bootstrapTestStatistic' instead"
+    ),
     class = "deprecatedWarning"
   )
   set.seed(1)
@@ -40,7 +43,10 @@ test_that("test() warns, names runDiagnostics() and returns what it returns", {
   d <- HeteroDiagnostic(lm(mpg ~ wt + qsec, data = mtcars), mtcars)
   expect_warning(
     old <- test(d, tests = c("white", "koenker")),
-    "'test\\(\\)' is deprecated.*runDiagnostics\\(x\\$model, x\\$data, tests\\)",
+    paste0(
+      "'test\\(\\)' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'runDiagnostics\\(x\\$model, x\\$data, tests\\)' instead"
+    ),
     class = "deprecatedWarning"
   )
   new <- runDiagnostics(d$model, d$data, tests = c("white", "koenker"), use_cache = FALSE)

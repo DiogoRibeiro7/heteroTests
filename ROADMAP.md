@@ -2198,7 +2198,7 @@ announced in bold in `NEWS.md`.
   increment 11 of the model context, recorded, not fixed; the same on `main`
   at the merge of increment 10. Read the model frame without `data`, or say
   that `data` is needed. A refusal becomes a value, or a clearer refusal.
-- [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
+- [x] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
   `rbootstrap_test_statistic()`, `test()`, `simulate_type_I_errors()`,
@@ -2206,7 +2206,15 @@ announced in bold in `NEWS.md`.
   `runHeteroTests()`) warn with the default text of `.Deprecated()`, which
   does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
   forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
-  audit; no value changes.
+  audit; no value changes. Done in #182: the ten functions give the message
+  of `rrunAdvancedDiagnostics()`, now written by one helper for the eleven,
+  as "'performBreuschPaganTest' is deprecated and leaves the exports in
+  heteroTests 1.0.0. Use 'performBPTest' instead.", and the two test names
+  that of the `studentized` argument of `performBPTestRobust()`, "Test name
+  "ncv" is deprecated and stops working in heteroTests 1.0.0. Use
+  "cook_weisberg" instead.". The tests of each pin the 1.0.0, and
+  `test-public-api.R` checks that every deprecated function gives a message
+  of its own.
 - [x] **`ht_analyse_failure()` labels a failure by its message, ignoring
   case.** It calls a failure a rank deficiency when the message matches
   `"rank|singular"` and a data-quality issue when it matches

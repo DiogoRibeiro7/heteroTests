@@ -8,7 +8,10 @@ test_that("plotResidualsFittedEnhanced() warns and draws plotResidualsFitted(enh
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(
     old <- plotResidualsFittedEnhanced(m),
-    "'plotResidualsFittedEnhanced' is deprecated.*plotResidualsFitted\\(model, enhanced = TRUE\\)",
+    paste0(
+      "'plotResidualsFittedEnhanced' is deprecated and leaves the exports in ",
+      "heteroTests 1\\.0\\.0\\..*Use 'plotResidualsFitted\\(model, enhanced = TRUE\\)' instead"
+    ),
     class = "deprecatedWarning"
   )
   new <- plotResidualsFitted(m, enhanced = TRUE)
@@ -23,7 +26,10 @@ test_that("plotDiagnosticSuiteEnhanced() warns and returns plotDiagnosticSuite(e
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(
     old <- plotDiagnosticSuiteEnhanced(m),
-    "'plotDiagnosticSuiteEnhanced' is deprecated",
+    paste0(
+      "'plotDiagnosticSuiteEnhanced' is deprecated and leaves the exports in ",
+      "heteroTests 1\\.0\\.0\\..*Use 'plotDiagnosticSuite\\(model, enhanced = TRUE\\)' instead"
+    ),
     class = "deprecatedWarning"
   )
   new <- plotDiagnosticSuite(m, enhanced = TRUE)
@@ -39,7 +45,10 @@ test_that("checkModelEnhanced() warns and runs checkModel(enhanced = TRUE)", {
       out <- checkModelEnhanced(m),
       "Very few residual degrees of freedom"
     ),
-    "'checkModelEnhanced' is deprecated",
+    paste0(
+      "'checkModelEnhanced' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'checkModel\\(model, data, enhanced = TRUE\\)' instead"
+    ),
     class = "deprecatedWarning"
   )
   expect_identical(out, m)

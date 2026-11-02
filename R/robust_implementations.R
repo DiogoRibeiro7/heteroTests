@@ -549,11 +549,7 @@ rrunAdvancedDiagnostics <- function(model, data, tests = "all",
                                     parallel = FALSE, ci_level = 0.95) {
   .Deprecated(
     old = "rrunAdvancedDiagnostics",
-    msg = paste0(
-      "'rrunAdvancedDiagnostics' is deprecated and leaves the exports in ",
-      "heteroTests 1.0.0.\nUse 'runAdvancedDiagnostics' instead.\n",
-      "See help(\"Deprecated\")"
-    )
+    msg = .ht_renamed_deprecation("rrunAdvancedDiagnostics", "runAdvancedDiagnostics")
   )
   runAdvancedDiagnostics(
     model, data,

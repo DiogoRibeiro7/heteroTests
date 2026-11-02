@@ -6,7 +6,10 @@ test_that("performBreuschPaganTest() warns and returns what performBPTest() retu
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(
     old <- performBreuschPaganTest(m, mtcars),
-    "'performBreuschPaganTest' is deprecated.*Use 'performBPTest' instead"
+    paste0(
+      "'performBreuschPaganTest' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'performBPTest' instead"
+    )
   )
   expect_identical_numbers(old, performBPTest(m, mtcars))
 })

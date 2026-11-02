@@ -178,7 +178,10 @@ test_that("performStudentizedBPTest() warns, names performKoenkerTest() and keep
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(
     old <- performStudentizedBPTest(m, mtcars),
-    "'performStudentizedBPTest' is deprecated.*Use 'performKoenkerTest' instead",
+    paste0(
+      "'performStudentizedBPTest' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'performKoenkerTest' instead"
+    ),
     class = "deprecatedWarning"
   )
   expect_identical_numbers(old, heteroTests:::.studentized_bp_test(m, mtcars, data_name = "m"))
@@ -192,7 +195,10 @@ test_that("the student_bp registry name keeps its value and warns once per run",
     runHeteroTests(m, mtcars, tests = c("student_bp", "koenker"), use_cache = FALSE),
     deprecatedWarning = function(w) {
       count <<- count + 1L
-      expect_match(conditionMessage(w), "\"student_bp\" is deprecated.*Use \"koenker\" instead")
+      expect_match(conditionMessage(w), paste0(
+        "\"student_bp\" is deprecated and stops working in heteroTests 1\\.0\\.0\\.",
+        ".*Use \"koenker\" instead"
+      ))
       invokeRestart("muffleWarning")
     }
   )

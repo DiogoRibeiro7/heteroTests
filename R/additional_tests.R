@@ -123,7 +123,10 @@ performStudentizedBPTest <- function(model, data = NULL) {
   # The model and `data` are checked before the deprecation warning, as
   # before 0.16.0 (R/model_context.R).
   ctx <- rmodel_context(model, data, fn = "performStudentizedBPTest", test_label = "Studentized BP")
-  .Deprecated("performKoenkerTest", old = "performStudentizedBPTest")
+  .Deprecated(
+    "performKoenkerTest", old = "performStudentizedBPTest",
+    msg = .ht_renamed_deprecation("performStudentizedBPTest", "performKoenkerTest")
+  )
   .studentized_bp_test(model, data, data_name = deparse(substitute(model)), ctx = ctx)
 }
 
