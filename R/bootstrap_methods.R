@@ -268,7 +268,10 @@ rbootstrap_test_statistic <- function(test_function, model, data, B = 999,
                                       resample = c("null", "pairs"), n_cores = NULL,
                                       progress = interactive(), ...,
                                       reestimate_weights = NULL) {
-  .Deprecated("bootstrapTestStatistic", old = "rbootstrap_test_statistic")
+  .Deprecated(
+    "bootstrapTestStatistic", old = "rbootstrap_test_statistic",
+    msg = .ht_renamed_deprecation("rbootstrap_test_statistic", "bootstrapTestStatistic")
+  )
   .bootstrap_test_statistic(
     test_function, model, data,
     B = B, parallel = parallel, ci_level = ci_level, resample = resample,

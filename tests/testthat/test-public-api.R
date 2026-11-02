@@ -322,3 +322,34 @@ test_that("the planned, deprecated and moving lists do not overlap", {
   all_names <- c(planned_1_0_exports, deprecated_in_0_14, deprecated_in_0_15, moving_out)
   expect_identical(all_names[duplicated(all_names)], character())
 })
+
+# The default text of .Deprecated() does not say that a name goes in 1.0.0.
+# Until 0.18.0 the names renamed in 0.14.0 warned with it; each now gives a
+# message of its own, as the internal helpers and the 0.15.0 forms did, and
+# its test pins the 1.0.0 in it.
+test_that("every deprecated export that warns gives a message of its own", {
+  deprecated_calls <- function(expr) {
+    if (!is.call(expr)) {
+      return(list())
+    }
+    if (identical(expr[[1L]], as.name(".Deprecated"))) {
+      return(list(expr))
+    }
+    unlist(lapply(as.list(expr), deprecated_calls), recursive = FALSE)
+  }
+  ns <- asNamespace("heteroTests")
+  # Every deprecated name but test_factory and TestFactory, the R6 object and
+  # its generator, is a function that warns.
+  functions <- Filter(
+    function(name) is.function(get(name, envir = ns)),
+    c(deprecated_in_0_14, deprecated_in_0_15)
+  )
+  expect_length(functions, 21L)
+  for (name in functions) {
+    calls <- deprecated_calls(body(get(name, envir = ns)))
+    expect_gt(length(calls), 0L, label = name)
+    for (call in calls) {
+      expect_true("msg" %in% names(call), info = name)
+    }
+  }
+})

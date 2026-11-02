@@ -315,7 +315,11 @@ validateTestInputs <- function(model, data, test_name, min_obs = 10) {
 #' @seealso [checkModel()], [performVIFDiagnostic()], [validateTestInputs()]
 #' @export
 checkModelEnhanced <- function(model, data = NULL) {
-  .Deprecated("checkModel(model, data, enhanced = TRUE)", old = "checkModelEnhanced")
+  new <- "checkModel(model, data, enhanced = TRUE)"
+  .Deprecated(
+    new, old = "checkModelEnhanced",
+    msg = .ht_renamed_deprecation("checkModelEnhanced", new)
+  )
   checkModel(model, data, enhanced = TRUE)
 }
 

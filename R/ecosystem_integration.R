@@ -708,10 +708,9 @@ rtidymodels_map <- function(object) {
       error = function(e) e
     )
   }
-  refused_rows <- function(e) {
-    inherits(e, "heteroTests_data_rows_error") ||
-      inherits(e, "error") && grepl("requires `data`", conditionMessage(e), fixed = TRUE)
-  }
+  # Data that lack rows of the fit have the class too since 0.18.0
+  # (rstop_data_rows()); before, they were told by their message.
+  refused_rows <- function(e) inherits(e, "heteroTests_data_rows_error")
   ctx <- attempt(mapped$data)
   fitted_rows <- mapped$fitted_rows
   if (refused_rows(ctx) && !is.null(fitted_rows) && nrow(mapped$data) > fitted_rows) {

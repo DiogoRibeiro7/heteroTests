@@ -40,10 +40,7 @@ HeteroDiagnostic <- function(model, data = NULL) {
 test <- function(object, ...) {
   .Deprecated(
     old = "test",
-    msg = paste0(
-      "'test()' is deprecated.\nUse 'runDiagnostics(x$model, x$data, tests)' instead.\n",
-      "See help(\"Deprecated\")"
-    )
+    msg = .ht_renamed_deprecation("test()", "runDiagnostics(x$model, x$data, tests)")
   )
   UseMethod("test")
 }

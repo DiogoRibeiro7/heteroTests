@@ -19,7 +19,13 @@ the classical Breusch-Pagan, Koenker and Cook-Weisberg tests, \code{"koenker"} o
 \code{method} of the result names the test that ran, \code{attr(result, "diagnostic")} its registry name and
 \code{attr(result, "extras")$status} is \code{"fallback"}. A weighted fit whose weights are a column of the data,
 called without \code{data}, is such a case: White's and Koenker's tests stop, and both names hold the Cook-Weisberg
-test. Pass \code{data} for such a fit.
+test. Pass \code{data} for such a fit. A refusal that every substitute would make too runs none, and the call stops
+with it and its class: of the model by the model context, of \code{data} whose rows are not those of the fit
+(\code{heteroTests_data_rows_error}; since 0.18.0 also data that lack rows of it, which were tried on every
+substitute and called a data-quality issue), and, since 0.18.0, of a \code{glm} that is not a least-squares fit
+(\code{heteroTests_glm_family_error}). These two refusals, of data that lack rows and of such a \code{glm}, are no
+longer \code{simpleError}s since 0.18.0; catch them by their class or as an \code{error}. Nor is a diagnostic registered under the name of a substitute, as by
+\code{registerDiagnostic("breusch_pagan", f)}, run after such a refusal.
 
 The runner runs the exact tests unless \code{chunk_threshold_mb} asks for the streaming ones,
 \code{\link{performWhiteTestStreaming}()}, \code{\link{performBPTestStreaming}()} and
@@ -45,8 +51,9 @@ runHeteroTests(
   \item{model}{a fitted \code{lm}, or a \code{glm} with the Gaussian family and the identity link, a model
   formula, a tidymodels workflow or a parsnip model fit. The tests refuse a \code{glm} of any other family or link
   since 0.15.0, the deprecated registry names \code{"ncv"} and \code{"student_bp"} and the substitutes of the
-  fallback (Details) included: the call stops with the error of the first test asked for, and with grouped data
-  each test is returned as failed. A workflow, or a parsnip fit, is tested on the fit of its engine, which names its
+  fallback (Details) included: the call stops with the error of the first test asked for, without running a
+  substitute and with the class \code{heteroTests_glm_family_error} since 0.18.0, and with grouped data each test
+  is returned as failed, with the issue \code{"glm_family"}. A workflow, or a parsnip fit, is tested on the fit of its engine, which names its
   response \code{..y} and its predictors as the workflow's preprocessing made them: the data the workflow was fitted
   to are mapped to those variables by that preprocessing (\code{hardhat::forge()}), the outcome as the
   preprocessing transforms it among them, or the outcome of a fit of \code{parsnip::fit_xy()} to \code{..y}, and
@@ -112,7 +119,8 @@ the others do. Up to 0.15.0 five tests reported \code{"model"} here, the name of
 registry calls them with: White's test, its bootstrap and its form without cross products, the studentized
 Breusch-Pagan statistic and Szroeter's test. Any other \code{data.name}, such as that of a diagnostic added with
 \code{registerDiagnostic}, is kept. Called directly, a test still names the object it is given:
-\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
+\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}. \code{\link{runHeteroTestsParallel}} and
+\code{\link{cachedTest}}, which call the tests as the runner does, do the same since 0.18.0.}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)

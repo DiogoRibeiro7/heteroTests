@@ -372,6 +372,32 @@ test_that("no name holds a fallback result for a glm that is not a least-squares
       "needs a model fitted by stats::lm\\(\\): a glm with the binomial family", info = name
     )
   }
+  # The refusal is final since 0.18.0, with its class and an issue of its
+  # own: the runner tries no substitute, which would refuse the glm too, and
+  # gives no advice. Before, it was labelled by its words: "rank_permutation"
+  # a rank deficiency, from the "Rank" of performRankPermutationTest(), with
+  # the advice to remove collinear predictors, and "high_dimensional" a
+  # data-quality issue, from the "na" of performHighDimensionalTest(), with the
+  # advice to remove missing values; the other tests "Diagnostic execution
+  # failed".
+  refusals <- c(
+    white = "White: performWhiteTest",
+    rank_permutation = "Rank Permutation: performRankPermutationTest",
+    high_dimensional = "High Dimensional: performHighDimensionalTest"
+  )
+  for (name in names(refusals)) {
+    for (run in list(runHeteroTests, runDiagnostics)) {
+      e <- expect_error(run(m, d, tests = name, use_cache = FALSE),
+                        class = "heteroTests_glm_family_error", info = name)
+      expect_match(
+        conditionMessage(e),
+        paste0("^Model is not a least-squares fit for ", refusals[[name]],
+               "\\(\\) needs a model fitted by stats::lm\\(\\): a glm with the binomial family"),
+        info = name
+      )
+      expect_no_match(conditionMessage(e), "Suggested actions", fixed = TRUE)
+    }
+  }
   # Grouped data return each test as failed, with its refusal.
   skip_if_not_installed("dplyr")
   d$half <- rep(c("a", "b"), length.out = nrow(d))
@@ -383,6 +409,8 @@ test_that("no name holds a fallback result for a glm that is not a least-squares
     for (name in names(suite)) {
       extras <- attr(suite[[name]], "extras")
       expect_identical(extras$status, "error", info = name)
+      expect_identical(extras$issue, "glm_family", info = name)
+      expect_identical(extras$suggestions, character(), info = name)
       expect_identical(attr(suite[[name]], "diagnostic"), name)
       expect_match(extras$message, validation_refusal_of(refused_by[[name]]), info = name)
     }

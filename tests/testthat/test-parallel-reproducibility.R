@@ -189,6 +189,74 @@ test_that("runHeteroTestsParallel() gives the same value whatever n_cores", {
                    first_of_two$wild_bootstrap$bootstrap$replicates)
 })
 
+test_that("runHeteroTestsParallel() returns what runHeteroTests() returns for each test", {
+  s <- parallel_data()
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # The deterministic tests of the registry. Before 0.18.0 this runner returned
+  # data.name = "model" for White's, Szroeter's and the studentized
+  # Breusch-Pagan tests, where runHeteroTests() gives the formula, and no
+  # result had attr(, "extras")$streaming.
+  tests <- c(
+    "white", "koenker", "breusch_pagan", "cook_weisberg", "spread_level", "szroeter",
+    "student_bp", "high_dimensional", "variance_form"
+  )
+  # What the runner marks a result with holds under any BLAS; the numbers of
+  # the two computations agree to the last bits of the BLAS (helper-numbers.R),
+  # where CRAN's MKL and the noisy BLAS of cran-blas.yml move them.
+  same_result <- function(object, expected, info) {
+    expect_identical(class(object), class(expected), info = info)
+    expect_identical(names(unclass(object)), names(unclass(expected)), info = info)
+    expect_identical(sort(names(attributes(object))), sort(names(attributes(expected))),
+                     info = info)
+    expect_identical(object$data.name, expected$data.name, info = info)
+    expect_identical(object$method, expected$method, info = info)
+    expect_identical(attr(object, "extras"), attr(expected, "extras"), info = info)
+    expect_identical(attr(object, "diagnostic"), attr(expected, "diagnostic"), info = info)
+    expect_identical_numbers(object, expected, info = info)
+  }
+  in_session <- suppressWarnings(runHeteroTestsParallel(s$m, s$d, tests = tests, n_cores = 1))
+  expect_named(in_session, tests)
+  for (use_cache in c(FALSE, TRUE)) {
+    serial <- suppressWarnings(
+      runHeteroTests(s$m, s$d, tests = tests, use_cache = use_cache, progress = FALSE)
+    )
+    for (name in tests) {
+      same_result(in_session[[name]], serial[[name]], info = paste(name, use_cache))
+    }
+  }
+  expect_identical(in_session$white$data.name, "y ~ x + z")
+  expect_false(attr(in_session$white, "extras")$streaming)
+  # A resampling test draws from stream i of the generator seeded by one draw
+  # from the session's: runHeteroTests() run on that stream returns the same.
+  # Off CRAN only: the last bits of the replicates decide the count behind its
+  # p-value.
+  skip_on_cran()
+  set.seed(42)
+  wild <- suppressWarnings(runHeteroTestsParallel(s$m, s$d, tests = "wild_bootstrap", n_cores = 1))
+  set.seed(42)
+  stream <- rtask_streams(1L)[[1L]]
+  serial_wild <- rrun_on_stream(stream, function(i) {
+    suppressWarnings(runHeteroTests(s$m, s$d, tests = "wild_bootstrap", use_cache = FALSE,
+                                    progress = FALSE))
+  }, 1L)
+  same_result(wild$wild_bootstrap, serial_wild$wild_bootstrap, info = "wild_bootstrap")
+  # On socket workers the results are those of the session but for the model
+  # they carry, a copy that travelled to the worker and back, with copies of
+  # the environments of its formula.
+  skip_unless_workers_load_this_version()
+  on_workers <- suppressWarnings(runHeteroTestsParallel(s$m, s$d, tests = tests, n_cores = 2))
+  without_model <- function(x) {
+    attr(x, "model") <- NULL
+    x
+  }
+  for (name in tests) {
+    same_result(without_model(on_workers[[name]]), without_model(in_session[[name]]),
+                info = name)
+    expect_equal(attr(on_workers[[name]], "model"), s$m, ignore_formula_env = TRUE, info = name)
+  }
+})
+
 test_that("runHeteroTestsParallel() runs a model created at top level", {
   skip_on_cran()
   skip_unless_workers_load_this_version()

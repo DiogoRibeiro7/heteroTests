@@ -214,10 +214,21 @@ test_that("a test of the runner that named its argument \"model\" names the form
   expect_identical(fb$white$data.name, "mpg ~ wt")
   # Called directly, a test names the object it is given, as before.
   expect_identical(suppressWarnings(performWhiteTest(m, mtcars))$data.name, "m")
-  expect_identical(
-    suppressWarnings(cachedTest("white", m, mtcars, use_cache = FALSE))$data.name,
-    "model"
-  )
+  # cachedTest() and runHeteroTestsParallel() call the tests through the
+  # registry too, and since 0.18.0 follow the rule; before, they reported
+  # "model".
+  for (use_cache in c(FALSE, TRUE)) {
+    expect_identical(
+      suppressWarnings(cachedTest("white", m, mtcars, use_cache = use_cache))$data.name,
+      formula_text
+    )
+  }
+  parallel <- suppressWarnings(runHeteroTestsParallel(
+    m, mtcars, tests = c("white", "szroeter", "student_bp"), n_cores = 1
+  ))
+  for (name in names(parallel)) {
+    expect_identical(parallel[[name]]$data.name, formula_text, info = name)
+  }
 })
 
 # A diagnostic registered for the calling test only.
@@ -335,12 +346,38 @@ test_that("a refusal of the model is told from a failure", {
   suite_quiet()
   fit <- suppressWarnings(glm(am ~ wt, family = binomial, data = mtcars))
   notes <- summary(suite_failed(fit, mtcars, "white"))$notes
-  expect_match(notes, "^white refused: performWhiteTest\\(\\) needs a model fitted by")
+  # With the issue of such a refusal since 0.18.0, as the refusals of the
+  # model context and of the rows of `data` have theirs.
+  expect_match(
+    notes, "^white refused \\(glm_family\\): performWhiteTest\\(\\) needs a model fitted by"
+  )
   # A test that stops in its computation failed, with the kind of failure.
   suite_local_diagnostic("broken", function(model, data) stop("the design is singular"))
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   notes <- summary(suite_failed(m, mtcars, "broken"))$notes
   expect_match(notes, "^broken failed \\(rank_deficiency\\): the design is singular")
+})
+
+test_that("a note gives the message of a failure without the prefix of its issue", {
+  # Each prefix ht_format_failure_message() gives an issue; until 0.18.0 that
+  # of White's exact fit, "Test cannot be computed", stayed on its note.
+  issues <- c(
+    "auxiliary_regression", "rank_deficiency", "perfect_separation", "data_quality",
+    "data_rows", "model_context", "exact_fit", "glm_family", "diagnostic_failure"
+  )
+  for (issue in issues) {
+    for (test_name in list(NULL, "White")) {
+      message <- heteroTests:::ht_format_failure_message(
+        issue, "the test stopped.", suggestions = "Do something else.", test_name = test_name
+      )
+      expect_identical(heteroTests:::rsuite_message(message), "the test stopped.", info = issue)
+    }
+  }
+  # The refusals with an issue of their own are refusals.
+  for (issue in c("data_rows", "model_context", "glm_family")) {
+    expect_true(heteroTests:::rsuite_refused(issue, "the test stopped."), info = issue)
+  }
+  expect_false(heteroTests:::rsuite_refused("exact_fit", "the test stopped."))
 })
 
 test_that("hand-built and edge suites print without error", {

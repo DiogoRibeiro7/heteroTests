@@ -27,7 +27,10 @@ test_that("performNCVTest() warns, names performCookWeisbergTest() and keeps its
   m <- lm(mpg ~ wt + qsec, data = mtcars)
   expect_warning(
     old <- performNCVTest(m, var_formula = ~wt),
-    "'performNCVTest' is deprecated.*Use 'performCookWeisbergTest' instead",
+    paste0(
+      "'performNCVTest' is deprecated and leaves the exports in heteroTests 1\\.0\\.0\\.",
+      ".*Use 'performCookWeisbergTest' instead"
+    ),
     class = "deprecatedWarning"
   )
   expect_identical_numbers(old, heteroTests:::.ncv_test(m, var_formula = ~wt))
@@ -40,7 +43,10 @@ test_that("the ncv registry name keeps its value and warns once per run", {
     runHeteroTests(m, mtcars, tests = c("ncv", "cook_weisberg"), use_cache = FALSE),
     deprecatedWarning = function(w) {
       count <<- count + 1L
-      expect_match(conditionMessage(w), "\"ncv\" is deprecated.*Use \"cook_weisberg\" instead")
+      expect_match(conditionMessage(w), paste0(
+        "\"ncv\" is deprecated and stops working in heteroTests 1\\.0\\.0\\.",
+        ".*Use \"cook_weisberg\" instead"
+      ))
       invokeRestart("muffleWarning")
     }
   )

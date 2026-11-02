@@ -91,7 +91,10 @@
 #' returned and warns.
 performNCVTest <- function(model, data = NULL, var_formula = NULL) {
   rrefuse_non_gaussian_glm(model, "performNCVTest")
-  .Deprecated("performCookWeisbergTest", old = "performNCVTest")
+  .Deprecated(
+    "performCookWeisbergTest", old = "performNCVTest",
+    msg = .ht_renamed_deprecation("performNCVTest", "performCookWeisbergTest")
+  )
   if (inherits(data, "formula") && missing(var_formula)) {
     rwarn_positional_call(
       "performNCVTest", substitute(model), list(var_formula = substitute(data))

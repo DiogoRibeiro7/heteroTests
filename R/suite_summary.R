@@ -45,13 +45,14 @@
 #' stopped before computing anything, with one of the refusals of the package:
 #' of the model or of `data` by the model context (the issues
 #' `"model_context"` and `"data_rows"`), of a `glm` that is not a
-#' least-squares fit or a model of another class, of a `survey::svyglm()` fit,
-#' of zero weights, of a weighted fit by a test that refits without its
-#' weights, of an aliased coefficient, or of too few observations. These are
-#' recognised by their messages, since the runner records the message and the
-#' issue and not the class of the condition; a test that stopped otherwise
-#' "failed". `print()` gives each note on one line, cut to the width of the
-#' console; `summary()` gives it whole. Without groups, [runHeteroTests()]
+#' least-squares fit (the issue `"glm_family"`, since 0.18.0) or a model of
+#' another class, of a `survey::svyglm()` fit, of zero weights, of a weighted
+#' fit by a test that refits without its weights, of an aliased coefficient,
+#' or of too few observations. These are recognised by their issue or their
+#' messages, since the runner records the message and the issue and not the
+#' class of the condition; a test that stopped otherwise "failed". `print()`
+#' gives each note on one line, cut to the width of the console; `summary()`
+#' gives it whole. Without groups, [runHeteroTests()]
 #' stops when a test fails and no fallback runs, so a failed test is returned
 #' only by a grouped run, which records the failure and goes on. Whether a
 #' result was read from a cache is not shown: a result read from it is
@@ -505,10 +506,12 @@ rsuite_parameters <- function(parameter) {
 }
 
 # A message of a failure, without the prefix and the suggestions that
-# ht_format_failure_message() adds, on one line.
+# ht_format_failure_message() adds, on one line. Until 0.18.0 the prefix of
+# White's exact fit, "Test cannot be computed", was left on its note.
 rsuite_failure_prefix <- paste0(
   "^(Auxiliary regression failed|Rank deficiency detected|Perfect separation detected|",
   "Data quality issue detected|Data do not match the model|Model cannot be tested|",
+  "Model is not a least-squares fit|Test cannot be computed|",
   "Diagnostic execution failed)( for [^:]+)?: "
 )
 
@@ -527,14 +530,15 @@ rsuite_message <- function(message) {
 # by its message and the kind of issue ht_analyse_failure() read in it: a
 # refusal of the model context (R/model_context.R) is of the issue
 # "model_context", one of `data` that cannot be matched to the fit
-# "data_rows", and the others, whose conditions have no class of their own
-# (that of rrefuse_non_gaussian_glm() is a simpleError), are of the issue
-# "diagnostic_failure", as a failure of the computation is. They are told
-# apart by these words of their messages: a glm that is not a least-squares
-# fit and a model of another class (rrefuse_glm(), rrefuse_model_class()), a
-# survey::svyglm() fit, zero weights, a weighted fit that a test refits
-# without its weights, an aliased coefficient a test cannot drop, and too few
-# observations (rvalidateModelInputs()).
+# "data_rows", one of a glm that is not a least-squares fit (rrefuse_glm())
+# "glm_family" since 0.18.0, and the others, whose conditions have no class of
+# their own, are of the issue the words of their messages give, as a failure
+# of the computation is. They are told apart by these words: a glm that is not
+# a least-squares fit (rrefuse_glm(), in a suite recorded before 0.18.0) and a
+# model of another class (rrefuse_model_class()), a survey::svyglm() fit, zero
+# weights, a weighted fit that a test refits without its weights, an aliased
+# coefficient a test cannot drop, and too few observations
+# (rvalidateModelInputs()).
 rsuite_refusals <- c(
   "needs a model fitted by stats::lm()",
   "Provide an object fitted with stats::lm() or stats::glm()",
@@ -546,7 +550,7 @@ rsuite_refusals <- c(
 )
 
 rsuite_refused <- function(issue, message) {
-  issue %in% c("model_context", "data_rows") ||
+  issue %in% c("model_context", "data_rows", "glm_family") ||
     any(vapply(rsuite_refusals, grepl, logical(1), x = message, fixed = TRUE))
 }
 

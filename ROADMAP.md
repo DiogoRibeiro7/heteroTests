@@ -2091,6 +2091,27 @@ announced in bold in `NEWS.md`.
   no `NAMESPACE` also exports the two `autoplot()` methods as functions,
   since the package then loads without `importFrom(ggplot2, autoplot)`; a
   second run registers them again. Found by #180.
+- [ ] **The site's reference pages do not render `\tabular`.**
+  `tools/build-docs.R` has no case for it, so `render()` renders its
+  children: the column format becomes text, `\tab` is dropped and `\cr`
+  becomes a line break. The tables of four pages come out as lines of cells
+  separated by two spaces, after the format as a stray token:
+  `docs/reference/performBPTest.md`, `performKoenkerTest.md` and
+  `performWhiteTest.md` (`rrrrrl`, lines 42, 41 and 67), the rejection rates
+  with fixed effects for small groups, from `man/performBPTest.Rd`,
+  `performKoenkerTest.Rd` and `performWhiteTest.Rd`, written by hand; and
+  `performWildBootstrapTest.md` (line 112, "0.058.llrrrr", the format glued
+  to the sentence before the table), the size of the wild bootstrap by
+  errors and multiplier, from the markdown table of the roxygen of
+  `performWildBootstrapTest()` (`R/modern_diagnostics.R`). R's help renders
+  them. `build-docs.R` would need a `"\\tabular"` case that writes a pipe
+  table: the alignment of each column from the format (`l`, `r` and `c` as
+  `:---`, `---:` and `:---:`), the rows split at `\cr` and the cells at
+  `\tab`, each cell rendered inline on one line, with `|` escaped, the first
+  row as the header, which each of the four tables has, and a blank line
+  before and after, since the table of `performWildBootstrapTest.Rd` starts on
+  the line of the sentence before it. Found by #182; recorded, not fixed. No
+  value changes.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
@@ -2142,11 +2163,24 @@ announced in bold in `NEWS.md`.
   instead of `install_local()`. If they do not, remove them.
 - [ ] Keep the CRAN test run short. Long simulations run under `skip_on_cran()`,
   and the full versions run on CI.
-- [ ] **`runHeteroTestsParallel()` names its results `"model"`.** It returns
+- [x] **`runHeteroTestsParallel()` names its results `"model"`.** It returns
   what the registered functions return, so White's test and the four others
   of the registry report `data.name = "model"` there, where `runHeteroTests()`
   reports the formula of the model since 0.16.0 (`NEWS.md`). Give it the rule
-  of the runner, or say on its help page that it does not.
+  of the runner, or say on its help page that it does not. Done in #182: it
+  has the rule, and each of its results is the one `runHeteroTests()` gives
+  for the test on the same call, `extras$streaming = FALSE` included, its
+  numbers computed the same way: `identical()` to it where the BLAS gives the
+  same last bits on every call, as R's reference BLAS does, and equal to the
+  last bits of the BLAS where it does not, as under Intel MKL or the noisy
+  BLAS of `cran-blas.yml`, which the test allows for (from the review of
+  #182). On socket workers the model a result carries is the copy that
+  travelled to the worker. Four names report `"model"`: `"white"`,
+  `"white_bootstrap"`, `"student_bp"` and `"szroeter"`. A resampling test
+  still draws from its own stream, and the list is still not a
+  `hetero_test_suite`. `cachedTest()`, which returned `"model"` too, has the
+  rule as well; it gives no `extras$streaming`, which says how the runner
+  ran a test, and its help page says so.
 - [x] **A grouped run of a multivariate `lm`.** `runHeteroTests()` refuses
   `lm(cbind(y, x2) ~ x1)` with the class of the model context ("needs a model
   with one response"), but on grouped data it refits the model in each group
@@ -2189,7 +2223,7 @@ announced in bold in `NEWS.md`.
   increment 11 of the model context, recorded, not fixed; the same on `main`
   at the merge of increment 10. Read the model frame without `data`, or say
   that `data` is needed. A refusal becomes a value, or a clearer refusal.
-- [ ] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
+- [x] **The deprecation messages of 0.14.0.** The names deprecated in 0.14.0
   that have a replacement (`performBreuschPaganTest()`, `performNCVTest()`,
   `performStudentizedBPTest()`, the three `*Enhanced` functions,
   `rbootstrap_test_statistic()`, `test()`, `simulate_type_I_errors()`,
@@ -2197,8 +2231,16 @@ announced in bold in `NEWS.md`.
   `runHeteroTests()`) warn with the default text of `.Deprecated()`, which
   does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
   forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
-  audit; no value changes.
-- [ ] **`ht_analyse_failure()` labels a failure by its message, ignoring
+  audit; no value changes. Done in #182: the ten functions give the message
+  of `rrunAdvancedDiagnostics()`, now written by one helper for the eleven,
+  as "'performBreuschPaganTest' is deprecated and leaves the exports in
+  heteroTests 1.0.0. Use 'performBPTest' instead.", and the two test names
+  that of the `studentized` argument of `performBPTestRobust()`, "Test name
+  "ncv" is deprecated and stops working in heteroTests 1.0.0. Use
+  "cook_weisberg" instead.". The tests of each pin the 1.0.0, and
+  `test-public-api.R` checks that every deprecated function gives a message
+  of its own.
+- [x] **`ht_analyse_failure()` labels a failure by its message, ignoring
   case.** It calls a failure a rank deficiency when the message matches
   `"rank|singular"` and a data-quality issue when it matches
   `"NA|NaN|missing|Inf"`, both with `ignore.case = TRUE`
@@ -2214,7 +2256,28 @@ announced in bold in `NEWS.md`.
   to remove missing values. The other tests refuse it as "Diagnostic
   execution failed". Match whole words, and `NA` only in capitals, or give the
   refusal of such a `glm` an issue of its own. Recorded, not fixed, in
-  0.15.0; only the message and the recorded `issue` change.
+  0.15.0; only the message and the recorded `issue` change. Done in #182,
+  both ways. The refusal has the class `heteroTests_glm_family_error`, which
+  the failure analysis reads as the issue `"glm_family"`, final as those of
+  the model context and of the rows of `data`: on the `glm` above,
+  `runHeteroTests(m, mtcars, tests = "rank_permutation")` stops at once with
+  "Model is not a least-squares fit for Rank Permutation:
+  `performRankPermutationTest()` needs a model fitted by stats::lm(): ...",
+  that class and no advice, and so do the other tests, where White's test
+  tried its four fallbacks first; a grouped run records the issue in each
+  group. The other messages are read word by word, `NA`, `NaN` and `Inf` in
+  capitals only, and the names of the rank tests ("Rank permutation",
+  "rank-based") are not a rank deficiency, so that too few observations for
+  the rank permutation test are no longer one. The notes of `summary()` give
+  the new issue, and drop the prefix of White's exact fit, "Test cannot be
+  computed", which they kept. From the review of #182: the refusal is no
+  longer a `simpleError`, as those of the model context are not; catch it by
+  its class or as an `error`. A diagnostic a user registers under the name of
+  a fallback, as `registerDiagnostic("breusch_pagan", f)` for White's test,
+  is no longer tried after this refusal, nor after one of data that lack rows
+  of the fit (the item below), as it was not after the other final refusals.
+  The plurals "NAs" and "NaNs" are read as `NA` and `NaN`, "singularity" and
+  "singularities" as "singular", and "Spearman rank" is a name too.
 - [ ] **`performBoxMTest()` with a missing value in `group` or `data`**
   returns `NA`: a row whose group is `NA` becomes a row of `NA`s in every
   group (`data[group == gr, ]`), and a missing value in `data` makes its
@@ -2306,7 +2369,7 @@ announced in bold in `NEWS.md`.
     permutation test with `order_by = "z"` gives -0.02142 instead of
     -0.02619 in the order of the fit. Extend the rule on ties to rows
     matched by number when the call reads such a column.
-- [ ] **Data that lack rows of the fit are refused without the class of the
+- [x] **Data that lack rows of the fit are refused without the class of the
   other refusals of rows.** `rstop_data_rows()` (`R/interface.R:673`, called
   at `R/model_context.R:678`) refuses them with a plain `stop()`. Every other
   refusal of the rows of `data` has the class `heteroTests_data_rows_error`
@@ -2322,7 +2385,17 @@ announced in bold in `NEWS.md`.
   message, which the suite pins (`tests/testthat/test-model-context.R:287`),
   so that the runners raise it at once. Only the class, and the message of
   the runners, change. Found by the review of the R Journal article's
-  subsection on the model context.
+  subsection on the model context. Done in #182: the refusal keeps its
+  message and has the class, so `runHeteroTests(m, d[1:100, ])` and
+  `runDiagnostics()` stop at once with "Data do not match the model for
+  White: White test requires `data` to contain the rows used to fit the
+  model. Missing rows: 101, 102, 103", that class and no advice. A grouped
+  run, whose groups are refitted on their own rows and so do not meet it,
+  would record it in its group with the issue `"data_rows"` and no fallback,
+  as it records the other refusals of rows. The workflows and parsnip fits,
+  which told it by its message, now tell it by its class. The refusal is no
+  longer a `simpleError`, as the other refusals of rows are not; catch it by
+  its class or as an `error` (from the review of #182).
 - [ ] **Left from steps 8 to 10 of the model context**, recorded, not fixed.
   Moved from 0.17.0 at its release (2026-10-30), where the steps that found
   them are done; each changes what a call returns:

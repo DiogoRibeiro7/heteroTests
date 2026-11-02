@@ -669,7 +669,11 @@ rtest_name <- function(frame, default = NULL) {
 
 # The error for `data` whose rows are not those of the fit, in the words the
 # tests used before the model context: the rows it lacks when the rows are
-# named, otherwise the counts.
+# named, otherwise the counts. It has the class of the other refusals of the
+# rows of `data` (.ht_stop_rows()), final in the runners. Before 0.18.0 it was
+# a plain error: runHeteroTests() tried the fallbacks of the test, which
+# refused the same rows, and called it a data-quality issue for the word
+# "Missing".
 rstop_data_rows <- function(residuals, data, test_label) {
   resid_names <- names(residuals)
   missing_rows <- if (length(resid_names) > 0L && !is.null(rownames(data))) {
@@ -677,23 +681,19 @@ rstop_data_rows <- function(residuals, data, test_label) {
   } else {
     character()
   }
-  if (length(missing_rows) > 0L) {
-    stop(
-      sprintf(
-        "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
-        test_label,
-        paste(utils::head(missing_rows, 3L), collapse = ", ")
-      ),
-      call. = FALSE
+  message <- if (length(missing_rows) > 0L) {
+    sprintf(
+      "%s requires `data` to contain the rows used to fit the model. Missing rows: %s",
+      test_label,
+      paste(utils::head(missing_rows, 3L), collapse = ", ")
     )
-  }
-  stop(
+  } else {
     sprintf(
       "%s requires `data` with %d observations to match the fitted model, got %d.",
       test_label, length(residuals), nrow(data)
-    ),
-    call. = FALSE
-  )
+    )
+  }
+  .ht_stop_rows(message)
 }
 
 #' Refuse a model that is neither an lm nor a glm
@@ -744,6 +744,13 @@ rmodel_class_message <- function(model, who) {
 #' included; since then no test does. A `survey::svyglm()` fit is refused with
 #' the message of [rrefuse_survey_fit()] instead, as by every other test.
 #'
+#' The error has class `heteroTests_glm_family_error` since 0.18.0, which
+#' [ht_analyse_failure()] treats as final: every test refuses such a fit, so
+#' `runHeteroTests()` falls back on none. Before, it was a plain error, and the
+#' runner tried the fallbacks of the test and labelled the refusal by its
+#' words: `"rank_permutation"` as a rank deficiency, from the "Rank" of
+#' `performRankPermutationTest()`.
+#'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.
 #' @param reason Optional character scalar saying why.
@@ -756,11 +763,14 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
   if (inherits(model, "lm") && !inherits(model, "glm")) {
     return(invisible(NULL))
   }
-  stop(
+  message <- paste0(
     sprintf("%s() needs a model fitted by stats::lm()", fn),
-    if (is.null(reason)) "." else paste0(": ", reason),
-    call. = FALSE
+    if (is.null(reason)) "." else paste0(": ", reason)
   )
+  stop(structure(
+    class = c("heteroTests_glm_family_error", "error", "condition"),
+    list(message = message, call = NULL)
+  ))
 }
 
 #' Refuse a glm that is not a least-squares fit

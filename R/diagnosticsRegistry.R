@@ -95,9 +95,14 @@ registerPlot <- function(name, fun) {
 # test that had refused it.
 .ht_deprecated_tests <- c(student_bp = "koenker", ncv = "cook_weisberg")
 
+# Its message says, as those of the deprecated functions do since 0.18.0, that
+# the name goes in 1.0.0.
 .ht_deprecated_test_message <- function(old) {
   sprintf(
-    "Test name \"%s\" is deprecated.\nUse \"%s\" instead.\nSee help(\"Deprecated\")",
+    paste0(
+      "Test name \"%s\" is deprecated and stops working in heteroTests 1.0.0.\n",
+      "Use \"%s\" instead.\nSee help(\"Deprecated\")"
+    ),
     old, .ht_deprecated_tests[[old]]
   )
 }

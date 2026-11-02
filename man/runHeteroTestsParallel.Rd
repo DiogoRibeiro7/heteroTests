@@ -18,7 +18,21 @@ with the internal \code{.test_factory} registry.}
 to spawn. Defaults to \code{parallel::detectCores() - 1}, with a lower bound of 1.}
 }
 \value{
-Named list of test results in the order provided by \code{tests}.
+Named list of test results in the order provided by \code{tests}. Each
+is the result \code{\link[=runHeteroTests]{runHeteroTests()}} gives for that test on the same call,
+its numbers computed the same way, since 0.18.0, and so \code{identical()} to
+it where the BLAS gives the same last bits on every call, as R's
+reference BLAS does (Intel MKL need not): a result whose \code{data.name} is
+\code{"model"}, the name of the
+argument of the function the registry calls the test with, reports the
+formula of the model instead, and \code{attr(, "extras")$streaming} is
+\code{FALSE}, as this function runs the exact tests only. Before, White's test,
+its bootstrap, the studentized Breusch-Pagan statistic and Szroeter's test
+reported \code{"model"} here. A resampling test draws from a stream of its own
+(Details), and so does not return the value it returns in
+\code{\link[=runHeteroTests]{runHeteroTests()}}, which draws from the session's generator. The list
+is not a \code{\link{hetero_test_suite}}, and a test that fails stops the call,
+without the fallbacks of \code{\link[=runHeteroTests]{runHeteroTests()}}.
 }
 \description{
 Executes a set of registered diagnostics in parallel when multiple CPU cores

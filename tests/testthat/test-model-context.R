@@ -284,11 +284,12 @@ test_that("each form of data is aligned as the design says", {
   fit_ids <- names(m_na$residuals)
   expect_length(fit_ids, 117L)
   expect_identical(rmodel_context(m_na, d_na, fn = "f")$rows, match(fit_ids, rownames(d_na)))
-  # Data that lack a row of the fit keep their message.
+  # Data that lack a row of the fit keep their message, and since 0.18.0 have
+  # the class of the other refusals of rows, final in the runners.
   expect_error(
     rmodel_context(m, d[1:100, ], fn = "f", test_label = "Koenker"),
     "Koenker requires `data` to contain the rows used to fit the model. Missing rows: 101",
-    fixed = TRUE
+    fixed = TRUE, class = "heteroTests_data_rows_error"
   )
   expect_error(rmodel_context(m, d[1:100, -1], fn = "f"),
                "The following variables are missing from input data: x1", fixed = TRUE)

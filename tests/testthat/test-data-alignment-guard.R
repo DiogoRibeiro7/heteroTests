@@ -405,7 +405,7 @@ test_that("data without a row of the fit keep the message they had", {
   expect_error(
     performKoenkerTest(m, d[1:100, ]),
     "requires `data` to contain the rows used to fit the model. Missing rows: 101, 102, 103",
-    fixed = TRUE
+    fixed = TRUE, class = "heteroTests_data_rows_error"
   )
   # The model frame, given back, holds the rows of the fit by name.
   expect_same_result(
@@ -466,6 +466,53 @@ test_that("runHeteroTests() and runDiagnostics() stop and fall back on nothing",
     unname(runHeteroTests(m, d, use_cache = FALSE, progress = FALSE)$koenker$statistic),
     unname(performKoenkerTest(m, d)$statistic)
   )
+})
+
+test_that("data that lack rows of the fit stop the runners at once, with the class", {
+  d <- guard_data()
+  m <- lm(y ~ x1 + x2, data = d)
+  local_silent_log()
+  # Before 0.18.0 the refusal was a plain error: runHeteroTests() tried the
+  # four fallbacks of White's test, each of which refused the same rows, and
+  # stopped with "Data quality issue detected for White" and the advice to
+  # remove or impute missing values, from the word "Missing".
+  refusal <- paste(
+    "Data do not match the model for White: White test requires `data` to contain the rows",
+    "used to fit the model. Missing rows: 101, 102, 103"
+  )
+  for (use_cache in c(FALSE, TRUE)) {
+    e <- expect_error(
+      runHeteroTests(m, d[1:100, ], use_cache = use_cache, progress = FALSE),
+      class = "heteroTests_data_rows_error"
+    )
+    expect_identical(conditionMessage(e), refusal)
+    e <- expect_error(
+      runDiagnostics(m, d[1:100, ], use_cache = use_cache, progress = FALSE),
+      class = "heteroTests_data_rows_error"
+    )
+    expect_identical(conditionMessage(e), refusal)
+  }
+  expect_error(cachedTest("koenker", m, d[1:100, ]), class = "heteroTests_data_rows_error")
+  e <- tryCatch(performWhiteTest(m, d[1:100, ]), error = identity)
+  failure <- ht_analyse_failure("white", e, m, d[1:100, ])
+  expect_identical(failure$issue, "data_rows")
+  expect_identical(failure$fallbacks, character())
+  expect_identical(failure$suggestions, character())
+  # A grouped run records the refusal in its group, as it records the other
+  # refusals of rows: under its own name, with the issue "data_rows", and
+  # without trying a fallback.
+  tests <- c("white", "koenker", "breusch_pagan", "rank_permutation", "high_dimensional")
+  out <- .run_hetero_core(
+    m, d[1:100, ],
+    tests = tests, use_cache = FALSE, chunk_threshold_mb = Inf,
+    chunk_size = 10000, progress = FALSE, recover_failures = TRUE
+  )
+  for (nm in tests) {
+    expect_identical(attr(out[[nm]], "diagnostic"), nm, info = nm)
+    expect_identical(attr(out[[nm]], "extras")$issue, "data_rows", info = nm)
+    expect_identical(attr(out[[nm]], "extras")$suggestions, character(), info = nm)
+    expect_true(is.na(out[[nm]]$statistic), info = nm)
+  }
 })
 
 test_that("a model fitted with model = FALSE refuses a frame rebuilt from changed data", {

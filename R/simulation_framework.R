@@ -129,7 +129,10 @@ simulate_power <- function(test_function,
 simulate_type_I_errors <- function(test_function, n_sims = 1000,
                                    alpha = 0.05, n_obs = 100,
                                    seed = 123) {
-  .Deprecated("simulate_size", old = "simulate_type_I_errors")
+  .Deprecated(
+    "simulate_size", old = "simulate_type_I_errors",
+    msg = .ht_renamed_deprecation("simulate_type_I_errors", "simulate_size")
+  )
   simulate_size(test_function, n_sims = n_sims, alpha = alpha, n_obs = n_obs, seed = seed)
 }
 
@@ -141,7 +144,10 @@ simulate_power_analysis <- function(test_function,
                                     n_sims = 500,
                                     n_obs = 100,
                                     alpha = 0.05) {
-  .Deprecated("simulate_power", old = "simulate_power_analysis")
+  .Deprecated(
+    "simulate_power", old = "simulate_power_analysis",
+    msg = .ht_renamed_deprecation("simulate_power_analysis", "simulate_power")
+  )
   simulate_power(
     test_function, sigma_functions = sigma_functions, effect_sizes = effect_sizes,
     n_sims = n_sims, n_obs = n_obs, alpha = alpha

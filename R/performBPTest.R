@@ -303,6 +303,9 @@ performBPTest <- function(model, data = NULL) {
 #' @rdname performBPTest
 #' @export
 performBreuschPaganTest <- function(model, data = NULL) {
-  .Deprecated("performBPTest", old = "performBreuschPaganTest")
+  .Deprecated(
+    "performBPTest", old = "performBreuschPaganTest",
+    msg = .ht_renamed_deprecation("performBreuschPaganTest", "performBPTest")
+  )
   performBPTest(model, data)
 }
