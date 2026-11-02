@@ -190,8 +190,8 @@
 #'   of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
 #'   is the response term itself, as `~ .` gives, cannot be estimated again:
 #'   `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
-#'   error. Giving the response as a column of the data, as in \code{r ~ z}, says
-#'   which variables stay. See *Weighted fits*.
+#'   error. Giving the response as a column of the data, as in
+#'   \code{r ~ z}, says which variables stay. See *Weighted fits*.
 #'
 #' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the

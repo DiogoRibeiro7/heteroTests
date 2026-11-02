@@ -55,8 +55,8 @@ regressor that uses a variable of the response which the right-hand side
 of the model does not use, such as \code{y} or \code{x} for \code{I(y / x) ~ z}, or that
 is the response term itself, as \code{~ .} gives, cannot be estimated again:
 \code{NULL} then holds the weights fixed, with a warning, and \code{TRUE} is an
-error. Giving the response as a column of the data, as in \code{r ~ z}, says
-which variables stay. See \emph{Weighted fits}.}
+error. Giving the response as a column of the data, as in
+\code{r ~ z}, says which variables stay. See \emph{Weighted fits}.}
 }
 \value{
 An object of class \code{htest} containing the observed

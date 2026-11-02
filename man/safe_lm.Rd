@@ -13,17 +13,19 @@ safe_lm(formula, data, ..., .recover = TRUE)
 
 \item{...}{Additional arguments passed to \code{\link[stats:lm]{stats::lm()}}.}
 
-\item{.recover}{Logical flag controlling whether the helper should attempt
-automatic recovery strategies (e.g., removing problematic rows) before
-rethrowing the error.}
+\item{.recover}{Logical flag: whether a failed fit is attempted again
+without the problematic rows before the helper stops.}
 }
 \value{
-A fitted model object.
+A fitted model object: the fit of \code{formula} to \code{data}, or the refit
+that recovered from its failure.
 }
 \description{
-Wraps \code{\link[stats:lm]{stats::lm()}} in a \code{tryCatch} block that logs the error via
-\code{\link[=ht_log]{ht_log()}} and optionally attempts recovery (e.g., dropping
-rows with missing values) before rethrowing. This helper is used internally by
-diagnostic tests so failures are easier to debug.
+Wraps \code{\link[stats:lm]{stats::lm()}} in a \code{tryCatch} block. If the fit fails, it logs the
+error via \code{\link[=ht_log]{ht_log()}} and, with \code{.recover = TRUE}, refits the model without
+the rows that hold missing or non-finite values, if there are any: it
+returns that refit when it succeeds, and otherwise stops with the message of
+the error and any suggestions for cleaning the data. This helper is used
+internally by diagnostic tests so failures are easier to debug.
 }
 \keyword{internal}
