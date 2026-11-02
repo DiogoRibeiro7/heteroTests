@@ -470,9 +470,9 @@ rwhite_regressors_fit_exactly <- function(X, e_squared) {
 # do, counts the intercept once. `keep` holds the positions of the columns
 # kept among those of `centred`. Shared by rwhite_statistic(), whose design
 # holds the regressors, their squares and their products, and by
-# performBPTest() and performKoenkerTest(), whose design holds the
-# regressors. Until 0.18.0 these two counted the columns of the design but its
-# intercept.
+# performBPTest(), performKoenkerTest() and performWildBootstrapTest(), whose
+# design holds the regressors. Until 0.18.0 these three counted the columns of
+# the design but its intercept.
 rauxiliary_columns <- function(centred) {
   qr_aux <- qr(cbind(1, centred))
   rank <- qr_aux$rank

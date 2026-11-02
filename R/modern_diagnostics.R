@@ -34,10 +34,7 @@
   aux_model <- safe_lm(response ~ ., data = aux_matrix)
   r2 <- summary(aux_model)$r.squared
   stat <- n * r2
-  list(
-    statistic = stats::setNames(stat, statistic_name),
-    df = ncol(aux_df)
-  )
+  list(statistic = stats::setNames(stat, statistic_name))
 }
 
 .pick_predictor <- function(model_matrix) {
@@ -306,6 +303,15 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   }
 
   observed <- .compute_bp_statistic(residuals, predictors)
+  # The degrees of freedom the result reports, which the bootstrap p-value
+  # does not use: the rank of the auxiliary regression less its intercept, as
+  # performKoenkerTest() counts them (rauxiliary_columns()), decided once,
+  # since every replicate has the same regressors. Until 0.18.0 they were the
+  # number of regressors, one more on a model without an intercept whose
+  # columns span the constant.
+  df <- rauxiliary_columns(
+    predictors - rep(colMeans(predictors), each = nrow(predictors))
+  )$rank - 1L
 
   multiplier_draw <- switch(distribution,
     rademacher = function(n) sample(c(-1, 1), size = n, replace = TRUE),
@@ -410,7 +416,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   structure(
     list(
       statistic = observed$statistic,
-      parameter = c(df = observed$df, B = B),
+      parameter = c(df = df, B = B),
       p.value = p_value,
       method = sprintf("Wild bootstrap Breusch-Pagan test (%s multipliers)", distribution),
       data.name = deparse(stats::formula(model)),
