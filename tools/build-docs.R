@@ -690,6 +690,10 @@ cat("docs/roadmap.md written from ROADMAP.md\n")
 # help page, pkgdown's #ref-usage and #ref-examples are #usage and #examples
 # here, and an argument's #arg-<name> goes to #arguments.
 #
+# A help file that is gone also leaves addresses of this site, such as
+# reference/ht_logging/, the folder MkDocs made of its page; each gets a
+# redirect too, as the index.html of that folder.
+#
 # The mkdocs-redirects plugin is not used: it takes an old address as the path
 # of a Markdown file, and warns about one that ends in .html, which fails
 # `mkdocs build --strict`.
@@ -713,6 +717,16 @@ pkgdown_pages <- c(
   "TODO.html" = "roadmap.md"
 )
 
+# The help files that are gone, each with the help file that took its place,
+# both in 0.18.0: ht_logging.Rd, which documented the four logging functions,
+# gave way to a page for each, and rbootstrap_test_statistic.Rd was renamed
+# bootstrapTestStatistic.Rd. One that is a help file again is left out.
+gone_pages <- c(
+  ht_logging = "ht_set_log_level",
+  rbootstrap_test_statistic = "bootstrapTestStatistic"
+)
+gone_pages <- gone_pages[!names(gone_pages) %in% pages]
+
 # Each help file's page, as pkgdown named it, then each alias that is not a
 # page, which pkgdown redirected to its topic's page. An alias that MkDocs
 # would skip (a leading dot), that could not be a file name, or that differs
@@ -729,11 +743,10 @@ reference_redirects <- local({
       taken <- c(taken, tolower(alias))
     }
   }
-  # The help files pkgdown had a page for that are gone, each to the page
-  # that took its place: ht_logging.Rd, which documented the four logging
-  # functions, gave way to their own pages in 0.18.0.
-  gone <- c(ht_logging = "ht_set_log_level")
-  gone <- gone[!tolower(names(gone)) %in% taken]
+  # The pkgdown pages of the help files that are gone, unless an alias
+  # already took the name (rbootstrap_test_statistic is an alias of
+  # bootstrapTestStatistic.Rd).
+  gone <- gone_pages[!tolower(names(gone_pages)) %in% taken]
   from <- c(from, names(gone))
   to <- c(to, unname(gone))
   data.frame(
@@ -753,7 +766,14 @@ redirects <- rbind(
     to = paste0("guide/", gsub("_", "-", tolower(vignettes)), ".md"),
     reference = FALSE
   ),
-  data.frame(from = names(pkgdown_pages), to = unname(pkgdown_pages), reference = FALSE)
+  data.frame(from = names(pkgdown_pages), to = unname(pkgdown_pages), reference = FALSE),
+  # The pages of this site of the help files that are gone, whose anchors
+  # are those of the page that took their place.
+  data.frame(
+    from = paste0("reference/", names(gone_pages), "/index.html"),
+    to = paste0("reference/", unname(gone_pages), ".md"),
+    reference = rep(FALSE, length(gone_pages))
+  )
 )
 redirects <- redirects[order(redirects$from, method = "radix"), ]
 
@@ -832,4 +852,4 @@ for (i in seq_len(nrow(redirects))) {
   dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
   write_page(redirect_page(redirects$from[[i]], redirects$to[[i]], redirects$reference[[i]]), path)
 }
-cat(nrow(redirects), "redirects from the pkgdown site written to docs\n")
+cat(nrow(redirects), "redirects from the pkgdown site and from removed pages written to docs\n")

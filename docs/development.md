@@ -101,7 +101,7 @@ script that wrote it:
 | The API reference, `docs/reference/`, and its part of the nav in `mkdocs.yml` | `tools/build-docs.R` | The help pages in `man/`, grouped by `tools/reference-index.R` |
 | Releases and Roadmap, `docs/releases.md` and `docs/roadmap.md` | `tools/build-docs.R` | `NEWS.md` and `ROADMAP.md` |
 | The user guide, `docs/guide/` | `tools/render-guides.R` | The vignettes, knitted with the package installed from the checkout |
-| Redirects from the addresses of the pkgdown site, such as `docs/reference/performWhiteTest.html` and `docs/news/index.html` | `tools/build-docs.R` | The help files and their aliases, the vignettes, and a list in the script of pkgdown's other pages |
+| Redirects from the addresses of the pkgdown site, such as `docs/reference/performWhiteTest.html` and `docs/news/index.html`, and from the pages of this site of help files that are gone, such as `docs/reference/ht_logging/index.html` | `tools/build-docs.R` | The help files and their aliases, the vignettes, and lists in the script of pkgdown's other pages and of the help files that are gone |
 
 The other pages, this one included, are written by hand. A redirect is a
 static HTML page that MkDocs copies as it is: the `mkdocs-redirects` plugin

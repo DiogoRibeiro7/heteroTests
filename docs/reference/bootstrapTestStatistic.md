@@ -108,9 +108,9 @@ rbootstrap_test_statistic(
     of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
     is the response term itself, as `~ .` gives, cannot be estimated again:
     `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
-    error. Giving the response as a column of the data, as in `r ~ z`, says
-    which variables stay. It comes after `...`, so it has to be named in
-    full. See Details.
+    error. Giving the response as a column of the data, as in
+    `r ~ z`, says which variables stay. It comes after `...`, so it has
+    to be named in full. See Details.
 
 ## Value
 
