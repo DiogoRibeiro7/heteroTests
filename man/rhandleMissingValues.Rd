@@ -15,12 +15,12 @@ values.}
 \item{strategy}{Strategy describing how missing values should be handled.
 The options are:
 \itemize{
-\item \code{"complete_cases"} – remove incomplete rows and emit a warning that
+\item \code{"complete_cases"} - remove incomplete rows and emit a warning that
 summarizes the data loss.
-\item \code{"warn"} – behaves identically to \code{"complete_cases"} but is provided as a
+\item \code{"warn"} - behaves identically to \code{"complete_cases"} but is provided as a
 semantic alias when a calling test wants to emphasize the warning
 behaviour explicitly.
-\item \code{"fail"} – abort when any missing values are detected.
+\item \code{"fail"} - abort when any missing values are detected.
 }}
 }
 \value{

@@ -131,21 +131,25 @@ log-linear form it was 22\% at 150 observations and 74\% at 400. See
 }
 
 \section{Supported models}{
-It accepts an unweighted \code{lm}, a \code{fitWLS()} fit and, since 0.16.0, an unweighted
-\code{glm} with the Gaussian family and the identity link and a rank-deficient fit. The Gaussian
-\code{glm} is the least-squares fit \code{lm()}, with the same design and residuals, from which the
-variance function is estimated and the model refitted, so the test gives the value of the
-\code{lm}, and \code{\link[=fitWLS]{fitWLS()}} refits it as that \code{lm}; it refused every \code{glm}
-before 0.16.0.
-With the exponential form, the default, the variance regressors of a rank-deficient fit span the
-same space with or without its aliased columns, and the test gives the value of the same model
-fitted without them. With the power form they are the logarithms of every column of the design,
-the aliased ones included, and the logarithm of an aliased column is not a combination of the
-logarithms of the others, so the value is not that of the model without them; it does not depend on
-the order of the terms, as the value of the model without them does. It refuses weights that did
-not come from \code{fitWLS()}, the prior weights of a Gaussian \code{glm} among them, a \code{glm}
-of another family or link, a \code{survey::svyglm()} fit, a coefficient that is not finite for another reason,
-and \code{data} that lack rows or variables of the fit. Since 0.16.0 it is built on the model context, and also
+
+It accepts an unweighted \code{lm}, a \code{fitWLS()} fit and, since 0.16.0, an
+unweighted \code{glm} with the Gaussian family and the identity link and a
+rank-deficient fit. The Gaussian \code{glm} is the least-squares fit \code{lm()}, with
+the same design and residuals, from which the variance function is estimated
+and the model refitted, so the test gives the value of the \code{lm}, and
+\code{\link[=fitWLS]{fitWLS()}} refits it as that \code{lm}; it refused every \code{glm} before 0.16.0.
+With the exponential form, the default, the variance
+regressors of a rank-deficient fit span the same space with or without its
+aliased columns, and the test gives the value of the same model fitted without
+them. With the power form they are the logarithms of every column of the
+design, the aliased ones included, and the logarithm of an aliased column is not
+a combination of the logarithms of the others, so the value is not that of the
+model without them; it does not depend on the order of the terms, as the value
+of the model without them does. It refuses weights that did not come from
+\code{fitWLS()}, the prior weights of a Gaussian \code{glm} among them, a \code{glm} of
+another family or link, a \code{survey::svyglm()} fit, a
+coefficient that is not finite for another reason, and \code{data} that lack rows or
+variables of the fit. Since 0.16.0 it is built on the model context, and also
 refuses a multivariate \code{lm}, a fit whose coefficients, residuals or weights were
 changed after the fit, and a fit with \code{model = FALSE} whose model frame, rebuilt
 from the data it was fitted to, no longer holds its response, because those data
@@ -160,9 +164,10 @@ basis of its smooths without the penalty, and so tested another fit; a
 \code{gam} that is the least-squares fit of its design, as one whose smooth
 terms are all fixed (\code{s(x, fx = TRUE)}), is tested on that design, as
 before (decisions 37 and 38 of the design of the model context). Which
-model each test accepts, and why, is set out in \code{\link{test_results}}, under
+model each test accepts, and why, is set out in \link{test_results}, under
 \emph{Supported models}.
 }
+
 \examples{
 # Standard deviation proportional to x, so the variance is a power of x
 set.seed(2026)

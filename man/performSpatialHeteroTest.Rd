@@ -28,7 +28,7 @@ name, in any order; rows that only number themselves (a tibble, a
 data.table, a data frame whose row names were reset) by the row numbers of
 the fit, or in the order of the fit when they hold one row per observation.
 The rows the fit dropped may be there or not. Data whose rows cannot be
-shown to hold the observations of the fit are refused; see \code{\link{test_results}}.}
+shown to hold the observations of the fit are refused; see \link{test_results}.}
 
 \item{listw}{Spatial weights in \code{spdep} \code{listw} format or a numeric
 matrix coercible via \code{spdep::mat2listw()}. They list the observations
@@ -62,12 +62,14 @@ the value of the same model fitted without the aliased columns. It refuses a
 weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit.
 It refuses a multivariate \code{lm} ("needs a model with one response"), since
-0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is tested as before
-0.16.0, with penalised smooth terms too: the test reads its residuals and does not fit it again, so
-it does not take them for least-squares residuals (decision 37 of the design of the model context).
-Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+0.16.0; before, it stopped with a coercion error. An \code{mgcv::gam()} fit is
+tested as before 0.16.0, with penalised smooth terms too: the test reads its
+residuals and does not fit it again, so it does not take them for
+least-squares residuals (decision 37 of the design of the model context).
+Which model each test accepts, and why, is set out in \link{test_results}, under
 \emph{Supported models}.
 }
+
 \examples{
 if (requireNamespace("spdep", quietly = TRUE)) {
   data(mtcars)

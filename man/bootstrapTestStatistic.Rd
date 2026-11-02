@@ -33,29 +33,112 @@ rbootstrap_test_statistic(
   reestimate_weights = NULL
 )
 }
+\arguments{
+\item{test_function}{A function that accepts \verb{(model, data, ...)} and
+returns an object with a numeric \code{statistic} element (typically an
+\code{htest} result).}
+
+\item{model}{A fitted model of class \code{lm}, with or without weights, or,
+since 0.17.0, a \code{glm} with the Gaussian family and the identity link, the
+least-squares fit of \code{lm()} with its prior weights, whose replicates are
+those of that \code{lm}. Another \code{glm} is rejected: each replicate is refitted
+with least squares, which would discard its family and link. A Gaussian
+\code{mgcv::gam()} fit, a \code{glm} by class, is accepted since 0.17.0 when it is
+the least-squares fit of its design, as one whose smooth terms are all
+fixed (\code{s(x, fx = TRUE)}) or one without smooth terms, and its replicates
+are those of the \code{lm()} of that design; one with penalised smooth terms
+is refused, as every \code{gam} was before.}
+
+\item{data}{Data frame used when fitting \code{model}, holding the rows it was
+fitted to, or its model frame. Other rows are left out. See Details.}
+
+\item{B}{Integer, number of bootstrap replications. Defaults to 999. The
+p-value is \verb{(1 + #) / (B_eff + 1)}, so a test at level \code{alpha} is exact
+only when \code{alpha * (B + 1)} is an integer: with 999 it is at the 5\% and
+1\% levels, and with 1000, the default before 0.15.0, at neither.}
+
+\item{parallel}{Logical, compute replicates in parallel when possible? See
+\emph{Parallel replicates}.}
+
+\item{ci_level}{Confidence level for the percentile interval.}
+
+\item{resample}{Bootstrap strategy. \code{"null"} (the default) regenerates the
+response under homoscedasticity and yields a testable \code{p_value};
+\code{"pairs"} samples rows of \code{data} with replacement and yields replicates
+and an interval but no p-value. See Details.}
+
+\item{n_cores}{Optional integer specifying the number of worker processes to
+use when \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}.
+The result does not depend on it.}
+
+\item{progress}{Logical flag controlling whether a textual progress bar is
+displayed during bootstrap replication.}
+
+\item{...}{Additional arguments forwarded to \code{test_function}.}
+
+\item{reestimate_weights}{Whether each replicate estimates the weights of a
+\code{\link[=fitWLS]{fitWLS()}} fit again from the variance function \code{fitWLS()} recorded on it.
+\code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
+fixed for any other model. \code{FALSE} holds them fixed, as every call did
+before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
+return, or on which it fell back to equal weights. Each replicate
+regenerates the response and holds the design fixed, so a variance
+regressor that uses a variable of the response which the right-hand side
+of the model does not use, such as \code{y} or \code{x} for \code{I(y / x) ~ z}, or that
+is the response term itself, as \code{~ .} gives, cannot be estimated again:
+\code{NULL} then holds the weights fixed, with a warning, and \code{TRUE} is an
+error. Giving the response as a column of the data, as in \code{r ~ z}, says
+which variables stay. It comes after \code{...}, so it has to be named in
+full. See Details.}
+}
+\value{
+A list with components:
+\describe{
+\item{\code{original}}{Result returned by \code{test_function} on the
+original data.}
+\item{\code{original_statistic}}{Numeric value of the test statistic from
+the original sample.}
+\item{\code{replicates}}{Numeric vector of bootstrap statistics.}
+\item{\code{ci}}{Percentile interval of the bootstrap distribution of the
+statistic, at \code{ci_level}. This summarises where the resampled
+statistic falls; it is not a confidence interval for a parameter and
+carries no coverage guarantee.}
+\item{\code{p_value}}{Empirical p-value from the null-imposed replicates,
+computed as \eqn{(1 + \#\{T^*_b \ge T\}) / (B_{\mathrm{eff}} + 1)};
+\code{NA} when \code{resample = "pairs"}.}
+\item{\code{B}}{Requested number of replications.}
+\item{\code{effective_samples}}{Number of non-missing bootstrap
+replications.}
+\item{\code{call}}{Matched call for reproducibility.}
+}
+}
+\description{
+Provides a consistent wrapper around bootstrap resampling for test
+statistics produced by heteroscedasticity diagnostics. The routine refits
+the supplied model on each bootstrap replicate and evaluates
+\code{test_function} on it, returning the bootstrap distribution, a percentile
+interval, and---for null-imposed resampling---a p-value.
+}
 \details{
 The \code{resample} argument decides what the replicates mean.
 
 With \code{resample = "null"} (the default) the response is regenerated as
-\eqn{\hat y_i + e^*_i}, where the \eqn{e^*_i} are drawn with replacement from
-the model's residuals after dividing by \eqn{\sqrt{1 - h_i}} and centring.
-Those data satisfy homoscedasticity by construction, so the replicates
-estimate the null distribution and \code{p_value} is a test. The leverage
-correction matters: OLS residuals have variance \eqn{\sigma^2 (1 - h_i)}, and
-resampling them unscaled under-disperses the regenerated errors, which
-inflates the rejection rate.
+\eqn{\hat y_i + e^*_i}, where the \eqn{e^*_i} are drawn with replacement
+from the model's residuals after dividing by \eqn{\sqrt{1 - h_i}} and
+centring. Those data satisfy homoscedasticity by construction, so the
+replicates estimate the null distribution and \code{p_value} is a test. The
+leverage correction matters: OLS residuals have variance
+\eqn{\sigma^2 (1 - h_i)}, and resampling them unscaled under-disperses the
+regenerated errors, which inflates the rejection rate.
 
-With \code{resample = "pairs"} rows are sampled with replacement. The
-replicates then follow the statistic's distribution under whatever variance
-structure the data actually have, which is useful for describing its
-variability but is not a null distribution: the replicates are centred on the
-observed statistic, so comparing the two returns roughly 0.5 whatever the
-data. Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%.
-\code{p_value} is therefore \code{NA} for pairs resampling.
-
-Neither strategy accepts a \code{glm}: each replicate is refitted with least
-squares, so the family and link would be discarded and the replicates would
-describe a different model from the one supplied.
+With \code{resample = "pairs"} rows are sampled with replacement. The replicates
+then follow the statistic's distribution under whatever variance structure
+the data actually have, which is useful for describing its variability but
+is not a null distribution: the replicates are centred on the observed
+statistic, so comparing the two returns roughly 0.5 whatever the data.
+Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%. \code{p_value} is
+therefore \code{NA} for pairs resampling, and was removed rather than kept as a
+number that cannot be interpreted.
 
 A weighted \code{lm} is resampled on the scale where its null hypothesis is
 constant variance, the regression of \eqn{\sqrt{w_i}\, y_i}{sqrt(w_i) y_i}
@@ -135,9 +218,9 @@ first, as by every test (see \emph{Supported models}); it was refused here
 before, with that message.
 
 Null-imposed resampling additionally requires the response to be a plain
-variable. For \code{log(y) ~ x} the fitted values are on the log scale while
-the data column holds \code{y}, so regenerating one from the other and
-refitting would take the logarithm twice. That case raises an error;
+variable: for \code{log(y) ~ x} the fitted values are on the log scale while the
+data column holds \code{y}, so regenerating one from the other and refitting
+would take the logarithm twice. That case raises an error;
 \code{resample = "pairs"} resamples rows and is unaffected by it.
 
 The warning White's, Koenker's and the Breusch-Pagan tests give since 0.16.0
@@ -150,100 +233,14 @@ asymptotic p-value they report. The result's \code{original}, the test's own
 result, carries that asymptotic p-value: on such a design it is
 unreliable, and the bootstrap's, \code{p_value}, is the one to use.
 }
-
-\arguments{
-\item{test_function}{A function that accepts \verb{(model, data, ...)} and
-returns an object with a numeric \code{statistic} element (typically an
-\code{htest} result).}
-
-\item{model}{A fitted model of class \code{lm}, with or without weights, or,
-since 0.17.0, a \code{glm} with the Gaussian family and the identity link, the
-least-squares fit of \code{lm()} with its prior weights, whose replicates are
-those of that \code{lm}. Another \code{glm} is rejected: each replicate is refitted
-with least squares, which would discard its family and link. A Gaussian
-\code{mgcv::gam()} fit, a \code{glm} by class, is accepted since 0.17.0 when it is
-the least-squares fit of its design, as one whose smooth terms are all
-fixed (\code{s(x, fx = TRUE)}) or one without smooth terms, and its replicates
-are those of the \code{lm()} of that design; one with penalised smooth terms
-is refused, as every \code{gam} was before.}
-
-\item{data}{Data frame used when fitting \code{model}, holding the rows it was
-fitted to, or its model frame. Other rows are left out. See Details.}
-
-\item{B}{Integer, number of bootstrap replications. Defaults to 999. The
-p-value is \verb{(1 + #) / (B_eff + 1)}, so a test at level \code{alpha} is exact
-only when \code{alpha * (B + 1)} is an integer: with 999 it is at the 5\% and
-1\% levels, and with 1000, the default before 0.15.0, at neither.}
-
-\item{parallel}{Logical, compute replicates in parallel when possible? See
-\emph{Parallel replicates}.}
-
-\item{ci_level}{Confidence level for the percentile interval.}
-
-\item{resample}{Bootstrap strategy. \code{"null"} (the default) regenerates
-the response under homoscedasticity and yields a testable \code{p_value};
-\code{"pairs"} samples rows of \code{data} with replacement and yields
-replicates and an interval but no p-value. See Details.}
-
-\item{n_cores}{Optional integer specifying the number of worker processes to
-use when \code{parallel = TRUE}. Defaults to \code{parallel::detectCores() - 1}.
-The result does not depend on it.}
-
-\item{progress}{Logical flag controlling whether a textual progress bar is
-displayed during bootstrap replication.}
-
-\item{...}{Additional arguments forwarded to \code{test_function}.}
-
-\item{reestimate_weights}{Whether each replicate estimates the weights of a
-\code{\link[=fitWLS]{fitWLS()}} fit again from the variance function \code{fitWLS()} recorded on it.
-\code{NULL}, the default, does so for a \code{fitWLS()} fit and holds the weights
-fixed for any other model. \code{FALSE} holds them fixed, as every call did
-before 0.15.0. \code{TRUE} is an error for a model that \code{fitWLS()} did not
-return, or on which it fell back to equal weights. Each replicate
-regenerates the response and holds the design fixed, so a variance
-regressor that uses a variable of the response which the right-hand side
-of the model does not use, such as \code{y} or \code{x} for \code{I(y / x) ~ z}, or that
-is the response term itself, as \code{~ .} gives, cannot be estimated again:
-\code{NULL} then holds the weights fixed, with a warning, and \code{TRUE} is an
-error. Giving the response as a column of the data, as in \code{r ~ z}, says
-which variables stay. It comes after \code{...}, so it has to be named in
-full. See Details.}
-}
-\value{
-A list with components:
-\describe{
-\item{\code{original}}{Result returned by \code{test_function} on the
-original data.}
-\item{\code{original_statistic}}{Numeric value of the test statistic from
-the original sample.}
-\item{\code{replicates}}{Numeric vector of bootstrap statistics.}
-\item{\code{ci}}{Percentile interval of the bootstrap distribution of the
-statistic, at \code{ci_level}. This summarises where the resampled statistic
-falls; it is not a confidence interval for a parameter and carries no
-coverage guarantee.}
-\item{\code{p_value}}{Empirical p-value from the null-imposed replicates,
-computed as \eqn{(1 + \#\{T^*_b \ge T\}) / (B_{\mathrm{eff}} + 1)};
-\code{NA} when \code{resample = "pairs"}.}
-\item{\code{B}}{Requested number of replications.}
-\item{\code{effective_samples}}{Number of non-missing bootstrap
-replications.}
-\item{\code{call}}{Matched call for reproducibility.}
-}
-}
-\description{
-Provides a consistent wrapper around bootstrap resampling for test
-statistics produced by heteroscedasticity diagnostics. The routine
-refits the supplied model on each bootstrap replicate and evaluates
-\code{test_function} on it, returning the bootstrap distribution, a
-percentile interval, and---for null-imposed resampling---a p-value.
-}
 \section{Parallel replicates}{
 
 With \code{parallel = TRUE} replicate \code{i} draws its random numbers from stream
 \code{i} of a L'Ecuyer-CMRG generator (\code{\link[parallel:RngStream]{parallel::nextRNGStream()}}), seeded by
 one number drawn from the session's generator. A call made after
 \code{set.seed()} therefore returns the same result each time, whatever
-\code{n_cores} and whether the workers are forked (\code{\link[parallel:mclapply]{parallel::mclapply()}}) or
+\code{n_cores} and whether the workers are forked
+(\code{\link[parallel:mclapply]{parallel::mclapply()}}) or
 run on a socket cluster (\code{\link[parallel:makeCluster]{parallel::makeCluster()}}, where the platform
 cannot fork). It does not return the result of the same call with
 \code{parallel = FALSE}, which draws every replicate from the session's
@@ -251,14 +248,9 @@ generator, as it did before 0.15.0: the two are bootstraps of the same data
 with different draws, and each is valid. Before 0.15.0 a seeded call with
 \code{parallel = TRUE} gave a different result each time.
 }
-\section{Deprecated name}{
-
-\code{rbootstrap_test_statistic()} is deprecated since 0.14.0: use
-\code{bootstrapTestStatistic()}, the same function under the package's naming
-scheme. The old name still works, returns what it returned and warns.
-}
 
 \section{Supported models}{
+
 It accepts an \code{lm}, unweighted or with positive weights, a \code{fitWLS()} fit,
 since 0.16.0 a rank-deficient \code{lm}, and since 0.17.0 a \code{glm} with the
 Gaussian family and the identity link, weighted or not, bootstrapped as the
@@ -280,8 +272,16 @@ changed after it was fitted (since 0.17.0), a \code{fitWLS()} fit of an
 \code{mgcv::gam()} fit with smooth terms, whose terms do not rebuild the design of
 its coefficients (since 0.17.0), and \code{data} whose rows cannot be
 shown to hold the observations of the fit. Which model each test accepts,
-and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
+and why, is set out in \link{test_results}, under \emph{Supported models}.
 }
+
+\section{Deprecated name}{
+
+\code{rbootstrap_test_statistic()} is deprecated since 0.14.0: use
+\code{bootstrapTestStatistic()}, the same function under the package's naming
+scheme. The old name still works, returns what it returned and warns.
+}
+
 \examples{
 data(mtcars)
 model <- lm(mpg ~ wt + cyl, data = mtcars)

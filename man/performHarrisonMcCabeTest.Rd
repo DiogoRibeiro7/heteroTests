@@ -31,7 +31,7 @@ only number themselves (a tibble, a data.table, a data frame whose row
 names were reset) by the row numbers of the fit, or in the order of the fit
 when they hold one row per observation. The rows the fit dropped may be
 there or not. Data whose rows cannot be shown to hold the observations of
-the fit are refused; see \code{\link{test_results}}.}
+the fit are refused; see \link{test_results}.}
 
 \item{order_by}{Character scalar naming the column of \code{data} that orders the
 observations. Tied values keep the order the observations have in the
@@ -116,6 +116,7 @@ a null distribution of a smaller rank than its residuals. With
 0.002273 where it was 0.002288, computed with rank 3. On every other fit
 the two ranks agree and the value is unchanged.
 }
+
 \section{Direction of the alternative}{
 
 In \code{\link[=performGQTest]{performGQTest()}} and \code{\link[=performSzroeterTest]{performSzroeterTest()}} the statistic grows when
@@ -185,8 +186,9 @@ Since 0.16.0 the observations of a \code{gam} are matched to the rows of \code{d
 the row names of its model frame. Before, they were matched by position,
 since the residuals of a \code{gam} carry no names, and \code{data} with the rows of
 the fit in another order gave a wrong value. Which model each test accepts,
-and why, is set out in \code{\link{test_results}}, under \emph{Supported models}.
+and why, is set out in \link{test_results}, under \emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)

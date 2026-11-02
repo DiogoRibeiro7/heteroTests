@@ -70,15 +70,16 @@ samples and under non-normal errors without relying on the asymptotic
 \eqn{\chi^2} approximation.
 }
 \details{
-The observed statistic is the usual \eqn{n R^2} from the auxiliary regression of
-the squared residuals on the regressors. The bootstrap reference distribution,
-however, must be generated \strong{under the homoscedastic null} --- otherwise it
-inherits the heteroscedasticity the test is looking for and the procedure loses
-all power. Each bootstrap sample is therefore built from leverage-standardised,
-mean-centred residuals \eqn{r_i = e_i/\sqrt{1-h_{ii}}} (which have a common
-variance under \eqn{H_0}) resampled i.i.d. and perturbed by a wild multiplier
-\eqn{v_i}, so that \eqn{y_i^* = \hat y_i + r^*_i v_i}. The statistic is recomputed
-on each refit and the p-value is \eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. The test holds its level with Gaussian
+The observed statistic is the usual \eqn{n R^2} from the auxiliary regression
+of the squared residuals on the regressors. The bootstrap reference
+distribution, however, must be generated \strong{under the homoscedastic null} ---
+otherwise it inherits the heteroscedasticity the test is looking for and the
+procedure loses all power. Each bootstrap sample is therefore built from
+leverage-standardised, mean-centred residuals \eqn{r_i = e_i/\sqrt{1-h_{ii}}}
+(which have a common variance under \eqn{H_0}) resampled i.i.d. and perturbed
+by a wild multiplier \eqn{v_i}, so that \eqn{y_i^* = \hat y_i + r^*_i v_i}. The
+statistic is recomputed on each refit and the p-value is
+\eqn{(1 + \#\{T_b^* \ge T\})/(B + 1)}. The test holds its level with Gaussian
 and heavy-tailed \eqn{t_5} errors, and with skewed errors only from about
 200 observations; see \emph{Size}. Under the
 alternative the observed statistic is extreme relative to the homoscedastic
@@ -96,9 +97,7 @@ In \code{inst/validation/wild-multiplier-size.R} and
 replications per cell and the design \code{lm(y ~ x1 + x2)} with \code{x1} uniform on
 (1, 5) and \code{x2} standard normal, the test rejected a true null hypothesis at
 the 5\% level as often as this. With \code{B = 999} a test whose level is exact
-rejects 4.9\% of the time, and the release gate's interval is 0.042 to 0.058.
-
-\tabular{llrrrr}{
+rejects 4.9\% of the time, and the release gate's interval is 0.042 to 0.058.\tabular{llrrrr}{
    Errors \tab Multiplier \tab n = 30 \tab n = 50 \tab n = 100 \tab n = 200 \cr
    Gaussian \tab Rademacher \tab 0.0442 \tab 0.0476 \tab 0.0482 \tab 0.0448 \cr
    Gaussian \tab Mammen \tab 0.0430 \tab 0.0508 \tab 0.0488 \tab 0.0470 \cr
@@ -107,6 +106,7 @@ rejects 4.9\% of the time, and the release gate's interval is 0.042 to 0.058.
    centred exponential \tab Rademacher \tab 0.0820 \tab 0.0734 \tab 0.0608 \tab 0.0526 \cr
    centred exponential \tab Mammen \tab 0.0782 \tab 0.0698 \tab 0.0586 \tab 0.0534 \cr
 }
+
 
 With skewed errors, \code{rexp(n) - 1}, either multiplier needs about 200
 observations to hold the level: both are outside the gate at 30, 50 and 100
@@ -123,10 +123,11 @@ observations, holding the level from 50, and 0.042 to 0.047 with Gaussian
 and \eqn{t_5} errors. It costs a little power in small samples: against
 \eqn{\sigma_i^2 = \exp(0.4 x_{1i})}{sigma_i^2 = exp(0.4 x1_i)} with Gaussian
 errors it rejected 0.180, 0.354 and 0.744 of the time at 30, 50 and 100
-observations, where the Rademacher multiplier rejected 0.194, 0.361 and 0.745,
-about 1.4 points less at 30. It will be available as
+observations, where the Rademacher multiplier rejected 0.194, 0.361 and
+0.745, about 1.4 points less at 30. It will be available as
 \code{distribution = "none"} in 1.0.0, with \code{"rademacher"} kept as the default.
 }
+
 \section{Weighted fits}{
 
 A fit with weights \eqn{w_i} is ordinary least squares on
@@ -170,11 +171,13 @@ outside the release gate's interval, 0.042 to 0.058.
 }
 
 \section{Supported models}{
-It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
-or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
+
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link,
+unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+\code{glm} of another family or link, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit. Since 0.17.0 it refuses a fit whose
 coefficients, residuals or weights were changed after it was fitted, from
 which it computed the value of the fit before the edit, and a \code{fitWLS()} fit
@@ -189,8 +192,9 @@ with the value and the replicates of the \code{lm()} of it (decisions 37 and 38 
 the design of the model context). Before, it stopped on every \code{gam}
 ("lm object does not have a proper 'qr' component"), reading its leverages
 with \code{hatvalues()}. Which model each test accepts, and why, is set out in
-\code{\link{test_results}}, under \emph{Supported models}.
+\link{test_results}, under \emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 model <- lm(mpg ~ wt + qsec, data = mtcars)

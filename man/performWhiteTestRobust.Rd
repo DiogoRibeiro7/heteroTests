@@ -69,11 +69,13 @@ resampling (Efron & Tibshirani, 1993) with asymptotic approximations. The
 calculations to aid decision-making.
 }
 \section{Supported models}{
-It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
-or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
+
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link,
+unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+\code{glm} of another family or link, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that
 lack rows or variables of the fit. An \code{mgcv::gam()} fit with penalised
 smooth terms is tested on its design, the basis of its smooths, as by
 \code{\link[=performWhiteTest]{performWhiteTest()}}, and refused with \code{bootstrap = TRUE} (since 0.17.0;
@@ -83,8 +85,9 @@ not. A \code{gam} that is the least-squares fit of its design, as one whose
 smooth terms are all fixed (\code{s(x, fx = TRUE)}) or one without smooth terms,
 is bootstrapped too, as the \code{lm()} of that design (decisions 37 and 38 of
 the design of the model context). Which model each test accepts, and why,
-is set out in \code{\link{test_results}}, under \emph{Supported models}.
+is set out in \link{test_results}, under \emph{Supported models}.
 }
+
 \examples{
 data(mtcars)
 mod <- lm(mpg ~ wt + qsec, data = mtcars)

@@ -38,7 +38,8 @@ replicate succeeds), so a test at level \code{alpha} is exact only when
 levels, and with 1000, the default before 0.15.0, at neither.}
 
 \item{parallel}{Logical scalar; if \code{TRUE} the replicates are computed in
-parallel, by forked workers (\code{\link[parallel:mclapply]{parallel::mclapply()}}) where the platform
+parallel, by forked workers
+(\code{\link[parallel:mclapply]{parallel::mclapply()}}) where the platform
 can fork and on a socket cluster (\code{\link[parallel:makeCluster]{parallel::makeCluster()}}) elsewhere.
 See \emph{Parallel replicates}.}
 
@@ -106,6 +107,7 @@ each is valid. Before 0.15.0 a seeded call with \code{parallel = TRUE} gave a
 different result each time, and on Windows more than one worker was an
 error.
 }
+
 \section{Weighted fits}{
 
 A fit with weights \eqn{w_i} is ordinary least squares on
@@ -173,26 +175,30 @@ from \code{data}.
 }
 
 \section{Supported models}{
-It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link, unweighted
-or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a rank-deficient fit, which it
-tests on the estimable part of its design: it gives the value of the same model fitted without the
-aliased columns. It refuses a \code{glm} of another family or link, a \code{survey::svyglm()} fit, a
-fit with a zero weight, a coefficient that is not finite for another reason, and \code{data} that
-lack rows or variables of the fit. Since 0.17.0 it refuses an \code{mgcv::gam()} fit with penalised
-smooth terms, which is not the least-squares fit of its design, the basis of its smooths, that each
-replicate fits again (before, the refit from the formula stopped on the smooth term), and it tests a
-\code{gam} that is that fit, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}), on
-that design, with the value and the replicates of the \code{lm()} of it; a \code{gam} without smooth
-terms is tested as the Gaussian \code{glm} it is (decisions 37 and 38 of the design of the model
-context). It also
+
+It accepts an \code{lm} and a \code{glm} with the Gaussian family and the identity link,
+unweighted or with positive weights, a \code{fitWLS()} fit and, since 0.16.0, a
+rank-deficient fit, which it tests on the estimable part of its design: it gives
+the value of the same model fitted without the aliased columns. It refuses a
+\code{glm} of another family or link, a \code{survey::svyglm()} fit, a fit with a zero
+weight, a coefficient that is not finite for another reason, and \code{data} that
+lack rows or variables of the fit. Since 0.17.0 it refuses an \code{mgcv::gam()}
+fit with penalised smooth terms, which is not the least-squares fit of its
+design, the basis of its smooths, that each replicate fits again (before, the
+refit from the formula stopped on the smooth term), and it tests a \code{gam} that
+is that fit, as one whose smooth terms are all fixed (\code{s(x, fx = TRUE)}), on
+that design, with the value and the replicates of the \code{lm()} of it; a \code{gam}
+without smooth terms is tested as the Gaussian \code{glm} it is (decisions 37 and
+38 of the design of the model context). It also
 refuses a fit whose coefficients, residuals or weights were changed after it
 was fitted, from which it computed the value of the fit before the edit, and
 a \code{fitWLS()} fit of a \code{gam} with smooth terms, whose terms do not rebuild the
 design of its coefficients, on which it computed a value on the variables of
 the formula.
-Which model each test accepts, and why, is set out in \code{\link{test_results}}, under
+Which model each test accepts, and why, is set out in \link{test_results}, under
 \emph{Supported models}.
 }
+
 \examples{
 # The bootstrap needs at least 50 observations, so mtcars (32) is too small.
 set.seed(42)
