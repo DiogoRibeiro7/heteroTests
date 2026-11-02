@@ -792,7 +792,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
 #' @references
 #' Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
 #' linear econometric models. *Econometrica, 46*(6), 1311–1327.
-#' \doi{10.2307/1913833}
+#' \doi{10.2307/1913831}
 #'
 #' Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
 #' University Press. Section 5.4 outlines the Szroeter test.
