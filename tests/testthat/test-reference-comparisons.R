@@ -23,6 +23,41 @@ test_that("performKoenkerTest matches studentized lmtest::bptest", {
   expect_equal(unname(ours$p.value), unname(ref$p.value), tolerance = 1e-6)
 })
 
+# lmtest::bptest() takes its degrees of freedom from the rank of its auxiliary
+# fit. On a model without an intercept whose columns span the constant, the
+# dummies of every level of a factor, it regresses on those columns alone, the
+# column space of the package's auxiliary regression with its intercept, and
+# gives 4 degrees of freedom; up to 0.17.0 the package counted the columns, 5,
+# and the p-values differed (0.1237 for 0.0704 and 0.0617 for 0.0325). On a
+# model without an intercept whose columns do not span the constant, lmtest
+# given the model regresses on its columns without an intercept, which the
+# package's auxiliary regression has: the two agree given the regressors as
+# `varformula`, with an intercept.
+test_that("Breusch-Pagan and Koenker match lmtest::bptest() on a model without an intercept", {
+  skip_if_not_installed("lmtest")
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  spans <- lm(y ~ 0 + group + x1, data = d)
+  does_not_span <- lm(y ~ 0 + x1 + x2, data = d)
+  for (studentize in c(FALSE, TRUE)) {
+    test <- if (studentize) performKoenkerTest else performBPTest
+    pairs <- list(
+      list(ours = test(spans, d), ref = lmtest::bptest(spans, studentize = studentize)),
+      list(ours = test(does_not_span, d),
+           ref = lmtest::bptest(does_not_span, varformula = ~ x1 + x2, data = d,
+                                studentize = studentize))
+    )
+    for (pair in pairs) {
+      info <- paste(pair$ours$method, pair$ours$data.name)
+      expect_equal(unname(pair$ours$statistic), unname(pair$ref$statistic), tolerance = 1e-10,
+                   info = info)
+      expect_identical(unname(pair$ours$parameter), as.integer(pair$ref$parameter), info = info)
+      expect_equal(pair$ours$p.value, unname(pair$ref$p.value), tolerance = 1e-10, info = info)
+    }
+  }
+})
+
 test_that("studentized BP matches lmtest::bptest with studentize", {
   skip_if_not_installed("lmtest")
   set.seed(202)

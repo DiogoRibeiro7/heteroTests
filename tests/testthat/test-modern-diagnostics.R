@@ -33,6 +33,29 @@ test_that("performWildBootstrapTest does not reject under homoscedasticity", {
   expect_gt(result$p.value, 0.05)
 })
 
+# The degrees of freedom the wild bootstrap reports, which its p-value does not
+# use, are those of performKoenkerTest(): the rank of the auxiliary regression
+# less its intercept. Up to 0.17.0 they were the number of regressors, 5 on a
+# model without an intercept whose columns span the constant, where the same
+# column space with an intercept gives 4.
+test_that("performWildBootstrapTest reports the rank of its auxiliary regression", {
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  set.seed(31)
+  no_intercept <- performWildBootstrapTest(lm(y ~ 0 + group + x1, data = d), d, B = 19,
+                                           progress = FALSE)
+  set.seed(31)
+  with_intercept <- performWildBootstrapTest(lm(y ~ x1 + group, data = d), d, B = 19,
+                                             progress = FALSE)
+  expect_identical(unname(no_intercept$parameter), c(4L, 19L))
+  expect_identical(unname(with_intercept$parameter), c(4L, 19L))
+  expect_equal(unname(no_intercept$statistic), unname(with_intercept$statistic),
+               tolerance = 1e-10)
+  koenker <- performKoenkerTest(lm(y ~ 0 + group + x1, data = d), d)
+  expect_equal(unname(no_intercept$statistic), unname(koenker$statistic), tolerance = 1e-10)
+})
+
 test_that("HC covariance pseudo-test is absent from built-in registries", {
   expect_false("hc_covariance" %in% names(as.list(heteroTests:::.diagnostic_registry)))
   expect_false("hc_covariance" %in% test_factory$get_available())
