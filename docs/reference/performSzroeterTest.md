@@ -190,7 +190,7 @@ Which model each test accepts, and why, is set out in [`test_results`](test_resu
 
 Szroeter, J. (1978). A class of parametric tests for heteroscedasticity in
 linear econometric models. *Econometrica, 46*(6), 1311–1327.
-[doi:10.2307/1913833](https://doi.org/10.2307/1913833)
+[doi:10.2307/1913831](https://doi.org/10.2307/1913831)
 
 Godfrey, L. G. (1988). *Misspecification Tests in Econometrics*. Cambridge
 University Press. Section 5.4 outlines the Szroeter test.

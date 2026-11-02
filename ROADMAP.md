@@ -13,8 +13,8 @@ changed and why lives in `NEWS.md`; the statistical evidence lives in
   CRAN again, about one to two months apart (decided 2026-10-28), so not
   every GitHub release goes. CRAN's additional check of 0.16.0 with Intel MKL
   as BLAS failed on tests that compared two computations of the same numbers
-  bit for bit. 0.17.0 is a GitHub release that will be submitted to CRAN, and
-  fixes that check: on CRAN the tests compare such numbers to a tolerance of
+  bit for bit. 0.17.0, published on CRAN on 2026-11-01, fixes that check: on
+  CRAN the tests compare such numbers to a tolerance of
   1e-10, off CRAN still bit for bit, and `cran-blas.yml` checks the package
   under MKL, OpenBLAS, BLIS, R without long doubles and a noisy BLAS on the
   pull requests that change it (#172, under 0.11.x).
@@ -2007,6 +2007,35 @@ announced in bold in `NEWS.md`.
   `r-lib/revdepcheck`. The package has had no reverse dependencies on CRAN
   so far, so the job checks none, but it runs: on the manual run of the
   0.17.0 release branch it passed, with no reverse dependency to check.
+- [x] **The DOI of Szroeter (1978) on the help page of
+  `performSzroeterTest()`.** The page gave doi:10.2307/1913833, which Crossref
+  resolves to Dagenais (1978), "The Computation of FIML Estimates as Iterative
+  Generalized Least Squares Estimates…", in the same issue of *Econometrica*.
+  Szroeter's paper is doi:10.2307/1913831 (*Econometrica* 46(6), 1311–1327).
+  Fixed in the roxygen (`R/additional_tests.R`), the help page and its page on
+  the site. In the same way, `inst/CITATION` named Fligner's co-author "Thomas
+  J. Killeen"; Crossref, and the article in *JASA* 71, give Timothy J. Killeen.
+  The help pages give only the initials. Found by the R Journal article's
+  additions (heteroTests-paper #6) and their review.
+- [ ] **`man/` is not what roxygen writes from `R/`.** On `main` after 0.17.0
+  (a3709bc), `devtools::document()` with roxygen2 7.3.3, the version of
+  `RoxygenNote`, changes 36 files of `man/`:
+  - It deletes `ht_logging.Rd` and `rbootstrap_test_statistic.Rd`, and writes
+    15 pages that `man/` lacks. Among them are `bootstrapTestStatistic.Rd`,
+    for the `@rdname bootstrapTestStatistic` of `R/bootstrap_methods.R`, and
+    `heteroTests_ggplot.Rd`, a topic with no page today.
+  - It rewrites 19 more. Some of the changes are in the text: `ht_log.Rd`
+    still has the wording of September 2025, which `R/utils.R` has since
+    replaced. Others are in the form: the usage is wrapped one argument per
+    line, `\link{}` replaces `\code{\link{}}`, and `\code{}` replaces the
+    `\file{}` of paths.
+
+  So some pages were edited by hand, or written by another roxygen setup, and
+  a help page can lag its source. That includes the pages of the CRAN
+  tarball, which `R CMD build` takes from `man/`. Find which, make `man/` the
+  output of `devtools::document()`, review the help pages that change, and add
+  a CI step that fails when `document()` changes `man/`. Found while fixing
+  the DOI above, which was fixed in the roxygen and in the help page alone.
 - [ ] **Dependencies.**
   - Move `curl` to `Suggests`: only `downloadTeachingData()` uses it.
   - `R6` goes if `TestFactory` leaves the API, since it is the only user.
@@ -2408,21 +2437,34 @@ be frozen, and the decisions still open.
   the wild bootstrap alone. If the wild bootstrap stays outside the gate at
   150 observations, say so on its help page.
 - [ ] **The validation rows the R Journal article reads, on the code to be
-  frozen.** The article reads rates at render time from seven studies in
-  `inst/validation/`: `weighted-fits-size.csv`, `glejser-skewed-errors.csv`,
-  `harrison-mccabe-size-power.csv`, `modified-wald-size-power.csv`,
-  `offset-refits-size.csv`, `variance-form-dnvk-size-power.csv` and
-  `szroeter-design-null-size.csv`. Five were last written in 0.13.0 or
-  0.15.0, `offset-refits-size.csv` early in the work on 0.16.0 (2026-10-18),
-  and `szroeter-design-null-size.csv` the day before 0.16.0 was released
-  (2026-10-26), so none was measured on 0.17.0. The README says which rows
-  predate a later change to their procedure, not the version each block was
-  measured on. One such row is the Szroeter row of the known-weights block of
-  `weighted-fits-size.csv`, measured before 0.16.0 took the test's null
-  moments from the design, and not run again. Re-measure every row that
-  predates a change to its procedure on the code to be frozen, and record in
-  the README the version on which each block was measured, so that the
-  article can say it. Found by the review of the article's update to 0.17.0.
+  frozen.** The article and its supplement read rates at render time from ten
+  studies in `inst/validation/`:
+  - seven since the article's update to 0.17.0: `weighted-fits-size.csv`,
+    `glejser-skewed-errors.csv`, `harrison-mccabe-size-power.csv`,
+    `modified-wald-size-power.csv`, `offset-refits-size.csv`,
+    `variance-form-dnvk-size-power.csv` and `szroeter-design-null-size.csv`;
+  - three since its additions of 2026-11-02 (heteroTests-paper #6):
+    `pass-a-size-power.csv`, `wild-multiplier-size.csv` and
+    `fixed-effects-size.csv`.
+
+  `pass-a-size-power.csv` was last written in 0.7.1 (2026-08-31). Five of the
+  first seven were last written in 0.13.0 or 0.15.0, and so was
+  `wild-multiplier-size.csv` (2026-10-15). `offset-refits-size.csv` and
+  `fixed-effects-size.csv` were written in the work on 0.16.0 (2026-10-18 and
+  2026-10-23), and `szroeter-design-null-size.csv` the day before 0.16.0 was
+  released (2026-10-26). None was measured on 0.17.0. The full sweep at
+  `N_MC = 5000` (above) may replace the Pass A rates the article reads.
+
+  The README says which rows predate a later change to their procedure, not
+  the version each block was measured on. One such row is the Szroeter row of
+  the known-weights block of `weighted-fits-size.csv`, measured before 0.16.0
+  took the test's null moments from the design, and not run again.
+
+  Re-measure every row that predates a change to its procedure on the code to
+  be frozen, and record in the README the version on which each block was
+  measured, so that the article can say it. Found by the review of the
+  article's update to 0.17.0; the last three studies were added after the
+  article's additions.
 - [ ] **The performance study the R Journal article reads, on the code to be
   frozen.** The article and its supplement read their timings and memory
   allocations from three extracts in the article's repository,
