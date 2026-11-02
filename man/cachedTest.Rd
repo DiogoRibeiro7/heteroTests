@@ -21,7 +21,14 @@ stored in it? \code{FALSE} runs the diagnostic. Defaults to \code{TRUE}.}
 }
 \value{
 The diagnostic result, either retrieved from cache or freshly
-computed.
+computed. A result whose \code{data.name} is \code{"model"}, the name of the
+argument of the function the registry calls the test with, reports the
+formula of the model instead, as in \code{\link[=runHeteroTests]{runHeteroTests()}}, since 0.18.0;
+White's test, its bootstrap, the studentized Breusch-Pagan statistic and
+Szroeter's test reported \code{"model"} here before. The cache keeps the result
+as the test returns it, and the rule applies to a result read from it too.
+Unlike a result of \code{\link[=runHeteroTests]{runHeteroTests()}}, it has no
+\code{attr(, "extras")$streaming}, which says how the runner ran a test.
 }
 \description{
 Runs a registered diagnostic, and returns the result of an earlier call on

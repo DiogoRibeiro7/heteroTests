@@ -730,7 +730,18 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #' @param n_cores Optional positive integer giving the number of worker processes
 #'   to spawn. Defaults to `parallel::detectCores() - 1`, with a lower bound of 1.
 #'
-#' @return Named list of test results in the order provided by `tests`.
+#' @return Named list of test results in the order provided by `tests`. Each
+#'   is the result [runHeteroTests()] gives for that test on the same call,
+#'   since 0.18.0: a result whose `data.name` is `"model"`, the name of the
+#'   argument of the function the registry calls the test with, reports the
+#'   formula of the model instead, and `attr(, "extras")$streaming` is
+#'   `FALSE`, as this function runs the exact tests only. Before, White's test,
+#'   its bootstrap, the studentized Breusch-Pagan statistic and Szroeter's test
+#'   reported `"model"` here. A resampling test draws from a stream of its own
+#'   (Details), and so does not return the value it returns in
+#'   [runHeteroTests()], which draws from the session's generator. The list
+#'   is not a [`hetero_test_suite`], and a test that fails stops the call,
+#'   without the fallbacks of [runHeteroTests()].
 #'
 #' @details
 #' When `n_cores` exceeds one the diagnostics run on a socket cluster of that
@@ -781,7 +792,21 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
   }
   names(results) <- tests
 
-  results
+  # Each result as runHeteroTests() returns it: marked as computed by the
+  # exact test, the only one run here, and a test that named the argument
+  # "model" names the model's formula instead (rsuite_data_name()). Before
+  # 0.18.0 White's test and the three others of the registry that name it
+  # reported `data.name = "model"` here.
+  formula_text <- rsuite_formula_text(model)
+  lapply(results, function(result) {
+    if (inherits(result, "hetero_test")) {
+      attr(result, "extras") <- utils::modifyList(
+        attr(result, "extras") %||% list(),
+        list(streaming = FALSE)
+      )
+    }
+    rsuite_data_name(result, formula_text)
+  })
 }
 
 #' Cache results of a heteroscedasticity test
@@ -798,7 +823,14 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #'   stored in it? `FALSE` runs the diagnostic. Defaults to `TRUE`.
 #'
 #' @return The diagnostic result, either retrieved from cache or freshly
-#'   computed.
+#'   computed. A result whose `data.name` is `"model"`, the name of the
+#'   argument of the function the registry calls the test with, reports the
+#'   formula of the model instead, as in [runHeteroTests()], since 0.18.0;
+#'   White's test, its bootstrap, the studentized Breusch-Pagan statistic and
+#'   Szroeter's test reported `"model"` here before. The cache keeps the result
+#'   as the test returns it, and the rule applies to a result read from it too.
+#'   Unlike a result of [runHeteroTests()], it has no
+#'   `attr(, "extras")$streaming`, which says how the runner ran a test.
 #'
 #' @details
 #' **What is cached.** Only the deterministic tests the package registers:
@@ -890,11 +922,15 @@ runHeteroTestsParallel <- function(model, data, tests, n_cores = NULL) {
 #' `use_cache = TRUE`.
 #' @export
 cachedTest <- function(test_name, model, data, ..., use_cache = TRUE) {
-  if (!use_cache) {
-    return(.run_registered_diagnostic(test_name, model, data, ...))
+  result <- if (!use_cache) {
+    .run_registered_diagnostic(test_name, model, data, ...)
+  } else {
+    inputs <- if (rcache_cacheable(test_name)) rcache_inputs(model, data)
+    rcached_diagnostic(test_name, model, data, inputs, ...)
   }
-  inputs <- if (rcache_cacheable(test_name)) rcache_inputs(model, data)
-  rcached_diagnostic(test_name, model, data, inputs, ...)
+  # A test that named the argument "model" names the model's formula, as in
+  # runHeteroTests() (rsuite_data_name()); before 0.18.0 it named "model".
+  rsuite_data_name(result, rsuite_formula_text(model))
 }
 
 .run_registered_diagnostic <- function(test_name, model, data, ...) {

@@ -2142,11 +2142,20 @@ announced in bold in `NEWS.md`.
   instead of `install_local()`. If they do not, remove them.
 - [ ] Keep the CRAN test run short. Long simulations run under `skip_on_cran()`,
   and the full versions run on CI.
-- [ ] **`runHeteroTestsParallel()` names its results `"model"`.** It returns
+- [x] **`runHeteroTestsParallel()` names its results `"model"`.** It returns
   what the registered functions return, so White's test and the four others
   of the registry report `data.name = "model"` there, where `runHeteroTests()`
   reports the formula of the model since 0.16.0 (`NEWS.md`). Give it the rule
-  of the runner, or say on its help page that it does not.
+  of the runner, or say on its help page that it does not. Done in #182: it
+  has the rule, and each of its results is the one `runHeteroTests()` gives
+  for the test on the same call, `identical()`, `extras$streaming = FALSE`
+  included; on socket workers the model a result carries is the copy that
+  travelled to the worker. Four names report `"model"`: `"white"`,
+  `"white_bootstrap"`, `"student_bp"` and `"szroeter"`. A resampling test
+  still draws from its own stream, and the list is still not a
+  `hetero_test_suite`. `cachedTest()`, which returned `"model"` too, has the
+  rule as well; it gives no `extras$streaming`, which says how the runner
+  ran a test, and its help page says so.
 - [x] **A grouped run of a multivariate `lm`.** `runHeteroTests()` refuses
   `lm(cbind(y, x2) ~ x1)` with the class of the model context ("needs a model
   with one response"), but on grouped data it refits the model in each group

@@ -117,7 +117,8 @@ the others do. Up to 0.15.0 five tests reported \code{"model"} here, the name of
 registry calls them with: White's test, its bootstrap and its form without cross products, the studentized
 Breusch-Pagan statistic and Szroeter's test. Any other \code{data.name}, such as that of a diagnostic added with
 \code{registerDiagnostic}, is kept. Called directly, a test still names the object it is given:
-\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}.}
+\code{performWhiteTest(m, mtcars)$data.name} is \code{"m"}. \code{\link{runHeteroTestsParallel}} and
+\code{\link{cachedTest}}, which call the tests as the runner does, do the same since 0.18.0.}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)

@@ -112,6 +112,7 @@
 #'   formula of the model instead: up to 0.15.0 White's test, its bootstrap
 #'   and its form without cross products, the studentized Breusch-Pagan
 #'   statistic and Szroeter's test reported `"model"` here.
+#'   [runHeteroTestsParallel()] and [cachedTest()] do the same since 0.18.0.
 #'
 #' @seealso \code{\link{runDiagnostics}} for a broader suite that includes
 #'   collinearity and influence measures, \code{\link{runPanelTests}} for panel
@@ -441,8 +442,7 @@ rsuite_mark_origin <- function(suite, origin) {
 
   # A test that named the argument "model" names the model's formula instead
   # (rsuite_data_name()).
-  formula_text <- tryCatch(deparse(stats::formula(model)), error = function(e) NULL)
-  res <- lapply(res, rsuite_data_name, formula_text = formula_text)
+  res <- lapply(res, rsuite_data_name, formula_text = rsuite_formula_text(model))
 
   output <- structure(
     res,
@@ -478,10 +478,13 @@ rsuite_mark_origin <- function(suite, origin) {
 #' registerDiagnostic() keeps what it says it tested, such as the two halves
 #' of the residuals that a `var.test()` compares. Called directly, a test still
 #' names the object it was given: `performWhiteTest(m, d)$data.name` is `"m"`.
+#' [runHeteroTestsParallel()] and [cachedTest()], which call the tests through
+#' the registry too, follow the rule since 0.18.0.
 #'
 #' @param result A result of the suite.
-#' @param formula_text `deparse(stats::formula(model))`, or `NULL` when the
-#'   model has no formula, and nothing changes.
+#' @param formula_text `deparse(stats::formula(model))`
+#'   ([rsuite_formula_text()]), or `NULL` when the model has no formula, and
+#'   nothing changes.
 #' @return `result`, with that `data.name`.
 #' @keywords internal
 #' @noRd
@@ -492,4 +495,10 @@ rsuite_data_name <- function(result, formula_text) {
   }
   result[["data.name"]] <- formula_text
   result
+}
+
+# The formula of the model as rsuite_data_name() writes it, or NULL when the
+# model has none.
+rsuite_formula_text <- function(model) {
+  tryCatch(deparse(stats::formula(model)), error = function(e) NULL)
 }

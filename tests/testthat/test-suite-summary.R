@@ -214,10 +214,21 @@ test_that("a test of the runner that named its argument \"model\" names the form
   expect_identical(fb$white$data.name, "mpg ~ wt")
   # Called directly, a test names the object it is given, as before.
   expect_identical(suppressWarnings(performWhiteTest(m, mtcars))$data.name, "m")
-  expect_identical(
-    suppressWarnings(cachedTest("white", m, mtcars, use_cache = FALSE))$data.name,
-    "model"
-  )
+  # cachedTest() and runHeteroTestsParallel() call the tests through the
+  # registry too, and since 0.18.0 follow the rule; before, they reported
+  # "model".
+  for (use_cache in c(FALSE, TRUE)) {
+    expect_identical(
+      suppressWarnings(cachedTest("white", m, mtcars, use_cache = use_cache))$data.name,
+      formula_text
+    )
+  }
+  parallel <- suppressWarnings(runHeteroTestsParallel(
+    m, mtcars, tests = c("white", "szroeter", "student_bp"), n_cores = 1
+  ))
+  for (name in names(parallel)) {
+    expect_identical(parallel[[name]]$data.name, formula_text, info = name)
+  }
 })
 
 # A diagnostic registered for the calling test only.
