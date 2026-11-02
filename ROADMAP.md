@@ -13,8 +13,8 @@ changed and why lives in `NEWS.md`; the statistical evidence lives in
   CRAN again, about one to two months apart (decided 2026-10-28), so not
   every GitHub release goes. CRAN's additional check of 0.16.0 with Intel MKL
   as BLAS failed on tests that compared two computations of the same numbers
-  bit for bit. 0.17.0 is a GitHub release that will be submitted to CRAN, and
-  fixes that check: on CRAN the tests compare such numbers to a tolerance of
+  bit for bit. 0.17.0, published on CRAN on 2026-11-01, fixes that check: on
+  CRAN the tests compare such numbers to a tolerance of
   1e-10, off CRAN still bit for bit, and `cran-blas.yml` checks the package
   under MKL, OpenBLAS, BLIS, R without long doubles and a noisy BLAS on the
   pull requests that change it (#172, under 0.11.x).
@@ -2013,7 +2013,10 @@ announced in bold in `NEWS.md`.
   Generalized Least Squares Estimates…", in the same issue of *Econometrica*.
   Szroeter's paper is doi:10.2307/1913831 (*Econometrica* 46(6), 1311–1327).
   Fixed in the roxygen (`R/additional_tests.R`), the help page and its page on
-  the site. Found by the R Journal article's additions (heteroTests-paper #6).
+  the site. In the same way, `inst/CITATION` named Fligner's co-author "Thomas
+  J. Killeen"; Crossref, and the article in *JASA* 71, give Timothy J. Killeen.
+  The help pages give only the initials. Found by the R Journal article's
+  additions (heteroTests-paper #6) and their review.
 - [ ] **`man/` is not what roxygen writes from `R/`.** On `main` after 0.17.0
   (a3709bc), `devtools::document()` with roxygen2 7.3.3, the version of
   `RoxygenNote`, changes 36 files of `man/`:
