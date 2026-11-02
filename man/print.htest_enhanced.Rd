@@ -7,8 +7,9 @@
 \method{print}{htest_enhanced}(x, ...)
 }
 \arguments{
-\item{x}{An object of class \code{htest_enhanced}, as returned by
-\code{performWhiteTestEnhanced()}.}
+\item{x}{An \code{htest} of class \code{htest_enhanced}, whose \code{interpretation}
+element is printed after it. No function of the package returns one:
+\code{performWhiteTestEnhanced()}, which is internal, returns an \code{htest}.}
 
 \item{...}{Further arguments passed to \code{print.htest()}.}
 }

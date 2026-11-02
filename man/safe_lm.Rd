@@ -23,9 +23,10 @@ that recovered from its failure.
 \description{
 Wraps \code{\link[stats:lm]{stats::lm()}} in a \code{tryCatch} block. If the fit fails, it logs the
 error via \code{\link[=ht_log]{ht_log()}} and, with \code{.recover = TRUE}, refits the model without
-the rows that hold missing or non-finite values, if there are any: it
-returns that refit when it succeeds, and otherwise stops with the message of
-the error and any suggestions for cleaning the data. This helper is used
-internally by diagnostic tests so failures are easier to debug.
+the rows whose variables of the formula hold missing or non-finite values,
+if there are any: it returns that refit when it succeeds, and otherwise
+stops with the message of the error and any suggestions for cleaning the
+data. This helper is used internally by diagnostic tests so failures are
+easier to debug.
 }
 \keyword{internal}
