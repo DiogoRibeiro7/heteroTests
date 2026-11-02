@@ -198,12 +198,16 @@ ht_clear_log_history <- function() {
 #' Safely fit a linear model
 #'
 #' Wraps [stats::lm()] in a `tryCatch` block that logs the error via
-#' [ht_log()] before rethrowing. This helper is used internally by
+#' [ht_log()] and optionally attempts recovery (e.g., dropping
+#' rows with missing values) before rethrowing. This helper is used internally by
 #' diagnostic tests so failures are easier to debug.
 #'
 #' @param formula Model formula.
 #' @param data Data frame to evaluate the formula in.
 #' @param ... Additional arguments passed to [stats::lm()].
+#' @param .recover Logical flag controlling whether the helper should attempt
+#'   automatic recovery strategies (e.g., removing problematic rows) before
+#'   rethrowing the error.
 #' @return A fitted model object.
 #' @keywords internal
 safe_lm <- function(formula, data, ..., .recover = TRUE) {

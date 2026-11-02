@@ -24,7 +24,8 @@
 #' but that version of the test needs its own derivation and its own size
 #' study, and has neither.
 #'
-#' @inheritParams performBPTest
+#' @param model A fitted [stats::lm] object describing the mean structure whose
+#'   conditional quantile slopes are to be compared.
 #' @param data The data frame `model` was fitted to, or `NULL`, the default.
 #'   The response, design and offset are read from the fit itself, so a model
 #'   that transforms its variables, has an `offset()` term, or takes its
@@ -45,7 +46,7 @@
 #'   identical when computing the joint test. Passed to
 #'   [quantreg::anova.rqs()]. Defaults to `TRUE`.
 #'
-#' @return An object of class [stats::htest] containing the F-like joint test
+#' @return An object of class `htest` containing the F-like joint test
 #'   statistic, numerator and denominator degrees of freedom, p-value, fitted
 #'   quantiles, and quantile-specific slope estimates.
 #'

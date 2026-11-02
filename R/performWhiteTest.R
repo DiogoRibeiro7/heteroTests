@@ -786,6 +786,9 @@ interpret_white_test <- function(result, alpha = 0.05) {
 }
 
 #' Print method for enhanced White test results
+#' @param x An object of class `htest_enhanced`, as returned by
+#'   `performWhiteTestEnhanced()`.
+#' @param ... Further arguments passed to `print.htest()`.
 #' @export
 print.htest_enhanced <- function(x, ...) {
   # Use standard htest print method first

@@ -33,7 +33,7 @@ NULL
 #' the data actually have, which is useful for describing its variability but
 #' is not a null distribution: the replicates are centred on the observed
 #' statistic, so comparing the two returns roughly 0.5 whatever the data.
-#' Measured rejection under \eqn{\sigma_i = x_i^2} was 0\%. `p_value` is
+#' Measured rejection under \eqn{\sigma_i = x_i^2} was 0%. `p_value` is
 #' therefore `NA` for pairs resampling, and was removed rather than kept as a
 #' number that cannot be interpreted.
 #'
@@ -135,7 +135,8 @@ NULL
 #' `i` of a L'Ecuyer-CMRG generator ([parallel::nextRNGStream()]), seeded by
 #' one number drawn from the session's generator. A call made after
 #' `set.seed()` therefore returns the same result each time, whatever
-#' `n_cores` and whether the workers are forked ([parallel::mclapply()]) or
+#' `n_cores` and whether the workers are forked
+#' (\code{\link[parallel:mclapply]{parallel::mclapply()}}) or
 #' run on a socket cluster ([parallel::makeCluster()], where the platform
 #' cannot fork). It does not return the result of the same call with
 #' `parallel = FALSE`, which draws every replicate from the session's
@@ -186,7 +187,7 @@ NULL
 #'   of the model does not use, such as `y` or `x` for `I(y / x) ~ z`, or that
 #'   is the response term itself, as `~ .` gives, cannot be estimated again:
 #'   `NULL` then holds the weights fixed, with a warning, and `TRUE` is an
-#'   error. Giving the response as a column of the data, as in `r ~ z`, says
+#'   error. Giving the response as a column of the data, as in \code{r ~ z}, says
 #'   which variables stay. It comes after `...`, so it has to be named in
 #'   full. See Details.
 #'
