@@ -74,11 +74,12 @@ jobs:
       # in, as \link[quantreg:anova.rq], \link[ggplot2:scale_manual],
       # \link[ggplot2:theme], \link[lmtest:bptest], \link[lmtest:hmctest] and
       # the links to generics do, so a dependency that renames or moves a
-      # help file, or that fails to install, changes the pages that link to
-      # it, as [parallel::mclapply()] did between Linux and Windows until it
-      # was written in Rd. Regenerate man/ then, and check the link.
+      # help file, or that setup-r-dependencies leaves out (as spdep=?ignore
+      # does), changes the pages that link to it, as [parallel::mclapply()]
+      # did between Linux and Windows until it was written in Rd. Regenerate
+      # man/ then, and check the link.
       # `git status`, not `git diff`, so that a page roxygen2 adds or deletes
-      # counts too.
+      # counts too; `git diff` does not show an added page, which is printed.
       - name: Fail if man/ is not what roxygen2 writes from R/
         env:
           ROXYGEN_VERSION: ${{ steps.roxygen.outputs.version }}
@@ -97,6 +98,10 @@ jobs:
             echo "Run devtools::document() with roxygen2 $ROXYGEN_VERSION and commit the result:"
             echo "$changes"
             git diff -- man NAMESPACE
+            git ls-files --others --exclude-standard -- man | while read -r page; do
+              echo "--- new file $page"
+              cat "$page"
+            done
             exit 1
           fi
       - name: Run project checks
