@@ -2306,7 +2306,7 @@ announced in bold in `NEWS.md`.
     permutation test with `order_by = "z"` gives -0.02142 instead of
     -0.02619 in the order of the fit. Extend the rule on ties to rows
     matched by number when the call reads such a column.
-- [ ] **Data that lack rows of the fit are refused without the class of the
+- [x] **Data that lack rows of the fit are refused without the class of the
   other refusals of rows.** `rstop_data_rows()` (`R/interface.R:673`, called
   at `R/model_context.R:678`) refuses them with a plain `stop()`. Every other
   refusal of the rows of `data` has the class `heteroTests_data_rows_error`
@@ -2322,7 +2322,15 @@ announced in bold in `NEWS.md`.
   message, which the suite pins (`tests/testthat/test-model-context.R:287`),
   so that the runners raise it at once. Only the class, and the message of
   the runners, change. Found by the review of the R Journal article's
-  subsection on the model context.
+  subsection on the model context. Done in #182: the refusal keeps its
+  message and has the class, so `runHeteroTests(m, d[1:100, ])` and
+  `runDiagnostics()` stop at once with "Data do not match the model for
+  White: White test requires `data` to contain the rows used to fit the
+  model. Missing rows: 101, 102, 103", that class and no advice. A grouped
+  run, whose groups are refitted on their own rows and so do not meet it,
+  would record it in its group with the issue `"data_rows"` and no fallback,
+  as it records the other refusals of rows. The workflows and parsnip fits,
+  which told it by its message, now tell it by its class.
 - [ ] **Left from steps 8 to 10 of the model context**, recorded, not fixed.
   Moved from 0.17.0 at its release (2026-10-30), where the steps that found
   them are done; each changes what a call returns:
