@@ -2471,7 +2471,7 @@ announced in bold in `NEWS.md`.
     Refuses calls that return a value. Since 0.16.0 both warn on that design,
     whose 30 levels of two observations are fixed effects for small groups
     (the item on them, under 0.16.0); the refusal is still to do.
-  - The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
+  - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
     are the number of columns of the design but its intercept, not the rank
     of their auxiliary regression less its intercept, as White's are since N2:
     on a model without an intercept whose columns span the constant, such as
@@ -2483,7 +2483,44 @@ announced in bold in `NEWS.md`.
     4; the streaming forms refuse that model ("auxiliary regression became
     rank deficient"), as before the pull request of N3. Found by that pull
     request. Take the rank, as White's test does; changes a p-value, and
-    makes the streaming refusals values.
+    makes the streaming refusals values. Done in #183: both tests and their
+    streaming forms take the rank of the auxiliary regression less its
+    intercept, decided by the code of White's test on the regressors centred
+    one by one (`rauxiliary_columns()`, `R/performWhiteTest.R`). On
+    `lm(y ~ 0 + group + x1)` the Breusch-Pagan test gives 8.653 on 4
+    (p = 0.0704, was 0.1237 on 5) and Koenker's 10.52 on 4 (p = 0.0325, was
+    0.0617 on 5), the values of `lm(y ~ x1 + group)` and of
+    `lmtest::bptest()`, which takes the rank of its auxiliary fit too, so the
+    package now agrees with it there; the streaming forms give them where they
+    refused, and `performBPTestRobust(studentize = FALSE)`, whose interval
+    follows the degrees of freedom, and the registered `"breusch_pagan"` and
+    `"koenker"` follow: `runHeteroTests()` asked to stream them
+    (`chunk_threshold_mb`) gives the streamed values, where it fell back on
+    the Cook-Weisberg test, 3.79 on 1, under their names. Changes a p-value.
+    A model whose only regressor is constant has no regressor beyond the
+    intercept and is refused by all four ("requires at least one predictor
+    beyond the intercept"), where the exact tests gave 0 on 1 and the
+    streaming ones refused it as rank deficient. The audit of the other tests
+    of an auxiliary regression of the residuals: `performWildBootstrapTest()`
+    reported the number of regressors as its degrees of freedom and reports
+    the rank, its bootstrap p-value unchanged; the studentized statistic
+    (`performStudentizedBPTest()`, `performBPTestRobust(studentize = TRUE)`,
+    `"student_bp"`), the Cook-Weisberg test (`var_formula` too), Harvey's test
+    and the variance form test took the rank already; Glejser's, Park's, the
+    spread-level and the Davidian-Carroll tests regress on one variable; and
+    the high-dimensional test counts the principal components it keeps. No
+    study of `inst/validation/` fits such a model.
+  - The studentized statistic (`performStudentizedBPTest()`,
+    `performBPTestRobust(studentize = TRUE)`, `"student_bp"`) regresses the
+    centred squared residuals on the design of the fit without adding an
+    intercept, as `lmtest::bptest()` does, where `performKoenkerTest()`, whose
+    statistic its help page says it computes, adds one. On a model without an
+    intercept whose columns do not span the constant, `lm(y ~ 0 + x1 + x2)` in
+    the design of `contract_data()`, it gives 1.507 on 1 degree of freedom
+    (p = 0.220), the value of `lmtest::bptest()`, and Koenker's test 5.636 on
+    2 (p = 0.060). With an intercept, or columns that span the constant, the
+    two agree. Found by the audit of #183. Add the intercept, or say on its
+    help page that it differs there; changes a value, or none.
   - White's auxiliary design is built from the regressors centred one by
     one, so its rank does not depend on where a regressor that enters the
     model linearly is located, but a product or a power of a variable
