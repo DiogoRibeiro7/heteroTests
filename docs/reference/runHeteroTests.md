@@ -134,7 +134,9 @@ test. Pass `data` for such a fit. A refusal that every substitute would make too
 with it and its class: of the model by the model context, of `data` whose rows are not those of the fit
 (`heteroTests_data_rows_error`; since 0.18.0 also data that lack rows of it, which were tried on every
 substitute and called a data-quality issue), and, since 0.18.0, of a `glm` that is not a least-squares fit
-(`heteroTests_glm_family_error`).
+(`heteroTests_glm_family_error`). These two refusals, of data that lack rows and of such a `glm`, are no
+longer `simpleError`s since 0.18.0; catch them by their class or as an `error`. Nor is a diagnostic registered under the name of a substitute, as by
+`registerDiagnostic("breusch_pagan", f)`, run after such a refusal.
 
 The runner runs the exact tests unless `chunk_threshold_mb` asks for the streaming ones,
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performBPTestStreaming()`](performBPTestStreaming.md) and

@@ -732,7 +732,10 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'
 #' @return Named list of test results in the order provided by `tests`. Each
 #'   is the result [runHeteroTests()] gives for that test on the same call,
-#'   since 0.18.0: a result whose `data.name` is `"model"`, the name of the
+#'   its numbers computed the same way, since 0.18.0, and so `identical()` to
+#'   it where the BLAS gives the same last bits on every call, as R's
+#'   reference BLAS does (Intel MKL need not): a result whose `data.name` is
+#'   `"model"`, the name of the
 #'   argument of the function the registry calls the test with, reports the
 #'   formula of the model instead, and `attr(, "extras")$streaming` is
 #'   `FALSE`, as this function runs the exact tests only. Before, White's test,

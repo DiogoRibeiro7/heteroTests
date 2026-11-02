@@ -2173,8 +2173,12 @@ announced in bold in `NEWS.md`.
     reports the formula of the model since 0.16.0 (`NEWS.md`). Give it the rule
     of the runner, or say on its help page that it does not. Done in #182: it
     has the rule, and each of its results is the one `runHeteroTests()` gives
-    for the test on the same call, `identical()`, `extras$streaming = FALSE`
-    included; on socket workers the model a result carries is the copy that
+    for the test on the same call, `extras$streaming = FALSE` included, its
+    numbers computed the same way: `identical()` to it where the BLAS gives the
+    same last bits on every call, as R's reference BLAS does, and equal to the
+    last bits of the BLAS where it does not, as under Intel MKL or the noisy
+    BLAS of `cran-blas.yml`, which the test allows for (from the review of
+    #182). On socket workers the model a result carries is the copy that
     travelled to the worker. Four names report `"model"`: `"white"`,
     `"white_bootstrap"`, `"student_bp"` and `"szroeter"`. A resampling test
     still draws from its own stream, and the list is still not a
@@ -2270,7 +2274,14 @@ announced in bold in `NEWS.md`.
     "rank-based") are not a rank deficiency, so that too few observations for
     the rank permutation test are no longer one. The notes of `summary()` give
     the new issue, and drop the prefix of White's exact fit, "Test cannot be
-    computed", which they kept.
+    computed", which they kept. From the review of #182: the refusal is no
+    longer a `simpleError`, as those of the model context are not; catch it by
+    its class or as an `error`. A diagnostic a user registers under the name of
+    a fallback, as `registerDiagnostic("breusch_pagan", f)` for White's test,
+    is no longer tried after this refusal, nor after one of data that lack rows
+    of the fit (the item below), as it was not after the other final refusals.
+    The plurals "NAs" and "NaNs" are read as `NA` and `NaN`, "singularity" and
+    "singularities" as "singular", and "Spearman rank" is a name too.
 - [ ] **`performBoxMTest()` with a missing value in `group` or `data`**
     returns `NA`: a row whose group is `NA` becomes a row of `NA`s in every
     group (`data[group == gr, ]`), and a missing value in `data` makes its
@@ -2386,7 +2397,9 @@ announced in bold in `NEWS.md`.
     run, whose groups are refitted on their own rows and so do not meet it,
     would record it in its group with the issue `"data_rows"` and no fallback,
     as it records the other refusals of rows. The workflows and parsnip fits,
-    which told it by its message, now tell it by its class.
+    which told it by its message, now tell it by its class. The refusal is no
+    longer a `simpleError`, as the other refusals of rows are not; catch it by
+    its class or as an `error` (from the review of #182).
 - [ ] **Left from steps 8 to 10 of the model context**, recorded, not fixed.
     Moved from 0.17.0 at its release (2026-10-30), where the steps that found
     them are done; each changes what a call returns:

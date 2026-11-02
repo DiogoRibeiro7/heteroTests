@@ -23,7 +23,9 @@ test. Pass \code{data} for such a fit. A refusal that every substitute would mak
 with it and its class: of the model by the model context, of \code{data} whose rows are not those of the fit
 (\code{heteroTests_data_rows_error}; since 0.18.0 also data that lack rows of it, which were tried on every
 substitute and called a data-quality issue), and, since 0.18.0, of a \code{glm} that is not a least-squares fit
-(\code{heteroTests_glm_family_error}).
+(\code{heteroTests_glm_family_error}). These two refusals, of data that lack rows and of such a \code{glm}, are no
+longer \code{simpleError}s since 0.18.0; catch them by their class or as an \code{error}. Nor is a diagnostic registered under the name of a substitute, as by
+\code{registerDiagnostic("breusch_pagan", f)}, run after such a refusal.
 
 The runner runs the exact tests unless \code{chunk_threshold_mb} asks for the streaming ones,
 \code{\link{performWhiteTestStreaming}()}, \code{\link{performBPTestStreaming}()} and

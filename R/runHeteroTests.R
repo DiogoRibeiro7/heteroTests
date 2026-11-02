@@ -15,6 +15,27 @@
 #' distribution, against 4.75% for Koenker's statistic. The classical test is
 #' still run by name, `tests = "breusch_pagan"`.
 #'
+#' When a test stops with an error, the substitute registered for it is run,
+#' if one is and it succeeds, and its result is returned under the name of the
+#' test asked for: `"white"` falls back on White's test without cross
+#' products, the classical Breusch-Pagan, Koenker and Cook-Weisberg tests,
+#' `"koenker"` on the Cook-Weisberg test. The `method` of the result names the
+#' test that ran, `attr(result, "diagnostic")` its registry name and
+#' `attr(result, "extras")$status` is `"fallback"`. A weighted fit whose
+#' weights are a column of the data, called without `data`, is such a case:
+#' White's and Koenker's tests stop, and both names hold the Cook-Weisberg
+#' test. Pass `data` for such a fit. A refusal that every substitute would
+#' make too runs none, and the call stops with it and its class: of the model
+#' by the model context, of `data` whose rows are not those of the fit
+#' (`heteroTests_data_rows_error`; since 0.18.0 also data that lack rows of
+#' it, which were tried on every substitute and called a data-quality issue),
+#' and, since 0.18.0, of a `glm` that is not a least-squares fit
+#' (`heteroTests_glm_family_error`). These two refusals, of data that lack
+#' rows and of such a `glm`, are no longer `simpleError`s since 0.18.0; catch
+#' them by their class or as an `error`. Nor is a
+#' diagnostic registered under the name of a substitute, as by
+#' `registerDiagnostic("breusch_pagan", f)`, run after such a refusal.
+#'
 #' The runner runs the exact tests unless `chunk_threshold_mb` asks for the
 #' streaming ones, [performWhiteTestStreaming()], [performBPTestStreaming()]
 #' and [performKoenkerTestStreaming()]. Up to 0.15.0 it switched to them by
@@ -32,10 +53,12 @@
 #' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
 #'   identity link, a model formula, a tidymodels [workflows::workflow] or a
 #'   [parsnip::model_fit] object. The tests refuse a `glm` of any other
-#'   family or link since 0.15.0; the call stops with the refusal of the first
-#'   test asked for, without running a substitute and with the class
-#'   `heteroTests_glm_family_error` since 0.18.0, and with grouped data each
-#'   test is returned as failed, with the issue `"glm_family"`.
+#'   family or link since 0.15.0, the deprecated registry names `"ncv"` and
+#'   `"student_bp"` and the substitutes of the fallback (Details) included:
+#'   the call stops with the error of the first test asked for, without
+#'   running a substitute and with the class `heteroTests_glm_family_error`
+#'   since 0.18.0, and with grouped data each test is returned as failed, with
+#'   the issue `"glm_family"`.
 #' @param data Optional data source used to fit `model`. Accepts base data
 #'   frames, tibbles, `data.table`s, `dtplyr_step`s and grouped data produced by
 #'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.
@@ -112,7 +135,8 @@
 #'   formula of the model instead: up to 0.15.0 White's test, its bootstrap
 #'   and its form without cross products, the studentized Breusch-Pagan
 #'   statistic and Szroeter's test reported `"model"` here.
-#'   [runHeteroTestsParallel()] and [cachedTest()] do the same since 0.18.0.
+#'   [runHeteroTestsParallel()] and [cachedTest()], which call the tests as
+#'   the runner does, do the same since 0.18.0.
 #'
 #' @seealso \code{\link{runDiagnostics}} for a broader suite that includes
 #'   collinearity and influence measures, \code{\link{runPanelTests}} for panel
