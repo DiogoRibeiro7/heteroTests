@@ -32,7 +32,10 @@
 #' @param model A fitted `lm`, or a `glm` with the Gaussian family and the
 #'   identity link, a model formula, a tidymodels [workflows::workflow] or a
 #'   [parsnip::model_fit] object. The tests refuse a `glm` of any other
-#'   family or link since 0.15.0.
+#'   family or link since 0.15.0; the call stops with the refusal of the first
+#'   test asked for, without running a substitute and with the class
+#'   `heteroTests_glm_family_error` since 0.18.0, and with grouped data each
+#'   test is returned as failed, with the issue `"glm_family"`.
 #' @param data Optional data source used to fit `model`. Accepts base data
 #'   frames, tibbles, `data.table`s, `dtplyr_step`s and grouped data produced by
 #'   [dplyr::group_by()]. When `model` is a formula the data must be supplied.
@@ -390,10 +393,11 @@ rsuite_mark_origin <- function(suite, origin) {
         if (isTRUE(recover_failures) && !identical(failure_context$issue, "model_context")) {
           return(failure)
         }
-        if (failure_context$issue %in% c("data_rows", "model_context")) {
-          # Keep the class of the refusal of `data` (rcheck_rows_at()) or of
-          # the model by the model context (R/model_context.R), so that a
-          # caller can tell it from a failure of the test.
+        if (failure_context$issue %in% c("data_rows", "model_context", "glm_family")) {
+          # Keep the class of the refusal of `data` (rcheck_rows_at()), of
+          # the model by the model context (R/model_context.R) or of a glm
+          # that is not a least-squares fit (rrefuse_glm()), so that a caller
+          # can tell it from a failure of the test.
           stop(structure(
             class = class(e),
             list(message = failure_context$user_message, call = NULL)

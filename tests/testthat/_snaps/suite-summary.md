@@ -99,12 +99,14 @@
       koenker        NA NA      NA
       
       Notes:
-        white refused: performWhiteTest() needs a model fitted by stats::lm(): a
-          glm with the binomial family and the logit link is not a least-squares
-          fit. A glm with the gaussian family and the identity link is accepted.
-        koenker refused: performKoenkerTest() needs a model fitted by stats::lm():
-          a glm with the binomial family and the logit link is not a least-squares
-          fit. A glm with the gaussian family and the identity link is accepted.
+        white refused (glm_family): performWhiteTest() needs a model fitted by
+          stats::lm(): a glm with the binomial family and the logit link is not a
+          least-squares fit. A glm with the gaussian family and the identity link
+          is accepted.
+        koenker refused (glm_family): performKoenkerTest() needs a model fitted by
+          stats::lm(): a glm with the binomial family and the logit link is not a
+          least-squares fit. A glm with the gaussian family and the identity link
+          is accepted.
       
 
 # the significance codes follow show.signif.stars, and digits is respected
@@ -217,9 +219,10 @@
       white        NA NA      NA
       
       Notes:
-        white refused: performWhiteTest() needs a model fitted by stats::lm(): a
-          glm with the binomial family and the logit link is not a least-squares
-          fit. A glm with the gaussian family and the identity link is accepted.
+        white refused (glm_family): performWhiteTest() needs a model fitted by
+          stats::lm(): a glm with the binomial family and the logit link is not a
+          least-squares fit. A glm with the gaussian family and the identity link
+          is accepted.
       
 
 # a grouped suite prints one table, with the status of each group

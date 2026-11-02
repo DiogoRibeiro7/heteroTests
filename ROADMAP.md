@@ -2198,7 +2198,7 @@ announced in bold in `NEWS.md`.
   does not say that they go in 1.0.0, as the internal helpers, the 0.15.0
   forms and `rrunAdvancedDiagnostics()` do. Found in the 0.15.0 release
   audit; no value changes.
-- [ ] **`ht_analyse_failure()` labels a failure by its message, ignoring
+- [x] **`ht_analyse_failure()` labels a failure by its message, ignoring
   case.** It calls a failure a rank deficiency when the message matches
   `"rank|singular"` and a data-quality issue when it matches
   `"NA|NaN|missing|Inf"`, both with `ignore.case = TRUE`
@@ -2214,7 +2214,21 @@ announced in bold in `NEWS.md`.
   to remove missing values. The other tests refuse it as "Diagnostic
   execution failed". Match whole words, and `NA` only in capitals, or give the
   refusal of such a `glm` an issue of its own. Recorded, not fixed, in
-  0.15.0; only the message and the recorded `issue` change.
+  0.15.0; only the message and the recorded `issue` change. Done in #182,
+  both ways. The refusal has the class `heteroTests_glm_family_error`, which
+  the failure analysis reads as the issue `"glm_family"`, final as those of
+  the model context and of the rows of `data`: on the `glm` above,
+  `runHeteroTests(m, mtcars, tests = "rank_permutation")` stops at once with
+  "Model is not a least-squares fit for Rank Permutation:
+  `performRankPermutationTest()` needs a model fitted by stats::lm(): ...",
+  that class and no advice, and so do the other tests, where White's test
+  tried its four fallbacks first; a grouped run records the issue in each
+  group. The other messages are read word by word, `NA`, `NaN` and `Inf` in
+  capitals only, and the names of the rank tests ("Rank permutation",
+  "rank-based") are not a rank deficiency, so that too few observations for
+  the rank permutation test are no longer one. The notes of `summary()` give
+  the new issue, and drop the prefix of White's exact fit, "Test cannot be
+  computed", which they kept.
 - [ ] **`performBoxMTest()` with a missing value in `group` or `data`**
   returns `NA`: a row whose group is `NA` becomes a row of `NA`s in every
   group (`data[group == gr, ]`), and a missing value in `data` makes its

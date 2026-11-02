@@ -744,6 +744,13 @@ rmodel_class_message <- function(model, who) {
 #' included; since then no test does. A `survey::svyglm()` fit is refused with
 #' the message of [rrefuse_survey_fit()] instead, as by every other test.
 #'
+#' The error has class `heteroTests_glm_family_error` since 0.18.0, which
+#' [ht_analyse_failure()] treats as final: every test refuses such a fit, so
+#' `runHeteroTests()` falls back on none. Before, it was a plain error, and the
+#' runner tried the fallbacks of the test and labelled the refusal by its
+#' words: `"rank_permutation"` as a rank deficiency, from the "Rank" of
+#' `performRankPermutationTest()`.
+#'
 #' @param model A fitted model.
 #' @param fn Character scalar naming the calling test.
 #' @param reason Optional character scalar saying why.
@@ -756,11 +763,14 @@ rrefuse_glm <- function(model, fn, reason = NULL) {
   if (inherits(model, "lm") && !inherits(model, "glm")) {
     return(invisible(NULL))
   }
-  stop(
+  message <- paste0(
     sprintf("%s() needs a model fitted by stats::lm()", fn),
-    if (is.null(reason)) "." else paste0(": ", reason),
-    call. = FALSE
+    if (is.null(reason)) "." else paste0(": ", reason)
   )
+  stop(structure(
+    class = c("heteroTests_glm_family_error", "error", "condition"),
+    list(message = message, call = NULL)
+  ))
 }
 
 #' Refuse a glm that is not a least-squares fit

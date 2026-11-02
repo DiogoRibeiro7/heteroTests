@@ -14,29 +14,50 @@ ht_pretty_test_name <- function(test_name) {
   tools::toTitleCase(pretty)
 }
 
+# The words of a failure's message that say what kind of failure it is, and
+# so which advice it gets: "NA", "NaN" and "Inf" as R writes them, in
+# capitals, and the other words in any case, each as a whole word. A word
+# inside another names nothing, nor does the name of a rank test ("Rank
+# permutation", "rank-based", "Spearman rank correlation"). Before 0.18.0 they
+# were matched anywhere and in any case, so that the "na" of
+# performHighDimensionalTest() in a message made it a data-quality issue, and
+# the "Rank" of performRankPermutationTest() a rank deficiency.
+.ht_failure_words <- list(
+  missing = list(cased = "\\b(NA|NaN)\\b", any_case = "\\bmissing\\b"),
+  infinite = list(cased = "\\bInf\\b", any_case = "\\binfinite\\b"),
+  rank = list(any_case = "\\b(rank|singular)\\b(?![- ](permutation|based|correlation))"),
+  separation = list(any_case = "\\bseparation\\b")
+)
+
+ht_message_mentions <- function(message, kind) {
+  words <- .ht_failure_words[[kind]]
+  (!is.null(words$cased) && any(grepl(words$cased, message, perl = TRUE))) ||
+    any(grepl(words$any_case, message, ignore.case = TRUE, perl = TRUE))
+}
+
 ht_data_cleaning_suggestions <- function(message = NULL, data = NULL) {
   suggestions <- character()
 
   if (!is.null(message)) {
-    if (grepl("NA|NaN|missing", message, ignore.case = TRUE)) {
+    if (ht_message_mentions(message, "missing")) {
       suggestions <- c(
         suggestions,
         "Remove or impute missing values before running diagnostics (e.g., tidyr::drop_na())."
       )
     }
-    if (grepl("Inf", message, ignore.case = TRUE)) {
+    if (ht_message_mentions(message, "infinite")) {
       suggestions <- c(
         suggestions,
         "Replace infinite values with finite surrogates or remove the affected observations."
       )
     }
-    if (grepl("rank|singular", message, ignore.case = TRUE)) {
+    if (ht_message_mentions(message, "rank")) {
       suggestions <- c(
         suggestions,
         "Remove collinear predictors or simplify interaction terms that induce rank deficiency."
       )
     }
-    if (grepl("perfect separation|separation", message, ignore.case = TRUE)) {
+    if (ht_message_mentions(message, "separation")) {
       suggestions <- c(
         suggestions,
         "Perfect separation detected; consider penalised regression or combining sparse factor levels."
@@ -97,6 +118,7 @@ ht_format_failure_message <- function(issue, raw_message, suggestions = characte
     data_quality = "Data quality issue detected",
     data_rows = "Data do not match the model",
     model_context = "Model cannot be tested",
+    glm_family = "Model is not a least-squares fit",
     exact_fit = "Test cannot be computed",
     "Diagnostic execution failed"
   )
@@ -263,6 +285,24 @@ ht_final_exact_fit <- function(error) {
   inherits(error, "heteroTests_white_exact_fit") && !identical(error$regressors_exact, FALSE)
 }
 
+# The analysis of a refusal that every substitute would make too: no fallback,
+# and no cleaning to suggest.
+ht_final_failure <- function(issue, raw_message, test_name) {
+  list(
+    raw_message = raw_message,
+    user_message = ht_format_failure_message(
+      issue,
+      raw_message,
+      test_name = ht_pretty_test_name(test_name)
+    ),
+    suggestions = character(),
+    issue = issue,
+    fallbacks = character()
+  )
+}
+
+# A failure the package raises with a class of its own is told by its class;
+# any other by the words of its message (ht_message_mentions()).
 ht_analyse_failure <- function(test_name, error, model, data) {
   raw_message <- conditionMessage(error)
   if (inherits(error, "heteroTests_model_context_error")) {
@@ -271,17 +311,7 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     # fitted. Any substitute would read the same model, or, as the
     # Cook-Weisberg test does, another one under this name: no fallback
     # (decision 6 of the design of the model context).
-    return(list(
-      raw_message = raw_message,
-      user_message = ht_format_failure_message(
-        "model_context",
-        raw_message,
-        test_name = ht_pretty_test_name(test_name)
-      ),
-      suggestions = character(),
-      issue = "model_context",
-      fallbacks = character()
-    ))
+    return(ht_final_failure("model_context", raw_message, test_name))
   }
   if (ht_final_exact_fit(error)) {
     # White's auxiliary regression fits the squared residuals exactly, and so
@@ -291,17 +321,7 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     # regressors do not fit them exactly, as on a design with as many
     # auxiliary terms as observations, White's test without cross products
     # comes first, as on any other refusal of White's test.
-    return(list(
-      raw_message = raw_message,
-      user_message = ht_format_failure_message(
-        "exact_fit",
-        raw_message,
-        test_name = ht_pretty_test_name(test_name)
-      ),
-      suggestions = character(),
-      issue = "exact_fit",
-      fallbacks = character()
-    ))
+    return(ht_final_failure("exact_fit", raw_message, test_name))
   }
   if (inherits(error, "heteroTests_data_rows_error")) {
     # `data` cannot be matched to the rows of the fit (rcheck_rows_at()), or
@@ -309,25 +329,24 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     # Every substitute would read the same rows, or, as the Cook-Weisberg
     # test does, ignore `data` and return another test under this name, so
     # there is no fallback and no cleaning to suggest.
-    return(list(
-      raw_message = raw_message,
-      user_message = ht_format_failure_message(
-        "data_rows",
-        raw_message,
-        test_name = ht_pretty_test_name(test_name)
-      ),
-      suggestions = character(),
-      issue = "data_rows",
-      fallbacks = character()
-    ))
+    return(ht_final_failure("data_rows", raw_message, test_name))
+  }
+  if (inherits(error, "heteroTests_glm_family_error")) {
+    # A glm that is not a least-squares fit (rrefuse_glm()), which every test
+    # of the package refuses, the substitutes included. Before 0.18.0 the
+    # refusal had no class: the runner tried the fallbacks, and labelled it
+    # by its words, a rank deficiency for "rank_permutation" and a
+    # data-quality issue for "high_dimensional", with their advice.
+    return(ht_final_failure("glm_family", raw_message, test_name))
   }
   suggestions <- ht_data_cleaning_suggestions(raw_message, data)
   issue <- "diagnostic_failure"
-  if (grepl("rank|singular", raw_message, ignore.case = TRUE)) {
+  if (ht_message_mentions(raw_message, "rank")) {
     issue <- "rank_deficiency"
-  } else if (grepl("perfect separation|separation", raw_message, ignore.case = TRUE)) {
+  } else if (ht_message_mentions(raw_message, "separation")) {
     issue <- "perfect_separation"
-  } else if (grepl("NA|NaN|missing|Inf", raw_message, ignore.case = TRUE)) {
+  } else if (ht_message_mentions(raw_message, "missing") ||
+               ht_message_mentions(raw_message, "infinite")) {
     issue <- "data_quality"
   }
 

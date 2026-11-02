@@ -171,13 +171,14 @@ with \code{\link[=registerDiagnostic]{registerDiagnostic()}} may return. A test 
 stopped before computing anything, with one of the refusals of the package:
 of the model or of \code{data} by the model context (the issues
 \code{"model_context"} and \code{"data_rows"}), of a \code{glm} that is not a
-least-squares fit or a model of another class, of a \code{survey::svyglm()} fit,
-of zero weights, of a weighted fit by a test that refits without its
-weights, of an aliased coefficient, or of too few observations. These are
-recognised by their messages, since the runner records the message and the
-issue and not the class of the condition; a test that stopped otherwise
-"failed". \code{print()} gives each note on one line, cut to the width of the
-console; \code{summary()} gives it whole. Without groups, \code{\link[=runHeteroTests]{runHeteroTests()}}
+least-squares fit (the issue \code{"glm_family"}, since 0.18.0) or a model of
+another class, of a \code{survey::svyglm()} fit, of zero weights, of a weighted
+fit by a test that refits without its weights, of an aliased coefficient,
+or of too few observations. These are recognised by their issue or their
+messages, since the runner records the message and the issue and not the
+class of the condition; a test that stopped otherwise "failed". \code{print()}
+gives each note on one line, cut to the width of the console; \code{summary()}
+gives it whole. Without groups, \code{\link[=runHeteroTests]{runHeteroTests()}}
 stops when a test fails and no fallback runs, so a failed test is returned
 only by a grouped run, which records the failure and goes on. Whether a
 result was read from a cache is not shown: a result read from it is
