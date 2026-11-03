@@ -422,3 +422,24 @@ test_that("bootstrap helper supports parallel execution", {
   )
   expect_equal(length(boot$replicates), 16L)
 })
+
+test_that("the factor of the streaming tests stays finite when a column leaves a tiny norm", {
+  # The streaming tests stack each chunk under the factor of the chunks before
+  # it (rchunk_factor()). Until #184 they decomposed the stack with LINPACK's
+  # QR without pivoting, which divides each column by what is left of its
+  # norm: below the reciprocal of the largest double that overflows, and the
+  # next chunk stopped on "NA/NaN/Inf in foreign function call". The columns
+  # of White's design that are combinations of others leave rounding error,
+  # and under the noisy BLAS of cran-blas.yml it fell that low; a column of
+  # norm 1e-310 does it on any BLAS.
+  set.seed(1)
+  rows <- cbind(1, stats::rnorm(8), c(rep(0, 7), 1e-310), stats::rnorm(8))
+  more <- cbind(1, stats::rnorm(5), 0, stats::rnorm(5))
+  expect_false(all(is.finite(qr.R(qr(rows, tol = 0)))))
+  first <- heteroTests:::rchunk_factor(NULL, rows)
+  expect_true(all(is.finite(first)))
+  expect_equal(crossprod(first), crossprod(rows), tolerance = 1e-12)
+  stacked <- heteroTests:::rchunk_factor(first, more)
+  expect_true(all(is.finite(stacked)))
+  expect_equal(crossprod(stacked), crossprod(rbind(rows, more)), tolerance = 1e-12)
+})
