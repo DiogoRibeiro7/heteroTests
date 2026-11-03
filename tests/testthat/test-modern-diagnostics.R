@@ -56,6 +56,36 @@ test_that("performWildBootstrapTest reports the rank of its auxiliary regression
   expect_equal(unname(no_intercept$statistic), unname(koenker$statistic), tolerance = 1e-10)
 })
 
+# The statistic of the wild bootstrap is computed on the auxiliary regression
+# of performKoenkerTest(). Up to 0.17.0 it was fitted by lm() from a formula
+# on the columns as they are, which dropped a regressor far from zero that a
+# model without an intercept or a Gaussian glm keeps: 2.372 and 1.457, the
+# statistics of x2 alone, for Koenker's 13.915 and 9.044. A model whose
+# regressors are all constant, on which the statistic is 0 in every replicate
+# (0 on 1 degree of freedom, p = 1, up to 0.17.0), is refused, as Koenker's
+# test refuses it.
+test_that("the wild bootstrap keeps a regressor far from zero and refuses a constant design", {
+  previous <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(previous), add = TRUE)
+  d <- contract_data()$d
+  d$far <- 1e8 + d$x1
+  d$far_glm <- 1e6 + d$x1 / 10
+  fits <- list(far = lm(y ~ 0 + far + x2, data = d), glm = glm(y ~ far_glm + x2, data = d))
+  for (nm in names(fits)) {
+    set.seed(32)
+    wild <- performWildBootstrapTest(fits[[nm]], d, B = 19, progress = FALSE)
+    koenker <- performKoenkerTest(fits[[nm]], d)
+    expect_equal(unname(wild$statistic), unname(koenker$statistic), tolerance = 1e-10, info = nm)
+    expect_identical(unname(wild$parameter), c(2L, 19L), info = nm)
+    expect_gt(unname(wild$statistic), 9)
+  }
+  d$one <- 1
+  expect_error(
+    performWildBootstrapTest(lm(y ~ 0 + one, data = d), d, B = 19, progress = FALSE),
+    "Wild bootstrap test requires at least one predictor beyond the intercept.", fixed = TRUE
+  )
+})
+
 test_that("HC covariance pseudo-test is absent from built-in registries", {
   expect_false("hc_covariance" %in% names(as.list(heteroTests:::.diagnostic_registry)))
   expect_false("hc_covariance" %in% test_factory$get_available())
