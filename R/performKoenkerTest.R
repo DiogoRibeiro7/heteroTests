@@ -369,13 +369,20 @@ performKoenkerTest <- function(model, data = NULL) {
   # dummies of a factor with two observations per level do, whose residuals
   # are equal and opposite in each pair: R^2 is 1 and the statistic the number
   # of observations, as in lmtest::bptest(). Refused since 0.18.0 at the
-  # threshold of White's test (rauxiliary_fit_exact()), with its message; on
-  # the paired design of White's exact fit the test gave 60 on 30
-  # (p = 0.0009). Up to 0.17.0 summary.lm() warned "essentially perfect fit"
-  # there, and 0.18.0 before this refusal gave the value without it.
+  # threshold of White's test (rauxiliary_fit_exact()), with its message, when
+  # the design forces it (rforced_exact_fit()); on the paired design of
+  # White's exact fit the test gave 60 on 30 (p = 0.0009). Up to 0.17.0
+  # summary.lm() warned "essentially perfect fit" there, and 0.18.0 before
+  # this refusal gave the value without it. A fit the data make exact, as an
+  # outlier in a group of two observations, is tested, as up to 0.17.0.
   if (rauxiliary_fit_exact(aux_fit)) {
-    rrefuse_auxiliary_exact_fit("Koenker's test", aux_fit$rank, n,
-                                rexact_fit_statistic$n_r_squared)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(rauxiliary_fit(e^2, predictors, centred, columns, test_label))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("Koenker's test", aux_fit$rank, n,
+                                  rexact_fit_statistic$n_r_squared, forced = forced)
+    }
   }
   test_statistic <- n * rauxiliary_r_squared(aux_fit)
   # The rank of the auxiliary regression less its intercept.

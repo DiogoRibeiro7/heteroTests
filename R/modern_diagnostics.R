@@ -359,12 +359,19 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # exactly, as on a paired design, and so those of every replicate, whose
   # design is the same: each statistic is the number of observations, and the
   # p-value counts the replicates whose rounding error is above that of the
-  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, before
-  # the replicates are drawn; on the paired design of White's exact fit the
-  # test gave 60 with a p-value of 1.
+  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, when the
+  # design forces it (rforced_exact_fit()), before the replicates are drawn;
+  # on the paired design of White's exact fit the test gave 60 with a p-value
+  # of 1. A fit the data make exact is bootstrapped, as up to 0.17.0.
   if (observed$exact) {
-    rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
-                                rexact_fit_statistic$n_r_squared)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(rauxiliary_fit(e^2, predictors, centred, columns,
+                                          "Wild bootstrap test"))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
+                                  rexact_fit_statistic$n_r_squared, forced = forced)
+    }
   }
 
   multiplier_draw <- switch(distribution,
@@ -731,11 +738,18 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
   # them do on a paired design (variance_threshold = 1): the statistic is the
   # number of observations. Refused since 0.18.0 at the threshold of White's
   # test, as Koenker's test, of which this is the statistic on the components,
-  # refuses it; on the paired design of White's exact fit it gave 60 on 30
-  # with the warning of summary.lm(), "essentially perfect fit".
+  # refuses it, when the design forces it (rforced_exact_fit()); on the paired
+  # design of White's exact fit it gave 60 on 30 with the warning of
+  # summary.lm(), "essentially perfect fit".
   if (rauxiliary_fit_exact(aux_model)) {
-    rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
-                                length(residuals), rexact_fit_statistic$n_r_squared)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(stats::lm.fit(cbind(1, scores), e^2))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
+                                  length(residuals), rexact_fit_statistic$n_r_squared,
+                                  forced = forced)
+    }
   }
   r2 <- summary(aux_model)$r.squared
   statistic <- length(residuals) * r2

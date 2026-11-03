@@ -266,11 +266,21 @@ performStudentizedBPTest <- function(model, data = NULL) {
   # whose sum of squares is `denominator` (they have mean zero), as on a
   # paired design: the statistic is the number of observations. Refused since
   # 0.18.0, as performKoenkerTest() refuses it, at the threshold of White's
-  # test; on the paired design of White's exact fit it gave 60 on 30
-  # (p = 0.0009).
+  # test, when the design forces it: the pseudo-residuals of the refit above
+  # (rforced_exact_fit()); on the paired design of White's exact fit it gave
+  # 60 on 30 (p = 0.0009).
   if (rauxiliary_exact(sum(aux_fit$residuals^2), denominator)) {
-    rrefuse_auxiliary_exact_fit("the studentized Breusch-Pagan test", aux_fit$rank, effective_n,
-                                rexact_fit_statistic$n_r_squared)
+    unit <- rep.int(1, nrow(design_matrix))
+    forced <- rforced_exact_fit(base_fit$qr, function(e) {
+      centred_pseudo <- e^2 - mean(e^2)
+      pseudo_fit <- stats::lm.wfit(design_matrix, centred_pseudo, unit)
+      rauxiliary_exact(sum(pseudo_fit$residuals^2), sum(centred_pseudo^2))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the studentized Breusch-Pagan test", aux_fit$rank,
+                                  effective_n, rexact_fit_statistic$n_r_squared,
+                                  forced = forced)
+    }
   }
 
   test_statistic <- effective_n * numerator / denominator
@@ -550,7 +560,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
             "This may take some time to compute.")
   }
   original_result <- rwhite_statistic(residuals, rcontext_design(ctx), TRUE, 10, "White test",
-                                      data_name = "model")
+                                      data_name = "model", qr = rcontext_qr(ctx))
   original_stat <- unname(original_result$statistic[1])
 
   # A weighted fit is ordinary least squares on sqrt(w) y and sqrt(w) X, whose
@@ -630,7 +640,7 @@ performWhiteTestBootstrap <- function(model, data = NULL, B = 999, parallel = FA
     }
     boot_design <- estimated_columns(design, boot_fit$coefficients, boot_fit$rank)
     unname(statistic_of(boot_pearson, boot_design, TRUE, 10, "White test",
-                        data_name = "boot_model")$statistic[1])
+                        data_name = "boot_model", qr = boot_fit$qr)$statistic[1])
   }
 
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {

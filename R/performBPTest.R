@@ -387,11 +387,20 @@ performBPTest <- function(model, data = NULL) {
   # are equal and opposite in each pair: the statistic, half the explained sum
   # of squares, is then half the total, a function of the spread of the
   # squared residuals alone. Refused since 0.18.0 at the threshold of White's
-  # test (rauxiliary_fit_exact()), with its message; on the paired design of
-  # White's exact fit the test gave 63.25 on 30 (p = 0.0004).
+  # test (rauxiliary_fit_exact()), with its message, when the design forces it
+  # (rforced_exact_fit()); on the paired design of White's exact fit the test
+  # gave 63.25 on 30 (p = 0.0004). A fit the data make exact, as an outlier in
+  # a group of two observations, is tested, as up to 0.17.0. The scaled squared
+  # residuals are an affine function of the squared residuals, with the same
+  # fit, so the pseudo-residuals are only squared.
   if (rauxiliary_fit_exact(aux_fit)) {
-    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
-                                rexact_fit_statistic$spread)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(rauxiliary_fit(e^2, predictors, centred, columns, test_label))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
+                                  rexact_fit_statistic$spread, forced = forced)
+    }
   }
   test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
   df <- aux_fit$rank - 1L

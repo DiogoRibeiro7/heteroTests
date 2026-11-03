@@ -223,11 +223,23 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
   # the statistic, half the explained sum of squares, is half the total, a
   # function of their spread alone. Refused since 0.18.0, as the
   # Breusch-Pagan test, whose statistic this is on the regressors, refuses it,
-  # at the threshold of White's test; it gave 63.25 on 30 (p = 0.0004) there.
+  # at the threshold of White's test, when the design and the variance model
+  # force it (rforced_exact_fit()); it gave 63.25 on 30 (p = 0.0004) there.
   # Whether the regressors of the model fit them too is not known.
   if (rauxiliary_fit_exact(aux_model)) {
-    rrefuse_auxiliary_exact_fit("the Cook-Weisberg test", aux_model$rank, n,
-                                rexact_fit_statistic$spread, regressors_exact = NA)
+    qr <- if (is.null(ctx)) {
+      if (inherits(model$qr, "qr") && NROW(model$qr$qr) == n) model$qr
+    } else {
+      rcontext_qr(ctx)
+    }
+    forced <- rforced_exact_fit(qr, function(e) {
+      rauxiliary_fit_exact(stats::lm.fit(cbind(1, Z), e^2))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the Cook-Weisberg test", aux_model$rank, n,
+                                  rexact_fit_statistic$spread, regressors_exact = NA,
+                                  forced = forced)
+    }
   }
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 

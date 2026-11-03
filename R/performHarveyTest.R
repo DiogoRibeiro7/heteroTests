@@ -211,11 +211,18 @@ performHarveyTest <- function(model, data = NULL,
   # residuals too is not known. The fitted values and their square, two
   # terms, do not fit them exactly but by a coincidence of the data.
   if (rauxiliary_fit_exact(aux_model)) {
-    rrefuse_auxiliary_exact_fit(
-      "Harvey's test", aux_model$rank, length(log_e2),
-      if (studentize) rexact_fit_statistic$f else rexact_fit_statistic$log_spread,
-      regressors_exact = NA, response = "the log squared residuals"
-    )
+    # Forced by the design when the regressors fit the logarithms of the
+    # squared pseudo-residuals too, floored as rlog_squared_residuals() floors.
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(stats::lm.fit(cbind(1, Z), log(pmax(e^2, .Machine$double.eps))))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit(
+        "Harvey's test", aux_model$rank, length(log_e2),
+        if (studentize) rexact_fit_statistic$f else rexact_fit_statistic$log_spread,
+        regressors_exact = NA, response = "the log squared residuals", forced = forced
+      )
+    }
   }
 
   if (studentize) {
