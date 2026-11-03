@@ -2507,17 +2507,21 @@ announced in bold in `NEWS.md`.
         with its weights, and refuses only when the same auxiliary regressors fit
         the squares of its residuals exactly too (`rforced_exact_fit()`); the
         streaming forms carry those squares as one more response in the pass
-        they make, and decide as the exact forms do. They stack their chunks by
-        LAPACK's QR decomposition with column pivoting since #184
-        (`rchunk_factor()`, `R/performance.R`), which scales a column left with a
-        tiny norm before dividing by it, where LINPACK's without pivoting divided
-        each column by what was left of its norm: the terms of White's design that
-        are combinations of others, as the squares and products of dummies are,
-        leave rounding error, and on White's streaming test of the one-way layout
-        below the noisy BLAS of `cran-blas.yml` stopped the next chunk on
-        "NA/NaN/Inf in foreign function call", on all three seeds (found by CI on
-        #184; a column of norm 1e-310 does it on any BLAS). The streaming
-        statistics move in their last bits. A fit the data make exact is
+        they make, and decide as the exact forms do. Their stacking of chunks
+        (`rchunk_factor()`, `R/performance.R`) leaves out, since #184, what is
+        left of a column that is a combination of the columns before it, less
+        than 1e-13 of its norm: the decomposition without pivoting made a
+        reflection from that rounding error, the next such column left about its
+        square, and so on down, and it divides by each norm. On White's streaming
+        test of the one-way layout below the noisy BLAS of `cran-blas.yml` stopped
+        the next chunk on "NA/NaN/Inf in foreign function call", on all three
+        seeds (found by CI on #184); a multiple of a regressor of size 1e-300
+        does it on any BLAS. Where no column falls below the tolerance the factor
+        is the one of before, to the last bit, and on the designs measured the
+        statistics are those of before or within 4.4e-16. A decomposition by
+        LAPACK with column pivoting, tried first, moved White's streaming test on
+        the nearly collinear basis of an `mgcv::gam()` fit by up to 1.5e-8, and
+        was dropped. A fit the data make exact is
         tested, as up to 0.17.0: in a one-way layout of nine groups of ten
         observations and one of two, with a value of the group of two typed 100
         times too large, the dummies fit the squared residuals to within 1.1e-9
