@@ -7,7 +7,7 @@ Writing \eqn{\hat{\sigma}^2 = \sum_i \hat{e}_i^2 / n} for the maximum-likelihood
 
 The chi-square reference distribution follows from the null variance of \eqn{\hat{e}^2 / \sigma^2} being 2, which holds under normal errors. When that assumption is doubtful, prefer \code{\link{performKoenkerTest}}.
 
-Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as \code{\link{performBPTest}()}, whose statistic it then is, refuses such a fit of the regressors (see its \emph{Exact fit}), by the same rule and with the same class: half the explained sum of squares is then half the total, a function of the spread of the squared residuals alone. On 30 subjects of two observations, \code{lm(y ~ treat + subject)}, \code{var_formula = ~ treat + subject} gave 63.25 on 30 degrees of freedom. The fitted values, the default, do not fit them exactly there, and the test gives a value.
+Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as \code{\link{performBPTest}()}, whose statistic it then is, refuses such a fit of the regressors (see its \emph{Exact fit}), by the same rule and with the same class: half the explained sum of squares is then half the total, a function of the spread of the squared residuals alone. On 30 subjects of two observations, \code{lm(y ~ treat + subject)}, \code{var_formula = ~ treat + subject} gave 63.25 on 30 degrees of freedom. The fitted values, the default, do not fit them exactly there, and the test gives a value. Only a fit the design and the variance model force is refused; one the data make exact gives a value, as up to 0.17.0.
 }
 \usage{performCookWeisbergTest(model, data = NULL, var_formula = NULL)}
 \arguments{

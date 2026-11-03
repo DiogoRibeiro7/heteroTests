@@ -87,7 +87,8 @@ Since 0.18.0 it refuses an auxiliary regression that fits the squared
 residuals exactly, as on a paired design, as [`performKoenkerTest()`](performKoenkerTest.md) refuses
 it (see its *Exact fit*), and so does the registered `"student_bp"`: on 30
 subjects of two observations it gave 60 on 30 degrees of freedom, the
-number of observations.
+number of observations. Only a fit the design forces is refused; one the
+data make exact gives a value, as up to 0.17.0.
 
 ## Supported models
 

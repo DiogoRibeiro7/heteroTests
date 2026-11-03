@@ -77,7 +77,8 @@ Since 0.18.0 it refuses, with either value of \code{studentize} and with or
 without the bootstrap, an auxiliary regression that fits the squared
 residuals exactly, as on a paired design, as \code{\link[=performBPTest]{performBPTest()}} and
 \code{\link[=performKoenkerTest]{performKoenkerTest()}} refuse it (see their \emph{Exact fit}): on 30 subjects of
-two observations it gave 60 on 30 degrees of freedom with \code{studentize = TRUE} and 63.25 on 30 with \code{FALSE}.
+two observations it gave 60 on 30 degrees of freedom with \code{studentize = TRUE} and 63.25 on 30 with \code{FALSE}. Only a fit the design forces is
+refused; one the data make exact gives a value, as up to 0.17.0.
 }
 \section{Supported models}{
 

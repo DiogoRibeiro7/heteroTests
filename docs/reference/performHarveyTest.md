@@ -39,7 +39,7 @@ Setting `studentize = TRUE` replaces the fixed constant \(\pi^2 / 2\) with the a
 
 Degrees of freedom are taken from the realised rank of the auxiliary design, so a rank-deficient variance model is not credited with degrees of freedom for aliased columns.
 
-Since 0.18.0 the test refuses an auxiliary regression that fits the log squared residuals exactly, by the rule and with the class of [`performKoenkerTest()`](performKoenkerTest.md) (see its *Exact fit*): the classical statistic is then the total sum of squares over \(\pi^2 / 2\), a function of their spread alone, and the studentized F infinite. On 30 subjects of two observations, `lm(y ~ treat + subject)`, whose squared residuals are equal in each pair, the regressors gave 63.07 on 30 degrees of freedom and the studentized form an infinite F.
+Since 0.18.0 the test refuses an auxiliary regression that fits the log squared residuals exactly, by the rule and with the class of [`performKoenkerTest()`](performKoenkerTest.md) (see its *Exact fit*): the classical statistic is then the total sum of squares over \(\pi^2 / 2\), a function of their spread alone, and the studentized F infinite. On 30 subjects of two observations, `lm(y ~ treat + subject)`, whose squared residuals are equal in each pair, the regressors gave 63.07 on 30 degrees of freedom and the studentized form an infinite F. Only a fit the design forces is refused; one the data make exact gives a value, as up to 0.17.0.
 
 ## Validation
 

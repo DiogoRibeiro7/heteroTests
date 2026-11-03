@@ -576,6 +576,10 @@ koenker_response_builder <- function(residuals_chunk) {
 #' its section *Too few observations*) when its independent terms are at least
 #' as many as the observations, where it stopped as on collinear terms, or fit
 #' the squared residuals exactly, collinear or not, as on a paired design.
+#' Since 0.18.0 it refuses a fit with fewer terms than observations only when
+#' the design forces it, decided from the squared pseudo-residuals it carries
+#' in the same pass, as [performWhiteTest()] decides it; a fit the data make
+#' exact gives a value, where it was refused from 0.16.0.
 #' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
@@ -741,7 +745,9 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   squared residuals exactly, as on a paired design, by the rule and with
 #'   the message and class of [performBPTest()] (see its *Exact fit*), where
 #'   it gave 63.25 on 30 degrees of freedom on 30 subjects of two
-#'   observations.
+#'   observations. It refuses it when the design forces it, decided from the
+#'   squared pseudo-residuals it carries in the same pass, as
+#'   [performBPTest()] decides it; a fit the data make exact gives a value.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
@@ -890,7 +896,10 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   squared residuals exactly, as on a paired design, by the rule and with
 #'   the message and class of [performKoenkerTest()] (see its *Exact fit*),
 #'   where it gave 60 on 30 degrees of freedom on 30 subjects of two
-#'   observations.
+#'   observations. It refuses it when the design forces it, decided from the
+#'   squared pseudo-residuals it carries in the same pass, as
+#'   [performKoenkerTest()] decides it; a fit the data make exact gives a
+#'   value.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.

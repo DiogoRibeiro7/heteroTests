@@ -78,7 +78,8 @@ NULL
 #' residuals exactly, as on a paired design, as [performKoenkerTest()] refuses
 #' it (see its *Exact fit*), and so does the registered `"student_bp"`: on 30
 #' subjects of two observations it gave 60 on 30 degrees of freedom, the
-#' number of observations.
+#' number of observations. Only a fit the design forces is refused; one the
+#' data make exact gives a value, as up to 0.17.0.
 #'
 #' @references
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.

@@ -123,15 +123,29 @@
 #' 30 degrees of freedom (p = 0.0004) on homoscedastic data, the value of
 #' `lmtest::bptest(..., studentize = FALSE)`, and on `lm(y ~ x1 + f)` with a
 #' factor of 10 levels of two observations, 28.03 on 10 (p = 0.002). Since
-#' 0.18.0 it refuses such a regression, where it returned that statistic, as
-#' White's test has refused it since 0.16.0 (see *Too few observations* in
-#' [performWhiteTest()]). The refusal is an error of class
+#' 0.18.0 it refuses such a regression when the design forces it, where it
+#' returned that statistic, as White's test refuses it (see *Too few
+#' observations* in [performWhiteTest()]). The refusal is an error of class
 #' `heteroTests_exact_fit_error`, whose message says why and asks for more
 #' observations per level: the design forces the exact fit, and more levels
 #' of two observations do not help. A fit counts as exact by the rule of
 #' White's test, when its residual sum of squares is at most
 #' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
 #' sum of squares of the squared residuals.
+#' The design forces it when the regression would fit the squares of the
+#' residuals of any response: the test pushes a fixed pseudo-response, the
+#' fractional parts of \eqn{i} times the golden ratio for the \eqn{i}-th
+#' observation, which draws nothing from the random number generator, through
+#' the QR decomposition of the fit, with its weights, and refuses only when
+#' the same regressors fit the squares of its residuals exactly too. A fit the
+#' data make exact is tested, as up to 0.17.0: in a one-way layout of nine
+#' groups of ten observations and one of two, with a value of the group of two
+#' typed 100 times too large, the dummies fit the squared residuals to within
+#' \eqn{1.1 \times 10^{-9}} of their total sum of squares, an exact fit by the
+#' rule, and the test gives 2069.35 on 9 degrees of freedom. A fit without a QR
+#' decomposition, such as an `mgcv::gam()` fit tested on its design, is
+#' refused, with a message that says only that the regression fits the squared
+#' residuals exactly.
 #'
 #' [performBPTestStreaming()], the registered `"breusch_pagan"`,
 #' `performBreuschPaganTest()`, [performBPTestRobust()] with
@@ -143,8 +157,9 @@
 #' regression can fit the squared residuals, or a function of them, exactly
 #' refuse such a fit by the same rule (see *Exact fit* in
 #' [performKoenkerTest()]). [autoTransform()], which chooses a transformation
-#' by the p-value of this test, stops with the refusal on such a design, where
-#' every candidate fit is an exact one.
+#' by the p-value of this test, leaves out a candidate fit it refuses and stops
+#' with the refusal when every candidate is refused, as on such a design; on
+#' the one-way layout above it chooses `boxcox`, as up to 0.17.0.
 #'
 #' The refusal covers the exact fit only. One step away from it, with one of
 #' the 30 subjects observed a third time, the test gives 64.74 on 30

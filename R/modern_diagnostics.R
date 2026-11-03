@@ -226,7 +226,8 @@
 #'   regression fits the squared residuals exactly, as on a paired design,
 #'   where every replicate does too: on 30 subjects of two observations it
 #'   gave 60, the number of observations, with a p-value of 1. The refusal
-#'   comes before the replicates are drawn.
+#'   comes before the replicates are drawn. Only a fit the design forces is
+#'   refused; one the data make exact is bootstrapped, as up to 0.17.0.
 #'
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
@@ -656,7 +657,8 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #'   fit*), where the statistic was the number of observations: on a paired
 #'   design of 30 subjects of two observations with `variance_threshold = 1`,
 #'   which keeps every component, 60 on 30. The default keeps 26 there, which
-#'   do not fit them exactly, and gives a value.
+#'   do not fit them exactly, and gives a value. Only a fit the design forces
+#'   is refused; one the data make exact gives a value, as up to 0.17.0.
 #'
 #' @references
 #' Fan, J., & Lv, J. (2008). Sure independence screening for ultrahigh dimensional

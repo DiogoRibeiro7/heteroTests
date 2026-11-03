@@ -57,7 +57,8 @@ the rule and with the class of [`performKoenkerTest()`](performKoenkerTest.md) (
 fit*), where the statistic was the number of observations: on a paired
 design of 30 subjects of two observations with `variance_threshold = 1`,
 which keeps every component, 60 on 30. The default keeps 26 there, which
-do not fit them exactly, and gives a value.
+do not fit them exactly, and gives a value. Only a fit the design forces
+is refused; one the data make exact gives a value, as up to 0.17.0.
 
 ## Supported models
 
