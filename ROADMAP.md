@@ -2470,7 +2470,11 @@ announced in bold in `NEWS.md`.
     both, at the threshold of White's test, in a pull request of their own.
     Refuses calls that return a value. Since 0.16.0 both warn on that design,
     whose 30 levels of two observations are fixed effects for small groups
-    (the item on them, under 0.16.0); the refusal is still to do.
+    (the item on them, under 0.16.0); the refusal is still to do. Since #183
+    `performKoenkerTest()` no longer calls `summary.lm()`, so on such a fit it
+    no longer gives that function's warning "essentially perfect fit: summary
+    may be unreliable": on `lm(y ~ x1 + f)` with 10 levels of 2 observations
+    0.17.0 warned and #183 gives the same 20 on 10 without it.
   - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
     are the number of columns of the design but its intercept, not the rank
     of their auxiliary regression less its intercept, as White's are since N2:
@@ -2483,13 +2487,15 @@ announced in bold in `NEWS.md`.
     4; the streaming forms refuse that model ("auxiliary regression became
     rank deficient"), as before the pull request of N3. Found by that pull
     request. Take the rank, as White's test does; changes a p-value, and
-    makes the streaming refusals values. Done in #183: both tests and their
-    streaming forms take the rank of the auxiliary regression less its
-    intercept, decided by the code of White's test on the regressors centred
-    one by one (`rauxiliary_columns()`, `R/performWhiteTest.R`). On
-    `lm(y ~ 0 + group + x1)` the Breusch-Pagan test gives 8.653 on 4
-    (p = 0.0704, was 0.1237 on 5) and Koenker's 10.52 on 4 (p = 0.0325, was
-    0.0617 on 5), the values of `lm(y ~ x1 + group)` and of
+    makes the streaming refusals values. Done in #183: both tests take the
+    rank of the auxiliary regression less its intercept, decided by the code
+    of White's test on the regressors centred one by one
+    (`rauxiliary_columns()`, `R/performWhiteTest.R`), and their streaming
+    forms the rank they decide in `chunked_regression_r2()`
+    (`R/performance.R`) by the same rule, where they refused a rank
+    deficiency. On `lm(y ~ 0 + group + x1)` the Breusch-Pagan test gives
+    8.653 on 4 (p = 0.0704, was 0.1237 on 5) and Koenker's 10.52 on 4
+    (p = 0.0325, was 0.0617 on 5), the values of `lm(y ~ x1 + group)` and of
     `lmtest::bptest()`, which takes the rank of its auxiliary fit too, so the
     package now agrees with it there; the streaming forms give them where they
     refused, and `performBPTestRobust(studentize = FALSE)`, whose interval
@@ -2497,19 +2503,57 @@ announced in bold in `NEWS.md`.
     `"koenker"` follow: `runHeteroTests()` asked to stream them
     (`chunk_threshold_mb`) gives the streamed values, where it fell back on
     the Cook-Weisberg test, 3.79 on 1, under their names. Changes a p-value.
-    A model whose only regressor is constant has no regressor beyond the
-    intercept and is refused by all four ("requires at least one predictor
-    beyond the intercept"), where the exact tests gave 0 on 1 and the
-    streaming ones refused it as rank deficient. The audit of the other tests
-    of an auxiliary regression of the residuals: `performWildBootstrapTest()`
-    reported the number of regressors as its degrees of freedom and reports
-    the rank, its bootstrap p-value unchanged; the studentized statistic
-    (`performStudentizedBPTest()`, `performBPTestRobust(studentize = TRUE)`,
-    `"student_bp"`), the Cook-Weisberg test (`var_formula` too), Harvey's test
-    and the variance form test took the rank already; Glejser's, Park's, the
-    spread-level and the Davidian-Carroll tests regress on one variable; and
-    the high-dimensional test counts the principal components it keeps. No
-    study of `inst/validation/` fits such a model.
+    The auxiliary regression is fitted from the matrix of the columns kept
+    (`rauxiliary_fit()`), on the centred columns where those as they are lose
+    one, not by `lm()` from a formula on the columns as they are, and that
+    changes the statistic on three kinds of design of full rank, from a
+    wrong value to that of `lmtest::bptest()` and of the streaming forms,
+    which had it already (from the review of #183): a model without an
+    intercept with a regressor far from zero, which that fit dropped as a
+    combination of its intercept while the degrees of freedom counted it,
+    `lm(y ~ 0 + I(x1 + 1e8) + x2)` in the design of `contract_data()` giving
+    2.850 on 2 (p = 0.241) for 16.72 (p = 0.0002) and Koenker's 2.372
+    (p = 0.305) for 13.92 (p = 0.001), the values of `lmtest::bptest()` with
+    `varformula = ~ x1 + x2`; a Gaussian `glm`, which keeps at a tolerance of
+    1e-11 a regressor that `lm()` would alias, `glm(y ~ I(1e6 + x1 / 10) + x2)`
+    giving 2.005 for 12.45 and 1.457 for 9.044, the values of
+    `lm(y ~ x1 + x2)`; and a regressor named `scaled_sq` or `e_squared`, which
+    the formula of the Breusch-Pagan or the Koenker test took for its response,
+    `lm(y ~ scaled_sq + x2)` giving 102.0 for 12.45 and `lm(y ~ e_squared + x2)`
+    0.014 for 9.044. Changes a value there; on the 17 other fits of full rank
+    the review compared, every result was `identical()` to 0.17.0's.
+    A model whose only regressor is constant, `lm(y ~ 0 + one)`, has no
+    regressor beyond the intercept and is refused by all four ("requires at
+    least one predictor beyond the intercept"), where the exact tests gave 0
+    on 1 and the streaming ones refused it as rank deficient; the exact and
+    streaming forms refuse it with the error of a model with an intercept
+    alone, a `simpleError` with the same message, as the "rank deficient"
+    refusal was a `simpleError` too, of the `rassumption_violation` template
+    of `.std_error()`, whose "Results may be unreliable" does not fit a
+    refusal. Koenker's streaming test named the Breusch-Pagan test in that
+    refusal, and names its own. `runHeteroTests()` on that model, which
+    returned those values, stops with the refusal, as on `lm(y ~ 1)`, and
+    advises "Fit a model with a regressor that varies", where it advised
+    removing `one`, its only regressor, as it did on `lm(y ~ 1)` when `data`
+    held a constant column: on a model whose design is constant the constant
+    columns of `data` are no longer advised away (`ht_constant_design()`,
+    `R/error_handling.R`). The audit of the other tests of an auxiliary
+    regression of the residuals: `performWildBootstrapTest()` reported the
+    number of regressors as its degrees of freedom and reports the rank, and
+    computed its statistic, for the data and each replicate, by the formula
+    of `lm()` too, and computes it on the auxiliary regression of Koenker's
+    test, so that on the far-from-zero model it gives 13.92 where it gave
+    2.372, the statistic of `x2` alone, and a p-value of that statistic; its
+    values on other fits are those of 0.17.0 (four fits at a fixed seed, to
+    the last bit), and it refuses the model whose regressors are all
+    constant, on which it gave 0 on 1, p = 1, a test that cannot reject. The
+    studentized statistic (`performStudentizedBPTest()`,
+    `performBPTestRobust(studentize = TRUE)`, `"student_bp"`), the
+    Cook-Weisberg test (`var_formula` too), Harvey's test and the variance
+    form test took the rank already; Glejser's, Park's, the spread-level and
+    the Davidian-Carroll tests regress on one variable; and the
+    high-dimensional test counts the principal components it keeps. No study
+    of `inst/validation/` fits such a model.
   - The studentized statistic (`performStudentizedBPTest()`,
     `performBPTestRobust(studentize = TRUE)`, `"student_bp"`) regresses the
     centred squared residuals on the design of the fit without adding an
