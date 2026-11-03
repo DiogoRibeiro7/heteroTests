@@ -251,7 +251,7 @@ performVarianceFormTest <- function(model, data = NULL, var_formula = NULL,
   # regression and the added terms are tested beyond them.
   added <- rvariance_added_terms(weighted, data, against, variance, ctx)
   restricted <- cbind("(Intercept)" = 1, variance$regressors)
-  test <- radded_terms_f_test(r, restricted, added$matrix)
+  test <- radded_terms_f_test(r, restricted, added$matrix, qr = weighted$qr)
 
   # The constant of a log-variance regression is shifted by E[log(e^2)], so it
   # does not estimate the constant of the variance function and is left out.
@@ -371,11 +371,13 @@ rvariance_added_terms <- function(weighted, data, against, variance, ctx) {
 #' @param r Response.
 #' @param restricted Design matrix under the null, including its constant.
 #' @param added Matrix of added terms.
+#' @param qr The QR decomposition of the weighted fit `r` comes from, or `NULL`
+#'   (rforced_exact_fit()).
 #' @return A list with `statistic`, `df1`, `df2` and `retained`, the names of
 #'   the added terms that were not aliased.
 #' @keywords internal
 #' @noRd
-radded_terms_f_test <- function(r, restricted, added) {
+radded_terms_f_test <- function(r, restricted, added, qr = NULL) {
   fit0 <- stats::lm.fit(restricted, r)
   fit1 <- stats::lm.fit(cbind(restricted, added), r)
 
@@ -416,11 +418,18 @@ radded_terms_f_test <- function(r, restricted, added) {
   # freedom with `var_formula = ~ z`, z constant in each pair of the paired
   # design of White's exact fit, and `against = ~ subject`. Refused since
   # 0.18.0 at the threshold of White's test, as the Breusch-Pagan and
-  # Koenker tests refuse such a fit; the restricted design holds the constant.
+  # Koenker tests refuse such a fit, when the design of the weighted fit
+  # forces it (rforced_exact_fit()); the restricted design holds the constant.
   if (rauxiliary_fit_exact(fit1)) {
-    rrefuse_auxiliary_exact_fit("the variance form test", fit1$rank, length(r),
-                                rexact_fit_statistic$f, regressors_exact = NA,
-                                response = "the squared standardized residuals")
+    forced <- rforced_exact_fit(qr, function(e) {
+      rauxiliary_fit_exact(stats::lm.fit(cbind(restricted, added), e^2))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the variance form test", fit1$rank, length(r),
+                                  rexact_fit_statistic$f, regressors_exact = NA,
+                                  response = "the squared standardized residuals",
+                                  forced = forced)
+    }
   }
 
   retained <- names(fit1$coefficients)[!is.na(fit1$coefficients)]
