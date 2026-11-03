@@ -2085,6 +2085,29 @@ Breusch-Pagan:
 levels, every cell with its degrees of freedom, the variants, the mean
 statistic, and the search for a rule.
 
+**The T = 2 cells of Koenker's and the Breusch-Pagan tests are exact fits,
+which the package refuses since 0.18.0.** With two observations per subject
+the residuals of a subject are equal and opposite, so their squares are a
+combination of the subject dummies, and the auxiliary regression of both
+tests fits them exactly, as White's does (n/r above). Koenker's statistic is
+then the number of observations in every draw: its mean is 20, 40, 60, 100,
+200 and 400 on the six cells of 10 to 200 subjects, with a variance below
+1e-27, so the test rejects in all of them. The Breusch-Pagan statistic is
+half the total sum of squares of the scaled squared residuals, a function of
+their spread alone, and rejects in 25.8% to 100%. Since 0.18.0 both tests
+refuse these fits, as White's test has since 0.16.0 (`?performKoenkerTest`,
+*Exact fit*), so these twelve cells measure calls the package no longer
+computes. Their rows in `fixed-effects-size.csv` and
+`fixed-effects-size-10000.csv` are kept as measured, with the status
+`computed` of 0.15.0, and the study was not run again. No other cell is an
+exact fit. With three observations per subject the auxiliary regression
+explains about half the total sum of squares: Koenker's mean statistic is
+148.7 for 300 observations on 100 subjects and 298.9 for 600 on 200, close
+to its degrees of freedom plus (G - 1) / (T - 1), 149.5 and 299.5, so the
+99.85% and 100% rejections of those cells are the over-rejection of fixed
+effects for small groups, not an exact fit. The unbalanced block, whose
+subjects have 2 to 6 observations, explains about 31%.
+
 **Where the excess comes from.** `fixed-effects-dummies.R` splits the
 auxiliary regression of Koenker's and the Breusch-Pagan statistics, on the
 same 2000 replications per design, into the regression of the squared

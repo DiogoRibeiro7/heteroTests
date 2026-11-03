@@ -2459,7 +2459,7 @@ announced in bold in `NEWS.md`.
     the model with the checks of `validateTestInputs()`), which the tests and
     `runHeteroTests()` accept since 0.16.0. Accepting it makes a refusal a
     value.
-  - Koenker's and the Breusch-Pagan tests fit the squared residuals exactly
+  - [x] Koenker's and the Breusch-Pagan tests fit the squared residuals exactly
     on the same designs, since their auxiliary regression is on the
     regressors: on the paired design of White's exact fit (under 0.16.0)
     `performKoenkerTest()` gives
@@ -2474,7 +2474,76 @@ announced in bold in `NEWS.md`.
     `performKoenkerTest()` no longer calls `summary.lm()`, so on such a fit it
     no longer gives that function's warning "essentially perfect fit: summary
     may be unreliable": on `lm(y ~ x1 + f)` with 10 levels of 2 observations
-    0.17.0 warned and #183 gives the same 20 on 10 without it.
+    0.17.0 warned and #183 gives the same 20 on 10 without it. Done in #184:
+    both tests, and their streaming forms with the same message, refuse an
+    auxiliary regression whose residual sum of squares is at most
+    `sqrt(.Machine$double.eps)` of the total, the rule of White's test, now
+    one function that White's test calls too (`rauxiliary_exact()`,
+    `R/performWhiteTest.R`). On the paired design they refuse where they gave
+    60 and 63.25 on 30, and on `lm(y ~ x1 + f)` where they gave 20 and 28.03
+    on 10, before the warning on fixed effects for small groups, as White's
+    test does. The message is White's, built by the same code
+    (`rrefuse_exact_fit()`): "The auxiliary regression of Koenker's test fits
+    the squared residuals exactly: the squared residuals are a combination of
+    its 31 independent terms with its intercept, for 60 observations. Its
+    R-squared is 1 and its statistic the number of observations, whatever the
+    data. The design forces the exact fit, as a factor with two observations
+    per level does, however many levels it has; use more observations per
+    level."; the Breusch-Pagan test's says its statistic is "a function of
+    the spread of the squared residuals alone, whatever their pattern". Its
+    class is a general one, `heteroTests_exact_fit_error`, not White's, whose
+    name and field `regressors_exact` are about White's auxiliary design; White's
+    refusal carries it too, after its own `heteroTests_white_exact_fit`, with
+    its message unchanged, so that one class catches every exact fit.
+    `ht_final_exact_fit()` reads the general class, and the new refusals say
+    that the regressors fit the squared residuals exactly, so in
+    `runHeteroTests()` they are final: `"breusch_pagan"` and `"koenker"`,
+    streamed or not, stop with the message where they returned the
+    statistic, without the Cook-Weisberg test, their last fallback, under
+    their name; the runner drops the class, as it does on White's refusal
+    (keeping it, as #182 does for the refusal of rows, is left to decide). A
+    fallback that refuses ends the search, so `"high_dimensional"`, which
+    refuses 20 observations, no longer returns the Breusch-Pagan test's 28.03
+    on 10 under its name on `lm(y ~ x1 + f)`. The audit of the other tests of
+    an auxiliary regression of the squared residuals, on the paired design:
+    the studentized statistic (`performStudentizedBPTest()`,
+    `performBPTestRobust(studentize = TRUE)` with or without the bootstrap,
+    `"student_bp"`), 60 on 30, `performBPTestRobust(studentize = FALSE)`,
+    63.25, and `bootstrapTestStatistic()` of either test (p = 1 for
+    Koenker's) refuse it with the refusal of the test they compute; the wild bootstrap, which gave
+    60 with p = 1, every replicate an exact fit too, refuses it before the
+    replicates; the Cook-Weisberg test with `var_formula = ~ treat + subject`
+    (63.25 on 30), Harvey's test of the regressors (63.07 on 30, and an
+    infinite F studentized), the high-dimensional test with
+    `variance_threshold = 1`, which keeps every component (60 on 30), and the
+    variance form test with a variance regressor constant in each pair and
+    `against = ~ subject` (F = 4.06e29 on 28 and 30) refuse it by the same
+    rule, with `regressors_exact` unknown (`NA`) for the Cook-Weisberg,
+    Harvey and variance form tests, whose regression need not be on the
+    regressors. Not exact fits there, and unchanged: the Cook-Weisberg test
+    of the fitted values (0.608 on 1), Harvey's of the fitted values and
+    their square, the high-dimensional test with its default 26 components
+    (56.84 on 26), Glejser's and Park's tests of one variable, and Bartlett's
+    test of groups of two; Levene's, Brown-Forsythe's and Fligner-Killeen's
+    refuse groups of two already. `autoTransform()`, which chooses by the
+    p-value of the Breusch-Pagan test, stops with its refusal on such a
+    design. One step away, with a subject observed a third time or 20
+    subjects of three, every test gives the value it gave. In
+    `inst/validation/fixed-effects-size.csv` the T = 2 cells of the two tests,
+    10 to 200 subjects, are such fits (Koenker's mean statistic is n, and the
+    Breusch-Pagan test rejects in 25.8% to 100%): the README says so, and the
+    rows are kept as measured; no T = 3 or other cell is one. One test of the
+    warning moved from two observations a cell to three
+    (`test-fixed-effects-warning.R`, the crossed `a * b`). Refuses calls that
+    returned a value.
+  - Found by the audit of #184: on the paired design Glejser's test of
+    `treat`, which takes the values 0 and 1 in each pair, gives 1.1e-15 on 58
+    degrees of freedom (p = 1), since the absolute residuals of a pair are
+    equal and their regression on `treat` has a slope of 0 whatever the data:
+    a test that cannot reject. Any test of a variable that varies only within
+    pairs, balanced as `treat` is, gives 0 there. Not an exact fit, and not
+    changed. Refuse such a variable, or say so on the help pages; changes a
+    value, or none.
   - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
     are the number of columns of the design but its intercept, not the rank
     of their auxiliary regression less its intercept, as White's are since N2:
@@ -2677,6 +2746,12 @@ be frozen, and the decisions still open.
   measured, so that the article can say it. Found by the review of the
   article's update to 0.17.0; the last three studies were added after the
   article's additions.
+
+  The article's range for fixed effects for small groups, 22% to 98%, comes
+  from `fixed-effects-size.csv`, whose T = 2 cells of the Breusch-Pagan and
+  Koenker tests are refusals since 0.18.0 (#184; the README says so, and the
+  rows are kept as measured). The article reads only the cells of 30 subjects
+  of 3 and of 4, 100 of 8 and 200 of 4, none of them an exact fit.
 - [ ] **The performance study the R Journal article reads, on the code to be
   frozen.** The article and its supplement read their timings and memory
   allocations from three extracts in the article's repository,
