@@ -60,8 +60,12 @@ scale to datasets that would otherwise exhaust available RAM.
 The streaming implementation builds the auxiliary design, the regressors,
 their squares and their cross-products, chunk by chunk, without
 materialising it whole. Each chunk is reduced by a QR decomposition stacked
-on the triangular factor of the chunks before it, which holds the
-cross-products of every row without forming them. The rank of the auxiliary
+on the factor of the chunks before it, which holds the cross-products of
+every row without forming them: since 0.18.0 LAPACK's, with column
+pivoting, which scales a column left with a tiny norm before dividing by it,
+where LINPACK's without pivoting could overflow on the terms that are
+combinations of others, as the squares and products of dummies are, and
+stop ("NA/NaN/Inf in foreign function call"). The rank of the auxiliary
 regression and its \eqn{n R^2} statistic are computed from that factor as
 in \code{\link[=performWhiteTest]{performWhiteTest()}}, ensuring numerical equivalence while reducing peak
 memory usage: the regressors are centred at their means, the rank is that of

@@ -399,8 +399,12 @@ koenker_response_builder <- function(residuals_chunk) {
 #' The streaming implementation builds the auxiliary design, the regressors,
 #' their squares and their cross-products, chunk by chunk, without
 #' materialising it whole. Each chunk is reduced by a QR decomposition stacked
-#' on the triangular factor of the chunks before it, which holds the
-#' cross-products of every row without forming them. The rank of the auxiliary
+#' on the factor of the chunks before it, which holds the cross-products of
+#' every row without forming them: since 0.18.0 LAPACK's, with column
+#' pivoting, which scales a column left with a tiny norm before dividing by it,
+#' where LINPACK's without pivoting could overflow on the terms that are
+#' combinations of others, as the squares and products of dummies are, and
+#' stop ("NA/NaN/Inf in foreign function call"). The rank of the auxiliary
 #' regression and its \eqn{n R^2} statistic are computed from that factor as
 #' in [performWhiteTest()], ensuring numerical equivalence while reducing peak
 #' memory usage: the regressors are centred at their means, the rank is that of
@@ -616,7 +620,7 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   metadata describing the chunking configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
+#'   by a QR decomposition stacked on the factor of the chunks
 #'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the
@@ -765,7 +769,7 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   additional metadata describing the streaming configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
+#'   by a QR decomposition stacked on the factor of the chunks
 #'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the

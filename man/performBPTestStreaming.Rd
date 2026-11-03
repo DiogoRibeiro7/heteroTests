@@ -31,7 +31,7 @@ memory. The streamed result is algebraically identical to
 }
 \details{
 Each chunk of the regressors, centred at their means, is reduced by a QR
-decomposition stacked on the triangular factor of the chunks before it, as in
+decomposition stacked on the factor of the chunks before it, as in
 \code{\link{performWhiteTestStreaming}()}, since 0.17.0. Up to 0.16.0 the
 cross-products of the regressors were accumulated: those of a regressor 1,000
 standard deviations from zero looked collinear with the intercept, and the test
