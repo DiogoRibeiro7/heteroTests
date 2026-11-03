@@ -258,20 +258,22 @@ white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10
   }
 }
 
-bp_predictor_builder <- function(model_matrix) {
+# The refusal of a model with an intercept alone names the test: until 0.18.0
+# Koenker's streaming test refused it as "Breusch-Pagan test requires ...".
+bp_predictor_builder <- function(model_matrix, test_label = "Breusch-Pagan test") {
   if (colnames(model_matrix)[1] == "(Intercept)") {
     predictors <- model_matrix[, -1, drop = FALSE]
   } else {
     predictors <- model_matrix
   }
   if (ncol(predictors) == 0) {
-    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
+    stop(test_label, " requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   predictors
 }
 
 koenker_predictor_builder <- function(model_matrix) {
-  bp_predictor_builder(model_matrix)
+  bp_predictor_builder(model_matrix, "Koenker test")
 }
 
 white_response_builder <- function(residuals_chunk) {
