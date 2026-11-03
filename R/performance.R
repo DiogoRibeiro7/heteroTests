@@ -53,12 +53,12 @@ rstreaming_design <- function(ctx) {
 # (rstreaming_design()), so the means cost one pass over it; what is built
 # chunk by chunk is the auxiliary design.
 #
-# Each chunk joins the triangular factor of the chunks before it: R of the QR
+# Each chunk joins the factor of the chunks before it: R of the QR
 # decomposition of every row so far, with the response as its last column,
-# from the QR decomposition, without pivoting (`tol = 0`), of that factor
-# stacked on the rows of the chunk. R'R is the matrix of cross-products of
-# every row, but the cross-products are never formed, so the condition of the
-# auxiliary design is not squared. The rank of the auxiliary regression is
+# from the QR decomposition of that factor stacked on the rows of the chunk
+# (rchunk_factor()). R'R is the matrix of cross-products of every row, but the
+# cross-products are never formed, so the condition of the auxiliary design is
+# not squared. The rank of the auxiliary regression is
 # that of the factor at the tolerance of qr(), 1e-7, decided by qr() in the
 # order of the columns: a column is dropped when less than 1e-7 of its norm is
 # not a combination of the columns kept before it. The factor has the norms
@@ -100,9 +100,9 @@ rstreaming_design <- function(ctx) {
 # more response of them, a column after the response in the same pass, from
 # which the regression of that response on the same predictors is computed,
 # so that the streaming tests tell whether the design forces an exact fit
-# (rforced_exact_fit()) without another pass over the design. A column after
-# the others leaves the factor of the columns before it as it was, to the last
-# bit, since each Householder reflection is made from its own column.
+# (rforced_exact_fit()) without another pass over the design. The factor is a
+# function of every column it holds, so carrying them can move the last bits
+# of the statistic, not more.
 chunked_regression_r2 <- function(design, residuals, chunk_size,
                                   predictor_builder, response_builder,
                                   progress = FALSE, progress_label = "Processing chunks",
@@ -177,7 +177,7 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     if (!is.null(pseudo)) {
       block <- cbind(block, as.numeric(response_builder(pseudo[idx])))
     }
-    factor <- qr.R(qr(rbind(factor, block), tol = 0))
+    factor <- rchunk_factor(factor, block)
 
     y_sum <- y_sum + sum(response)
     y_sq_sum <- y_sq_sum + sum(response^2)
@@ -193,10 +193,10 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
   columns <- ncol(factor) - 1L - !is.null(pseudo)
   pseudo_stats <- list()
   if (!is.null(pseudo)) {
-    # Without the response, the rows of the factor are an orthogonal transform
-    # of the predictors and the squared pseudo-residuals, whose regression
-    # they give; the factor of the predictors and the response is its leading
-    # block, the factor computed without the pseudo-residuals.
+    # The rows of the factor are an orthogonal transform of the rows of every
+    # column it holds, so any of its columns give their regressions: the
+    # predictors and the squared pseudo-residuals here, the predictors and the
+    # response below.
     pseudo_factor <- factor[, c(seq_len(columns), columns + 2L), drop = FALSE]
     pseudo_decomposition <- qr(pseudo_factor[, seq_len(columns), drop = FALSE])
     pseudo_effects <- qr.qty(pseudo_decomposition, pseudo_factor[, columns + 1L])
@@ -205,8 +205,7 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
       pseudo_total = sum(pseudo_effects[-1L]^2),
       pseudo_factor = pseudo_factor
     )
-    factor <- factor[seq_len(min(nrow(factor), columns + 1L)), seq_len(columns + 1L),
-                     drop = FALSE]
+    factor <- factor[, seq_len(columns + 1L), drop = FALSE]
   }
   decomposition <- qr(factor[, seq_len(columns), drop = FALSE])
   rank <- decomposition$rank
@@ -248,6 +247,32 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
 rstreaming_pseudo <- function(ctx) {
   qr <- rcontext_qr(ctx)
   if (is.null(qr)) NULL else rpseudo_residuals(qr)
+}
+
+# The factor of `rows` stacked under `factor`, that of the rows before them:
+# R of the QR decomposition of the stack, by LAPACK's decomposition with
+# column pivoting (dgeqp3), its columns put back in their order, so that its
+# rows are an orthogonal transform of every row so far, R'R their matrix of
+# cross-products. It need not be triangular, and it does not need to be: each
+# chunk decomposes it again, and chunked_regression_r2() reads it through
+# qr(), which decides the rank. LAPACK makes each reflection with dlarfg(),
+# which scales a column whose norm is below the safe minimum before dividing
+# by it. Until #184 the stack was decomposed by LINPACK's dqrdc2 without
+# pivoting (`tol = 0`), which makes a reflection from every column, however
+# small what is left of it: the columns of an auxiliary design that are
+# combinations of others, as the squares and products of dummies in White's
+# test are, leave rounding error, from which a reflection is made, and the
+# next such column what is left of it after that one, about the square of the
+# rounding error, and so on down. dqrdc2 divides each column by its norm,
+# its only operation that can give a value that is not finite, and does when
+# the norm is below the reciprocal of the largest double. Under the noisy BLAS
+# of cran-blas.yml the next chunk then stopped on "NA/NaN/Inf in foreign
+# function call", in White's streaming test of the one-way layout of
+# test-exact-fit.R, on all three seeds; a column of norm 1e-310 does it on any
+# BLAS (test-streaming.R).
+rchunk_factor <- function(factor, rows) {
+  stacked <- qr(rbind(factor, rows), LAPACK = TRUE)
+  qr.R(stacked)[, order(stacked$pivot), drop = FALSE]
 }
 
 rstreaming_forced <- function(stats) {
