@@ -57,7 +57,8 @@
 #' spread alone, and the studentized F infinite. On 30 subjects of two
 #' observations, `lm(y ~ treat + subject)`, whose squared residuals are equal
 #' in each pair, the regressors gave 63.07 on 30 degrees of freedom and the
-#' studentized form an infinite F.
+#' studentized form an infinite F. Only a fit the design forces is refused;
+#' one the data make exact gives a value, as up to 0.17.0.
 #'
 #' The implementation validates the model via
 #' \link[=rvalidateModelInputs]{rvalidateModelInputs()} and applies

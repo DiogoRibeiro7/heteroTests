@@ -54,7 +54,10 @@ became rank deficient").
 Since 0.18.0 the test refuses an auxiliary regression that fits the squared
 residuals exactly, as on a paired design, by the rule and with the message and
 class of \code{\link{performKoenkerTest}()} (see its \emph{Exact fit}), where it
-gave 60 on 30 degrees of freedom on 30 subjects of two observations.
+gave 60 on 30 degrees of freedom on 30 subjects of two observations. It
+refuses it when the design forces it, decided from the squared pseudo-residuals
+it carries in the same pass, as \code{\link{performKoenkerTest}()} decides it; a
+fit the data make exact gives a value.
 
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 \code{\link{performWhiteTestStreaming}()}, whose details say what changed.

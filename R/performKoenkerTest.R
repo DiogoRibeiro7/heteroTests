@@ -118,17 +118,32 @@
 #' subjects the test gave 60 on 30 degrees of freedom (p = 0.0009) on
 #' homoscedastic data, the value of `lmtest::bptest()`, and on
 #' `lm(y ~ x1 + f)` with a factor of 10 levels of two observations, 20 on 10
-#' (p = 0.029). Since 0.18.0 it refuses such a regression, where it returned
-#' that statistic, as White's test has refused it since 0.16.0 (see *Too few
-#' observations* in [performWhiteTest()]). The refusal is an error of class
+#' (p = 0.029). Since 0.18.0 it refuses such a regression when the design
+#' forces it, where it returned that statistic, as White's test refuses it
+#' (see *Too few observations* in [performWhiteTest()]). The refusal is an error of class
 #' `heteroTests_exact_fit_error`, whose message says why and asks for more
 #' observations per level: the design forces the exact fit, and more levels of
 #' two observations do not help. A fit counts as exact by the rule of White's
 #' test, when its residual sum of squares is at most
 #' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
-#' sum of squares of the squared residuals. Up to 0.17.0 the test gave the
-#' warning of `summary.lm()` there, "essentially perfect fit: summary may be
-#' unreliable", with the value.
+#' sum of squares of the squared residuals.
+#' The design forces it when the regression would fit the squares of the
+#' residuals of any response: the test pushes a fixed pseudo-response, the
+#' fractional parts of \eqn{i} times the golden ratio for the \eqn{i}-th
+#' observation, which draws nothing from the random number generator, through
+#' the QR decomposition of the fit, with its weights, and refuses only when
+#' the same regressors fit the squares of its residuals exactly too. A fit the
+#' data make exact is tested, as up to 0.17.0: in a one-way layout of nine
+#' groups of ten observations and one of two, with a value of the group of two
+#' typed 100 times too large, the dummies fit the squared residuals to within
+#' \eqn{1.1 \times 10^{-9}} of their total sum of squares, an exact fit by the
+#' rule, and the test gives 92 on 9 degrees of freedom. A fit without a QR
+#' decomposition, such as an `mgcv::gam()` fit tested on its design, is
+#' refused, with a message that says only that the regression fits the squared
+#' residuals exactly.
+#' Up to 0.17.0 the test gave the warning of `summary.lm()` on the paired
+#' design, "essentially perfect fit: summary may be unreliable", with the
+#' value.
 #'
 #' [performKoenkerTestStreaming()], the registered `"koenker"`,
 #' [performBPTestRobust()], [performStudentizedBPTest()] and the registered

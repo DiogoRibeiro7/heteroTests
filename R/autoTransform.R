@@ -3,11 +3,13 @@
 #' Chooses between no transformation, log, square root and Box--Cox
 #' based on the Breusch-Pagan test statistic.
 #'
-#' @details Since 0.18.0 it stops with the refusal of [performBPTest()] on a
-#'   design whose auxiliary regression fits the squared residuals exactly, as
-#'   a factor with two observations per level does for every candidate fit
-#'   (see *Exact fit* in [performBPTest()]); it chose between them by a
-#'   statistic of the spread of their squared residuals alone.
+#' @details Since 0.18.0 it leaves out a candidate fit whose auxiliary
+#'   regression the design forces to fit the squared residuals exactly, which
+#'   [performBPTest()] refuses (see its *Exact fit*), and stops with that
+#'   refusal when every candidate is refused, as on a factor with two
+#'   observations per level; it chose between them by a statistic of the
+#'   spread of their squared residuals alone. A candidate drops the rows where
+#'   its response is not finite, so its design can differ from the others'.
 #'
 #' @param model A fitted model of class `lm`.
 #' @return A list with elements `model` (the transformed fit) and

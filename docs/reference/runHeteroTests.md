@@ -137,13 +137,16 @@ substitute and called a data-quality issue), and, since 0.18.0, of a `glm` that 
 (`heteroTests_glm_family_error`). These two refusals, of data that lack rows and of such a `glm`, are no
 longer `simpleError`s since 0.18.0; catch them by their class or as an `error`. Nor is a diagnostic registered under the name of a substitute, as by
 `registerDiagnostic("breusch_pagan", f)`, run after such a refusal.
-An auxiliary regression that fits the squared residuals exactly, as on a paired design, runs no substitute either
-when the regressors alone fit them: refused by White's test since 0.16.0 and, since 0.18.0, by the Breusch-Pagan,
-Koenker, studentized Breusch-Pagan and wild bootstrap tests (see *Exact fit* in [`performKoenkerTest()`](performKoenkerTest.md)),
-where `"breusch_pagan"`, `"koenker"`, `"student_bp"` and `"wild_bootstrap"` returned the
-statistic of that fit. The call stops with its message, as an error without its class, as on White's refusal; and a
-substitute that refuses it ends the search, so that `"high_dimensional"`, which falls back on the
-Breusch-Pagan test, no longer returns that test's statistic of the fit.
+An auxiliary regression that the design forces to fit the squared residuals exactly, as on a paired design, runs no
+substitute either when the regressors alone fit them, or when that is not known: refused by White's test since 0.16.0
+and, since 0.18.0, by the Breusch-Pagan, Koenker, studentized Breusch-Pagan and wild bootstrap tests (see
+*Exact fit* in [`performKoenkerTest()`](performKoenkerTest.md)), where `"breusch_pagan"`, `"koenker"`,
+`"student_bp"` and `"wild_bootstrap"` returned the statistic of that fit. The call stops with its message,
+as an error without its class, as on White's refusal. A substitute that refuses such a fit ends the search, so that
+`"high_dimensional"` on fewer than 25 observations and `"spatial_hetero"` without `listw`, which fall
+back on the Breusch-Pagan test, no longer return its statistic of the fit, and stop with their own refusal. White's
+refusal of as many terms as observations when the regressors alone do not fit them does not end it: the next
+substitute is tried, as before.
 
 The runner runs the exact tests unless `chunk_threshold_mb` asks for the streaming ones,
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), [`performBPTestStreaming()`](performBPTestStreaming.md) and

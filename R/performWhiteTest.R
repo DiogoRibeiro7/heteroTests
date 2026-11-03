@@ -163,6 +163,24 @@
 #' residuals that depart from the fit by \eqn{2 \times 10^{-4}} of their size
 #' leave about \eqn{2 \times 10^{-7}}, and are tested.
 #'
+#' Since 0.18.0 a fit with fewer terms than observations is refused only when
+#' the design forces it, as on the paired design: the test pushes a fixed
+#' pseudo-response through the QR decomposition of the fit and refuses only
+#' when the same terms fit the squares of its residuals exactly too, as
+#' Koenker's and the Breusch-Pagan tests decide it (see *Exact fit* in
+#' [performKoenkerTest()]); whether the regressors alone fit the squared
+#' residuals, which sets the advice and the fallback of [runHeteroTests()],
+#' is asked of those squares too. From 0.16.0 to 0.17.0 the test refused a fit
+#' the data make exact as well, and it gives its value since 0.18.0: in a
+#' one-way layout of nine groups of ten observations and one of two, with a
+#' value of the group of two typed 100 times too large, 92 on 9 degrees of
+#' freedom; and on pairs with the same `x` whose residuals are 1 + x and
+#' -(1 + x), whose squares `x` and its square fit exactly, 80, the number of
+#' observations, on 2. A fit without a QR decomposition, such as an
+#' `mgcv::gam()` fit tested on its design, is refused as before, with a
+#' message that says only that the regression fits the squared residuals
+#' exactly.
+#'
 #' The robust form, the registered `"white"`, [performWhiteTestBootstrap()]
 #' and [performWhiteTestStreaming()] refuse both kinds of exact fit too.
 #' [runHeteroTests()] falls back on White's test without cross products, as on

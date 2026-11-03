@@ -62,7 +62,10 @@ regression became rank deficient").
 Since 0.18.0 the test refuses an auxiliary regression that fits the squared
 residuals exactly, as on a paired design, by the rule and with the message and
 class of [`performBPTest()`](performBPTest.md) (see its *Exact fit*), where it
-gave 63.25 on 30 degrees of freedom on 30 subjects of two observations.
+gave 63.25 on 30 degrees of freedom on 30 subjects of two observations. It
+refuses it when the design forces it, decided from the squared pseudo-residuals
+it carries in the same pass, as [`performBPTest()`](performBPTest.md) decides it; a fit
+the data make exact gives a value.
 
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), whose details say what changed.
