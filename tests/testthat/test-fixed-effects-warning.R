@@ -164,17 +164,26 @@ test_that("the terms of the model count, not its variables", {
     expect_length(fe_capture(fe_tests[[fn]](dropped, d[, c("id", "x", "z", "y")]))$warnings, 0L)
     expect_length(fe_capture(fe_tests[[fn]](removed, d))$warnings, 0L)
   }
-  # A crossed a * b of 10 by 10 levels, two observations a cell: a and b have
-  # 10 levels each for 200 observations, the term a:b 100 cells.
-  crossed <- expand.grid(a = factor(1:10), b = factor(1:10), r = 1:2)
-  crossed$x <- stats::rnorm(200)
-  crossed$y <- crossed$x + stats::rnorm(200)
+  # A crossed a * b of 10 by 10 levels, three observations a cell: a and b
+  # have 10 levels each for 300 observations, the term a:b 100 cells. Up to
+  # 0.17.0 the design had two observations a cell, whose residuals are equal
+  # and opposite, so that the dummies of a:b fit the squared residuals
+  # exactly: since 0.18.0 the two tests refuse it, without the warning, as
+  # White's test does.
+  crossed <- expand.grid(a = factor(1:10), b = factor(1:10), r = 1:3)
+  crossed$x <- stats::rnorm(300)
+  crossed$y <- crossed$x + stats::rnorm(300)
   m <- lm(y ~ x + a * b, data = crossed)
   for (fn in c("performKoenkerTest", "performBPTest")) {
     out <- fe_capture(fe_tests[[fn]](m, crossed))
     expect_length(out$warnings, 1L)
     expect_identical(out$warnings[[1L]]$factors, "a:b")
     expect_identical(out$warnings[[1L]]$levels, 100L)
+  }
+  pairs <- crossed[crossed$r < 3, ]
+  m_pairs <- lm(y ~ x + a * b, data = pairs)
+  for (fn in c("performKoenkerTest", "performBPTest")) {
+    expect_error(fe_capture(fe_tests[[fn]](m_pairs, pairs)), class = "heteroTests_exact_fit_error")
   }
   # A factor-by-factor term without its main effects: 30 cells of 4.
   ab <- expand.grid(a = factor(1:15), b = factor(1:2), r = 1:4)
