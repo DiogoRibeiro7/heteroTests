@@ -39,6 +39,8 @@ Setting `studentize = TRUE` replaces the fixed constant \(\pi^2 / 2\) with the a
 
 Degrees of freedom are taken from the realised rank of the auxiliary design, so a rank-deficient variance model is not credited with degrees of freedom for aliased columns.
 
+Since 0.18.0 the test refuses an auxiliary regression that fits the log squared residuals exactly, by the rule and with the class of [`performKoenkerTest()`](performKoenkerTest.md) (see its *Exact fit*): the classical statistic is then the total sum of squares over \(\pi^2 / 2\), a function of their spread alone, and the studentized F infinite. On 30 subjects of two observations, `lm(y ~ treat + subject)`, whose squared residuals are equal in each pair, the regressors gave 63.07 on 30 degrees of freedom and the studentized form an infinite F.
+
 ## Validation
 
 The default statistic reproduces an independent reconstruction of Harvey (1976) to within `1e-8`; see `tests/testthat/test-pass-a-reference.R`. Simulated size and power are recorded in `inst/validation/pass-a-size-power.csv`.

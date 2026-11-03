@@ -61,6 +61,14 @@
 #' function extended by the added terms, so the test is a studentized Lagrange
 #' multiplier test of the stated form against that extension.
 #'
+#' Since 0.18.0 the test refuses a regression in step 3 that fits
+#' \eqn{r_i} exactly, as [performKoenkerTest()] refuses an exact fit of the
+#' squared residuals (see its *Exact fit*), by the same rule: the dummies of a
+#' factor with two observations per level fit it when the weights are equal in
+#' each pair, and the F statistic was a ratio to rounding error, 4.06e29 on 28
+#' and 30 degrees of freedom on 30 subjects of two observations with a
+#' variance regressor constant in each pair and `against = ~ subject`.
+#'
 #' Step 3 keeps \eqn{g_i} in the regression for a reason. Estimating
 #' \eqn{\gamma} fits the variance along \eqn{g_i}, so those directions say
 #' little about the form: a Breusch--Pagan or Koenker test of the weighted fit

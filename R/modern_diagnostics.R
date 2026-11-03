@@ -221,7 +221,12 @@
 #'   all constant, such as `lm(y ~ 0 + one)`, or with an intercept alone,
 #'   `lm(y ~ 1)`, is refused, since 0.18.0, as
 #'   Koenker's test refuses it: its statistic is 0 in every replicate, and the
-#'   test returned 0 with a p-value of 1.
+#'   test returned 0 with a p-value of 1. Since 0.18.0 it also refuses, as
+#'   [performKoenkerTest()] does (see its *Exact fit*), data whose auxiliary
+#'   regression fits the squared residuals exactly, as on a paired design,
+#'   where every replicate does too: on 30 subjects of two observations it
+#'   gave 60, the number of observations, with a p-value of 1. The refusal
+#'   comes before the replicates are drawn.
 #'
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
@@ -638,7 +643,13 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #'   components to retain. Defaults to `min(10, n - 5)`.
 #'
 #' @return An \code{htest} object summarising the chi-squared statistic
-#'   of the auxiliary regression on principal component scores.
+#'   of the auxiliary regression on principal component scores. Since 0.18.0
+#'   the test refuses components that fit the squared residuals exactly, by
+#'   the rule and with the class of [performKoenkerTest()] (see its *Exact
+#'   fit*), where the statistic was the number of observations: on a paired
+#'   design of 30 subjects of two observations with `variance_threshold = 1`,
+#'   which keeps every component, 60 on 30. The default keeps 26 there, which
+#'   do not fit them exactly, and gives a value.
 #'
 #' @references
 #' Fan, J., & Lv, J. (2008). Sure independence screening for ultrahigh dimensional

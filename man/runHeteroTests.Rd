@@ -26,6 +26,13 @@ substitute and called a data-quality issue), and, since 0.18.0, of a \code{glm} 
 (\code{heteroTests_glm_family_error}). These two refusals, of data that lack rows and of such a \code{glm}, are no
 longer \code{simpleError}s since 0.18.0; catch them by their class or as an \code{error}. Nor is a diagnostic registered under the name of a substitute, as by
 \code{registerDiagnostic("breusch_pagan", f)}, run after such a refusal.
+An auxiliary regression that fits the squared residuals exactly, as on a paired design, runs no substitute either
+when the regressors alone fit them: refused by White's test since 0.16.0 and, since 0.18.0, by the Breusch-Pagan,
+Koenker, studentized Breusch-Pagan and wild bootstrap tests (see \emph{Exact fit} in \code{\link{performKoenkerTest}()}),
+where \code{"breusch_pagan"}, \code{"koenker"}, \code{"student_bp"} and \code{"wild_bootstrap"} returned the
+statistic of that fit. The call stops with its message, as an error without its class, as on White's refusal; and a
+substitute that refuses it ends the search, so that \code{"high_dimensional"}, which falls back on the
+Breusch-Pagan test, no longer returns that test's statistic of the fit.
 
 The runner runs the exact tests unless \code{chunk_threshold_mb} asks for the streaming ones,
 \code{\link{performWhiteTestStreaming}()}, \code{\link{performBPTestStreaming}()} and

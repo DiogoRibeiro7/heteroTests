@@ -83,6 +83,12 @@ rows of `data` matched to its observations (the model context, since
 requirements registered for this test in
 [rvalidateTestRequirements()](rvalidateTestRequirements.md) are met.
 
+Since 0.18.0 it refuses an auxiliary regression that fits the squared
+residuals exactly, as on a paired design, as [`performKoenkerTest()`](performKoenkerTest.md) refuses
+it (see its *Exact fit*), and so does the registered `"student_bp"`: on 30
+subjects of two observations it gave 60 on 30 degrees of freedom, the
+number of observations.
+
 ## Supported models
 
 It accepts an `lm` and a `glm` with the Gaussian family and the identity link,

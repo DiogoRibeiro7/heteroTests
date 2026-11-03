@@ -8,6 +8,8 @@ Harvey (1976) models the error variance as \eqn{\sigma_i^2 = \exp(z_i^\top \gamm
 Setting \code{studentize = TRUE} replaces the fixed constant \eqn{\pi^2 / 2} with the auxiliary residual mean square and refers the overall F statistic to an F distribution. The two forms are asymptotically equivalent under normal errors; the studentized form is more reliable when normality is doubtful, because \eqn{\pi^2 / 2} is the null variance of \eqn{\log \hat{e}^2} only for Gaussian errors.
 
 Degrees of freedom are taken from the realised rank of the auxiliary design, so a rank-deficient variance model is not credited with degrees of freedom for aliased columns.
+
+Since 0.18.0 the test refuses an auxiliary regression that fits the log squared residuals exactly, by the rule and with the class of \code{\link{performKoenkerTest}()} (see its \emph{Exact fit}): the classical statistic is then the total sum of squares over \eqn{\pi^2 / 2}, a function of their spread alone, and the studentized F infinite. On 30 subjects of two observations, \code{lm(y ~ treat + subject)}, whose squared residuals are equal in each pair, the regressors gave 63.07 on 30 degrees of freedom and the studentized form an infinite F.
 }
 \usage{performHarveyTest(model, data = NULL, auxiliary = c("regressors", "fitted"),
                   studentize = FALSE)}

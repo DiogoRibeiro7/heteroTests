@@ -8,6 +8,8 @@ Let \eqn{\hat{e}_i} denote the OLS residuals and \eqn{\hat{\sigma}^2 = \sum_i \h
 With \code{var_formula = NULL} the fitted values are the sole variance regressor, matching the default of \code{car::ncvTest()} and Stata's \code{estat hettest}.
 
 Because the divisor 2 is the null variance of \eqn{\hat{e}^2 / \sigma^2} under normality, the test is sensitive to non-normal errors; \code{\link{performKoenkerTest}} provides the studentized variant, which is robust to non-normal kurtosis.
+
+Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as \code{\link{performCookWeisbergTest}()} refuses it (see its details).
 }
 \section{Deprecated}{\code{performNCVTest()} is deprecated since 0.14.0: use \code{\link{performCookWeisbergTest}}, which gained \code{var_formula} and is the one entry point for the Cook-Weisberg score test. With a variance formula, \code{performNCVTest(model, var_formula)} returns what \code{performCookWeisbergTest(model, var_formula)} returns; without one the two return the same statistic, degrees of freedom and p-value, and \code{performCookWeisbergTest()} labels the result as the Cook-Weisberg test. The old name still works, returns what it returned and warns.}
 \section{Weighted fits}{On a fit with weights the test is computed from the Pearson residuals \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see the section on weighted fits in \code{\link{performKoenkerTest}()}, which also covers weights estimated by \code{\link{fitWLS}()}.}

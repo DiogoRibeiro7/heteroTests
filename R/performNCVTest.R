@@ -41,6 +41,10 @@
 #' [performKoenkerTest()] for the studentized variant, which replaces that
 #' constant with a consistent estimate and is robust to non-normal kurtosis.
 #'
+#' Since 0.18.0 the test refuses a variance model that fits the scaled squared
+#' residuals exactly, as [performCookWeisbergTest()] refuses it (see its
+#' details).
+#'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
 #' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see

@@ -23,6 +23,14 @@ autoTransform(model)
 A list with elements `model` (the transformed fit) and
 `method` indicating the chosen transformation.
 
+## Details
+
+Since 0.18.0 it stops with the refusal of [`performBPTest()`](performBPTest.md) on a
+design whose auxiliary regression fits the squared residuals exactly, as
+a factor with two observations per level does for every candidate fit
+(see *Exact fit* in [`performBPTest()`](performBPTest.md)); it chose between them by a
+statistic of the spread of their squared residuals alone.
+
 ## Examples
 
 ```r

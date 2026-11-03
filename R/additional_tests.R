@@ -74,6 +74,12 @@ NULL
 #' requirements registered for this test in
 #' \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
 #'
+#' Since 0.18.0 it refuses an auxiliary regression that fits the squared
+#' residuals exactly, as on a paired design, as [performKoenkerTest()] refuses
+#' it (see its *Exact fit*), and so does the registered `"student_bp"`: on 30
+#' subjects of two observations it gave 60 on 30 degrees of freedom, the
+#' number of observations.
+#'
 #' @references
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 #' *Journal of Econometrics, 17*(1), 107–112.

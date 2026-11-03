@@ -77,7 +77,12 @@ and the replicates are the ones they were. A model whose regressors are
 all constant, such as \code{lm(y ~ 0 + one)}, or with an intercept alone,
 \code{lm(y ~ 1)}, is refused, since 0.18.0, as
 Koenker's test refuses it: its statistic is 0 in every replicate, and the
-test returned 0 with a p-value of 1.
+test returned 0 with a p-value of 1. Since 0.18.0 it also refuses, as
+\code{\link[=performKoenkerTest]{performKoenkerTest()}} does (see its \emph{Exact fit}), data whose auxiliary
+regression fits the squared residuals exactly, as on a paired design,
+where every replicate does too: on 30 subjects of two observations it
+gave 60, the number of observations, with a p-value of 1. The refusal
+comes before the replicates are drawn.
 }
 \description{
 Calibrates the Breusch-Pagan Lagrange multiplier statistic with a

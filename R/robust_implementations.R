@@ -258,6 +258,13 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' bootstrap p-values and asymptotic confidence intervals. The optional
 #' `studentize` argument toggles between the classic and Koenker versions.
 #'
+#' Since 0.18.0 it refuses, with either value of `studentize` and with or
+#' without the bootstrap, an auxiliary regression that fits the squared
+#' residuals exactly, as on a paired design, as [performBPTest()] and
+#' [performKoenkerTest()] refuse it (see their *Exact fit*): on 30 subjects of
+#' two observations it gave 60 on 30 degrees of freedom with `studentize =
+#' TRUE` and 63.25 on 30 with `FALSE`.
+#'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity
 #' and random coefficient variation. *Econometrica, 47*(5), 1287–1294.

@@ -62,6 +62,11 @@ dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 10.52 on
 4 degrees of freedom, where it stopped ("Koenker auxiliary regression
 became rank deficient").
 
+Since 0.18.0 the test refuses an auxiliary regression that fits the squared
+residuals exactly, as on a paired design, by the rule and with the message and
+class of [`performKoenkerTest()`](performKoenkerTest.md) (see its *Exact fit*), where it
+gave 60 on 30 degrees of freedom on 30 subjects of two observations.
+
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 [`performWhiteTestStreaming()`](performWhiteTestStreaming.md), whose details say what changed.
 

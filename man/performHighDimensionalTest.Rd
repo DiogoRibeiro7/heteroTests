@@ -36,7 +36,13 @@ components to retain. Defaults to \code{min(10, n - 5)}.}
 }
 \value{
 An \code{htest} object summarising the chi-squared statistic
-of the auxiliary regression on principal component scores.
+of the auxiliary regression on principal component scores. Since 0.18.0
+the test refuses components that fit the squared residuals exactly, by
+the rule and with the class of \code{\link[=performKoenkerTest]{performKoenkerTest()}} (see its \emph{Exact
+fit}), where the statistic was the number of observations: on a paired
+design of 30 subjects of two observations with \code{variance_threshold = 1},
+which keeps every component, 60 on 30. The default keeps 26 there, which
+do not fit them exactly, and gives a value.
 }
 \description{
 Applies principal component projections to the design matrix and evaluates a
