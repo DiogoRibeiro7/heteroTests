@@ -41,6 +41,13 @@ autoTransform <- function(model) {
   # candidate that gave one when the chosen fit gave none.
   small_groups <- list()
   chosen_warning <- NULL
+  # A candidate whose auxiliary regression the design forces to fit the
+  # squared residuals exactly is refused by performBPTest() since 0.18.0, and
+  # skipped here: the candidates keep the rows where their response is
+  # finite, so a log or a square root that drops rows fits another design,
+  # which may not force it. The first refusal is given when every candidate
+  # is refused.
+  refused <- NULL
   for (nm in names(xform)) {
     df <- data
     df$ytrans <- xform[[nm]]
@@ -51,7 +58,14 @@ autoTransform <- function(model) {
       intercept = has_intercept
     )
     fit <- lm(formula_trans, data = df)
-    run <- rcache_capture_warnings(performBPTest(fit, df))
+    run <- tryCatch(
+      rcache_capture_warnings(performBPTest(fit, df)),
+      heteroTests_exact_fit_error = function(e) e
+    )
+    if (inherits(run, "heteroTests_exact_fit_error")) {
+      refused <- refused %||% run
+      next
+    }
     p <- run$value$p.value
     small_groups <- c(small_groups, run$warnings)
     if (p > best_p) {
@@ -59,6 +73,9 @@ autoTransform <- function(model) {
       best <- list(model = fit, method = nm, lambda = if (nm == "boxcox") lam else NA)
       chosen_warning <- run$warnings
     }
+  }
+  if (is.null(best) && !is.null(refused)) {
+    stop(refused)
   }
   if (length(small_groups) > 0L) {
     once <- if (length(chosen_warning) > 0L) chosen_warning[1L] else small_groups[1L]
