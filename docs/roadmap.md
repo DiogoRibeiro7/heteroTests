@@ -2345,6 +2345,19 @@ announced in bold in `NEWS.md`.
     `rfligner_residuals()` already computes; scale the tolerance by it. Found
     by the review of #172 (whose test of these fits runs off CRAN only);
     recorded, not fixed. Changes a value on such data.
+- [ ] **Squared residuals that are equal but for rounding.** On
+    `lm(y ~ x)` with `y = 1 + 0.5 x + 0.3 s`, where `s` is 1 or -1, the
+    residuals are 0.3 and -0.3, and their squares differ only in their last
+    bits. With `x = rep(1:20, each = 2)` and `s` alternating, Koenker's test
+    gives 8.13 on 1 (p = 0.004); with `x = 1:40` and `s` in the pattern
+    `(1, -1, -1, 1)`, 15.25 on 1 (p = 9e-5). White's test gives 8.2 and 27.6,
+    from the rounding alone. The streaming forms refuse both, saying the
+    test "requires variation in squared residuals", and the studentized
+    statistic stops on non-finite values. The same on 0.17.0 and with #184,
+    whose rule rightly does not fire, since the regressors do not fit the
+    rounding exactly. Decide the variation of the squared residuals in memory
+    as the streaming forms do, on the scale of the residuals. Found by the
+    review of #184; recorded, not fixed. Makes values refusals on such data.
 - [ ] **`performVIFDiagnostic()` gives a number for an infinite VIF.** On a
     design with exactly collinear columns, such as `x3 = x1 * 3` beside `x1`
     (the `wf_local_variable` workflow of `helper-model-context.R`), the VIF of
@@ -2506,10 +2519,17 @@ announced in bold in `NEWS.md`.
         statistic, without the Cook-Weisberg test, their last fallback, under
         their name; the runner drops the class, as it does on White's refusal
         (keeping it, as #182 does for the refusal of rows, is left to decide). A
-        fallback that refuses ends the search, so `"high_dimensional"`, which
-        refuses 20 observations, no longer returns the Breusch-Pagan test's 28.03
-        on 10 under its name on `lm(y ~ x1 + f)`. The audit of the other tests of
-        an auxiliary regression of the squared residuals, on the paired design:
+        fallback that refuses an exact fit ends the search (a refusal of class
+        `heteroTests_exact_fit_error` whose `regressors_exact` is not `FALSE`;
+        other refusals still go on to the next fallback, as White's refusal of a
+        saturated design, with `regressors_exact = FALSE`, goes on to the
+        Breusch-Pagan test, 3.63 on 6 on 22 observations). So `"high_dimensional"`,
+        which refuses 20 observations, no longer returns the Breusch-Pagan test's
+        28.03 on 10 under its name on `lm(y ~ x1 + f)`, and `"spatial_hetero"`
+        without `listw` stops with its own refusal on 12 subjects of two, where it
+        returned the Breusch-Pagan test's 12.37 on 12. The audit of the other
+        tests of an auxiliary regression of the squared residuals, on the paired
+        design:
         the studentized statistic (`performStudentizedBPTest()`,
         `performBPTestRobust(studentize = TRUE)` with or without the bootstrap,
         `"student_bp"`), 60 on 30, `performBPTestRobust(studentize = FALSE)`,
@@ -2548,6 +2568,27 @@ announced in bold in `NEWS.md`.
         pairs, balanced as `treat` is, gives 0 there. Not an exact fit, and not
         changed. Refuse such a variable, or say so on the help pages; changes a
         value, or none.
+    - [ ] **To fix before 0.18.0 is released: the rule refuses a fit that the
+        data make exact, not the design, and its message blames the design.** It
+        compares the residual sum of squares of the auxiliary regression with the
+        total sum of squares of the squared residuals, and one gross error in a
+        level of two observations can dominate that total. On `lm(y ~ g)` with 9
+        groups of 10 and one of 2 (`y` normal with mean 50 and sd 5,
+        `set.seed(1)`), one value of the pair multiplied by 100 leaves a residual
+        of 2336 against an sd of 4.33; the dummy of the pair fits its two equal
+        squared residuals, and the ratio falls below
+        `sqrt(.Machine$double.eps)`. 0.17.0 gives Koenker's test 92 on 9 and the
+        Breusch-Pagan test 2069.35 on 9, and `autoTransform()` chooses `boxcox`.
+        #184 refuses both tests, their streaming forms and the runner, and
+        `autoTransform()` stops, saying "The design forces the exact fit … use
+        more observations per level", which is false here. White's test has
+        refused this case since 0.16.0. With `y ~ x + f` a shift of 200 sd is
+        still computed and one of 500 is refused; if `x` varies within the small
+        level, nothing is refused. Refuse only a fit the design forces: push a
+        fixed pseudo-response through the fit, and refuse only if the same
+        regressors also fit its squared residuals exactly, so that White's test
+        gives its value there too. Found by the review of #184; to be fixed in its
+        own pull request. Makes refusals values.
     - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
         are the number of columns of the design but its intercept, not the rank
         of their auxiliary regression less its intercept, as White's are since N2:
