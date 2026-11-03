@@ -2653,7 +2653,7 @@ announced in bold in `NEWS.md`.
     pairs, balanced as `treat` is, gives 0 there. Not an exact fit, and not
     changed. Refuse such a variable, or say so on the help pages; changes a
     value, or none.
-  - [ ] **To fix before 0.18.0 is released: the rule refuses a fit that the
+  - [x] **To fix before 0.18.0 is released: the rule refuses a fit that the
     data make exact, not the design, and its message blames the design.** It
     compares the residual sum of squares of the auxiliary regression with the
     total sum of squares of the squared residuals, and one gross error in a
@@ -2673,7 +2673,32 @@ announced in bold in `NEWS.md`.
     fixed pseudo-response through the fit, and refuse only if the same
     regressors also fit its squared residuals exactly, so that White's test
     gives its value there too. Found by the review of #184; to be fixed in its
-    own pull request. Makes refusals values.
+    own pull request. Makes refusals values. Done in #187: the tests refuse an
+    exact fit only when the design forces it. Each test pushes a fixed
+    pseudo-response, the fractional parts of i times the golden ratio for
+    observation i, which draws nothing from the random number generator and
+    leaves `.Random.seed` alone, through the QR decomposition of the fit, with
+    its weights, and refuses only when the same auxiliary regressors fit the
+    squares of its residuals exactly too (`rforced_exact_fit()`). The
+    streaming forms carry those squares as one more response in the pass they
+    make, and decide as the exact forms do; the stacking of #185 keeps what is
+    left of both responses (`rchunk_factor()`). On the layout above the
+    dummies fit the squared residuals to within 1.1e-9 of their total, and
+    Koenker's test gives 92 on 9 and the Breusch-Pagan test 2069.35 on 9,
+    streamed or not, through `runHeteroTests()` too, and `autoTransform()`
+    chooses `boxcox`, the values of 0.17.0. White's test gives its value there
+    too, 92 on 9, and n R^2 = 80 on the pairs of `test-performWhiteTest.R`
+    whose residuals are +(1 + x) and -(1 + x): a refusal becomes a value.
+    Whether its regressors alone fit the squared residuals, which decides the
+    runner's fallback, is asked of the squared pseudo-residuals too. A fit
+    without a QR decomposition, an `mgcv::gam()` tested on its design or an
+    `lm` fitted with `qr = FALSE`, is refused when the regression fits
+    exactly, with a message that says only that it does, not that the design
+    forces it. `autoTransform()` leaves out a candidate the Breusch-Pagan test
+    refuses, since a candidate drops the rows where its response is not finite
+    and so can fit another design, and stops with the first refusal only when
+    every candidate is refused. A design that forces the fit, the paired
+    design or a factor of two observations a level, is refused as in #184.
   - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
     are the number of columns of the design but its intercept, not the rank
     of their auxiliary regression less its intercept, as White's are since N2:
