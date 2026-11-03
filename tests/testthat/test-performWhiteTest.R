@@ -611,27 +611,20 @@ test_that("White's test gives a value on a near-exact but genuine fit", {
     d <- data.frame(x = x, y = 1 + x + (1 + x) * s * (1 + delta * rnorm(80)))
     list(m = lm(y ~ x, data = d), d = d)
   }
-  exact <- fit_with(0)
-  expect_error(performWhiteTest(exact$m, exact$d), "fits the squared residuals exactly",
-               fixed = TRUE)
-  expect_error(performWhiteTestStreaming(exact$m, exact$d, progress = FALSE),
-               "fits the squared residuals exactly", fixed = TRUE)
-  # The regressor alone does not fit (1 + x)^2: Koenker's test is advised.
-  err <- tryCatch(performWhiteTest(exact$m, exact$d), error = function(e) e)
-  expect_false(err$regressors_exact)
-  expect_match(conditionMessage(err), "Koenker's test", fixed = TRUE)
-  # Squared residuals that depart from the exact fit by 2e-5 of their size
-  # leave about 1.9e-9 of the total, below the threshold of 1.5e-8: refused.
-  closer <- fit_with(1e-5)
-  expect_error(performWhiteTest(closer$m, closer$d), "fits the squared residuals exactly",
-               fixed = TRUE)
-  # By 2e-4 and 2e-3, about 1.9e-7 and 1.9e-5: a genuine fit, tested.
-  for (delta in c(1e-4, 1e-3)) {
+  # The exact fit, and one that departs from it by 2e-5 of the size of the
+  # squared residuals, about 1.9e-9 of the total, below the threshold of
+  # 1.5e-8, are exact fits the data make, not the design: lm(y ~ x) leaves the
+  # residuals of a response at no pattern of pairs. From 0.16.0 to 0.17.0 the
+  # test refused them, and the streaming test too; since 0.18.0 they give
+  # their values, n R^2 up to 80, the number of observations
+  # (rforced_exact_fit()). By 2e-4 and 2e-3, about 1.9e-7 and 1.9e-5, they
+  # were tested already.
+  for (delta in c(0, 1e-5, 1e-4, 1e-3)) {
     near <- fit_with(delta)
     ours <- performWhiteTest(near$m, near$d)
     ref <- white_df_by_hand(near$m)
     expect_equal(unname(ours$statistic), ref$statistic, tolerance = 1e-10, info = delta)
-    expect_lt(unname(ours$statistic), 80)
+    expect_lte(unname(ours$statistic), 80 + 1e-8)
     expect_gt(unname(ours$statistic), 79.9)
     streaming <- performWhiteTestStreaming(near$m, near$d, progress = FALSE)
     expect_equal(unname(streaming$statistic), ref$statistic, tolerance = 1e-8, info = delta)
