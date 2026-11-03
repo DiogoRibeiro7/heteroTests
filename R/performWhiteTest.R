@@ -386,23 +386,47 @@ performWhiteTest <- function(model, data = NULL, cross_products = TRUE, max_inte
 # 1.9e-9 and are refused (test-performWhiteTest.R).
 rwhite_exact_tolerance <- sqrt(.Machine$double.eps)
 
-# The refusal of an auxiliary regression that fits the squared residuals
-# exactly: with as many independent terms as observations, or more
-# (`saturated`), or because the squared residuals are a combination of fewer
-# terms, as when each level of a factor holds two observations, whose
-# residuals then sum to zero in each pair. The advice depends on the call:
-# `cross_products = FALSE` only when the products were in and the regressors
-# alone may not fit the squared residuals exactly, Koenker's test only when
-# they do not (`regressors_exact`), since its auxiliary regression is on them;
-# NA when that is not known. More data help a
-# saturated regression; an exact fit with fewer terms than observations is
-# forced by the design, as by a factor with two observations per level, whose
-# terms grow with its levels, so there only more observations per level help.
-# Its class tells runHeteroTests() whether a test of the regressors alone can
-# stand in for it (ht_analyse_failure()). Shared by rwhite_statistic() and
-# performWhiteTestStreaming().
-rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
-                                    what = "independent terms") {
+# Whether an auxiliary regression with an intercept fits its response exactly:
+# its residual sum of squares `residual` is at most rwhite_exact_tolerance of
+# `total`, the sum of squares of the response about its mean. The rule of
+# White's test, by which, since 0.18.0, every test that regresses the squared
+# residuals, or a function of them, on several terms decides an exact fit: the
+# Breusch-Pagan and Koenker tests and their streaming forms, the studentized
+# statistic, the wild bootstrap, the Cook-Weisberg test, Harvey's test, the
+# high-dimensional test and the variance form test
+# (rrefuse_auxiliary_exact_fit()). Until then they returned a statistic of
+# such a fit, which says nothing of how the variance depends on the regressors.
+rauxiliary_exact <- function(residual, total) {
+  total > 0 && residual <= rwhite_exact_tolerance * total
+}
+
+# rauxiliary_exact() of a least-squares fit with an intercept, from lm.fit()
+# or lm(): its total sum of squares is the explained one plus the residual one.
+rauxiliary_fit_exact <- function(aux_fit) {
+  fitted <- aux_fit$fitted.values
+  residual <- sum(aux_fit$residuals^2)
+  rauxiliary_exact(residual, sum((fitted - mean(fitted))^2) + residual)
+}
+
+# The refusal of an auxiliary regression that fits its response, the squared
+# residuals or a function of them, exactly (rauxiliary_exact()): with as many
+# independent terms as observations, or more (`saturated`), or because the
+# response is a combination of fewer terms, as when each level of a factor
+# holds two observations, whose residuals then sum to zero in each pair.
+# `regression` names the regression, `test` the test, and `consequence` says
+# what the statistic then is. More data help a saturated regression; an exact
+# fit with fewer terms than observations is forced by the design, as by a
+# factor with two observations per level, whose terms grow with its levels, so
+# there only more observations per level help: the advice, unless the caller
+# gives its own. The class heteroTests_exact_fit_error, which White's refusal
+# carries under its own, tells runHeteroTests() whether a test of the
+# regressors alone can stand in for the test (ht_final_exact_fit()): not when
+# the regressors alone fit the squared residuals exactly
+# (`regressors_exact`), nor when that is not known (NA).
+rrefuse_exact_fit <- function(regression, test, terms, n, saturated, consequence,
+                              advice = NULL, regressors_exact = NA,
+                              what = "independent terms", response = "the squared residuals",
+                              class = NULL) {
   cause <- if (saturated) {
     sprintf(
       "it has %d %s with its intercept for %d observations, at least as many as there are",
@@ -410,13 +434,41 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
     )
   } else {
     sprintf(
-      paste(
-        "the squared residuals are a combination of its %d %s with its intercept, for %d",
-        "observations"
-      ),
-      as.integer(terms), what, as.integer(n)
+      "%s are a combination of its %d %s with its intercept, for %d observations",
+      response, as.integer(terms), what, as.integer(n)
     )
   }
+  reason <- if (saturated) {
+    sprintf("There are too few observations for %s with these regressors", test)
+  } else {
+    paste(
+      "The design forces the exact fit, as a factor with two observations per level does,",
+      "however many levels it has"
+    )
+  }
+  if (is.null(advice)) {
+    advice <- if (saturated) "more data" else "more observations per level"
+  }
+  message <- sprintf(
+    "%s fits %s exactly: %s. %s. %s; use %s.",
+    regression, response, cause, consequence, reason, advice
+  )
+  stop(structure(
+    class = c(class, "heteroTests_exact_fit_error", "error", "condition"),
+    list(message = message, call = NULL, regressors_exact = regressors_exact)
+  ))
+}
+
+# The refusal of White's auxiliary regression when it fits the squared
+# residuals exactly (rrefuse_exact_fit()). The advice depends on the call:
+# `cross_products = FALSE` only when the products were in and the regressors
+# alone may not fit the squared residuals exactly, Koenker's test only when
+# they do not (`regressors_exact`), since its auxiliary regression is on them;
+# NA when that is not known. Shared by rwhite_statistic() and
+# performWhiteTestStreaming(). Its class heteroTests_white_exact_fit comes
+# first; heteroTests_exact_fit_error, since 0.18.0, after it.
+rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_exact = NA,
+                                    what = "independent terms") {
   # Without the products the regression keeps the regressors and their
   # squares, which fit the squared residuals exactly when the regressors do.
   advice <- c(
@@ -429,35 +481,59 @@ rwhite_refuse_exact_fit <- function(terms, n, saturated, products, regressors_ex
   } else {
     advice
   }
-  reason <- if (saturated) {
-    "There are too few observations for White's test with these regressors"
-  } else {
-    paste(
-      "The design forces the exact fit, as a factor with two observations per level does,",
-      "however many levels it has"
-    )
-  }
-  message <- sprintf(
-    paste(
-      "White's auxiliary regression fits the squared residuals exactly: %s. Its R-squared",
-      "is 1 and its statistic the number of observations, whatever the data. %s; use %s."
-    ),
-    cause, reason, advice
+  rrefuse_exact_fit(
+    "White's auxiliary regression", "White's test", terms, n, saturated,
+    "Its R-squared is 1 and its statistic the number of observations, whatever the data",
+    advice = advice, regressors_exact = regressors_exact, what = what,
+    class = "heteroTests_white_exact_fit"
   )
-  stop(structure(
-    class = c("heteroTests_white_exact_fit", "error", "condition"),
-    list(message = message, call = NULL, regressors_exact = regressors_exact)
-  ))
 }
 
-# Whether the regressors with an intercept fit the squared residuals exactly,
-# at rwhite_exact_tolerance: then so does the auxiliary regression of any
-# test of the regressors alone, Koenker's and Breusch-Pagan's.
+# The statistic of an exact fit, for the message of
+# rrefuse_auxiliary_exact_fit(): n R^2 is the number of observations, and half
+# the explained sum of squares of the scaled squared residuals, or the
+# explained sum of squares of the log squared residuals over pi^2 / 2, is that
+# of their total, which measures their spread and not how it is related to
+# the regressors.
+rexact_fit_statistic <- list(
+  n_r_squared = "the number of observations, whatever the data",
+  spread = "a function of the spread of the squared residuals alone, whatever their pattern",
+  log_spread = paste(
+    "a function of the spread of the log squared residuals alone, whatever their",
+    "pattern"
+  ),
+  f = "infinite, whatever the data"
+)
+
+# The refusal of a test whose auxiliary regression is on the regressors of the
+# fit, or on a variance model, when that regression fits the squared
+# residuals, or a function of them, exactly (rauxiliary_exact()): its
+# R-squared is 1 and its statistic (`statistic`, rexact_fit_statistic) says
+# nothing of how the variance depends on the regressors. On the paired design
+# of White's exact fit, `lm(y ~ treat + subject)` with 30 subjects of two
+# observations, Koenker's test gave 60 on 30 degrees of freedom (p = 0.0009),
+# the number of observations, and the Breusch-Pagan test 63.25 on 30
+# (p = 0.0004). Refused since 0.18.0, with the message and advice of White's
+# refusal. `regressors_exact` is TRUE when the regression is on the
+# regressors, so that runHeteroTests() takes no fallback: every test of those
+# regressors fits the squared residuals exactly too (ht_final_exact_fit()).
+rrefuse_auxiliary_exact_fit <- function(test, terms, n, statistic, regressors_exact = TRUE,
+                                        response = "the squared residuals") {
+  rrefuse_exact_fit(
+    sprintf("The auxiliary regression of %s", test), test, terms, n,
+    saturated = terms >= n,
+    consequence = paste("Its R-squared is 1 and its statistic", statistic),
+    regressors_exact = regressors_exact, response = response
+  )
+}
+
+# Whether the regressors with an intercept fit the squared residuals exactly
+# (rauxiliary_exact()): then so does the auxiliary regression of any test of
+# the regressors alone, Koenker's and Breusch-Pagan's.
 rwhite_regressors_fit_exactly <- function(X, e_squared) {
   centred <- X - rep(colMeans(X), each = nrow(X))
   fit <- stats::lm.fit(cbind(1, centred), e_squared)
-  total <- sum((e_squared - mean(e_squared))^2)
-  total > 0 && sum(fit$residuals^2) <= rwhite_exact_tolerance * total
+  rauxiliary_exact(sum(fit$residuals^2), sum((e_squared - mean(e_squared))^2))
 }
 
 # The columns an auxiliary regression of the squared residuals keeps, and its
@@ -637,8 +713,7 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   r_squared <- explained / (explained + residual)
   # Fewer independent terms than observations, and still an exact fit: the
   # squared residuals are a combination of the terms, and n R^2 is n.
-  total <- explained + residual
-  if (total > 0 && residual <= rwhite_exact_tolerance * total) {
+  if (rauxiliary_exact(residual, explained + residual)) {
     rwhite_refuse_exact_fit(aux_fit$rank, n, saturated = FALSE, products = products,
                             regressors_exact = rwhite_regressors_fit_exactly(X, e_squared))
   }

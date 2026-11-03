@@ -343,6 +343,17 @@ performBPTest <- function(model, data = NULL) {
   sigma2 <- sum(residuals^2) / n
   scaled_sq <- residuals^2 / sigma2 - 1
   aux_fit <- rauxiliary_fit(scaled_sq, predictors, centred, columns, test_label)
+  # An auxiliary regression that fits the squared residuals exactly, as the
+  # dummies of a factor with two observations per level do, whose residuals
+  # are equal and opposite in each pair: the statistic, half the explained sum
+  # of squares, is then half the total, a function of the spread of the
+  # squared residuals alone. Refused since 0.18.0 at the threshold of White's
+  # test (rauxiliary_fit_exact()), with its message; on the paired design of
+  # White's exact fit the test gave 63.25 on 30 (p = 0.0004).
+  if (rauxiliary_fit_exact(aux_fit)) {
+    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
+                                rexact_fit_statistic$spread)
+  }
   test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
   df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)

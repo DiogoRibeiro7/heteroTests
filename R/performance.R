@@ -213,8 +213,7 @@ rfactor_regressors_exact <- function(factor, regressors) {
   response <- factor[, ncol(factor)]
   decomposition <- qr(factor[, seq_len(regressors + 1L), drop = FALSE])
   effects <- qr.qty(decomposition, response)
-  total <- sum(effects[-1L]^2)
-  total > 0 && sum(effects[-seq_len(decomposition$rank)]^2) <= rwhite_exact_tolerance * total
+  rauxiliary_exact(sum(effects[-seq_len(decomposition$rank)]^2), sum(effects[-1L]^2))
 }
 
 # The builders of the auxiliary regressions: the predictors from the rows of
@@ -474,7 +473,7 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     )
   }
 
-  if (stats$residual <= rwhite_exact_tolerance * stats$response_tss) {
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
     rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = FALSE, products = products,
                             regressors_exact = rfactor_regressors_exact(stats$factor, regressors),
                             what = what)
@@ -600,6 +599,17 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     )
   }
 
+  # An auxiliary regression that fits the squared residuals exactly, as on a
+  # paired design: refused since 0.18.0 by the rule and with the message of
+  # performBPTest(), decided from the sums of squares of
+  # chunked_regression_r2(), as performWhiteTestStreaming() decides White's.
+  # The response here is the squared residuals, not their scaled form, an
+  # affine function of them with the same fit.
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
+    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", stats$rank, stats$n,
+                                rexact_fit_statistic$spread)
+  }
+
   # Classical BP = 0.5 * ESS_f, with f = e^2/sigma^2 - 1. Scaling the auxiliary
   # response by a constant 1/sigma^2 scales the explained sum of squares by
   # 1/sigma^4, so 0.5 * ESS_f = 0.5 * ESS_{e^2} / sigma^4. This is
@@ -716,6 +726,14 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
       "rassumption_violation",
       assumption = "Koenker test requires variation in squared residuals"
     )
+  }
+
+  # An auxiliary regression that fits the squared residuals exactly, as on a
+  # paired design: refused since 0.18.0 by the rule and with the message of
+  # performKoenkerTest().
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
+    rrefuse_auxiliary_exact_fit("Koenker's test", stats$rank, stats$n,
+                                rexact_fit_statistic$n_r_squared)
   }
 
   test_statistic <- stats$n * stats$r_squared

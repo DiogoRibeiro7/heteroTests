@@ -326,6 +326,18 @@ performKoenkerTest <- function(model, data = NULL) {
     stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   aux_fit <- rauxiliary_fit(e_squared, predictors, centred, columns, test_label)
+  # An auxiliary regression that fits the squared residuals exactly, as the
+  # dummies of a factor with two observations per level do, whose residuals
+  # are equal and opposite in each pair: R^2 is 1 and the statistic the number
+  # of observations, as in lmtest::bptest(). Refused since 0.18.0 at the
+  # threshold of White's test (rauxiliary_fit_exact()), with its message; on
+  # the paired design of White's exact fit the test gave 60 on 30
+  # (p = 0.0009). Up to 0.17.0 summary.lm() warned "essentially perfect fit"
+  # there, and 0.18.0 before this refusal gave the value without it.
+  if (rauxiliary_fit_exact(aux_fit)) {
+    rrefuse_auxiliary_exact_fit("Koenker's test", aux_fit$rank, n,
+                                rexact_fit_statistic$n_r_squared)
+  }
   test_statistic <- n * rauxiliary_r_squared(aux_fit)
   # The rank of the auxiliary regression less its intercept.
   df <- aux_fit$rank - 1L
