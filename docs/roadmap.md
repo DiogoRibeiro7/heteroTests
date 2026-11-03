@@ -2358,6 +2358,23 @@ announced in bold in `NEWS.md`.
     `Inf` for the columns it aliases only. Found by the noisy BLAS in #172,
     whose test leaves such VIFs out on CRAN; recorded, not fixed. Changes a
     value on such designs.
+- [ ] **Squared residuals equal but for rounding.** Residuals of +c and -c
+    have squares that agree but for their last bits, and the exact tests
+    regress that rounding on the regressors. On `y = 1 + 0.5 x + 0.3 s`, with
+    `x <- rep(1:20, each = 2)` and `s` alternating +1 and -1, `lm(y ~ x)` leaves
+    residuals of +0.3 and -0.3: `performKoenkerTest()` gives 8.13 on 1 degree
+    of freedom (p = 0.004) and `performWhiteTest()` 8.21 on 2 (p = 0.016); with
+    `x = 1:40` and the signs in the pattern +, -, -, +, 15.25 (p = 9e-5) and
+    27.6 on 2 (p = 1e-6). The Breusch-Pagan test gives 1.6e-28 (p = 1), the
+    studentized statistic refuses them ("produced non-finite values"), and the
+    streaming forms refuse them as squared residuals that do not vary
+    ("requires variation in squared residuals"), comparing their total sum of
+    squares with their scale (`chunked_regression_r2()`), where
+    `performKoenkerTest()` refuses only squared residuals that are all equal.
+    The same on `main` before #184. Decide constancy in the exact tests as the
+    streaming forms do, so that the two agree; refuses calls that return a
+    value. Found by the review of #184; for the numerics work (PR 4), with the
+    two items above. Recorded, not fixed.
 - [ ] **Left from step 1 of the model context** (under 0.16.0), on the rows of
     `data` matched by number:
     - Follow-up, from the review of step 1: try the rows in the order of the
@@ -2483,7 +2500,31 @@ announced in bold in `NEWS.md`.
         auxiliary regression whose residual sum of squares is at most
         `sqrt(.Machine$double.eps)` of the total, the rule of White's test, now
         one function that White's test calls too (`rauxiliary_exact()`,
-        `R/performWhiteTest.R`). On the paired design they refuse where they gave
+        `R/performWhiteTest.R`), when the design forces it. Each test pushes a
+        fixed pseudo-response, the fractional parts of i times the golden ratio
+        for observation i, which draws nothing from the random number generator
+        and leaves `.Random.seed` alone, through the QR decomposition of the fit,
+        with its weights, and refuses only when the same auxiliary regressors fit
+        the squares of its residuals exactly too (`rforced_exact_fit()`); the
+        streaming forms carry those squares as one more response in the pass
+        they make, and decide as the exact forms do. A fit the data make exact is
+        tested, as up to 0.17.0: in a one-way layout of nine groups of ten
+        observations and one of two, with a value of the group of two typed 100
+        times too large, the dummies fit the squared residuals to within 1.1e-9
+        of their total, and Koenker's test gives 92 on 9 and the Breusch-Pagan
+        test 2069.35 on 9, streamed or not, through `runHeteroTests()` too, and
+        `autoTransform()` chooses `boxcox`, the values of 0.17.0. A first version
+        of #184 refused that fit, saying that the design forced it (found by its
+        review). White's test, which has refused such a fit since 0.16.0 (the
+        items on White's exact fit, under 0.16.0), gives its value there too, 92
+        on 9, and n R^2 = 80 on the pairs of `test-performWhiteTest.R` whose
+        residuals are +(1 + x) and -(1 + x): a refusal becomes a value. Whether
+        its regressors alone fit the squared residuals, which decides the
+        runner's fallback, is asked of the squared pseudo-residuals too. A fit
+        without a QR decomposition, an `mgcv::gam()` tested on its design or an
+        `lm` fitted with `qr = FALSE`, is refused when the regression fits
+        exactly, with a message that says only that it does, not that the design
+        forces it. On the paired design they refuse where they gave
         60 and 63.25 on 30, and on `lm(y ~ x1 + f)` where they gave 20 and 28.03
         on 10, before the warning on fixed effects for small groups, as White's
         test does. The message is White's, built by the same code
@@ -2506,9 +2547,18 @@ announced in bold in `NEWS.md`.
         statistic, without the Cook-Weisberg test, their last fallback, under
         their name; the runner drops the class, as it does on White's refusal
         (keeping it, as #182 does for the refusal of rows, is left to decide). A
-        fallback that refuses ends the search, so `"high_dimensional"`, which
-        refuses 20 observations, no longer returns the Breusch-Pagan test's 28.03
-        on 10 under its name on `lm(y ~ x1 + f)`. The audit of the other tests of
+        fallback that refuses an exact fit ends the search when the regressors
+        fit the squared residuals exactly, or that is not known
+        (`regressors_exact` TRUE or NA). So `"high_dimensional"`, which refuses
+        20 or 24 observations, and `"spatial_hetero"` without `listw` no longer
+        return the Breusch-Pagan test's value under their name: 28.03 on 10 on
+        `lm(y ~ x1 + f)`, and 12.37 on 12 on 12 subjects of two, where they now
+        stop with their own refusal. White's refusal of as many terms as
+        observations, when the regressors alone do not fit the squared residuals
+        (`regressors_exact = FALSE`), does not end it: `"wild_bootstrap"` on 22
+        observations of six regressors falls back on White's test, which refuses
+        them, and then on the Breusch-Pagan test, 3.627 on 6, as before. The
+        audit of the other tests of
         an auxiliary regression of the squared residuals, on the paired design:
         the studentized statistic (`performStudentizedBPTest()`,
         `performBPTestRobust(studentize = TRUE)` with or without the bootstrap,
@@ -2530,8 +2580,10 @@ announced in bold in `NEWS.md`.
         (56.84 on 26), Glejser's and Park's tests of one variable, and Bartlett's
         test of groups of two; Levene's, Brown-Forsythe's and Fligner-Killeen's
         refuse groups of two already. `autoTransform()`, which chooses by the
-        p-value of the Breusch-Pagan test, stops with its refusal on such a
-        design. One step away, with a subject observed a third time or 20
+        p-value of the Breusch-Pagan test, leaves out a candidate fit it refuses,
+        since a candidate drops the rows where its response is not finite and so
+        can fit another design, and stops with the first refusal when every
+        candidate is refused, as on such a design. One step away, with a subject observed a third time or 20
         subjects of three, every test gives the value it gave. In
         `inst/validation/fixed-effects-size.csv` the T = 2 cells of the two tests,
         10 to 200 subjects, are such fits (Koenker's mean statistic is n, and the

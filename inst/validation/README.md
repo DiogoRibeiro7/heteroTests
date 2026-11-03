@@ -2089,7 +2089,8 @@ statistic, and the search for a rule.
 which the package refuses since 0.18.0.** With two observations per subject
 the residuals of a subject are equal and opposite, so their squares are a
 combination of the subject dummies, and the auxiliary regression of both
-tests fits them exactly, as White's does (n/r above). Koenker's statistic is
+tests fits them exactly, as White's does (n/r above), whatever the response:
+the design forces the fit, which is what the package refuses. Koenker's statistic is
 then the number of observations in every draw: its mean is 20, 40, 60, 100,
 200 and 400 on the six cells of 10 to 200 subjects, with a variance below
 1e-27, so the test rejects in all of them. The Breusch-Pagan statistic is
