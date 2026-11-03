@@ -2503,7 +2503,17 @@ announced in bold in `NEWS.md`.
     with its weights, and refuses only when the same auxiliary regressors fit
     the squares of its residuals exactly too (`rforced_exact_fit()`); the
     streaming forms carry those squares as one more response in the pass
-    they make, and decide as the exact forms do. A fit the data make exact is
+    they make, and decide as the exact forms do. They stack their chunks by
+    LAPACK's QR decomposition with column pivoting since #184
+    (`rchunk_factor()`, `R/performance.R`), which scales a column left with a
+    tiny norm before dividing by it, where LINPACK's without pivoting divided
+    each column by what was left of its norm: the terms of White's design that
+    are combinations of others, as the squares and products of dummies are,
+    leave rounding error, and on White's streaming test of the one-way layout
+    below the noisy BLAS of `cran-blas.yml` stopped the next chunk on
+    "NA/NaN/Inf in foreign function call", on all three seeds (found by CI on
+    #184; a column of norm 1e-310 does it on any BLAS). The streaming
+    statistics move in their last bits. A fit the data make exact is
     tested, as up to 0.17.0: in a one-way layout of nine groups of ten
     observations and one of two, with a value of the group of two typed 100
     times too large, the dummies fit the squared residuals to within 1.1e-9
