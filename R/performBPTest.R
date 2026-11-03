@@ -32,8 +32,8 @@
 #' explained sum of squares. Under the null of homoskedasticity *and normal
 #' disturbances*, this statistic converges to a chi-squared distribution whose
 #' degrees of freedom are the rank of the auxiliary regression less its
-#' intercept, the number of regressors in \eqn{Z} on a model with an intercept
-#' (see *Degrees of freedom*). This matches
+#' intercept, the number of regressors on a model with an intercept (see
+#' *Degrees of freedom*). This matches
 #' `lmtest::bptest(..., studentize = FALSE)`. The
 #' implementation integrates the validation helpers to:
 #' \enumerate{
@@ -58,8 +58,8 @@
 #' function to stream.
 #'
 #' @section Degrees of freedom:
-#' The auxiliary regression of the scaled squared residuals on \eqn{Z} has an
-#' intercept, and the degrees of freedom are the rank of \eqn{[1, Z]} minus
+#' The auxiliary regression of the scaled squared residuals on the regressors
+#' \eqn{Z} has an intercept, and the degrees of freedom are the rank of \eqn{[1, Z]} minus
 #' one, the rank of the auxiliary regression less its intercept, as White's
 #' test counts them (see *Degrees of freedom* in [performWhiteTest()]) and as
 #' `lmtest::bptest()` does. A column of \eqn{Z} that is a linear combination of
@@ -70,7 +70,7 @@
 #' an intercept that those columns already span. The rank is decided as in
 #' White's test, on the regressors centred one by one, at the default
 #' tolerance of [qr()]. A model whose only regressors are constant has none
-#' beyond the intercept, and is refused.
+#' beyond the intercept, and is refused, as a model with an intercept alone is.
 #'
 #' Up to 0.17.0 the degrees of freedom were the number of columns of
 #' \eqn{Z}, one more on a model without an intercept whose columns span the
@@ -90,6 +90,25 @@
 #' squared residuals on its columns without an intercept, and gives another
 #' statistic, as before; given the regressors as `varformula = ~ x1 + x2` it
 #' gives the value of this test.
+#'
+#' Up to 0.17.0 the auxiliary regression was also fitted by `lm()` from a
+#' formula, on the columns of \eqn{Z} as they are, and on three kinds of
+#' design of full rank its statistic was wrong. It is now the value of
+#' `lmtest::bptest()` and of [performBPTestStreaming()], which had it already;
+#' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = FALSE`
+#' and the registered `"breusch_pagan"` change with it. On a model without an
+#' intercept with a regressor whose spread is less than about \eqn{10^{-7}} of
+#' its distance from zero, that fit dropped the regressor as a combination of
+#' its intercept, and the degrees of freedom still counted it: on the same 120
+#' observations, `lm(y ~ 0 + I(x1 + 1e8) + x2)` gave 2.850 on 2 degrees of
+#' freedom (p = 0.241), where `lmtest::bptest()` given `varformula = ~ x1 + x2`
+#' and the test now give 16.72 (p = 0.0002). A Gaussian `glm`, fitted at a
+#' tolerance of \eqn{10^{-11}}, keeps a regressor that `lm()` would alias:
+#' `glm(y ~ I(1e6 + x1 / 10) + x2)` gave 2.005 (p = 0.367) for 12.45
+#' (p = 0.002), the value of `lm(y ~ x1 + x2)`, the same column space. And a
+#' regressor named `scaled_sq` was taken for the response of the formula:
+#' `lm(y ~ scaled_sq + x2)` gave 102.0 for 12.45, the value of the same model
+#' under another name. On other designs the statistic is the one it was.
 #'
 #' @section Fixed effects for small groups:
 #' The Breusch-Pagan test, like White's and Koenker's tests, is not valid with

@@ -63,7 +63,8 @@
 #' auxiliary regression adds an intercept that those columns already span. The
 #' rank is decided as in White's test, on the regressors centred one by one, at
 #' the default tolerance of [qr()]. A model whose only regressors are constant
-#' has none beyond the intercept, and is refused.
+#' has none beyond the intercept, and is refused, as a model with an intercept
+#' alone is.
 #'
 #' Up to 0.17.0 the degrees of freedom were the number of columns of
 #' \eqn{Z}, one more on a model without an intercept whose columns span the
@@ -85,6 +86,26 @@
 #' `lmtest::bptest()` given the model regresses the squared residuals on its
 #' columns without an intercept, and gives another statistic, as before; given
 #' the regressors as `varformula = ~ x1 + x2` it gives the value of this test.
+#'
+#' Up to 0.17.0 the auxiliary regression was also fitted by `lm()` from a
+#' formula, on the columns of \eqn{Z} as they are, and on three kinds of
+#' design of full rank its statistic was wrong. It is now the value of
+#' `lmtest::bptest()` and of [performKoenkerTestStreaming()], which had it
+#' already; the registered `"koenker"` and [performWildBootstrapTest()], whose
+#' statistic this is, change with it. On a model without an intercept with a regressor whose
+#' spread is less than about \eqn{10^{-7}} of its distance from zero, that fit
+#' dropped the regressor as a combination of its intercept, and the degrees of
+#' freedom still counted it: on the same 120 observations,
+#' `lm(y ~ 0 + I(x1 + 1e8) + x2)` gave 2.372 on 2 degrees of freedom
+#' (p = 0.305), where `lmtest::bptest()` given `varformula = ~ x1 + x2` and the
+#' test now give 13.92 (p = 0.001). A Gaussian `glm`, fitted at a tolerance of
+#' \eqn{10^{-11}}, keeps a regressor that `lm()` would alias:
+#' `glm(y ~ I(1e6 + x1 / 10) + x2)` gave 1.457 (p = 0.483) for 9.044
+#' (p = 0.011), the value of `lm(y ~ x1 + x2)`, the same column space. And a
+#' regressor named `e_squared` was taken for the response of the formula:
+#' `lm(y ~ e_squared + x2)` gave 0.014 (p = 0.993) for 9.044, the value of the
+#' same model under another name. On other designs the statistic is the one it
+#' was.
 #'
 #' @section Fixed effects for small groups:
 #' Koenker's test, like White's and the Breusch-Pagan tests, is not valid with
