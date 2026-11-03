@@ -41,8 +41,44 @@ ht_message_mentions <- function(message, kind) {
     any(grepl(words$any_case, message, ignore.case = TRUE, perl = TRUE))
 }
 
-ht_data_cleaning_suggestions <- function(message = NULL, data = NULL) {
+# Whether every column of the design of `model` is constant, as in
+# lm(y ~ 1) or lm(y ~ 0 + one): the model has no regressor that varies, so a
+# test of the variance against the regressors has nothing to regress on, and
+# removing a constant predictor leaves none. NA when the design cannot be read.
+ht_constant_design <- function(model) {
+  if (is.null(model)) {
+    return(NA)
+  }
+  X <- tryCatch(stats::model.matrix(model), error = function(e) NULL)
+  if (!is.matrix(X) || !is.numeric(X) || nrow(X) < 2L) {
+    return(NA)
+  }
+  all(apply(X, 2L, function(column) all(column == column[1L])))
+}
+
+# The advice of a failure, from the words of its message and from `data`. On
+# a model whose design is constant (ht_constant_design()) the constant
+# columns of `data` are not advised away, which would leave no regressor, and
+# a failure whose message names the regressors, the predictors or the
+# intercept is advised a regressor that varies: until 0.18.0 the refusal of
+# lm(y ~ 0 + one) by the Breusch-Pagan test advised "Remove constant
+# predictor: one" (#183 review), as did that of lm(y ~ 1) when `data` held a
+# constant column.
+ht_data_cleaning_suggestions <- function(message = NULL, data = NULL, model = NULL) {
   suggestions <- character()
+  constant_design <- isTRUE(ht_constant_design(model))
+  names_regressors <- !is.null(message) && any(grepl(
+    "\\b(regressors?|predictors?|intercept)\\b", message, ignore.case = TRUE, perl = TRUE
+  ))
+  if (constant_design && names_regressors) {
+    suggestions <- c(
+      suggestions,
+      paste(
+        "Fit a model with a regressor that varies: every column of this model's design is",
+        "constant, so its regressors cannot explain a change in the error variance."
+      )
+    )
+  }
 
   if (!is.null(message)) {
     if (ht_message_mentions(message, "missing")) {
@@ -100,7 +136,7 @@ ht_data_cleaning_suggestions <- function(message = NULL, data = NULL) {
       function(col) is.numeric(col) && stats::sd(col, na.rm = TRUE) < .Machine$double.eps,
       data
     ))
-    if (length(zero_var_cols) > 0) {
+    if (length(zero_var_cols) > 0 && !constant_design) {
       suggestions <- c(
         suggestions,
         sprintf(
@@ -345,7 +381,7 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     # data-quality issue for "high_dimensional", with their advice.
     return(ht_final_failure("glm_family", raw_message, test_name))
   }
-  suggestions <- ht_data_cleaning_suggestions(raw_message, data)
+  suggestions <- ht_data_cleaning_suggestions(raw_message, data, model)
   issue <- "diagnostic_failure"
   if (ht_message_mentions(raw_message, "rank")) {
     issue <- "rank_deficiency"

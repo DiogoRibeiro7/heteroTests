@@ -8,19 +8,30 @@
 
 # Internal helpers -----------------------------------------------------------
 
-.compute_bp_statistic <- function(residuals, predictors, statistic_name = "X-squared") {
+# Koenker's n R^2 of the squared residuals on the regressors, the statistic of
+# performWildBootstrapTest(), for its observed residuals and for each
+# replicate: the auxiliary regression of performKoenkerTest(), on the columns
+# and rank that rauxiliary_columns() decided from `centred`, the regressors
+# centred one by one, which every replicate shares (rauxiliary_fit()). Up to
+# 0.17.0 it was fitted by lm() from a formula on the columns as they are, at
+# the tolerance of lm(), which dropped as collinear with its intercept a
+# regressor far from zero that a model without an intercept or a Gaussian
+# glm keeps: on lm(y ~ 0 + I(x1 + 1e8) + x2) it gave the statistic of x2
+# alone.
+.compute_bp_statistic <- function(residuals, predictors, centred, columns,
+                                  statistic_name = "X-squared") {
   if (!is.numeric(residuals) || length(residuals) == 0L) {
     stop("Residual vector must be numeric and non-empty.", call. = FALSE)
   }
   if (!is.matrix(predictors) && !is.data.frame(predictors)) {
     stop("Predictors must be supplied as a matrix or data frame.", call. = FALSE)
   }
-  aux_df <- as.data.frame(predictors)
+  predictors <- as.matrix(predictors)
   n <- length(residuals)
-  if (nrow(aux_df) != n) {
+  if (nrow(predictors) != n) {
     stop("Predictor matrix must align with residuals.", call. = FALSE)
   }
-  if (ncol(aux_df) == 0L) {
+  if (ncol(predictors) == 0L) {
     stop("Auxiliary regression requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   response <- residuals^2
@@ -30,14 +41,9 @@
       assumption = "Auxiliary regression requires variation in squared residuals"
     )
   }
-  aux_matrix <- data.frame(response = response, aux_df)
-  aux_model <- safe_lm(response ~ ., data = aux_matrix)
-  r2 <- summary(aux_model)$r.squared
-  stat <- n * r2
-  list(
-    statistic = stats::setNames(stat, statistic_name),
-    df = ncol(aux_df)
-  )
+  aux_fit <- rauxiliary_fit(response, predictors, centred, columns, "Wild bootstrap test")
+  stat <- n * rauxiliary_r_squared(aux_fit)
+  list(statistic = stats::setNames(stat, statistic_name))
 }
 
 .pick_predictor <- function(model_matrix) {
@@ -195,7 +201,23 @@
 #'
 #' @return An object of class \code{htest} containing the observed
 #'   Breusch-Pagan statistic, bootstrap p-value, and additional details under the
-#'   `bootstrap` element.
+#'   `bootstrap` element. Its `parameter` holds `B` and `df`, the degrees of
+#'   freedom of [performKoenkerTest()], the rank of the auxiliary regression
+#'   less its intercept, which the p-value does not use. Up to 0.17.0 `df` was
+#'   the number of regressors, one more on a model without an intercept whose
+#'   columns span the constant, such as `lm(y ~ 0 + group + x1)`. The
+#'   statistic, for the data and for each replicate, is that of
+#'   [performKoenkerTest()], computed on its auxiliary regression since
+#'   0.18.0. Up to 0.17.0 that regression was fitted by `lm()` from a formula,
+#'   which dropped a regressor far from zero that a model without an intercept
+#'   or a Gaussian `glm` keeps: on `lm(y ~ 0 + I(x1 + 1e8) + x2)` the statistic
+#'   was 2.372, that of `x2` alone, where Koenker's test gives 13.92, and the
+#'   p-value was that of the wrong statistic. On other designs the statistic
+#'   and the replicates are the ones they were. A model whose regressors are
+#'   all constant, such as `lm(y ~ 0 + one)`, or with an intercept alone,
+#'   `lm(y ~ 1)`, is refused, since 0.18.0, as
+#'   Koenker's test refuses it: its statistic is 0 in every replicate, and the
+#'   test returned 0 with a p-value of 1.
 #'
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
@@ -305,7 +327,25 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
     stop("Wild bootstrap test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
-  observed <- .compute_bp_statistic(residuals, predictors)
+  # The columns of the auxiliary regression and its rank, as
+  # performKoenkerTest() decides them (rauxiliary_columns()), decided once,
+  # since every replicate has the same regressors. The degrees of freedom the
+  # result reports, which the bootstrap p-value does not use, are the rank
+  # less the intercept. Until 0.18.0 they were the number of regressors, one
+  # more on a model without an intercept whose columns span the constant.
+  centred <- predictors - rep(colMeans(predictors), each = nrow(predictors))
+  columns <- rauxiliary_columns(centred)
+  df <- columns$rank - 1L
+  # A model whose regressors are all constant, such as lm(y ~ 0 + one), or
+  # with an intercept alone, lm(y ~ 1), has
+  # none beyond the intercept: its statistic is 0 in every replicate, and the
+  # test could not reject. Refused, as the Breusch-Pagan and Koenker tests
+  # refuse it, since 0.18.0; it gave 0 on 1 degree of freedom, p = 1.
+  if (df < 1L) {
+    stop("Wild bootstrap test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+
+  observed <- .compute_bp_statistic(residuals, predictors, centred, columns)
 
   multiplier_draw <- switch(distribution,
     rademacher = function(n) sample(c(-1, 1), size = n, replace = TRUE),
@@ -388,7 +428,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
         } else {
           boot_res <- qr.resid(transformed_qr, boot_errors)
         }
-        .compute_bp_statistic(boot_res, predictors)$statistic[[1]]
+        .compute_bp_statistic(boot_res, predictors, centred, columns)$statistic[[1]]
       },
       error = function(e) NA_real_
     )
@@ -410,7 +450,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   structure(
     list(
       statistic = observed$statistic,
-      parameter = c(df = observed$df, B = B),
+      parameter = c(df = df, B = B),
       p.value = p_value,
       method = sprintf("Wild bootstrap Breusch-Pagan test (%s multipliers)", distribution),
       data.name = deparse(stats::formula(model)),

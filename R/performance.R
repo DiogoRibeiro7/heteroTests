@@ -258,20 +258,22 @@ white_predictor_builder <- function(cross_products = TRUE, max_interactions = 10
   }
 }
 
-bp_predictor_builder <- function(model_matrix) {
+# The refusal of a model with an intercept alone names the test: until 0.18.0
+# Koenker's streaming test refused it as "Breusch-Pagan test requires ...".
+bp_predictor_builder <- function(model_matrix, test_label = "Breusch-Pagan test") {
   if (colnames(model_matrix)[1] == "(Intercept)") {
     predictors <- model_matrix[, -1, drop = FALSE]
   } else {
     predictors <- model_matrix
   }
   if (ncol(predictors) == 0) {
-    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
+    stop(test_label, " requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   predictors
 }
 
 koenker_predictor_builder <- function(model_matrix) {
-  bp_predictor_builder(model_matrix)
+  bp_predictor_builder(model_matrix, "Koenker test")
 }
 
 white_response_builder <- function(residuals_chunk) {
@@ -534,6 +536,14 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   gives the value of [performBPTest()] on both. Sparse cross-products from
 #'   \pkg{Matrix} are no longer used.
 #'
+#'   The degrees of freedom are the rank of the auxiliary regression less its
+#'   intercept, as in [performBPTest()] (see its *Degrees of freedom*). Since
+#'   0.18.0 the test gives them, and the value of [performBPTest()], on a
+#'   model without an intercept whose columns span the constant, such as the
+#'   dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 8.653 on
+#'   4 degrees of freedom, where it stopped ("Breusch-Pagan auxiliary
+#'   regression became rank deficient").
+#'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
@@ -573,11 +583,14 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming Breusch-Pagan test"
   )
 
-  if (isTRUE(stats$rank_deficient)) {
-    .std_error(
-      "rassumption_violation",
-      assumption = "Breusch-Pagan auxiliary regression became rank deficient"
-    )
+  # The degrees of freedom are the rank of the auxiliary regression less its
+  # intercept, decided as performBPTest() decides it (chunked_regression_r2()):
+  # a model without an intercept whose columns span the constant, as the
+  # dummies of every level of a factor do, counts the intercept once. Until
+  # 0.18.0 the test stopped on such a model ("Breusch-Pagan auxiliary
+  # regression became rank deficient").
+  if (stats$df < 1L) {
+    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
   if (isTRUE(stats$zero_variation)) {
@@ -649,6 +662,14 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   the value of [performKoenkerTest()] on both. Sparse cross-products from
 #'   \pkg{Matrix} are no longer used.
 #'
+#'   The degrees of freedom are the rank of the auxiliary regression less its
+#'   intercept, as in [performKoenkerTest()] (see its *Degrees of freedom*).
+#'   Since 0.18.0 the test gives them, and the value of [performKoenkerTest()],
+#'   on a model without an intercept whose columns span the constant, such as
+#'   the dummies of every level of a factor in `lm(y ~ 0 + group + x1)`: 10.52
+#'   on 4 degrees of freedom, where it stopped ("Koenker auxiliary regression
+#'   became rank deficient").
+#'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
@@ -680,11 +701,14 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     progress_label = "Streaming Koenker test"
   )
 
-  if (isTRUE(stats$rank_deficient)) {
-    .std_error(
-      "rassumption_violation",
-      assumption = "Koenker auxiliary regression became rank deficient"
-    )
+  # The degrees of freedom are the rank of the auxiliary regression less its
+  # intercept, decided as performKoenkerTest() decides it
+  # (chunked_regression_r2()): a model without an intercept whose columns span
+  # the constant, as the dummies of every level of a factor do, counts the
+  # intercept once. Until 0.18.0 the test stopped on such a model ("Koenker
+  # auxiliary regression became rank deficient").
+  if (stats$df < 1L) {
+    stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
   if (isTRUE(stats$zero_variation)) {

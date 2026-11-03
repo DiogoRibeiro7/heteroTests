@@ -43,6 +43,14 @@ residuals of about \eqn{10^{-10}} were taken for constant ("requires variation i
 squared residuals"). It gives the value of \code{\link{performKoenkerTest}()} on
 both. Sparse cross-products from \pkg{Matrix} are no longer used.
 
+The degrees of freedom are the rank of the auxiliary regression less its
+intercept, as in \code{\link{performKoenkerTest}()} (see its \emph{Degrees of freedom}).
+Since 0.18.0 the test gives them, and the value of \code{\link{performKoenkerTest}()}, on
+a model without an intercept whose columns span the constant, such as the
+dummies of every level of a factor in \code{lm(y ~ 0 + group + x1)}: 10.52 on
+4 degrees of freedom, where it stopped ("Koenker auxiliary regression
+became rank deficient").
+
 Since 0.16.0 the chunks are rows of the design of the fit, as in
 \code{\link{performWhiteTestStreaming}()}, whose details say what changed.
 }

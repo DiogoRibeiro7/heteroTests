@@ -30,8 +30,10 @@
 #' design matrix without the intercept, the test regresses the scaled squared
 #' residuals \eqn{\hat{e}_i^2 / \hat{\sigma}^2 - 1} on \eqn{Z} and forms half the
 #' explained sum of squares. Under the null of homoskedasticity *and normal
-#' disturbances*, this statistic converges to a chi-squared distribution with
-#' degrees of freedom equal to the number of regressors in \eqn{Z}. This matches
+#' disturbances*, this statistic converges to a chi-squared distribution whose
+#' degrees of freedom are the rank of the auxiliary regression less its
+#' intercept, the number of regressors on a model with an intercept (see
+#' *Degrees of freedom*). This matches
 #' `lmtest::bptest(..., studentize = FALSE)`. The
 #' implementation integrates the validation helpers to:
 #' \enumerate{
@@ -54,6 +56,61 @@
 #' The test is computed in memory whatever the size of the data. Up to 0.15.0
 #' it switched to [performBPTestStreaming()] on data above 100 MB; call that
 #' function to stream.
+#'
+#' @section Degrees of freedom:
+#' The auxiliary regression of the scaled squared residuals on the regressors
+#' \eqn{Z} has an intercept, and the degrees of freedom are the rank of \eqn{[1, Z]} minus
+#' one, the rank of the auxiliary regression less its intercept, as White's
+#' test counts them (see *Degrees of freedom* in [performWhiteTest()]) and as
+#' `lmtest::bptest()` does. A column of \eqn{Z} that is a linear combination of
+#' the intercept and the columns before it is dropped. So a model with an
+#' intercept counts its regressors, and a model without an intercept whose
+#' columns span the constant, such as the dummies of every level of a factor
+#' in `lm(y ~ 0 + group + x1)`, counts one fewer: the auxiliary regression adds
+#' an intercept that those columns already span. The rank is decided as in
+#' White's test, on the regressors centred one by one, at the default
+#' tolerance of [qr()]. A model whose only regressors are constant has none
+#' beyond the intercept, and is refused, as a model with an intercept alone is.
+#'
+#' Up to 0.17.0 the degrees of freedom were the number of columns of
+#' \eqn{Z}, one more on a model without an intercept whose columns span the
+#' constant, with the same statistic and a larger p-value: on
+#' `lm(y ~ 0 + group + x1)`, with a factor of four levels and 120
+#' observations, 8.653 on 5 degrees of freedom (p = 0.124), where
+#' `lm(y ~ x1 + group)`, the same column space, and
+#' `lmtest::bptest(..., studentize = FALSE)` give 8.653 on 4 (p = 0.070), as
+#' the test now does. [performBPTestStreaming()] gives these degrees of freedom
+#' too, on such a model, which it refused up to 0.17.0 ("Breusch-Pagan
+#' auxiliary regression became rank deficient"), and so do
+#' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = FALSE`,
+#' whose interval follows them, and the registered `"breusch_pagan"` of
+#' [runHeteroTests()]. A model with an intercept, or without one whose columns
+#' do not span the constant, such as `lm(y ~ 0 + x1 + x2)`, keeps its degrees
+#' of freedom. On the latter `lmtest::bptest()` given the model regresses the
+#' squared residuals on its columns without an intercept, and gives another
+#' statistic, as before; given the regressors as `varformula = ~ x1 + x2` it
+#' gives the value of this test.
+#'
+#' Up to 0.17.0 the auxiliary regression was also fitted by `lm()` from a
+#' formula, on the columns of \eqn{Z} as they are, and on three kinds of
+#' design of full rank its statistic was wrong. It is now the value of
+#' [performBPTestStreaming()], which had it already, and of `lmtest::bptest()`
+#' but on the Gaussian `glm`, whose design `lmtest::bptest()` refits by
+#' `lm.fit()`, dropping the regressor too;
+#' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = FALSE`
+#' and the registered `"breusch_pagan"` change with it. On a model without an
+#' intercept with a regressor whose spread is less than about \eqn{10^{-7}} of
+#' its distance from zero, that fit dropped the regressor as a combination of
+#' its intercept, and the degrees of freedom still counted it: on the same 120
+#' observations, `lm(y ~ 0 + I(x1 + 1e8) + x2)` gave 2.850 on 2 degrees of
+#' freedom (p = 0.241), where `lmtest::bptest()` given `varformula = ~ x1 + x2`
+#' and the test now give 16.72 (p = 0.0002). A Gaussian `glm`, fitted at a
+#' tolerance of \eqn{10^{-11}}, keeps a regressor that `lm()` would alias:
+#' `glm(y ~ I(1e6 + x1 / 10) + x2)` gave 2.005 (p = 0.367) for 12.45
+#' (p = 0.002), the value of `lm(y ~ x1 + x2)`, the same column space. And a
+#' regressor named `scaled_sq` was taken for the response of the formula:
+#' `lm(y ~ scaled_sq + x2)` gave 102.0 for 12.45, the value of the same model
+#' under another name. On other designs the statistic is the one it was.
 #'
 #' @section Fixed effects for small groups:
 #' The Breusch-Pagan test, like White's and Koenker's tests, is not valid with
@@ -256,27 +313,38 @@ performBPTest <- function(model, data = NULL) {
     stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
-  aux_data <- as.data.frame(predictors)
   n <- length(residuals)
 
-  if (n <= (ncol(aux_data) + 1L)) {
+  if (n <= (ncol(predictors) + 1L)) {
     .std_error(
       "rassumption_violation",
       assumption = "Breusch-Pagan auxiliary regression requires observations to exceed predictors plus intercept"
     )
   }
 
+  # The columns of the auxiliary regression and its rank, decided on the
+  # regressors centred one by one, as White's test decides them
+  # (rauxiliary_columns()): a model without an intercept whose columns span
+  # the constant, as the dummies of every level of a factor do, counts the
+  # intercept of the auxiliary regression once. Until 0.18.0 the degrees of
+  # freedom were the number of regressors, one more on such a model.
+  centred <- predictors - rep(colMeans(predictors), each = n)
+  columns <- rauxiliary_columns(centred)
+  if (length(columns$keep) == 0L) {
+    stop("Breusch-Pagan test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+
   # Classical Breusch-Pagan (1979): regress the scaled squared residuals
   # g_i = e_i^2 / sigma^2 - 1 (with sigma^2 the ML variance estimate) on the
   # regressors and take half the explained sum of squares. The statistic is
-  # chi-squared(df) under homoskedasticity *and* normal disturbances. For the
+  # chi-squared(df) under homoskedasticity *and* normal disturbances, with df
+  # the rank of the auxiliary regression less its intercept. For the
   # studentized form that drops the normality assumption use performKoenkerTest().
   sigma2 <- sum(residuals^2) / n
   scaled_sq <- residuals^2 / sigma2 - 1
-  aux_model <- safe_lm(scaled_sq ~ ., data = aux_data)
-  fitted_aux <- stats::fitted(aux_model)
-  test_statistic <- 0.5 * sum(fitted_aux^2)
-  df <- ncol(aux_data)
+  aux_fit <- rauxiliary_fit(scaled_sq, predictors, centred, columns, test_label)
+  test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
+  df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 
   # A factor with more levels than observations per level, among the
