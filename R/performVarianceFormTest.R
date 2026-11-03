@@ -401,6 +401,19 @@ radded_terms_f_test <- function(r, restricted, added) {
       assumption = "Variance form test requires residual variation in its auxiliary regression"
     )
   }
+  # A regression that fits the squared standardized residuals exactly, but
+  # for rounding, as the dummies of a factor with two observations per level
+  # do when the weights are equal in each pair: the F statistic is the ratio
+  # of a sum of squares to rounding error, 4.06e29 on 28 and 30 degrees of
+  # freedom with `var_formula = ~ z`, z constant in each pair of the paired
+  # design of White's exact fit, and `against = ~ subject`. Refused since
+  # 0.18.0 at the threshold of White's test, as the Breusch-Pagan and
+  # Koenker tests refuse such a fit; the restricted design holds the constant.
+  if (rauxiliary_fit_exact(fit1)) {
+    rrefuse_auxiliary_exact_fit("the variance form test", fit1$rank, length(r),
+                                rexact_fit_statistic$f, regressors_exact = NA,
+                                response = "the squared standardized residuals")
+  }
 
   retained <- names(fit1$coefficients)[!is.na(fit1$coefficients)]
   list(

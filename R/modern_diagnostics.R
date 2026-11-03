@@ -43,7 +43,11 @@
   }
   aux_fit <- rauxiliary_fit(response, predictors, centred, columns, "Wild bootstrap test")
   stat <- n * rauxiliary_r_squared(aux_fit)
-  list(statistic = stats::setNames(stat, statistic_name))
+  # `exact`: the regression fits the squared residuals exactly
+  # (rauxiliary_fit_exact()), which performWildBootstrapTest() refuses for
+  # the data.
+  list(statistic = stats::setNames(stat, statistic_name), exact = rauxiliary_fit_exact(aux_fit),
+       rank = aux_fit$rank)
 }
 
 .pick_predictor <- function(model_matrix) {
@@ -346,6 +350,17 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   }
 
   observed <- .compute_bp_statistic(residuals, predictors, centred, columns)
+  # Koenker's auxiliary regression fits the squared residuals of the data
+  # exactly, as on a paired design, and so those of every replicate, whose
+  # design is the same: each statistic is the number of observations, and the
+  # p-value counts the replicates whose rounding error is above that of the
+  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, before
+  # the replicates are drawn; on the paired design of White's exact fit the
+  # test gave 60 with a p-value of 1.
+  if (observed$exact) {
+    rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
+                                rexact_fit_statistic$n_r_squared)
+  }
 
   multiplier_draw <- switch(distribution,
     rademacher = function(n) sample(c(-1, 1), size = n, replace = TRUE),
@@ -701,6 +716,16 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
   scores <- svd_fit$x[, seq_len(k), drop = FALSE]
   aux_df <- data.frame(res_sq = residuals^2, scores)
   aux_model <- safe_lm(res_sq ~ ., data = aux_df)
+  # Principal components that fit the squared residuals exactly, as all of
+  # them do on a paired design (variance_threshold = 1): the statistic is the
+  # number of observations. Refused since 0.18.0 at the threshold of White's
+  # test, as Koenker's test, of which this is the statistic on the components,
+  # refuses it; on the paired design of White's exact fit it gave 60 on 30
+  # with the warning of summary.lm(), "essentially perfect fit".
+  if (rauxiliary_fit_exact(aux_model)) {
+    rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
+                                length(residuals), rexact_fit_statistic$n_r_squared)
+  }
   r2 <- summary(aux_model)$r.squared
   statistic <- length(residuals) * r2
   df <- k

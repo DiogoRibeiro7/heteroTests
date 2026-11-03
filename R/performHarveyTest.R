@@ -191,6 +191,24 @@ performHarveyTest <- function(model, data = NULL,
     )
   }
 
+  # Regressors that fit the log squared residuals exactly, as those of a paired
+  # design do, whose squared residuals are equal in each pair: the statistic is
+  # the explained sum of squares over pi^2 / 2, then the total over pi^2 / 2, a
+  # function of their spread alone, and the studentized F is infinite. Refused
+  # since 0.18.0 at the threshold of White's test, as the Breusch-Pagan and
+  # Koenker tests refuse such a fit of the squared residuals; on the paired
+  # design of White's exact fit the test gave 63.07 on 30 (p = 0.0004), and
+  # its studentized form Inf. Whether the regressors fit the squared
+  # residuals too is not known. The fitted values and their square, two
+  # terms, do not fit them exactly but by a coincidence of the data.
+  if (rauxiliary_fit_exact(aux_model)) {
+    rrefuse_auxiliary_exact_fit(
+      "Harvey's test", aux_model$rank, length(log_e2),
+      if (studentize) rexact_fit_statistic$f else rexact_fit_statistic$log_spread,
+      regressors_exact = NA, response = "the log squared residuals"
+    )
+  }
+
   if (studentize) {
     # Estimate the null variance of log(e^2) from the auxiliary residuals rather
     # than assuming the Gaussian value pi^2 / 2.

@@ -256,6 +256,16 @@ performStudentizedBPTest <- function(model, data = NULL) {
       assumption = "Studentized BP auxiliary regression produced non-finite values"
     )
   }
+  # An auxiliary regression that fits the centred squared residuals exactly,
+  # whose sum of squares is `denominator` (they have mean zero), as on a
+  # paired design: the statistic is the number of observations. Refused since
+  # 0.18.0, as performKoenkerTest() refuses it, at the threshold of White's
+  # test; on the paired design of White's exact fit it gave 60 on 30
+  # (p = 0.0009).
+  if (rauxiliary_exact(sum(aux_fit$residuals^2), denominator)) {
+    rrefuse_auxiliary_exact_fit("the studentized Breusch-Pagan test", aux_fit$rank, effective_n,
+                                rexact_fit_statistic$n_r_squared)
+  }
 
   test_statistic <- effective_n * numerator / denominator
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
