@@ -303,11 +303,7 @@ performKoenkerTest <- function(model, data = NULL) {
     stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   aux_fit <- rauxiliary_fit(e_squared, predictors, centred, columns, test_label)
-  # R^2 as summary.lm() computes it for a model with an intercept.
-  fitted_squares <- aux_fit$fitted.values
-  explained <- sum((fitted_squares - mean(fitted_squares))^2)
-  r2 <- explained / (explained + sum(aux_fit$residuals^2))
-  test_statistic <- n * r2
+  test_statistic <- n * rauxiliary_r_squared(aux_fit)
   # The rank of the auxiliary regression less its intercept.
   df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)

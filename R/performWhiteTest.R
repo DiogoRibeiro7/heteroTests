@@ -501,6 +501,15 @@ rauxiliary_fit <- function(response, design, centred, columns, test_label) {
   aux_fit
 }
 
+# The R-squared of an auxiliary regression of rauxiliary_fit(), as
+# summary.lm() computes it for a model with an intercept: the statistic of
+# performKoenkerTest() and performWildBootstrapTest() is n times it.
+rauxiliary_r_squared <- function(aux_fit) {
+  fitted_squares <- aux_fit$fitted.values
+  explained <- sum((fitted_squares - mean(fitted_squares))^2)
+  explained / (explained + sum(aux_fit$residuals^2))
+}
+
 # White's statistic from the residuals the test reads and the design of the
 # auxiliary regression, with its intercept. performWhiteTest() gives it the
 # design of the fit (the model context), and performWhiteTestBootstrap() the

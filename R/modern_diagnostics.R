@@ -8,19 +8,30 @@
 
 # Internal helpers -----------------------------------------------------------
 
-.compute_bp_statistic <- function(residuals, predictors, statistic_name = "X-squared") {
+# Koenker's n R^2 of the squared residuals on the regressors, the statistic of
+# performWildBootstrapTest(), for its observed residuals and for each
+# replicate: the auxiliary regression of performKoenkerTest(), on the columns
+# and rank that rauxiliary_columns() decided from `centred`, the regressors
+# centred one by one, which every replicate shares (rauxiliary_fit()). Up to
+# 0.17.0 it was fitted by lm() from a formula on the columns as they are, at
+# the tolerance of lm(), which dropped as collinear with its intercept a
+# regressor far from zero that a model without an intercept or a Gaussian
+# glm keeps: on lm(y ~ 0 + I(x1 + 1e8) + x2) it gave the statistic of x2
+# alone.
+.compute_bp_statistic <- function(residuals, predictors, centred, columns,
+                                  statistic_name = "X-squared") {
   if (!is.numeric(residuals) || length(residuals) == 0L) {
     stop("Residual vector must be numeric and non-empty.", call. = FALSE)
   }
   if (!is.matrix(predictors) && !is.data.frame(predictors)) {
     stop("Predictors must be supplied as a matrix or data frame.", call. = FALSE)
   }
-  aux_df <- as.data.frame(predictors)
+  predictors <- as.matrix(predictors)
   n <- length(residuals)
-  if (nrow(aux_df) != n) {
+  if (nrow(predictors) != n) {
     stop("Predictor matrix must align with residuals.", call. = FALSE)
   }
-  if (ncol(aux_df) == 0L) {
+  if (ncol(predictors) == 0L) {
     stop("Auxiliary regression requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   response <- residuals^2
@@ -30,10 +41,8 @@
       assumption = "Auxiliary regression requires variation in squared residuals"
     )
   }
-  aux_matrix <- data.frame(response = response, aux_df)
-  aux_model <- safe_lm(response ~ ., data = aux_matrix)
-  r2 <- summary(aux_model)$r.squared
-  stat <- n * r2
+  aux_fit <- rauxiliary_fit(response, predictors, centred, columns, "Wild bootstrap test")
+  stat <- n * rauxiliary_r_squared(aux_fit)
   list(statistic = stats::setNames(stat, statistic_name))
 }
 
@@ -306,16 +315,24 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
     stop("Wild bootstrap test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
 
-  observed <- .compute_bp_statistic(residuals, predictors)
-  # The degrees of freedom the result reports, which the bootstrap p-value
-  # does not use: the rank of the auxiliary regression less its intercept, as
-  # performKoenkerTest() counts them (rauxiliary_columns()), decided once,
-  # since every replicate has the same regressors. Until 0.18.0 they were the
-  # number of regressors, one more on a model without an intercept whose
-  # columns span the constant.
-  df <- rauxiliary_columns(
-    predictors - rep(colMeans(predictors), each = nrow(predictors))
-  )$rank - 1L
+  # The columns of the auxiliary regression and its rank, as
+  # performKoenkerTest() decides them (rauxiliary_columns()), decided once,
+  # since every replicate has the same regressors. The degrees of freedom the
+  # result reports, which the bootstrap p-value does not use, are the rank
+  # less the intercept. Until 0.18.0 they were the number of regressors, one
+  # more on a model without an intercept whose columns span the constant.
+  centred <- predictors - rep(colMeans(predictors), each = nrow(predictors))
+  columns <- rauxiliary_columns(centred)
+  df <- columns$rank - 1L
+  # A model whose regressors are all constant, such as lm(y ~ 0 + one), has
+  # none beyond the intercept: its statistic is 0 in every replicate, and the
+  # test could not reject. Refused, as the Breusch-Pagan and Koenker tests
+  # refuse it, since 0.18.0; it gave 0 on 1 degree of freedom, p = 1.
+  if (df < 1L) {
+    stop("Wild bootstrap test requires at least one predictor beyond the intercept.", call. = FALSE)
+  }
+
+  observed <- .compute_bp_statistic(residuals, predictors, centred, columns)
 
   multiplier_draw <- switch(distribution,
     rademacher = function(n) sample(c(-1, 1), size = n, replace = TRUE),
@@ -398,7 +415,7 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
         } else {
           boot_res <- qr.resid(transformed_qr, boot_errors)
         }
-        .compute_bp_statistic(boot_res, predictors)$statistic[[1]]
+        .compute_bp_statistic(boot_res, predictors, centred, columns)$statistic[[1]]
       },
       error = function(e) NA_real_
     )
