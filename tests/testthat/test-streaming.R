@@ -423,18 +423,20 @@ test_that("bootstrap helper supports parallel execution", {
   expect_equal(length(boot$replicates), 16L)
 })
 
-test_that("the factor of the streaming tests stays finite when a column leaves a tiny norm", {
+test_that("the streaming factor stays finite on a column that is a combination of others", {
   # The streaming tests stack each chunk under the factor of the chunks before
-  # it (rchunk_factor()). Until #184 they decomposed the stack with LINPACK's
-  # QR without pivoting, which divides each column by what is left of its
-  # norm: below the reciprocal of the largest double that overflows, and the
-  # next chunk stopped on "NA/NaN/Inf in foreign function call". The columns
-  # of White's design that are combinations of others leave rounding error,
-  # and under the noisy BLAS of cran-blas.yml it fell that low; a column of
-  # norm 1e-310 does it on any BLAS.
+  # it (rchunk_factor()). Until #184 they decomposed the stack without
+  # pivoting, which makes a reflection from every column, however little is
+  # left of it, and divides by that norm: what is left of an exact
+  # combination of other columns is rounding error, and below the reciprocal
+  # of the largest double the division overflows, and the next chunk stopped
+  # on "NA/NaN/Inf in foreign function call". Under the noisy BLAS of
+  # cran-blas.yml the rounding error of the dependent terms of White's design
+  # fell that low; a multiple of a regressor of size 1e-300 does it on any BLAS.
   set.seed(1)
-  rows <- cbind(1, stats::rnorm(8), c(rep(0, 7), 1e-310), stats::rnorm(8))
-  more <- cbind(1, stats::rnorm(5), 0, stats::rnorm(5))
+  x <- stats::rnorm(8) * 1e-300
+  rows <- cbind(1, x, 3 * x, stats::rnorm(8))
+  more <- cbind(1, stats::rnorm(5) * 1e-300, 0, stats::rnorm(5))
   expect_false(all(is.finite(qr.R(qr(rows, tol = 0)))))
   first <- heteroTests:::rchunk_factor(NULL, rows)
   expect_true(all(is.finite(first)))
@@ -442,4 +444,8 @@ test_that("the factor of the streaming tests stays finite when a column leaves a
   stacked <- heteroTests:::rchunk_factor(first, more)
   expect_true(all(is.finite(stacked)))
   expect_equal(crossprod(stacked), crossprod(rbind(rows, more)), tolerance = 1e-12)
+  # Without such a column the factor is that of the decomposition without
+  # pivoting, to the last bit, as before #184.
+  plain <- cbind(1, stats::rnorm(8), stats::rnorm(8))
+  expect_identical(heteroTests:::rchunk_factor(NULL, plain), qr.R(qr(plain, tol = 0)))
 })
