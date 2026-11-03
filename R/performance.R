@@ -250,29 +250,42 @@ rstreaming_pseudo <- function(ctx) {
 }
 
 # The factor of `rows` stacked under `factor`, that of the rows before them:
-# R of the QR decomposition of the stack, by LAPACK's decomposition with
-# column pivoting (dgeqp3), its columns put back in their order, so that its
-# rows are an orthogonal transform of every row so far, R'R their matrix of
-# cross-products. It need not be triangular, and it does not need to be: each
-# chunk decomposes it again, and chunked_regression_r2() reads it through
-# qr(), which decides the rank. LAPACK makes each reflection with dlarfg(),
-# which scales a column whose norm is below the safe minimum before dividing
-# by it. Until #184 the stack was decomposed by LINPACK's dqrdc2 without
-# pivoting (`tol = 0`), which makes a reflection from every column, however
-# small what is left of it: the columns of an auxiliary design that are
-# combinations of others, as the squares and products of dummies in White's
-# test are, leave rounding error, from which a reflection is made, and the
-# next such column what is left of it after that one, about the square of the
-# rounding error, and so on down. dqrdc2 divides each column by its norm,
-# its only operation that can give a value that is not finite, and does when
-# the norm is below the reciprocal of the largest double. Under the noisy BLAS
-# of cran-blas.yml the next chunk then stopped on "NA/NaN/Inf in foreign
-# function call", in White's streaming test of the one-way layout of
-# test-exact-fit.R, on all three seeds; a column of norm 1e-310 does it on any
-# BLAS (test-streaming.R).
+# R of the QR decomposition of the stack by qr() (LINPACK's dqrdc2), at a
+# tolerance of rchunk_tolerance, without what is left of the columns that
+# fall below it, its columns put back in their order. dqrdc2 moves a column to
+# the end when less than the tolerance of its norm is left after the columns
+# before it, as of a column that is a combination of them; R keeps the rows of
+# the columns that are not, its rank, and drops the rest, what is left of the
+# others, rounding error for an exact combination, which changes the
+# cross-products R'R of every row by less than the square of the tolerance,
+# relative. Its rows are an orthogonal transform of every row so far. It need
+# not be triangular: each chunk decomposes it again, and chunked_regression_r2()
+# reads it through qr(), which decides the rank. On a stack where no column
+# falls below the tolerance it is the factor of the decomposition without
+# pivoting, to the last bit.
+#
+# Until #184 the stack was decomposed without pivoting (`tol = 0`), which
+# makes a reflection from every column, however little is left of it: the
+# columns of an auxiliary design that are combinations of others, as the
+# squares and products of dummies in White's test are, leave rounding error,
+# from which a reflection is made, and the next such column what is left of
+# it after that one, about the square of the rounding error, and so on down.
+# dqrdc2 divides each column by its norm, its only operation that can give a
+# value that is not finite, and does when the norm is below the reciprocal of
+# the largest double. Under the noisy BLAS of cran-blas.yml the next chunk
+# then stopped on "NA/NaN/Inf in foreign function call", in White's streaming
+# test of the one-way layout of test-exact-fit.R, on all three seeds. A
+# column reflected now keeps at least the tolerance of its norm, so its norm
+# is not that small; a multiple of a regressor of size 1e-300, whose rounding
+# error is below the reciprocal, did it on any BLAS (test-streaming.R). A
+# decomposition by LAPACK, with column pivoting, rounded otherwise, and moved
+# White's streaming test on the nearly collinear basis of an mgcv::gam() fit by
+# 1.5e-8 (test-model-context.R).
+rchunk_tolerance <- 1e-13
+
 rchunk_factor <- function(factor, rows) {
-  stacked <- qr(rbind(factor, rows), LAPACK = TRUE)
-  qr.R(stacked)[, order(stacked$pivot), drop = FALSE]
+  stacked <- qr(rbind(factor, rows), tol = rchunk_tolerance)
+  qr.R(stacked)[seq_len(stacked$rank), order(stacked$pivot), drop = FALSE]
 }
 
 rstreaming_forced <- function(stats) {
