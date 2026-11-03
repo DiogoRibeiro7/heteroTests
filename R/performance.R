@@ -413,11 +413,13 @@ koenker_response_builder <- function(residuals_chunk) {
 #' their squares and their cross-products, chunk by chunk, without
 #' materialising it whole. Each chunk is reduced by a QR decomposition stacked
 #' on the factor of the chunks before it, which holds the cross-products of
-#' every row without forming them: since 0.18.0 the decomposition of LAPACK,
-#' with column pivoting, which scales a column left with a tiny norm before
-#' dividing by it, where that of LINPACK without pivoting could overflow on
-#' the terms that are combinations of others, as the squares and products of
-#' dummies are, and stop ("NA/NaN/Inf in foreign function call"). The rank of
+#' every row without forming them. Since 0.18.0 it leaves out what is left of a
+#' term that is a combination of the terms before it, less than \eqn{10^{-13}}
+#' of its norm, rounding error, which changes no value by more than the last
+#' bits; before, a reflection was made from that rounding error, and on a
+#' design with many such terms, as the squares and products of dummies are, the
+#' decomposition could divide by a norm below the reciprocal of the largest
+#' double and stop ("NA/NaN/Inf in foreign function call"). The rank of
 #' the auxiliary
 #' regression and its \eqn{n R^2} statistic are computed from that factor as
 #' in [performWhiteTest()], ensuring numerical equivalence while reducing peak
