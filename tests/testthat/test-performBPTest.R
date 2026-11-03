@@ -168,7 +168,8 @@ test_that("the Breusch-Pagan and Koenker tests count the rank of their auxiliary
 # Up to 0.17.0 the auxiliary regression of both tests was fitted by lm() from
 # a formula, on the columns as they are, at the tolerance of lm(). On three
 # kinds of full-rank design the statistic was wrong, and is now the value of
-# lmtest::bptest() and of the streaming forms, which had it already:
+# the streaming forms, which had it already, and of lmtest::bptest() but on the
+# glm, whose design lmtest::bptest() refits by lm.fit(), dropping its regressor:
 # - a model without an intercept with a regressor far from zero, which that
 #   fit dropped as collinear with its intercept while the degrees of freedom
 #   counted it: the Breusch-Pagan test gave 2.850 on 2 and Koenker's 2.372

@@ -74,7 +74,8 @@ or a Gaussian \code{glm} keeps: on \code{lm(y ~ 0 + I(x1 + 1e8) + x2)} the stati
 was 2.372, that of \code{x2} alone, where Koenker's test gives 13.92, and the
 p-value was that of the wrong statistic. On other designs the statistic
 and the replicates are the ones they were. A model whose regressors are
-all constant, such as \code{lm(y ~ 0 + one)}, is refused, since 0.18.0, as
+all constant, such as \code{lm(y ~ 0 + one)}, or with an intercept alone,
+\code{lm(y ~ 1)}, is refused, since 0.18.0, as
 Koenker's test refuses it: its statistic is 0 in every replicate, and the
 test returned 0 with a p-value of 1.
 }

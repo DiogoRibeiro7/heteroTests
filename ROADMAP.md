@@ -2507,8 +2507,9 @@ announced in bold in `NEWS.md`.
     (`rauxiliary_fit()`), on the centred columns where those as they are lose
     one, not by `lm()` from a formula on the columns as they are, and that
     changes the statistic on three kinds of design of full rank, from a
-    wrong value to that of `lmtest::bptest()` and of the streaming forms,
-    which had it already (from the review of #183): a model without an
+    wrong value to that of the streaming forms, which had it already, and of
+    `lmtest::bptest()` but on the `glm` below, whose design it refits by
+    `lm.fit()`, dropping the regressor too (from the review of #183): a model without an
     intercept with a regressor far from zero, which that fit dropped as a
     combination of its intercept while the degrees of freedom counted it,
     `lm(y ~ 0 + I(x1 + 1e8) + x2)` in the design of `contract_data()` giving
@@ -2520,8 +2521,9 @@ announced in bold in `NEWS.md`.
     `lm(y ~ x1 + x2)`; and a regressor named `scaled_sq` or `e_squared`, which
     the formula of the Breusch-Pagan or the Koenker test took for its response,
     `lm(y ~ scaled_sq + x2)` giving 102.0 for 12.45 and `lm(y ~ e_squared + x2)`
-    0.014 for 9.044. Changes a value there; on the 17 other fits of full rank
-    the review compared, every result was `identical()` to 0.17.0's.
+    0.014 for 9.044. Changes a value there; on the 16 other fits the review
+    compared, one of them a rank-deficient `lm` tested on the estimable part
+    of its design, every result was `identical()` to 0.17.0's.
     A model whose only regressor is constant, `lm(y ~ 0 + one)`, has no
     regressor beyond the intercept and is refused by all four ("requires at
     least one predictor beyond the intercept"), where the exact tests gave 0
@@ -2546,7 +2548,8 @@ announced in bold in `NEWS.md`.
     2.372, the statistic of `x2` alone, and a p-value of that statistic; its
     values on other fits are those of 0.17.0 (four fits at a fixed seed, to
     the last bit), and it refuses the model whose regressors are all
-    constant, on which it gave 0 on 1, p = 1, a test that cannot reject. The
+    constant, and a model with an intercept alone, `lm(y ~ 1)`, on which it
+    gave 0 on 1, p = 1, a test that cannot reject. The
     studentized statistic (`performStudentizedBPTest()`,
     `performBPTestRobust(studentize = TRUE)`, `"student_bp"`), the
     Cook-Weisberg test (`var_formula` too), Harvey's test and the variance

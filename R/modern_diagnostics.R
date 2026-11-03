@@ -214,7 +214,8 @@
 #'   was 2.372, that of `x2` alone, where Koenker's test gives 13.92, and the
 #'   p-value was that of the wrong statistic. On other designs the statistic
 #'   and the replicates are the ones they were. A model whose regressors are
-#'   all constant, such as `lm(y ~ 0 + one)`, is refused, since 0.18.0, as
+#'   all constant, such as `lm(y ~ 0 + one)`, or with an intercept alone,
+#'   `lm(y ~ 1)`, is refused, since 0.18.0, as
 #'   Koenker's test refuses it: its statistic is 0 in every replicate, and the
 #'   test returned 0 with a p-value of 1.
 #'
@@ -335,7 +336,8 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   centred <- predictors - rep(colMeans(predictors), each = nrow(predictors))
   columns <- rauxiliary_columns(centred)
   df <- columns$rank - 1L
-  # A model whose regressors are all constant, such as lm(y ~ 0 + one), has
+  # A model whose regressors are all constant, such as lm(y ~ 0 + one), or
+  # with an intercept alone, lm(y ~ 1), has
   # none beyond the intercept: its statistic is 0 in every replicate, and the
   # test could not reject. Refused, as the Breusch-Pagan and Koenker tests
   # refuse it, since 0.18.0; it gave 0 on 1 degree of freedom, p = 1.

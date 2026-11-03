@@ -90,8 +90,10 @@
 #' Up to 0.17.0 the auxiliary regression was also fitted by `lm()` from a
 #' formula, on the columns of \eqn{Z} as they are, and on three kinds of
 #' design of full rank its statistic was wrong. It is now the value of
-#' `lmtest::bptest()` and of [performKoenkerTestStreaming()], which had it
-#' already; the registered `"koenker"` and [performWildBootstrapTest()], whose
+#' [performKoenkerTestStreaming()], which had it already, and of
+#' `lmtest::bptest()` but on the Gaussian `glm`, whose design
+#' `lmtest::bptest()` refits by `lm.fit()`, dropping the regressor too; the
+#' registered `"koenker"` and [performWildBootstrapTest()], whose
 #' statistic this is, change with it. On a model without an intercept with a regressor whose
 #' spread is less than about \eqn{10^{-7}} of its distance from zero, that fit
 #' dropped the regressor as a combination of its intercept, and the degrees of

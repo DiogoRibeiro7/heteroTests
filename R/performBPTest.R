@@ -94,7 +94,9 @@
 #' Up to 0.17.0 the auxiliary regression was also fitted by `lm()` from a
 #' formula, on the columns of \eqn{Z} as they are, and on three kinds of
 #' design of full rank its statistic was wrong. It is now the value of
-#' `lmtest::bptest()` and of [performBPTestStreaming()], which had it already;
+#' [performBPTestStreaming()], which had it already, and of `lmtest::bptest()`
+#' but on the Gaussian `glm`, whose design `lmtest::bptest()` refits by
+#' `lm.fit()`, dropping the regressor too;
 #' \link[=performBPTestRobust]{performBPTestRobust()} with `studentize = FALSE`
 #' and the registered `"breusch_pagan"` change with it. On a model without an
 #' intercept with a regressor whose spread is less than about \eqn{10^{-7}} of

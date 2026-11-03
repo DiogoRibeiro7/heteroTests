@@ -84,6 +84,10 @@ test_that("the wild bootstrap keeps a regressor far from zero and refuses a cons
     performWildBootstrapTest(lm(y ~ 0 + one, data = d), d, B = 19, progress = FALSE),
     "Wild bootstrap test requires at least one predictor beyond the intercept.", fixed = TRUE
   )
+  expect_error(
+    performWildBootstrapTest(lm(y ~ 1, data = d), d, B = 19, progress = FALSE),
+    "Wild bootstrap test requires at least one predictor beyond the intercept.", fixed = TRUE
+  )
 })
 
 test_that("HC covariance pseudo-test is absent from built-in registries", {
