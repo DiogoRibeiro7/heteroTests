@@ -394,6 +394,76 @@ test_that("the streaming tests refuse squared residuals that do not vary", {
   }
 })
 
+test_that("the streaming regression stays finite on a multiple of a regressor of size 1e-300", {
+  # The streaming tests stack each chunk under the factor of the chunks before
+  # it (rchunk_factor()). In 0.17.0 they decomposed the stack without
+  # pivoting, which makes a reflection from every column, however little is
+  # left of it, and divides by that norm: what is left of a column that is a
+  # combination of others is rounding error, and below the reciprocal of the
+  # largest double the division overflows. The next chunk, or the qr() that
+  # reads the factor, then stopped on "NA/NaN/Inf in foreign function call
+  # (arg 1)", in chunks of any size. Under the noisy BLAS of cran-blas.yml the
+  # rounding error of the dependent terms of White's design fell that low; a
+  # multiple of a regressor of size 1e-300 does it on any BLAS. The
+  # regression is that of the same regressors at size 1.
+  set.seed(1)
+  n <- 40
+  u <- stats::rnorm(n)
+  z <- stats::rnorm(n)
+  residuals <- stats::rnorm(n)
+  design <- cbind(`(Intercept)` = 1, x = u * 1e-300, x3 = 3 * u * 1e-300, z = z)
+  e2 <- residuals^2
+  expected <- list(
+    bp = list(builder = heteroTests:::bp_predictor_builder, rank = 3L,
+              r_squared = summary(stats::lm(e2 ~ u + z))$r.squared),
+    # The squares of x and of 3x, and their product, are 0, below the
+    # smallest double; the product of 3x and z is a multiple of that of x.
+    white = list(builder = heteroTests:::white_predictor_builder(), rank = 5L,
+                 r_squared = summary(stats::lm(e2 ~ u + z + I(z^2) + I(u * z)))$r.squared)
+  )
+  for (nm in names(expected)) {
+    for (chunk in c(7, 40)) {
+      info <- paste(nm, chunk)
+      out <- heteroTests:::chunked_regression_r2(design, residuals, chunk,
+                                                 expected[[nm]]$builder,
+                                                 heteroTests:::bp_response_builder)
+      expect_true(all(is.finite(out$factor)), info = info)
+      expect_identical(out$rank, expected[[nm]]$rank, info = info)
+      expect_equal(out$r_squared, expected[[nm]]$r_squared, tolerance = 1e-10, info = info)
+    }
+  }
+})
+
+test_that("the streaming factor leaves out what is left of a column that is a combination of others", {
+  # rchunk_factor() keeps the rows of R up to the rank of the stack at
+  # rchunk_tolerance: the rows past it hold only what is left of the columns
+  # that are combinations of the columns before them, from which the
+  # decomposition without pivoting made the reflections that overflowed.
+  set.seed(1)
+  x <- stats::rnorm(8) * 1e-300
+  rows <- cbind(1, x, 3 * x, stats::rnorm(8))
+  more <- cbind(1, stats::rnorm(5) * 1e-300, 0, stats::rnorm(5))
+  expect_false(all(is.finite(qr.R(qr(rows, tol = 0)))))
+  first <- heteroTests:::rchunk_factor(NULL, rows)
+  expect_true(all(is.finite(first)))
+  expect_identical(dim(first), c(3L, 4L))
+  expect_equal(crossprod(first), crossprod(rows), tolerance = 1e-12)
+  stacked <- heteroTests:::rchunk_factor(first, more)
+  expect_true(all(is.finite(stacked)))
+  expect_identical(dim(stacked), c(4L, 4L))
+  expect_equal(crossprod(stacked), crossprod(rbind(rows, more)), tolerance = 1e-12)
+  # Without such a column the factor is that of the decomposition without
+  # pivoting, to the last bit, as in 0.17.0, chunk after chunk. The two
+  # decompositions are computed apart, so under a BLAS that rounds each call
+  # its own way they agree to its last bits (expect_identical_numbers()).
+  plain <- cbind(1, stats::rnorm(8), stats::rnorm(8))
+  next_rows <- cbind(1, stats::rnorm(5), stats::rnorm(5))
+  first <- heteroTests:::rchunk_factor(NULL, plain)
+  expect_identical_numbers(first, qr.R(qr(plain, tol = 0)))
+  expect_identical_numbers(heteroTests:::rchunk_factor(first, next_rows),
+                           qr.R(qr(rbind(first, next_rows), tol = 0)))
+})
+
 test_that("bootstrap helper returns the requested number of replicates", {
   test_obj <- setup_test_model(n = 60, seed = 246)
   boot <- bootstrapTestStatistic(
