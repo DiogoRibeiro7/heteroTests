@@ -74,6 +74,12 @@ NULL
 #' requirements registered for this test in
 #' \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
 #'
+#' Since 0.18.0 it refuses an auxiliary regression that fits the squared
+#' residuals exactly, as on a paired design, as [performKoenkerTest()] refuses
+#' it (see its *Exact fit*), and so does the registered `"student_bp"`: on 30
+#' subjects of two observations it gave 60 on 30 degrees of freedom, the
+#' number of observations.
+#'
 #' @references
 #' Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
 #' *Journal of Econometrics, 17*(1), 107–112.
@@ -255,6 +261,16 @@ performStudentizedBPTest <- function(model, data = NULL) {
       "rassumption_violation",
       assumption = "Studentized BP auxiliary regression produced non-finite values"
     )
+  }
+  # An auxiliary regression that fits the centred squared residuals exactly,
+  # whose sum of squares is `denominator` (they have mean zero), as on a
+  # paired design: the statistic is the number of observations. Refused since
+  # 0.18.0, as performKoenkerTest() refuses it, at the threshold of White's
+  # test; on the paired design of White's exact fit it gave 60 on 30
+  # (p = 0.0009).
+  if (rauxiliary_exact(sum(aux_fit$residuals^2), denominator)) {
+    rrefuse_auxiliary_exact_fit("the studentized Breusch-Pagan test", aux_fit$rank, effective_n,
+                                rexact_fit_statistic$n_r_squared)
   }
 
   test_statistic <- effective_n * numerator / denominator

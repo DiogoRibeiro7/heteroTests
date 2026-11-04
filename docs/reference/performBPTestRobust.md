@@ -87,6 +87,12 @@ Offers expanded reporting for the Breusch–Pagan family of tests including
 bootstrap p-values and asymptotic confidence intervals. The optional
 `studentize` argument toggles between the classic and Koenker versions.
 
+Since 0.18.0 it refuses, with either value of `studentize` and with or
+without the bootstrap, an auxiliary regression that fits the squared
+residuals exactly, as on a paired design, as [`performBPTest()`](performBPTest.md) and
+[`performKoenkerTest()`](performKoenkerTest.md) refuse it (see their *Exact fit*): on 30 subjects of
+two observations it gave 60 on 30 degrees of freedom with `studentize = TRUE` and 63.25 on 30 with `FALSE`.
+
 ## Supported models
 
 It accepts an `lm` and a `glm` with the Gaussian family and the identity link,

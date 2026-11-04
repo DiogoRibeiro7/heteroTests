@@ -35,6 +35,8 @@ With `var_formula = NULL` the fitted values are the sole variance regressor, mat
 
 Because the divisor 2 is the null variance of \(\hat{e}^2 / \sigma^2\) under normality, the test is sensitive to non-normal errors; [`performKoenkerTest`](performKoenkerTest.md) provides the studentized variant, which is robust to non-normal kurtosis.
 
+Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as [`performCookWeisbergTest()`](performCookWeisbergTest.md) refuses it (see its details).
+
 ## Deprecated
 
 `performNCVTest()` is deprecated since 0.14.0: use [`performCookWeisbergTest`](performCookWeisbergTest.md), which gained `var_formula` and is the one entry point for the Cook-Weisberg score test. With a variance formula, `performNCVTest(model, var_formula)` returns what `performCookWeisbergTest(model, var_formula)` returns; without one the two return the same statistic, degrees of freedom and p-value, and `performCookWeisbergTest()` labels the result as the Cook-Weisberg test. The old name still works, returns what it returned and warns.

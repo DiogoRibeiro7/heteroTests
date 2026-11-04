@@ -50,6 +50,15 @@
 #' \eqn{\log \hat{e}^2} only when the errors are Gaussian. See the Validation
 #' section for simulated size under both.
 #'
+#' Since 0.18.0 the test refuses an auxiliary regression that fits the log
+#' squared residuals exactly, by the rule and with the class of
+#' [performKoenkerTest()] (see its *Exact fit*): the classical statistic is
+#' then the total sum of squares over \eqn{\pi^2 / 2}, a function of their
+#' spread alone, and the studentized F infinite. On 30 subjects of two
+#' observations, `lm(y ~ treat + subject)`, whose squared residuals are equal
+#' in each pair, the regressors gave 63.07 on 30 degrees of freedom and the
+#' studentized form an infinite F.
+#'
 #' The implementation validates the model via
 #' \link[=rvalidateModelInputs]{rvalidateModelInputs()} and applies
 #' \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} to ensure a
@@ -188,6 +197,24 @@ performHarveyTest <- function(model, data = NULL,
     .std_error(
       "rassumption_violation",
       assumption = "Harvey auxiliary regression requires positive residual degrees of freedom"
+    )
+  }
+
+  # Regressors that fit the log squared residuals exactly, as those of a paired
+  # design do, whose squared residuals are equal in each pair: the statistic is
+  # the explained sum of squares over pi^2 / 2, then the total over pi^2 / 2, a
+  # function of their spread alone, and the studentized F is infinite. Refused
+  # since 0.18.0 at the threshold of White's test, as the Breusch-Pagan and
+  # Koenker tests refuse such a fit of the squared residuals; on the paired
+  # design of White's exact fit the test gave 63.07 on 30 (p = 0.0004), and
+  # its studentized form Inf. Whether the regressors fit the squared
+  # residuals too is not known. The fitted values and their square, two
+  # terms, do not fit them exactly but by a coincidence of the data.
+  if (rauxiliary_fit_exact(aux_model)) {
+    rrefuse_auxiliary_exact_fit(
+      "Harvey's test", aux_model$rank, length(log_e2),
+      if (studentize) rexact_fit_statistic$f else rexact_fit_statistic$log_spread,
+      regressors_exact = NA, response = "the log squared residuals"
     )
   }
 

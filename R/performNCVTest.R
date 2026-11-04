@@ -41,6 +41,10 @@
 #' [performKoenkerTest()] for the studentized variant, which replaces that
 #' constant with a consistent estimate and is robust to non-normal kurtosis.
 #'
+#' Since 0.18.0 the test refuses a variance model that fits the scaled squared
+#' residuals exactly, as [performCookWeisbergTest()] refuses it (see its
+#' details).
+#'
 #' @section Weighted fits:
 #' On a fit with weights the test is computed from the Pearson residuals
 #' \eqn{\sqrt{w_i}\, e_i}, so it tests whether the weights are adequate; see
@@ -213,6 +217,17 @@ performNCVTest <- function(model, data = NULL, var_formula = NULL) {
       "rassumption_violation",
       assumption = "NCV auxiliary regression retained no variance regressors after rank reduction"
     )
+  }
+  # A variance model that fits the scaled squared residuals exactly, as the
+  # regressors of a paired design do with `var_formula = ~ treat + subject`:
+  # the statistic, half the explained sum of squares, is half the total, a
+  # function of their spread alone. Refused since 0.18.0, as the
+  # Breusch-Pagan test, whose statistic this is on the regressors, refuses it,
+  # at the threshold of White's test; it gave 63.25 on 30 (p = 0.0004) there.
+  # Whether the regressors of the model fit them too is not known.
+  if (rauxiliary_fit_exact(aux_model)) {
+    rrefuse_auxiliary_exact_fit("the Cook-Weisberg test", aux_model$rank, n,
+                                rexact_fit_statistic$spread, regressors_exact = NA)
   }
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)
 

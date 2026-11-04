@@ -35,6 +35,16 @@
 #' them by their class or as an `error`. Nor is a
 #' diagnostic registered under the name of a substitute, as by
 #' `registerDiagnostic("breusch_pagan", f)`, run after such a refusal.
+#' An auxiliary regression that fits the squared residuals exactly, as on a
+#' paired design, runs no substitute either when the regressors alone fit
+#' them: refused by White's test since 0.16.0 and, since 0.18.0, by the
+#' Breusch-Pagan, Koenker, studentized Breusch-Pagan and wild bootstrap tests
+#' (see *Exact fit* in [performKoenkerTest()]), where `"breusch_pagan"`,
+#' `"koenker"`, `"student_bp"` and `"wild_bootstrap"` returned the statistic
+#' of that fit. The call stops with its message, as an error without its
+#' class, as on White's refusal; and a substitute that refuses it ends the
+#' search, so that `"high_dimensional"`, which falls back on the
+#' Breusch-Pagan test, no longer returns that test's statistic of the fit.
 #'
 #' The runner runs the exact tests unless `chunk_threshold_mb` asks for the
 #' streaming ones, [performWhiteTestStreaming()], [performBPTestStreaming()]

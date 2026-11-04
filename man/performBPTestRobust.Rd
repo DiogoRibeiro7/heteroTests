@@ -72,6 +72,12 @@ diagnostics.
 Offers expanded reporting for the Breusch–Pagan family of tests including
 bootstrap p-values and asymptotic confidence intervals. The optional
 \code{studentize} argument toggles between the classic and Koenker versions.
+
+Since 0.18.0 it refuses, with either value of \code{studentize} and with or
+without the bootstrap, an auxiliary regression that fits the squared
+residuals exactly, as on a paired design, as \code{\link[=performBPTest]{performBPTest()}} and
+\code{\link[=performKoenkerTest]{performKoenkerTest()}} refuse it (see their \emph{Exact fit}): on 30 subjects of
+two observations it gave 60 on 30 degrees of freedom with \code{studentize = TRUE} and 63.25 on 30 with \code{FALSE}.
 }
 \section{Supported models}{
 

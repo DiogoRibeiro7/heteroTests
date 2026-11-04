@@ -51,6 +51,16 @@
 #' that assumption is doubtful, prefer [performKoenkerTest()], whose studentized
 #' statistic replaces the constant with a consistent estimate.
 #'
+#' Since 0.18.0 the test refuses a variance model that fits the scaled squared
+#' residuals exactly, as [performBPTest()], whose statistic it then is,
+#' refuses such a fit of the regressors (see its *Exact fit*), by the same
+#' rule and with the same class: half the explained sum of squares is then
+#' half the total, a function of the spread of the squared residuals alone.
+#' On 30 subjects of two observations, `lm(y ~ treat + subject)`,
+#' `var_formula = ~ treat + subject` gave 63.25 on 30 degrees of freedom. The
+#' fitted values, the default, do not fit them exactly there, and the test
+#' gives a value.
+#'
 #' @references
 #' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in
 #' regression. *Biometrika, 70*(1), 1–10. <https://doi.org/10.1093/biomet/70.1.1>

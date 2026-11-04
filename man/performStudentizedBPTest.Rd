@@ -74,6 +74,12 @@ rows of \code{data} matched to its observations (the model context, since
 0.16.0), and (iii) the
 requirements registered for this test in
 \link[=rvalidateTestRequirements]{rvalidateTestRequirements()} are met.
+
+Since 0.18.0 it refuses an auxiliary regression that fits the squared
+residuals exactly, as on a paired design, as \code{\link[=performKoenkerTest]{performKoenkerTest()}} refuses
+it (see its \emph{Exact fit}), and so does the registered \code{"student_bp"}: on 30
+subjects of two observations it gave 60 on 30 degrees of freedom, the
+number of observations.
 }
 \section{Supported models}{
 

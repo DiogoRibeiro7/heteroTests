@@ -213,8 +213,7 @@ rfactor_regressors_exact <- function(factor, regressors) {
   response <- factor[, ncol(factor)]
   decomposition <- qr(factor[, seq_len(regressors + 1L), drop = FALSE])
   effects <- qr.qty(decomposition, response)
-  total <- sum(effects[-1L]^2)
-  total > 0 && sum(effects[-seq_len(decomposition$rank)]^2) <= rwhite_exact_tolerance * total
+  rauxiliary_exact(sum(effects[-seq_len(decomposition$rank)]^2), sum(effects[-1L]^2))
 }
 
 # The builders of the auxiliary regressions: the predictors from the rows of
@@ -474,7 +473,7 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     )
   }
 
-  if (stats$residual <= rwhite_exact_tolerance * stats$response_tss) {
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
     rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = FALSE, products = products,
                             regressors_exact = rfactor_regressors_exact(stats$factor, regressors),
                             what = what)
@@ -544,6 +543,12 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   4 degrees of freedom, where it stopped ("Breusch-Pagan auxiliary
 #'   regression became rank deficient").
 #'
+#'   Since 0.18.0 the test refuses an auxiliary regression that fits the
+#'   squared residuals exactly, as on a paired design, by the rule and with
+#'   the message and class of [performBPTest()] (see its *Exact fit*), where
+#'   it gave 63.25 on 30 degrees of freedom on 30 subjects of two
+#'   observations.
+#'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
@@ -598,6 +603,17 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
       "rassumption_violation",
       assumption = "Breusch-Pagan test requires variation in squared residuals"
     )
+  }
+
+  # An auxiliary regression that fits the squared residuals exactly, as on a
+  # paired design: refused since 0.18.0 by the rule and with the message of
+  # performBPTest(), decided from the sums of squares of
+  # chunked_regression_r2(), as performWhiteTestStreaming() decides White's.
+  # The response here is the squared residuals, not their scaled form, an
+  # affine function of them with the same fit.
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
+    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", stats$rank, stats$n,
+                                rexact_fit_statistic$spread)
   }
 
   # Classical BP = 0.5 * ESS_f, with f = e^2/sigma^2 - 1. Scaling the auxiliary
@@ -670,6 +686,12 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   on 4 degrees of freedom, where it stopped ("Koenker auxiliary regression
 #'   became rank deficient").
 #'
+#'   Since 0.18.0 the test refuses an auxiliary regression that fits the
+#'   squared residuals exactly, as on a paired design, by the rule and with
+#'   the message and class of [performKoenkerTest()] (see its *Exact fit*),
+#'   where it gave 60 on 30 degrees of freedom on 30 subjects of two
+#'   observations.
+#'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
 #'
@@ -716,6 +738,14 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
       "rassumption_violation",
       assumption = "Koenker test requires variation in squared residuals"
     )
+  }
+
+  # An auxiliary regression that fits the squared residuals exactly, as on a
+  # paired design: refused since 0.18.0 by the rule and with the message of
+  # performKoenkerTest().
+  if (rauxiliary_exact(stats$residual, stats$response_tss)) {
+    rrefuse_auxiliary_exact_fit("Koenker's test", stats$rank, stats$n,
+                                rexact_fit_statistic$n_r_squared)
   }
 
   test_statistic <- stats$n * stats$r_squared

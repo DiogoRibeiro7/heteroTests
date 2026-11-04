@@ -17,6 +17,13 @@ A list with elements \code{model} (the transformed fit) and
 Chooses between no transformation, log, square root and Box--Cox
 based on the Breusch-Pagan test statistic.
 }
+\details{
+Since 0.18.0 it stops with the refusal of \code{\link[=performBPTest]{performBPTest()}} on a
+design whose auxiliary regression fits the squared residuals exactly, as
+a factor with two observations per level does for every candidate fit
+(see \emph{Exact fit} in \code{\link[=performBPTest]{performBPTest()}}); it chose between them by a
+statistic of the spread of their squared residuals alone.
+}
 \examples{
 data(mtcars)
 m <- lm(mpg ~ wt + qsec, data = mtcars)

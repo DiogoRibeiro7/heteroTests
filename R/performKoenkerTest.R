@@ -109,6 +109,45 @@
 #' same model under another name. On other designs the statistic is the one it
 #' was.
 #'
+#' @section Exact fit:
+#' An auxiliary regression that fits the squared residuals exactly has an
+#' \eqn{R^2} of 1, and the statistic is the number of observations, whatever
+#' the data. On a paired design, such as `lm(y ~ treat + subject)` with two
+#' observations of each subject, the two residuals of a subject sum to zero,
+#' so their squares are equal and a combination of the subject dummies: on 30
+#' subjects the test gave 60 on 30 degrees of freedom (p = 0.0009) on
+#' homoscedastic data, the value of `lmtest::bptest()`, and on
+#' `lm(y ~ x1 + f)` with a factor of 10 levels of two observations, 20 on 10
+#' (p = 0.029). Since 0.18.0 it refuses such a regression, where it returned
+#' that statistic, as White's test has refused it since 0.16.0 (see *Too few
+#' observations* in [performWhiteTest()]). The refusal is an error of class
+#' `heteroTests_exact_fit_error`, whose message says why and asks for more
+#' observations per level: the design forces the exact fit, and more levels of
+#' two observations do not help. A fit counts as exact by the rule of White's
+#' test, when its residual sum of squares is at most
+#' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
+#' sum of squares of the squared residuals. Up to 0.17.0 the test gave the
+#' warning of `summary.lm()` there, "essentially perfect fit: summary may be
+#' unreliable", with the value.
+#'
+#' [performKoenkerTestStreaming()], the registered `"koenker"`,
+#' [performBPTestRobust()], [performStudentizedBPTest()] and the registered
+#' `"student_bp"`, which compute this statistic, refuse it too, and so do
+#' [performWildBootstrapTest()], which bootstraps it, and
+#' [bootstrapTestStatistic()] of this test. [runHeteroTests()] takes no
+#' fallback, and stops with the refusal: its fallback, the Cook-Weisberg test,
+#' tests the fitted values, another hypothesis, and would return its value
+#' under this name. The other tests whose auxiliary regression can fit the
+#' squared residuals, or a function of them, exactly refuse such a fit by the
+#' same rule: the Breusch-Pagan test, the Cook-Weisberg test with a
+#' `var_formula` of the regressors, Harvey's test, the high-dimensional test
+#' when it keeps every principal component, and the variance form test.
+#'
+#' The refusal covers the exact fit only. One step away from it, with one of
+#' the 30 subjects observed a third time, the test gives 59.75 on 30
+#' (p = 0.001), and on any fit with fixed effects for small groups it rejects
+#' too often, and warns (see *Fixed effects for small groups*).
+#'
 #' @section Fixed effects for small groups:
 #' Koenker's test, like White's and the Breusch-Pagan tests, is not valid with
 #' fixed effects for small groups: a factor with many levels and few
@@ -326,6 +365,18 @@ performKoenkerTest <- function(model, data = NULL) {
     stop("Koenker test requires at least one predictor beyond the intercept.", call. = FALSE)
   }
   aux_fit <- rauxiliary_fit(e_squared, predictors, centred, columns, test_label)
+  # An auxiliary regression that fits the squared residuals exactly, as the
+  # dummies of a factor with two observations per level do, whose residuals
+  # are equal and opposite in each pair: R^2 is 1 and the statistic the number
+  # of observations, as in lmtest::bptest(). Refused since 0.18.0 at the
+  # threshold of White's test (rauxiliary_fit_exact()), with its message; on
+  # the paired design of White's exact fit the test gave 60 on 30
+  # (p = 0.0009). Up to 0.17.0 summary.lm() warned "essentially perfect fit"
+  # there, and 0.18.0 before this refusal gave the value without it.
+  if (rauxiliary_fit_exact(aux_fit)) {
+    rrefuse_auxiliary_exact_fit("Koenker's test", aux_fit$rank, n,
+                                rexact_fit_statistic$n_r_squared)
+  }
   test_statistic <- n * rauxiliary_r_squared(aux_fit)
   # The rank of the auxiliary regression less its intercept.
   df <- aux_fit$rank - 1L

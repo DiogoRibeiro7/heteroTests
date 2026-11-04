@@ -6,6 +6,8 @@
 Writing \eqn{\hat{\sigma}^2 = \sum_i \hat{e}_i^2 / n} for the maximum-likelihood error variance, the test regresses the scaled squared residuals \eqn{\hat{e}_i^2 / \hat{\sigma}^2} on the fitted values and refers half the explained sum of squares to a chi-square distribution with one degree of freedom. This is the diagnostic returned by Stata's \code{estat hettest} with the \code{fitted} option, and it is exactly \code{\link{performNCVTest}} with its default variance model.
 
 The chi-square reference distribution follows from the null variance of \eqn{\hat{e}^2 / \sigma^2} being 2, which holds under normal errors. When that assumption is doubtful, prefer \code{\link{performKoenkerTest}}.
+
+Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as \code{\link{performBPTest}()}, whose statistic it then is, refuses such a fit of the regressors (see its \emph{Exact fit}), by the same rule and with the same class: half the explained sum of squares is then half the total, a function of the spread of the squared residuals alone. On 30 subjects of two observations, \code{lm(y ~ treat + subject)}, \code{var_formula = ~ treat + subject} gave 63.25 on 30 degrees of freedom. The fitted values, the default, do not fit them exactly there, and the test gives a value.
 }
 \usage{performCookWeisbergTest(model, data = NULL, var_formula = NULL)}
 \arguments{

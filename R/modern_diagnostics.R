@@ -43,7 +43,11 @@
   }
   aux_fit <- rauxiliary_fit(response, predictors, centred, columns, "Wild bootstrap test")
   stat <- n * rauxiliary_r_squared(aux_fit)
-  list(statistic = stats::setNames(stat, statistic_name))
+  # `exact`: the regression fits the squared residuals exactly
+  # (rauxiliary_fit_exact()), which performWildBootstrapTest() refuses for
+  # the data.
+  list(statistic = stats::setNames(stat, statistic_name), exact = rauxiliary_fit_exact(aux_fit),
+       rank = aux_fit$rank)
 }
 
 .pick_predictor <- function(model_matrix) {
@@ -217,7 +221,12 @@
 #'   all constant, such as `lm(y ~ 0 + one)`, or with an intercept alone,
 #'   `lm(y ~ 1)`, is refused, since 0.18.0, as
 #'   Koenker's test refuses it: its statistic is 0 in every replicate, and the
-#'   test returned 0 with a p-value of 1.
+#'   test returned 0 with a p-value of 1. Since 0.18.0 it also refuses, as
+#'   [performKoenkerTest()] does (see its *Exact fit*), data whose auxiliary
+#'   regression fits the squared residuals exactly, as on a paired design,
+#'   where every replicate does too: on 30 subjects of two observations it
+#'   gave 60, the number of observations, with a p-value of 1. The refusal
+#'   comes before the replicates are drawn.
 #'
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
@@ -346,6 +355,17 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   }
 
   observed <- .compute_bp_statistic(residuals, predictors, centred, columns)
+  # Koenker's auxiliary regression fits the squared residuals of the data
+  # exactly, as on a paired design, and so those of every replicate, whose
+  # design is the same: each statistic is the number of observations, and the
+  # p-value counts the replicates whose rounding error is above that of the
+  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, before
+  # the replicates are drawn; on the paired design of White's exact fit the
+  # test gave 60 with a p-value of 1.
+  if (observed$exact) {
+    rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
+                                rexact_fit_statistic$n_r_squared)
+  }
 
   multiplier_draw <- switch(distribution,
     rademacher = function(n) sample(c(-1, 1), size = n, replace = TRUE),
@@ -623,7 +643,13 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #'   components to retain. Defaults to `min(10, n - 5)`.
 #'
 #' @return An \code{htest} object summarising the chi-squared statistic
-#'   of the auxiliary regression on principal component scores.
+#'   of the auxiliary regression on principal component scores. Since 0.18.0
+#'   the test refuses components that fit the squared residuals exactly, by
+#'   the rule and with the class of [performKoenkerTest()] (see its *Exact
+#'   fit*), where the statistic was the number of observations: on a paired
+#'   design of 30 subjects of two observations with `variance_threshold = 1`,
+#'   which keeps every component, 60 on 30. The default keeps 26 there, which
+#'   do not fit them exactly, and gives a value.
 #'
 #' @references
 #' Fan, J., & Lv, J. (2008). Sure independence screening for ultrahigh dimensional
@@ -701,6 +727,16 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
   scores <- svd_fit$x[, seq_len(k), drop = FALSE]
   aux_df <- data.frame(res_sq = residuals^2, scores)
   aux_model <- safe_lm(res_sq ~ ., data = aux_df)
+  # Principal components that fit the squared residuals exactly, as all of
+  # them do on a paired design (variance_threshold = 1): the statistic is the
+  # number of observations. Refused since 0.18.0 at the threshold of White's
+  # test, as Koenker's test, of which this is the statistic on the components,
+  # refuses it; on the paired design of White's exact fit it gave 60 on 30
+  # with the warning of summary.lm(), "essentially perfect fit".
+  if (rauxiliary_fit_exact(aux_model)) {
+    rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
+                                length(residuals), rexact_fit_statistic$n_r_squared)
+  }
   r2 <- summary(aux_model)$r.squared
   statistic <- length(residuals) * r2
   df <- k

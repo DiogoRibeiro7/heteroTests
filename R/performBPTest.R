@@ -112,6 +112,45 @@
 #' `lm(y ~ scaled_sq + x2)` gave 102.0 for 12.45, the value of the same model
 #' under another name. On other designs the statistic is the one it was.
 #'
+#' @section Exact fit:
+#' An auxiliary regression that fits the scaled squared residuals exactly has
+#' an \eqn{R^2} of 1, and the statistic, half its explained sum of squares, is
+#' half their total sum of squares, a function of the spread of the squared
+#' residuals alone, whatever their pattern. On a paired design, such as
+#' `lm(y ~ treat + subject)` with two observations of each subject, the two
+#' residuals of a subject sum to zero, so their squares are equal and a
+#' combination of the subject dummies: on 30 subjects the test gave 63.25 on
+#' 30 degrees of freedom (p = 0.0004) on homoscedastic data, the value of
+#' `lmtest::bptest(..., studentize = FALSE)`, and on `lm(y ~ x1 + f)` with a
+#' factor of 10 levels of two observations, 28.03 on 10 (p = 0.002). Since
+#' 0.18.0 it refuses such a regression, where it returned that statistic, as
+#' White's test has refused it since 0.16.0 (see *Too few observations* in
+#' [performWhiteTest()]). The refusal is an error of class
+#' `heteroTests_exact_fit_error`, whose message says why and asks for more
+#' observations per level: the design forces the exact fit, and more levels
+#' of two observations do not help. A fit counts as exact by the rule of
+#' White's test, when its residual sum of squares is at most
+#' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
+#' sum of squares of the squared residuals.
+#'
+#' [performBPTestStreaming()], the registered `"breusch_pagan"`,
+#' `performBreuschPaganTest()`, [performBPTestRobust()] with
+#' `studentize = FALSE` and [bootstrapTestStatistic()] of this test refuse it
+#' too. [runHeteroTests()] takes no fallback, and stops with the refusal: of
+#' its fallbacks, Koenker's test fits the same squared residuals exactly, and
+#' the Cook-Weisberg test tests the fitted values, another hypothesis, and
+#' would return its value under this name. The other tests whose auxiliary
+#' regression can fit the squared residuals, or a function of them, exactly
+#' refuse such a fit by the same rule (see *Exact fit* in
+#' [performKoenkerTest()]). [autoTransform()], which chooses a transformation
+#' by the p-value of this test, stops with the refusal on such a design, where
+#' every candidate fit is an exact one.
+#'
+#' The refusal covers the exact fit only. One step away from it, with one of
+#' the 30 subjects observed a third time, the test gives 64.74 on 30
+#' (p = 0.0002), and on any fit with fixed effects for small groups it rejects
+#' too often, and warns (see *Fixed effects for small groups*).
+#'
 #' @section Fixed effects for small groups:
 #' The Breusch-Pagan test, like White's and Koenker's tests, is not valid with
 #' fixed effects for small groups: a factor with many levels and few
@@ -343,6 +382,17 @@ performBPTest <- function(model, data = NULL) {
   sigma2 <- sum(residuals^2) / n
   scaled_sq <- residuals^2 / sigma2 - 1
   aux_fit <- rauxiliary_fit(scaled_sq, predictors, centred, columns, test_label)
+  # An auxiliary regression that fits the squared residuals exactly, as the
+  # dummies of a factor with two observations per level do, whose residuals
+  # are equal and opposite in each pair: the statistic, half the explained sum
+  # of squares, is then half the total, a function of the spread of the
+  # squared residuals alone. Refused since 0.18.0 at the threshold of White's
+  # test (rauxiliary_fit_exact()), with its message; on the paired design of
+  # White's exact fit the test gave 63.25 on 30 (p = 0.0004).
+  if (rauxiliary_fit_exact(aux_fit)) {
+    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
+                                rexact_fit_statistic$spread)
+  }
   test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
   df <- aux_fit$rank - 1L
   p_value <- stats::pchisq(test_statistic, df, lower.tail = FALSE)

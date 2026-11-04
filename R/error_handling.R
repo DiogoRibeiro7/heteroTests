@@ -319,12 +319,16 @@ ht_attempt_fallback <- function(test_name, model, data, available, context,
   NULL
 }
 
-# A refusal of White's test because its auxiliary regression fits the squared
-# residuals exactly, when the regressors alone fit them exactly too, or when
-# that is not known (rwhite_refuse_exact_fit()): no test of those regressors
-# can stand in for it.
+# A refusal because an auxiliary regression fits the squared residuals
+# exactly (rrefuse_exact_fit()), when the regressors alone fit them exactly
+# too, or when that is not known: no test of those regressors can stand in for
+# it. White's refusal says whether they do (rwhite_refuse_exact_fit()); that of
+# the Breusch-Pagan and Koenker tests, and of the other tests of an auxiliary
+# regression on the regressors, says they do, since 0.18.0
+# (rrefuse_auxiliary_exact_fit()), so that the runner stops where it returned
+# their statistic, or that of the Cook-Weisberg test under their name.
 ht_final_exact_fit <- function(error) {
-  inherits(error, "heteroTests_white_exact_fit") && !identical(error$regressors_exact, FALSE)
+  inherits(error, "heteroTests_exact_fit_error") && !identical(error$regressors_exact, FALSE)
 }
 
 # The analysis of a refusal that every substitute would make too: no fallback,
@@ -362,7 +366,11 @@ ht_analyse_failure <- function(test_name, error, model, data) {
     # regressors, whose statistics would mean nothing. No fallback. When the
     # regressors do not fit them exactly, as on a design with as many
     # auxiliary terms as observations, White's test without cross products
-    # comes first, as on any other refusal of White's test.
+    # comes first, as on any other refusal of White's test. The refusal of
+    # the Breusch-Pagan, Koenker, studentized and wild bootstrap tests is
+    # final too, since 0.18.0: each regresses on the regressors, and so do
+    # their fallbacks but the Cook-Weisberg test, which tests the fitted
+    # values, another hypothesis, and would return its value under their name.
     return(ht_final_failure("exact_fit", raw_message, test_name))
   }
   if (inherits(error, "heteroTests_data_rows_error")) {

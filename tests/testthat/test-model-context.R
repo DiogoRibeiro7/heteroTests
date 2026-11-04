@@ -115,9 +115,14 @@ context_check_matrix <- function(ids, fns = context_runnable(), recipes = contex
           # The F of the variance form test is a difference of two residual sums
           # of squares, which amplifies the last bits of the BLAS where it is
           # small: the noisy BLAS of cran-blas.yml moved it by more than 1e-10 on
-          # the cells with missing rows.
+          # the cells with missing rows, and, on seed 2, on the subset cell,
+          # whose F of 0.0011 on 1 and 97 degrees of freedom is a difference of
+          # 1.1e-5 of the residual sum of squares, amplifying its last bits
+          # 91,000 times. Which cells move depends on the noise every earlier
+          # BLAS call of the run drew (#184 added tests before this file), so
+          # the tolerance holds on every cell.
           if (is.null(tolerance) && startsWith(fn, "performVarianceFormTest") &&
-                startsWith(id, "missing/") && numbers_on_cran()) {
+                numbers_on_cran()) {
             tolerance <- blas_tolerance(1e-10)
           }
           context_same(out, result_of(cell$reference), info, tolerance)
