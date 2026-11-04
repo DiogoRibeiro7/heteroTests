@@ -434,6 +434,18 @@ test_that("the streaming regression stays finite on a multiple of a regressor of
   }
 })
 
+test_that("the decomposition without pivoting overflows on a multiple of a tiny regressor", {
+  # The stacking of 0.17.0: what is left of 3 * x after x is rounding error of
+  # size 1e-316, a subnormal number, by which dqrdc2 divides. This checks base
+  # R and the BLAS, not the package, and where subnormal numbers are flushed
+  # to zero nothing is left to divide by, so it runs off CRAN only.
+  skip_on_cran()
+  set.seed(1)
+  x <- stats::rnorm(8) * 1e-300
+  rows <- cbind(1, x, 3 * x, stats::rnorm(8))
+  expect_false(all(is.finite(qr.R(qr(rows, tol = 0)))))
+})
+
 test_that("the streaming factor leaves out what is left of a combination of other columns", {
   # rchunk_factor() keeps the rows of R up to the rank of the stack at
   # rchunk_tolerance: the rows past it hold only what is left of the columns
@@ -443,7 +455,6 @@ test_that("the streaming factor leaves out what is left of a combination of othe
   x <- stats::rnorm(8) * 1e-300
   rows <- cbind(1, x, 3 * x, stats::rnorm(8))
   more <- cbind(1, stats::rnorm(5) * 1e-300, 0, stats::rnorm(5))
-  expect_false(all(is.finite(qr.R(qr(rows, tol = 0)))))
   first <- heteroTests:::rchunk_factor(NULL, rows)
   expect_true(all(is.finite(first)))
   expect_identical(dim(first), c(3L, 4L))
@@ -462,6 +473,70 @@ test_that("the streaming factor leaves out what is left of a combination of othe
   expect_identical_numbers(first, qr.R(qr(plain, tol = 0)))
   expect_identical_numbers(heteroTests:::rchunk_factor(first, next_rows),
                            qr.R(qr(rbind(first, next_rows), tol = 0)))
+  # The response, the last column, is never left out: when less than
+  # rchunk_tolerance of its norm is left of it, here 5e-14, what is left
+  # becomes one more row, its norm in the column of the response and 0 in
+  # the others. That norm is 5e-14 of the norm of the response, whose
+  # rounding is 1e-16 of it, so it is known to about 1e-2 of itself.
+  set.seed(2)
+  u <- stats::rnorm(8)
+  w <- qr.resid(qr(cbind(1, u)), stats::rnorm(8))
+  left <- 5e-14 * sqrt(8) * w / sqrt(sum(w^2))
+  factor <- heteroTests:::rchunk_factor(NULL, cbind(1, u, 1 + 1e-7 * u + left))
+  expect_identical(dim(factor), c(3L, 3L))
+  expect_identical(unname(factor[3L, 1:2]), c(0, 0))
+  expect_equal(unname(factor[3L, 3L]), sqrt(sum(left^2)), tolerance = 0.1)
+})
+
+test_that("the streaming regression keeps what is left of the response, in chunks of any size", {
+  # dqrdc2 compares the response with its norm about zero over the rows so
+  # far, which squared residuals that vary little are almost all of: here
+  # 1 + 2.5e-8 x, whose total sum of squares about its mean is 6e-16 of its
+  # sum of squares. In each chunk of 7, less than rchunk_tolerance of that
+  # norm is left of the response after the intercept and x, and over 10,000
+  # chunks that adds up to about 5 times sqrt(.Machine$double.eps) of the
+  # total sum of squares: not an exact fit, as in one chunk and in the
+  # stacking of 0.17.0 (`tol = 0`). Until the factor kept it as one more row
+  # (rchunk_factor()) it was left out with the rows past the rank: the
+  # residual sum of squares was 0 in chunks of 7, an exact fit for White's
+  # streaming test, and 3.16e-18 in one chunk (from the review of #185).
+  set.seed(8)
+  chunks <- 10000L
+  chunk <- 7L
+  n <- chunks * chunk
+  x <- stats::rnorm(n)
+  left <- numeric(n)
+  for (i in seq_len(chunks)) {
+    rows <- ((i - 1L) * chunk + 1L):(i * chunk)
+    z <- qr.resid(qr(cbind(1, x[rows])), stats::rnorm(chunk))
+    left[rows] <- 0.95e-13 * sqrt(i * chunk) * z / sqrt(sum(z^2))
+  }
+  design <- cbind(`(Intercept)` = 1, x = x)
+  residuals <- sqrt(1 + 2.5e-8 * x + left)
+  regression <- function(size, stacking = NULL) {
+    f <- heteroTests:::chunked_regression_r2
+    if (!is.null(stacking)) {
+      environment(f) <- list2env(list(rchunk_factor = stacking),
+                                 parent = asNamespace("heteroTests"))
+    }
+    f(design, residuals, size, heteroTests:::bp_predictor_builder,
+      heteroTests:::bp_response_builder)
+  }
+  exact_fit <- function(out) {
+    out$residual <= heteroTests:::rwhite_exact_tolerance * out$response_tss
+  }
+  in_chunks <- regression(chunk)
+  whole <- regression(n)
+  before <- regression(chunk, function(factor, rows) qr.R(qr(rbind(factor, rows), tol = 0)))
+  expect_false(in_chunks$zero_variation)
+  expect_false(exact_fit(in_chunks))
+  expect_false(exact_fit(whole))
+  expect_false(exact_fit(before))
+  expect_gt(in_chunks$residual, 2 * heteroTests:::rwhite_exact_tolerance * in_chunks$response_tss)
+  # What is left of the response is 1e-13 of its norm, which its rounding is
+  # 1e-16 of, so the residual sum of squares is known to about 1e-3 of itself.
+  expect_equal(in_chunks$residual, before$residual, tolerance = 1e-3)
+  expect_equal(in_chunks$residual, whole$residual, tolerance = 1e-3)
 })
 
 test_that("bootstrap helper returns the requested number of replicates", {
