@@ -228,6 +228,17 @@ test_that("whether the design forces the fit leaves the random numbers of the se
   expect_identical(heteroTests:::rpseudo_response(5), z)
   expect_identical(RNGkind()[1L], "L'Ecuyer-CMRG")
   expect_identical(.Random.seed, lecuyer)
+  # `.Random.seed` holds the kinds; without one they are put back on their
+  # own (from the re-review of #187). withr cannot put them back without a
+  # seed either, so this test does it itself.
+  kinds <- RNGkind()
+  RNGkind("L'Ecuyer-CMRG", "Ahrens-Dieter")
+  rm(".Random.seed", envir = globalenv())
+  invisible(heteroTests:::rpseudo_response(5))
+  expect_identical(RNGkind()[1:2], c("L'Ecuyer-CMRG", "Ahrens-Dieter"))
+  expect_false(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+  RNGkind(kinds[1L], kinds[2L], kinds[3L])
+  assign(".Random.seed", lecuyer, envir = globalenv())
   set.seed(123, kind = "Mersenne-Twister")
   seed <- .Random.seed
   expect_identical(heteroTests:::rpseudo_response(60), heteroTests:::rpseudo_response(60))
