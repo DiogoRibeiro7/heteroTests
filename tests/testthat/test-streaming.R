@@ -434,7 +434,7 @@ test_that("the streaming regression stays finite on a multiple of a regressor of
   }
 })
 
-test_that("the streaming factor leaves out what is left of a column that is a combination of others", {
+test_that("the streaming factor leaves out what is left of a combination of other columns", {
   # rchunk_factor() keeps the rows of R up to the rank of the stack at
   # rchunk_tolerance: the rows past it hold only what is left of the columns
   # that are combinations of the columns before them, from which the
