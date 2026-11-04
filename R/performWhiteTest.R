@@ -419,22 +419,57 @@ rauxiliary_exact <- function(residual, total) {
   total > 0 && residual <= rwhite_exact_tolerance * total
 }
 
-# A pseudo-response, for rforced_exact_fit(): a fixed function of the row
-# index, the fractional parts of i times the golden ratio, centred, for
-# i = 1, ..., n, a sequence that fills (0, 1) evenly and follows no pattern a
-# design holds. It is not drawn from the random number generator, so it leaves
-# `.Random.seed` alone and gives every call on the same fit the same decision,
-# and it is the same row by row whether the rows are read at once or in chunks.
+# A pseudo-response, for rforced_exact_fit(): n standard normal draws from the
+# fixed seed rpseudo_seed, by R's default generators (Mersenne-Twister,
+# Inversion, Rejection) whatever the session uses, so that every call on the
+# same fit gives the same decision, and the same row by row whether the rows
+# are read at once or in chunks. Draws follow no pattern a design holds. The
+# state of the generator is put back after: `.Random.seed` as it was, or
+# absent if it was, and the kinds of the session, so that the session's
+# random numbers are those it would have drawn without the call.
+#
+# Until the review of #187 it was the fractional parts of i times the golden
+# ratio, which has a pattern of its own: two of them a fixed number of rows
+# apart differ by one of two values. On 72 subjects of two visits sorted by
+# visit, `lm(y ~ visit + subject)`, its squared residuals were equal but for
+# rounding, which the dummies do not fit, so a fit the design forces gave
+# Koenker's test 144 on 72; and on 4 units of 13 periods sorted by unit,
+# `lm(y ~ unit + period)`, its squared residuals were fitted exactly, so a fit
+# only the data made exact was refused as forced. Both turned on the order of
+# the rows.
+rpseudo_seed <- 20261104L
+
 rpseudo_response <- function(n) {
-  (seq_len(n) * 0.6180339887498949) %% 1 - 0.5
+  env <- globalenv()
+  seed <- get0(".Random.seed", envir = env, inherits = FALSE)
+  kind <- RNGkind()
+  on.exit({
+    suppressWarnings(RNGkind(kind[1L], kind[2L], kind[3L]))
+    if (is.null(seed)) {
+      if (exists(".Random.seed", envir = env, inherits = FALSE)) {
+        rm(".Random.seed", envir = env)
+      }
+    } else {
+      assign(".Random.seed", seed, envir = env)
+    }
+  })
+  set.seed(rpseudo_seed, kind = "Mersenne-Twister", normal.kind = "Inversion",
+           sample.kind = "Rejection")
+  stats::rnorm(n)
 }
 
 # The residuals of rpseudo_response() through the least-squares map of a fit:
 # `qr` is the QR decomposition of its weighted design, the `qr` of an lm or a
 # Gaussian glm (rcontext_qr()) or of lm.fit() and lm.wfit(), and takes a
-# response on the scale of the Pearson residuals to its residuals.
+# response on the scale of the Pearson residuals to its residuals. NULL when
+# their squares do not vary, their total sum of squares about their mean at
+# most rwhite_exact_tolerance of their sum of squares: an exact fit of them
+# would then say nothing of the design, so whether it forces the fit is not
+# known (rforced_exact_fit()).
 rpseudo_residuals <- function(qr) {
-  qr.resid(qr, rpseudo_response(NROW(qr$qr)))
+  e <- qr.resid(qr, rpseudo_response(NROW(qr$qr)))
+  squares <- e^2
+  if (sum((squares - mean(squares))^2) > rwhite_exact_tolerance * sum(squares^2)) e else NULL
 }
 
 # The QR decomposition of the weighted design of the fit the tests read, from
@@ -459,19 +494,22 @@ rcontext_qr <- function(ctx) {
 # so much of the total that the dummies fit them to within 1.1e-9 of it; the
 # test computes its statistic, as up to 0.17.0, where White's test refused it
 # from 0.16.0 (from the review of #184). NA: there is no `qr`
-# to push the pseudo-response through (rcontext_qr()), and the test refuses the
-# fit without saying that the design forces it. The calls that can take that
-# path are those of a fit read through rcontext_qr(): the Breusch-Pagan,
-# Koenker and White tests and their streaming forms, White's bootstrap, the
-# wild bootstrap, the Cook-Weisberg, Harvey and high-dimensional tests. The
-# studentized statistic and the variance form test refit the design with
-# lm.wfit() and lm(), and the White bootstrap each replicate with lm.fit() or
-# lm.wfit(), whose QR decompositions they push it through.
+# to push the pseudo-response through (rcontext_qr()), or the squares of its
+# residuals do not vary (rpseudo_residuals()), and the test refuses the fit
+# without saying that the design forces it. The calls that can lack a `qr`
+# are those of a fit read through rcontext_qr(): the Breusch-Pagan, Koenker
+# and White tests and their streaming forms, White's bootstrap, the wild
+# bootstrap, the Cook-Weisberg, Harvey and high-dimensional tests. The
+# studentized statistic refits the design with lm.wfit(), the variance form
+# test with lm() (rweighted_refit()) or reads the `qr` of the fitWLS() fit it
+# is given, and the White bootstrap refits each replicate with lm.fit() or
+# lm.wfit(), and they push it through those QR decompositions.
 rforced_exact_fit <- function(qr, exact_of) {
-  if (!inherits(qr, "qr")) {
+  pseudo <- if (inherits(qr, "qr")) rpseudo_residuals(qr)
+  if (is.null(pseudo)) {
     return(NA)
   }
-  isTRUE(exact_of(rpseudo_residuals(qr)))
+  isTRUE(exact_of(pseudo))
 }
 
 # rauxiliary_exact() of a least-squares fit with an intercept, from lm.fit()
@@ -527,6 +565,11 @@ rrefuse_exact_fit <- function(regression, test, terms, n, saturated, consequence
     advice <- if (saturated) "more data" else "more observations per level"
   }
   forced <- saturated || isTRUE(forced)
+  # Whether the design forces the fit is not known: the consequence holds of
+  # this fit, not of any data (", whatever the data" goes).
+  if (!forced) {
+    consequence <- sub(", whatever (the data|their pattern)$", "", consequence)
+  }
   message <- sprintf(
     "%s fits %s exactly: %s. %s.%s",
     regression, response, cause, consequence,
@@ -778,12 +821,12 @@ rwhite_statistic <- function(residuals, X_full, cross_products, max_interactions
   # The squares the regressors alone are asked to fit when the test refuses, to
   # tell whether a test of them can stand in (rwhite_regressors_fit_exactly()):
   # since 0.18.0 those of the pseudo-residuals, so that the answer is about the
-  # design, as the refusal is (rforced_exact_fit()), or, without a QR
-  # decomposition, those of the residuals, as before.
+  # design, as the refusal is (rforced_exact_fit()), or, without them (no QR
+  # decomposition, or pseudo-residuals whose squares do not vary), those of
+  # the residuals, as before and as performWhiteTestStreaming() does.
   regressors_exact <- function() {
-    rwhite_regressors_fit_exactly(
-      X, if (inherits(qr, "qr")) rpseudo_residuals(qr)^2 else e_squared
-    )
+    pseudo <- if (inherits(qr, "qr")) rpseudo_residuals(qr)
+    rwhite_regressors_fit_exactly(X, if (is.null(pseudo)) e_squared else pseudo^2)
   }
 
   # As many independent terms as observations: the auxiliary regression fits
