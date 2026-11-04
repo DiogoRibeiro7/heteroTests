@@ -43,23 +43,45 @@ rstreaming_design <- function(ctx) {
   rcontext_design(ctx)
 }
 
-# The factor of `rows` stacked under `factor`, that of the rows before them:
-# R of the QR decomposition of the stack by qr(), LINPACK's dqrdc2, at the
-# tolerance rchunk_tolerance, without its rows past the rank, its columns put
-# back in their order. dqrdc2 does not pivot, but moves to the end a column of
-# which less than the tolerance of its norm is left after the columns before
-# it, as of a column that is a combination of them. The rank is the number of
-# columns it does not move, and the rows of R past the rank hold only what is
-# left of the columns it moves: rounding error, for an exact combination.
-# Leaving those rows out changes the cross-products R'R of every row among the
-# columns moved alone, by less than about the square of the tolerance relative
-# to their norms, and not those of any other column, which has nothing in
-# them. The rows kept are as many as the rank, which can be fewer than the
-# columns, so the factor need not be square or triangular, and it does not
-# need to be: each chunk decomposes it again, and chunked_regression_r2() reads
-# it through qr(), which decides the rank. Where no column falls below the
-# tolerance, none is moved and no row left out, and the factor is that of the
-# decomposition without pivoting (`tol = 0`), to the last bit.
+# The factor of `rows` stacked under `factor`, that of the rows before them,
+# whose last column is the response: R of the QR decomposition of the stack by
+# qr(), LINPACK's dqrdc2, at the tolerance rchunk_tolerance, without its rows
+# past the rank, its columns put back in their order, and with one more row
+# for the response when dqrdc2 moves it. dqrdc2 does not pivot, but moves to
+# the end a column of which less than the tolerance of its norm is left after
+# the columns before it, as of a column that is a combination of them. The
+# rank is the number of columns it does not move, and the rows of R past the
+# rank hold only what is left of the columns it moves: rounding error, for a
+# column of the design that is an exact combination of others. Leaving those
+# rows out changes the cross-products R'R of every row among the columns
+# moved alone, by less than about the square of the tolerance relative to
+# their norms, and not those of a column kept, which has nothing in them.
+# What is left out adds up over the chunks, but stays far below the 1e-7 of
+# its norm at which chunked_regression_r2() drops a column.
+#
+# What is left of the response is never left out. dqrdc2 compares a column
+# with its own norm in the stack, for the response its norm about zero over
+# the rows so far, of which the total sum of squares about its mean can be a
+# small part: when the squared residuals vary little, less than the
+# tolerance of that norm can be the whole of the residual sum of squares, and
+# it adds up over the chunks. Leaving it out gave a residual sum of squares
+# of 0, an exact fit for performWhiteTestStreaming(), in chunks of 7 on a
+# design where one chunk gave more than sqrt(.Machine$double.eps) of the
+# total (test-streaming.R). When dqrdc2 moves the response, the factor keeps
+# what is left of it as one more row, its norm in the column of the response
+# and 0 in the others: the norm of its effects past the rank after the
+# reflections of the columns kept alone, as qr.qty() applies the first `rank`
+# reflections only. dqrdc2 goes on to make reflections from the columns it
+# moves (the loop of its reduction runs to min(n, p), whatever the rank), the
+# response among them, and those can hold values that are not finite, which
+# qr.qty() refuses, so they are set to 0 first.
+#
+# The rows kept are as many as the rank, or one more, which can be fewer than
+# the columns, so the factor need not be square or triangular, and it does
+# not need to be: each chunk decomposes it again, and chunked_regression_r2()
+# reads it through qr(), which decides the rank. Where no column falls below
+# the tolerance, none is moved and no row left out, and the factor is that of
+# the decomposition without pivoting (`tol = 0`), to the last bit.
 #
 # In 0.17.0 the stack was decomposed without pivoting (`tol = 0`), which makes
 # a reflection from every column, however little is left of it. The columns
@@ -71,14 +93,37 @@ rstreaming_design <- function(ctx) {
 # next chunk, or the qr() that reads the factor, then stopped on "NA/NaN/Inf
 # in foreign function call (arg 1)". It did in White's streaming test of a
 # one-way layout under the noisy BLAS of cran-blas.yml, and a multiple of a
-# regressor of size 1e-300 does it on any BLAS (test-streaming.R). dqrdc2
-# still makes reflections from the columns it moves, after the others, but
-# they change only the rows past the rank, which are left out.
+# regressor of size 1e-300 does it on any BLAS (test-streaming.R). The
+# reflections dqrdc2 still makes from the columns it moves, after the others,
+# change only the rows past the rank, which are left out.
+#
+# The guarantee is relative. A column kept keeps at least the tolerance of its
+# norm, so a column whose norm is below about 5.6e-296, 1e13 times the
+# reciprocal of the largest double, can still leave less than that
+# reciprocal, and its division overflow, as in 0.17.0: White's streaming test
+# of lm(y ~ x1 + x2) with x1 = 1e-150 * u and x2 = 1e-150 * (u + 1e-6 * w),
+# whose squares and product, of size 1e-300, are nearly collinear, stops on
+# "NA/NaN/Inf in foreign function call", where performWhiteTest() gives
+# 25.476 (an open item of 0.18.0 in ROADMAP.md).
 rchunk_tolerance <- 1e-13
 
 rchunk_factor <- function(factor, rows) {
-  stacked <- qr(rbind(factor, rows), tol = rchunk_tolerance)
-  qr.R(stacked)[seq_len(stacked$rank), order(stacked$pivot), drop = FALSE]
+  stack <- rbind(factor, rows)
+  stacked <- qr(stack, tol = rchunk_tolerance)
+  rank <- stacked$rank
+  kept <- qr.R(stacked)[seq_len(rank), order(stacked$pivot), drop = FALSE]
+  response <- ncol(stack)
+  if (match(response, stacked$pivot) > rank && nrow(stack) > rank) {
+    past <- seq.int(rank + 1L, response)
+    stacked$qr[, past] <- 0
+    stacked$qraux[past] <- 0
+    left <- qr.qty(stacked, stack[, response])[-seq_len(rank)]
+    size <- max(abs(left))
+    if (size > 0) {
+      kept <- rbind(kept, c(rep(0, response - 1L), size * sqrt(sum((left / size)^2))))
+    }
+  }
+  kept
 }
 
 # The auxiliary regression of the streaming tests: the response the residuals
@@ -215,15 +260,14 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     stop("No data processed during chunked regression.", call. = FALSE)
   }
 
-  # The factor has a row for each column the stacking kept, the response's
-  # among them, so the effects past the rank are those of the response across
-  # the columns kept. Where the response is a combination of the columns
-  # before it but for less than rchunk_tolerance of its norm, its row is left
-  # out with what is left of it, and the residual sum of squares holds only
-  # its effects along the columns the stacking kept and qr() drops here, 0
-  # where there are none: less than about 1e-26 of the total sum of squares
-  # is left out, where performWhiteTestStreaming() takes for an exact fit a
-  # residual sum of squares of at most sqrt(.Machine$double.eps) of it.
+  # The factor has a row for each column of the design the stacking kept and
+  # one for the response, which keeps what is left of it however little that
+  # is (rchunk_factor()). The stacking left out only what was left of columns
+  # of the design that are combinations of the columns before them, never
+  # what was left of the response, so the effects past the rank are those of
+  # the response across the columns kept here, as when every row was kept: the
+  # residual sum of squares is that of 0.17.0 but for rounding, in chunks of
+  # any size.
   columns <- ncol(factor) - 1L
   decomposition <- qr(factor[, seq_len(columns), drop = FALSE])
   rank <- decomposition$rank
