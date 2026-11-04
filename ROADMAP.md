@@ -2425,6 +2425,45 @@ announced in bold in `NEWS.md`.
   which told it by its message, now tell it by its class. The refusal is no
   longer a `simpleError`, as the other refusals of rows are not; catch it by
   its class or as an `error` (from the review of #182).
+- [x] **The streaming tests could overflow on terms that are combinations of
+  others.** `chunked_regression_r2()` (`R/performance.R`) stacked each chunk
+  under the factor of the chunks before it by
+  `qr.R(qr(rbind(factor, rows), tol = 0))`, the decomposition of LINPACK
+  (`dqrdc2`) without pivoting, which makes a Householder reflection from
+  every column, however little is left of it. What is left of a column of
+  the auxiliary design that is a combination of others, as the squares and
+  products of dummies in White's design are, is rounding error; the next
+  such column leaves about the square of that, and so on down. `dqrdc2`
+  divides a column by its norm, and when that norm is below the reciprocal
+  of the largest double the result is not finite: the next chunk, or the
+  `qr()` that reads the factor, stopped on "NA/NaN/Inf in foreign function
+  call (arg 1)". The defect predates #184, which found it: it came with the
+  stacking, in 0.17.0, and is on `main` at 01164f6. The noisy BLAS jobs of
+  `cran-blas.yml` on #184 stopped there, on all three seeds, in White's
+  streaming test on a one-way layout of nine groups of ten observations and
+  one of two, a design that pull request tests; R's reference BLAS does not
+  reach it there, but a multiple of a regressor of size 1e-300 does it on
+  any BLAS, in chunks of any size (`test-streaming.R`). Done in #185: the
+  stack is decomposed by `qr()` at a tolerance of 1e-13
+  (`rchunk_factor()`), which moves to the end a column of which less than
+  1e-13 of its norm is left after the columns before it, and the factor
+  keeps the rows up to the rank, its columns put back in their order. The
+  rows left out hold only what is left of the columns moved, so the
+  cross-products of the other columns do not change; where no column falls
+  below the tolerance, the factor is that of 0.17.0 to the last bit. The
+  factor can now have fewer rows than columns: the rank, the effects, the
+  residual sum of squares and `rfactor_regressors_exact()` read it through
+  `qr()`, as before. On 21 fits (continuous regressors, factors, a one-way
+  layout, near-collinear and distant regressors, `poly()`, weights, a
+  Gaussian `glm` and three `mgcv::gam()` fits, the basis of `s(x1)` among
+  them) in chunks of 7 and 10,000, 106 of the 126 statistics of the three
+  streaming tests are `identical()` to those of 0.17.0 and the others,
+  each on a stack where a column fell below the tolerance, within 8.4e-16
+  relative (their p-values within 4.4e-15), with the same degrees of
+  freedom and refusals; the factor is `identical()` on the 55 stacks where
+  no column fell below it. A decomposition of LAPACK with column pivoting,
+  tried first on the branch of #184, moved White's streaming statistic on
+  the basis of an `mgcv::gam()` fit by 1.5e-8, and was not used.
 - [ ] **Left from steps 8 to 10 of the model context**, recorded, not fixed.
   Moved from 0.17.0 at its release (2026-10-30), where the steps that found
   them are done; each changes what a call returns:
