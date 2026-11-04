@@ -891,7 +891,7 @@ test_that("a Gaussian glm gives the value of the lm that decides the rank as it 
   # The design is ill-conditioned by construction, so the rounding of the two
   # fits is amplified: they agree to about 1e-8 here, not 1e-13. Under a BLAS
   # that rounds otherwise they agree less: one unit in the last place of the
-  # data moves their p-values apart by up to 5e-7, and the noisy BLAS of
+  # data moves their p-values apart by about 5e-7, and the noisy BLAS of
   # cran-blas.yml moved them past 1e-6. On CRAN they are compared to 1e-4; the
   # statistic of the default lm, of rank 3, is at least 4e-3 from the glm's.
   tolerance <- if (numbers_on_cran()) 1e-4 else 1e-6
