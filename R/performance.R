@@ -370,14 +370,23 @@ koenker_response_builder <- function(residuals_chunk) {
 #' The streaming implementation builds the auxiliary design, the regressors,
 #' their squares and their cross-products, chunk by chunk, without
 #' materialising it whole. Each chunk is reduced by a QR decomposition stacked
-#' on the triangular factor of the chunks before it, which holds the
-#' cross-products of every row without forming them. The rank of the auxiliary
-#' regression and its \eqn{n R^2} statistic are computed from that factor as
+#' on the factor of the chunks before it, which holds the cross-products of
+#' every row without forming them. The rank of the auxiliary regression and
+#' its \eqn{n R^2} statistic are computed from that factor as
 #' in [performWhiteTest()], ensuring numerical equivalence while reducing peak
 #' memory usage: the regressors are centred at their means, the rank is that of
 #' the auxiliary design at the default tolerance of [qr()], and a term that is a
 #' combination of the intercept and the terms before it is dropped (see
-#' *Degrees of freedom* in [performWhiteTest()]).
+#' *Degrees of freedom* in [performWhiteTest()]). Since 0.18.0 the factor
+#' leaves out what is left of such a term when that is less than
+#' \eqn{10^{-13}} of its norm: rounding error, for the square of a dummy
+#' variable, which changes no value of the test by more than its last bits. In
+#' 0.17.0 the decomposition made a reflection from that rounding error, the
+#' next such term left about its square, and so on down, and on a design with
+#' many such terms, as the squares and products of dummies are, it could
+#' divide by a norm below the reciprocal of the largest double and stop
+#' ("NA/NaN/Inf in foreign function call"), as it did on a one-way layout
+#' under a BLAS that rounds otherwise than the reference BLAS of R.
 #'
 #' Since 0.17.0 the test drops such terms: the square of a dummy variable,
 #' which is the dummy, that of the first column of an orthogonal `poly()`
@@ -574,8 +583,10 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   metadata describing the chunking configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
-#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   by a QR decomposition stacked on the factor of the chunks before it, as
+#'   in [performWhiteTestStreaming()], since 0.17.0. Since 0.18.0 the factor
+#'   leaves out what is left of a regressor that is a combination of those
+#'   before it in the rows so far, rounding error, as its details say. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the
 #'   intercept, and the test stopped ("Breusch-Pagan auxiliary regression
@@ -717,8 +728,10 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   additional metadata describing the streaming configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
-#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   by a QR decomposition stacked on the factor of the chunks before it, as
+#'   in [performWhiteTestStreaming()], since 0.17.0. Since 0.18.0 the factor
+#'   leaves out what is left of a regressor that is a combination of those
+#'   before it in the rows so far, rounding error, as its details say. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the
 #'   intercept, and the test stopped ("Koenker auxiliary regression became

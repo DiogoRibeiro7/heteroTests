@@ -42,8 +42,10 @@ chunked computation.
 ## Details
 
 Each chunk of the regressors, centred at their means, is reduced by a QR
-decomposition stacked on the triangular factor of the chunks before it, as in
-[`performWhiteTestStreaming()`](performWhiteTestStreaming.md), since 0.17.0. Up to 0.16.0 the
+decomposition stacked on the factor of the chunks before it, as in
+[`performWhiteTestStreaming()`](performWhiteTestStreaming.md), since 0.17.0. Since 0.18.0 the factor
+leaves out what is left of a regressor that is a combination of those before it
+in the rows so far, rounding error, as its details say. Up to 0.16.0 the
 cross-products of the regressors were accumulated: those of a regressor 1,000
 standard deviations from zero looked collinear with the intercept, and the test
 stopped ("Breusch-Pagan auxiliary regression became rank deficient"); and squared
