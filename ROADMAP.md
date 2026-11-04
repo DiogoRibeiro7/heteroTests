@@ -2341,6 +2341,22 @@ announced in bold in `NEWS.md`.
   `rfligner_residuals()` already computes; scale the tolerance by it. Found
   by the review of #172 (whose test of these fits runs off CRAN only);
   recorded, not fixed. Changes a value on such data.
+- [x] **Two comparisons in the tests failed under the noisy BLAS after #172.**
+  The noise a comparison draws depends on every BLAS call made before it in
+  the process, so a test, or a change to code, that runs earlier moves it.
+  On CRAN the F of the variance form test is compared to 1e-8
+  (`blas_tolerance()`) on every cell of the model-context matrix, not only
+  on those with missing rows (#184). And the Gaussian `glm` against
+  `lm(..., tol = 1e-11)` on a design within 1e-9 of collinear
+  (`test-model-eligibility.R`) is compared to 1e-4 on CRAN, 1e-6 off it.
+  That design amplifies the last bits: one unit in the last place of the
+  data moves the p-values of the `glm` and of the `lm` apart by up to about
+  5e-7, in the Harrison-McCabe test and in Koenker's. On #185, which changes
+  the streaming code that earlier tests run, the noisy BLAS moved them past
+  1e-6: Noisy BLAS 2 once (Koenker's), Noisy BLAS 3 twice. The statistics
+  of the default `lm`, which aliases `x3`, are at least 4.6e-3 from those of
+  the `glm`, so the test still tells the two ranks apart. Tests only; no
+  value changes. Done in #186.
 - [ ] **Squared residuals that are equal but for rounding.** On
   `lm(y ~ x)` with `y = 1 + 0.5 x + 0.3 s`, where `s` is 1 or -1, the
   residuals are 0.3 and -0.3, and their squares differ only in their last
