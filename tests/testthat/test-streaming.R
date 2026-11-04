@@ -489,6 +489,32 @@ test_that("the streaming factor leaves out what is left of a combination of othe
   expect_equal(unname(factor[3L, 3L]) / sqrt(sum(left^2)), 1, tolerance = 0.1)
 })
 
+test_that("the streaming factor keeps what is left of two responses, with their cross-product", {
+  # With the squared pseudo-residuals as a second response, as when the
+  # design forces an exact fit, dqrdc2 can move both responses. What is left
+  # of them, here 5e-14 of their norms and correlated, becomes R of its own
+  # decomposition: two more rows, 0 in the columns of the design, whose
+  # cross-products are those of what is left, the product of the two
+  # included. Known to about 1e-2 of itself, as for one response.
+  set.seed(3)
+  u <- stats::rnorm(8)
+  w1 <- qr.resid(qr(cbind(1, u)), stats::rnorm(8))
+  w1 <- w1 / sqrt(sum(w1^2))
+  w2 <- qr.resid(qr(cbind(1, u, w1)), stats::rnorm(8))
+  w2 <- 0.6 * w1 + 0.8 * w2 / sqrt(sum(w2^2))
+  left <- cbind(5e-14 * sqrt(8) * w1, 1e-13 * sqrt(8) * w2)
+  rows <- cbind(1, u, 1 + 1e-7 * u + left[, 1L], 2 - 3e-7 * u + left[, 2L])
+  factor <- heteroTests:::rchunk_factor(NULL, rows, responses = 2L)
+  expect_identical(dim(factor), c(4L, 4L))
+  expect_identical(unname(factor[3:4, 1:2]), matrix(0, 2L, 2L))
+  # As ratios: expect_equal() compares values this small absolutely.
+  expect_equal(unname(crossprod(factor[3:4, 3:4]) / crossprod(left)), matrix(1, 2L, 2L),
+               tolerance = 0.1)
+  # With one response, the third column is a column of the design, and what
+  # is left of it is left out: one row for the response alone.
+  expect_identical(dim(heteroTests:::rchunk_factor(NULL, rows)), c(3L, 4L))
+})
+
 test_that("the streaming regression keeps what is left of the response, in chunks of any size", {
   # dqrdc2 compares the response with its norm about zero over the rows so
   # far, which squared residuals that vary little are almost all of: here
@@ -528,7 +554,7 @@ test_that("the streaming regression keeps what is left of the response, in chunk
   }
   in_chunks <- regression(chunk)
   whole <- regression(n)
-  before <- regression(chunk, function(factor, rows) qr.R(qr(rbind(factor, rows), tol = 0)))
+  before <- regression(chunk, function(factor, rows, ...) qr.R(qr(rbind(factor, rows), tol = 0)))
   expect_false(in_chunks$zero_variation)
   expect_false(exact_fit(in_chunks))
   expect_false(exact_fit(whole))
