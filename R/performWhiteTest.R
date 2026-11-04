@@ -426,7 +426,12 @@ rauxiliary_exact <- function(residual, total) {
 # are read at once or in chunks. Draws follow no pattern a design holds. The
 # state of the generator is put back after: `.Random.seed` as it was, or
 # absent if it was, and the kinds of the session, so that the session's
-# random numbers are those it would have drawn without the call.
+# random numbers are those it would have drawn without the call. Two
+# exceptions R does not let code avoid: under the normal kind Box-Muller,
+# after an odd number of normal draws, the second value of a pair, which R
+# keeps outside `.Random.seed` and resets with the generator, is drawn again;
+# and a user-supplied generator gets its state back only as far as it
+# exports its seed.
 #
 # Until the review of #187 it was the fractional parts of i times the golden
 # ratio, which has a pattern of its own: two of them a fixed number of rows

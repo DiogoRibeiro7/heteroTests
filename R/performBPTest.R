@@ -135,9 +135,10 @@
 #' The design forces it when the regression would fit the squares of the
 #' residuals of any response: the test pushes a fixed pseudo-response,
 #' standard normal draws from a fixed seed that leave the random numbers of
-#' the session as they were, through the QR decomposition of the fit, with
-#' its weights, and refuses only when the same regressors fit the squares of
-#' its residuals exactly too. A fit the
+#' the session as they were (but for the second value of a pair that the
+#' normal kind Box-Muller keeps, which R resets), through the QR decomposition
+#' of the fit, with its weights, and refuses only when the same regressors
+#' fit the squares of its residuals exactly too. A fit the
 #' data make exact is tested, as up to 0.17.0: in a one-way layout of nine
 #' groups of ten observations and one of two, with a value of the group of two
 #' typed 100 times too large, the dummies fit the squared residuals to within
