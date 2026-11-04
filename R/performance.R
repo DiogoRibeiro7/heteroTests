@@ -43,6 +43,89 @@ rstreaming_design <- function(ctx) {
   rcontext_design(ctx)
 }
 
+# The factor of `rows` stacked under `factor`, that of the rows before them,
+# whose last column is the response: R of the QR decomposition of the stack by
+# qr(), LINPACK's dqrdc2, at the tolerance rchunk_tolerance, without its rows
+# past the rank, its columns put back in their order, and with one more row
+# for the response when dqrdc2 moves it. dqrdc2 does not pivot, but moves to
+# the end a column of which less than the tolerance of its norm is left after
+# the columns before it, as of a column that is a combination of them. The
+# rank is the number of columns it does not move, and the rows of R past the
+# rank hold only what is left of the columns it moves: rounding error, for a
+# column of the design that is an exact combination of others. Leaving those
+# rows out changes the cross-products R'R of every row among the columns
+# moved alone, by less than about the square of the tolerance relative to
+# their norms, and not those of a column kept, which has nothing in them.
+# What is left out adds up over the chunks, but stays far below the 1e-7 of
+# its norm at which chunked_regression_r2() drops a column.
+#
+# What is left of the response is never left out. dqrdc2 compares a column
+# with its own norm in the stack, for the response its norm about zero over
+# the rows so far, of which the total sum of squares about its mean can be a
+# small part: when the squared residuals vary little, less than the
+# tolerance of that norm can be the whole of the residual sum of squares, and
+# it adds up over the chunks. Leaving it out gave a residual sum of squares
+# of 0, an exact fit for performWhiteTestStreaming(), in chunks of 7 on a
+# design where one chunk gave more than sqrt(.Machine$double.eps) of the
+# total (test-streaming.R). When dqrdc2 moves the response, the factor keeps
+# what is left of it as one more row, its norm in the column of the response
+# and 0 in the others: the norm of its effects past the rank after the
+# reflections of the columns kept alone, as qr.qty() applies the first `rank`
+# reflections only. dqrdc2 goes on to make reflections from the columns it
+# moves (the loop of its reduction runs to min(n, p), whatever the rank), the
+# response among them, and those can hold values that are not finite, which
+# qr.qty() refuses, so they are set to 0 first.
+#
+# The rows kept are as many as the rank, or one more, which can be fewer than
+# the columns, so the factor need not be square or triangular, and it does
+# not need to be: each chunk decomposes it again, and chunked_regression_r2()
+# reads it through qr(), which decides the rank. Where no column falls below
+# the tolerance, none is moved and no row left out, and the factor is that of
+# the decomposition without pivoting (`tol = 0`), to the last bit.
+#
+# In 0.17.0 the stack was decomposed without pivoting (`tol = 0`), which makes
+# a reflection from every column, however little is left of it. The columns
+# of an auxiliary design that are combinations of others, as the squares and
+# products of dummies in White's design are, leave rounding error, from which
+# a reflection is made; the next such column leaves about the square of that,
+# and so on down. dqrdc2 divides a column by its norm, and when that norm is
+# below the reciprocal of the largest double the result is not finite: the
+# next chunk, or the qr() that reads the factor, then stopped on "NA/NaN/Inf
+# in foreign function call (arg 1)". It did in White's streaming test of a
+# one-way layout under the noisy BLAS of cran-blas.yml, and a multiple of a
+# regressor of size 1e-300 does it on any BLAS (test-streaming.R). The
+# reflections dqrdc2 still makes from the columns it moves, after the others,
+# change only the rows past the rank, which are left out.
+#
+# The guarantee is relative. A column kept keeps at least the tolerance of its
+# norm, so a column whose norm is below about 5.6e-296, 1e13 times the
+# reciprocal of the largest double, can still leave less than that
+# reciprocal, and its division overflow, as in 0.17.0: White's streaming test
+# of lm(y ~ x1 + x2) with x1 = 1e-150 * u and x2 = 1e-150 * (u + 1e-6 * w),
+# whose squares and product, of size 1e-300, are nearly collinear, stops on
+# "NA/NaN/Inf in foreign function call", where performWhiteTest() gives
+# 25.476 (an open item of 0.18.0 in ROADMAP.md).
+rchunk_tolerance <- 1e-13
+
+rchunk_factor <- function(factor, rows) {
+  stack <- rbind(factor, rows)
+  stacked <- qr(stack, tol = rchunk_tolerance)
+  rank <- stacked$rank
+  kept <- qr.R(stacked)[seq_len(rank), order(stacked$pivot), drop = FALSE]
+  response <- ncol(stack)
+  if (match(response, stacked$pivot) > rank && nrow(stack) > rank) {
+    past <- seq.int(rank + 1L, response)
+    stacked$qr[, past] <- 0
+    stacked$qraux[past] <- 0
+    left <- qr.qty(stacked, stack[, response])[-seq_len(rank)]
+    size <- max(abs(left))
+    if (size > 0) {
+      kept <- rbind(kept, c(rep(0, response - 1L), size * sqrt(sum((left / size)^2))))
+    }
+  }
+  kept
+}
+
 # The auxiliary regression of the streaming tests: the response the residuals
 # give (their squares) on an intercept and the predictors the rows of the
 # design give, chunk by chunk. The regressors, the columns of the design but
@@ -53,17 +136,19 @@ rstreaming_design <- function(ctx) {
 # (rstreaming_design()), so the means cost one pass over it; what is built
 # chunk by chunk is the auxiliary design.
 #
-# Each chunk joins the triangular factor of the chunks before it: R of the QR
-# decomposition of every row so far, with the response as its last column,
-# from the QR decomposition, without pivoting (`tol = 0`), of that factor
-# stacked on the rows of the chunk. R'R is the matrix of cross-products of
-# every row, but the cross-products are never formed, so the condition of the
-# auxiliary design is not squared. The rank of the auxiliary regression is
-# that of the factor at the tolerance of qr(), 1e-7, decided by qr() in the
-# order of the columns: a column is dropped when less than 1e-7 of its norm is
-# not a combination of the columns kept before it. The factor has the norms
-# and inner products of the columns of the intercept and the auxiliary
-# design, so this is the rule performWhiteTest() applies to that design,
+# Each chunk joins the factor of the chunks before it (rchunk_factor()): R of
+# the QR decomposition of every row so far, with the response as its last
+# column, from the QR decomposition of that factor stacked on the rows of the
+# chunk, without the rows that hold only what is left of a column that is a
+# combination of the columns before it, rounding error. R'R is the matrix of
+# cross-products of every row, but for that rounding error, and the
+# cross-products are never formed, so the condition of the auxiliary design
+# is not squared. The rank of the auxiliary regression is that of the factor
+# at the tolerance of qr(), 1e-7, decided by qr() in the order of the
+# columns: a column is dropped when less than 1e-7 of its norm is not a
+# combination of the columns kept before it. The factor has the norms and
+# inner products of the columns of the intercept and the auxiliary design,
+# so this is the rule performWhiteTest() applies to that design,
 # `qr(cbind(1, centred))`, and the rank is at most the number of observations.
 # The regression is that of the response on the columns kept: its explained
 # and residual sums of squares are the squares of the effects of the response
@@ -162,7 +247,7 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     }
 
     # The factor of every row so far, with the response as its last column.
-    factor <- qr.R(qr(rbind(factor, cbind(design_chunk, response)), tol = 0))
+    factor <- rchunk_factor(factor, cbind(design_chunk, response))
 
     y_sum <- y_sum + sum(response)
     y_sq_sum <- y_sq_sum + sum(response^2)
@@ -175,6 +260,14 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     stop("No data processed during chunked regression.", call. = FALSE)
   }
 
+  # The factor has a row for each column of the design the stacking kept and
+  # one for the response, which keeps what is left of it however little that
+  # is (rchunk_factor()). The stacking left out only what was left of columns
+  # of the design that are combinations of the columns before them, never
+  # what was left of the response, so the effects past the rank are those of
+  # the response across the columns kept here, as when every row was kept: the
+  # residual sum of squares is that of 0.17.0 but for rounding, in chunks of
+  # any size.
   columns <- ncol(factor) - 1L
   decomposition <- qr(factor[, seq_len(columns), drop = FALSE])
   rank <- decomposition$rank
@@ -196,9 +289,9 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     n = total_n,
     response_mean = y_sum / total_n,
     response_tss = total,
-    # The factor itself, from which performWhiteTestStreaming() tells whether
-    # the regressors alone fit the squared residuals exactly
-    # (rfactor_regressors_exact()).
+    # The factor itself (rchunk_factor()), from which
+    # performWhiteTestStreaming() tells whether the regressors alone fit the
+    # squared residuals exactly (rfactor_regressors_exact()).
     factor = factor,
     chunks = length(chunks)
   )
@@ -321,14 +414,28 @@ koenker_response_builder <- function(residuals_chunk) {
 #' The streaming implementation builds the auxiliary design, the regressors,
 #' their squares and their cross-products, chunk by chunk, without
 #' materialising it whole. Each chunk is reduced by a QR decomposition stacked
-#' on the triangular factor of the chunks before it, which holds the
-#' cross-products of every row without forming them. The rank of the auxiliary
-#' regression and its \eqn{n R^2} statistic are computed from that factor as
+#' on the factor of the chunks before it, which holds the cross-products of
+#' every row without forming them. The rank of the auxiliary regression and
+#' its \eqn{n R^2} statistic are computed from that factor as
 #' in [performWhiteTest()], ensuring numerical equivalence while reducing peak
 #' memory usage: the regressors are centred at their means, the rank is that of
 #' the auxiliary design at the default tolerance of [qr()], and a term that is a
 #' combination of the intercept and the terms before it is dropped (see
-#' *Degrees of freedom* in [performWhiteTest()]).
+#' *Degrees of freedom* in [performWhiteTest()]). Since 0.18.0 the factor
+#' leaves out what is left of such a term when that is less than
+#' \eqn{10^{-13}} of its norm: rounding error, for the square of a dummy
+#' variable. That changes the value of the test by rounding alone: by up to
+#' \eqn{2 \cdot 10^{-14}}{2e-14} relative on 100,000 observations with a
+#' factor of four levels, less than the \eqn{2.2 \cdot 10^{-14}}{2.2e-14} to
+#' \eqn{4.5 \cdot 10^{-14}}{4.5e-14} by which the streaming test differs from
+#' [performWhiteTest()] there, before and since. What is left of the squared
+#' residuals, however little, is never left out. In 0.17.0 the decomposition
+#' made a reflection from that rounding error, the
+#' next such term left about its square, and so on down, and on a design with
+#' many such terms, as the squares and products of dummies are, it could
+#' divide by a norm below the reciprocal of the largest double and stop
+#' ("NA/NaN/Inf in foreign function call"), as it did on a one-way layout
+#' under a BLAS that rounds otherwise than the reference BLAS of R.
 #'
 #' Since 0.17.0 the test drops such terms: the square of a dummy variable,
 #' which is the dummy, that of the first column of an orthogonal `poly()`
@@ -525,8 +632,10 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   metadata describing the chunking configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
-#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   by a QR decomposition stacked on the factor of the chunks before it, as
+#'   in [performWhiteTestStreaming()], since 0.17.0. Since 0.18.0 the factor
+#'   leaves out what is left of a regressor that is a combination of those
+#'   before it in the rows so far, rounding error, as its details say. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the
 #'   intercept, and the test stopped ("Breusch-Pagan auxiliary regression
@@ -668,8 +777,10 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   additional metadata describing the streaming configuration.
 #'
 #' @details Each chunk of the regressors, centred at their means, is reduced
-#'   by a QR decomposition stacked on the triangular factor of the chunks
-#'   before it, as in [performWhiteTestStreaming()], since 0.17.0. Up to
+#'   by a QR decomposition stacked on the factor of the chunks before it, as
+#'   in [performWhiteTestStreaming()], since 0.17.0. Since 0.18.0 the factor
+#'   leaves out what is left of a regressor that is a combination of those
+#'   before it in the rows so far, rounding error, as its details say. Up to
 #'   0.16.0 the cross-products of the regressors were accumulated: those of a
 #'   regressor 1,000 standard deviations from zero looked collinear with the
 #'   intercept, and the test stopped ("Koenker auxiliary regression became
