@@ -485,7 +485,8 @@ test_that("the streaming factor leaves out what is left of a combination of othe
   factor <- heteroTests:::rchunk_factor(NULL, cbind(1, u, 1 + 1e-7 * u + left))
   expect_identical(dim(factor), c(3L, 3L))
   expect_identical(unname(factor[3L, 1:2]), c(0, 0))
-  expect_equal(unname(factor[3L, 3L]), sqrt(sum(left^2)), tolerance = 0.1)
+  # As a ratio: expect_equal() compares values this small absolutely.
+  expect_equal(unname(factor[3L, 3L]) / sqrt(sum(left^2)), 1, tolerance = 0.1)
 })
 
 test_that("the streaming regression keeps what is left of the response, in chunks of any size", {
@@ -535,8 +536,9 @@ test_that("the streaming regression keeps what is left of the response, in chunk
   expect_gt(in_chunks$residual, 2 * heteroTests:::rwhite_exact_tolerance * in_chunks$response_tss)
   # What is left of the response is 1e-13 of its norm, which its rounding is
   # 1e-16 of, so the residual sum of squares is known to about 1e-3 of itself.
-  expect_equal(in_chunks$residual, before$residual, tolerance = 1e-3)
-  expect_equal(in_chunks$residual, whole$residual, tolerance = 1e-3)
+  # As ratios: expect_equal() compares values this small absolutely.
+  expect_equal(in_chunks$residual / before$residual, 1, tolerance = 1e-3)
+  expect_equal(in_chunks$residual / whole$residual, 1, tolerance = 1e-3)
 })
 
 test_that("bootstrap helper returns the requested number of replicates", {

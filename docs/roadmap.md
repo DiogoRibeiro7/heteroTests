@@ -2482,7 +2482,7 @@ announced in bold in `NEWS.md`.
     within 4.4e-15), with the same degrees of freedom and refusals; the factor
     is `identical()` on the 55 stacks where no column fell below it. On the 17
     fits of the review (100 streaming results), one of 100,000 observations
-    among them, the largest change is 2.0e-14 relative, less than the 2.5e-14
+    among them, the largest change is 2.0e-14 relative, less than the 2.2e-14
     to 4.5e-14 by which
     White's streaming test differs from `performWhiteTest()` there in 0.17.0
     as since. A decomposition of LAPACK with column pivoting, tried first on

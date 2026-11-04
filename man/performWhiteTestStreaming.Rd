@@ -72,7 +72,7 @@ leaves out what is left of such a term when that is less than
 \eqn{10^{-13}} of its norm: rounding error, for the square of a dummy
 variable. That changes the value of the test by rounding alone: by up to
 \eqn{2 \cdot 10^{-14}}{2e-14} relative on 100,000 observations with a
-factor of four levels, less than the \eqn{2.5 \cdot 10^{-14}}{2.5e-14} to
+factor of four levels, less than the \eqn{2.2 \cdot 10^{-14}}{2.2e-14} to
 \eqn{4.5 \cdot 10^{-14}}{4.5e-14} by which the streaming test differs from
 \code{\link[=performWhiteTest]{performWhiteTest()}} there, before and since. What is left of the squared
 residuals, however little, is never left out. In 0.17.0 the decomposition
