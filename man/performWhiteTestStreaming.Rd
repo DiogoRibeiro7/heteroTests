@@ -70,8 +70,13 @@ combination of the intercept and the terms before it is dropped (see
 \emph{Degrees of freedom} in \code{\link[=performWhiteTest]{performWhiteTest()}}). Since 0.18.0 the factor
 leaves out what is left of such a term when that is less than
 \eqn{10^{-13}} of its norm: rounding error, for the square of a dummy
-variable, which changes no value of the test by more than its last bits. In
-0.17.0 the decomposition made a reflection from that rounding error, the
+variable. That changes the value of the test by rounding alone: by up to
+\eqn{2 \cdot 10^{-14}}{2e-14} relative on 100,000 observations with a
+factor of four levels, less than the \eqn{2.5 \cdot 10^{-14}}{2.5e-14} to
+\eqn{4.5 \cdot 10^{-14}}{4.5e-14} by which the streaming test differs from
+\code{\link[=performWhiteTest]{performWhiteTest()}} there, before and since. What is left of the squared
+residuals, however little, is never left out. In 0.17.0 the decomposition
+made a reflection from that rounding error, the
 next such term left about its square, and so on down, and on a design with
 many such terms, as the squares and products of dummies are, it could
 divide by a norm below the reciprocal of the largest double and stop
