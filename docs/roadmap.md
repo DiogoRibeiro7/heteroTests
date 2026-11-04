@@ -2354,13 +2354,13 @@ announced in bold in `NEWS.md`.
     `lm(..., tol = 1e-11)` on a design within 1e-9 of collinear
     (`test-model-eligibility.R`) is compared to 1e-4 on CRAN, 1e-6 off it.
     That design amplifies the last bits: one unit in the last place of the
-    data moves the p-values of the `glm` and of the `lm` apart by about 5e-7,
-    in the Harrison-McCabe test and in Koenker's. On #185, which changes the
-    streaming code that earlier tests run, the noisy BLAS moved them past
-    1e-6: Noisy BLAS 2 once, Noisy BLAS 3 twice. The statistics of the
-    default `lm`, which aliases `x3`, are at least 4.6e-3 from those of the
-    `glm`, so the test still tells the two ranks apart. Tests only; no value
-    changes. Done in #186.
+    data moves the p-values of the `glm` and of the `lm` apart by up to about
+    5e-7, in the Harrison-McCabe test and in Koenker's. On #185, which changes
+    the streaming code that earlier tests run, the noisy BLAS moved them past
+    1e-6: Noisy BLAS 2 once (Koenker's), Noisy BLAS 3 twice. The statistics
+    of the default `lm`, which aliases `x3`, are at least 4.6e-3 from those of
+    the `glm`, so the test still tells the two ranks apart. Tests only; no
+    value changes. Done in #186.
 - [ ] **Squared residuals that are equal but for rounding.** On
     `lm(y ~ x)` with `y = 1 + 0.5 x + 0.3 s`, where `s` is 1 or -1, the
     residuals are 0.3 and -0.3, and their squares differ only in their last
