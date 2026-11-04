@@ -48,9 +48,10 @@ rstreaming_design <- function(ctx) {
 # and the squared pseudo-residuals of chunked_regression_r2()): R of the QR
 # decomposition of the stack by qr(), LINPACK's dqrdc2, at the tolerance
 # rchunk_tolerance, without its rows past the rank, its columns put back in
-# their order, and with one more row for each response dqrdc2 moves. dqrdc2 does not pivot, but moves to
-# the end a column of which less than the tolerance of its norm is left after
-# the columns before it, as of a column that is a combination of them. The
+# their order, and with one more row for each response dqrdc2 moves. dqrdc2
+# does not pivot, but moves to the end a column of which less than the
+# tolerance of its norm is left after the columns before it, as of a column
+# that is a combination of them. The
 # rank is the number of columns it does not move, and the rows of R past the
 # rank hold only what is left of the columns it moves: rounding error, for a
 # column of the design that is an exact combination of others. Leaving those
@@ -81,7 +82,8 @@ rstreaming_design <- function(ctx) {
 # each column divided by its largest element first and multiplied back
 # after, so that their cross-product is kept with their norms.
 #
-# The rows kept are as many as the rank, or one more, which can be fewer than
+# The rows kept are as many as the rank, or one more for each response moved,
+# which can be fewer than
 # the columns, so the factor need not be square or triangular, and it does
 # not need to be: each chunk decomposes it again, and chunked_regression_r2()
 # reads it through qr(), which decides the rank. Where no column falls below
