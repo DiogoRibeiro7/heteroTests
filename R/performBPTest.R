@@ -133,11 +133,11 @@
 #' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
 #' sum of squares of the squared residuals.
 #' The design forces it when the regression would fit the squares of the
-#' residuals of any response: the test pushes a fixed pseudo-response, the
-#' fractional parts of \eqn{i} times the golden ratio for the \eqn{i}-th
-#' observation, which draws nothing from the random number generator, through
-#' the QR decomposition of the fit, with its weights, and refuses only when
-#' the same regressors fit the squares of its residuals exactly too. A fit the
+#' residuals of any response: the test pushes a fixed pseudo-response,
+#' standard normal draws from a fixed seed that leave the random numbers of
+#' the session as they were, through the QR decomposition of the fit, with
+#' its weights, and refuses only when the same regressors fit the squares of
+#' its residuals exactly too. A fit the
 #' data make exact is tested, as up to 0.17.0: in a one-way layout of nine
 #' groups of ten observations and one of two, with a value of the group of two
 #' typed 100 times too large, the dummies fit the squared residuals to within
