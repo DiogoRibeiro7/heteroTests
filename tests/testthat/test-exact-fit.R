@@ -1,10 +1,11 @@
-# An auxiliary regression of the regressors that fits the squared residuals
-# exactly: since 0.18.0 Koenker's and the Breusch-Pagan tests refuse it, as
-# White's test has since 0.16.0, by the rule of White's test
-# (rauxiliary_exact(), R/performWhiteTest.R), and so do the other tests whose
-# auxiliary regression can fit the squared residuals, or a function of them,
-# exactly. Up to 0.17.0 they returned a statistic of the spread of the squared
-# residuals, or the number of observations.
+# An auxiliary regression of the regressors that the design forces to fit the
+# squared residuals exactly: since 0.18.0 Koenker's and the Breusch-Pagan
+# tests refuse it, as White's test has since 0.16.0, by the rule of White's
+# test (rauxiliary_exact(), R/performWhiteTest.R), and so do the other tests
+# whose auxiliary regression can fit the squared residuals, or a function of
+# them, exactly. Up to 0.17.0 they returned a statistic of the spread of the
+# squared residuals, or the number of observations. A fit the data make
+# exact, which the design does not force, is tested (rforced_exact_fit()).
 
 ef_quiet <- function(expr) suppressMessages(suppressWarnings(expr))
 ef_error <- function(expr) tryCatch(ef_quiet(expr), error = function(e) e)
@@ -23,6 +24,20 @@ ef_x1_f <- function() {
   set.seed(9)
   d <- data.frame(x1 = stats::rnorm(20), f = factor(rep(letters[1:10], 2)))
   d$y <- stats::rnorm(20)
+  d
+}
+
+# A one-way layout of nine groups of ten observations and one of two, with a
+# value of the group of two typed 100 times too large: its two residuals,
+# +-2336 against a standard deviation of 4.3 for the others, are equal and
+# opposite, so the dummies fit the squared residuals to within 1.1e-9 of their
+# total, an exact fit by the rule, which the data make and the design does
+# not force (from the review of #184).
+ef_outlier <- function() {
+  set.seed(1)
+  d <- data.frame(g = factor(c(rep(1:9, each = 10), 10, 10)))
+  d$y <- stats::rnorm(92, mean = 50, sd = 5)
+  d$y[91] <- d$y[91] * 100
   d
 }
 
@@ -110,44 +125,313 @@ test_that("Koenker's and the Breusch-Pagan tests refuse a factor of two observat
   }
 })
 
-test_that("an exact fit is decided by the rule of White's test", {
+test_that("a fit the data make exact is tested, as up to 0.17.0", {
+  skip_if_not_installed("lmtest")
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- ef_outlier()
+  m <- lm(y ~ g, data = d)
+  e2 <- stats::residuals(m)^2
+  aux <- stats::lm.fit(cbind(1, stats::model.matrix(m)[, -1]), e2)
+  expect_lt(sum(aux$residuals^2) / sum((e2 - mean(e2))^2), sqrt(.Machine$double.eps))
+  # A first version of #184 refused it, saying that the design forced it;
+  # 0.17.0 gave these values, and White's test refused it from 0.16.0.
+  koenker <- ef_quiet(performKoenkerTest(m, d))
+  bp <- ef_quiet(performBPTest(m, d))
+  expect_equal(unname(koenker$statistic), unname(lmtest::bptest(m)$statistic),
+               tolerance = 1e-8)
+  expect_equal(unname(bp$statistic), unname(lmtest::bptest(m, studentize = FALSE)$statistic),
+               tolerance = 1e-8)
+  expect_equal(unname(koenker$statistic), 92, tolerance = 1e-6)
+  expect_identical(unname(koenker$parameter), 9L)
+  expect_identical(unname(bp$parameter), 9L)
+  for (chunk in c(7, 10000)) {
+    streamed <- ef_quiet(performKoenkerTestStreaming(m, d, chunk_size = chunk, progress = FALSE))
+    expect_equal(unname(streamed$statistic), unname(koenker$statistic), tolerance = 1e-8)
+    streamed <- ef_quiet(performBPTestStreaming(m, d, chunk_size = chunk, progress = FALSE))
+    expect_equal(unname(streamed$statistic), unname(bp$statistic), tolerance = 1e-8)
+  }
+  # White's auxiliary regression holds the dummies and their squares, the
+  # dummies: its statistic is Koenker's.
+  white <- ef_quiet(performWhiteTest(m, d))
+  expect_equal(unname(white$statistic), unname(koenker$statistic), tolerance = 1e-8)
+  expect_identical(unname(white$parameter), 9L)
+  streamed <- ef_quiet(performWhiteTestStreaming(m, d, chunk_size = 7, progress = FALSE))
+  expect_equal(unname(streamed$statistic), unname(koenker$statistic), tolerance = 1e-8)
+  student <- ef_quiet(performStudentizedBPTest(m, d))
+  expect_equal(unname(student$statistic), unname(koenker$statistic), tolerance = 1e-8)
+  cw <- ef_quiet(performCookWeisbergTest(m, d, var_formula = ~ g))
+  expect_equal(unname(cw$statistic), unname(bp$statistic), tolerance = 1e-8)
+  set.seed(2)
+  wild <- ef_quiet(performWildBootstrapTest(m, d, B = 19, progress = FALSE))
+  expect_equal(unname(wild$statistic), unname(koenker$statistic), tolerance = 1e-8)
+  # The runner gives the values, streamed or not, with no fallback.
+  for (test in c("koenker", "breusch_pagan", "white")) {
+    for (threshold in list(NULL, 0)) {
+      args <- list(m, d, tests = test, use_cache = FALSE, progress = FALSE)
+      if (!is.null(threshold)) args$chunk_threshold_mb <- threshold
+      suite <- ef_quiet(do.call(runHeteroTests, args))
+      expect_null(attr(suite[[test]], "extras")$status, info = test)
+      expected <- if (test == "breusch_pagan") bp else koenker
+      expect_equal(unname(suite[[test]]$statistic), unname(expected$statistic),
+                   tolerance = 1e-8, info = test)
+    }
+  }
+  # autoTransform() chooses as 0.17.0 did.
+  expect_identical(ef_quiet(autoTransform(m))$method, "boxcox")
+})
+
+test_that("pairs whose squared residuals the data make linear in x are tested", {
   old <- ht_set_log_level("SILENT")
   on.exit(ht_set_log_level(old), add = TRUE)
   # Pairs with the same x and residuals of opposite sign, sqrt(1 + x) s: e^2
-  # is 1 + x, an exact fit of the auxiliary regression of the regressor;
-  # with noise of relative size delta its residual sum of squares is about
-  # delta^2 of the total, as in White's test of (1 + x) s.
+  # is 1 + x, an exact fit of the auxiliary regression of the regressor that
+  # the data make: lm(y ~ x) leaves the residuals of other responses at no
+  # pattern of pairs. With noise of relative size delta its residual sum of
+  # squares is about 52 delta^2 of the total, so 1e-5 is exact by the rule,
+  # and 1e-4 is not; all four are tested, n R^2 up to 80.
   set.seed(4)
   x <- rep(stats::runif(40, 0, 2), each = 2)
   s <- rep(c(1, -1), 40)
-  fit_with <- function(delta) {
+  for (delta in c(0, 1e-5, 1e-4, 1e-3)) {
     d <- data.frame(x = x, y = 1 + x + sqrt(1 + x) * s * (1 + delta * stats::rnorm(80)))
-    list(m = lm(y ~ x, data = d), d = d)
-  }
-  # Squared residuals that depart from the exact fit by 2e-5 of their size
-  # leave about 5e-9 of the total, below the threshold of 1.5e-8: refused,
-  # and by White's test too, whose rule it is.
-  for (delta in c(0, 1e-5)) {
-    exact <- fit_with(delta)
-    for (fn in list(performKoenkerTest, performBPTest, performWhiteTest)) {
-      expect_error(fn(exact$m, exact$d), class = ef_class)
-    }
-    expect_error(performKoenkerTestStreaming(exact$m, exact$d, progress = FALSE), class = ef_class)
-    expect_error(performBPTestStreaming(exact$m, exact$d, progress = FALSE), class = ef_class)
-  }
-  # By 2e-4 and 2e-3 of their size: a genuine fit, tested, n R^2 just below n.
-  for (delta in c(1e-4, 1e-3)) {
-    near <- fit_with(delta)
-    ours <- performKoenkerTest(near$m, near$d)
-    expect_lt(unname(ours$statistic), 80)
+    m <- lm(y ~ x, data = d)
+    ours <- performKoenkerTest(m, d)
+    expect_lte(unname(ours$statistic), 80 + 1e-8)
     expect_gt(unname(ours$statistic), 79.9)
-    streamed <- performKoenkerTestStreaming(near$m, near$d, progress = FALSE)
+    streamed <- performKoenkerTestStreaming(m, d, progress = FALSE)
     expect_equal(unname(streamed$statistic), unname(ours$statistic), tolerance = 1e-8,
                  info = delta)
-    bp <- performBPTest(near$m, near$d)
-    streamed <- performBPTestStreaming(near$m, near$d, progress = FALSE)
+    bp <- performBPTest(m, d)
+    streamed <- performBPTestStreaming(m, d, progress = FALSE)
     expect_equal(unname(streamed$statistic), unname(bp$statistic), tolerance = 1e-8, info = delta)
   }
+})
+
+test_that("whether the design forces the fit leaves the random numbers of the session alone", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- ef_paired()
+  m <- lm(y ~ treat + subject, data = d)
+  dout <- ef_outlier()
+  mout <- lm(y ~ g, data = dout)
+  # The pseudo-response is fixed: standard normal draws from rpseudo_seed by
+  # R's default generators, whatever the session uses.
+  z <- heteroTests:::rpseudo_response(5)
+  expect_identical(z, withr::with_seed(
+    heteroTests:::rpseudo_seed, stats::rnorm(5), .rng_kind = "Mersenne-Twister",
+    .rng_normal_kind = "Inversion", .rng_sample_kind = "Rejection"
+  ))
+  # The kinds of the session are put back with its state.
+  withr::local_seed(7, .rng_kind = "L'Ecuyer-CMRG")
+  lecuyer <- .Random.seed
+  expect_identical(heteroTests:::rpseudo_response(5), z)
+  expect_identical(RNGkind()[1L], "L'Ecuyer-CMRG")
+  expect_identical(.Random.seed, lecuyer)
+  # `.Random.seed` holds the kinds; without one they are put back on their
+  # own (from the re-review of #187). withr cannot put them back without a
+  # seed either, so this test does it itself.
+  kinds <- RNGkind()
+  RNGkind("L'Ecuyer-CMRG", "Ahrens-Dieter")
+  rm(".Random.seed", envir = globalenv())
+  invisible(heteroTests:::rpseudo_response(5))
+  expect_identical(RNGkind()[1:2], c("L'Ecuyer-CMRG", "Ahrens-Dieter"))
+  expect_false(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+  RNGkind(kinds[1L], kinds[2L], kinds[3L])
+  assign(".Random.seed", lecuyer, envir = globalenv())
+  set.seed(123, kind = "Mersenne-Twister")
+  seed <- .Random.seed
+  expect_identical(heteroTests:::rpseudo_response(60), heteroTests:::rpseudo_response(60))
+  expect_true(heteroTests:::rforced_exact_fit(m$qr, function(e) TRUE))
+  expect_false(heteroTests:::rforced_exact_fit(NULL, function(e) TRUE) %in% c(TRUE, FALSE))
+  ef_error(performKoenkerTest(m, d))
+  ef_error(performKoenkerTestStreaming(m, d, progress = FALSE))
+  ef_error(performWhiteTest(m, d))
+  ef_quiet(performKoenkerTest(mout, dout))
+  ef_quiet(performBPTestStreaming(mout, dout, progress = FALSE))
+  expect_identical(.Random.seed, seed)
+  # A session without a seed is left without one.
+  withr::local_seed(1)
+  rm(".Random.seed", envir = globalenv())
+  ef_error(performBPTest(m, d))
+  ef_quiet(performBPTest(mout, dout))
+  expect_false(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+})
+
+test_that("the order of the rows does not decide whether the design forces the fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # From the review of #187, on the first pseudo-response, the fractional
+  # parts of i times the golden ratio. 72 subjects of two visits sorted by
+  # visit: a fit the design forces, whose pseudo-residuals had squares equal
+  # but for rounding, so that it gave Koenker's test 144 on 72.
+  set.seed(11)
+  d <- data.frame(subject = factor(rep(1:72, 2)), visit = factor(rep(1:2, each = 72)))
+  d$y <- stats::rnorm(72)[d$subject] + 0.3 * (d$visit == "2") + stats::rnorm(144)
+  m <- lm(y ~ visit + subject, data = d)
+  for (call in list(quote(performKoenkerTest(m, d)), quote(performBPTest(m, d)),
+                    quote(performWhiteTest(m, d)), quote(performStudentizedBPTest(m, d)),
+                    quote(performKoenkerTestStreaming(m, d, chunk_size = 7, progress = FALSE)))) {
+    err <- ef_error(eval(call))
+    expect_s3_class(err, ef_class)
+    expect_true(err$forced)
+  }
+  # The paired design of these tests with 8 subjects gave 16 on 8.
+  d8 <- ef_paired(G = 8)
+  expect_s3_class(ef_error(performKoenkerTest(lm(y ~ treat + subject, data = d8), d8)), ef_class)
+  # 4 units of 13 periods sorted by unit: a fit only the data make exact,
+  # whose pseudo-residuals had squares the dummies fitted to 1e-29, so that
+  # it was refused as forced; with the rows shuffled it was not.
+  set.seed(2)
+  p <- data.frame(unit = factor(rep(1:4, each = 13)), period = factor(rep(1:13, 4)))
+  effect <- stats::rnorm(13)
+  p$y <- as.numeric(p$unit) + stats::rnorm(13)[p$period] +
+    ifelse(p$unit %in% c("1", "3"), effect[p$period], -effect[p$period]) + 1e-5 * stats::rnorm(52)
+  mp <- lm(y ~ unit + period, data = p)
+  shuffled <- p[sample(52), ]
+  rownames(shuffled) <- NULL
+  koenker <- ef_quiet(performKoenkerTest(mp, p))
+  expect_equal(unname(koenker$statistic), 52)
+  expect_identical(unname(koenker$parameter), 15L)
+  expect_equal(unname(ef_quiet(performKoenkerTest(lm(y ~ unit + period, data = shuffled),
+                                                  shuffled))$statistic), 52)
+  expect_equal(unname(ef_quiet(performKoenkerTestStreaming(mp, p, chunk_size = 7,
+                                                           progress = FALSE))$statistic), 52)
+  expect_false(inherits(ef_error(performBPTest(mp, p)), "error"))
+  expect_false(inherits(ef_error(performWhiteTest(mp, p)), "error"))
+})
+
+test_that("pseudo-residuals whose squares do not vary leave the decision unknown", {
+  # A design whose residuals are c (1, -1, 1, ...) for any response: their
+  # squares are equal but for rounding, an exact fit of them says nothing of
+  # the design, and whether it forces the fit is not known (NA).
+  v <- rep(c(1, -1), 10)
+  design <- qr.Q(qr(cbind(v, diag(20))))[, -1L]
+  fit <- qr(design)
+  expect_null(heteroTests:::rpseudo_residuals(fit))
+  expect_identical(heteroTests:::rforced_exact_fit(fit, function(e) TRUE), NA)
+  expect_true(heteroTests:::rforced_exact_fit(qr(design[, 1:10]), function(e) TRUE))
+})
+
+test_that("the pseudo-response goes through the weighted design of the fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # 30 subjects of two, weighted 2 to 1 within each: the dummies do not force
+  # an exact fit, and the data make the squared Pearson residuals 1 + treat
+  # exactly (from the review of #187). Pushed through the unweighted design,
+  # the pseudo-response took the fit for forced, and the tests refused it.
+  set.seed(7)
+  u <- rep(stats::runif(15, 0.5, 2), each = 2)
+  flip <- rep(c(1, -1), 15)
+  a <- data.frame(subject = factor(rep(1:30, each = 2)), treat = rep(0:1, 30))
+  a$w <- as.vector(rbind(2 * u, u))
+  pearson <- as.vector(rbind(flip, -sqrt(2) * flip))
+  set.seed(11)
+  a$y <- 1 + 0.5 * a$treat + stats::rnorm(30)[as.integer(a$subject)] + pearson / sqrt(a$w)
+  ma <- lm(y ~ treat + subject, data = a, weights = w)
+  expect_equal(unname(ef_quiet(performKoenkerTest(ma, a))$statistic), 60)
+  expect_equal(unname(ef_quiet(performKoenkerTestStreaming(ma, a, chunk_size = 7,
+                                                           progress = FALSE))$statistic), 60)
+  expect_equal(unname(ef_quiet(performKoenkerTest(glm(y ~ treat + subject, data = a,
+                                                      weights = w), a))$statistic), 60)
+  # Equal weights within each subject keep the pairs equal and opposite, and
+  # the design forces the fit.
+  a$w <- rep(stats::runif(30, 0.5, 2), each = 2)
+  me <- lm(y ~ treat + subject, data = a, weights = w)
+  expect_true(ef_error(performKoenkerTest(me, a))$forced)
+})
+
+test_that("whether White's regressors alone fit is asked of the squared pseudo-residuals", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # Five regressors and their squares and products on 20 observations: the
+  # design forces White's regression, but the regressors alone fit the
+  # squared residuals, 1 + x1, only because of the data (from the review of
+  # #187). The refusal says they do not, and the runner falls back on White's
+  # test without the products, exact or streamed; asked of the data, it said
+  # they did and stopped.
+  set.seed(21)
+  x1 <- rep(stats::runif(10, 0, 2), each = 2)
+  e <- rep(c(1, -1), 10) * sqrt(1 + x1)
+  project <- function(v) v - e * sum(e * v) / sum(e * e)
+  b <- data.frame(x1 = x1, x2 = project(stats::rnorm(20)), x3 = project(stats::rnorm(20)),
+                  x4 = project(stats::rnorm(20)), x5 = project(stats::rnorm(20)))
+  b$y <- 1 + b$x1 + b$x2 - b$x3 + 0.5 * b$x4 + b$x5 + e
+  mb <- lm(y ~ x1 + x2 + x3 + x4 + x5, data = b)
+  expect_false(ef_error(performWhiteTest(mb, b))$regressors_exact)
+  expect_false(ef_error(performWhiteTestStreaming(mb, b, chunk_size = 7,
+                                                  progress = FALSE))$regressors_exact)
+  for (threshold in list(NULL, 0)) {
+    call <- list(mb, b, tests = "white", use_cache = FALSE, progress = FALSE)
+    call$chunk_threshold_mb <- threshold
+    white <- ef_quiet(do.call(runHeteroTests, call))$white
+    expect_equal(unname(white$statistic), 20)
+    expect_identical(unname(white$parameter), 10L)
+    expect_identical(attr(white, "extras")$status, "fallback")
+  }
+})
+
+test_that("autoTransform() leaves out a candidate whose design forces the fit", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  # 15 pairs and a triple with one negative value: log and sqrt drop it, and
+  # their design, all pairs, forces the fit; the untransformed fit is tested
+  # and chosen (from the review of #187).
+  set.seed(5)
+  d <- data.frame(g = factor(c(rep(1:15, each = 2), 16, 16, 16)))
+  d$y <- exp(stats::rnorm(33))
+  d$y[33] <- -0.5
+  expect_identical(ef_quiet(autoTransform(lm(y ~ g, data = d)))$method, "none")
+})
+
+test_that("the other tests of such a regression give their values on a fit the data make exact", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  dout <- ef_outlier()
+  mout <- lm(y ~ g, data = dout)
+  expect_equal(unname(ef_quiet(performHarveyTest(mout, dout))$statistic), 75.8732841439)
+  expect_equal(unname(ef_quiet(performHighDimensionalTest(mout, dout,
+                                                          variance_threshold = 1))$statistic), 92)
+  expect_equal(unname(ef_quiet(performCookWeisbergTest(mout, dout, var_formula = ~ g))$statistic),
+               2069.35435426)
+  # Pairs with the same x whose residuals are exp(x / 2) and -exp(x / 2): the
+  # data make the log squared residuals x exactly (from the review of #187).
+  set.seed(4)
+  x <- rep(stats::runif(40, 0, 2), each = 2)
+  h <- data.frame(x = x, y = 1 + x + rep(c(1, -1), 40) * exp(x / 2))
+  expect_false(inherits(ef_error(performHarveyTest(lm(y ~ x, data = h), h)), "error"))
+})
+
+test_that("a fit without a QR decomposition is refused without saying that the design forces it", {
+  old <- ht_set_log_level("SILENT")
+  on.exit(ht_set_log_level(old), add = TRUE)
+  d <- ef_paired()
+  # lm(qr = FALSE) keeps no QR decomposition to push the pseudo-response
+  # through (rcontext_qr()): the test cannot tell whether the design or the
+  # data make the fit exact, and refuses it, saying only that it is exact.
+  m <- lm(y ~ treat + subject, data = d, qr = FALSE)
+  for (call in list(quote(performKoenkerTest(m, d)), quote(performBPTest(m, d)),
+                    quote(performKoenkerTestStreaming(m, d, progress = FALSE)),
+                    quote(performWhiteTest(m, d)))) {
+    err <- ef_error(eval(call))
+    expect_s3_class(err, ef_class)
+    expect_match(conditionMessage(err), "fits the squared residuals exactly", fixed = TRUE)
+    expect_no_match(conditionMessage(err), "The design forces", fixed = TRUE)
+    expect_identical(err$forced, NA)
+  }
+  # Nor that this would hold whatever the data (from the review of #187).
+  err <- ef_error(performKoenkerTest(m, d))
+  expect_identical(
+    conditionMessage(err),
+    paste(
+      "The auxiliary regression of Koenker's test fits the squared residuals exactly: the squared",
+      "residuals are a combination of its 31 independent terms with its intercept, for 60",
+      "observations. Its R-squared is 1 and its statistic the number of observations."
+    )
+  )
+  # The refusal is still final in the runner: the regressors fit them.
+  expect_true(err$regressors_exact)
+  expect_true(heteroTests:::ht_final_exact_fit(err))
 })
 
 test_that("the routes to the two statistics, and the other tests of such a regression, refuse it", {

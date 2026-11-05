@@ -226,7 +226,8 @@
 #'   regression fits the squared residuals exactly, as on a paired design,
 #'   where every replicate does too: on 30 subjects of two observations it
 #'   gave 60, the number of observations, with a p-value of 1. The refusal
-#'   comes before the replicates are drawn.
+#'   comes before the replicates are drawn. Only a fit the design forces is
+#'   refused; one the data make exact is bootstrapped, as up to 0.17.0.
 #'
 #' @references
 #' Davidson, R., & Flachaire, E. (2008). The wild bootstrap, tamed at last.
@@ -359,12 +360,19 @@ performWildBootstrapTest <- function(model, data = NULL, B = 999,
   # exactly, as on a paired design, and so those of every replicate, whose
   # design is the same: each statistic is the number of observations, and the
   # p-value counts the replicates whose rounding error is above that of the
-  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, before
-  # the replicates are drawn; on the paired design of White's exact fit the
-  # test gave 60 with a p-value of 1.
+  # data. Refused since 0.18.0, as performKoenkerTest() refuses it, when the
+  # design forces it (rforced_exact_fit()), before the replicates are drawn;
+  # on the paired design of White's exact fit the test gave 60 with a p-value
+  # of 1. A fit the data make exact is bootstrapped, as up to 0.17.0.
   if (observed$exact) {
-    rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
-                                rexact_fit_statistic$n_r_squared)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(rauxiliary_fit(e^2, predictors, centred, columns,
+                                          "Wild bootstrap test"))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the wild bootstrap test", observed$rank, length(residuals),
+                                  rexact_fit_statistic$n_r_squared, forced = forced)
+    }
   }
 
   multiplier_draw <- switch(distribution,
@@ -649,7 +657,8 @@ performRankPermutationTest <- function(model, data = NULL, order_by = NULL, B = 
 #'   fit*), where the statistic was the number of observations: on a paired
 #'   design of 30 subjects of two observations with `variance_threshold = 1`,
 #'   which keeps every component, 60 on 30. The default keeps 26 there, which
-#'   do not fit them exactly, and gives a value.
+#'   do not fit them exactly, and gives a value. Only a fit the design forces
+#'   is refused; one the data make exact gives a value, as up to 0.17.0.
 #'
 #' @references
 #' Fan, J., & Lv, J. (2008). Sure independence screening for ultrahigh dimensional
@@ -731,11 +740,18 @@ performHighDimensionalTest <- function(model, data = NULL, variance_threshold = 
   # them do on a paired design (variance_threshold = 1): the statistic is the
   # number of observations. Refused since 0.18.0 at the threshold of White's
   # test, as Koenker's test, of which this is the statistic on the components,
-  # refuses it; on the paired design of White's exact fit it gave 60 on 30
-  # with the warning of summary.lm(), "essentially perfect fit".
+  # refuses it, when the design forces it (rforced_exact_fit()); on the paired
+  # design of White's exact fit it gave 60 on 30 with the warning of
+  # summary.lm(), "essentially perfect fit".
   if (rauxiliary_fit_exact(aux_model)) {
-    rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
-                                length(residuals), rexact_fit_statistic$n_r_squared)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(stats::lm.fit(cbind(1, scores), e^2))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the high-dimensional test", aux_model$rank,
+                                  length(residuals), rexact_fit_statistic$n_r_squared,
+                                  forced = forced)
+    }
   }
   r2 <- summary(aux_model)$r.squared
   statistic <- length(residuals) * r2

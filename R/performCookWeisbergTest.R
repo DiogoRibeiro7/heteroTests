@@ -59,7 +59,8 @@
 #' On 30 subjects of two observations, `lm(y ~ treat + subject)`,
 #' `var_formula = ~ treat + subject` gave 63.25 on 30 degrees of freedom. The
 #' fitted values, the default, do not fit them exactly there, and the test
-#' gives a value.
+#' gives a value. Only a fit the design and the variance model force is
+#' refused; one the data make exact gives a value, as up to 0.17.0.
 #'
 #' @references
 #' Cook, R. D., & Weisberg, S. (1983). Diagnostics for heteroscedasticity in

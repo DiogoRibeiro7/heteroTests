@@ -2657,7 +2657,7 @@ announced in bold in `NEWS.md`.
         pairs, balanced as `treat` is, gives 0 there. Not an exact fit, and not
         changed. Refuse such a variable, or say so on the help pages; changes a
         value, or none.
-    - [ ] **To fix before 0.18.0 is released: the rule refuses a fit that the
+    - [x] **To fix before 0.18.0 is released: the rule refuses a fit that the
         data make exact, not the design, and its message blames the design.** It
         compares the residual sum of squares of the auxiliary regression with the
         total sum of squares of the squared residuals, and one gross error in a
@@ -2677,7 +2677,50 @@ announced in bold in `NEWS.md`.
         fixed pseudo-response through the fit, and refuse only if the same
         regressors also fit its squared residuals exactly, so that White's test
         gives its value there too. Found by the review of #184; to be fixed in its
-        own pull request. Makes refusals values.
+        own pull request. Makes refusals values. Done in #187: the tests refuse an
+        exact fit only when the design forces it. Each test pushes a fixed
+        pseudo-response, standard normal draws from a fixed seed by R's default
+        generators, after which the state and the kinds of the session's
+        generator are put back, through the QR decomposition of the fit, with its
+        weights, and refuses only when the same auxiliary regressors fit the same
+        function of its residuals exactly too (`rforced_exact_fit()`): their
+        squares, their logs for Harvey's test, their centred squares for the
+        studentized statistic. When the squares of those residuals do not vary,
+        whether the design forces the fit is not known, and the test refuses it
+        without saying so. The first version of #187 used the fractional parts of
+        i times the golden ratio, whose pattern its review found the designs could
+        follow, by the order of their rows: on 72 subjects of two visits sorted by
+        visit a fit the design forces gave Koenker's test 144 on 72, and on 4
+        units of 13 periods sorted by unit a fit the data make exact was refused
+        as forced, where with the rows shuffled it gave 52 on 15. The
+        streaming forms carry those squares as one more response in the pass they
+        make, and decide as the exact forms do; the stacking of #185 keeps what is
+        left of both responses (`rchunk_factor()`). On the layout above the
+        dummies fit the squared residuals to within 1.1e-9 of their total, and
+        Koenker's test gives 92 on 9 and the Breusch-Pagan test 2069.35 on 9,
+        streamed or not, through `runHeteroTests()` too, and `autoTransform()`
+        chooses `boxcox`, the values of 0.17.0. White's test gives its value there
+        too, 92 on 9, and n R^2 = 80 on the pairs of `test-performWhiteTest.R`
+        whose residuals are +(1 + x) and -(1 + x): a refusal becomes a value.
+        Whether its regressors alone fit the squared residuals, which decides the
+        runner's fallback, is asked of the squared pseudo-residuals too. A fit
+        without a QR decomposition, an `mgcv::gam()` tested on its design or an
+        `lm` fitted with `qr = FALSE`, is refused when the regression fits
+        exactly, with a message that says only that it does, not that the design
+        forces it. `autoTransform()` leaves out a candidate the Breusch-Pagan test
+        refuses, since a candidate drops the rows where its response is not finite
+        and so can fit another design, and stops with the first refusal only when
+        every candidate is refused. A design that forces the fit, the paired
+        design or a factor of two observations a level, is refused as in #184.
+    - [ ] **Left from the review of #187**, recorded, not fixed. An
+        `mgcv::gam()` fit keeps no QR decomposition, so on an exact fit it is
+        refused without the reason and the advice, on a paired design too, which
+        forces it; for a gam whose smooths are fixed the QR decomposition of its
+        weighted design would tell. And on a fit the data make exact the F
+        statistics come back as values, as in 0.17.0: Harvey's studentized test
+        gives Inf on 1 and 78 on pairs whose log squared residuals are x exactly,
+        and the F of the variance form test can be a ratio to rounding error. Say
+        so on their help pages, or refuse them.
     - [x] The degrees of freedom of `performBPTest()` and `performKoenkerTest()`
         are the number of columns of the design but its intercept, not the rank
         of their auxiliary regression less its intercept, as White's are since N2:

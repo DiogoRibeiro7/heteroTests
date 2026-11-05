@@ -123,15 +123,30 @@
 #' 30 degrees of freedom (p = 0.0004) on homoscedastic data, the value of
 #' `lmtest::bptest(..., studentize = FALSE)`, and on `lm(y ~ x1 + f)` with a
 #' factor of 10 levels of two observations, 28.03 on 10 (p = 0.002). Since
-#' 0.18.0 it refuses such a regression, where it returned that statistic, as
-#' White's test has refused it since 0.16.0 (see *Too few observations* in
-#' [performWhiteTest()]). The refusal is an error of class
+#' 0.18.0 it refuses such a regression when the design forces it, where it
+#' returned that statistic, as White's test refuses it (see *Too few
+#' observations* in [performWhiteTest()]). The refusal is an error of class
 #' `heteroTests_exact_fit_error`, whose message says why and asks for more
 #' observations per level: the design forces the exact fit, and more levels
 #' of two observations do not help. A fit counts as exact by the rule of
 #' White's test, when its residual sum of squares is at most
 #' `sqrt(.Machine$double.eps)`, about \eqn{1.5 \times 10^{-8}}, of the total
 #' sum of squares of the squared residuals.
+#' The design forces it when the regression would fit the squares of the
+#' residuals of any response: the test pushes a fixed pseudo-response,
+#' standard normal draws from a fixed seed that leave the random numbers of
+#' the session as they were (but for the second value of a pair that the
+#' normal kind Box-Muller keeps, which R resets), through the QR decomposition
+#' of the fit, with its weights, and refuses only when the same regressors
+#' fit the squares of its residuals exactly too. A fit the
+#' data make exact is tested, as up to 0.17.0: in a one-way layout of nine
+#' groups of ten observations and one of two, with a value of the group of two
+#' typed 100 times too large, the dummies fit the squared residuals to within
+#' \eqn{1.1 \times 10^{-9}} of their total sum of squares, an exact fit by the
+#' rule, and the test gives 2069.35 on 9 degrees of freedom. A fit without a QR
+#' decomposition, such as an `mgcv::gam()` fit tested on its design, is
+#' refused, with a message that says only that the regression fits the squared
+#' residuals exactly.
 #'
 #' [performBPTestStreaming()], the registered `"breusch_pagan"`,
 #' `performBreuschPaganTest()`, [performBPTestRobust()] with
@@ -143,8 +158,9 @@
 #' regression can fit the squared residuals, or a function of them, exactly
 #' refuse such a fit by the same rule (see *Exact fit* in
 #' [performKoenkerTest()]). [autoTransform()], which chooses a transformation
-#' by the p-value of this test, stops with the refusal on such a design, where
-#' every candidate fit is an exact one.
+#' by the p-value of this test, leaves out a candidate fit it refuses and stops
+#' with the refusal when every candidate is refused, as on such a design; on
+#' the one-way layout above it chooses `boxcox`, as up to 0.17.0.
 #'
 #' The refusal covers the exact fit only. One step away from it, with one of
 #' the 30 subjects observed a third time, the test gives 64.74 on 30
@@ -387,11 +403,20 @@ performBPTest <- function(model, data = NULL) {
   # are equal and opposite in each pair: the statistic, half the explained sum
   # of squares, is then half the total, a function of the spread of the
   # squared residuals alone. Refused since 0.18.0 at the threshold of White's
-  # test (rauxiliary_fit_exact()), with its message; on the paired design of
-  # White's exact fit the test gave 63.25 on 30 (p = 0.0004).
+  # test (rauxiliary_fit_exact()), with its message, when the design forces it
+  # (rforced_exact_fit()); on the paired design of White's exact fit the test
+  # gave 63.25 on 30 (p = 0.0004). A fit the data make exact, as an outlier in
+  # a group of two observations, is tested, as up to 0.17.0. The scaled squared
+  # residuals are an affine function of the squared residuals, with the same
+  # fit, so the pseudo-residuals are only squared.
   if (rauxiliary_fit_exact(aux_fit)) {
-    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
-                                rexact_fit_statistic$spread)
+    forced <- rforced_exact_fit(rcontext_qr(ctx), function(e) {
+      rauxiliary_fit_exact(rauxiliary_fit(e^2, predictors, centred, columns, test_label))
+    })
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", aux_fit$rank, n,
+                                  rexact_fit_statistic$spread, forced = forced)
+    }
   }
   test_statistic <- 0.5 * sum(aux_fit$fitted.values^2)
   df <- aux_fit$rank - 1L

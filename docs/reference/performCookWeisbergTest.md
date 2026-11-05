@@ -33,7 +33,7 @@ Writing \(\hat{\sigma}^2 = \sum_i \hat{e}_i^2 / n\) for the maximum-likelihood e
 
 The chi-square reference distribution follows from the null variance of \(\hat{e}^2 / \sigma^2\) being 2, which holds under normal errors. When that assumption is doubtful, prefer [`performKoenkerTest`](performKoenkerTest.md).
 
-Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as [`performBPTest()`](performBPTest.md), whose statistic it then is, refuses such a fit of the regressors (see its *Exact fit*), by the same rule and with the same class: half the explained sum of squares is then half the total, a function of the spread of the squared residuals alone. On 30 subjects of two observations, `lm(y ~ treat + subject)`, `var_formula = ~ treat + subject` gave 63.25 on 30 degrees of freedom. The fitted values, the default, do not fit them exactly there, and the test gives a value.
+Since 0.18.0 the test refuses a variance model that fits the scaled squared residuals exactly, as [`performBPTest()`](performBPTest.md), whose statistic it then is, refuses such a fit of the regressors (see its *Exact fit*), by the same rule and with the same class: half the explained sum of squares is then half the total, a function of the spread of the squared residuals alone. On 30 subjects of two observations, `lm(y ~ treat + subject)`, `var_formula = ~ treat + subject` gave 63.25 on 30 degrees of freedom. The fitted values, the default, do not fit them exactly there, and the test gives a value. Only a fit the design and the variance model force is refused; one the data make exact gives a value, as up to 0.17.0.
 
 ## Validation
 

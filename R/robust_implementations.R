@@ -263,7 +263,8 @@ performWhiteTestRobust <- function(model, data = NULL, method = c("standard", "r
 #' residuals exactly, as on a paired design, as [performBPTest()] and
 #' [performKoenkerTest()] refuse it (see their *Exact fit*): on 30 subjects of
 #' two observations it gave 60 on 30 degrees of freedom with `studentize =
-#' TRUE` and 63.25 on 30 with `FALSE`.
+#' TRUE` and 63.25 on 30 with `FALSE`. Only a fit the design forces is
+#' refused; one the data make exact gives a value, as up to 0.17.0.
 #'
 #' @references
 #' Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity

@@ -99,7 +99,8 @@ test returned 0 with a p-value of 1. Since 0.18.0 it also refuses, as
 regression fits the squared residuals exactly, as on a paired design,
 where every replicate does too: on 30 subjects of two observations it
 gave 60, the number of observations, with a p-value of 1. The refusal
-comes before the replicates are drawn.
+comes before the replicates are drawn. Only a fit the design forces is
+refused; one the data make exact is bootstrapped, as up to 0.17.0.
 
 ## Details
 

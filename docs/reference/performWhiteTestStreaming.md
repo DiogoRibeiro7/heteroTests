@@ -155,6 +155,10 @@ stopped. Since 0.16.0 it stops with the refusal of [`performWhiteTest()`](perfor
 its section *Too few observations*) when its independent terms are at least
 as many as the observations, where it stopped as on collinear terms, or fit
 the squared residuals exactly, collinear or not, as on a paired design.
+Since 0.18.0 it refuses a fit with fewer terms than observations only when
+the design forces it, decided from the squared pseudo-residuals it carries
+in the same pass, as [`performWhiteTest()`](performWhiteTest.md) decides it; a fit the data make
+exact gives a value, where it was refused from 0.16.0.
 Which model each test accepts, and why, is set out in [test\_results](test_results.md), under
 *Supported models*.
 

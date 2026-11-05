@@ -44,12 +44,14 @@ rstreaming_design <- function(ctx) {
 }
 
 # The factor of `rows` stacked under `factor`, that of the rows before them,
-# whose last column is the response: R of the QR decomposition of the stack by
-# qr(), LINPACK's dqrdc2, at the tolerance rchunk_tolerance, without its rows
-# past the rank, its columns put back in their order, and with one more row
-# for the response when dqrdc2 moves it. dqrdc2 does not pivot, but moves to
-# the end a column of which less than the tolerance of its norm is left after
-# the columns before it, as of a column that is a combination of them. The
+# whose last `responses` columns are responses (the response, or the response
+# and the squared pseudo-residuals of chunked_regression_r2()): R of the QR
+# decomposition of the stack by qr(), LINPACK's dqrdc2, at the tolerance
+# rchunk_tolerance, without its rows past the rank, its columns put back in
+# their order, and with one more row for each response dqrdc2 moves. dqrdc2
+# does not pivot, but moves to the end a column of which less than the
+# tolerance of its norm is left after the columns before it, as of a column
+# that is a combination of them. The
 # rank is the number of columns it does not move, and the rows of R past the
 # rank hold only what is left of the columns it moves: rounding error, for a
 # column of the design that is an exact combination of others. Leaving those
@@ -74,9 +76,14 @@ rstreaming_design <- function(ctx) {
 # reflections only. dqrdc2 goes on to make reflections from the columns it
 # moves (the loop of its reduction runs to min(n, p), whatever the rank), the
 # response among them, and those can hold values that are not finite, which
-# qr.qty() refuses, so they are set to 0 first.
+# qr.qty() refuses, so they are set to 0 first. When it moves both responses,
+# as it can when the design forces an exact fit (rforced_exact_fit()), what
+# is left of them is kept as R of its own decomposition without pivoting,
+# each column divided by its largest element first and multiplied back
+# after, so that their cross-product is kept with their norms.
 #
-# The rows kept are as many as the rank, or one more, which can be fewer than
+# The rows kept are as many as the rank, or one more for each response moved,
+# which can be fewer than
 # the columns, so the factor need not be square or triangular, and it does
 # not need to be: each chunk decomposes it again, and chunked_regression_r2()
 # reads it through qr(), which decides the rank. Where no column falls below
@@ -107,20 +114,34 @@ rstreaming_design <- function(ctx) {
 # 25.476 (an open item of 0.18.0 in ROADMAP.md).
 rchunk_tolerance <- 1e-13
 
-rchunk_factor <- function(factor, rows) {
+rchunk_factor <- function(factor, rows, responses = 1L) {
   stack <- rbind(factor, rows)
   stacked <- qr(stack, tol = rchunk_tolerance)
   rank <- stacked$rank
   kept <- qr.R(stacked)[seq_len(rank), order(stacked$pivot), drop = FALSE]
-  response <- ncol(stack)
-  if (match(response, stacked$pivot) > rank && nrow(stack) > rank) {
-    past <- seq.int(rank + 1L, response)
+  columns <- ncol(stack)
+  last <- seq.int(columns - responses + 1L, columns)
+  moved <- last[match(last, stacked$pivot) > rank]
+  if (length(moved) > 0L && nrow(stack) > rank) {
+    past <- seq.int(rank + 1L, columns)
     stacked$qr[, past] <- 0
     stacked$qraux[past] <- 0
-    left <- qr.qty(stacked, stack[, response])[-seq_len(rank)]
-    size <- max(abs(left))
-    if (size > 0) {
-      kept <- rbind(kept, c(rep(0, response - 1L), size * sqrt(sum((left / size)^2))))
+    left <- qr.qty(stacked, stack[, moved, drop = FALSE])[-seq_len(rank), , drop = FALSE]
+    size <- apply(abs(left), 2L, max)
+    moved <- moved[size > 0]
+    left <- left[, size > 0, drop = FALSE]
+    size <- size[size > 0]
+    rest <- NULL
+    if (length(moved) == 1L) {
+      rest <- matrix(size * sqrt(sum((left / size)^2)), 1L, 1L)
+    } else if (length(moved) > 1L) {
+      rest <- qr.R(qr(sweep(left, 2L, size, "/"), tol = 0))
+      rest <- sweep(rest, 2L, size, "*")
+    }
+    if (!is.null(rest)) {
+      extra <- matrix(0, nrow(rest), columns)
+      extra[, moved] <- rest
+      kept <- rbind(kept, extra)
     }
   }
   kept
@@ -179,14 +200,27 @@ rchunk_factor <- function(factor, rows) {
 # Cholesky decomposition (#151). And the squared residuals did not vary when
 # their total sum of squares was at most `.Machine$double.eps`, whatever their
 # scale, which refused residuals of about 1e-5 that the exact tests take.
+#
+# `pseudo`, the pseudo-residuals of the fit (rpseudo_residuals()), one per
+# observation in the order of the fit, or NULL: the response builder makes one
+# more response of them, a column after the response in the same pass, from
+# which the regression of that response on the same predictors is computed,
+# so that the streaming tests tell whether the design forces an exact fit
+# (rforced_exact_fit()) without another pass over the design. A column after
+# the others leaves the factor of the columns before it as it was, to the last
+# bit, since each Householder reflection is made from its own column, while
+# the stacking moves no column (rchunk_factor()); a column it moves goes after
+# the squared pseudo-residuals, and what the factor keeps of it then changes
+# by rounding.
 chunked_regression_r2 <- function(design, residuals, chunk_size,
                                   predictor_builder, response_builder,
-                                  progress = FALSE, progress_label = "Processing chunks") {
+                                  progress = FALSE, progress_label = "Processing chunks",
+                                  pseudo = NULL) {
   n <- length(residuals)
   if (n == 0L) {
     stop("No observations available after preprocessing.", call. = FALSE)
   }
-  if (NROW(design) != n) {
+  if (NROW(design) != n || (!is.null(pseudo) && length(pseudo) != n)) {
     stop("Internal error: the design and the residuals differ in length.", call. = FALSE)
   }
 
@@ -246,8 +280,13 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
       stop("Response builder returned a vector of incorrect length.", call. = FALSE)
     }
 
-    # The factor of every row so far, with the response as its last column.
-    factor <- rchunk_factor(factor, cbind(design_chunk, response))
+    # The factor of every row so far, with the response as its last column,
+    # or the response and the squared pseudo-residuals as the last two.
+    block <- cbind(design_chunk, response)
+    if (!is.null(pseudo)) {
+      block <- cbind(block, as.numeric(response_builder(pseudo[idx])))
+    }
+    factor <- rchunk_factor(factor, block, responses = ncol(block) - ncol(design_chunk))
 
     y_sum <- y_sum + sum(response)
     y_sq_sum <- y_sq_sum + sum(response^2)
@@ -261,14 +300,32 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
   }
 
   # The factor has a row for each column of the design the stacking kept and
-  # one for the response, which keeps what is left of it however little that
+  # one for each response, which keeps what is left of it however little that
   # is (rchunk_factor()). The stacking left out only what was left of columns
   # of the design that are combinations of the columns before them, never
-  # what was left of the response, so the effects past the rank are those of
+  # what was left of a response, so the effects past the rank are those of
   # the response across the columns kept here, as when every row was kept: the
   # residual sum of squares is that of 0.17.0 but for rounding, in chunks of
   # any size.
-  columns <- ncol(factor) - 1L
+  columns <- ncol(factor) - 1L - !is.null(pseudo)
+  pseudo_stats <- list()
+  if (!is.null(pseudo)) {
+    # The rows of the factor are an orthogonal transform of the predictors,
+    # the response and the squared pseudo-residuals, so its columns of the
+    # predictors and the squared pseudo-residuals give their regression, and
+    # those of the predictors and the response the regression of the
+    # response. The factor need not be triangular (rchunk_factor()), so each
+    # keeps every row.
+    pseudo_factor <- factor[, c(seq_len(columns), columns + 2L), drop = FALSE]
+    pseudo_decomposition <- qr(pseudo_factor[, seq_len(columns), drop = FALSE])
+    pseudo_effects <- qr.qty(pseudo_decomposition, pseudo_factor[, columns + 1L])
+    pseudo_stats <- list(
+      pseudo_residual = sum(pseudo_effects[-seq_len(pseudo_decomposition$rank)]^2),
+      pseudo_total = sum(pseudo_effects[-1L]^2),
+      pseudo_factor = pseudo_factor
+    )
+    factor <- factor[, seq_len(columns + 1L), drop = FALSE]
+  }
   decomposition <- qr(factor[, seq_len(columns), drop = FALSE])
   rank <- decomposition$rank
   effects <- qr.qty(decomposition, factor[, columns + 1L])
@@ -293,8 +350,29 @@ chunked_regression_r2 <- function(design, residuals, chunk_size,
     # performWhiteTestStreaming() tells whether the regressors alone fit the
     # squared residuals exactly (rfactor_regressors_exact()).
     factor = factor,
-    chunks = length(chunks)
+    chunks = length(chunks),
+    # With `pseudo`: the residual and total sums of squares of the regression
+    # of the squared pseudo-residuals, and the factor that gives it.
+    pseudo_residual = pseudo_stats$pseudo_residual,
+    pseudo_total = pseudo_stats$pseudo_total,
+    pseudo_factor = pseudo_stats$pseudo_factor
   )
+}
+
+# The pseudo-residuals the streaming tests carry through
+# chunked_regression_r2(), from the QR decomposition of the fit
+# (rcontext_qr()), or NULL without one; and whether the design forces an
+# exact fit (rforced_exact_fit()) from what that pass returns: NA without them.
+rstreaming_pseudo <- function(ctx) {
+  qr <- rcontext_qr(ctx)
+  if (is.null(qr)) NULL else rpseudo_residuals(qr)
+}
+
+rstreaming_forced <- function(stats) {
+  if (is.null(stats$pseudo_total)) {
+    return(NA)
+  }
+  rauxiliary_exact(stats$pseudo_residual, stats$pseudo_total)
 }
 
 # Whether the regressors, the first `regressors` columns after the intercept of
@@ -500,6 +578,10 @@ koenker_response_builder <- function(residuals_chunk) {
 #' its section *Too few observations*) when its independent terms are at least
 #' as many as the observations, where it stopped as on collinear terms, or fit
 #' the squared residuals exactly, collinear or not, as on a paired design.
+#' Since 0.18.0 it refuses a fit with fewer terms than observations only when
+#' the design forces it, decided from the squared pseudo-residuals it carries
+#' in the same pass, as [performWhiteTest()] decides it; a fit the data make
+#' exact gives a value, where it was refused from 0.16.0.
 #' Which model each test accepts, and why, is set out in [test_results], under
 #' *Supported models*.
 #'
@@ -545,7 +627,8 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     predictor_builder = white_predictor_builder(cross_products, max_interactions),
     response_builder = white_response_builder,
     progress = progress,
-    progress_label = "Streaming White test"
+    progress_label = "Streaming White test",
+    pseudo = rstreaming_pseudo(ctx)
   )
 
   # The terms of the auxiliary regression are counted by their rank, decided
@@ -563,14 +646,19 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # back where it does: the squares of the dummies of a paired design equal
   # the dummies and count once, so 30 pairs and a treatment have 31
   # independent terms for 60 observations, an exact fit the design forces, not
-  # too few observations.
+  # too few observations. Since 0.18.0 a fit with fewer terms is refused when
+  # the design forces it, by the squared pseudo-residuals the pass carried
+  # (rstreaming_forced(), rforced_exact_fit()), and whether the regressors
+  # alone fit them is asked of those too, as performWhiteTest() asks it.
   regressors <- ncol(design) - identical(colnames(design)[1L], "(Intercept)")
   products <- isTRUE(cross_products) && regressors > 1 && regressors <= max_interactions
   what <- if (isTRUE(stats$rank_deficient)) "independent terms" else "terms"
+  regressors_exact <- function() {
+    rfactor_regressors_exact(stats$pseudo_factor %||% stats$factor, regressors)
+  }
   if (stats$rank >= stats$n) {
     rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = TRUE, products = products,
-                            regressors_exact = rfactor_regressors_exact(stats$factor, regressors),
-                            what = what)
+                            regressors_exact = regressors_exact(), what = what)
   }
 
   if (isTRUE(stats$zero_variation)) {
@@ -581,9 +669,12 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   }
 
   if (rauxiliary_exact(stats$residual, stats$response_tss)) {
-    rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = FALSE, products = products,
-                            regressors_exact = rfactor_regressors_exact(stats$factor, regressors),
-                            what = what)
+    forced <- rstreaming_forced(stats)
+    if (!identical(forced, FALSE)) {
+      rwhite_refuse_exact_fit(stats$rank, stats$n, saturated = FALSE, products = products,
+                              regressors_exact = regressors_exact(), what = what,
+                              forced = forced)
+    }
   }
 
   test_statistic <- stats$n * stats$r_squared
@@ -656,7 +747,9 @@ performWhiteTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   squared residuals exactly, as on a paired design, by the rule and with
 #'   the message and class of [performBPTest()] (see its *Exact fit*), where
 #'   it gave 63.25 on 30 degrees of freedom on 30 subjects of two
-#'   observations.
+#'   observations. It refuses it when the design forces it, decided from the
+#'   squared pseudo-residuals it carries in the same pass, as
+#'   [performBPTest()] decides it; a fit the data make exact gives a value.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
@@ -694,7 +787,8 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     predictor_builder = bp_predictor_builder,
     response_builder = bp_response_builder,
     progress = progress,
-    progress_label = "Streaming Breusch-Pagan test"
+    progress_label = "Streaming Breusch-Pagan test",
+    pseudo = rstreaming_pseudo(ctx)
   )
 
   # The degrees of freedom are the rank of the auxiliary regression less its
@@ -721,8 +815,11 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # The response here is the squared residuals, not their scaled form, an
   # affine function of them with the same fit.
   if (rauxiliary_exact(stats$residual, stats$response_tss)) {
-    rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", stats$rank, stats$n,
-                                rexact_fit_statistic$spread)
+    forced <- rstreaming_forced(stats)
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("the Breusch-Pagan test", stats$rank, stats$n,
+                                  rexact_fit_statistic$spread, forced = forced)
+    }
   }
 
   # Classical BP = 0.5 * ESS_f, with f = e^2/sigma^2 - 1. Scaling the auxiliary
@@ -801,7 +898,10 @@ performBPTestStreaming <- function(model, data = NULL, chunk_size = 10000,
 #'   squared residuals exactly, as on a paired design, by the rule and with
 #'   the message and class of [performKoenkerTest()] (see its *Exact fit*),
 #'   where it gave 60 on 30 degrees of freedom on 30 subjects of two
-#'   observations.
+#'   observations. It refuses it when the design forces it, decided from the
+#'   squared pseudo-residuals it carries in the same pass, as
+#'   [performKoenkerTest()] decides it; a fit the data make exact gives a
+#'   value.
 #'
 #'   Since 0.16.0 the chunks are rows of the design of the fit, as in
 #'   [performWhiteTestStreaming()], whose details say what changed.
@@ -831,7 +931,8 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
     predictor_builder = koenker_predictor_builder,
     response_builder = koenker_response_builder,
     progress = progress,
-    progress_label = "Streaming Koenker test"
+    progress_label = "Streaming Koenker test",
+    pseudo = rstreaming_pseudo(ctx)
   )
 
   # The degrees of freedom are the rank of the auxiliary regression less its
@@ -855,8 +956,11 @@ performKoenkerTestStreaming <- function(model, data = NULL, chunk_size = 10000,
   # paired design: refused since 0.18.0 by the rule and with the message of
   # performKoenkerTest().
   if (rauxiliary_exact(stats$residual, stats$response_tss)) {
-    rrefuse_auxiliary_exact_fit("Koenker's test", stats$rank, stats$n,
-                                rexact_fit_statistic$n_r_squared)
+    forced <- rstreaming_forced(stats)
+    if (!identical(forced, FALSE)) {
+      rrefuse_auxiliary_exact_fit("Koenker's test", stats$rank, stats$n,
+                                  rexact_fit_statistic$n_r_squared, forced = forced)
+    }
   }
 
   test_statistic <- stats$n * stats$r_squared

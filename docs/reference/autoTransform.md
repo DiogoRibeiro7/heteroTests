@@ -25,11 +25,13 @@ A list with elements `model` (the transformed fit) and
 
 ## Details
 
-Since 0.18.0 it stops with the refusal of [`performBPTest()`](performBPTest.md) on a
-design whose auxiliary regression fits the squared residuals exactly, as
-a factor with two observations per level does for every candidate fit
-(see *Exact fit* in [`performBPTest()`](performBPTest.md)); it chose between them by a
-statistic of the spread of their squared residuals alone.
+Since 0.18.0 it leaves out a candidate fit whose auxiliary
+regression the design forces to fit the squared residuals exactly, which
+[`performBPTest()`](performBPTest.md) refuses (see its *Exact fit*), and stops with that
+refusal when every candidate is refused, as on a factor with two
+observations per level; it chose between them by a statistic of the
+spread of their squared residuals alone. A candidate drops the rows where
+its response is not finite, so its design can differ from the others'.
 
 ## Examples
 

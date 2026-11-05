@@ -90,7 +90,9 @@ squared residuals (see its *Exact fit*), by the same rule: the dummies of a
 factor with two observations per level fit it when the weights are equal in
 each pair, and the F statistic was a ratio to rounding error, 4.06e29 on 28
 and 30 degrees of freedom on 30 subjects of two observations with a
-variance regressor constant in each pair and `against = ~ subject`.
+variance regressor constant in each pair and `against = ~ subject`. Only
+a fit the design of the weighted fit forces is refused; one the data make
+exact gives a value, as up to 0.17.0.
 
 Step 3 keeps \(g_i\) in the regression for a reason. Estimating
 \(\gamma\) fits the variance along \(g_i\), so those directions say

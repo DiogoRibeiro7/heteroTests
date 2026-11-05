@@ -18,11 +18,13 @@ Chooses between no transformation, log, square root and Box--Cox
 based on the Breusch-Pagan test statistic.
 }
 \details{
-Since 0.18.0 it stops with the refusal of \code{\link[=performBPTest]{performBPTest()}} on a
-design whose auxiliary regression fits the squared residuals exactly, as
-a factor with two observations per level does for every candidate fit
-(see \emph{Exact fit} in \code{\link[=performBPTest]{performBPTest()}}); it chose between them by a
-statistic of the spread of their squared residuals alone.
+Since 0.18.0 it leaves out a candidate fit whose auxiliary
+regression the design forces to fit the squared residuals exactly, which
+\code{\link[=performBPTest]{performBPTest()}} refuses (see its \emph{Exact fit}), and stops with that
+refusal when every candidate is refused, as on a factor with two
+observations per level; it chose between them by a statistic of the
+spread of their squared residuals alone. A candidate drops the rows where
+its response is not finite, so its design can differ from the others'.
 }
 \examples{
 data(mtcars)
